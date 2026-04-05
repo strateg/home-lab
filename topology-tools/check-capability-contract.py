@@ -7,7 +7,7 @@ import argparse
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Set
 
-import yaml
+from yaml_loader import load_yaml_file
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -19,8 +19,7 @@ DEFAULT_OBJECTS_DIR = ROOT / "topology" / "object-modules"
 
 
 def _load_yaml(path: Path) -> Any:
-    with open(path, "r", encoding="utf-8") as handle:
-        return yaml.safe_load(handle)
+    return load_yaml_file(path)
 
 
 def _iter_yaml_files(directory: Path) -> Iterable[Path]:
@@ -73,9 +72,16 @@ class CapabilityContractChecker:
             if not isinstance(item, dict):
                 self._error(f"Catalog capability entry #{idx} must be object")
                 continue
-            cap_id = item.get("id")
+            legacy_keys = [key for key in ("id", "capability", "schema") if key in item]
+            if legacy_keys:
+                self._error(
+                    f"Catalog capability entry #{idx} uses legacy semantic keys {legacy_keys}; "
+                    "use '@capability' (and optional '@schema')"
+                )
+                continue
+            cap_id = item.get("@capability")
             if not isinstance(cap_id, str) or not cap_id:
-                self._error(f"Catalog capability entry #{idx} missing non-empty id")
+                self._error(f"Catalog capability entry #{idx} missing non-empty @capability")
                 continue
             if cap_id in ids:
                 self._error(f"Duplicate capability id in catalog: {cap_id}")
@@ -135,9 +141,9 @@ class CapabilityContractChecker:
             if not isinstance(payload, dict):
                 self._error(f"Class file root must be object: {path}")
                 continue
-            class_id = payload.get("class")
+            class_id = payload.get("@class")
             if not isinstance(class_id, str) or not class_id:
-                self._error(f"Class file missing class: {path}")
+                self._error(f"Class file missing @class: {path}")
                 continue
             if class_id in result:
                 self._error(f"Duplicate class id '{class_id}' ({path})")
@@ -158,9 +164,9 @@ class CapabilityContractChecker:
             if not isinstance(payload, dict):
                 self._error(f"Object file root must be object: {path}")
                 continue
-            object_id = payload.get("object")
+            object_id = payload.get("@object")
             if not isinstance(object_id, str) or not object_id:
-                self._error(f"Object file missing object: {path}")
+                self._error(f"Object file missing @object: {path}")
                 continue
             if object_id in result:
                 self._error(f"Duplicate object id '{object_id}' ({path})")
@@ -251,7 +257,7 @@ class CapabilityContractChecker:
         return derived
 
     def _derive_os_caps(self, *, object_id: str, obj: Dict[str, Any]) -> Set[str]:
-        if obj.get("class_ref") == "class.firmware":
+        if obj.get("@extends") == "class.firmware":
             return set()
         os_payload = self._extract_os_properties(obj)
         if not isinstance(os_payload, dict):
@@ -392,9 +398,9 @@ class CapabilityContractChecker:
         object_map: Dict[str, Dict[str, Any]],
     ) -> None:
         for object_id, obj in object_map.items():
-            class_ref = obj.get("class_ref")
+            class_ref = obj.get("@extends")
             if not isinstance(class_ref, str) or not class_ref:
-                self._error(f"Object '{object_id}' is missing class_ref")
+                self._error(f"Object '{object_id}' is missing @extends")
                 continue
             if class_ref not in class_map:
                 self._error(f"Object '{object_id}' references unknown class '{class_ref}'")

@@ -40,7 +40,7 @@ def test_capability_contract_loader_plugin_owner_loads_contract(tmp_path):
     catalog = tmp_path / "catalog.yaml"
     packs = tmp_path / "packs.yaml"
     catalog.write_text(
-        "capabilities:\n" "  - id: cap.a\n" "  - id: cap.b\n",
+        "capabilities:\n" "  - @capability: cap.a\n" "  - @capability: cap.b\n",
         encoding="utf-8",
     )
     packs.write_text(
@@ -91,7 +91,7 @@ def test_capability_contract_loader_accepts_semantic_capability_key(tmp_path):
     assert result.output_data["catalog_ids"] == ["cap.a"]
 
 
-def test_capability_contract_loader_rejects_semantic_collision(tmp_path):
+def test_capability_contract_loader_rejects_legacy_capability_aliases(tmp_path):
     registry = _registry()
     catalog = tmp_path / "catalog.yaml"
     packs = tmp_path / "packs.yaml"
@@ -114,4 +114,4 @@ def test_capability_contract_loader_rejects_semantic_collision(tmp_path):
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
     assert result.has_errors
-    assert any(d.code == "E8803" and "collision" in d.message for d in result.diagnostics)
+    assert any(d.code == "E8801" and "legacy semantic aliases" in d.message for d in result.diagnostics)

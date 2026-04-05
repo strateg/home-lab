@@ -30,18 +30,18 @@ LAYER_BUCKETS: dict[str, str] = {
 
 STARTER_FILES: dict[str, str] = {
     "L1-foundation/firmware/inst.firmware.apc.backups.650va.yaml": (
-        "instance: inst.firmware.apc.backups.650va\n"
-        "object_ref: obj.firmware.apc.backups.650va\n"
+        "@instance: inst.firmware.apc.backups.650va\n"
+        "@extends: obj.firmware.apc.backups.650va\n"
         "group: firmware\n"
-        "layer: L1\n"
-        "version: 1.0.0\n"
+        "@layer: L1\n"
+        "@version: 1.0.0\n"
     ),
     "L1-foundation/power/ups-main.yaml": (
-        "instance: ups-main\n"
-        "object_ref: obj.apc.backups.650va\n"
+        "@instance: ups-main\n"
+        "@extends: obj.apc.backups.650va\n"
         "group: power\n"
-        "layer: L1\n"
-        "version: 1.0.0\n"
+        "@layer: L1\n"
+        "@version: 1.0.0\n"
         "firmware_ref: inst.firmware.apc.backups.650va\n"
         "os_refs: []\n"
     ),

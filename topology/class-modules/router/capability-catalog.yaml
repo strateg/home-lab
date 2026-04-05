@@ -11,7 +11,7 @@ capabilities:
   # ROUTING
   # ============================================================================
 
-  - id: cap.net.l3.routing.static
+  - @capability: cap.net.l3.routing.static
     title: Static Routing
     summary: Supports manual static routes for IPv4/IPv6 traffic forwarding
     domain: routing
@@ -19,40 +19,40 @@ capabilities:
     required_by:
       - class.router
 
-  - id: cap.net.l3.routing.dynamic.rip
+  - @capability: cap.net.l3.routing.dynamic.rip
     title: Dynamic Routing (RIP)
     summary: Supports RIP routing protocol
     domain: routing
     stability: stable
 
-  - id: cap.net.l3.routing.dynamic.bgp
+  - @capability: cap.net.l3.routing.dynamic.bgp
     title: BGP Routing
     summary: Supports Border Gateway Protocol peering for AS-level routing
     domain: routing
     stability: stable
     enterprise: true
 
-  - id: cap.net.l3.routing.dynamic.ospf
+  - @capability: cap.net.l3.routing.dynamic.ospf
     title: OSPF Routing
     summary: Supports Open Shortest Path First routing protocol
     domain: routing
     stability: stable
     enterprise: true
 
-  - id: cap.net.l3.routing.ecmp
+  - @capability: cap.net.l3.routing.ecmp
     title: Equal-Cost Multi-Path
     summary: Supports load balancing across multiple equal-cost routes
     domain: routing
     stability: stable
 
-  - id: cap.net.l3.routing.policy.pcc
+  - @capability: cap.net.l3.routing.policy.pcc
     title: Per-Connection Classifier
     summary: Supports per-connection load balancing (MikroTik-specific)
     domain: routing
     stability: stable
     vendor_specific: mikrotik
 
-  - id: cap.net.l3.routing.policy.pbr
+  - @capability: cap.net.l3.routing.policy.pbr
     title: Policy-Based Routing
     summary: Supports routing based on source IP, port, protocol, or other criteria
     domain: routing
@@ -62,7 +62,7 @@ capabilities:
   # NAT & FIREWALL
   # ============================================================================
 
-  - id: cap.net.l3.translation.snat
+  - @capability: cap.net.l3.translation.snat
     title: Source NAT (Masquerade)
     summary: Supports source network address translation for WAN access
     domain: nat
@@ -70,13 +70,13 @@ capabilities:
     required_by:
       - class.router
 
-  - id: cap.net.l3.translation.dnat
+  - @capability: cap.net.l3.translation.dnat
     title: Destination NAT (Port Forwarding)
     summary: Supports destination NAT for inbound port forwarding
     domain: nat
     stability: stable
 
-  - id: cap.net.l3.security.firewall.stateful
+  - @capability: cap.net.l3.security.firewall.stateful
     title: Stateful Firewall
     summary: Supports connection tracking and stateful filtering policies
     domain: firewall
@@ -84,13 +84,13 @@ capabilities:
     required_by:
       - class.router
 
-  - id: cap.net.l3.security.firewall.zone_policy
+  - @capability: cap.net.l3.security.firewall.zone_policy
     title: Zone-Based Firewall
     summary: Supports zone-based security policies (LAN/WAN/DMZ)
     domain: firewall
     stability: stable
 
-  - id: cap.net.l3.security.firewall.l7_filtering
+  - @capability: cap.net.l3.security.firewall.l7_filtering
     title: Layer 7 Filtering
     summary: Supports application-layer protocol detection and filtering
     domain: firewall
@@ -100,44 +100,44 @@ capabilities:
   # VPN
   # ============================================================================
 
-  - id: cap.net.overlay.vpn.wireguard.server
+  - @capability: cap.net.overlay.vpn.wireguard.server
     title: WireGuard Server
     summary: Supports WireGuard VPN tunnel endpoint mode (accepting connections)
     domain: vpn
     stability: stable
 
-  - id: cap.net.overlay.vpn.wireguard.client
+  - @capability: cap.net.overlay.vpn.wireguard.client
     title: WireGuard Client
     summary: Supports WireGuard VPN client mode (connecting to remote server)
     domain: vpn
     stability: stable
 
-  - id: cap.net.overlay.vpn.openvpn.server
+  - @capability: cap.net.overlay.vpn.openvpn.server
     title: OpenVPN Server
     summary: Supports OpenVPN server mode
     domain: vpn
     stability: stable
 
-  - id: cap.net.overlay.vpn.openvpn.client
+  - @capability: cap.net.overlay.vpn.openvpn.client
     title: OpenVPN Client
     summary: Supports OpenVPN client mode
     domain: vpn
     stability: stable
 
-  - id: cap.net.overlay.vpn.ipsec
+  - @capability: cap.net.overlay.vpn.ipsec
     title: IPsec VPN
     summary: Supports IPsec/IKEv2 VPN tunnels
     domain: vpn
     stability: stable
 
-  - id: cap.net.overlay.vpn.multi_instance
+  - @capability: cap.net.overlay.vpn.multi_instance
     title: VPN Multi-Instance
     summary: Supports running multiple VPN connections simultaneously
     domain: vpn
     stability: stable
     note: "GL.iNet firmware 4.8.2+ feature"
 
-  - id: cap.net.overlay.vpn.policy_routing
+  - @capability: cap.net.overlay.vpn.policy_routing
     title: VPN Policy Routing
     summary: Supports per-client VPN routing by MAC address, domain, or destination IP
     domain: vpn
@@ -148,7 +148,7 @@ capabilities:
   # INTERFACES
   # ============================================================================
 
-  - id: cap.net.interface.ethernet
+  - @capability: cap.net.interface.ethernet
     title: Ethernet Interface
     summary: Supports Ethernet data interfaces for routed or bridged traffic.
     domain: interface
@@ -156,56 +156,56 @@ capabilities:
     required_by:
       - class.router
 
-  - id: cap.net.interface.wifi
+  - @capability: cap.net.interface.wifi
     title: WiFi Interface
     summary: Supports IEEE 802.11 wireless data interfaces.
     domain: interface
     stability: stable
 
-  - id: cap.net.interface.fiber
+  - @capability: cap.net.interface.fiber
     title: Fiber Interface
     summary: Supports fiber uplink interfaces (SFP/SFP+ or provider handoff).
     domain: interface
     stability: stable
 
-  - id: cap.net.interface.wifi.dual_band
+  - @capability: cap.net.interface.wifi.dual_band
     title: Dual-Band WiFi
     summary: Supports simultaneous 2.4GHz and 5GHz wireless operation
     domain: interface
     stability: stable
 
-  - id: cap.net.interface.wifi.wifi6
+  - @capability: cap.net.interface.wifi.wifi6
     title: WiFi 6 (802.11ax)
     summary: Supports WiFi 6 (802.11ax) standard with OFDMA, MU-MIMO, BSS Coloring
     domain: interface
     stability: stable
 
-  - id: cap.net.interface.wifi.mu_mimo
+  - @capability: cap.net.interface.wifi.mu_mimo
     title: Multi-User MIMO
     summary: Supports simultaneous transmission to multiple clients
     domain: interface
     stability: stable
 
-  - id: cap.net.interface.wifi.beamforming
+  - @capability: cap.net.interface.wifi.beamforming
     title: Beamforming
     summary: Supports directed signal transmission to specific clients
     domain: interface
     stability: stable
 
-  - id: cap.net.l2.segmentation.guest_isolation
+  - @capability: cap.net.l2.segmentation.guest_isolation
     title: Guest Isolation Segment
     summary: Supports isolated guest segment (typically separate VLAN/SSID).
     domain: segmentation
     stability: stable
 
-  - id: cap.net.interface.wifi.repeater_mode
+  - @capability: cap.net.interface.wifi.repeater_mode
     title: WiFi Repeater/Client Mode
     summary: Supports connecting to upstream WiFi network as client (repeater/bridge mode)
     domain: interface
     stability: stable
     note: "Essential for travel routers"
 
-  - id: cap.net.interface.wifi.mesh
+  - @capability: cap.net.interface.wifi.mesh
     title: WiFi Mesh
     summary: Supports mesh networking for seamless roaming
     domain: interface
@@ -215,31 +215,31 @@ capabilities:
   # UPLINK POLICY
   # ============================================================================
 
-  - id: cap.net.l3.uplink.multi_uplink
+  - @capability: cap.net.l3.uplink.multi_uplink
     title: Multiple WAN Interfaces
     summary: Supports multiple WAN connections (Ethernet + LTE, dual WAN)
     domain: uplink
     stability: stable
 
-  - id: cap.net.l3.uplink.failover
+  - @capability: cap.net.l3.uplink.failover
     title: WAN Failover
     summary: Supports automatic failover between WAN interfaces
     domain: uplink
     stability: stable
 
-  - id: cap.net.l3.uplink.load_balance
+  - @capability: cap.net.l3.uplink.load_balance
     title: WAN Load Balancing
     summary: Supports load balancing traffic across multiple WAN connections
     domain: uplink
     stability: stable
 
-  - id: cap.net.interface.lte
+  - @capability: cap.net.interface.lte
     title: LTE/Cellular Interface
     summary: Supports LTE/5G cellular data interface.
     domain: interface
     stability: stable
 
-  - id: cap.net.interface.pppoe
+  - @capability: cap.net.interface.pppoe
     title: PPPoE Interface
     summary: Supports PPPoE session interfaces over Ethernet uplink.
     domain: interface
@@ -249,20 +249,20 @@ capabilities:
   # QoS
   # ============================================================================
 
-  - id: cap.net.l3.qos.basic
+  - @capability: cap.net.l3.qos.basic
     title: Basic QoS
     summary: Supports simple traffic priority queues
     domain: qos
     stability: stable
 
-  - id: cap.net.l3.qos.advanced
+  - @capability: cap.net.l3.qos.advanced
     title: Advanced QoS
     summary: Supports HTB (Hierarchical Token Bucket) and complex queue trees
     domain: qos
     stability: stable
     note: "MikroTik RouterOS feature"
 
-  - id: cap.net.l3.qos.sqm
+  - @capability: cap.net.l3.qos.sqm
     title: Smart Queue Management (SQM)
     summary: Supports CAKE or fq_codel algorithms for bufferbloat reduction
     domain: qos
@@ -273,7 +273,7 @@ capabilities:
   # NETWORK SERVICES
   # ============================================================================
 
-  - id: cap.net.service.dhcp.server
+  - @capability: cap.net.service.dhcp.server
     title: DHCP Server
     summary: Supports DHCP lease management for local subnets
     domain: service
@@ -281,13 +281,13 @@ capabilities:
     required_by:
       - class.router
 
-  - id: cap.net.service.dhcp.relay
+  - @capability: cap.net.service.dhcp.relay
     title: DHCP Relay
     summary: Supports forwarding DHCP requests to external DHCP server
     domain: service
     stability: stable
 
-  - id: cap.net.service.dns.resolver
+  - @capability: cap.net.service.dns.resolver
     title: DNS Server/Resolver
     summary: Supports local DNS resolution and caching
     domain: service
@@ -295,31 +295,31 @@ capabilities:
     required_by:
       - class.router
 
-  - id: cap.net.service.dns.dot
+  - @capability: cap.net.service.dns.dot
     title: DNS-over-TLS
     summary: Supports encrypted DNS queries via TLS (Stubby, dnsdist)
     domain: service
     stability: stable
 
-  - id: cap.net.service.dns.doh
+  - @capability: cap.net.service.dns.doh
     title: DNS-over-HTTPS
     summary: Supports encrypted DNS queries via HTTPS (dnscrypt-proxy)
     domain: service
     stability: stable
 
-  - id: cap.net.service.dns.filtering
+  - @capability: cap.net.service.dns.filtering
     title: DNS-Based Ad Blocking
     summary: Supports DNS filtering for ad blocking (AdGuard Home, Pi-hole)
     domain: service
     stability: stable
 
-  - id: cap.net.service.ntp.server
+  - @capability: cap.net.service.ntp.server
     title: NTP Server
     summary: Supports Network Time Protocol server for time synchronization
     domain: service
     stability: stable
 
-  - id: cap.net.service.snmp
+  - @capability: cap.net.service.snmp
     title: SNMP Monitoring
     summary: Supports SNMP v2c/v3 for remote monitoring
     domain: service
@@ -329,45 +329,45 @@ capabilities:
   # ADVANCED
   # ============================================================================
 
-  - id: cap.net.l2.segmentation.vlan.8021q
+  - @capability: cap.net.l2.segmentation.vlan.8021q
     title: VLAN (802.1Q)
     summary: Supports VLAN tagging and trunk interfaces
     domain: segmentation
     stability: stable
 
-  - id: cap.net.l3.segmentation.vrf
+  - @capability: cap.net.l3.segmentation.vrf
     title: Virtual Routing & Forwarding (VRF)
     summary: Supports isolated routing domains on single device
     domain: segmentation
     stability: stable
     enterprise: true
 
-  - id: cap.net.platform.containers
+  - @capability: cap.net.platform.containers
     title: Container Support
     summary: Supports running Docker/container workloads on router
     domain: platform
     stability: stable
     note: "RouterOS v7 containers"
 
-  - id: cap.net.service.portal.captive
+  - @capability: cap.net.service.portal.captive
     title: Hotspot/Captive Portal
     summary: Supports captive portal for guest authentication
     domain: service
     stability: stable
 
-  - id: cap.net.observability.netflow
+  - @capability: cap.net.observability.netflow
     title: Netflow/IPFIX Export
     summary: Supports exporting flow data for traffic analysis
     domain: observability
     stability: stable
 
-  - id: cap.net.management.api.rest
+  - @capability: cap.net.management.api.rest
     title: REST API
     summary: Supports RESTful API for automation and integration
     domain: management
     stability: stable
 
-  - id: cap.net.service.dyndns
+  - @capability: cap.net.service.dyndns
     title: Dynamic DNS Client
     summary: Supports automatic DNS record updates for dynamic IP addresses
     domain: service
@@ -377,7 +377,7 @@ capabilities:
   # COMPUTE
   # ============================================================================
 
-  - id: cap.compute.node.cloud_vm
+  - @capability: cap.compute.node.cloud_vm
     title: Cloud VM Node
     summary: Represents a virtual machine node hosted by cloud infrastructure
     domain: compute
@@ -385,7 +385,7 @@ capabilities:
     required_by:
       - class.compute.workload.vm
 
-  - id: cap.compute.node.edge
+  - @capability: cap.compute.node.edge
     title: Edge Compute Node
     summary: Represents a low-power edge host for local workloads
     domain: compute
@@ -393,7 +393,7 @@ capabilities:
     required_by:
       - class.compute.edge_node
 
-  - id: cap.compute.host.hypervisor
+  - @capability: cap.compute.host.hypervisor
     title: Hypervisor Host
     summary: Supports hosting of virtualized workloads as a hypervisor node
     domain: compute
@@ -401,7 +401,7 @@ capabilities:
     required_by:
       - class.compute.hypervisor
 
-  - id: cap.compute.runtime.container_host
+  - @capability: cap.compute.runtime.container_host
     title: Container Host Runtime
     summary: Supports running containerized workloads on the host
     domain: compute
@@ -410,7 +410,7 @@ capabilities:
       - class.compute.edge_node
       - class.compute.hypervisor
 
-  - id: cap.compute.runtime.vm_host
+  - @capability: cap.compute.runtime.vm_host
     title: VM Host Runtime
     summary: Supports running virtual machine workloads on the host
     domain: compute
@@ -418,7 +418,7 @@ capabilities:
     required_by:
       - class.compute.hypervisor
 
-  - id: cap.compute.workload.container
+  - @capability: cap.compute.workload.container
     title: Container Workload Contract
     summary: Supports container workload semantics (allocation, lifecycle, execution)
     domain: compute
@@ -427,7 +427,7 @@ capabilities:
       - class.compute.workload.lxc
       - class.compute.workload.docker
 
-  - id: cap.compute.workload.linux_base
+  - @capability: cap.compute.workload.linux_base
     title: Linux Workload Base
     summary: Supports Linux-based runtime and baseline OS contract expectations
     domain: compute
@@ -438,7 +438,7 @@ capabilities:
       - class.compute.workload.lxc
       - class.compute.workload.docker
 
-  - id: cap.compute.storage.zfs
+  - @capability: cap.compute.storage.zfs
     title: ZFS Storage Substrate
     summary: Supports ZFS-backed storage substrate for compute workloads
     domain: compute
@@ -448,7 +448,7 @@ capabilities:
   # POWER
   # ============================================================================
 
-  - id: cap.power.ups.battery_backup
+  - @capability: cap.power.ups.battery_backup
     title: UPS Battery Backup
     summary: Provides battery-backed power continuity for connected devices
     domain: power
@@ -456,7 +456,7 @@ capabilities:
     required_by:
       - class.power.ups
 
-  - id: cap.power.ups.status_telemetry
+  - @capability: cap.power.ups.status_telemetry
     title: UPS Status Telemetry
     summary: Exposes UPS operational status and health telemetry
     domain: power
@@ -464,7 +464,7 @@ capabilities:
     required_by:
       - class.power.ups
 
-  - id: cap.power.pdu.switching
+  - @capability: cap.power.pdu.switching
     title: Managed PDU Switching
     summary: Supports remote outlet switching and power-control actions
     domain: power
@@ -472,7 +472,7 @@ capabilities:
     required_by:
       - class.power.pdu
 
-  - id: cap.power.pdu.telemetry
+  - @capability: cap.power.pdu.telemetry
     title: Managed PDU Telemetry
     summary: Exposes PDU load and outlet telemetry for observability and control
     domain: power
@@ -484,7 +484,7 @@ capabilities:
   # APPLICATION SERVICES
   # ============================================================================
 
-  - id: cap.service.alerting.runtime
+  - @capability: cap.service.alerting.runtime
     title: Alerting Runtime
     summary: Runs alert aggregation and delivery workflows
     domain: service
@@ -492,7 +492,7 @@ capabilities:
     required_by:
       - class.service.alerting
 
-  - id: cap.service.alerting.routing
+  - @capability: cap.service.alerting.routing
     title: Alert Routing
     summary: Supports rule-based alert routing to notification targets
     domain: service
@@ -500,7 +500,7 @@ capabilities:
     required_by:
       - class.service.alerting
 
-  - id: cap.service.cache.runtime
+  - @capability: cap.service.cache.runtime
     title: Cache Runtime
     summary: Runs in-memory cache service process
     domain: service
@@ -508,7 +508,7 @@ capabilities:
     required_by:
       - class.service.cache
 
-  - id: cap.service.cache.persistence
+  - @capability: cap.service.cache.persistence
     title: Cache Persistence
     summary: Supports optional persistence and recovery for cache state
     domain: service
@@ -516,7 +516,7 @@ capabilities:
     required_by:
       - class.service.cache
 
-  - id: cap.service.database.runtime
+  - @capability: cap.service.database.runtime
     title: Database Runtime
     summary: Runs relational or document database service process
     domain: service
@@ -524,7 +524,7 @@ capabilities:
     required_by:
       - class.service.database
 
-  - id: cap.service.database.persistence
+  - @capability: cap.service.database.persistence
     title: Database Persistence
     summary: Supports durable state persistence and recovery for databases
     domain: service
@@ -532,7 +532,7 @@ capabilities:
     required_by:
       - class.service.database
 
-  - id: cap.service.dns.runtime
+  - @capability: cap.service.dns.runtime
     title: DNS Runtime
     summary: Runs DNS resolver/forwarder service process
     domain: service
@@ -540,7 +540,7 @@ capabilities:
     required_by:
       - class.service.dns
 
-  - id: cap.service.dns.filtering
+  - @capability: cap.service.dns.filtering
     title: DNS Filtering
     summary: Supports policy-based DNS filtering and blocklists
     domain: service
@@ -548,7 +548,7 @@ capabilities:
     required_by:
       - class.service.dns
 
-  - id: cap.service.file_storage.runtime
+  - @capability: cap.service.file_storage.runtime
     title: File Storage Runtime
     summary: Runs file storage and sharing service process
     domain: service
@@ -556,7 +556,7 @@ capabilities:
     required_by:
       - class.service.file_storage
 
-  - id: cap.service.file_storage.persistence
+  - @capability: cap.service.file_storage.persistence
     title: File Storage Persistence
     summary: Supports durable storage for file-sharing state and content
     domain: service
@@ -564,7 +564,7 @@ capabilities:
     required_by:
       - class.service.file_storage
 
-  - id: cap.service.home_automation.runtime
+  - @capability: cap.service.home_automation.runtime
     title: Home Automation Runtime
     summary: Runs home automation control service process
     domain: service
@@ -572,7 +572,7 @@ capabilities:
     required_by:
       - class.service.home_automation
 
-  - id: cap.service.home_automation.messaging
+  - @capability: cap.service.home_automation.messaging
     title: Home Automation Messaging
     summary: Supports automation event messaging and device integration
     domain: service
@@ -580,7 +580,7 @@ capabilities:
     required_by:
       - class.service.home_automation
 
-  - id: cap.service.logging.runtime
+  - @capability: cap.service.logging.runtime
     title: Logging Runtime
     summary: Runs centralized logging service process
     domain: service
@@ -588,7 +588,7 @@ capabilities:
     required_by:
       - class.service.logging
 
-  - id: cap.service.logging.forwarding
+  - @capability: cap.service.logging.forwarding
     title: Log Forwarding
     summary: Supports collection and forwarding of logs from upstream targets
     domain: service
@@ -596,7 +596,7 @@ capabilities:
     required_by:
       - class.service.logging
 
-  - id: cap.service.media_server.runtime
+  - @capability: cap.service.media_server.runtime
     title: Media Server Runtime
     summary: Runs media indexing and serving workloads
     domain: service
@@ -604,7 +604,7 @@ capabilities:
     required_by:
       - class.service.media_server
 
-  - id: cap.service.media_server.streaming
+  - @capability: cap.service.media_server.streaming
     title: Media Streaming
     summary: Supports streaming endpoints and playback session handling
     domain: service
@@ -612,7 +612,7 @@ capabilities:
     required_by:
       - class.service.media_server
 
-  - id: cap.service.monitoring.runtime
+  - @capability: cap.service.monitoring.runtime
     title: Monitoring Runtime
     summary: Runs metrics and telemetry monitoring service process
     domain: service
@@ -620,7 +620,7 @@ capabilities:
     required_by:
       - class.service.monitoring
 
-  - id: cap.service.monitoring.metrics
+  - @capability: cap.service.monitoring.metrics
     title: Metrics Processing
     summary: Supports metrics scrape, aggregation, or export contract
     domain: service
@@ -628,7 +628,7 @@ capabilities:
     required_by:
       - class.service.monitoring
 
-  - id: cap.service.proxy.runtime
+  - @capability: cap.service.proxy.runtime
     title: Proxy Runtime
     summary: Runs reverse-proxy or ingress gateway process
     domain: service
@@ -636,7 +636,7 @@ capabilities:
     required_by:
       - class.service.proxy
 
-  - id: cap.service.proxy.ingress
+  - @capability: cap.service.proxy.ingress
     title: Ingress Routing
     summary: Supports host/path-based ingress and upstream routing
     domain: service
@@ -644,7 +644,7 @@ capabilities:
     required_by:
       - class.service.proxy
 
-  - id: cap.service.visualization.runtime
+  - @capability: cap.service.visualization.runtime
     title: Visualization Runtime
     summary: Runs dashboards and data-visualization service process
     domain: service
@@ -652,7 +652,7 @@ capabilities:
     required_by:
       - class.service.visualization
 
-  - id: cap.service.visualization.dashboard
+  - @capability: cap.service.visualization.dashboard
     title: Dashboard Rendering
     summary: Supports dashboard rendering and panel composition
     domain: service
@@ -660,7 +660,7 @@ capabilities:
     required_by:
       - class.service.visualization
 
-  - id: cap.service.vpn.runtime
+  - @capability: cap.service.vpn.runtime
     title: VPN Service Runtime
     summary: Runs service-level VPN endpoint process
     domain: service
@@ -668,7 +668,7 @@ capabilities:
     required_by:
       - class.service.vpn
 
-  - id: cap.service.vpn.tunnel
+  - @capability: cap.service.vpn.tunnel
     title: VPN Tunnel Contract
     summary: Supports encrypted tunnel establishment and key/session handling
     domain: service
@@ -676,7 +676,7 @@ capabilities:
     required_by:
       - class.service.vpn
 
-  - id: cap.service.web_application.runtime
+  - @capability: cap.service.web_application.runtime
     title: Web Application Runtime
     summary: Runs generic web application service process
     domain: service
@@ -684,7 +684,7 @@ capabilities:
     required_by:
       - class.service.web_application
 
-  - id: cap.service.web_application.http
+  - @capability: cap.service.web_application.http
     title: Web Application HTTP Contract
     summary: Supports HTTP(S) request/response service surface
     domain: service
@@ -692,7 +692,7 @@ capabilities:
     required_by:
       - class.service.web_application
 
-  - id: cap.service.web_ui.runtime
+  - @capability: cap.service.web_ui.runtime
     title: Web UI Runtime
     summary: Runs administrative web interface process
     domain: service
@@ -700,7 +700,7 @@ capabilities:
     required_by:
       - class.service.web_ui
 
-  - id: cap.service.web_ui.management
+  - @capability: cap.service.web_ui.management
     title: Web UI Management Surface
     summary: Supports authenticated management endpoints over web UI
     domain: service
@@ -713,98 +713,98 @@ capabilities:
   # ============================================================================
 
   # Firmware families/vendors
-  - id: cap.firmware.mikrotik
+  - @capability: cap.firmware.mikrotik
     title: MikroTik Firmware
     summary: MikroTik firmware family.
     domain: firmware
     stability: stable
     derived: true
 
-  - id: cap.firmware.openwrt
+  - @capability: cap.firmware.openwrt
     title: OpenWrt Firmware
     summary: OpenWrt firmware family.
     domain: firmware
     stability: stable
     derived: true
 
-  - id: cap.firmware.generic
+  - @capability: cap.firmware.generic
     title: Generic Firmware
     summary: Generic firmware profile.
     domain: firmware
     stability: stable
     derived: true
 
-  - id: cap.firmware.routeros
+  - @capability: cap.firmware.routeros
     title: RouterOS Firmware Family
     summary: RouterOS firmware stack.
     domain: firmware
     stability: stable
     derived: true
 
-  - id: cap.firmware.uefi
+  - @capability: cap.firmware.uefi
     title: UEFI Firmware
     summary: UEFI firmware stack.
     domain: firmware
     stability: stable
     derived: true
 
-  - id: cap.firmware.uboot
+  - @capability: cap.firmware.uboot
     title: U-Boot Firmware
     summary: U-Boot firmware stack.
     domain: firmware
     stability: stable
     derived: true
 
-  - id: cap.firmware.arch.x86_64
+  - @capability: cap.firmware.arch.x86_64
     title: Firmware x86-64
     summary: Firmware architecture x86-64.
     domain: firmware
     stability: stable
     derived: true
 
-  - id: cap.firmware.arch.arm64
+  - @capability: cap.firmware.arch.arm64
     title: Firmware ARM64
     summary: Firmware architecture arm64.
     domain: firmware
     stability: stable
     derived: true
 
-  - id: cap.firmware.arch.armhf
+  - @capability: cap.firmware.arch.armhf
     title: Firmware ARMhf
     summary: Firmware architecture armhf.
     domain: firmware
     stability: stable
     derived: true
 
-  - id: cap.firmware.arch.mipsel
+  - @capability: cap.firmware.arch.mipsel
     title: Firmware MIPSel
     summary: Firmware architecture mipsel.
     domain: firmware
     stability: stable
     derived: true
 
-  - id: cap.firmware.boot.uefi
+  - @capability: cap.firmware.boot.uefi
     title: UEFI Boot Stack
     summary: UEFI boot process support.
     domain: firmware
     stability: stable
     derived: true
 
-  - id: cap.firmware.boot.uboot
+  - @capability: cap.firmware.boot.uboot
     title: U-Boot Stack
     summary: U-Boot boot process support.
     domain: firmware
     stability: stable
     derived: true
 
-  - id: cap.firmware.boot.proprietary
+  - @capability: cap.firmware.boot.proprietary
     title: Proprietary Boot Stack
     summary: Proprietary vendor boot stack.
     domain: firmware
     stability: stable
     derived: true
 
-  - id: cap.firmware.virtual
+  - @capability: cap.firmware.virtual
     title: Virtual Firmware
     summary: Firmware profile for virtualized compute.
     domain: firmware
@@ -812,35 +812,35 @@ capabilities:
     derived: true
 
   # OS Families
-  - id: cap.os.linux
+  - @capability: cap.os.linux
     title: Linux OS
     summary: Linux-based operating system.
     domain: os
     stability: stable
     derived: true
 
-  - id: cap.os.bsd
+  - @capability: cap.os.bsd
     title: BSD OS
     summary: BSD-based operating system.
     domain: os
     stability: stable
     derived: true
 
-  - id: cap.os.windows
+  - @capability: cap.os.windows
     title: Windows OS
     summary: Windows-based operating system.
     domain: os
     stability: stable
     derived: true
 
-  - id: cap.os.routeros
+  - @capability: cap.os.routeros
     title: RouterOS
     summary: MikroTik RouterOS operating system.
     domain: os
     stability: stable
     derived: true
 
-  - id: cap.os.proprietary
+  - @capability: cap.os.proprietary
     title: Proprietary OS
     summary: Vendor-proprietary operating system.
     domain: os
@@ -848,42 +848,42 @@ capabilities:
     derived: true
 
   # Distributions
-  - id: cap.os.debian
+  - @capability: cap.os.debian
     title: Debian
     summary: Debian Linux distribution.
     domain: os
     stability: stable
     derived: true
 
-  - id: cap.os.ubuntu
+  - @capability: cap.os.ubuntu
     title: Ubuntu
     summary: Ubuntu Linux distribution.
     domain: os
     stability: stable
     derived: true
 
-  - id: cap.os.alpine
+  - @capability: cap.os.alpine
     title: Alpine Linux
     summary: Alpine Linux distribution.
     domain: os
     stability: stable
     derived: true
 
-  - id: cap.os.fedora
+  - @capability: cap.os.fedora
     title: Fedora
     summary: Fedora Linux distribution.
     domain: os
     stability: stable
     derived: true
 
-  - id: cap.os.nixos
+  - @capability: cap.os.nixos
     title: NixOS
     summary: NixOS distribution.
     domain: os
     stability: stable
     derived: true
 
-  - id: cap.os.openwrt
+  - @capability: cap.os.openwrt
     title: OpenWrt
     summary: OpenWrt router distribution.
     domain: os
@@ -891,14 +891,14 @@ capabilities:
     derived: true
 
   # Releases / aliases
-  - id: cap.os.debian.12
+  - @capability: cap.os.debian.12
     title: Debian 12
     summary: Debian 12 (Bookworm) release.
     domain: os
     stability: stable
     derived: true
 
-  - id: cap.os.debian.bookworm
+  - @capability: cap.os.debian.bookworm
     title: Debian Bookworm
     summary: Alias for Debian 12.
     domain: os
@@ -906,14 +906,14 @@ capabilities:
     derived: true
     alias_for: cap.os.debian.12
 
-  - id: cap.os.debian.11
+  - @capability: cap.os.debian.11
     title: Debian 11
     summary: Debian 11 (Bullseye) release.
     domain: os
     stability: stable
     derived: true
 
-  - id: cap.os.debian.bullseye
+  - @capability: cap.os.debian.bullseye
     title: Debian Bullseye
     summary: Alias for Debian 11.
     domain: os
@@ -921,21 +921,21 @@ capabilities:
     derived: true
     alias_for: cap.os.debian.11
 
-  - id: cap.os.ubuntu.2404
+  - @capability: cap.os.ubuntu.2404
     title: Ubuntu 24.04
     summary: Ubuntu 24.04 LTS release.
     domain: os
     stability: stable
     derived: true
 
-  - id: cap.os.ubuntu.2204
+  - @capability: cap.os.ubuntu.2204
     title: Ubuntu 22.04
     summary: Ubuntu 22.04 LTS release.
     domain: os
     stability: stable
     derived: true
 
-  - id: cap.os.routeros.7
+  - @capability: cap.os.routeros.7
     title: RouterOS v7
     summary: RouterOS v7 release branch.
     domain: os
@@ -943,35 +943,35 @@ capabilities:
     derived: true
 
   # Init systems
-  - id: cap.os.init.systemd
+  - @capability: cap.os.init.systemd
     title: Systemd Init
     summary: Uses systemd init system.
     domain: os
     stability: stable
     derived: true
 
-  - id: cap.os.init.openrc
+  - @capability: cap.os.init.openrc
     title: OpenRC Init
     summary: Uses OpenRC init system.
     domain: os
     stability: stable
     derived: true
 
-  - id: cap.os.init.sysvinit
+  - @capability: cap.os.init.sysvinit
     title: SysVinit Init
     summary: Uses SysVinit init system.
     domain: os
     stability: stable
     derived: true
 
-  - id: cap.os.init.busybox
+  - @capability: cap.os.init.busybox
     title: BusyBox Init
     summary: Uses BusyBox init system.
     domain: os
     stability: stable
     derived: true
 
-  - id: cap.os.init.proprietary
+  - @capability: cap.os.init.proprietary
     title: Proprietary Init
     summary: Uses vendor-proprietary init system.
     domain: os
@@ -979,42 +979,42 @@ capabilities:
     derived: true
 
   # Package managers
-  - id: cap.os.pkg.apt
+  - @capability: cap.os.pkg.apt
     title: APT Package Manager
     summary: Uses APT package manager.
     domain: os
     stability: stable
     derived: true
 
-  - id: cap.os.pkg.apk
+  - @capability: cap.os.pkg.apk
     title: APK Package Manager
     summary: Uses APK package manager.
     domain: os
     stability: stable
     derived: true
 
-  - id: cap.os.pkg.dnf
+  - @capability: cap.os.pkg.dnf
     title: DNF Package Manager
     summary: Uses DNF package manager.
     domain: os
     stability: stable
     derived: true
 
-  - id: cap.os.pkg.nix
+  - @capability: cap.os.pkg.nix
     title: Nix Package Manager
     summary: Uses Nix package manager.
     domain: os
     stability: stable
     derived: true
 
-  - id: cap.os.pkg.opkg
+  - @capability: cap.os.pkg.opkg
     title: OPKG Package Manager
     summary: Uses OPKG package manager.
     domain: os
     stability: stable
     derived: true
 
-  - id: cap.os.pkg.none
+  - @capability: cap.os.pkg.none
     title: No Package Manager
     summary: No package manager is exposed.
     domain: os
@@ -1022,35 +1022,35 @@ capabilities:
     derived: true
 
   # Architectures
-  - id: cap.arch.x86_64
+  - @capability: cap.arch.x86_64
     title: x86-64 Architecture
     summary: 64-bit x86 architecture.
     domain: arch
     stability: stable
     derived: true
 
-  - id: cap.arch.arm64
+  - @capability: cap.arch.arm64
     title: ARM64 Architecture
     summary: 64-bit ARM architecture.
     domain: arch
     stability: stable
     derived: true
 
-  - id: cap.arch.armhf
+  - @capability: cap.arch.armhf
     title: ARMhf Architecture
     summary: 32-bit ARM hard-float architecture.
     domain: arch
     stability: stable
     derived: true
 
-  - id: cap.arch.riscv64
+  - @capability: cap.arch.riscv64
     title: RISC-V 64 Architecture
     summary: 64-bit RISC-V architecture.
     domain: arch
     stability: stable
     derived: true
 
-  - id: cap.arch.mipsel
+  - @capability: cap.arch.mipsel
     title: MIPSel Architecture
     summary: Little-endian MIPS architecture.
     domain: arch
@@ -1062,101 +1062,101 @@ capabilities:
   # ============================================================================
 
   # VLAN capabilities
-  - id: cap.vlan.tagged
+  - @capability: cap.vlan.tagged
     title: VLAN 802.1Q Tagged
     summary: VLAN supports IEEE 802.1Q tagging.
     domain: l2_network
     stability: stable
 
-  - id: cap.vlan.untagged
+  - @capability: cap.vlan.untagged
     title: VLAN Untagged
     summary: VLAN operates without tagging (native VLAN).
     domain: l2_network
     stability: stable
 
-  - id: cap.vlan.pvid
+  - @capability: cap.vlan.pvid
     title: VLAN PVID
     summary: VLAN is the port default (PVID).
     domain: l2_network
     stability: stable
 
   # Bridge capabilities
-  - id: cap.bridge.vlan_aware
+  - @capability: cap.bridge.vlan_aware
     title: VLAN-Aware Bridge
     summary: Bridge supports VLAN awareness.
     domain: l2_network
     stability: stable
 
-  - id: cap.bridge.vlan_filtering
+  - @capability: cap.bridge.vlan_filtering
     title: VLAN Filtering Bridge
     summary: Bridge performs VLAN filtering.
     domain: l2_network
     stability: stable
 
-  - id: cap.bridge.stp
+  - @capability: cap.bridge.stp
     title: STP Bridge
     summary: Bridge supports Spanning Tree Protocol.
     domain: l2_network
     stability: stable
 
-  - id: cap.bridge.container_isolation
+  - @capability: cap.bridge.container_isolation
     title: Container Isolation Bridge
     summary: Bridge provides isolated network segment for container endpoints.
     domain: l2_network
     stability: stable
 
   # Trust zone capabilities
-  - id: cap.zone.isolated
+  - @capability: cap.zone.isolated
     title: Isolated Zone
     summary: Zone is isolated from other zones.
     domain: l2_network
     stability: stable
 
-  - id: cap.zone.management
+  - @capability: cap.zone.management
     title: Management Zone
     summary: Zone is designated for management traffic.
     domain: l2_network
     stability: stable
 
-  - id: cap.zone.dmz
+  - @capability: cap.zone.dmz
     title: DMZ Zone
     summary: Zone is a demilitarized zone.
     domain: l2_network
     stability: stable
 
   # Firewall capabilities
-  - id: cap.firewall.stateful
+  - @capability: cap.firewall.stateful
     title: Stateful Firewall
     summary: Firewall maintains connection state.
     domain: l2_network
     stability: stable
 
-  - id: cap.firewall.connection_tracking
+  - @capability: cap.firewall.connection_tracking
     title: Connection Tracking
     summary: Firewall tracks connections.
     domain: l2_network
     stability: stable
 
-  - id: cap.firewall.logging
+  - @capability: cap.firewall.logging
     title: Firewall Logging
     summary: Firewall supports rule logging.
     domain: l2_network
     stability: stable
 
   # QoS capabilities
-  - id: cap.qos.htb
+  - @capability: cap.qos.htb
     title: HTB QoS
     summary: Hierarchical Token Bucket queuing.
     domain: l2_network
     stability: stable
 
-  - id: cap.qos.sfq
+  - @capability: cap.qos.sfq
     title: SFQ QoS
     summary: Stochastic Fair Queuing.
     domain: l2_network
     stability: stable
 
-  - id: cap.qos.fq_codel
+  - @capability: cap.qos.fq_codel
     title: FQ-CoDel QoS
     summary: Fair Queuing with CoDel.
     domain: l2_network
@@ -1167,57 +1167,57 @@ capabilities:
   # ============================================================================
 
   # Storage pool capabilities
-  - id: cap.storage.pool.local
+  - @capability: cap.storage.pool.local
     title: Local Storage Pool
     summary: Pool is local to single node.
     domain: l3_storage
     stability: stable
 
-  - id: cap.storage.pool.shared
+  - @capability: cap.storage.pool.shared
     title: Shared Storage Pool
     summary: Pool is shared across nodes.
     domain: l3_storage
     stability: stable
 
-  - id: cap.storage.pool.zfs
+  - @capability: cap.storage.pool.zfs
     title: ZFS Storage Pool
     summary: Pool uses ZFS filesystem.
     domain: l3_storage
     stability: stable
 
-  - id: cap.storage.pool.lvm
+  - @capability: cap.storage.pool.lvm
     title: LVM Storage Pool
     summary: Pool uses LVM.
     domain: l3_storage
     stability: stable
 
-  - id: cap.storage.pool.thin
+  - @capability: cap.storage.pool.thin
     title: Thin Provisioned Pool
     summary: Pool supports thin provisioning.
     domain: l3_storage
     stability: stable
 
   # Volume capabilities
-  - id: cap.storage.volume.persistent
+  - @capability: cap.storage.volume.persistent
     title: Persistent Volume
     summary: Volume data persists across restarts.
     domain: l3_storage
     stability: stable
 
-  - id: cap.storage.volume.snapshot
+  - @capability: cap.storage.volume.snapshot
     title: Snapshot Volume
     summary: Volume supports snapshots.
     domain: l3_storage
     stability: stable
 
   # Data asset capabilities
-  - id: cap.storage.asset.critical
+  - @capability: cap.storage.asset.critical
     title: Critical Data Asset
     summary: Asset requires priority backup and protection.
     domain: l3_storage
     stability: stable
 
-  - id: cap.storage.asset.encrypted
+  - @capability: cap.storage.asset.encrypted
     title: Encrypted Data Asset
     summary: Asset data is encrypted at rest.
     domain: l3_storage
@@ -1227,25 +1227,25 @@ capabilities:
   # L6 OBSERVABILITY (healthcheck, alert, dashboard)
   # ============================================================================
 
-  - id: cap.observability.healthcheck.http
+  - @capability: cap.observability.healthcheck.http
     title: HTTP Healthcheck
     summary: HTTP-based health check.
     domain: l6_observability
     stability: stable
 
-  - id: cap.observability.healthcheck.tcp
+  - @capability: cap.observability.healthcheck.tcp
     title: TCP Healthcheck
     summary: TCP port health check.
     domain: l6_observability
     stability: stable
 
-  - id: cap.observability.alert.prometheus
+  - @capability: cap.observability.alert.prometheus
     title: Prometheus Alert
     summary: Prometheus-compatible alert rule.
     domain: l6_observability
     stability: stable
 
-  - id: cap.observability.alert.routing
+  - @capability: cap.observability.alert.routing
     title: Alert Routing
     summary: Supports alert routing rules.
     domain: l6_observability
@@ -1255,13 +1255,13 @@ capabilities:
   # L7 OPERATIONS (backup, workflow, policy)
   # ============================================================================
 
-  - id: cap.operations.backup.incremental
+  - @capability: cap.operations.backup.incremental
     title: Incremental Backup
     summary: Supports incremental backups.
     domain: l7_operations
     stability: stable
 
-  - id: cap.operations.backup.snapshot
+  - @capability: cap.operations.backup.snapshot
     title: Snapshot Backup
     summary: Supports snapshot-based backups.
     domain: l7_operations

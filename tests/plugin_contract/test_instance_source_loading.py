@@ -293,6 +293,52 @@ def test_load_core_compile_inputs_rejects_semantic_metadata_collision(tmp_path: 
     assert any(item.get("code") == "E8801" and "title" in item.get("message", "") for item in diagnostics)
 
 
+def test_load_core_compile_inputs_rejects_legacy_class_ref_in_shard(tmp_path: Path) -> None:
+    layer_contract_path = tmp_path / "layer-contract.yaml"
+    _write_layer_contract(layer_contract_path)
+
+    project_root = tmp_path / "projects" / "test"
+    shard_root = project_root / "instances"
+    shard_file = shard_root / "L1-foundation" / "devices" / "inst.router.a.yaml"
+    shard_file.parent.mkdir(parents=True, exist_ok=True)
+    shard_file.write_text(
+        yaml.safe_dump(
+            {
+                "@version": "1.0.0",
+                "@instance": "inst.router.a",
+                "group": "devices",
+                "@layer": "L1",
+                "@extends": "obj.shard.router",
+                "class_ref": "class.router",
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+
+    bundle = _resolve_bundle(
+        tmp_path,
+        layer_contract_path=layer_contract_path,
+        instances_root="instances",
+    )
+
+    diagnostics: list[dict[str, str]] = []
+
+    def _add_diag(**kwargs):
+        diagnostics.append(kwargs)
+
+    inputs = load_core_compile_inputs(
+        paths=bundle,
+        instances_mode="sharded-only",
+        load_yaml=_load_yaml,
+        add_diag=_add_diag,
+        repo_root=tmp_path,
+    )
+
+    assert inputs.instance_payload is None
+    assert any(item.get("code") == "E8801" and "class_ref" in item.get("message", "") for item in diagnostics)
+
+
 def test_load_core_compile_inputs_rejects_filename_unsafe_instance_id(tmp_path: Path) -> None:
     layer_contract_path = tmp_path / "layer-contract.yaml"
     _write_layer_contract(layer_contract_path)

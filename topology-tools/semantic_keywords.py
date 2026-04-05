@@ -56,17 +56,17 @@ class SemanticKeywordRegistry:
 
 def _default_specs() -> dict[str, SemanticTokenSpec]:
     return {
-        "schema_version": SemanticTokenSpec("schema_version", "@version", ("version",)),
-        "class_id": SemanticTokenSpec("class_id", "@class", ("class",)),
-        "object_id": SemanticTokenSpec("object_id", "@object", ("object",)),
-        "instance_id": SemanticTokenSpec("instance_id", "@instance", ("instance",)),
-        "parent_ref": SemanticTokenSpec("parent_ref", "@extends", ("extends",)),
-        "entity_title": SemanticTokenSpec("entity_title", "@title", ("title",)),
-        "entity_summary": SemanticTokenSpec("entity_summary", "@summary", ("summary",)),
-        "entity_description": SemanticTokenSpec("entity_description", "@description", ("description",)),
-        "entity_layer": SemanticTokenSpec("entity_layer", "@layer", ("layer",)),
-        "capability_id": SemanticTokenSpec("capability_id", "@capability", ("capability", "id")),
-        "capability_schema": SemanticTokenSpec("capability_schema", "@schema", ("schema",)),
+        "schema_version": SemanticTokenSpec("schema_version", "@version", ()),
+        "class_id": SemanticTokenSpec("class_id", "@class", ()),
+        "object_id": SemanticTokenSpec("object_id", "@object", ()),
+        "instance_id": SemanticTokenSpec("instance_id", "@instance", ()),
+        "parent_ref": SemanticTokenSpec("parent_ref", "@extends", ()),
+        "entity_title": SemanticTokenSpec("entity_title", "@title", ()),
+        "entity_summary": SemanticTokenSpec("entity_summary", "@summary", ()),
+        "entity_description": SemanticTokenSpec("entity_description", "@description", ()),
+        "entity_layer": SemanticTokenSpec("entity_layer", "@layer", ()),
+        "capability_id": SemanticTokenSpec("capability_id", "@capability", ()),
+        "capability_schema": SemanticTokenSpec("capability_schema", "@schema", ()),
     }
 
 

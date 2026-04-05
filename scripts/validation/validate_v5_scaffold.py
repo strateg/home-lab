@@ -10,6 +10,10 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
+TOOLS_ROOT = ROOT / "topology-tools"
+sys.path.insert(0, str(TOOLS_ROOT))
+
+from yaml_loader import load_yaml_file
 
 REQUIRED_PATHS = (
     "topology/topology.yaml",
@@ -52,7 +56,7 @@ def check_required_paths(errors: list[dict[str, str]]) -> None:
 def check_yaml_syntax(errors: list[dict[str, str]]) -> None:
     for yaml_file in sorted((ROOT / "topology").rglob("*.yaml")):
         try:
-            yaml.safe_load(yaml_file.read_text(encoding="utf-8"))
+            load_yaml_file(yaml_file)
         except yaml.YAMLError as exc:
             errors.append(
                 {
@@ -69,7 +73,7 @@ def check_model_lock_shape(errors: list[dict[str, str]]) -> None:
         return
 
     try:
-        payload = yaml.safe_load(lock_file.read_text(encoding="utf-8")) or {}
+        payload = load_yaml_file(lock_file) or {}
     except yaml.YAMLError:
         return
 
@@ -101,7 +105,7 @@ def check_topology_manifest(errors: list[dict[str, str]]) -> None:
         return
 
     try:
-        payload = yaml.safe_load(manifest_file.read_text(encoding="utf-8")) or {}
+        payload = load_yaml_file(manifest_file) or {}
     except yaml.YAMLError as exc:
         errors.append(
             {
@@ -214,7 +218,7 @@ def check_topology_manifest(errors: list[dict[str, str]]) -> None:
         return
 
     try:
-        project_payload = yaml.safe_load(project_manifest.read_text(encoding="utf-8")) or {}
+        project_payload = load_yaml_file(project_manifest) or {}
     except yaml.YAMLError as exc:
         errors.append(
             {

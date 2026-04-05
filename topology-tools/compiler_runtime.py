@@ -235,7 +235,7 @@ def _load_sharded_instance_payload(
                 path=_diag_path(repo_root=repo_root, path=path),
             )
             continue
-        legacy_keys = ("instance", "extends", "object_ref", "version", "title", "summary", "description", "layer")
+        legacy_keys = ("instance", "extends", "object_ref", "class_ref", "version", "title", "summary", "description", "layer")
         present_legacy = [key for key in legacy_keys if key in payload]
         if present_legacy:
             add_diag(
@@ -400,7 +400,6 @@ def _load_sharded_instance_payload(
         group_name = payload.get("group")
         layer = normalized_layer
         object_ref = normalized_object_ref
-        explicit_class_ref = payload.get("class_ref")
         if not isinstance(instance_id, str) or not instance_id:
             add_diag(
                 code="E3201",
@@ -471,15 +470,6 @@ def _load_sharded_instance_payload(
                 stage="validate",
                 message="Instance shard must define non-empty 'object_ref'.",
                 path=f"{_diag_path(repo_root=repo_root, path=path)}:object_ref",
-            )
-            continue
-        if explicit_class_ref is not None and (not isinstance(explicit_class_ref, str) or not explicit_class_ref):
-            add_diag(
-                code="E3201",
-                severity="error",
-                stage="validate",
-                message="If provided, class_ref must be non-empty string.",
-                path=f"{_diag_path(repo_root=repo_root, path=path)}:class_ref",
             )
             continue
         expected_layer = group_layer_map.get(group_name)
@@ -567,8 +557,7 @@ def _load_sharded_instance_payload(
         row["object_ref"] = object_ref
         for key, value in metadata_values.items():
             row[key] = value
-        if not isinstance(explicit_class_ref, str):
-            row.pop("class_ref", None)
+        row.pop("class_ref", None)
         row["_source_file"] = str(path)
         grouped_rows.setdefault(group_name, []).append(row)
 

@@ -143,6 +143,24 @@ class CapabilityContractLoaderCompiler(CompilerPlugin):
                             )
                         )
                         continue
+                    legacy_aliases = sorted({"id", "capability", "schema"} & set(item.keys()))
+                    if legacy_aliases:
+                        diagnostics.append(
+                            PluginDiagnostic(
+                                code="E8801",
+                                severity="error",
+                                stage="validate",
+                                message=(
+                                    "capability entry uses legacy semantic aliases "
+                                    f"{legacy_aliases}; use canonical "
+                                    f"'{registry.get('capability_id').canonical}' and "
+                                    f"'{registry.get('capability_schema').canonical}'."
+                                ),
+                                path=path,
+                                plugin_id=self.plugin_id,
+                            )
+                        )
+                        continue
                     cap_resolution = resolve_semantic_value(
                         item,
                         registry=registry,

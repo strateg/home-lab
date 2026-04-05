@@ -2,49 +2,37 @@ version: 1.0.0
 registry:
   schema_version:
     canonical: "@version"
-    aliases:
-      - version
+    aliases: []
   class_id:
     canonical: "@class"
-    aliases:
-      - class
+    aliases: []
   object_id:
     canonical: "@object"
-    aliases:
-      - object
+    aliases: []
   instance_id:
     canonical: "@instance"
-    aliases:
-      - instance
+    aliases: []
   parent_ref:
     canonical: "@extends"
-    aliases:
-      - extends
+    aliases: []
   entity_title:
     canonical: "@title"
-    aliases:
-      - title
+    aliases: []
   entity_summary:
     canonical: "@summary"
-    aliases:
-      - summary
+    aliases: []
   entity_description:
     canonical: "@description"
-    aliases:
-      - description
+    aliases: []
   entity_layer:
     canonical: "@layer"
-    aliases:
-      - layer
+    aliases: []
   capability_id:
     canonical: "@capability"
-    aliases:
-      - capability
-      - id
+    aliases: []
   capability_schema:
     canonical: "@schema"
-    aliases:
-      - schema
+    aliases: []
 contexts:
   entity_manifest:
     tokens:

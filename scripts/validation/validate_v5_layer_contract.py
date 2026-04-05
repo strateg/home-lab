@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -12,6 +13,11 @@ from typing import Any
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
+TOOLS_ROOT = ROOT / "topology-tools"
+sys.path.insert(0, str(TOOLS_ROOT))
+
+from yaml_loader import load_yaml_file
+
 DEFAULT_MANIFEST = ROOT / "topology/topology.yaml"
 DEFAULT_VALID_LAYERS = ("L0", "L1", "L2", "L3", "L4", "L5", "L6", "L7")
 
@@ -25,7 +31,7 @@ def _load_yaml_map(path: Path, *, errors: list[str]) -> dict[str, Any]:
         errors.append(f"missing file: {path.relative_to(ROOT).as_posix()}")
         return {}
     try:
-        payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        payload = load_yaml_file(path) or {}
     except yaml.YAMLError as exc:
         errors.append(f"yaml parse error in {path.relative_to(ROOT).as_posix()}: {exc}")
         return {}
@@ -87,11 +93,11 @@ def _load_instance_bindings_from_shards(instances_root: Path, *, errors: list[st
             errors.append(f"{path.relative_to(ROOT).as_posix()}: missing non-empty group")
             continue
         row = dict(payload)
-        row.pop("schema_version", None)
+        row.pop("@version", None)
         row.pop("group", None)
         grouped.setdefault(group, []).append(row)
     for group_name in grouped:
-        grouped[group_name].sort(key=lambda item: str(item.get("instance", "")))
+        grouped[group_name].sort(key=lambda item: str(item.get("@instance", "")))
     return {"instance_bindings": grouped}
 
 
@@ -279,10 +285,10 @@ def main() -> int:
     class_payloads: dict[str, dict[str, Any]] = {}
     for path in class_files:
         payload = _load_yaml_map(path, errors=errors)
-        class_id = payload.get("class")
+        class_id = payload.get("@class")
         rel_path = path.relative_to(ROOT).as_posix()
         if not isinstance(class_id, str) or not class_id:
-            errors.append(f"{rel_path}: class module missing non-empty class")
+            errors.append(f"{rel_path}: class module missing non-empty @class")
             continue
         if class_id in class_payloads:
             errors.append(f"{rel_path}: duplicate class id '{class_id}'")
@@ -308,21 +314,21 @@ def main() -> int:
     object_allowed_layers: dict[str, list[str]] = {}
     for path in object_files:
         payload = _load_yaml_map(path, errors=errors)
-        object_id = payload.get("object")
-        class_ref = payload.get("class_ref")
+        object_id = payload.get("@object")
+        class_ref = payload.get("@extends")
         rel_path = path.relative_to(ROOT).as_posix()
 
         if not isinstance(object_id, str) or not object_id:
-            errors.append(f"{rel_path}: object module missing non-empty object")
+            errors.append(f"{rel_path}: object module missing non-empty @object")
             continue
         if object_id in object_payloads:
             errors.append(f"{rel_path}: duplicate object id '{object_id}'")
             continue
         if not isinstance(class_ref, str) or not class_ref:
-            errors.append(f"{rel_path}: object '{object_id}' missing non-empty class_ref")
+            errors.append(f"{rel_path}: object '{object_id}' missing non-empty @extends")
             continue
         if class_ref not in class_payloads:
-            errors.append(f"{rel_path}: object '{object_id}' references unknown class_ref '{class_ref}'")
+            errors.append(f"{rel_path}: object '{object_id}' references unknown @extends '{class_ref}'")
             continue
 
         object_payloads[object_id] = payload
@@ -381,19 +387,18 @@ def main() -> int:
                 errors.append(f"{path}: row must be object")
                 continue
 
-            row_id = row.get("instance")
-            row_layer = row.get("layer")
-            object_ref = row.get("object_ref")
-            class_ref = row.get("class_ref")
+            row_id = row.get("@instance")
+            row_layer = row.get("@layer")
+            object_ref = row.get("@extends")
 
             if not isinstance(row_id, str) or not row_id:
-                errors.append(f"{path}: missing non-empty instance")
+                errors.append(f"{path}: missing non-empty @instance")
                 continue
             if row_id in instances_by_id:
                 errors.append(f"{path}: duplicate instance '{row_id}'")
                 continue
             if not isinstance(row_layer, str) or not row_layer:
-                errors.append(f"{path}: missing non-empty layer")
+                errors.append(f"{path}: missing non-empty @layer")
                 continue
             if row_layer not in valid_layers:
                 errors.append(f"{path}: unknown layer '{row_layer}'")
@@ -404,25 +409,24 @@ def main() -> int:
                 )
 
             if not isinstance(object_ref, str) or not object_ref:
-                errors.append(f"{path}: missing non-empty object_ref")
+                errors.append(f"{path}: missing non-empty @extends")
                 continue
             if object_ref not in object_payloads:
-                errors.append(f"{path}: unknown object_ref '{object_ref}'")
+                errors.append(f"{path}: unknown @extends '{object_ref}'")
                 continue
 
+            class_ref = object_class_refs.get(object_ref)
             if not isinstance(class_ref, str) or not class_ref:
-                class_ref = object_class_refs.get(object_ref)
-            if not isinstance(class_ref, str) or not class_ref:
-                errors.append(f"{path}: missing non-empty class_ref and object-derived class_ref")
+                errors.append(f"{path}: cannot resolve class from object @extends '{object_ref}'")
                 continue
             if class_ref not in class_payloads:
-                errors.append(f"{path}: unknown class_ref '{class_ref}'")
+                errors.append(f"{path}: unknown class '{class_ref}'")
                 continue
 
             object_class_ref = object_class_refs.get(object_ref)
             if object_class_ref != class_ref:
                 errors.append(
-                    f"{path}: class/object mismatch: class_ref='{class_ref}', object_ref='{object_ref}' "
+                    f"{path}: class/object mismatch: class='{class_ref}', @extends='{object_ref}' "
                     f"binds to '{object_class_ref}'"
                 )
 
