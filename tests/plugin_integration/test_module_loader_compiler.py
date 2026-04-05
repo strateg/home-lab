@@ -324,3 +324,97 @@ def test_module_loader_rejects_typed_extends_mismatch_for_class(tmp_path):
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
     assert result.has_errors
     assert any(d.code == "E8804" and "class inheritance requires class id" in d.message for d in result.diagnostics)
+
+
+def test_module_loader_rejects_unknown_parent_class_target(tmp_path):
+    registry = _registry()
+    class_dir = tmp_path / "class-modules"
+    object_dir = tmp_path / "object-modules"
+    class_dir.mkdir()
+    object_dir.mkdir()
+    (class_dir / "class.child.yaml").write_text(
+        "class: class.child\n@extends: class.missing\nversion: 1.0.0\n",
+        encoding="utf-8",
+    )
+    (object_dir / "obj.child.yaml").write_text(
+        "object: obj.child\nclass_ref: class.child\nversion: 1.0.0\n",
+        encoding="utf-8",
+    )
+
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={
+            "compilation_owner_module_maps": "plugin",
+            "class_modules_root": str(class_dir),
+            "object_modules_root": str(object_dir),
+        },
+    )
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    assert result.has_errors
+    assert any(d.code == "E8804" and "does not exist in class registry" in d.message for d in result.diagnostics)
+
+
+def test_module_loader_rejects_unknown_object_class_target(tmp_path):
+    registry = _registry()
+    class_dir = tmp_path / "class-modules"
+    object_dir = tmp_path / "object-modules"
+    class_dir.mkdir()
+    object_dir.mkdir()
+    (class_dir / "class.router.yaml").write_text(
+        "class: class.router\nversion: 1.0.0\n",
+        encoding="utf-8",
+    )
+    (object_dir / "obj.child.yaml").write_text(
+        "object: obj.child\nclass_ref: class.missing\nversion: 1.0.0\n",
+        encoding="utf-8",
+    )
+
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={
+            "compilation_owner_module_maps": "plugin",
+            "class_modules_root": str(class_dir),
+            "object_modules_root": str(object_dir),
+        },
+    )
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    assert result.has_errors
+    assert any(d.code == "E8804" and "does not exist in class registry" in d.message for d in result.diagnostics)
+
+
+def test_module_loader_rejects_class_inheritance_cycle(tmp_path):
+    registry = _registry()
+    class_dir = tmp_path / "class-modules"
+    object_dir = tmp_path / "object-modules"
+    class_dir.mkdir()
+    object_dir.mkdir()
+    (class_dir / "class.a.yaml").write_text(
+        "class: class.a\n@extends: class.b\nversion: 1.0.0\n",
+        encoding="utf-8",
+    )
+    (class_dir / "class.b.yaml").write_text(
+        "class: class.b\n@extends: class.a\nversion: 1.0.0\n",
+        encoding="utf-8",
+    )
+    (object_dir / "obj.a.yaml").write_text(
+        "object: obj.a\nclass_ref: class.a\nversion: 1.0.0\n",
+        encoding="utf-8",
+    )
+
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={
+            "compilation_owner_module_maps": "plugin",
+            "class_modules_root": str(class_dir),
+            "object_modules_root": str(object_dir),
+        },
+    )
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    assert result.has_errors
+    assert any(d.code == "E8804" and "inheritance cycle detected" in d.message for d in result.diagnostics)

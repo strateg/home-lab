@@ -296,6 +296,7 @@ class ModuleLoaderCompiler(CompilerPlugin):
         object_map: dict[str, dict[str, Any]],
         diagnostics: list[PluginDiagnostic],
     ) -> None:
+        class_edges: dict[str, str] = {}
         for class_id, class_item in class_map.items():
             if not isinstance(class_item, dict):
                 continue
@@ -344,6 +345,51 @@ class ModuleLoaderCompiler(CompilerPlugin):
                         plugin_id=self.plugin_id,
                     )
                 )
+                continue
+            if extends_ref not in class_map:
+                diagnostics.append(
+                    PluginDiagnostic(
+                        code="E8804",
+                        severity="error",
+                        stage="validate",
+                        message=(
+                            f"class module '@extends' target '{extends_ref}' does not exist in class registry."
+                        ),
+                        path=class_path if isinstance(class_path, str) else f"class:{class_id}",
+                        plugin_id=self.plugin_id,
+                    )
+                )
+                continue
+            class_edges[class_id] = extends_ref
+
+        reported_cycles: set[frozenset[str]] = set()
+        for start_class in class_edges:
+            visited: dict[str, int] = {}
+            chain: list[str] = []
+            cursor = start_class
+            while cursor in class_edges:
+                if cursor in visited:
+                    cycle_nodes = chain[visited[cursor] :] + [cursor]
+                    cycle_members = frozenset(cycle_nodes[:-1])
+                    if cycle_members and cycle_members not in reported_cycles:
+                        reported_cycles.add(cycle_members)
+                        cycle_path = " -> ".join(cycle_nodes)
+                        class_item = class_map.get(cursor, {})
+                        class_path = class_item.get("path") if isinstance(class_item, dict) else None
+                        diagnostics.append(
+                            PluginDiagnostic(
+                                code="E8804",
+                                severity="error",
+                                stage="validate",
+                                message=f"class inheritance cycle detected: {cycle_path}.",
+                                path=class_path if isinstance(class_path, str) else f"class:{cursor}",
+                                plugin_id=self.plugin_id,
+                            )
+                        )
+                    break
+                visited[cursor] = len(chain)
+                chain.append(cursor)
+                cursor = class_edges[cursor]
 
         for object_id, object_item in object_map.items():
             if not isinstance(object_item, dict):
@@ -353,8 +399,6 @@ class ModuleLoaderCompiler(CompilerPlugin):
             if not isinstance(payload, dict):
                 continue
             class_ref = payload.get("class_ref")
-            if class_ref is None:
-                continue
             if not isinstance(class_ref, str) or not class_ref:
                 diagnostics.append(
                     PluginDiagnostic(
@@ -376,6 +420,20 @@ class ModuleLoaderCompiler(CompilerPlugin):
                         message=(
                             f"object module '@extends/class_ref' target '{class_ref}' is object id; "
                             "object inheritance requires class id."
+                        ),
+                        path=object_path if isinstance(object_path, str) else f"object:{object_id}",
+                        plugin_id=self.plugin_id,
+                    )
+                )
+                continue
+            if class_ref not in class_map:
+                diagnostics.append(
+                    PluginDiagnostic(
+                        code="E8804",
+                        severity="error",
+                        stage="validate",
+                        message=(
+                            f"object module '@extends/class_ref' target '{class_ref}' does not exist in class registry."
                         ),
                         path=object_path if isinstance(object_path, str) else f"object:{object_id}",
                         plugin_id=self.plugin_id,
