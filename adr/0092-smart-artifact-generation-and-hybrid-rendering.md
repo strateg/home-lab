@@ -162,7 +162,9 @@ Generator обязан:
 - вычислять `obsolete_candidates`;
 - публиковать причины удаления/сохранения;
 - поддерживать selective regeneration на уровне artifact family и capability bundle;
-- не удалять файл без explicit ownership proof.
+- не удалять файл без explicit ownership proof;
+- использовать action taxonomy `retain|delete|warn` для obsolete outcomes;
+- работать в dry-run-safe режиме по умолчанию (`warn`, если deletion policy явно не подтверждена).
 
 ### D7. Ввести generator evidence для audit и tests
 
@@ -235,6 +237,10 @@ Selective programmatic emission для сложных Terraform blocks.
 
 **Wave 5**  
 Optional AI advisory experiments в sandbox/test lane.
+
+### D12. Граница ADR0092
+Этот ADR фиксирует архитектурную рамку и целевой runtime shape.  
+Строгие schema-инварианты, compatibility/sunset policy и CI gating details выносятся в ADR 0093.
 
 ---
 
@@ -418,12 +424,12 @@ ADR implementation is considered complete when:
 ## Register entry for `adr/REGISTER.md`
 
 ```md
-| 0090 | Smart Artifact Generation and Hybrid Rendering | Proposed | 2026-04-05 |
+| 0092 | Smart Artifact Generation and Hybrid Rendering | Proposed | 2026-04-05 |
 ```
 
 ## Suggested repository updates
 
-1. Add `adr/0090-smart-artifact-generation-and-hybrid-rendering.md`
+1. Add `adr/0092-smart-artifact-generation-and-hybrid-rendering.md`
 2. Update `adr/REGISTER.md`
 3. Add `schemas/artifact-plan.schema.json`
 4. Add `schemas/artifact-generation-report.schema.json`

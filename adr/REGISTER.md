@@ -93,4 +93,4 @@
 | [0090](0090-soho-operator-lifecycle-and-task-ux-contract.md) | SOHO Operator Lifecycle and Task UX Contract | Proposed | 2026-04-05 | - | - |
 | [0091](0091-soho-readiness-evidence-and-handover-artifacts.md) | SOHO Readiness Evidence and Handover Artifacts | Proposed | 2026-04-05 | - | - |
 | [0092](0092-smart-artifact-generation-and-hybrid-rendering.md) | Smart Artifact Generation and Hybrid Rendering | Proposed | 2026-04-05 | - | - |
-| [0093](0093-candidate-artifact-plan-schema-and-generator-runtime-integration.md) | ArtifactPlan Schema and Generator Runtime Integration | Candidate / Draft | 2026-04-05 | - | - |
+| [0093](0093-artifact-plan-schema-and-generator-runtime-integration.md) | ArtifactPlan Schema and Generator Runtime Integration | Proposed | 2026-04-05 | - | - |

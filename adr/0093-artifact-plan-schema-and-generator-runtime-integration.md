@@ -1,23 +1,21 @@
-# adr/0093-artifact-plan-schema-and-generator-runtime-integration.md
-
 # ADR 0093: ArtifactPlan Schema and Generator Runtime Integration
 
-**Status:** Candidate / Draft  
+**Status:** Proposed  
 **Date:** 2026-04-05  
-**Depends on:** ADR 0063, ADR 0065, ADR 0066, ADR 0074, ADR 0077, ADR 0080, ADR 0090
+**Depends on:** ADR 0063, ADR 0065, ADR 0066, ADR 0074, ADR 0077, ADR 0080, ADR 0092
 
 ---
 
 ## Context
 
-ADR 0090 задаёт направление Smart Artifact Generation:
+ADR 0092 задаёт направление Smart Artifact Generation:
 - planning перед rendering;
 - typed IR;
 - generation evidence;
 - hybrid rendering model;
 - selective regeneration и obsolete management.
 
-Чтобы ADR 0090 стал внедряемым, нужен следующий технический шаг:
+Чтобы ADR 0092 стал внедряемым, нужен следующий технический шаг:
 зафиксировать конкретный runtime contract для `ArtifactPlan` и generation evidence,
 а также интеграцию с существующим plugin runtime, validate/assemble/build pipeline и CI.
 
@@ -99,6 +97,43 @@ Assemble/build получают:
 - `artifact-generation-report.json`
 - `artifact-family-summary.json`
 
+### D9. Ужесточить инварианты контракта
+Обязательные поля (`required`) для `ArtifactPlan`:
+- `schema_version`
+- `plugin_id`
+- `artifact_family`
+- `planned_outputs`
+
+Обязательные поля (`required`) для каждого элемента `planned_outputs[]`:
+- `path`
+- `renderer` (`jinja2|structured|programmatic`)
+- `required`
+- `reason`
+
+Обязательные поля (`required`) для `ArtifactGenerationReport`:
+- `schema_version`
+- `plugin_id`
+- `artifact_family`
+- `summary`
+
+`summary` обязан содержать:
+- `planned_count`
+- `generated_count`
+- `skipped_count`
+- `obsolete_count`
+
+### D10. Зафиксировать compatibility и sunset policy
+- Legacy generator без `ArtifactPlan` допускается только в compatibility mode.
+- Для migrated generator отсутствие валидного `ArtifactPlan` — hard error.
+- Compatibility mode должен иметь sunset milestone, после которого все generators целевой family обязаны публиковать `ArtifactPlan`.
+- Validate stage должен публиковать явный статус family: `legacy`, `migrating`, `migrated`.
+
+### D11. Ввести safe obsolete protocol
+- `obsolete[]` в report использует только `retain|delete|warn`.
+- `delete` допускается только при ownership proof.
+- По умолчанию действие obsolete — `warn` (dry-run safe mode).
+- Массовое удаление без ownership proof запрещено.
+
 ---
 
 ## Acceptance Criteria
@@ -109,13 +144,15 @@ Assemble/build получают:
 - CI проверяет projection -> plan -> outputs;
 - validate stage не ломает legacy generators;
 - assemble/build умеют читать generation metadata.
+- зафиксирован sunset compatibility mode для pilot families;
+- obsolete `delete` не происходит без ownership proof в CI-проверках.
 
 ---
 
 ## Consequences
 
 ### Positive
-- идеи ADR 0090 получают конкретный runtime-контур;
+- идеи ADR 0092 получают конкретный runtime-контур;
 - появляется объяснимость генерации;
 - становится возможной более умная выборочная регенерация;
 - упрощается future integration для audit и AI advisory mode.
