@@ -32,13 +32,15 @@ ADR 0092 и 0093 представляют собой хорошо продума
 
 ### 2.2 ADR 0093 — выявленные проблемы
 
-| Проблема | Описание | Серьёзность |
-|----------|----------|-------------|
-| **Нет конкретного sunset deadline** | "должен иметь sunset milestone" — но какой именно? | Высокая |
-| **Schema версионирование неполное** | Как обрабатывается breaking change в schema? | Средняя |
-| **Нет rollback strategy** | Что делать, если migrated generator ломает pipeline? | Средняя |
-| **Ownership proof не специфицирован** | Как именно доказывается ownership для delete? | Высокая |
-| **Нет performance baseline** | Добавление planning overhead — какой допустимый лимит? | Низкая |
+| Проблема | Описание | Серьёзность | Статус |
+|----------|----------|-------------|--------|
+| **Нет конкретного sunset deadline** | "должен иметь sunset milestone" — но какой именно? | Высокая | **CLOSED** (D13) |
+| **Schema версионирование неполное** | Как обрабатывается breaking change в schema? | Средняя | Open |
+| **Нет rollback strategy** | Что делать, если migrated generator ломает pipeline? | Средняя | **CLOSED** (D14) |
+| **Ownership proof не специфицирован** | Как именно доказывается ownership для delete? | Высокая | **CLOSED** (D12) |
+| **Нет performance baseline** | Добавление planning overhead — какой допустимый лимит? | Низкая | Open |
+
+> **Update 2026-04-06:** Критические пункты (ownership proof, sunset milestones, rollback) закрыты в ADR 0093 через D12-D14.
 
 ---
 
@@ -302,29 +304,29 @@ schema_evolution_policy:
 
 ### 6.1 Immediate (before ADR approval)
 
-| # | Action | Target | Blocker? |
-|---|--------|--------|----------|
-| 1 | Approve ADR 0092 as-is | Architecture | No |
-| 2 | Add ownership proof contract to ADR 0093 (D12) | ADR 0093 | **Yes** |
-| 3 | Add concrete sunset milestones to ADR 0093 (D10 update) | ADR 0093 | **Yes** |
-| 4 | Add rollback procedure to ADR 0093 (D13) | ADR 0093 | **Yes** |
+| # | Action | Target | Blocker? | Status |
+|---|--------|--------|----------|--------|
+| 1 | Approve ADR 0092 as-is | Architecture | No | ✅ Ready |
+| 2 | Add ownership proof contract to ADR 0093 (D12) | ADR 0093 | **Yes** | ✅ Done |
+| 3 | Add concrete sunset milestones to ADR 0093 (D13) | ADR 0093 | **Yes** | ✅ Done |
+| 4 | Add rollback procedure to ADR 0093 (D14) | ADR 0093 | **Yes** | ✅ Done |
 
 ### 6.2 Short-term (Wave 1)
 
-| # | Action | Target | Priority |
-|---|--------|--------|----------|
-| 5 | Extract D10 (AI advisory) to separate ADR 0094 | ADR 0092 | High |
-| 6 | Create generator authoring guide | Documentation | High |
-| 7 | Establish performance baseline before migration | CI/Metrics | Medium |
-| 8 | Add schema evolution policy to ADR 0093 (D14) | ADR 0093 | Medium |
+| # | Action | Target | Priority | Status |
+|---|--------|--------|----------|--------|
+| 5 | Extract D10 (AI advisory) to separate ADR 0094 | ADR 0092 | High | ✅ Done |
+| 6 | Create generator authoring guide | Documentation | High | Pending |
+| 7 | Establish performance baseline before migration | CI/Metrics | Medium | Pending |
+| 8 | Add schema evolution policy to ADR 0093 | ADR 0093 | Medium | Pending |
 
 ### 6.3 Mid-term (Wave 2-3)
 
-| # | Action | Target | Priority |
-|---|--------|--------|----------|
-| 9 | Formalize IR contract based on Wave 1 experience | ADR 0092 addendum | High |
-| 10 | Add quantified acceptance criteria | ADR 0092 update | Medium |
-| 11 | Formalize capability → artifact mapping | ADR 0092 addendum | Medium |
+| # | Action | Target | Priority | Status |
+|---|--------|--------|----------|--------|
+| 9 | Formalize IR contract based on Wave 1 experience | ADR 0092 addendum | High | Pending |
+| 10 | Add quantified acceptance criteria | ADR 0092 update | Medium | Pending |
+| 11 | Formalize capability → artifact mapping | ADR 0092 addendum | Medium | Pending |
 
 ---
 
@@ -336,18 +338,21 @@ schema_evolution_policy:
 |-----------|----------|----------|
 | Architectural value | ★★★★★ | ★★★★☆ |
 | Practical feasibility | ★★★★☆ | ★★★★★ |
-| Specification completeness | ★★★☆☆ | ★★★☆☆ |
+| Specification completeness | ★★★☆☆ | ★★★★☆ |
 | Implementation risk | Medium | Low-Medium |
-| **Approval readiness** | **Ready** | **Needs amendments** |
+| **Approval readiness** | **Ready** | **Ready** ✓ |
+
+> **Update 2026-04-06:** ADR 0093 доработан — добавлены D12 (ownership proof), D13 (sunset milestones), D14 (rollback procedure). Все критические пункты закрыты.
 
 ### Verdict
 
-Пакет ADR 0092+0093 представляет собой **сильное архитектурное решение** с правильным эволюционным подходом.
+Пакет ADR 0092+0093+0094 представляет собой **сильное архитектурное решение** с правильным эволюционным подходом.
 
 **Рекомендация:**
-1. **Утвердить ADR 0092** в текущем виде
-2. **Доработать ADR 0093** по критическим пунктам (ownership proof, sunset policy, rollback)
-3. **Начать Wave 1** после утверждения обоих ADR
+1. ✅ **Утвердить ADR 0092** — готов
+2. ✅ **Утвердить ADR 0093** — критические пункты закрыты (D12-D14)
+3. ✅ **Утвердить ADR 0094** — AI advisory выделен в отдельный ADR
+4. **Начать Wave 1** после утверждения всех ADR
 
 ---
 
@@ -363,6 +368,7 @@ schema_evolution_policy:
 
 ## Appendix B: Document History
 
-| Version | Date | Author | Changes |
-|---------|------|--------|---------|
-| 1.0 | 2026-04-06 | Claude Code | Initial comprehensive review |
+| Version | Date       | Author      | Changes                                                   |
+| ------- | ---------- | ----------- | --------------------------------------------------------- |
+| 1.0     | 2026-04-06 | Claude Code | Initial comprehensive review                              |
+| 1.1     | 2026-04-06 | Claude Code | Updated status: ADR 0093 critical gaps closed (D12-D14)   |
