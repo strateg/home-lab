@@ -1,6 +1,7 @@
 @object: obj.hetzner.cloud_vm
 @extends: class.compute.workload.vm
 @version: 1.0.0
+
 model: Hetzner Cloud VM
 vendor: hetzner
 software_contract:

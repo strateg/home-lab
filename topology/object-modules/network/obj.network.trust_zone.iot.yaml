@@ -1,7 +1,7 @@
 @object: obj.network.trust_zone.iot
 @extends: class.network.trust_zone
-@version: 1.0.0
 @description: Isolated IoT zone for smart home devices
+@version: 1.0.0
 
 properties:
   name: IoT Zone

@@ -1,6 +1,7 @@
 @object: obj.proxmox.lxc.debian12.nextcloud
 @extends: class.compute.workload.lxc
 @version: 1.0.0
+
 model: LXC Debian 12 Nextcloud
 vendor: proxmox
 @description: Nextcloud file sync and collaboration container

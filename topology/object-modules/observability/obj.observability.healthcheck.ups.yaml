@@ -1,7 +1,7 @@
 @object: obj.observability.healthcheck.ups
 @extends: class.observability.healthcheck
-@version: 1.0.0
 @description: UPS health and power monitoring
+@version: 1.0.0
 
 properties:
   check_types:

@@ -1,7 +1,7 @@
 @object: obj.observability.healthcheck.device
 @extends: class.observability.healthcheck
-@version: 1.0.0
 @description: Device health monitoring (routers, hypervisors, edge nodes)
+@version: 1.0.0
 
 properties:
   check_types:

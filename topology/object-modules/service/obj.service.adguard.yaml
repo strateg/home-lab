@@ -1,6 +1,7 @@
 @object: obj.service.adguard
 @extends: class.service.dns
 @version: 1.0.0
+
 model: Adguard
 vendor: home-lab
 enabled_capabilities:

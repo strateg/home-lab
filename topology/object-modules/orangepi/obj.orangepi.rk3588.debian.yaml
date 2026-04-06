@@ -1,6 +1,7 @@
 @object: obj.orangepi.rk3588.debian
 @extends: class.compute.edge_node
 @version: 1.0.0
+
 model: Orange Pi 5 RK3588 Debian
 vendor: orangepi
 hardware_specs:

@@ -1,7 +1,7 @@
 @object: obj.operations.backup.vzdump
 @extends: class.operations.backup
-@version: 1.0.0
 @description: Proxmox VE vzdump LXC/VM snapshot backup
+@version: 1.0.0
 
 properties:
   method: vzdump

@@ -1,7 +1,7 @@
 @object: obj.network.lte_channel
 @extends: class.network.data_link
-@version: 1.0.0
 @description: LTE/cellular data channel to mobile operator network
+@version: 1.0.0
 
 properties:
   mtu: 1500

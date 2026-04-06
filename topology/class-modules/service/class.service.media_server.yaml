@@ -1,7 +1,8 @@
 @class: class.service.media_server
-@version: 1.0.0
 @title: Service Media Server
 @summary: Media indexing and streaming service role.
+@version: 1.0.0
+
 os_policy: forbidden
 required_capabilities:
 - cap.service.media_server.runtime

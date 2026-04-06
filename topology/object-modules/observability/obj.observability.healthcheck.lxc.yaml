@@ -1,7 +1,7 @@
 @object: obj.observability.healthcheck.lxc
 @extends: class.observability.healthcheck
-@version: 1.0.0
 @description: LXC container health monitoring
+@version: 1.0.0
 
 properties:
   check_types:

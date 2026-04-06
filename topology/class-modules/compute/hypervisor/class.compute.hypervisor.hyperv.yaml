@@ -5,6 +5,7 @@
 @description: Hyper-V hypervisor profile for Microsoft virtualization stacks.
 @layer: L1
 @version: 1.0.0
+
 os_policy: required
 firmware_policy: required
 os_cardinality:

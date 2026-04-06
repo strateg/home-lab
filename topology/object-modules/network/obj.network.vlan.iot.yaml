@@ -1,7 +1,7 @@
 @object: obj.network.vlan.iot
 @extends: class.network.vlan
-@version: 1.0.0
 @description: IoT network for smart home devices (isolated)
+@version: 1.0.0
 
 properties:
   vlan_id: 40

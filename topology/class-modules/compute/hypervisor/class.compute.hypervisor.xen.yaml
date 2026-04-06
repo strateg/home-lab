@@ -5,6 +5,7 @@
 @description: Xen hypervisor profile for PV/HVM/PVH virtualization modes.
 @layer: L1
 @version: 1.0.0
+
 os_policy: required
 firmware_policy: required
 os_cardinality:

@@ -1,6 +1,7 @@
 @object: obj.service.nginx_proxy
 @extends: class.service.proxy
 @version: 1.0.0
+
 model: Nginx Proxy
 vendor: home-lab
 enabled_capabilities:

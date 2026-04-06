@@ -1,7 +1,7 @@
 @object: obj.observability.alert.operations
 @extends: class.observability.alert
-@version: 1.0.0
 @description: Operations alerts (backup failed, scheduled tasks)
+@version: 1.0.0
 
 properties:
   domains:

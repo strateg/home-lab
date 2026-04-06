@@ -1,7 +1,7 @@
 @object: obj.network.trust_zone.untrusted
 @extends: class.network.trust_zone
-@version: 1.0.0
 @description: External untrusted networks (ISP, Internet, LTE)
+@version: 1.0.0
 
 properties:
   name: Untrusted Zone

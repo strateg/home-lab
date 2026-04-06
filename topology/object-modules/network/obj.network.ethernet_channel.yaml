@@ -1,7 +1,7 @@
 @object: obj.network.ethernet_channel
 @extends: class.network.data_link
-@version: 1.0.0
 @description: Logical ethernet data channel created over a physical data link
+@version: 1.0.0
 
 properties:
   mtu: 1500

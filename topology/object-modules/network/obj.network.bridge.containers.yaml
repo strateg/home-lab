@@ -1,7 +1,7 @@
 @object: obj.network.bridge.containers
 @extends: class.network.bridge
-@version: 1.0.0
 @description: MikroTik RouterOS container bridge for Docker workloads
+@version: 1.0.0
 
 properties:
   name: containers

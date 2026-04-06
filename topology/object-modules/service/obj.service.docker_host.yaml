@@ -1,6 +1,7 @@
 @object: obj.service.docker_host
 @extends: class.service.web_application
 @version: 1.0.0
+
 model: Docker Host
 vendor: home-lab
 enabled_capabilities:

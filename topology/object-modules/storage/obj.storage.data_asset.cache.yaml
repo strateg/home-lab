@@ -1,7 +1,7 @@
 @object: obj.storage.data_asset.cache
 @extends: class.storage.data_asset
-@version: 1.0.0
 @description: Cache data asset for ephemeral cache storage
+@version: 1.0.0
 
 properties:
   category: cache

@@ -1,6 +1,7 @@
 @object: obj.proxmox.lxc.debian12.docker
 @extends: class.compute.workload.lxc
 @version: 1.0.0
+
 model: LXC Debian 12 Docker Host
 vendor: proxmox
 @description: Docker container host in LXC

@@ -1,7 +1,7 @@
 @object: obj.storage.media.sata_ssd_180gb
 @extends: class.storage.media
-@version: 1.0.0
 @description: 180GB 2.5" SATA SSD for system/application storage
+@version: 1.0.0
 
 properties:
   media_type: ssd

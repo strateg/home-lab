@@ -1,6 +1,7 @@
 @object: obj.service.mosquitto
 @extends: class.service.home_automation
 @version: 1.0.0
+
 model: Mosquitto
 vendor: home-lab
 enabled_capabilities:

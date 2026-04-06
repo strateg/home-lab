@@ -1,7 +1,7 @@
 @class: class.network.bridge
-@version: 1.0.0
 @description: Virtual network bridge connecting multiple VLANs and interfaces
 @layer: L2
+@version: 1.0.0
 
 properties:
   required:

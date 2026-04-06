@@ -1,6 +1,7 @@
 @object: obj.firmware.apc.backups.650va
 @extends: class.firmware
 @version: 1.0.0
+
 vendor: apc
 model: APC Back-UPS 650VA Firmware
 properties:

@@ -1,7 +1,8 @@
 @class: class.service.proxy
-@version: 1.0.0
 @title: Service Proxy
 @summary: Reverse proxy and ingress routing service role.
+@version: 1.0.0
+
 os_policy: forbidden
 required_capabilities:
 - cap.service.proxy.runtime

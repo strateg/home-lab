@@ -1,6 +1,7 @@
 @object: obj.proxmox.lxc.debian12.homeassistant
 @extends: class.compute.workload.lxc
 @version: 1.0.0
+
 model: LXC Debian 12 Home Assistant
 vendor: proxmox
 @description: Home Assistant home automation container

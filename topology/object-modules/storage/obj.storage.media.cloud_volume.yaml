@@ -1,7 +1,7 @@
 @object: obj.storage.media.cloud_volume
 @extends: class.storage.media
-@version: 1.0.0
 @description: Provider-managed virtual block storage volume
+@version: 1.0.0
 
 properties:
   media_type: virtual

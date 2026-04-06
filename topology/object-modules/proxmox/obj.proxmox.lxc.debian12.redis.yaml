@@ -1,6 +1,7 @@
 @object: obj.proxmox.lxc.debian12.redis
 @extends: class.compute.workload.lxc
 @version: 1.0.0
+
 model: LXC Debian 12 Redis
 vendor: proxmox
 software_contract:

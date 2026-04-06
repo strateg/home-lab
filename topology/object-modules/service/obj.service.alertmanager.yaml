@@ -1,6 +1,7 @@
 @object: obj.service.alertmanager
 @extends: class.service.alerting
 @version: 1.0.0
+
 model: Alertmanager
 vendor: home-lab
 enabled_capabilities:

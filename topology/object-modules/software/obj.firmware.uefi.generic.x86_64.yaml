@@ -1,6 +1,7 @@
 @object: obj.firmware.uefi.generic.x86_64
 @extends: class.firmware
 @version: 1.0.0
+
 vendor: generic
 model: Generic UEFI Firmware x86-64
 properties:

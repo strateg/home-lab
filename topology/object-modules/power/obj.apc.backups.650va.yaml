@@ -1,6 +1,7 @@
 @object: obj.apc.backups.650va
 @extends: class.power.ups
 @version: 1.0.0
+
 model: APC Back-UPS 650VA
 vendor: apc
 enabled_capabilities:

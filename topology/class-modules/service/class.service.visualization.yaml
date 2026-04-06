@@ -1,7 +1,8 @@
 @class: class.service.visualization
-@version: 1.0.0
 @title: Service Visualization
 @summary: Dashboard and visualization service role.
+@version: 1.0.0
+
 os_policy: forbidden
 required_capabilities:
 - cap.service.visualization.runtime

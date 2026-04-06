@@ -1,6 +1,7 @@
 @object: obj.docker.container.generic
 @extends: class.compute.workload.docker
 @version: 1.0.0
+
 model: Generic Docker/OCI Container Workload
 vendor: generic
 software_contract:

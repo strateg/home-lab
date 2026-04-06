@@ -1,7 +1,7 @@
 @object: obj.network.firewall_policy.default_deny
 @extends: class.network.firewall_policy
-@version: 1.0.0
 @description: Default deny policy for unsolicited WAN forward traffic (!dstnat)
+@version: 1.0.0
 
 properties:
   name: Default Deny

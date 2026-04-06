@@ -1,7 +1,7 @@
 @object: obj.observability.alert.power
 @extends: class.observability.alert
-@version: 1.0.0
 @description: Power alerts (UPS battery, power outage)
+@version: 1.0.0
 
 properties:
   domains:

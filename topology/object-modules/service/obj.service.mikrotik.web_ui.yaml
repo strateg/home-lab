@@ -1,6 +1,7 @@
 @object: obj.service.mikrotik.web_ui
 @extends: class.service.web_ui
 @version: 1.0.0
+
 model: Mikrotik Web Ui
 vendor: mikrotik
 enabled_capabilities:

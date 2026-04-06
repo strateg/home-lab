@@ -1,7 +1,7 @@
 @object: obj.network.vlan.guest
 @extends: class.network.vlan
-@version: 1.0.0
 @description: Guest WiFi network (isolated, internet only)
+@version: 1.0.0
 
 properties:
   vlan_id: 50

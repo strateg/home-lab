@@ -1,6 +1,7 @@
 @object: obj.service.gitea
 @extends: class.service.web_application
 @version: 1.0.0
+
 model: Gitea
 vendor: home-lab
 enabled_capabilities:

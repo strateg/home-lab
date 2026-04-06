@@ -1,6 +1,7 @@
 @object: obj.service.loki
 @extends: class.service.logging
 @version: 1.0.0
+
 model: Loki
 vendor: home-lab
 enabled_capabilities:

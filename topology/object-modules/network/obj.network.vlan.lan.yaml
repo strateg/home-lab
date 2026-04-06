@@ -1,7 +1,7 @@
 @object: obj.network.vlan.lan
 @extends: class.network.vlan
-@version: 1.0.0
 @description: Main LAN network (native/untagged on MikroTik bridge)
+@version: 1.0.0
 
 properties:
   vlan_id: 1

@@ -1,6 +1,7 @@
 @object: obj.service.prometheus
 @extends: class.service.monitoring
 @version: 1.0.0
+
 model: Prometheus
 vendor: home-lab
 enabled_capabilities:

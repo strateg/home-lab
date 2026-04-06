@@ -1,7 +1,7 @@
 @object: obj.network.vlan.management
 @extends: class.network.vlan
-@version: 1.0.0
 @description: Management VLAN for infrastructure access
+@version: 1.0.0
 
 properties:
   vlan_id: 99

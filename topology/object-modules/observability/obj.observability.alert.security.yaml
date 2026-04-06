@@ -1,7 +1,7 @@
 @object: obj.observability.alert.security
 @extends: class.observability.alert
-@version: 1.0.0
 @description: Security alerts (certificate expiry, intrusion)
+@version: 1.0.0
 
 properties:
   domains:

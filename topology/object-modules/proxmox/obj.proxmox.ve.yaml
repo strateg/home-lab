@@ -1,6 +1,7 @@
 @object: obj.proxmox.ve
 @extends: class.compute.hypervisor.proxmox
 @version: 1.0.0
+
 model: Proxmox VE 9
 vendor: proxmox
 hardware_specs:

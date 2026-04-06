@@ -1,10 +1,11 @@
 @class: class.router
-@version: 2.0.0
 @title: Router
 @description: |
   Base class for all routers with routing, NAT, firewall, and
   optional VPN, WiFi, uplink policies, and advanced features.
   Differentiation via capability packs (home_gateway, travel_vpn, enterprise).
+@version: 2.0.0
+
 os_policy: required
 firmware_policy: required
 os_cardinality:

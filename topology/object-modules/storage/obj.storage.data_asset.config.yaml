@@ -1,7 +1,7 @@
 @object: obj.storage.data_asset.config
 @extends: class.storage.data_asset
-@version: 1.0.0
 @description: Configuration data asset for service configs and state
+@version: 1.0.0
 
 properties:
   category: config

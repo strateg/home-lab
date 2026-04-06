@@ -5,6 +5,7 @@
 @description: Proxmox-specific hypervisor profile with VM and LXC runtime support.
 @layer: L1
 @version: 1.0.0
+
 os_policy: required
 firmware_policy: required
 os_cardinality:

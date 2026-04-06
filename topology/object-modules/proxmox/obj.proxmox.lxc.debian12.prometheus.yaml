@@ -1,6 +1,7 @@
 @object: obj.proxmox.lxc.debian12.prometheus
 @extends: class.compute.workload.lxc
 @version: 1.0.0
+
 model: LXC Debian 12 Prometheus
 vendor: proxmox
 @description: Prometheus metrics collection container

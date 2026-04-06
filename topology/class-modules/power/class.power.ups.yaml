@@ -1,7 +1,8 @@
 @class: class.power.ups
-@version: 1.0.0
 @title: Uninterruptible Power Supply
 @summary: Power backup and battery state abstraction.
+@version: 1.0.0
+
 os_policy: forbidden
 firmware_policy: required
 os_cardinality:

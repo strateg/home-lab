@@ -1,7 +1,7 @@
 @object: obj.network.qos.wan_shaping
 @extends: class.network.qos
-@version: 1.0.0
 @description: WAN traffic shaping profile with queue hierarchy
+@version: 1.0.0
 
 properties:
   name: WAN Traffic Shaping

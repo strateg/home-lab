@@ -1,7 +1,7 @@
 @object: obj.network.wifi_ap_channel
 @extends: class.network.data_link
-@version: 1.0.0
 @description: WiFi access point channel for wireless client connectivity
+@version: 1.0.0
 
 properties:
   mtu: 1500

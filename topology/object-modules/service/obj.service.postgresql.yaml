@@ -1,6 +1,7 @@
 @object: obj.service.postgresql
 @extends: class.service.database
 @version: 1.0.0
+
 model: Postgresql
 vendor: home-lab
 enabled_capabilities:

@@ -1,7 +1,7 @@
 @object: obj.network.ethernet_cable
 @extends: class.network.physical_link
-@version: 1.0.0
 @description: Generic RJ45 ethernet patch cable object template (OSI L1)
+@version: 1.0.0
 
 properties:
   link_type: ethernet
