@@ -60,9 +60,9 @@ def _run_validate_v5_with_mode(secrets_mode: str) -> None:
             secrets_mode,
         ]
     )
-    governance_mode = os.environ.get("ADR0088_GOVERNANCE_MODE", "warn").strip().lower()
+    governance_mode = os.environ.get("ADR0088_GOVERNANCE_MODE", "enforce").strip().lower()
     if governance_mode not in {"warn", "enforce"}:
-        governance_mode = "warn"
+        governance_mode = "enforce"
     run(
         [
             PYTHON,

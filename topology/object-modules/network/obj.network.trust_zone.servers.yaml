@@ -1,6 +1,8 @@
 @object: obj.network.trust_zone.servers
 @extends: class.network.trust_zone
+@title: Network Trust Zone Servers
 @description: Server zone for infrastructure services
+@layer: L2
 @version: 1.0.0
 
 properties:

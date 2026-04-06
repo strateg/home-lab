@@ -1,6 +1,8 @@
 @object: obj.observability.healthcheck.network
 @extends: class.observability.healthcheck
+@title: Observability Healthcheck Network
 @description: Network connectivity and bandwidth monitoring
+@layer: L6
 @version: 1.0.0
 
 properties:

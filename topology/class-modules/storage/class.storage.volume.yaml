@@ -1,4 +1,5 @@
 @class: class.storage.volume
+@title: Storage Volume
 @description: Logical volume attached to workloads
 @layer: L3
 @version: 1.0.0

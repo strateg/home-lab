@@ -144,7 +144,7 @@ def _gate_commands(repo_root: Path, *, quick: bool) -> list[tuple[str, list[str]
                         python,
                         "scripts/validation/validate_adr0088_governance.py",
                         "--mode",
-                        "warn",
+                        "enforce",
                         "--diagnostics-json",
                         "build/diagnostics/report.json",
                         "--output-json",

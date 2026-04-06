@@ -1,4 +1,5 @@
 @class: class.observability.healthcheck
+@title: Observability Healthcheck
 @description: Health check definition for monitoring targets
 @layer: L6
 @version: 1.0.0

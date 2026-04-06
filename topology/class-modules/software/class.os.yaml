@@ -1,6 +1,7 @@
 @class: class.os
 @title: OS Entity
 @summary: Canonical operating system entity contract (class -> object -> instance).
+@layer: L1
 @version: 1.0.0
 
 os_policy: forbidden

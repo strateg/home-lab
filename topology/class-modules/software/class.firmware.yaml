@@ -1,6 +1,7 @@
 @class: class.firmware
 @title: Firmware Entity
 @summary: Canonical firmware entity contract (class -> object -> instance).
+@layer: L1
 @version: 1.0.0
 
 os_policy: forbidden

@@ -1,6 +1,7 @@
 @class: class.compute.edge_node
 @title: Compute Edge Node
 @summary: Low-power edge compute host for service runtime.
+@layer: L1
 @version: 1.0.0
 
 os_policy: required

@@ -1,6 +1,8 @@
 @object: obj.storage.media.cloud_volume
 @extends: class.storage.media
+@title: Storage Media Cloud Volume
 @description: Provider-managed virtual block storage volume
+@layer: L1
 @version: 1.0.0
 
 properties:

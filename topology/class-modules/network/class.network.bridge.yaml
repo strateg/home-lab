@@ -1,4 +1,5 @@
 @class: class.network.bridge
+@title: Network Bridge
 @description: Virtual network bridge connecting multiple VLANs and interfaces
 @layer: L2
 @version: 1.0.0

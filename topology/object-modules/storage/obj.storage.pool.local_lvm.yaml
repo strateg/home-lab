@@ -1,6 +1,8 @@
 @object: obj.storage.pool.local_lvm
 @extends: class.storage.pool
+@title: Storage Pool Local Lvm
 @description: LVM thin storage pool on Proxmox SSD
+@layer: L3
 @version: 1.0.0
 
 properties:

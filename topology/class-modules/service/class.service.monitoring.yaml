@@ -1,6 +1,7 @@
 @class: class.service.monitoring
 @title: Service Monitoring
 @summary: Metrics collection and telemetry service role.
+@layer: L5
 @version: 1.0.0
 
 os_policy: forbidden

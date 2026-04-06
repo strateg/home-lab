@@ -1,4 +1,5 @@
 @class: class.storage.media
+@title: Storage Media
 @description: Physical or virtual storage media (disks, flash, volumes)
 @layer: L1
 @version: 1.0.0

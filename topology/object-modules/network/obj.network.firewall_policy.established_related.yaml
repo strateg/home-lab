@@ -1,6 +1,8 @@
 @object: obj.network.firewall_policy.established_related
 @extends: class.network.firewall_policy
+@title: Network Firewall Policy Established Related
 @description: Allow established and related connections (stateful tracking)
+@layer: L2
 @version: 1.0.0
 
 properties:

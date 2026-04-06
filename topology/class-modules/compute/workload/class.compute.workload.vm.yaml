@@ -1,6 +1,7 @@
 @class: class.compute.workload.vm
 @title: Compute Workload VM
 @summary: Virtual machine workload runtime contract.
+@layer: L4
 @version: 1.0.0
 
 os_policy: required

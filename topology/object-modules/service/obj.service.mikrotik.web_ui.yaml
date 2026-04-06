@@ -1,5 +1,7 @@
 @object: obj.service.mikrotik.web_ui
 @extends: class.service.web_ui
+@title: Service MikroTik Web UI
+@layer: L5
 @version: 1.0.0
 
 model: Mikrotik Web Ui

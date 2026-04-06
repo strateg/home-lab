@@ -1,5 +1,7 @@
 @object: obj.hetzner.cloud_vm
 @extends: class.compute.workload.vm
+@title: Hetzner Cloud VM
+@layer: L4
 @version: 1.0.0
 
 model: Hetzner Cloud VM

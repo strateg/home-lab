@@ -1,6 +1,8 @@
 @object: obj.storage.data_asset.cache
 @extends: class.storage.data_asset
+@title: Storage Data Asset Cache
 @description: Cache data asset for ephemeral cache storage
+@layer: L3
 @version: 1.0.0
 
 properties:

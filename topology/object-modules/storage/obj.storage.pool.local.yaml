@@ -1,6 +1,8 @@
 @object: obj.storage.pool.local
 @extends: class.storage.pool
+@title: Storage Pool Local
 @description: Local directory storage on Proxmox
+@layer: L3
 @version: 1.0.0
 
 properties:

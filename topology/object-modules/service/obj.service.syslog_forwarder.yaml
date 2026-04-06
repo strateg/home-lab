@@ -1,5 +1,7 @@
 @object: obj.service.syslog_forwarder
 @extends: class.service.logging
+@title: Service Syslog Forwarder
+@layer: L5
 @version: 1.0.0
 
 model: Syslog Forwarder

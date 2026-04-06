@@ -1,4 +1,5 @@
 @class: class.network.data_link
+@title: Network Data Link
 @description: Logical data channel for information flow between endpoints
 @layer: L2
 @version: 1.0.0

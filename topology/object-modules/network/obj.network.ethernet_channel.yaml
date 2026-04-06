@@ -1,6 +1,8 @@
 @object: obj.network.ethernet_channel
 @extends: class.network.data_link
+@title: Network Ethernet Channel
 @description: Logical ethernet data channel created over a physical data link
+@layer: L2
 @version: 1.0.0
 
 properties:

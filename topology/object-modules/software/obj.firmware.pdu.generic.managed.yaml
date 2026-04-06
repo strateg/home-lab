@@ -1,5 +1,7 @@
 @object: obj.firmware.pdu.generic.managed
 @extends: class.firmware
+@title: Firmware PDU Generic Managed
+@layer: L1
 @version: 1.0.0
 
 vendor: generic

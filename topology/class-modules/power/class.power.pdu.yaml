@@ -1,6 +1,7 @@
 @class: class.power.pdu
 @title: Power Distribution Unit
 @summary: Power distribution and outlet control abstraction.
+@layer: L1
 @version: 1.0.0
 
 os_policy: forbidden

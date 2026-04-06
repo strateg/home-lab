@@ -1,5 +1,7 @@
 @object: obj.os.debian.12.proxmox.lxc
 @extends: class.os
+@title: OS Debian 12 Proxmox LXC
+@layer: L1
 @version: 1.0.0
 
 vendor: debian

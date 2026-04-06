@@ -1,6 +1,7 @@
 @class: class.service.media_server
 @title: Service Media Server
 @summary: Media indexing and streaming service role.
+@layer: L5
 @version: 1.0.0
 
 os_policy: forbidden

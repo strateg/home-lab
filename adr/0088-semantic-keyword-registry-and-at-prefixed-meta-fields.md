@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Status** | Accepted |
+| **Status** | Accepted (implemented) |
 | **Date** | 2026-04-05 |
 | **Deciders** | dmpr |
 | **Supersedes** | ADR 0067 (partial: class/object/instance key policy) |
@@ -218,10 +218,11 @@ Fact-based runtime status:
 3. Registry and diagnostics status:
    - `topology/semantic-keywords.yaml` is canonical-only (`aliases: []` for all tokens)
    - `E8801..E8806` are defined in error catalog and used in runtime/tests.
-4. Residual quality deltas:
-   - metadata coverage is uneven in class/object manifests
+4. Quality hardening status:
+   - class/object metadata coverage for `@title/@layer` is 100% (`43/43`, `112/112`)
+   - governance default mode is `enforce` in `validate-v5` entrypoint
    - boundary-scoped legacy keys remain in `projects/home-lab/_legacy`
-   - warning profile is concentrated in `W7816` duplicate-IP diagnostics.
+   - warning profile remains concentrated in `W7816` duplicate-IP diagnostics (policy-governed).
 
 ## References
 

@@ -1,4 +1,5 @@
 @class: class.storage.pool
+@title: Storage Pool
 @description: Storage pool providing capacity for volumes and workloads
 @layer: L3
 @version: 1.0.0

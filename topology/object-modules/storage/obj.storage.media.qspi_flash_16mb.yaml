@@ -1,6 +1,8 @@
 @object: obj.storage.media.qspi_flash_16mb
 @extends: class.storage.media
+@title: Storage Media QSPI Flash 16mb
 @description: 16MB onboard QSPI flash for firmware/bootloader storage
+@layer: L1
 @version: 1.0.0
 
 properties:

@@ -1,5 +1,7 @@
 @object: obj.os.linux.generic.arm64
 @extends: class.os
+@title: OS Linux Generic ARM64
+@layer: L1
 @version: 1.0.0
 
 vendor: generic

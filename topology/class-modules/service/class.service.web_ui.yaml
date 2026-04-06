@@ -1,6 +1,7 @@
 @class: class.service.web_ui
 @title: Service Web UI
 @summary: Management web interface service role.
+@layer: L5
 @version: 1.0.0
 
 os_policy: forbidden

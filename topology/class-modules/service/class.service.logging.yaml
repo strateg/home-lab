@@ -1,6 +1,7 @@
 @class: class.service.logging
 @title: Service Logging
 @summary: Log ingest, forwarding, and retention service role.
+@layer: L5
 @version: 1.0.0
 
 os_policy: forbidden

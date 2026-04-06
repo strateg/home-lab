@@ -18,10 +18,11 @@ Incremental migration with compatibility mode first, then enforcement.
    - compile (`errors=0`)
    - `validate-v5` PASS
    - full `pytest` PASS.
-4. Residual quality deltas:
-   - metadata coverage asymmetry in class/object manifests
-   - boundary-scoped legacy keys in `projects/home-lab/_legacy`
-   - non-blocking `W7816` duplicate-IP warning profile.
+4. Quality hardening status:
+   - class/object metadata coverage for `@title/@layer` is complete
+   - governance default mode is `enforce` (with `warn` override retained via env)
+   - boundary-scoped legacy keys remain in `projects/home-lab/_legacy`
+   - non-blocking `W7816` duplicate-IP warning profile is policy-governed.
 
 ## Wave 0 — Baseline normalization and contract cleanup
 

@@ -1,4 +1,5 @@
 @class: class.network.firewall_policy
+@title: Network Firewall Policy
 @description: Firewall policy containing ordered rules
 @layer: L2
 @version: 1.0.0

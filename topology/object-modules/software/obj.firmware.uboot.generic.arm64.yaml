@@ -1,5 +1,7 @@
 @object: obj.firmware.uboot.generic.arm64
 @extends: class.firmware
+@title: Firmware Uboot Generic ARM64
+@layer: L1
 @version: 1.0.0
 
 vendor: generic

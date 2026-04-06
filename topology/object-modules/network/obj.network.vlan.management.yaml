@@ -1,6 +1,8 @@
 @object: obj.network.vlan.management
 @extends: class.network.vlan
+@title: Network Vlan Management
 @description: Management VLAN for infrastructure access
+@layer: L2
 @version: 1.0.0
 
 properties:

@@ -1,4 +1,5 @@
 @class: class.network.trust_zone
+@title: Network Trust Zone
 @description: Security zone defining trust boundaries and default policies
 @layer: L2
 @version: 1.0.0

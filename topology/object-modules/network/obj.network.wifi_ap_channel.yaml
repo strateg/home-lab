@@ -1,6 +1,8 @@
 @object: obj.network.wifi_ap_channel
 @extends: class.network.data_link
+@title: Network Wifi Ap Channel
 @description: WiFi access point channel for wireless client connectivity
+@layer: L2
 @version: 1.0.0
 
 properties:

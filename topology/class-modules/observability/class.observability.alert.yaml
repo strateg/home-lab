@@ -1,4 +1,5 @@
 @class: class.observability.alert
+@title: Observability Alert
 @description: Alert rule definition
 @layer: L6
 @version: 1.0.0

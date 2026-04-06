@@ -1,4 +1,5 @@
 @class: class.network.qos
+@title: Network QoS
 @description: Quality of Service profile for traffic shaping
 @layer: L2
 @version: 1.0.0

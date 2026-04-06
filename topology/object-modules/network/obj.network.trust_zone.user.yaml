@@ -1,6 +1,8 @@
 @object: obj.network.trust_zone.user
 @extends: class.network.trust_zone
+@title: Network Trust Zone User
 @description: End-user devices zone (WiFi, LAN, VPN clients)
+@layer: L2
 @version: 1.0.0
 
 properties:

@@ -1,5 +1,7 @@
 @object: obj.docker.container.generic
 @extends: class.compute.workload.docker
+@title: Docker Container Generic
+@layer: L4
 @version: 1.0.0
 
 model: Generic Docker/OCI Container Workload

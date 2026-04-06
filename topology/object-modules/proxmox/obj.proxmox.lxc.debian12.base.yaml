@@ -1,5 +1,7 @@
 @object: obj.proxmox.lxc.debian12.base
 @extends: class.compute.workload.lxc
+@title: Proxmox LXC Debian12 Base
+@layer: L4
 @version: 1.0.0
 
 model: LXC Debian 12 Base

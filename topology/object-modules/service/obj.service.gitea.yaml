@@ -1,5 +1,7 @@
 @object: obj.service.gitea
 @extends: class.service.web_application
+@title: Service Gitea
+@layer: L5
 @version: 1.0.0
 
 model: Gitea

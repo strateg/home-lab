@@ -1,6 +1,8 @@
 @object: obj.operations.backup.rsync
 @extends: class.operations.backup
+@title: Operations Backup RSync
 @description: Rsync-based incremental file backup
+@layer: L7
 @version: 1.0.0
 
 properties:

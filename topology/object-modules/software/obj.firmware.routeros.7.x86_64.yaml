@@ -1,5 +1,7 @@
 @object: obj.firmware.routeros.7.x86_64
 @extends: class.firmware
+@title: Firmware RouterOS 7 X86 64
+@layer: L1
 @version: 1.0.0
 
 vendor: mikrotik

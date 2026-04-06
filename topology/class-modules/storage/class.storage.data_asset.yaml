@@ -1,4 +1,5 @@
 @class: class.storage.data_asset
+@title: Storage Data Asset
 @description: Named data asset representing persistent data
 @layer: L3
 @version: 1.0.0

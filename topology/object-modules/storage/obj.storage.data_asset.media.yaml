@@ -1,6 +1,8 @@
 @object: obj.storage.data_asset.media
 @extends: class.storage.data_asset
+@title: Storage Data Asset Media
 @description: Media data asset for user files and media libraries
+@layer: L3
 @version: 1.0.0
 
 properties:

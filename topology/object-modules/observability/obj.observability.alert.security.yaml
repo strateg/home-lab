@@ -1,6 +1,8 @@
 @object: obj.observability.alert.security
 @extends: class.observability.alert
+@title: Observability Alert Security
 @description: Security alerts (certificate expiry, intrusion)
+@layer: L6
 @version: 1.0.0
 
 properties:

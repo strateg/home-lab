@@ -1,6 +1,8 @@
 @object: obj.storage.media.sata_hdd_500gb
 @extends: class.storage.media
+@title: Storage Media Sata Hdd 500gb
 @description: 500GB 2.5" SATA HDD for secondary capacity storage
+@layer: L1
 @version: 1.0.0
 
 properties:

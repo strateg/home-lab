@@ -1,6 +1,7 @@
 @class: class.service.web_application
 @title: Service Web Application
 @summary: Generic web application service role.
+@layer: L5
 @version: 1.0.0
 
 os_policy: forbidden

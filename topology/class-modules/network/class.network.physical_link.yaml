@@ -1,4 +1,5 @@
 @class: class.network.physical_link
+@title: Network Physical Link
 @description: Physical data link medium between two device interfaces (OSI L1)
 @layer: L1
 @version: 1.0.0

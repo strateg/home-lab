@@ -1,6 +1,8 @@
 @object: obj.operations.backup.config_export
 @extends: class.operations.backup
+@title: Operations Backup Config Export
 @description: Configuration export backup (RouterOS, switch configs)
+@layer: L7
 @version: 1.0.0
 
 properties:

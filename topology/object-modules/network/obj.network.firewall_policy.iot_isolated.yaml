@@ -1,6 +1,8 @@
 @object: obj.network.firewall_policy.iot_isolated
 @extends: class.network.firewall_policy
+@title: Network Firewall Policy IoT Isolated
 @description: IoT isolation - block access to internal networks
+@layer: L2
 @version: 1.0.0
 
 properties:

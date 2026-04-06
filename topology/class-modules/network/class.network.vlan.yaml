@@ -1,4 +1,5 @@
 @class: class.network.vlan
+@title: Network Vlan
 @description: Network segment with VLAN tagging and IP addressing
 @layer: L2
 @version: 1.0.0
