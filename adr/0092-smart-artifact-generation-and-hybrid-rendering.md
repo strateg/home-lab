@@ -2,10 +2,11 @@
 
 # ADR 0092: Smart Artifact Generation and Hybrid Rendering
 
-**Status:** Proposed  
-**Date:** 2026-04-05  
-**Depends on:** ADR 0063, ADR 0065, ADR 0066, ADR 0072, ADR 0074, ADR 0077, ADR 0080  
-**Related:** ADR 0081
+**Status:** Proposed
+**Date:** 2026-04-05
+**Depends on:** ADR 0063, ADR 0065, ADR 0066, ADR 0072, ADR 0074, ADR 0077, ADR 0080
+**Related:** ADR 0081, ADR 0093, ADR 0094
+**Extracts to:** ADR 0094 (AI Advisory Mode)
 
 ---
 
@@ -203,21 +204,23 @@ Generator обязан:
 
 Цель: сделать Ansible output более data-native и менее зависимым от текстовых шаблонов там, где конечный формат сам является сериализуемой структурой.
 
-### D10. Внешний AI-агент допускается только как future advisory mode
+### D10. Внешний AI-агент — see ADR 0094
 
-Разрешить future extension:
-- внешний AI-агент может получать `effective_json` / stable projection / artifact plan;
-- может возвращать **candidate artifact package** или **advisory artifact plan**;
-- не может напрямую заменять deterministic baseline generation без отдельного ADR и специальных gates.
-
-Правила безопасности:
-- AI path только opt-in;
-- secrets redaction обязательна;
-- external AI output не считается trusted artifact;
-- любой AI-generated package должен проходить ту же validation/build/test chain, что и алгоритмически сгенерированные артефакты;
-- publish возможен только после deterministic normalization или полного acceptance pass.
-
-На текущем этапе AI path **не является primary generation mode**.
+> **Extracted to [ADR 0094](0094-ai-advisory-mode-for-artifact-generation.md)**
+>
+> AI advisory mode выделен в отдельный ADR для:
+> - чёткого разделения deterministic и experimental concerns;
+> - собственного lifecycle и acceptance criteria;
+> - детальной проработки security boundaries.
+>
+> ADR 0094 определяет:
+> - trust boundaries и operational modes (advisory/assisted);
+> - secrets redaction contract;
+> - sandbox execution environment;
+> - human approval gates;
+> - audit trail requirements.
+>
+> **Зависимость:** ADR 0094 может быть реализован только после завершения Wave 1-2 данного ADR.
 
 ### D11. Ввести migration strategy
 
@@ -235,8 +238,8 @@ Structured serialization для Ansible inventory/group_vars/host_vars.
 **Wave 4**  
 Selective programmatic emission для сложных Terraform blocks.
 
-**Wave 5**  
-Optional AI advisory experiments в sandbox/test lane.
+**Wave 5**
+AI advisory mode — see [ADR 0094](0094-ai-advisory-mode-for-artifact-generation.md).
 
 ### D12. Граница ADR0092
 Этот ADR фиксирует архитектурную рамку и целевой runtime shape.  
@@ -415,9 +418,11 @@ ADR implementation is considered complete when:
 ### Wave 4 — Hybrid Terraform
 - вынести сложные Terraform fragments в programmatic emission.
 
-### Wave 5 — AI advisory sandbox
-- подготовить redacted payload and sandbox lane;
-- тестировать candidate package generation без publish authority.
+### Wave 5 — AI advisory mode
+
+> See [ADR 0094](0094-ai-advisory-mode-for-artifact-generation.md) for detailed implementation plan.
+>
+> Prerequisites: Waves 1-2 of this ADR must be complete before starting ADR 0094 implementation.
 
 ---
 

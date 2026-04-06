@@ -94,3 +94,4 @@
 | [0091](0091-soho-readiness-evidence-and-handover-artifacts.md) | SOHO Readiness Evidence and Handover Artifacts | Proposed | 2026-04-05 | - | - |
 | [0092](0092-smart-artifact-generation-and-hybrid-rendering.md) | Smart Artifact Generation and Hybrid Rendering | Proposed | 2026-04-05 | - | - |
 | [0093](0093-artifact-plan-schema-and-generator-runtime-integration.md) | ArtifactPlan Schema and Generator Runtime Integration | Proposed | 2026-04-05 | - | - |
+| [0094](0094-ai-advisory-mode-for-artifact-generation.md) | AI Advisory Mode for Artifact Generation | Proposed | 2026-04-06 | ADR 0092 D10 | - |
