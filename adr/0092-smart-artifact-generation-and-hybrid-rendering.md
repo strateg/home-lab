@@ -4,7 +4,7 @@
 
 **Status:** Proposed
 **Date:** 2026-04-05
-**Depends on:** ADR 0063, ADR 0065, ADR 0066, ADR 0072, ADR 0074, ADR 0077, ADR 0080
+**Depends on:** ADR 0063, ADR 0065, ADR 0066, ADR 0074, ADR 0077, ADR 0080
 **Related:** ADR 0081, ADR 0093, ADR 0094
 **Extracts to:** ADR 0094 (AI Advisory Mode)
 
@@ -283,15 +283,14 @@ Generator должен публиковать reasons, capability bundles и art
 ### FR-6 Compatibility mode
 Существующие generators должны работать в compatibility mode до завершения миграции.
 
-### FR-7 AI advisory hook
-Pipeline должна поддерживать future optional advisory input без изменения deterministic baseline path.
+### FR-7 Cross-ADR AI extension boundary
+AI-specific advisory/assisted contracts governed by ADR 0094 must remain extension-only and must not replace the deterministic baseline path defined in this ADR.
 
 ## 3. Non-functional requirements
 
 - deterministic output for identical inputs;
 - stable projection contract;
 - stable IR versioning;
-- no plaintext secrets in externalized AI payloads;
 - no destructive deletion without ownership proof;
 - full compatibility with StageGuard/acceptance/build chain.
 

@@ -46,11 +46,11 @@
 
 ### Input/Output Verification
 
-- [ ] AIInputPayload schema exists in schemas/
+- [ ] `schemas/ai-input-contract.schema.json` exists
 - [ ] Payload builder produces valid payloads
 - [ ] Redaction pipeline integrated in payload builder
 - [ ] Input hash logged for traceability
-- [ ] AIOutputPayload schema exists in schemas/
+- [ ] `schemas/ai-output-contract.schema.json` exists
 - [ ] Output parser handles AI responses
 - [ ] Recommendations extracted correctly
 - [ ] Confidence scores available

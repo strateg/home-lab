@@ -198,7 +198,7 @@ AI infrastructure требует:
 
 1. **Принять ADR 0094** как часть пакета 0092/0093/0094.
 2. **Не начинать реализацию** до завершения Wave 1-2 ADR 0092/0093.
-3. **Wave 1 (Sandbox)** может начаться параллельно с Wave 3 ADR 0092.
+3. **Wave 1 (Sandbox)** может начаться только после выполнения зафиксированных prerequisites (ADR 0092/0093 Wave 1-2).
 4. **Установить clear expectations**: AI — experimental, не production-critical.
 
 ---

@@ -59,7 +59,7 @@ Before starting Wave 1:
 
 | Task | Description | Acceptance |
 |------|-------------|------------|
-| 2.1.1 | Define AIInputPayload schema | Schema in schemas/ |
+| 2.1.1 | Define `schemas/ai-input-contract.schema.json` | Schema file exists in `schemas/` |
 | 2.1.2 | Implement payload builder | Payload from projection |
 | 2.1.3 | Integrate redaction pipeline | No secrets in payload |
 | 2.1.4 | Add input hash for traceability | Hash logged |
@@ -68,7 +68,7 @@ Before starting Wave 1:
 
 | Task | Description | Acceptance |
 |------|-------------|------------|
-| 2.2.1 | Define AIOutputPayload schema | Schema in schemas/ |
+| 2.2.1 | Define `schemas/ai-output-contract.schema.json` | Schema file exists in `schemas/` |
 | 2.2.2 | Implement output parser | Parse AI response |
 | 2.2.3 | Extract recommendations | Recommendations structured |
 | 2.2.4 | Add confidence scores | Scores available |

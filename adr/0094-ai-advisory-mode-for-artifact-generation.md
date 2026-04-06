@@ -2,7 +2,7 @@
 
 **Status:** Proposed
 **Date:** 2026-04-06
-**Depends on:** ADR 0063, ADR 0074, ADR 0080, ADR 0092, ADR 0093
+**Depends on:** ADR 0063, ADR 0072, ADR 0073, ADR 0074, ADR 0080, ADR 0092, ADR 0093
 **Extracted from:** ADR 0092 D10
 
 ---
