@@ -30,6 +30,7 @@ def test_gate_commands_quick_mode_excludes_parity_and_pytest_v5():
     assert "pytest_v4_v5_parity" not in gate_names
     assert "pytest_v5" not in gate_names
     assert "lane_validate_v5" not in gate_names
+    assert "adr0088_governance" not in gate_names
 
 
 def test_gate_commands_full_mode_includes_parity_and_v5_suite():
@@ -38,3 +39,4 @@ def test_gate_commands_full_mode_includes_parity_and_v5_suite():
     assert "pytest_v4_v5_parity" in gate_names
     assert "pytest_v5" in gate_names
     assert "lane_validate_v5" in gate_names
+    assert "adr0088_governance" in gate_names

@@ -1,0 +1,34 @@
+schema_version: 1
+metadata:
+  targets:
+    class_modules:
+      root: topology/class-modules
+      filename_prefix: class.
+      required_keys:
+        - "@title"
+        - "@layer"
+      min_coverage:
+        "@title": 0.80
+        "@layer": 0.80
+    object_modules:
+      root: topology/object-modules
+      filename_prefix: obj.
+      required_keys:
+        - "@title"
+        - "@layer"
+      min_coverage:
+        "@title": 0.80
+        "@layer": 0.80
+warning_governance:
+  allowlist:
+    - W7816
+  max_counts:
+    W7816: 5
+legacy_boundary:
+  scan_root: projects
+  active_instances_root: projects/home-lab/topology/instances
+  exclude_globs:
+    - projects/*/_legacy/**
+  key_patterns:
+    class_ref: "^[\\s]*class_ref[\\s]*:"
+    object_ref: "^[\\s]*object_ref[\\s]*:"

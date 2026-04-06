@@ -202,6 +202,26 @@ Before moving from compatibility to enforce mode:
 - `adr/0088-analysis/GAP-ANALYSIS.md`
 - `adr/0088-analysis/IMPLEMENTATION-PLAN.md`
 - `adr/0088-analysis/CUTOVER-CHECKLIST.md`
+- `adr/0088-analysis/SWOT-ANALYSIS.md`
+
+## Implementation Status Snapshot (2026-04-06)
+
+Fact-based runtime status:
+
+1. Contract gates are green:
+   - compile: `errors=0` (`warnings=5`, `infos=81`)
+   - `validate-v5`: PASS
+   - full test suite: `911 passed, 4 skipped`.
+2. Semantic-only status in active instance lane (`projects/home-lab/topology/instances`):
+   - legacy `class_ref/object_ref`: `0/0`
+   - canonical `@instance/@extends/@layer/@version`: `148/148/148/148`.
+3. Registry and diagnostics status:
+   - `topology/semantic-keywords.yaml` is canonical-only (`aliases: []` for all tokens)
+   - `E8801..E8806` are defined in error catalog and used in runtime/tests.
+4. Residual quality deltas:
+   - metadata coverage is uneven in class/object manifests
+   - boundary-scoped legacy keys remain in `projects/home-lab/_legacy`
+   - warning profile is concentrated in `W7816` duplicate-IP diagnostics.
 
 ## References
 

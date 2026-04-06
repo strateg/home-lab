@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[2]
 PYTHON = sys.executable
 PHASE1_REPORT_JSON = "build/diagnostics/phase1-gate-report.json"
 LAYER_REPORT_JSON = "build/diagnostics/layer-contract-report.json"
+ADR0088_GOVERNANCE_REPORT_JSON = "build/diagnostics/adr0088-governance-report.json"
 SUPPORTED_SECRETS_MODES = {"inject", "passthrough", "strict"}
 LEGACY_ROOT_DIRS = ("v4", "v5")
 
@@ -57,6 +58,21 @@ def _run_validate_v5_with_mode(secrets_mode: str) -> None:
             "--strict-model-lock",
             "--secrets-mode",
             secrets_mode,
+        ]
+    )
+    governance_mode = os.environ.get("ADR0088_GOVERNANCE_MODE", "warn").strip().lower()
+    if governance_mode not in {"warn", "enforce"}:
+        governance_mode = "warn"
+    run(
+        [
+            PYTHON,
+            "scripts/validation/validate_adr0088_governance.py",
+            "--diagnostics-json",
+            "build/diagnostics/report.json",
+            "--output-json",
+            ADR0088_GOVERNANCE_REPORT_JSON,
+            "--mode",
+            governance_mode,
         ]
     )
 

@@ -1,45 +1,48 @@
 # GAP ANALYSIS — ADR 0088
 
-## AS-IS
+## AS-IS (2026-04-06 fact snapshot)
 
-1. Entity keys are hardcoded in tooling (`version`, `capability/id`, `schema`, `class`, `object`, `instance`, `title`, `summary`, `layer`, `description`, `class_ref`, `object_ref`).
-2. Parent-link semantics are split (`class_ref` vs `object_ref`) instead of one unified relation.
-3. Effective JSON does not expose complete lineage/materialization graph fields.
-4. Runtime YAML parsing uses permissive `yaml.safe_load` call-sites without duplicate-key rejection contract.
-5. ADR 0067 strict key policy and ADR 0088 transitional alias strategy are not yet formally reconciled.
+1. Canonical semantic registry is active (`topology/semantic-keywords.yaml`) and all 11 tokens are canonical-only (`aliases: []`).
+2. Strict YAML loader is active in core runtime entrypoints (no `yaml.safe_load` in `compile-topology.py`, `compiler_runtime.py`, `plugin_manifest_discovery.py`, `kernel/plugin_registry.py`).
+3. ADR0088 diagnostic family is implemented (`E8801..E8806` in error catalog; runtime/tests include explicit mentions).
+4. Active instance source path is canonical-only:
+   - `projects/home-lab/topology/instances`: `class_ref=0`, `object_ref=0`
+   - `@instance/@extends/@layer/@version`: `148/148/148/148`
+5. Gates are green:
+   - compile: `errors=0`, `warnings=5`, `infos=81`
+   - `validate-v5`: PASS
+   - full tests: `911 passed, 4 skipped`
+6. Residual deltas remain:
+   - metadata coverage is uneven (class/object required metadata not yet uniformly present)
+   - legacy key footprint exists in boundary-scoped historical area (`projects/home-lab/_legacy`: `class_ref=131`, `object_ref=131`)
+   - compile warning profile is concentrated in `W7816` duplicate-IP warnings (5 entries).
 
-## TO-BE
+## TO-BE (post-hardening target)
 
-1. Semantic keyword registry controls canonical keywords and aliases, including `@version`, `@capability`, `@schema`, `@title`, `@summary`, `@layer`, `@description`.
-2. Compiler/plugins resolve semantics through registry, not literals.
-3. Unified `@extends` validators for all entities:
-   - class -> parent class
-   - object -> concrete class
-   - instance -> object -> class
-4. Effective JSON includes lineage and materialization paths.
+1. Canonical semantic-only runtime stays enforced; no alias rollback in active lane.
+2. Metadata governance is explicit and measurable (coverage targets + phased gate: `warn -> gate-new -> enforce`).
+3. Boundary-scoped legacy data remains explicit, fenced, and excluded from active cutover quality metrics.
+4. Warning governance is explicit:
+   - accepted warning classes are documented
+   - escalation criteria from warning to error are defined and testable.
 
 ## Delta summary
 
 | Area | Gap | Required change |
 |---|---|---|
-| Authoring contract | Literal keys only, legacy `capability/id` style, weak metadata/version/capability signaling | Introduce canonical `@` keys (`@version`, `@capability`, `@schema`, `@class`, `@object`, `@instance`, `@extends`, `@title`, `@summary`, `@layer`, `@description`) + alias migration |
-| Loader/runtime | Hardcoded key names | Registry-driven semantic resolution layer across compiler plugins |
-| Validation | Missing unified extends typing + graph checks | New validators for hierarchy/materialization and target-type checks; resolver-backed validation API |
-| Generation | Generators read legacy-shaped model assumptions | Migrate generators to normalized semantic effective model fields |
-| Effective model | Limited graph metadata | Add lineage/materialization fields in emitted JSON |
-| ADR governance | ADR0067 strict cutover vs ADR0088 staged aliases | Explicit partial-supersede statement and scoped transition contract |
-| YAML parsing | No strict duplicate-key contract | Strict loader profile with deterministic diagnostics |
+| Semantic contract | Runtime is strict, but policy text still under-specifies post-cutover governance | Add explicit post-cutover semantic-only continuity rule |
+| Metadata quality | Mandatory metadata coverage not uniformly achieved | Define coverage targets and phased enforcement gate |
+| Legacy boundary | Legacy key usage persists in `_legacy` tree | Codify boundary-fenced handling as intentional/non-active |
+| Warning policy | `W7816` profile exists without explicit policy gate | Add warning governance and escalation contract |
 
 ## Risk hotspots
 
-1. ADR 0068 placeholder value markers use `@...` and may be confused with `@key` semantics.
-2. Massive surface area (compiler + plugins + tests + fixtures).
-3. Ambiguous documents if canonical and alias keys coexist in one node.
-4. `@schema` may collide with existing file-level `schema` usage unless context-scoped.
+1. Metadata enforcement can create large migration wave if moved directly to hard fail.
+2. Warning escalation without explicit criteria can create unstable CI behavior.
+3. Boundary confusion between active lane and `_legacy` can distort readiness reporting.
 
 ## Recommended boundaries
 
-1. Keep canonical effective JSON field names stable even if source YAML uses aliases.
-2. Reject mixed canonical+alias duplicates in the same mapping node.
-3. Enforce one semantic meaning per registry entry (no overlapping aliases).
-4. Scope semantic resolution by context path (entity manifest root vs capability entry record), not by global key rename.
+1. Preserve strict canonical semantics in active lane as non-regression constraint.
+2. Treat `_legacy` as explicitly excluded from active semantic cutover compliance metrics.
+3. Move metadata and warning policies via phased gates, not immediate hard fail across full repository.

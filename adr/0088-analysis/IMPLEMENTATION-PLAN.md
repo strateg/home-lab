@@ -5,6 +5,24 @@
 Incremental migration with compatibility mode first, then enforcement.
 `archive/v4/` is immutable reference scope and is never modified as part of ADR0088 implementation waves.
 
+## Current implementation status (2026-04-06)
+
+1. Runtime semantic-only foundations are active:
+   - canonical semantic registry wired
+   - strict YAML loader active in core runtime path
+   - `E8801..E8806` catalog + runtime enforcement in key compilers.
+2. Active instance source path is canonical-only (`projects/home-lab/topology/instances`):
+   - zero legacy `class_ref/object_ref`
+   - full `@instance/@extends/@layer/@version` coverage.
+3. Contract gates are green:
+   - compile (`errors=0`)
+   - `validate-v5` PASS
+   - full `pytest` PASS.
+4. Residual quality deltas:
+   - metadata coverage asymmetry in class/object manifests
+   - boundary-scoped legacy keys in `projects/home-lab/_legacy`
+   - non-blocking `W7816` duplicate-IP warning profile.
+
 ## Wave 0 — Baseline normalization and contract cleanup
 
 1. Create `topology/semantic-keywords.yaml` and wire it as runtime input.
@@ -81,6 +99,22 @@ Incremental migration with compatibility mode first, then enforcement.
 5. Remove bridge fields from effective JSON only after generator/test migration gate.
 
 **Gate:** repository topology converted and clean in enforce mode.
+
+## Wave 5 — Post-cutover quality hardening (current focus)
+
+1. Metadata governance hardening:
+   - define measurable coverage targets for required semantic metadata
+   - apply phased enforcement (`warn -> gate-new -> enforce`) per active lane.
+2. Legacy-boundary governance:
+   - explicitly fence `_legacy` from active semantic compliance KPIs
+   - keep active-lane compliance metrics scope deterministic.
+3. Warning-governance hardening:
+   - classify accepted warning families
+   - define deterministic escalation criteria (warning -> error) for repeated conflict classes.
+4. Compliance reporting:
+   - publish periodic ADR0088 status snapshot against cutover checklist.
+
+**Gate:** quality-hardening policies are documented, measurable, and enforced in CI without semantic rollback.
 
 ## Test strategy
 

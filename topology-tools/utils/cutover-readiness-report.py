@@ -138,6 +138,20 @@ def _gate_commands(repo_root: Path, *, quick: bool) -> list[tuple[str, list[str]
                     [python, "scripts/orchestration/lane.py", "validate-v5"],
                     {"V5_SECRETS_MODE": "passthrough"},
                 ),
+                (
+                    "adr0088_governance",
+                    [
+                        python,
+                        "scripts/validation/validate_adr0088_governance.py",
+                        "--mode",
+                        "warn",
+                        "--diagnostics-json",
+                        "build/diagnostics/report.json",
+                        "--output-json",
+                        "build/diagnostics/adr0088-governance-report.json",
+                    ],
+                    None,
+                ),
             ]
         )
     return commands
