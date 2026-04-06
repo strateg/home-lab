@@ -1,7 +1,10 @@
 @class: class.compute.hypervisor.vmware
-@version: 1.0.0
+@extends: class.compute.hypervisor
 @title: VMware Hypervisor
 @summary: VMware ESXi/Workstation/Fusion hypervisor platform.
+@description: VMware hypervisor profile for ESXi and hosted VMware runtimes.
+@layer: L1
+@version: 1.0.0
 os_policy: required
 firmware_policy: required
 os_cardinality:

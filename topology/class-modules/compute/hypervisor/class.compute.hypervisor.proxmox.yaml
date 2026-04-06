@@ -1,7 +1,10 @@
 @class: class.compute.hypervisor.proxmox
-@version: 1.0.0
+@extends: class.compute.hypervisor
 @title: Proxmox Hypervisor
 @summary: Proxmox VE hypervisor platform (QEMU/KVM + LXC).
+@description: Proxmox-specific hypervisor profile with VM and LXC runtime support.
+@layer: L1
+@version: 1.0.0
 os_policy: required
 firmware_policy: required
 os_cardinality:

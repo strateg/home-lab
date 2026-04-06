@@ -1,7 +1,10 @@
 @class: class.compute.hypervisor.vbox
-@version: 1.0.0
+@extends: class.compute.hypervisor
 @title: VirtualBox Hypervisor
 @summary: Oracle VirtualBox hypervisor platform.
+@description: VirtualBox hypervisor profile for hosted VM workloads.
+@layer: L1
+@version: 1.0.0
 os_policy: required
 firmware_policy: required
 os_cardinality:

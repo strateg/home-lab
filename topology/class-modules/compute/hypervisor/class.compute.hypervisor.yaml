@@ -1,8 +1,10 @@
 @class: class.compute.hypervisor
-@version: 2.0.0
 @title: Compute Hypervisor
 @summary: Abstract base class for hypervisor platforms.
-abstract: true
+@description: Base contract for hypervisor platforms that host virtualized workloads.
+@layer: L1
+@version: 2.0.0
+@abstract: true
 os_policy: required
 firmware_policy: required
 os_cardinality:

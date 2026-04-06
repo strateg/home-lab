@@ -1,7 +1,10 @@
 @class: class.compute.hypervisor.hyperv
-@version: 1.0.0
+@extends: class.compute.hypervisor
 @title: Hyper-V Hypervisor
 @summary: Microsoft Hyper-V hypervisor platform.
+@description: Hyper-V hypervisor profile for Microsoft virtualization stacks.
+@layer: L1
+@version: 1.0.0
 os_policy: required
 firmware_policy: required
 os_cardinality:
