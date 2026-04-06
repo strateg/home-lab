@@ -339,6 +339,39 @@ summary:
   obsolete_count: int
 ```
 
+### 4.3 IR contract baseline
+
+```yaml
+ir_contract:
+  ownership: per_artifact_family
+  versioning: semver
+  sharing: not_allowed_between_families
+  lifecycle:
+    creation: generate_stage
+    consumption: render_or_serialize_stage
+    persistence: optional_debug_or_audit
+  compatibility:
+    minor: backward_compatible
+    major: migration_required
+```
+
+### 4.4 Capability-to-artifact mapping contract
+
+```yaml
+capability_artifact_mapping:
+  input: compiled_capabilities[]
+  output:
+    - artifact_families[]
+    - planned_outputs[]
+  invariants:
+    - deterministic_for_identical_inputs
+    - capability_order_independent
+    - explainable_reason_per_output
+  verification:
+    - mapping_unit_tests
+    - plan_consistency_integration_tests
+```
+
 ## 5. Pipeline integration
 
 ### discover
@@ -368,11 +401,24 @@ summary:
 ## 6. Acceptance criteria
 
 ADR implementation is considered complete when:
-- at least one Terraform family generator emits ArtifactPlan;
-- at least one Ansible family generator uses structured serialization;
-- obsolete detection exists for migrated generators;
-- CI has tests for projection -> plan and plan -> outputs;
-- no regression in current build/publish path.
+
+| ID | Criterion | Verification |
+| -- | --------- | ------------ |
+| AC-1 | At least **2** Terraform family generators emit valid ArtifactPlan | CI integration tests for pilot families |
+| AC-2 | At least **1** Ansible family generator uses structured serialization with output parity | Parity tests vs baseline outputs |
+| AC-3 | Capability-to-artifact mapping is deterministic and order-independent | Mapping tests with permuted capability order |
+| AC-4 | CI validates projection -> plan -> outputs for all migrated families | End-to-end generator tests |
+| AC-5 | Obsolete detection is implemented with non-destructive default behavior | Tests assert `warn` default without ownership proof |
+| AC-6 | Build/publish path has no regression above **10%** wall-clock for migrated families | Baseline vs migrated performance benchmark |
+
+### 6.1 Cross-ADR compliance matrix (0092/0093/0094)
+
+| Requirement | Governing ADR | Owner | Evidence/Gate |
+| ----------- | ------------- | ----- | ------------- |
+| Planning-first deterministic generation | ADR 0092 | Generator runtime owners | Projection->plan->output CI tests |
+| Schema invariants, sunset and rollback for migrated families | ADR 0093 | Schema/CI owners | AC-1..AC-24 in ADR 0093 |
+| AI advisory security boundaries and trust model | ADR 0094 | Security/runtime owners | Redaction/sandbox/approval/audit gates |
+| Deterministic baseline must remain available | ADR 0092 + ADR 0094 | Architecture owners | Fail-closed integration tests + baseline build checks |
 
 ---
 

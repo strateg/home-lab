@@ -408,6 +408,59 @@ escalation_policy:
     output: "ADR amendment or generator redesign"
 ```
 
+### D15. Schema Evolution Policy
+
+```yaml
+schema_evolution:
+  versioning: "MAJOR.MINOR"
+  current: "1.0"
+  minor_changes_allowed:
+    - "add optional fields"
+    - "add enum values with backward compatibility"
+  major_changes_required_for:
+    - "remove or rename required fields"
+    - "change field type or semantics"
+  compatibility_window:
+    runtime_support: "current + previous minor"
+    deprecation_notice: "at least one wave before removal"
+  enforcement:
+    - "schema/runtime/tests updated in one PR"
+```
+
+### D16. Performance Budget Contract
+
+```yaml
+performance_budget:
+  planning_stage_overhead:
+    target: "<= 10%"
+    baseline: "legacy generator runtime per family"
+  validate_stage_overhead:
+    target: "<= 10%"
+  ci_enforcement:
+    - "benchmark test for migrated families"
+    - "warning at >10%, blocker at >20%"
+```
+
+### D17. State and Audit Storage Contract
+
+```yaml
+state_and_audit_contract:
+  artifact_plan_state:
+    path: ".state/artifact-plans/<plugin_id>.json"
+    retention: "last successful + current run"
+  generation_audit:
+    path: ".work/generator-audit/<date>/"
+    format: "jsonl"
+    required_events:
+      - artifact_plan_published
+      - ownership_check_result
+      - obsolete_action_selected
+      - rollback_mode_transition
+  safety:
+    - "state writes are atomic"
+    - "audit append-only"
+```
+
 ---
 
 ## Acceptance Criteria
@@ -451,6 +504,15 @@ escalation_policy:
 | AC-18 | Rollback event logged to audit | Audit log contains event |
 | AC-19 | Rollback escalation after 7 days | CI warning becomes blocking |
 | AC-20 | Rollback procedure documented | Runbook in docs/ |
+
+### Schema Evolution and Performance (Wave 2-3)
+
+| ID | Criterion | Verification |
+| -- | --------- | ------------ |
+| AC-21 | Schema evolution policy is implemented for ArtifactPlan/Report | Versioning and compatibility tests exist |
+| AC-22 | Runtime supports current + previous minor schema versions | Backward-compat regression tests pass |
+| AC-23 | Planning/validation overhead is within 10% target | Benchmark report attached to CI |
+| AC-24 | State and audit storage paths are implemented and stable | State/audit artifacts visible in expected directories |
 
 ---
 

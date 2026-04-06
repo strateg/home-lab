@@ -346,22 +346,78 @@ acceptance_criteria:
     - "Secrets redaction coverage >= 99%"
     - "No secrets leak in AI input (verified by tests)"
     - "Sandbox isolation verified by security review"
+    - "Provider allowlist enforced (unknown provider is rejected)"
+    - "Redaction/sandbox setup failures fail closed (AI call is blocked)"
 
   wave_2:
     - "Advisory mode produces valid recommendations"
     - "No artifacts modified in advisory mode"
     - "Audit trail complete for all requests"
+    - "Advisory p95 latency <= 60s"
 
   wave_3:
     - "Candidate artifacts pass validation pipeline"
     - "Diff review shows accurate changes"
     - "Promotion requires explicit human approval"
     - "Rollback restores baseline within 5 minutes"
+    - "Assisted p95 latency <= 300s"
 
   overall:
     - "AI path never becomes default"
     - "Deterministic baseline always available"
     - "Zero secrets exposure incidents"
+    - "Fail-closed policy is enforced for security-critical failures"
+    - "AI usage stays within configured project budget guardrails"
+```
+
+### D14. Provider Allowlist and Backend Governance
+
+```yaml
+provider_governance:
+  backend_allowlist:
+    source: "project config + framework defaults"
+    mode: "default-deny"
+  backend_selection_rules:
+    - "only allowlisted providers can execute requests"
+    - "provider/model pair must be explicitly configured"
+    - "unapproved provider fallback is forbidden"
+  change_control:
+    - "allowlist changes require review"
+    - "allowlist changes logged in audit trail"
+```
+
+### D15. Cost and Latency Guardrails
+
+```yaml
+cost_latency_guardrails:
+  latency_slo:
+    advisory_p95_sec: 60
+    assisted_p95_sec: 300
+  budget_policy:
+    monthly_budget: "project-defined"
+    soft_limit_action: "warning + audit event"
+    hard_limit_action: "block assisted mode, advisory only"
+  reporting:
+    - "per-request cost estimate"
+    - "daily usage summary"
+```
+
+### D16. Fail-Closed Execution Policy
+
+```yaml
+fail_closed_policy:
+  critical_failures:
+    - redaction_failure
+    - sandbox_initialization_failure
+    - audit_logger_unavailable
+    - approval_artifact_missing
+    - validation_pipeline_unavailable
+  behavior:
+    on_critical_failure: "abort AI path and keep deterministic baseline only"
+    auto_retry: "allowed for transient transport errors only"
+  operator_signal:
+    - "emit explicit error code"
+    - "write audit event with failure reason"
 ```
 
 ---
@@ -392,24 +448,29 @@ acceptance_criteria:
 | FR-6 | Diff-based review interface | High |
 | FR-7 | Rollback procedure | High |
 | FR-8 | Pluggable AI backend adapters | Medium |
+| FR-9 | Provider/model allowlist enforcement | Critical |
+| FR-10 | Fail-closed behavior for security-critical failures | Critical |
 
 ### 3. Non-Functional Requirements
 
 - No secrets in AI payloads (zero tolerance).
-- AI response latency < 60s for advisory, < 300s for assisted.
+- AI response latency p95 < 60s for advisory, p95 < 300s for assisted.
 - Audit logs retained for 90 days minimum.
 - Sandbox cleanup within 24 hours of session end.
 - AI mode toggle without pipeline restart.
+- AI spend must stay within configured monthly project budget.
+- On critical safety failures AI path must fail closed to deterministic baseline.
 
 ### 4. Security Considerations
 
-| Threat | Mitigation |
-|--------|------------|
-| Secrets leak to AI provider | Redaction pipeline + verification tests |
-| Malicious AI output | Validation pipeline + human review |
-| Prompt injection | Input sanitization + output validation |
-| Data exfiltration | Network isolation in sandbox |
-| Audit log tampering | Append-only log + integrity checks |
+| Threat | Control | Verification Gate |
+|--------|---------|-------------------|
+| Secrets leak to AI provider | Redaction pipeline + provider allowlist + forbidden-input contract | CI redaction leak tests (blocking) + allowlist policy tests |
+| Malicious AI output | Untrusted-by-default output + validation pipeline + human approval | Candidate validation tests + approval gate integration tests |
+| Prompt injection | Input sanitization + strict output schema validation | Injection regression suite + schema validation CI gate |
+| Data exfiltration | Sandbox network isolation + sanitized environment | Sandbox isolation tests (FS/network/env) |
+| Audit log tampering | Append-only audit + integrity checks | Audit integrity test + retention policy checks |
+| Safety gate bypass | Fail-closed policy on critical failures | Integration tests for redaction/sandbox/audit failure paths |
 
 ---
 
