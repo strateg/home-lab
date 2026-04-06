@@ -89,3 +89,8 @@
 | [0086](0086-flatten-plugin-hierarchy-and-reduce-granularity.md) | Flatten Plugin Hierarchy and Reduce Plugin Granularity | Accepted (complete) | 2026-04-01 | ADR 0063 Section 4B | - |
 | [0087](0087-unified-container-ontology-l4-l5.md) | Unified Container Ontology for L4/L5 | Proposed | 2025-07-12 | - | ADR 0026, 0034, 0042, 0064 |
 | [0088](0088-semantic-keyword-registry-and-at-prefixed-meta-fields.md) | Semantic Keyword Registry and `@`-Prefixed Meta Fields | Accepted | 2026-04-05 | [0067](0067-entity-specific-identifier-keys-in-yaml-authoring.md) | - |
+| [0089](0089-soho-product-profile-and-bundle-contract.md) | SOHO Product Profile and Bundle Contract | Proposed | 2026-04-05 | - | - |
+| [0090](0090-soho-operator-lifecycle-and-task-ux-contract.md) | SOHO Operator Lifecycle and Task UX Contract | Proposed | 2026-04-05 | - | - |
+| [0091](0091-soho-readiness-evidence-and-handover-artifacts.md) | SOHO Readiness Evidence and Handover Artifacts | Proposed | 2026-04-05 | - | - |
+| [0092](0092-smart-artifact-generation-and-hybrid-rendering.md) | Smart Artifact Generation and Hybrid Rendering | Proposed | 2026-04-05 | - | - |
+| [0093](0093-candidate-artifact-plan-schema-and-generator-runtime-integration.md) | ArtifactPlan Schema and Generator Runtime Integration | Candidate / Draft | 2026-04-05 | - | - |
