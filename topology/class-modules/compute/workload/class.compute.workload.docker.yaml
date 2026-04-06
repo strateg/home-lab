@@ -1,9 +1,11 @@
 @class: class.compute.workload.docker
+@extends: class.compute.workload
 @title: Compute Workload Docker
 @summary: Docker/OCI container workload runtime contract.
 @layer: L4
-@version: 1.0.0
+@version: 1.1.0
 
+# Override base class policies for Docker specifics
 os_policy: required
 firmware_policy: forbidden
 os_cardinality:
@@ -12,6 +14,17 @@ os_cardinality:
 multi_boot: false
 allowed_os_install_models:
 - container_base
+
+# Docker host_ref can target L1 device OR L4 LXC (Docker-in-LXC)
+host_ref_target_layers:
+- L1
+- L4
+
+# Docker-specific: host must have docker capability
+host_required_capabilities:
+- cap.compute.runtime.container_host
+- vendor.runtime.docker.host
+
 required_capabilities:
 - cap.compute.workload.container
 - cap.compute.workload.linux_base

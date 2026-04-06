@@ -1021,6 +1021,46 @@ plugins:
         required: false
     description: Validates runtime targets have active host OS bindings when OS inventory exists.
 
+  - id: base.validator.host_ref_dag
+    kind: validator_json
+    entry: validators/host_ref_dag_validator.py:HostRefDagValidator
+    api_version: "1.x"
+    stages: [validate]
+    phase: run
+    order: 143
+    depends_on: [base.compiler.instance_rows]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    consumes:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        required: false
+    description: Validates workload host_ref forms DAG with max depth 2 (ADR 0087 AC-6).
+
+  - id: base.validator.docker_refs
+    kind: validator_json
+    entry: validators/docker_refs_validator.py:DockerRefsValidator
+    api_version: "1.x"
+    stages: [validate]
+    phase: run
+    order: 144
+    depends_on: [base.compiler.instance_rows]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    consumes:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        required: false
+    description: Validates Docker container refs and host capabilities (ADR 0087 Phase 1).
+
   - id: base.validator.storage_l3_refs
     kind: validator_json
     entry: validators/storage_l3_refs_validator.py:StorageL3RefsValidator

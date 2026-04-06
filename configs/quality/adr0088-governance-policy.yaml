@@ -22,8 +22,10 @@ metadata:
 warning_governance:
   allowlist:
     - W7816
+    - W7892
   max_counts:
     W7816: 5
+    W7892: 50
 legacy_boundary:
   scan_root: projects
   active_instances_root: projects/home-lab/topology/instances

@@ -462,6 +462,23 @@ class ServiceRuntimeRefsValidator(ValidatorJsonPlugin):
         if not isinstance(target, dict) or target.get("layer") != "L1":
             return
 
+        # ADR 0087 AC-5: Warn when Docker service targets L1 device directly
+        # Docker services should target L4 Docker containers instead
+        if runtime_type == "docker":
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="W0087",
+                    severity="warning",
+                    stage=stage,
+                    message=(
+                        f"Service '{row_id}': runtime.target_ref points to L1 device '{target_ref}'; "
+                        "ADR 0087 requires Docker services to target L4 Docker containers. "
+                        "This pattern will become ERROR in Phase 3."
+                    ),
+                    path=f"{row_prefix}.runtime.target_ref",
+                )
+            )
+
         host_os_entries = active_host_os_by_device.get(target_ref, [])
         if has_host_os_inventory and not host_os_entries:
             diagnostics.append(

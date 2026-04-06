@@ -1,9 +1,11 @@
 @class: class.compute.workload.lxc
+@extends: class.compute.workload
 @title: Compute Workload LXC
 @summary: LXC containerized workload runtime contract.
 @layer: L4
-@version: 1.0.0
+@version: 1.1.0
 
+# Override base class policies for LXC specifics
 os_policy: required
 firmware_policy: forbidden
 os_cardinality:
@@ -12,6 +14,11 @@ os_cardinality:
 multi_boot: false
 allowed_os_install_models:
 - container_base
+
+# LXC host_ref targets L1 device only (not nested)
+host_ref_target_layers:
+- L1
+
 required_capabilities:
 - cap.compute.workload.container
 - cap.compute.workload.linux_base

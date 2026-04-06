@@ -1,9 +1,11 @@
 @class: class.compute.workload.vm
+@extends: class.compute.workload
 @title: Compute Workload VM
 @summary: Virtual machine workload runtime contract.
 @layer: L4
-@version: 1.0.0
+@version: 1.1.0
 
+# Override base class policies for VM specifics
 os_policy: required
 firmware_policy: required
 os_cardinality:
@@ -13,6 +15,15 @@ multi_boot: false
 allowed_os_install_models:
 - cloud_image
 - installable
+
+# VM host_ref targets L1 hypervisor only
+host_ref_target_layers:
+- L1
+
+# VM-specific: host must have VM capability
+host_required_capabilities:
+- cap.compute.runtime.vm_host
+
 required_capabilities:
 - cap.compute.node.cloud_vm
 - cap.compute.workload.linux_base
@@ -21,3 +32,7 @@ capability_packs: []
 invariants:
 - object.class_ref must equal class.id
 - instance overrides must not violate class invariants
+- disk_id must be unique within VM instance
+- bus:slot must be unique within VM instance
+- exactly one disk with role:boot must exist
+- boot_order must reference existing disk_id values

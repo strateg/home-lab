@@ -1,0 +1,36 @@
+@class: class.compute.workload
+@title: Compute Workload Abstract Base
+@summary: Abstract base class for compute workloads (LXC, Docker, VM).
+@layer: L4
+@version: 1.0.0
+@abstract: true
+
+# Common policies - subclasses must define concrete values
+os_policy: required
+firmware_policy: forbidden
+os_cardinality:
+  min: 1
+  max: 1
+multi_boot: false
+allowed_os_install_models:
+- container_base
+- installable
+
+# Host reference contract
+# host_ref targets L1 device or L4 workload (for nesting like Docker-in-LXC)
+host_ref_required: true
+host_ref_target_layers:
+- L1
+- L4
+
+# Common capabilities inherited by all workload types
+required_capabilities: []
+optional_capabilities: []
+capability_packs: []
+
+invariants:
+- subclass must define concrete policies
+- object.class_ref must equal class.id
+- instance overrides must not violate class invariants
+- host_ref graph must be a DAG (no cycles)
+- host_ref depth must not exceed 2 levels

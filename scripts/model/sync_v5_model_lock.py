@@ -4,10 +4,15 @@
 from __future__ import annotations
 
 from pathlib import Path
+import sys
 
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
+TOOLS_ROOT = ROOT / "topology-tools"
+sys.path.insert(0, str(TOOLS_ROOT))
+
+from yaml_loader import load_yaml_file
 LOCK_PATH = ROOT / "topology/model.lock.yaml"
 CLASS_ROOT = ROOT / "topology/class-modules"
 OBJECT_ROOT = ROOT / "topology/object-modules"
@@ -17,14 +22,26 @@ def _collect_modules(root: Path, key: str) -> list[dict]:
     items: list[dict] = []
     for path in sorted(root.rglob("*.yaml")):
         try:
-            payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+            payload = load_yaml_file(path) or {}
         except yaml.YAMLError:
             continue
         if isinstance(payload, dict):
-            module_id = payload.get(key)
+            module_id = payload.get(key) or payload.get(f"@{key}")
             if isinstance(module_id, str) and module_id:
                 items.append(payload)
     return items
+
+
+def _module_version(payload: dict) -> str:
+    value = payload.get("version") or payload.get("@version") or "1.0.0"
+    return str(value)
+
+
+def _object_class_ref(payload: dict) -> str | None:
+    value = payload.get("class_ref") or payload.get("@extends") or payload.get("extends")
+    if isinstance(value, str) and value:
+        return value
+    return None
 
 
 def main() -> int:
@@ -44,15 +61,21 @@ def main() -> int:
         "objects": {},
     }
 
-    for item in sorted(classes, key=lambda entry: entry["class"]):
-        output["classes"][item["class"]] = {"version": str(item.get("version", "1.0.0"))}
-
-    for item in sorted(objects, key=lambda entry: entry["object"]):
-        class_ref = item.get("class_ref")
-        if not isinstance(class_ref, str) or not class_ref:
+    for item in sorted(classes, key=lambda entry: entry.get("class") or entry.get("@class")):
+        class_id = item.get("class") or item.get("@class")
+        if not isinstance(class_id, str) or not class_id:
             continue
-        output["objects"][item["object"]] = {
-            "version": str(item.get("version", "1.0.0")),
+        output["classes"][class_id] = {"version": _module_version(item)}
+
+    for item in sorted(objects, key=lambda entry: entry.get("object") or entry.get("@object")):
+        object_id = item.get("object") or item.get("@object")
+        if not isinstance(object_id, str) or not object_id:
+            continue
+        class_ref = _object_class_ref(item)
+        if class_ref is None:
+            continue
+        output["objects"][object_id] = {
+            "version": _module_version(item),
             "class_ref": class_ref,
         }
 
