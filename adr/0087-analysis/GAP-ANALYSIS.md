@@ -1,5 +1,28 @@
 # GAP-ANALYSIS: Container Ontology for L4/L5
 
+**Last updated:** 2026-04-06
+**Status:** Gaps addressed in ADR update
+
+## Gap Status Summary
+
+| Gap | Description | Status | Addressed By |
+|-----|-------------|--------|--------------|
+| GAP-1 | No unified container taxonomy | **CLOSED** | D1 (two-axis hierarchy) |
+| GAP-2 | Docker containers have no L4 representation | **CLOSED** | D2 (Docker promotion) |
+| GAP-3 | No nested topology / recursive composition | **CLOSED** | D5 (topology_scope) |
+| GAP-4 | No container runtime as first-class entity | **CLOSED** | D3 (runtime capabilities) |
+| GAP-5 | Inconsistent host reference pattern | **CLOSED** | D2 + §5d (host_ref semantics) |
+| GAP-6 | No container image / template abstraction | **PARTIAL** | D2 (image ref in Docker class) |
+| GAP-7 | Resource profile not structured | **DEFERRED** | Out of Scope (future ADR) |
+| GAP-8 | No multi-host orchestration | **DEFERRED** | Out of Scope (home lab single-host) |
+| GAP-9 | No multi-hypervisor VM taxonomy | **CLOSED** | D1 (hypervisor hierarchy) |
+| GAP-10 | L3 storage ↔ VM disk disconnect | **CLOSED** | D4 (L3↔L4 storage integration) |
+| GAP-11 | L4 ↔ L3 data_asset mapping not implemented | **CLOSED** | D4 (data_asset_ref) |
+
+**Summary:** 9/11 gaps closed, 2 explicitly deferred.
+
+---
+
 ## 1. AS-IS: Current Container Modeling
 
 ### 1.1 Current Stack

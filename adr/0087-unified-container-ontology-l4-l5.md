@@ -175,6 +175,78 @@ Vendor capabilities implicitly satisfy their parent common capability.
 Validators resolve this inheritance chain when checking workload host
 requirements. Full schema definitions: `ONTOLOGY-PROPOSAL.md` §5.3.
 
+### 5g. Ownership proof contract
+
+Before deleting or moving class/object/instance files, ownership must be proven
+using one of three methods (in priority order):
+
+1. **State file match** — previous compilation state contains the file with
+   matching content hash
+2. **Path prefix match** — file path falls under a known module prefix owned
+   by the current operation (e.g., `topology/class-modules/compute/`)
+3. **Ownership marker** — file contains `# owner: <module-id>` comment (fallback)
+
+CI gate blocks delete/move operations without ownership proof. Ownership
+conflicts (overlapping prefixes from different modules) are hard errors.
+
+### 5h. Migration state model
+
+Each workload family tracks migration progress via `migration_mode` in its
+manifest or feature flag:
+
+| State | Meaning | Behavior |
+|-------|---------|----------|
+| `legacy` | Not yet migrated | Old patterns accepted, no warnings |
+| `migrating` | Migration in progress | Old patterns emit WARNING |
+| `migrated` | Migration complete | Old patterns emit ERROR |
+| `rollback` | Temporary reversion | Old patterns accepted, escalation timer starts |
+
+State transitions:
+- `legacy` → `migrating`: Phase starts
+- `migrating` → `migrated`: Phase gate passed
+- `migrated` → `rollback`: Emergency reversion (requires justification)
+- `rollback` → `migrating`: Resume migration (resets escalation timer)
+
+### 5i. Sunset policy
+
+Deprecated patterns follow phase-relative sunset schedule:
+
+| Pattern | WARNING | ERROR | REMOVAL |
+|---------|---------|-------|---------|
+| `class.compute.workload.container` alias | Phase 1 + 0d | Phase 3 + 0d | Phase 6 GA |
+| L5→L1 Docker target_ref | Phase 1 + 0d | Phase 3 + 0d | Phase 6 GA |
+| `L4-platform/vms/` path alias | Phase 3 + 0d | Phase 4 + 0d | Phase 6 GA |
+| 3-segment L4/L5 paths | Phase 1 + 14d | Phase 3 + 14d | Phase 6 GA |
+
+Grace period: 14 days between phase gate and ERROR promotion for path-based
+patterns. `--allow-deprecated` CI flag available during grace period only.
+
+### 5j. Rollback escalation policy
+
+Rollback mode is intended for emergency reversion, not permanent state.
+
+| Duration | Action |
+|----------|--------|
+| 0-7 days | Rollback accepted silently |
+| 7-14 days | CI emits WARNING: "Rollback exceeds 7 days, plan migration resume" |
+| 14+ days | CI emits BLOCKING WARNING (requires `--force-rollback` to proceed) |
+| 30+ days | Escalation to architecture review required |
+
+Rollback events are logged to audit trail with timestamp and justification.
+
+### 5k. Schema versioning policy
+
+Class definitions include `version` field following semver:
+- **Major**: Breaking changes to required properties or validation rules
+- **Minor**: New optional properties, new enum values
+- **Patch**: Documentation, comments, non-functional changes
+
+Example: `class.compute.hypervisor` base class is `version: 2.0.0` after
+the platform split refactoring (was implicit v1.x before ADR 0087).
+
+Runtime validates that object `class_ref` targets a compatible class version.
+Incompatible version references (major mismatch) are compile-time errors.
+
 ### 6. Organize L4 and L5 by host/device sharding
 
 ```
@@ -231,6 +303,86 @@ Sharding rule:
 
 Detailed implementation plan: `adr/0087-analysis/IMPLEMENTATION-PLAN.md`
 
+### Phase Gate Requirements
+
+Each phase gate requires:
+
+| Phase | Test Requirements |
+|-------|-------------------|
+| Phase 1 | Unit tests for new workload classes; integration test for L5→L4 Docker ref; negative test for host_ref cycle |
+| Phase 2 | Unit tests for hypervisor subclasses; integration test for execution_model linkage |
+| Phase 3 | Cross-layer validation tests (VM↔hypervisor); negative tests for format/bus mismatch |
+| Phase 4 | Volume↔pool format validation tests; data_asset_ref resolution tests |
+| Phase 5 | Scope resolution tests; depth limit enforcement tests |
+| Phase 6 | Docker Compose generation tests; stack grouping tests |
+
+All phases: `pytest tests -q` must pass; `compile-topology.py` exit 0; `lane.py validate-v5` exit 0.
+
+## Out of Scope
+
+The following items are explicitly deferred to future ADRs:
+
+| Item | Reason | Future ADR |
+|------|--------|------------|
+| Resource profile class hierarchy (GAP-7) | Orthogonal concern, scope creep risk | TBD |
+| Multi-host container orchestration (GAP-8) | Enterprise scope, home lab is single-host | TBD |
+| Kubernetes pod class implementation | Future workload type, Phase 1-6 focus on LXC/Docker/VM | TBD |
+
+## Acceptance Criteria
+
+### Phase 1: Docker Promotion
+
+- **AC-1**: `class.compute.workload.lxc` exists and validates
+- **AC-2**: `class.compute.workload.docker` exists and validates
+- **AC-3**: All existing LXC instances compile with new class
+- **AC-4**: Docker containers have L4 instances (not L5→L1 direct)
+- **AC-5**: L5→L1 Docker refs emit WARNING
+- **AC-6**: `host_ref` cycle detected and rejected
+- **AC-7**: Host-sharded L4/L5 paths accepted by loader
+
+### Phase 2: Hypervisor Platform Split
+
+- **AC-8**: `class.compute.hypervisor.proxmox` exists with vm_constraints
+- **AC-9**: `obj.proxmox.ve` references new hypervisor class
+- **AC-10**: execution_model linkage validated (bare_metal→hardware_ref)
+- **AC-11**: Other hypervisor classes (vbox, hyperv, vmware, xen) exist
+
+### Phase 3: Multi-Hypervisor VM Support
+
+- **AC-12**: `class.compute.workload.vm` exists with disk/boot_order schema
+- **AC-13**: VM disk format validated against hypervisor.allowed_disk_formats
+- **AC-14**: VM disk bus validated against hypervisor.allowed_disk_buses
+- **AC-15**: disk_id uniqueness enforced
+- **AC-16**: bus:slot uniqueness enforced
+- **AC-17**: Exactly one boot disk enforced
+- **AC-18**: boot_order references validated
+
+### Phase 4: L3 Storage Integration
+
+- **AC-19**: Volume format property added to class.storage.volume
+- **AC-20**: Volume↔pool format compatibility validated
+- **AC-21**: data_asset_ref resolves to valid L3 entity
+- **AC-22**: Cross-layer volume↔hypervisor format validated
+
+### Phase 5: Nested Topology
+
+- **AC-23**: topology_scope property accepted on workload instances
+- **AC-24**: Scope reference resolution works (scope.* vs inst.*)
+- **AC-25**: Nesting depth > 2 rejected
+
+### Phase 6: Stack Objects
+
+- **AC-26**: compose_group property groups Docker containers
+- **AC-27**: Docker Compose generator produces valid YAML
+- **AC-28**: `docker compose config` validates generated files
+
+### Migration Governance
+
+- **AC-29**: migration_mode tracked per workload family
+- **AC-30**: Ownership proof blocks unproven delete/move
+- **AC-31**: Rollback escalation warnings emitted after 7 days
+- **AC-32**: Sunset schedule enforced (WARNING→ERROR transitions)
+
 ## Consequences
 
 ### Positive
@@ -262,3 +414,5 @@ Detailed implementation plan: `adr/0087-analysis/IMPLEMENTATION-PLAN.md`
 - `adr/0087-analysis/GAP-ANALYSIS.md` — AS-IS vs TO-BE, 11 identified gaps
 - `adr/0087-analysis/ONTOLOGY-PROPOSAL.md` — Full ontology design with class definitions, examples, scaling analysis
 - `adr/0087-analysis/IMPLEMENTATION-PLAN.md` — Phase-by-phase implementation tasks
+- `adr/0087-analysis/VALIDATION-PLUGIN-GAP-ANALYSIS.md` — Validator plugin migration analysis
+- `adr/0087-analysis/SWOT-ANALYSIS.md` — SWOT matrix and risk assessment
