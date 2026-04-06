@@ -2,6 +2,40 @@
 
 This file provides guidance when working with code in this repository.
 
+## Contract Compliance Mode (Mandatory)
+
+All work in this repository must follow `contract.md` as a binding process contract.
+
+Core principles:
+- Process correctness and diagnostic precision are always prioritized over speed.
+- No shortcuts, no hidden assumptions, no merged phases.
+- Do not move to the next phase without explicit user approval.
+
+Required phase flow:
+1. STEP 0 — READ FIRST
+2. STEP 1 — Document Map
+3. STEP 2 — Constraints Register
+4. STEP 3 — Diagnostic Analysis (no decisions)
+5. STEP 4 — Problem Classification
+6. STEP 5 — Admissible Solution Space (no model changes)
+7. STEP 6 — Model Rebuild (only after approval)
+8. STEP 7 — Validation & Compliance Matrix
+
+Stop/Go protocol is mandatory:
+- After each step, explicitly output: `STEP X COMPLETED`.
+- Ask: `GO STEP X+1 ?`
+- Continue only after explicit user confirmation in `GO STEP X` form.
+
+Mandatory artifacts by contract:
+- STEP 1: Document Map table.
+- STEP 2: Constraints Register table with criticality and verification mechanism.
+- STEP 7: Compliance Matrix (`Requirement | Source | Met | How verified | If No -> What must change`).
+
+Critical compliance rules:
+- If any critical constraint cannot be met, mark outcome as `NO VALID SOLUTION`.
+- Do not present decisions during STEP 3 and STEP 5.
+- Do not modify model/data before explicit authorization for STEP 6.
+
 ## V5 Architecture (Current)
 
 This is an **Infrastructure-as-Data** home lab project using a **Class -> Object -> Instance** topology model. The v5 architecture implements:
