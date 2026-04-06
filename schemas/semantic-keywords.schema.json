@@ -1,0 +1,185 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://home-lab.local/schemas/semantic-keywords.schema.json",
+  "title": "Semantic Keywords Registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "registry",
+    "contexts"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "registry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "class_id",
+        "object_id",
+        "instance_id",
+        "parent_ref",
+        "entity_title",
+        "entity_summary",
+        "entity_description",
+        "entity_layer",
+        "capability_id",
+        "capability_schema"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/token_schema_version" },
+        "class_id": { "$ref": "#/$defs/token_class_id" },
+        "object_id": { "$ref": "#/$defs/token_object_id" },
+        "instance_id": { "$ref": "#/$defs/token_instance_id" },
+        "parent_ref": { "$ref": "#/$defs/token_parent_ref" },
+        "entity_title": { "$ref": "#/$defs/token_entity_title" },
+        "entity_summary": { "$ref": "#/$defs/token_entity_summary" },
+        "entity_description": { "$ref": "#/$defs/token_entity_description" },
+        "entity_layer": { "$ref": "#/$defs/token_entity_layer" },
+        "capability_id": { "$ref": "#/$defs/token_capability_id" },
+        "capability_schema": { "$ref": "#/$defs/token_capability_schema" }
+      }
+    },
+    "contexts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entity_manifest",
+        "capability_entry"
+      ],
+      "properties": {
+        "entity_manifest": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["tokens"],
+          "properties": {
+            "tokens": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "schema_version",
+                  "class_id",
+                  "object_id",
+                  "instance_id",
+                  "parent_ref",
+                  "entity_title",
+                  "entity_summary",
+                  "entity_description",
+                  "entity_layer"
+                ]
+              }
+            }
+          }
+        },
+        "capability_entry": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["tokens"],
+          "properties": {
+            "tokens": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "capability_id",
+                  "capability_schema",
+                  "entity_title",
+                  "entity_summary"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "token_base": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "canonical",
+        "aliases"
+      ],
+      "properties": {
+        "canonical": { "type": "string", "pattern": "^@[a-z_]+$" },
+        "aliases": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "token_schema_version": {
+      "allOf": [
+        { "$ref": "#/$defs/token_base" },
+        { "properties": { "canonical": { "const": "@version" } } }
+      ]
+    },
+    "token_class_id": {
+      "allOf": [
+        { "$ref": "#/$defs/token_base" },
+        { "properties": { "canonical": { "const": "@class" } } }
+      ]
+    },
+    "token_object_id": {
+      "allOf": [
+        { "$ref": "#/$defs/token_base" },
+        { "properties": { "canonical": { "const": "@object" } } }
+      ]
+    },
+    "token_instance_id": {
+      "allOf": [
+        { "$ref": "#/$defs/token_base" },
+        { "properties": { "canonical": { "const": "@instance" } } }
+      ]
+    },
+    "token_parent_ref": {
+      "allOf": [
+        { "$ref": "#/$defs/token_base" },
+        { "properties": { "canonical": { "const": "@extends" } } }
+      ]
+    },
+    "token_entity_title": {
+      "allOf": [
+        { "$ref": "#/$defs/token_base" },
+        { "properties": { "canonical": { "const": "@title" } } }
+      ]
+    },
+    "token_entity_summary": {
+      "allOf": [
+        { "$ref": "#/$defs/token_base" },
+        { "properties": { "canonical": { "const": "@summary" } } }
+      ]
+    },
+    "token_entity_description": {
+      "allOf": [
+        { "$ref": "#/$defs/token_base" },
+        { "properties": { "canonical": { "const": "@description" } } }
+      ]
+    },
+    "token_entity_layer": {
+      "allOf": [
+        { "$ref": "#/$defs/token_base" },
+        { "properties": { "canonical": { "const": "@layer" } } }
+      ]
+    },
+    "token_capability_id": {
+      "allOf": [
+        { "$ref": "#/$defs/token_base" },
+        { "properties": { "canonical": { "const": "@capability" } } }
+      ]
+    },
+    "token_capability_schema": {
+      "allOf": [
+        { "$ref": "#/$defs/token_base" },
+        { "properties": { "canonical": { "const": "@schema" } } }
+      ]
+    }
+  }
+}
