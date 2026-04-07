@@ -91,3 +91,6 @@ class GeneratorMigrationStatusValidator(ValidatorJsonPlugin):
             # Standalone tests can execute without registry execution scope.
             pass
         return self.make_result(diagnostics=diagnostics, output_data={"generator_migration_summary": summary})
+
+    def on_verify(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        return self.execute(ctx, stage)

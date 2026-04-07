@@ -307,6 +307,45 @@ def _resolve_repo_root(ctx: PluginContext | None = None) -> Path:
     return Path(__file__).resolve().parents[3]
 
 
+def _resolve_schema_paths(ctx: PluginContext | None = None) -> tuple[str, str]:
+    candidates: list[Path] = []
+    repo_root = _resolve_repo_root(ctx)
+    candidates.append((repo_root / "schemas").resolve())
+
+    if ctx is not None:
+        class_modules_root_raw = ctx.config.get("class_modules_root")
+        if isinstance(class_modules_root_raw, str) and class_modules_root_raw.strip():
+            class_modules_root = Path(class_modules_root_raw.strip()).resolve()
+            # class_modules_root points to <framework_root>/topology/class-modules
+            framework_root = class_modules_root.parent.parent
+            candidates.append((framework_root / "schemas").resolve())
+        object_modules_root_raw = ctx.config.get("object_modules_root")
+        if isinstance(object_modules_root_raw, str) and object_modules_root_raw.strip():
+            object_modules_root = Path(object_modules_root_raw.strip()).resolve()
+            # object_modules_root points to <framework_root>/topology/object-modules
+            framework_root = object_modules_root.parent.parent
+            candidates.append((framework_root / "schemas").resolve())
+
+    candidates.append((Path(__file__).resolve().parents[3] / "schemas").resolve())
+
+    seen: set[str] = set()
+    for schema_root in candidates:
+        key = str(schema_root)
+        if key in seen:
+            continue
+        seen.add(key)
+        plan_schema = schema_root / "artifact-plan.schema.json"
+        report_schema = schema_root / "artifact-generation-report.schema.json"
+        if plan_schema.is_file() and report_schema.is_file():
+            return str(plan_schema), str(report_schema)
+
+    fallback_root = candidates[0]
+    return (
+        str((fallback_root / "artifact-plan.schema.json").resolve()),
+        str((fallback_root / "artifact-generation-report.schema.json").resolve()),
+    )
+
+
 @lru_cache(maxsize=16)
 def _load_schema(schema_path: str) -> dict[str, Any]:
     path = Path(schema_path)
@@ -322,9 +361,11 @@ def validate_contract_payloads(
     if jsonschema is None:
         return []
 
-    repo_root = _resolve_repo_root(ctx)
-    plan_schema_path = str((repo_root / "schemas" / "artifact-plan.schema.json").resolve())
-    report_schema_path = str((repo_root / "schemas" / "artifact-generation-report.schema.json").resolve())
+    plan_schema_path, report_schema_path = _resolve_schema_paths(ctx)
+    if not Path(plan_schema_path).is_file() or not Path(report_schema_path).is_file():
+        # Backward-compatible behavior for older framework distributions that do
+        # not yet ship ADR0093 schema files.
+        return []
 
     errors: list[str] = []
     for payload, schema_path, contract_name in (

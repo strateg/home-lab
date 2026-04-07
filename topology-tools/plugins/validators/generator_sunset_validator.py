@@ -31,11 +31,31 @@ class GeneratorSunsetValidator(ValidatorJsonPlugin):
             return Path(raw.strip()).resolve()
         return Path(__file__).resolve().parents[3]
 
+    @staticmethod
+    def _resolve_framework_root(ctx: PluginContext) -> Path | None:
+        class_modules_root_raw = ctx.config.get("class_modules_root")
+        if isinstance(class_modules_root_raw, str) and class_modules_root_raw.strip():
+            class_modules_root = Path(class_modules_root_raw.strip()).resolve()
+            return class_modules_root.parent.parent
+        object_modules_root_raw = ctx.config.get("object_modules_root")
+        if isinstance(object_modules_root_raw, str) and object_modules_root_raw.strip():
+            object_modules_root = Path(object_modules_root_raw.strip()).resolve()
+            return object_modules_root.parent.parent
+        return None
+
     def _resolve_policy_path(self, *, ctx: PluginContext, value: str) -> Path:
         candidate = Path(value.strip())
         if candidate.is_absolute():
             return candidate.resolve()
-        return (self._resolve_repo_root(ctx) / candidate).resolve()
+        repo_path = (self._resolve_repo_root(ctx) / candidate).resolve()
+        if repo_path.exists():
+            return repo_path
+        framework_root = self._resolve_framework_root(ctx)
+        if framework_root is not None:
+            framework_path = (framework_root / candidate).resolve()
+            if framework_path.exists():
+                return framework_path
+        return repo_path
 
     def _load_policy_schedule(
         self,
@@ -243,3 +263,6 @@ class GeneratorSunsetValidator(ValidatorJsonPlugin):
         except PluginDataExchangeError:
             pass
         return self.make_result(diagnostics=diagnostics, output_data={"generator_sunset_summary": summary})
+
+    def on_verify(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        return self.execute(ctx, stage)
