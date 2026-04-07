@@ -2,10 +2,15 @@
 
 ## Pre-Cutover: Dependencies
 
-- [ ] ADR 0092 status: Accepted
-- [ ] ADR 0093 status: Accepted
-- [ ] Secrets registry operational (ADR 0072)
-- [ ] Field annotations operational (ADR 0073)
+- [x] ADR 0092 dependency baseline ready (Wave 1-2 deliverables available for ADR0094 integration)
+- [x] ADR 0093 implemented (ArtifactPlan runtime integration complete)
+- [x] Secrets registry operational (ADR 0072)
+- [x] Field annotations operational (ADR 0073)
+
+Evidence:
+- ADR register: `adr/REGISTER.md` (`0072`, `0073` accepted/implemented; `0093` implemented).
+- ADR0092/0093 cross-link and extraction contract: `adr/0092-smart-artifact-generation-and-hybrid-rendering.md`.
+- Runtime integration points verified by ADR0094 implementation and tests in `tests/plugin_contract/` and `tests/plugin_integration/`.
 
 ## Wave 1 Cutover: Sandbox Foundation
 
