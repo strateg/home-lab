@@ -47,4 +47,4 @@ tasks:
   ci-coverage:
     desc: Run repository test suite with coverage report for CI
     cmds:
-      - "{{.PYTHON}} -m pytest -o addopts= tests -v --cov=topology-tools --cov-report=xml"
+      - "{{.PYTHON}} -m pytest -o addopts= tests -v --cov=topology-tools --cov-report=xml --cov-fail-under=75"

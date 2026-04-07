@@ -27,8 +27,19 @@ EXCLUDES = [
     r"projects/.*/secrets/.*",
     r"projects/.*/project\.yaml$",
     r"projects/.*/framework\.lock\.yaml$",
-    r"tests/.*",
-    r"docs/.*",
+    r"tests/(data|fixtures)/.*",
+    r"tests/.*/fixtures/.*",
+    r"docs/guides/.*",
+    r"docs/release-notes/.*",
+    r"docs/NETINSTALL-CLI-INDEX\.md$",
+    r"docs/NETINSTALL-CLI-VISUAL-GUIDE\.md$",
+    r"docs/framework/FRAMEWORK-V5\.md$",
+    r"docs/github_analysis/IMPLEMENTATION_GUIDE\.md$",
+    r"docs/runbooks/evidence/.*\.md$",
+    r"docs/secrets-management\.md$",
+    r"adr/.*\.md$",
+    r"configs/glinet/.*",
+    r"taskfiles/validate\.yml$",
     r"topology/object-modules/.*/obj\..*\.yaml$",
     r"topology-tools/plugins/plugins\.yaml$",
     r"topology-tools/(audit-strict-runtime-entrypoints|bootstrap-project-repo|cutover-readiness-report)\.py$",
@@ -37,9 +48,8 @@ EXCLUDES = [
     r"ansible/README\.md$",
     r"bootstrap/.*",
     r"configs/vpn/.*",
-    r"docs/guides/.*",
     r"secrets/.*\.yaml$",
-    r"MIGRATION\.md$",
+    r"MIGRATION\.md",
     r"\.secrets\.baseline$",
 ]
 
@@ -50,7 +60,9 @@ def main() -> int:
     if BASELINE.exists():
         try:
             json.loads(BASELINE.read_text(encoding="utf-8"))
-            cmd += ["--baseline", str(BASELINE)]
+            # Use repo-relative path so detect-secrets baseline metadata is stable
+            # across developer machines and CI runners.
+            cmd += ["--baseline", BASELINE.name]
             using_existing_baseline = True
         except Exception:
             print(

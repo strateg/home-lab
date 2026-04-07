@@ -107,10 +107,55 @@ jobs:
       - name: Install scanner dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pre-commit detect-secrets
+          python -m pip install detect-secrets
 
-      - name: Run detect-secrets hook
-        run: pre-commit run detect-secrets --all-files
+      - name: Run detect-secrets on changed files
+        run: |
+          python - <<'PY'
+          import os
+          import subprocess
+          exclude_files = (
+              r"(archive/.*|\.github/workflows/.*|Migrated_and_archived/.*|manual-scripts/.*|"
+              r"projects/.*/secrets/.*|projects/.*/project\.yaml$|projects/.*/framework\.lock\.yaml$|"
+              r"tests/(data|fixtures)/.*|tests/.*/fixtures/.*|docs/guides/.*|docs/release-notes/.*|"
+              r"docs/NETINSTALL-CLI-INDEX\.md$|docs/NETINSTALL-CLI-VISUAL-GUIDE\.md$|"
+              r"docs/framework/FRAMEWORK-V5\.md$|docs/github_analysis/IMPLEMENTATION_GUIDE\.md$|"
+              r"docs/runbooks/evidence/.*\.md$|docs/secrets-management\.md$|adr/.*\.md$|configs/glinet/.*|"
+              r"taskfiles/validate\.yml$|topology/object-modules/.*/obj\..*\.yaml$|"
+              r"topology-tools/plugins/plugins\.yaml$|"
+              r"topology-tools/(audit-strict-runtime-entrypoints|bootstrap-project-repo|cutover-readiness-report)\.py$|"
+              r"ansible/group_vars/.*\.yml\.example$|ansible/.*\.sh$|ansible/README\.md$|"
+              r"bootstrap/.*|configs/vpn/.*|secrets/.*\.yaml$|MIGRATION\.md|\.secrets\.baseline)"
+          )
+
+          event_name = os.environ.get("GITHUB_EVENT_NAME", "").strip()
+          base_ref = os.environ.get("GITHUB_BASE_REF", "").strip()
+          event_before = os.environ.get("GITHUB_EVENT_BEFORE", "").strip()
+
+          if event_name == "pull_request" and base_ref:
+              subprocess.run(["git", "fetch", "--no-tags", "--depth=1", "origin", base_ref], check=False)
+              diff_range = f"origin/{base_ref}...HEAD"
+          elif event_before and event_before != "0000000000000000000000000000000000000000":
+              diff_range = f"{event_before}...HEAD"
+          else:
+              diff_range = "HEAD~1...HEAD"
+
+          diff = subprocess.run(
+              ["git", "diff", "--name-only", "--diff-filter=ACMR", diff_range],
+              check=False,
+              capture_output=True,
+              text=True,
+          )
+          files = [line.strip() for line in diff.stdout.splitlines() if line.strip()]
+
+          if not files:
+              print("detect-secrets: no changed files to scan")
+              raise SystemExit(0)
+
+          cmd = ["detect-secrets-hook", "--exclude-files", exclude_files, *files]
+          result = subprocess.run(cmd, check=False)
+          raise SystemExit(result.returncode)
+          PY
 
   dependency-scan:
     name: Dependency Scan

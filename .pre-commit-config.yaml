@@ -52,8 +52,19 @@ repos:
           projects/.*/secrets/.*|
           projects/.*/project\.yaml$|
           projects/.*/framework\.lock\.yaml$|
-          tests/.*|
-          docs/.*|
+          tests/(data|fixtures)/.*|
+          tests/.*/fixtures/.*|
+          docs/guides/.*|
+          docs/release-notes/.*|
+          docs/NETINSTALL-CLI-INDEX\.md$|
+          docs/NETINSTALL-CLI-VISUAL-GUIDE\.md$|
+          docs/framework/FRAMEWORK-V5\.md$|
+          docs/github_analysis/IMPLEMENTATION_GUIDE\.md$|
+          docs/runbooks/evidence/.*\.md$|
+          docs/secrets-management\.md$|
+          adr/.*\.md$|
+          configs/glinet/.*|
+          taskfiles/validate\.yml$|
           topology/object-modules/.*/obj\..*\.yaml$|
           topology-tools/plugins/plugins\.yaml$|
           topology-tools/(audit-strict-runtime-entrypoints|bootstrap-project-repo|cutover-readiness-report)\.py$|
@@ -62,7 +73,6 @@ repos:
           ansible/README\.md$|
           bootstrap/.*|
           configs/vpn/.*|
-          docs/guides/.*|
           secrets/.*\.yaml$|
           MIGRATION\.md|
           \.secrets\.baseline

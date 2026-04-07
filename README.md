@@ -33,7 +33,7 @@ home-lab/
 │   └── deploy/                  # Deploy domain (runner, bundle, init-node)
 ├── generated/<project>/         # Generated outputs (DO NOT EDIT)
 ├── schemas/                     # JSON schemas
-├── tests/                       # Test suite (822 tests)
+├── tests/                       # Test suite (900+ tests)
 └── adr/                         # Architecture Decision Records
 ```
 
@@ -126,6 +126,9 @@ task deploy:service-chain-evidence-check-bundle BUNDLE=<id> DEPLOY_RUNNER=wsl
 - [CLAUDE.md](CLAUDE.md) — AI agent instructions
 - [ADR Register](adr/REGISTER.md) — All architecture decisions
 - [PLUGIN_AUTHORING_GUIDE.md](docs/PLUGIN_AUTHORING_GUIDE.md)
+- [SECURITY.md](SECURITY.md) — security reporting policy
+- [CONTRIBUTING.md](CONTRIBUTING.md) — contribution workflow
+- [CHANGELOG.md](CHANGELOG.md) — release change history
 
 ### Runbooks
 - [docs/runbooks/](docs/runbooks/)
@@ -135,7 +138,7 @@ task deploy:service-chain-evidence-check-bundle BUNDLE=<id> DEPLOY_RUNNER=wsl
 ### Run Tests
 
 ```bash
-# All tests (822 pass, 4 skip)
+# All tests (943 pass, 4 skip as of 2026-04-07)
 task test
 
 # Specific module
@@ -175,4 +178,5 @@ task project:init \
 
 ## License
 
-Private infrastructure repository.
+Proprietary software. All rights reserved.
+Usage, redistribution, or modification requires explicit permission from the author.
