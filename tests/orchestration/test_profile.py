@@ -137,7 +137,7 @@ def test_profile_loader_parses_remote_runner_settings(tmp_path: Path) -> None:
                 "remote": {
                     "host": "control.example.com",
                     "user": "operator",
-                    "sync_method": "git",
+                    "sync_method": "scp",
                 }
             },
         },
@@ -148,7 +148,7 @@ def test_profile_loader_parses_remote_runner_settings(tmp_path: Path) -> None:
     assert profile.default_runner == "remote"
     assert profile.runners.remote.host == "control.example.com"
     assert profile.runners.remote.user == "operator"
-    assert profile.runners.remote.sync_method == "git"
+    assert profile.runners.remote.sync_method == "scp"
 
 
 def test_get_runner_uses_remote_profile_settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -162,7 +162,7 @@ def test_get_runner_uses_remote_profile_settings(tmp_path: Path, monkeypatch: py
                 "remote": {
                     "host": "control.example.com",
                     "user": "operator",
-                    "sync_method": "git",
+                    "sync_method": "scp",
                 }
             },
         },
@@ -174,7 +174,7 @@ def test_get_runner_uses_remote_profile_settings(tmp_path: Path, monkeypatch: py
     assert isinstance(runner, RemoteLinuxRunner)
     assert runner.host == "control.example.com"
     assert runner.user == "operator"
-    assert runner.sync_method == "git"
+    assert runner.sync_method == "scp"
 
 
 def test_get_runner_uses_docker_profile_settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

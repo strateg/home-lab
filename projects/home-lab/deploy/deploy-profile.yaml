@@ -11,7 +11,7 @@ runners:
   remote:
     host: control.example.com
     user: deploy
-    sync_method: rsync
+    sync_method: scp
 
 timeouts:
   handover_total: 300
