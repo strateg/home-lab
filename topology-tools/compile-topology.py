@@ -45,6 +45,7 @@ from kernel import (
     Stage,
 )
 from plugin_manifest_discovery import discover_plugin_manifest_paths, validate_module_index_consistency
+from plugins.generators.ai_assisted import build_candidate_diff, materialize_candidate_artifacts
 from plugins.generators.ai_advisory_contract import (
     build_ai_input_payload,
     parse_ai_output_payload,
@@ -223,6 +224,7 @@ class V5Compiler:
         sbom_output_dir: Path | None = None,
         stages: list[Stage] | None = None,
         ai_advisory: bool = False,
+        ai_assisted: bool = False,
         ai_output_json: Path | None = None,
         ai_audit_retention_days: int = 30,
         ai_sandbox_retention_days: int = 7,
@@ -259,6 +261,7 @@ class V5Compiler:
         self.release_tag = release_tag
         self.sbom_output_dir = sbom_output_dir
         self.ai_advisory = ai_advisory
+        self.ai_assisted = ai_assisted
         self.ai_output_json = ai_output_json
         self.ai_audit_retention_days = ai_audit_retention_days
         self.ai_sandbox_retention_days = ai_sandbox_retention_days
@@ -1051,6 +1054,160 @@ class V5Compiler:
         )
         print(f"[ai-advisory] Audit log: {self._path_for_diag(audit.log_path)}", flush=True)
 
+    def _run_ai_assisted_session(
+        self,
+        *,
+        effective_payload: dict[str, Any],
+        project_id: str,
+        plugin_ctx: PluginContext | None,
+    ) -> None:
+        request_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        cleaned = cleanup_ai_audit_logs(
+            repo_root=REPO_ROOT,
+            project_id=project_id,
+            retain_days=self.ai_audit_retention_days,
+        )
+        cleaned_sessions = cleanup_ai_sandbox_sessions(
+            repo_root=REPO_ROOT,
+            project_id=project_id,
+            retain_days=self.ai_sandbox_retention_days,
+        )
+        sandbox_session = create_ai_sandbox_session(
+            repo_root=REPO_ROOT,
+            project_id=project_id,
+            request_id=f"{project_id}-{request_id}",
+        )
+        sanitized_env, removed_env_keys = sanitize_environment(dict(os.environ))
+        audit = AiAuditLogger(
+            repo_root=REPO_ROOT,
+            project_id=project_id,
+            request_id=f"{project_id}-{request_id}",
+        )
+        if cleaned:
+            print(f"[ai-assisted] Cleaned {len(cleaned)} old audit day folders.", flush=True)
+        if cleaned_sessions:
+            print(f"[ai-assisted] Cleaned {len(cleaned_sessions)} old sandbox sessions.", flush=True)
+        print(f"[ai-assisted] Sandbox session: {self._path_for_diag(sandbox_session)}", flush=True)
+
+        safe_effective_payload = self._json_safe_payload(effective_payload)
+        annotation_patterns = self._collect_annotation_redaction_patterns(plugin_ctx)
+        registry_patterns = self._collect_registry_redaction_patterns(plugin_ctx)
+        ai_input = build_ai_input_payload(
+            artifact_family="topology",
+            mode="assisted",
+            plugin_id="base.compiler.ai_assisted",
+            effective_json=safe_effective_payload,
+            stable_projection={
+                "classes": safe_effective_payload.get("classes", {}),
+                "objects": safe_effective_payload.get("objects", {}),
+                "instances": safe_effective_payload.get("instances", {}),
+            },
+            artifact_plan={"mode": "assisted", "stages": [stage.value for stage in self.stages]},
+            extra_key_patterns=annotation_patterns + registry_patterns,
+        )
+        ai_output = self._load_ai_output_payload()
+        errors = validate_ai_contract_payloads(ai_input=ai_input, ai_output=ai_output, ctx=plugin_ctx)
+        if errors:
+            for message in errors:
+                self.add_diag(
+                    code="E8941",
+                    severity="error",
+                    stage="validate",
+                    message=message,
+                    path="ai-assisted:contract",
+                )
+            audit.log_event(
+                event_type="candidate_validation_result",
+                payload={"mode": "assisted", "status": "contract_error", "errors": errors},
+                input_hash=str(ai_input.get("input_hash", "")),
+            )
+            return
+
+        input_hash = str(ai_input.get("input_hash", ""))
+        audit.log_event(
+            event_type="ai_request_sent",
+            payload={
+                "mode": "assisted",
+                "sandbox_session": self._path_for_diag(sandbox_session),
+                "annotation_pattern_count": len(annotation_patterns),
+                "registry_pattern_count": len(registry_patterns),
+                "env_keys_forwarded": len(sanitized_env),
+                "env_keys_removed": removed_env_keys,
+            },
+            input_hash=input_hash,
+        )
+        if ai_output is None:
+            self.add_diag(
+                code="E8941",
+                severity="error",
+                stage="validate",
+                message="AI assisted mode requires --ai-output-json payload.",
+                path="ai-assisted:output",
+            )
+            return
+
+        output_hash = self._advisory_payload_hash(ai_output)
+        parsed = parse_ai_output_payload(ai_output)
+        raw_candidates = ai_output.get("candidate_artifacts")
+        candidates = raw_candidates if isinstance(raw_candidates, list) else []
+        accepted, rejected = materialize_candidate_artifacts(
+            repo_root=REPO_ROOT,
+            sandbox_session=sandbox_session,
+            project_id=project_id,
+            candidates=[row for row in candidates if isinstance(row, dict)],
+        )
+        for row in accepted:
+            diff_payload = build_candidate_diff(
+                baseline_path=Path(row["baseline_path"]),
+                candidate_path=Path(row["candidate_path"]),
+                logical_path=str(row["path"]),
+            )
+            print(
+                f"[ai-assisted] {diff_payload['change_type']}: {diff_payload['path']} (added_lines={diff_payload['added_lines']})",
+                flush=True,
+            )
+            confidence = parsed.get("confidence_scores", {}).get(str(row["path"]))
+            if isinstance(confidence, (int, float)):
+                print(f"[ai-assisted]   confidence: {float(confidence):.2f}", flush=True)
+        if rejected:
+            for row in rejected:
+                print(f"[ai-assisted] rejected: {row['path']} ({row['reason']})", flush=True)
+
+        enforce_sandbox_resource_limits(
+            sandbox_session=sandbox_session,
+            max_files=self.ai_sandbox_max_files,
+            max_bytes=self.ai_sandbox_max_bytes,
+        )
+        audit.log_event(
+            event_type="ai_response_received",
+            payload={
+                "mode": "assisted",
+                "candidate_count": len(candidates),
+                "accepted_candidates": len(accepted),
+                "rejected_candidates": len(rejected),
+            },
+            input_hash=input_hash,
+            output_hash=output_hash,
+        )
+        audit.log_event(
+            event_type="candidate_validation_result",
+            payload={
+                "mode": "assisted",
+                "status": "completed",
+                "accepted_candidates": len(accepted),
+                "rejected_candidates": len(rejected),
+            },
+            input_hash=input_hash,
+            output_hash=output_hash,
+        )
+        audit.log_event(
+            event_type="human_approval_decision",
+            payload={"mode": "assisted", "status": "pending_manual_approval"},
+            input_hash=input_hash,
+            output_hash=output_hash,
+        )
+        print(f"[ai-assisted] Audit log: {self._path_for_diag(audit.log_path)}", flush=True)
+
     def _write_diagnostics(self) -> tuple[int, int, int, int]:
         self._write_execution_trace()
         plugin_stats = self._plugin_registry.get_stats() if self._plugin_registry else None
@@ -1432,6 +1589,12 @@ class V5Compiler:
                 project_id=manifest_bundle.project_id,
                 plugin_ctx=plugin_ctx,
             )
+        if self.ai_assisted and plugin_ctx is not None and not any(item.severity == "error" for item in self._diagnostics):
+            self._run_ai_assisted_session(
+                effective_payload=effective_payload,
+                project_id=manifest_bundle.project_id,
+                plugin_ctx=plugin_ctx,
+            )
 
         if plugin_ctx is not None and not any(item.severity == "error" for item in self._diagnostics):
             if Stage.ASSEMBLE in self.stages:
@@ -1610,6 +1773,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Enable ADR0094 advisory mode (read-only recommendations with audit logging).",
     )
     parser.add_argument(
+        "--ai-assisted",
+        action="store_true",
+        help="Enable ADR0094 assisted mode (candidate artifacts in sandbox, no auto-promotion).",
+    )
+    parser.add_argument(
         "--ai-output-json",
         default="",
         help="Optional AI response payload JSON path for advisory parsing/display.",
@@ -1652,7 +1820,10 @@ def main() -> int:
     except ValueError as exc:
         print(f"ERROR: invalid --stages: {exc}", file=sys.stderr)
         return 1
-    if args.ai_advisory:
+    if args.ai_advisory and args.ai_assisted:
+        print("ERROR: --ai-advisory and --ai-assisted are mutually exclusive.", file=sys.stderr)
+        return 1
+    if args.ai_advisory or args.ai_assisted:
         selected_stages = [stage for stage in STAGE_ORDER if stage in ADVISORY_STAGE_SET]
     compiler = V5Compiler(
         manifest_path=manifest_path,
@@ -1682,6 +1853,7 @@ def main() -> int:
         sbom_output_dir=resolve_repo_path(args.sbom_output_dir) if args.sbom_output_dir.strip() else None,
         stages=selected_stages,
         ai_advisory=args.ai_advisory,
+        ai_assisted=args.ai_assisted,
         ai_output_json=resolve_repo_path(args.ai_output_json) if args.ai_output_json.strip() else None,
         ai_audit_retention_days=max(1, int(args.ai_audit_retention_days)),
         ai_sandbox_retention_days=max(1, int(args.ai_sandbox_retention_days)),

@@ -441,6 +441,7 @@ def test_parser_accepts_ai_advisory_flags():
     args = parser.parse_args(
         [
             "--ai-advisory",
+            "--ai-assisted",
             "--ai-output-json",
             "build/ai-output.json",
             "--ai-audit-retention-days",
@@ -455,6 +456,7 @@ def test_parser_accepts_ai_advisory_flags():
     )
 
     assert args.ai_advisory is True
+    assert args.ai_assisted is True
     assert args.ai_output_json == "build/ai-output.json"
     assert args.ai_audit_retention_days == 14
     assert args.ai_sandbox_retention_days == 3
@@ -493,12 +495,62 @@ def test_main_ai_advisory_forces_read_only_stage_set(monkeypatch, tmp_path):
 
     assert exit_code == 0
     assert captured["ai_advisory"] is True
+    assert captured["ai_assisted"] is False
     assert captured["stages"] == [mod.Stage.DISCOVER, mod.Stage.COMPILE, mod.Stage.VALIDATE]
     assert captured["ai_output_json"] == ai_output_path
     assert captured["ai_audit_retention_days"] == 30
     assert captured["ai_sandbox_retention_days"] == 7
     assert captured["ai_sandbox_max_files"] == 128
     assert captured["ai_sandbox_max_bytes"] == 10 * 1024 * 1024
+
+
+def test_main_ai_assisted_forces_read_only_stage_set(monkeypatch, tmp_path):
+    mod = _load_compiler_module()
+    ai_output_path = tmp_path / "ai-output.json"
+    ai_output_path.write_text("{}", encoding="utf-8")
+    captured: dict[str, object] = {}
+
+    class _FakeCompiler:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+        def run(self) -> int:
+            return 0
+
+    monkeypatch.setattr(mod, "V5Compiler", _FakeCompiler)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "compile-topology.py",
+            "--ai-assisted",
+            "--stages",
+            "discover,compile,validate,generate,assemble,build",
+            "--ai-output-json",
+            str(ai_output_path),
+        ],
+    )
+
+    exit_code = mod.main()
+
+    assert exit_code == 0
+    assert captured["ai_advisory"] is False
+    assert captured["ai_assisted"] is True
+    assert captured["stages"] == [mod.Stage.DISCOVER, mod.Stage.COMPILE, mod.Stage.VALIDATE]
+
+
+def test_main_rejects_simultaneous_ai_modes(monkeypatch):
+    mod = _load_compiler_module()
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "compile-topology.py",
+            "--ai-advisory",
+            "--ai-assisted",
+        ],
+    )
+    assert mod.main() == 1
 
 
 def test_ai_advisory_payload_normalizer_handles_non_json_scalars():

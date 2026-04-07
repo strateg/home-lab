@@ -74,17 +74,17 @@
 
 ### Candidate Generation Verification
 
-- [ ] Candidates generated in sandbox directory
-- [ ] Validation runs on candidates
-- [ ] Invalid candidates rejected
-- [ ] Diff against baseline accurate
-- [ ] AI metadata attached to candidates
+- [x] Candidates generated in sandbox directory
+- [x] Validation runs on candidates
+- [x] Invalid candidates rejected
+- [x] Diff against baseline accurate
+- [x] AI metadata attached to candidates
 
 ### Review Interface Verification
 
-- [ ] Diff displays correctly in CLI
-- [ ] Change summary accurate
-- [ ] Confidence scores displayed
+- [x] Diff displays correctly in CLI
+- [x] Change summary accurate
+- [x] Confidence scores displayed
 - [ ] Selective approval works (per-file)
 
 ### Promotion Workflow Verification
