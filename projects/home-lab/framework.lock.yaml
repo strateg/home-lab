@@ -6,14 +6,6 @@ framework:
   version: 5.0.0
   source: git
   repository: git@github.com:strateg/home-lab.git
-  revision: a5afb1328216c7f7b566ecd531baeb33da046036
-  integrity: sha256-5e84f831c7c21172ce6026c74fccd050ee193dc91bf2aa98363f85d671b2d145
-locked_at: '2026-04-07T15:09:55.977006+00:00'
-
-# ADR 0087: Unified Container Ontology migration state
-adr_0087:
-  phase1_enabled: true      # Docker Promotion MVP - class hierarchy + validators complete
-  phase2_enabled: true      # Hypervisor Platform Split - class hierarchy complete
-  phase3_enabled: false     # Multi-Hypervisor VM Support - pending
-  migration_mode: migrating # legacy | migrating | migrated | rollback
-  migration_started_at: '2026-04-07'
+  revision: 49318d511198a48463ad4555dd27f9c4d3507c4b
+  integrity: sha256-6866f3eae60e30bb547bc1132b0e671ad2a8f0799d553750e739280da4f46ec5
+locked_at: '2026-04-07T15:49:31.131604+00:00'
