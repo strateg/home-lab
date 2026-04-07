@@ -1,0 +1,92 @@
+{
+  "artifact_family": "bootstrap.proxmox",
+  "capabilities": [],
+  "ir_version": "1.0",
+  "obsolete_candidates": [
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap/rtr-mikrotik-chateau/README.md",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap/rtr-mikrotik-chateau/backup-restore-overrides.rsc",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap/rtr-mikrotik-chateau/terraform.tfvars.example",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap/srv-orangepi5/cloud-init/README.md",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap/srv-orangepi5/cloud-init/meta-data",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap/srv-orangepi5/cloud-init/user-data.example",
+      "reason": "obsolete-shadowed"
+    }
+  ],
+  "planned_outputs": [
+    {
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap/srv-gamayun/answer.toml",
+      "reason": "base-family",
+      "renderer": "jinja2",
+      "required": true,
+      "template": "bootstrap/answer.toml.j2"
+    },
+    {
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap/srv-gamayun/answer.toml.example",
+      "reason": "base-family",
+      "renderer": "jinja2",
+      "required": true,
+      "template": "bootstrap/answer.toml.j2"
+    },
+    {
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap/srv-gamayun/post-install-minimal.sh",
+      "reason": "base-family",
+      "renderer": "jinja2",
+      "required": true,
+      "template": "bootstrap/post-install-minimal.sh.j2"
+    },
+    {
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap/srv-gamayun/README.md",
+      "reason": "base-family",
+      "renderer": "jinja2",
+      "required": true,
+      "template": "bootstrap/readme.md.j2"
+    }
+  ],
+  "plugin_id": "object.proxmox.generator.bootstrap",
+  "projection_version": "1.0",
+  "schema_version": "1.0",
+  "validation_profiles": [
+    "production"
+  ]
+}

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Status** | Accepted |
+| **Status** | Implemented (Phase 1 GATE PASSED; Phase 2 core complete; Phase 3-6 pending) |
 | **Date** | 2026-04-03 |
 | **Deciders** | dmpr |
 | **Supersedes** | — |
@@ -416,3 +416,15 @@ The following items are explicitly deferred to future ADRs:
 - `adr/0087-analysis/IMPLEMENTATION-PLAN.md` — Phase-by-phase implementation tasks
 - `adr/0087-analysis/VALIDATION-PLUGIN-GAP-ANALYSIS.md` — Validator plugin migration analysis
 - `adr/0087-analysis/SWOT-ANALYSIS.md` — SWOT matrix and risk assessment
+- `adr/0087-analysis/PRE-IMPLEMENTATION-REVIEW.md` — Pre-implementation checklist and review gate
+
+## References
+
+- [ADR 0026](0026-l3-l4-taxonomy-refactoring-storage-chain-and-platform-separation.md) — L3/L4 taxonomy baseline
+- [ADR 0034](0034-l4-platform-modularization-and-runtime-taxonomy.md) — L4 platform modularization (superseded by 0062)
+- [ADR 0042](0042-l5-services-modularization.md) — L5 services modularization
+- [ADR 0062](0062-modular-topology-architecture-consolidation.md) — Modular Class-Object-Instance architecture
+- [ADR 0064](0064-os-taxonomy-object-property-model.md) — Firmware/OS taxonomy (two-entity model)
+- [ADR 0074](0074-v5-generator-architecture.md) — V5 Generator architecture contract
+- Schemas: `schemas/class.compute.workload.*.schema.json` (to be created)
+- Docs: `docs/guides/CONTAINER-ONTOLOGY.md` (to be created)

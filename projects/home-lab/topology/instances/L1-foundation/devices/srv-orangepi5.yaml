@@ -12,3 +12,9 @@ os_refs:
 power:
   source_ref: pdu-rack
   max_watts: 20
+
+# ADR 0087: Docker host capability declaration
+# Inherited from obj.orangepi.rk3588.debian but explicit for validator visibility
+capabilities:
+- cap.compute.runtime.container_host
+- vendor.runtime.docker.host

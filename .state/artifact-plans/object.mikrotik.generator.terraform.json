@@ -1,0 +1,110 @@
+{
+  "artifact_family": "terraform.mikrotik",
+  "capabilities": [
+    "has_containers",
+    "has_failover",
+    "has_ipsec",
+    "has_lte",
+    "has_multi_wan",
+    "has_openvpn",
+    "has_qos",
+    "has_qos_advanced",
+    "has_vlan",
+    "has_wifi",
+    "has_wireguard"
+  ],
+  "ir_version": "1.0",
+  "obsolete_candidates": [],
+  "planned_outputs": [
+    {
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/provider.tf",
+      "reason": "base-family",
+      "renderer": "jinja2",
+      "required": true,
+      "template": "terraform/provider.tf.j2"
+    },
+    {
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/interfaces.tf",
+      "reason": "base-family",
+      "renderer": "jinja2",
+      "required": true,
+      "template": "terraform/interfaces.tf.j2"
+    },
+    {
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/firewall.tf",
+      "reason": "base-family",
+      "renderer": "jinja2",
+      "required": true,
+      "template": "terraform/firewall.tf.j2"
+    },
+    {
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/dhcp.tf",
+      "reason": "base-family",
+      "renderer": "jinja2",
+      "required": true,
+      "template": "terraform/dhcp.tf.j2"
+    },
+    {
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/dns.tf",
+      "reason": "base-family",
+      "renderer": "jinja2",
+      "required": true,
+      "template": "terraform/dns.tf.j2"
+    },
+    {
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/addresses.tf",
+      "reason": "base-family",
+      "renderer": "jinja2",
+      "required": true,
+      "template": "terraform/addresses.tf.j2"
+    },
+    {
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/variables.tf",
+      "reason": "base-family",
+      "renderer": "jinja2",
+      "required": true,
+      "template": "terraform/variables.tf.j2"
+    },
+    {
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/outputs.tf",
+      "reason": "base-family",
+      "renderer": "jinja2",
+      "required": true,
+      "template": "terraform/outputs.tf.j2"
+    },
+    {
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/terraform.tfvars.example",
+      "reason": "base-family",
+      "renderer": "jinja2",
+      "required": true,
+      "template": "terraform/terraform.tfvars.example.j2"
+    },
+    {
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/qos.tf",
+      "reason": "capability-enabled",
+      "renderer": "jinja2",
+      "required": true,
+      "template": "terraform/qos.tf.j2"
+    },
+    {
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/vpn.tf",
+      "reason": "capability-enabled",
+      "renderer": "jinja2",
+      "required": true,
+      "template": "terraform/vpn.tf.j2"
+    },
+    {
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/containers.tf",
+      "reason": "capability-enabled",
+      "renderer": "jinja2",
+      "required": true,
+      "template": "terraform/containers.tf.j2"
+    }
+  ],
+  "plugin_id": "object.mikrotik.generator.terraform",
+  "projection_version": "1.0",
+  "schema_version": "1.0",
+  "validation_profiles": [
+    "production"
+  ]
+}

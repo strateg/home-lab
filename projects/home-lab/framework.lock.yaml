@@ -9,3 +9,11 @@ framework:
   revision: a5afb1328216c7f7b566ecd531baeb33da046036
   integrity: sha256-5e84f831c7c21172ce6026c74fccd050ee193dc91bf2aa98363f85d671b2d145
 locked_at: '2026-04-07T15:09:55.977006+00:00'
+
+# ADR 0087: Unified Container Ontology migration state
+adr_0087:
+  phase1_enabled: true      # Docker Promotion MVP - class hierarchy + validators complete
+  phase2_enabled: true      # Hypervisor Platform Split - class hierarchy complete
+  phase3_enabled: false     # Multi-Hypervisor VM Support - pending
+  migration_mode: migrating # legacy | migrating | migrated | rollback
+  migration_started_at: '2026-04-07'

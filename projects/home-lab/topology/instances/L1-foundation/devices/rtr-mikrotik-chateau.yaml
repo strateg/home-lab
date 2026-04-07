@@ -92,3 +92,9 @@ observed_runtime:
   users:
     - name: admin
       group: full
+
+# ADR 0087: Docker host capability declaration
+# RouterOS v7 containers are Docker-compatible (containerD engine)
+capabilities:
+- cap.compute.runtime.container_host
+- vendor.runtime.docker.host
