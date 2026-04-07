@@ -102,16 +102,16 @@
 
 ### Secondary Family Migration
 
-- [ ] Ansible inventory generator emits ArtifactPlan
+- [x] Ansible inventory generator emits ArtifactPlan
 - [ ] Ansible group_vars generator emits ArtifactPlan
-- [ ] Bootstrap scripts generator emits ArtifactPlan
+- [x] Bootstrap scripts generator emits ArtifactPlan
 - [ ] Ownership proof applies to all new families
 
 ### Sunset Schedule
 
-- [ ] Secondary family sunset dates defined
-- [ ] Deprecation warnings active
-- [ ] Grace period + hard error flow same as pilots
+- [x] Secondary family sunset dates defined
+- [x] Deprecation warnings active
+- [x] Grace period + hard error flow same as pilots
 
 ### Wave 4 Sign-off
 

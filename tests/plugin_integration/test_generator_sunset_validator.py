@@ -19,6 +19,7 @@ def _registry() -> PluginRegistry:
     registry.load_manifest(V5_TOOLS / "plugins" / "plugins.yaml")
     registry.load_manifest(Path("topology/object-modules/proxmox/plugins.yaml"))
     registry.load_manifest(Path("topology/object-modules/mikrotik/plugins.yaml"))
+    registry.load_manifest(Path("topology/object-modules/orangepi/plugins.yaml"))
     return registry
 
 
@@ -155,3 +156,29 @@ def test_generator_sunset_validator_fails_when_policy_file_is_missing(tmp_path: 
 
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E9396" for diag in result.diagnostics)
+
+
+def test_generator_sunset_validator_default_policy_includes_secondary_families() -> None:
+    registry = _registry()
+    validator = GeneratorSunsetValidator("base.validator.generator_sunset")
+    repo_root = Path(__file__).resolve().parents[2]
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        compiled_json={},
+        config={
+            "plugin_registry": registry,
+            "repo_root": str(repo_root),
+            "sunset_today": "2026-04-07",
+            "sunset_policy_path": "topology-tools/data/generator-sunset-policy.yaml",
+        },
+    )
+
+    result = validator.execute(ctx, Stage.VALIDATE)
+
+    assert result.status == PluginStatus.PARTIAL
+    summary = result.output_data["generator_sunset_summary"]
+    assert summary["scheduled_targets"] == 6
+    assert summary["legacy_targets"] >= 3
+    assert any(diag.code == "W9397" for diag in result.diagnostics)

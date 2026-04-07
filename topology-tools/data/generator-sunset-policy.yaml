@@ -9,3 +9,12 @@ sunset_schedule:
   base.generator.ansible_inventory:
     compatibility_sunset: "2026-05-01"
     hard_error_date: "2026-05-15"
+  object.proxmox.generator.bootstrap:
+    compatibility_sunset: "2026-06-01"
+    hard_error_date: "2026-06-15"
+  object.mikrotik.generator.bootstrap:
+    compatibility_sunset: "2026-06-01"
+    hard_error_date: "2026-06-15"
+  object.orangepi.generator.bootstrap:
+    compatibility_sunset: "2026-06-01"
+    hard_error_date: "2026-06-15"
