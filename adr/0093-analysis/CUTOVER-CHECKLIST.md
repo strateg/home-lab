@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-04-07
 
-**Status:** Waves 1-5 largely completed; remaining item is mixed-mode parity test cleanup.
+**Status:** Waves 1-5 completed.
 
 ## Wave 1: Schema Completeness
 
@@ -141,7 +141,7 @@
 
 - [x] All target families fully migrated
 - [x] Compatibility mode code eliminated
-- [ ] Tests simplified (no mixed-mode parity)
+- [x] Tests simplified (no mixed-mode parity)
 
 **Approver:** _________________ **Date:** _________
 

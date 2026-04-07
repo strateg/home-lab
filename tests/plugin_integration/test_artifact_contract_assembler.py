@@ -22,13 +22,13 @@ def _registry() -> PluginRegistry:
     return registry
 
 
-def _ctx(registry: PluginRegistry, *, enforce_migrating: bool = False) -> PluginContext:
+def _ctx(registry: PluginRegistry) -> PluginContext:
     return PluginContext(
         topology_path="topology/topology.yaml",
         profile="test",
         model_lock={},
         compiled_json={},
-        config={"plugin_registry": registry, "enforce_migrating": enforce_migrating},
+        config={"plugin_registry": registry},
     )
 
 
@@ -68,9 +68,9 @@ def test_artifact_contract_assembler_passes_when_migrating_generators_publish_co
     assert summary["missing_contracts"] == []
 
 
-def test_artifact_contract_assembler_warns_for_missing_migrating_contracts_by_default() -> None:
+def test_artifact_contract_assembler_errors_for_missing_migrating_contracts() -> None:
     registry = _registry()
-    ctx = _ctx(registry, enforce_migrating=False)
+    ctx = _ctx(registry)
     migrating = _migrating_generators(registry)
     assert migrating
     for plugin_id in migrating[1:]:
@@ -79,17 +79,6 @@ def test_artifact_contract_assembler_warns_for_missing_migrating_contracts_by_de
         )
 
     plugin = ArtifactContractAssembler("base.assembler.artifact_contract_guard")
-    result = plugin.execute(ctx, Stage.ASSEMBLE)
-
-    assert result.status == PluginStatus.PARTIAL
-    assert any(diag.code == "W9393" for diag in result.diagnostics)
-
-
-def test_artifact_contract_assembler_errors_when_migrating_enforcement_is_enabled() -> None:
-    registry = _registry()
-    ctx = _ctx(registry, enforce_migrating=True)
-    plugin = ArtifactContractAssembler("base.assembler.artifact_contract_guard")
-
     result = plugin.execute(ctx, Stage.ASSEMBLE)
 
     assert result.status == PluginStatus.FAILED
@@ -101,7 +90,7 @@ def test_artifact_contract_assembler_errors_for_missing_migrated_contracts() -> 
     migrating = _migrating_generators(registry)
     assert migrating
     registry.specs[migrating[0]].migration_mode = "migrated"
-    ctx = _ctx(registry, enforce_migrating=False)
+    ctx = _ctx(registry)
 
     plugin = ArtifactContractAssembler("base.assembler.artifact_contract_guard")
     result = plugin.execute(ctx, Stage.ASSEMBLE)
@@ -112,7 +101,7 @@ def test_artifact_contract_assembler_errors_for_missing_migrated_contracts() -> 
 
 def test_artifact_contract_assembler_detects_overlapping_generated_dir_prefixes() -> None:
     registry = _registry()
-    ctx = _ctx(registry, enforce_migrating=False)
+    ctx = _ctx(registry)
     migrating = _migrating_generators(registry)
     assert len(migrating) >= 2
 

@@ -1683,22 +1683,15 @@ plugins:
     order: 418
     depends_on: []
     timeout: 30
-    config:
-      enforce_migrating: false
+    config: {}
     config_schema:
       type: object
-      properties:
-        enforce_migrating:
-          type: boolean
-          default: false
-          description: >
-            When true, missing artifact contract publications for migrating
-            generators are treated as errors instead of warnings.
+      properties: {}
       required: []
     produces:
       - key: artifact_contract_guard
         scope: pipeline_shared
-    description: Validates ADR0093 contract publications for migrated/migrating generators.
+    description: Enforces ADR0093 contract publications for migrated/migrating generators.
 
   - id: base.assembler.manifest
     kind: assembler

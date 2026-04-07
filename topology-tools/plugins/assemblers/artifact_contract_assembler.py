@@ -26,13 +26,6 @@ class ArtifactContractAssembler(AssemblerPlugin):
         return ctx.config.get("plugin_registry")
 
     @staticmethod
-    def _resolve_enforce_migrating(ctx: PluginContext) -> bool:
-        raw = ctx.config.get("enforce_migrating")
-        if isinstance(raw, bool):
-            return raw
-        return False
-
-    @staticmethod
     def _is_valid_contract_files(value: Any) -> bool:
         if not isinstance(value, list) or not value:
             return False
@@ -74,8 +67,6 @@ class ArtifactContractAssembler(AssemblerPlugin):
             return self.make_result(diagnostics=diagnostics, output_data={"artifact_contract_guard": None})
 
         published_data = ctx.get_published_data()
-        enforce_migrating = self._resolve_enforce_migrating(ctx)
-
         summary = {
             "legacy": 0,
             "migrating": 0,
@@ -111,16 +102,10 @@ class ArtifactContractAssembler(AssemblerPlugin):
                     generator_output_roots.append((plugin_id, mode, generated_dir))
             else:
                 summary["missing_contracts"].append({"plugin_id": plugin_id, "mode": mode, "missing": sorted(missing)})
-                if mode == "migrated" or (mode == "migrating" and enforce_migrating):
-                    severity = "error"
-                    code = "E9394"
-                else:
-                    severity = "warning"
-                    code = "W9393"
                 diagnostics.append(
                     self.emit_diagnostic(
-                        code=code,
-                        severity=severity,
+                        code="E9394",
+                        severity="error",
                         stage=stage,
                         message=(
                             f"generator '{plugin_id}' migration_mode={mode} is missing required contract keys: "

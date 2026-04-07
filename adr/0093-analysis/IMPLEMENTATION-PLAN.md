@@ -136,14 +136,14 @@
 | ---- | ----------- | ---------- |
 | 5.2.1 | Roll out to documentation generators | Docs generators migrated |
 | 5.2.2 | Roll out to any remaining families | All families migrated |
-| 5.2.3 | Remove mixed-mode parity tests | Tests simplified |
+| 5.2.3 | Remove mixed-mode parity tests | Tests simplified and strict-only coverage retained |
 
 ### Wave 5 Gate
 
 - [x] All target families migrated
 - [x] Compatibility mode code removed
 - [x] Documentation updated
-- [ ] No mixed-mode tests needed
+- [x] No mixed-mode tests needed
 
 ## Timeline Summary
 
