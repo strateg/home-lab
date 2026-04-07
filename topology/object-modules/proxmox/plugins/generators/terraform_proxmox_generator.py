@@ -5,6 +5,12 @@ from __future__ import annotations
 from pathlib import Path
 
 from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage
+from plugins.generators.artifact_contract import (
+    build_artifact_plan,
+    build_generation_report,
+    build_planned_output,
+    write_contract_artifacts,
+)
 from plugins.generators.base_generator import BaseGenerator
 from plugins.generators.object_projection_loader import load_object_projection_module
 
@@ -119,11 +125,52 @@ class TerraformProxmoxGenerator(BaseGenerator):
             render_context["remote_state_items"] = [{"key": key, "value": value} for key, value in backend_items]
 
         written: list[str] = []
+        planned_outputs: list[dict[str, object]] = []
         for filename, template_name in templates.items():
             output_path = out_dir / filename
+            reason = "base-family"
+            if filename in capability_templates:
+                reason = "capability-enabled"
+            elif filename == "backend.tf":
+                reason = "dependency-enabled"
+            planned_outputs.append(
+                build_planned_output(
+                    path=str(output_path),
+                    template=template_name,
+                    reason=reason,
+                )
+            )
             content = self.render_template(ctx, template_name, render_context)
             self.write_text_atomic(output_path, content)
             written.append(str(output_path))
+
+        capability_flags = sorted(
+            key
+            for key, value in caps.items()
+            if isinstance(value, bool) and value and (key.startswith("has_") or key.startswith("cap."))
+        )
+        artifact_family = "terraform.proxmox"
+        artifact_plan = build_artifact_plan(
+            plugin_id=self.plugin_id,
+            artifact_family=artifact_family,
+            planned_outputs=planned_outputs,
+            projection_version="1.0",
+            ir_version="1.0",
+            capabilities=capability_flags,
+            validation_profiles=[ctx.profile],
+        )
+        artifact_generation_report = build_generation_report(
+            plugin_id=self.plugin_id,
+            artifact_family=artifact_family,
+            planned_outputs=planned_outputs,
+            generated=written,
+        )
+        contract_paths = write_contract_artifacts(
+            ctx=ctx,
+            plugin_id=self.plugin_id,
+            artifact_plan=artifact_plan,
+            generation_report=artifact_generation_report,
+        )
 
         # Build capability summary for diagnostic
         cap_summary_parts = list(capability_templates.keys())
@@ -146,11 +193,17 @@ class TerraformProxmoxGenerator(BaseGenerator):
         self.publish_if_possible(ctx, "generated_dir", str(out_dir))
         self.publish_if_possible(ctx, "generated_files", written)
         self.publish_if_possible(ctx, "terraform_proxmox_files", written)
+        self.publish_if_possible(ctx, "artifact_plan", artifact_plan)
+        self.publish_if_possible(ctx, "artifact_generation_report", artifact_generation_report)
+        self.publish_if_possible(ctx, "artifact_contract_files", sorted(contract_paths.values()))
 
         return self.make_result(
             diagnostics=diagnostics,
             output_data={
                 "terraform_proxmox_dir": str(out_dir),
                 "terraform_proxmox_files": written,
+                "artifact_plan": artifact_plan,
+                "artifact_generation_report": artifact_generation_report,
+                "artifact_contract_files": sorted(contract_paths.values()),
             },
         )

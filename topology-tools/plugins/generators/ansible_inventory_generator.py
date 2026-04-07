@@ -5,6 +5,12 @@ from __future__ import annotations
 import json
 
 from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage
+from plugins.generators.artifact_contract import (
+    build_artifact_plan,
+    build_generation_report,
+    build_planned_output,
+    write_contract_artifacts,
+)
 from plugins.generators.base_generator import BaseGenerator
 from plugins.generators.projections import ProjectionError, build_ansible_projection
 
@@ -52,7 +58,15 @@ class AnsibleInventoryGenerator(BaseGenerator):
         lxc_hosts = [row for row in hosts_rows if row.get("inventory_group") == "lxc"]
 
         written: list[str] = []
+        planned_outputs: list[dict[str, object]] = []
         hosts_path = out_root / "hosts.yml"
+        planned_outputs.append(
+            build_planned_output(
+                path=str(hosts_path),
+                template="ansible/inventory/hosts.yml.j2",
+                reason="base-family",
+            )
+        )
         hosts_yml_content = self.render_template(
             ctx,
             "ansible/inventory/hosts.yml.j2",
@@ -62,6 +76,13 @@ class AnsibleInventoryGenerator(BaseGenerator):
         written.append(str(hosts_path))
 
         group_vars_path = group_vars_dir / "all.yml"
+        planned_outputs.append(
+            build_planned_output(
+                path=str(group_vars_path),
+                template="ansible/inventory/group_vars_all.yml.j2",
+                reason="base-family",
+            )
+        )
         group_vars_content = self.render_template(
             ctx,
             "ansible/inventory/group_vars_all.yml.j2",
@@ -84,6 +105,13 @@ class AnsibleInventoryGenerator(BaseGenerator):
             if not instance_id:
                 continue
             host_var_path = host_vars_dir / f"{instance_id}.yml"
+            planned_outputs.append(
+                build_planned_output(
+                    path=str(host_var_path),
+                    template="ansible/inventory/host_vars.yml.j2",
+                    reason="base-family",
+                )
+            )
             host_var_content = self.render_template(
                 ctx,
                 "ansible/inventory/host_vars.yml.j2",
@@ -105,6 +133,28 @@ class AnsibleInventoryGenerator(BaseGenerator):
             self.write_text_atomic(host_var_path, host_var_content)
             written.append(str(host_var_path))
 
+        artifact_family = "ansible.inventory"
+        artifact_plan = build_artifact_plan(
+            plugin_id=self.plugin_id,
+            artifact_family=artifact_family,
+            planned_outputs=planned_outputs,
+            projection_version="1.0",
+            ir_version="1.0",
+            validation_profiles=[ctx.profile],
+        )
+        artifact_generation_report = build_generation_report(
+            plugin_id=self.plugin_id,
+            artifact_family=artifact_family,
+            planned_outputs=planned_outputs,
+            generated=written,
+        )
+        contract_paths = write_contract_artifacts(
+            ctx=ctx,
+            plugin_id=self.plugin_id,
+            artifact_plan=artifact_plan,
+            generation_report=artifact_generation_report,
+        )
+
         diagnostics.append(
             self.emit_diagnostic(
                 code="I9301",
@@ -117,11 +167,17 @@ class AnsibleInventoryGenerator(BaseGenerator):
         self.publish_if_possible(ctx, "generated_dir", str(out_root))
         self.publish_if_possible(ctx, "generated_files", written)
         self.publish_if_possible(ctx, "ansible_inventory_files", written)
+        self.publish_if_possible(ctx, "artifact_plan", artifact_plan)
+        self.publish_if_possible(ctx, "artifact_generation_report", artifact_generation_report)
+        self.publish_if_possible(ctx, "artifact_contract_files", sorted(contract_paths.values()))
 
         return self.make_result(
             diagnostics=diagnostics,
             output_data={
                 "ansible_inventory_dir": str(out_root),
                 "ansible_inventory_files": written,
+                "artifact_plan": artifact_plan,
+                "artifact_generation_report": artifact_generation_report,
+                "artifact_contract_files": sorted(contract_paths.values()),
             },
         )

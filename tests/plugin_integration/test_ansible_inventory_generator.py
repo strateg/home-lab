@@ -80,6 +80,13 @@ def test_ansible_inventory_generator_writes_expected_files(tmp_path: Path) -> No
     assert (root / "host_vars" / "lxc-redis.yml").exists()
     assert (root / "host_vars" / "rtr-mk.yml").exists()
     assert (root / "host_vars" / "srv-gamayun.yml").exists()
+    assert result.output_data is not None
+    assert result.output_data["artifact_plan"]["artifact_family"] == "ansible.inventory"
+    assert result.output_data["artifact_generation_report"]["summary"]["generated_count"] == len(
+        result.output_data["ansible_inventory_files"]
+    )
+    for contract_file in result.output_data["artifact_contract_files"]:
+        assert Path(contract_file).exists()
 
     hosts_payload = yaml.safe_load((root / "hosts.yml").read_text(encoding="utf-8"))
     children = hosts_payload["all"]["children"]

@@ -65,21 +65,21 @@ def _ctx(tmp_path: Path, compiled_json: dict) -> PluginContext:
 def _compiled_fixture() -> dict:
     return _semanticize(
         {
-        "instances": {
-            "devices": [
-                {"instance_id": "srv-gamayun", "object_ref": "obj.proxmox.ve"},
-                {"instance_id": "rtr-mk", "object_ref": "obj.mikrotik.chateau_lte7_ax"},
-            ],
-            "lxc": [
-                {"instance_id": "lxc-redis", "object_ref": "obj.proxmox.lxc.debian12.redis"},
-                {"instance_id": "lxc-grafana", "object_ref": "obj.proxmox.lxc.debian12.base"},
-            ],
-            "services": [
-                {"instance_id": "svc-redis", "runtime": {"target_ref": "lxc-redis"}},
-                {"instance_id": "svc-snmp", "runtime": {"target_ref": "rtr-mk"}},
-            ],
+            "instances": {
+                "devices": [
+                    {"instance_id": "srv-gamayun", "object_ref": "obj.proxmox.ve"},
+                    {"instance_id": "rtr-mk", "object_ref": "obj.mikrotik.chateau_lte7_ax"},
+                ],
+                "lxc": [
+                    {"instance_id": "lxc-redis", "object_ref": "obj.proxmox.lxc.debian12.redis"},
+                    {"instance_id": "lxc-grafana", "object_ref": "obj.proxmox.lxc.debian12.base"},
+                ],
+                "services": [
+                    {"instance_id": "svc-redis", "runtime": {"target_ref": "lxc-redis"}},
+                    {"instance_id": "svc-snmp", "runtime": {"target_ref": "rtr-mk"}},
+                ],
+            }
         }
-    }
     )
 
 
@@ -133,6 +133,13 @@ def test_terraform_proxmox_generator_writes_expected_files(tmp_path: Path) -> No
     }
     assert expected_files.issubset({path.name for path in target_dir.iterdir()})
     assert not (target_dir / "backend.tf").exists()
+    assert result.output_data is not None
+    assert result.output_data["artifact_plan"]["artifact_family"] == "terraform.proxmox"
+    assert result.output_data["artifact_generation_report"]["summary"]["generated_count"] == len(
+        result.output_data["terraform_proxmox_files"]
+    )
+    for contract_file in result.output_data["artifact_contract_files"]:
+        assert Path(contract_file).exists()
 
     lxc_tf = (target_dir / "lxc.tf").read_text(encoding="utf-8")
     assert "lxc-grafana" in lxc_tf

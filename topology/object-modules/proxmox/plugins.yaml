@@ -86,6 +86,12 @@ plugins:
         scope: pipeline_shared
       - key: terraform_proxmox_files
         scope: pipeline_shared
+      - key: artifact_plan
+        scope: pipeline_shared
+      - key: artifact_generation_report
+        scope: pipeline_shared
+      - key: artifact_contract_files
+        scope: pipeline_shared
     description: Emits baseline Terraform artifacts for Proxmox from v5 projections (Phase 3 bootstrap).
 
   - id: object.proxmox.generator.bootstrap

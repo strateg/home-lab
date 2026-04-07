@@ -65,29 +65,29 @@ def _ctx(tmp_path: Path, compiled_json: dict) -> PluginContext:
 def _compiled_fixture() -> dict:
     return _semanticize(
         {
-        "instances": {
-            "devices": [
-                {
-                    "instance_id": "rtr-mk",
-                    "object_ref": "obj.mikrotik.chateau_lte7_ax",
-                    "capabilities": [
-                        "cap.net.overlay.vpn.wireguard.server",
-                        "cap.net.l3.qos.basic",
-                        "cap.net.platform.containers",
-                    ],
-                },
-                {"instance_id": "srv-gamayun", "object_ref": "obj.proxmox.ve"},
-            ],
-            "network": [
-                {"instance_id": "inst.net.wan", "object_ref": "obj.network.l2_segment"},
-                {"instance_id": "inst.net.lan", "object_ref": "obj.network.l2_segment"},
-            ],
-            "services": [
-                {"instance_id": "svc-snmp", "runtime": {"target_ref": "rtr-mk"}},
-                {"instance_id": "svc-redis", "runtime": {"target_ref": "lxc-redis"}},
-            ],
+            "instances": {
+                "devices": [
+                    {
+                        "instance_id": "rtr-mk",
+                        "object_ref": "obj.mikrotik.chateau_lte7_ax",
+                        "capabilities": [
+                            "cap.net.overlay.vpn.wireguard.server",
+                            "cap.net.l3.qos.basic",
+                            "cap.net.platform.containers",
+                        ],
+                    },
+                    {"instance_id": "srv-gamayun", "object_ref": "obj.proxmox.ve"},
+                ],
+                "network": [
+                    {"instance_id": "inst.net.wan", "object_ref": "obj.network.l2_segment"},
+                    {"instance_id": "inst.net.lan", "object_ref": "obj.network.l2_segment"},
+                ],
+                "services": [
+                    {"instance_id": "svc-snmp", "runtime": {"target_ref": "rtr-mk"}},
+                    {"instance_id": "svc-redis", "runtime": {"target_ref": "lxc-redis"}},
+                ],
+            }
         }
-    }
     )
 
 
@@ -141,6 +141,13 @@ def test_terraform_mikrotik_generator_writes_expected_files(tmp_path: Path) -> N
     }
     assert expected_files.issubset({path.name for path in target_dir.iterdir()})
     assert not (target_dir / "backend.tf").exists()
+    assert result.output_data is not None
+    assert result.output_data["artifact_plan"]["artifact_family"] == "terraform.mikrotik"
+    assert result.output_data["artifact_generation_report"]["summary"]["generated_count"] == len(
+        result.output_data["terraform_mikrotik_files"]
+    )
+    for contract_file in result.output_data["artifact_contract_files"]:
+        assert Path(contract_file).exists()
 
     firewall_tf = (target_dir / "firewall.tf").read_text(encoding="utf-8")
     assert "inst.net.lan" in firewall_tf

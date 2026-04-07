@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://home-lab.local/schemas/artifact-plan.schema.json",
+  "title": "Artifact Plan",
+  "description": "Generator planning contract for migrated artifact families (ADR 0093)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "plugin_id",
+    "artifact_family",
+    "planned_outputs"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^1\\.[0-9]+$"
+    },
+    "plugin_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_.]*$"
+    },
+    "artifact_family": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.-]*$"
+    },
+    "projection_version": {
+      "type": "string"
+    },
+    "ir_version": {
+      "type": "string"
+    },
+    "planned_outputs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/planned_output"
+      }
+    },
+    "obsolete_candidates": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/obsolete_candidate"
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "validation_profiles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "planned_output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "renderer",
+        "required",
+        "reason"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "renderer": {
+          "type": "string",
+          "enum": [
+            "jinja2",
+            "structured",
+            "programmatic"
+          ]
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "base-family",
+            "capability-enabled",
+            "dependency-enabled",
+            "migration-compat",
+            "obsolete-shadowed",
+            "operator-requested"
+          ]
+        },
+        "template": {
+          "type": "string"
+        },
+        "capability_ref": {
+          "type": "string"
+        }
+      }
+    },
+    "obsolete_candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "action",
+        "reason"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "retain",
+            "delete",
+            "warn"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}
