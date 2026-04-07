@@ -36,9 +36,9 @@
 ### Wave 1 Sign-off
 
 - [ ] Security review completed
-- [ ] Redaction coverage >= 99%
-- [ ] Sandbox isolation verified
-- [ ] Audit logs complete
+- [x] Redaction coverage >= 99%
+- [x] Sandbox isolation verified
+- [x] Audit logs complete
 
 **Approver:** _________________ **Date:** _________
 

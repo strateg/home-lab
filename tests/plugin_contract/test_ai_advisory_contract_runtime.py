@@ -114,3 +114,24 @@ def test_build_ai_input_payload_supports_extra_key_patterns() -> None:
     )
 
     assert payload["effective_json"]["device"]["serial_number"].startswith("<<REDACTED:")
+
+
+def test_redaction_coverage_is_at_least_99_percent_for_secret_markers() -> None:
+    secret_source = {f"service_{index}_password": f"pw-{index}" for index in range(120)}
+    secret_source.update({f"api_{index}_token": f"tok-{index}" for index in range(80)})
+    payload = {
+        "effective_json": secret_source,
+        "stable_projection": {"note": "non-secret"},
+        "artifact_plan": {"planned_outputs": []},
+    }
+
+    redacted, summary = redact_sensitive_fields(payload)
+    total_secret_fields = 200
+    redacted_fields = int(summary["redacted_fields"])
+    coverage = redacted_fields / total_secret_fields
+
+    assert coverage >= 0.99
+    assert all(
+        str(redacted["effective_json"][key]).startswith("<<REDACTED:")
+        for key in secret_source
+    )
