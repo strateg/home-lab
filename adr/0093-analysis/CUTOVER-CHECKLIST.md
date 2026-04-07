@@ -128,7 +128,7 @@
 
 - [ ] Legacy generator detection code removed
 - [ ] Fallback paths in validate stage removed
-- [ ] Compatibility shims removed
+- [x] Compatibility shims removed
 - [x] No `migration_mode: legacy` in any target family
 
 ### Documentation

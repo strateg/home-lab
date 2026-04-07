@@ -127,7 +127,7 @@
 | ---- | ----------- | ---------- |
 | 5.1.1 | Remove legacy generator detection code | Code removed |
 | 5.1.2 | Remove fallback paths in validate stage | Fallbacks removed |
-| 5.1.3 | Remove compatibility shims | Shims removed |
+| 5.1.3 | Remove compatibility shims | Shims removed (object-generator shims removed and enforced by contract tests) |
 | 5.1.4 | Update documentation | Docs reflect new-only |
 
 ### 5.2 Expansion
