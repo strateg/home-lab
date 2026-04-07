@@ -520,6 +520,157 @@ class GeneratorReadinessEvidenceBuilder(BuilderPlugin):
         return self.execute(ctx, stage)
 
 
+class ReadinessReportsBuilder(BuilderPlugin):
+    """Emit ADR0091-compatible readiness reports from consolidated evidence."""
+
+    @staticmethod
+    def _report_status(readiness_status: str) -> str:
+        token = readiness_status.strip().lower()
+        if token in {"green", "warning", "blocked"}:
+            return token
+        return "warning"
+
+    @staticmethod
+    def _resolve_check_status(*, passed: bool, blocked: bool = False) -> str:
+        if blocked:
+            return "blocked"
+        return "pass" if passed else "warning"
+
+    def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        diagnostics: list[PluginDiagnostic] = []
+        try:
+            readiness_evidence = ctx.subscribe(
+                "base.builder.generator_readiness_evidence", "generator_readiness_evidence"
+            )
+        except PluginDataExchangeError as exc:
+            published = ctx.get_published_data()
+            source_payload = published.get("base.builder.generator_readiness_evidence", {})
+            readiness_evidence = (
+                source_payload.get("generator_readiness_evidence") if isinstance(source_payload, dict) else None
+            )
+            if not isinstance(readiness_evidence, dict):
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E8206",
+                        severity="error",
+                        stage=stage,
+                        message=f"readiness reports require generator_readiness_evidence payload: {exc}",
+                        path="plugin:base.builder.generator_readiness_evidence:generator_readiness_evidence",
+                    )
+                )
+                return self.make_result(diagnostics=diagnostics)
+        if not isinstance(readiness_evidence, dict):
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E8206",
+                    severity="error",
+                    stage=stage,
+                    message="generator_readiness_evidence payload is not an object.",
+                    path="plugin:base.builder.generator_readiness_evidence:generator_readiness_evidence",
+                )
+            )
+            return self.make_result(diagnostics=diagnostics)
+
+        readiness = readiness_evidence.get("readiness", {})
+        readiness_status = ""
+        if isinstance(readiness, dict):
+            raw_status = readiness.get("status")
+            if isinstance(raw_status, str):
+                readiness_status = raw_status
+        normalized_status = self._report_status(readiness_status)
+
+        migration_summary = readiness_evidence.get("generator_migration_summary", {})
+        sunset_summary = readiness_evidence.get("generator_sunset_summary", {})
+        rollback_summary = readiness_evidence.get("generator_rollback_summary", {})
+        artifact_totals = readiness_evidence.get("artifact_family_summary_totals", {})
+
+        legacy_count = migration_summary.get("legacy", 0) if isinstance(migration_summary, dict) else 0
+        sunset_errors = sunset_summary.get("errors", 0) if isinstance(sunset_summary, dict) else 0
+        sunset_warnings = sunset_summary.get("warnings", 0) if isinstance(sunset_summary, dict) else 0
+        rollback_escalated = rollback_summary.get("escalated", 0) if isinstance(rollback_summary, dict) else 0
+        rollback_missing = rollback_summary.get("missing_started_at", 0) if isinstance(rollback_summary, dict) else 0
+        planned_plugins = artifact_totals.get("plugins", 0) if isinstance(artifact_totals, dict) else 0
+
+        checks = [
+            {
+                "check_id": "migration-legacy-count",
+                "status": self._resolve_check_status(passed=isinstance(legacy_count, int) and legacy_count == 0),
+                "details": {"legacy": legacy_count},
+            },
+            {
+                "check_id": "sunset-enforcement",
+                "status": self._resolve_check_status(
+                    passed=isinstance(sunset_warnings, int) and sunset_warnings == 0,
+                    blocked=isinstance(sunset_errors, int) and sunset_errors > 0,
+                ),
+                "details": {"errors": sunset_errors, "warnings": sunset_warnings},
+            },
+            {
+                "check_id": "rollback-escalation",
+                "status": self._resolve_check_status(
+                    passed=(isinstance(rollback_escalated, int) and rollback_escalated == 0)
+                    and (isinstance(rollback_missing, int) and rollback_missing == 0)
+                ),
+                "details": {"escalated": rollback_escalated, "missing_started_at": rollback_missing},
+            },
+            {
+                "check_id": "artifact-family-coverage",
+                "status": self._resolve_check_status(passed=isinstance(planned_plugins, int) and planned_plugins > 0),
+                "details": {"artifact_family_plugins": planned_plugins},
+            },
+        ]
+
+        report_payload = {
+            "schema_version": 1,
+            "profile": "adr0091.restore-readiness.v1",
+            "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+            "project_id": str(ctx.config.get("project_id", "")),
+            "status": normalized_status,
+            "checks": checks,
+            "source_evidence": {
+                "generator_readiness_status": normalized_status,
+                "generator_migration_summary": migration_summary if isinstance(migration_summary, dict) else {},
+                "generator_sunset_summary": sunset_summary if isinstance(sunset_summary, dict) else {},
+                "generator_rollback_summary": rollback_summary if isinstance(rollback_summary, dict) else {},
+                "artifact_family_summary_totals": artifact_totals if isinstance(artifact_totals, dict) else {},
+            },
+        }
+
+        dist_root = ReleaseBundleBuilder._dist_root(ctx)
+        reports_root = dist_root / "reports"
+        reports_root.mkdir(parents=True, exist_ok=True)
+        report_path = reports_root / "restore-readiness.json"
+        report_path.write_text(json.dumps(report_payload, ensure_ascii=True, indent=2), encoding="utf-8")
+
+        generated_files = [str(report_path)]
+        try:
+            ctx.publish("generated_files", generated_files)
+            ctx.publish("restore_readiness_report_path", str(report_path))
+            ctx.publish("restore_readiness_report", report_payload)
+        except PluginDataExchangeError:
+            pass
+
+        diagnostics.append(
+            self.emit_diagnostic(
+                code="I8206",
+                severity="info",
+                stage=stage,
+                message=f"ADR0091 restore-readiness report emitted with status={normalized_status}",
+                path=str(report_path),
+            )
+        )
+        return self.make_result(
+            diagnostics=diagnostics,
+            output_data={
+                "restore_readiness_report_path": str(report_path),
+                "generated_files": generated_files,
+            },
+        )
+
+    def on_verify(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        return self.execute(ctx, stage)
+
+
 class ReleaseManifestBuilder(BuilderPlugin):
     """Emit release manifest from bundle + SBOM outputs."""
 
@@ -554,6 +705,12 @@ class ReleaseManifestBuilder(BuilderPlugin):
             )
         except PluginDataExchangeError:
             generator_readiness_evidence_path = ""
+        try:
+            restore_readiness_report_path = str(
+                ctx.subscribe("base.builder.readiness_reports", "restore_readiness_report_path")
+            )
+        except PluginDataExchangeError:
+            restore_readiness_report_path = ""
 
         dist_root = ReleaseBundleBuilder._dist_root(ctx)
         dist_root.mkdir(parents=True, exist_ok=True)
@@ -574,6 +731,7 @@ class ReleaseManifestBuilder(BuilderPlugin):
             "assembly_manifest_path": assembly_manifest_path,
             "artifact_family_summary_path": artifact_family_summary_path,
             "generator_readiness_evidence_path": generator_readiness_evidence_path,
+            "restore_readiness_report_path": restore_readiness_report_path,
         }
         manifest_path.write_text(json.dumps(payload, ensure_ascii=True, indent=2), encoding="utf-8")
 

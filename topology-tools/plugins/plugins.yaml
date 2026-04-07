@@ -1883,6 +1883,34 @@ plugins:
         scope: pipeline_shared
     description: Emits consolidated ADR0093 generator migration/sunset/rollback readiness evidence artifact.
 
+  - id: base.builder.readiness_reports
+    kind: builder
+    entry: builders/release_builder.py:ReadinessReportsBuilder
+    api_version: "1.x"
+    stages: [build]
+    phase: verify
+    order: 529
+    depends_on:
+      - base.builder.generator_readiness_evidence
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    consumes:
+      - from_plugin: base.builder.generator_readiness_evidence
+        key: generator_readiness_evidence
+        required: true
+    produces:
+      - key: generated_files
+        scope: pipeline_shared
+      - key: restore_readiness_report_path
+        scope: pipeline_shared
+      - key: restore_readiness_report
+        scope: pipeline_shared
+    description: Emits ADR0091-compatible reports/restore-readiness.json from generator readiness evidence.
+
   - id: base.builder.release_manifest
     kind: builder
     entry: builders/release_builder.py:ReleaseManifestBuilder
@@ -1894,6 +1922,7 @@ plugins:
       - base.builder.sbom
       - base.builder.artifact_family_summary
       - base.builder.generator_readiness_evidence
+      - base.builder.readiness_reports
       - base.builder.bundle
       - base.assembler.manifest
     timeout: 30
@@ -1920,6 +1949,9 @@ plugins:
         required: false
       - from_plugin: base.builder.generator_readiness_evidence
         key: generator_readiness_evidence_path
+        required: false
+      - from_plugin: base.builder.readiness_reports
+        key: restore_readiness_report_path
         required: false
     produces:
       - key: generated_files
