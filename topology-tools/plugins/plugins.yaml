@@ -1081,6 +1081,26 @@ plugins:
         required: false
     description: Validates hypervisor execution_model linkage (ADR 0087 Phase 2).
 
+  - id: base.validator.vm_hypervisor_compat
+    kind: validator_json
+    entry: validators/vm_hypervisor_compat_validator.py:VmHypervisorCompatValidator
+    api_version: "1.x"
+    stages: [validate]
+    phase: run
+    order: 146
+    depends_on: [base.compiler.instance_rows]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    consumes:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        required: false
+    description: Validates VM disk/bus/format compatibility with hypervisor (ADR 0087 Phase 3).
+
   - id: base.validator.storage_l3_refs
     kind: validator_json
     entry: validators/storage_l3_refs_validator.py:StorageL3RefsValidator

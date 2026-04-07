@@ -3,7 +3,7 @@
 @title: Compute Workload VM
 @summary: Virtual machine workload runtime contract.
 @layer: L4
-@version: 1.1.0
+@version: 1.2.0
 
 # Override base class policies for VM specifics
 os_policy: required
@@ -29,6 +29,79 @@ required_capabilities:
 - cap.compute.workload.linux_base
 optional_capabilities: []
 capability_packs: []
+
+# VM disk schema (ADR 0087 Phase 3)
+disk_schema:
+  disk_id:
+    type: string
+    required: true
+    description: Unique identifier within VM instance (e.g., boot0, data1)
+  role:
+    type: enum
+    values:
+    - boot
+    - data
+    - cdrom
+    - efivars
+    - cloudinit
+    - swap
+    - scratch
+    default: data
+  volume_ref:
+    type: reference
+    target_layer: L3
+    target_class: class.storage.volume
+    required_if_not_ephemeral: true
+  format:
+    type: enum
+    values:
+    - qcow2
+    - raw
+    - vmdk
+    - vdi
+    - vhd
+    - vhdx
+    description: Disk format (validated against hypervisor.allowed_disk_formats)
+  bus:
+    type: enum
+    values:
+    - scsi
+    - virtio
+    - ide
+    - sata
+    - nvme
+    - pvscsi
+    - lsilogic
+    - xvd
+    description: Virtual bus (validated against hypervisor.allowed_disk_buses)
+  slot:
+    type: string
+    description: Bus slot ID (e.g., 0, 1, 2)
+  cache:
+    type: enum
+    values:
+    - none
+    - writeback
+    - writethrough
+    - directsync
+    - unsafe
+    default: none
+  bootable:
+    type: boolean
+    default: false
+
+# Boot order schema
+boot_order_schema:
+  type: list
+  items:
+    type: string
+  description: Ordered list of disk_id values defining boot priority
+
+# Platform config schema (hypervisor-specific)
+platform_config_schema:
+  type: object
+  description: Hypervisor-specific properties validated against host class
+
 invariants:
 - object.class_ref must equal class.id
 - instance overrides must not violate class invariants
@@ -36,3 +109,5 @@ invariants:
 - bus:slot must be unique within VM instance
 - exactly one disk with role:boot must exist
 - boot_order must reference existing disk_id values
+- disk.format must be in hypervisor.allowed_disk_formats
+- disk.bus must be in hypervisor.allowed_disk_buses

@@ -22,7 +22,7 @@ classes:
   class.compute.workload.lxc:
     version: 1.1.0
   class.compute.workload.vm:
-    version: 1.1.0
+    version: 1.2.0
   class.firmware:
     version: 1.0.0
   class.network.bridge:
