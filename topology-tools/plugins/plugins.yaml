@@ -1843,6 +1843,46 @@ plugins:
         scope: pipeline_shared
     description: Aggregates ADR0093 artifact family planning/report metadata into build summary output.
 
+  - id: base.builder.generator_readiness_evidence
+    kind: builder
+    entry: builders/release_builder.py:GeneratorReadinessEvidenceBuilder
+    api_version: "1.x"
+    stages: [build]
+    phase: verify
+    order: 528
+    depends_on:
+      - base.builder.artifact_family_summary
+      - base.validator.generator_migration_status
+      - base.validator.generator_sunset
+      - base.validator.generator_rollback_escalation
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    consumes:
+      - from_plugin: base.validator.generator_migration_status
+        key: generator_migration_summary
+        required: false
+      - from_plugin: base.validator.generator_sunset
+        key: generator_sunset_summary
+        required: false
+      - from_plugin: base.validator.generator_rollback_escalation
+        key: generator_rollback_summary
+        required: false
+      - from_plugin: base.builder.artifact_family_summary
+        key: artifact_family_summary
+        required: false
+    produces:
+      - key: generated_files
+        scope: pipeline_shared
+      - key: generator_readiness_evidence_path
+        scope: pipeline_shared
+      - key: generator_readiness_evidence
+        scope: pipeline_shared
+    description: Emits consolidated ADR0093 generator migration/sunset/rollback readiness evidence artifact.
+
   - id: base.builder.release_manifest
     kind: builder
     entry: builders/release_builder.py:ReleaseManifestBuilder
@@ -1850,7 +1890,12 @@ plugins:
     stages: [build]
     phase: finalize
     order: 530
-    depends_on: [base.builder.sbom, base.builder.artifact_family_summary, base.builder.bundle, base.assembler.manifest]
+    depends_on:
+      - base.builder.sbom
+      - base.builder.artifact_family_summary
+      - base.builder.generator_readiness_evidence
+      - base.builder.bundle
+      - base.assembler.manifest
     timeout: 30
     config: {}
     config_schema:
@@ -1872,6 +1917,9 @@ plugins:
         required: true
       - from_plugin: base.builder.artifact_family_summary
         key: artifact_family_summary_path
+        required: false
+      - from_plugin: base.builder.generator_readiness_evidence
+        key: generator_readiness_evidence_path
         required: false
     produces:
       - key: generated_files

@@ -162,6 +162,7 @@ def test_assemble_and_build_stage_plugins_produce_release_artifacts(tmp_path: Pa
         "base.builder.bundle",
         "base.builder.sbom",
         "base.builder.artifact_family_summary",
+        "base.builder.generator_readiness_evidence",
         "base.builder.release_manifest",
     ]
     assert all(result.status == PluginStatus.SUCCESS for result in build_results)
@@ -169,20 +170,25 @@ def test_assemble_and_build_stage_plugins_produce_release_artifacts(tmp_path: Pa
     bundle_path = dist_root / "home-lab-snapshot.zip"
     sbom_path = sbom_root / "sbom.json"
     artifact_family_summary_path = dist_root / "artifact-family-summary.json"
+    generator_readiness_evidence_path = dist_root / "generator-readiness-evidence.json"
     release_manifest_path = dist_root / "release-manifest.json"
     assert bundle_path.exists()
     assert sbom_path.exists()
     assert artifact_family_summary_path.exists()
+    assert generator_readiness_evidence_path.exists()
     assert release_manifest_path.exists()
     with zipfile.ZipFile(bundle_path, "r") as archive:
         assert sorted(archive.namelist()) == ["docs/overview.md"]
 
     release_manifest = json.loads(release_manifest_path.read_text(encoding="utf-8"))
     artifact_family_summary = json.loads(artifact_family_summary_path.read_text(encoding="utf-8"))
+    generator_readiness = json.loads(generator_readiness_evidence_path.read_text(encoding="utf-8"))
     assert release_manifest["bundle"]["path"] == str(bundle_path)
     assert release_manifest["assembly_manifest_path"] == str(assembly_manifest)
     assert release_manifest["artifact_family_summary_path"] == str(artifact_family_summary_path)
+    assert release_manifest["generator_readiness_evidence_path"] == str(generator_readiness_evidence_path)
     assert artifact_family_summary["totals"]["plugins"] >= 1
+    assert generator_readiness["readiness"]["status"] in {"green", "warning", "blocked"}
 
 
 def test_assemble_verify_flags_secret_like_content(tmp_path: Path):

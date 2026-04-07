@@ -412,6 +412,114 @@ class ArtifactFamilySummaryBuilder(BuilderPlugin):
         return self.execute(ctx, stage)
 
 
+class GeneratorReadinessEvidenceBuilder(BuilderPlugin):
+    """Emit consolidated ADR0093 generator migration evidence for operators."""
+
+    @staticmethod
+    def _summary(payload: Any, key: str) -> dict[str, Any]:
+        if not isinstance(payload, dict):
+            return {}
+        value = payload.get(key)
+        return value if isinstance(value, dict) else {}
+
+    def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        diagnostics: list[PluginDiagnostic] = []
+        published = ctx.get_published_data()
+
+        migration_summary = self._summary(
+            published.get("base.validator.generator_migration_status"),
+            "generator_migration_summary",
+        )
+        sunset_summary = self._summary(
+            published.get("base.validator.generator_sunset"),
+            "generator_sunset_summary",
+        )
+        rollback_summary = self._summary(
+            published.get("base.validator.generator_rollback_escalation"),
+            "generator_rollback_summary",
+        )
+        artifact_family_summary = self._summary(
+            published.get("base.builder.artifact_family_summary"),
+            "artifact_family_summary",
+        )
+
+        readiness_status = "green"
+        blocking_reasons: list[str] = []
+        warning_reasons: list[str] = []
+
+        sunset_errors = sunset_summary.get("errors")
+        if isinstance(sunset_errors, int) and sunset_errors > 0:
+            readiness_status = "blocked"
+            blocking_reasons.append("sunset policy hard-error violations detected")
+
+        rollback_escalated = rollback_summary.get("escalated")
+        if isinstance(rollback_escalated, int) and rollback_escalated > 0:
+            if readiness_status != "blocked":
+                readiness_status = "warning"
+            warning_reasons.append("rollback escalation warnings detected")
+
+        rollback_missing_started_at = rollback_summary.get("missing_started_at")
+        if isinstance(rollback_missing_started_at, int) and rollback_missing_started_at > 0:
+            if readiness_status != "blocked":
+                readiness_status = "warning"
+            warning_reasons.append("rollback policy metadata gaps detected")
+
+        sunset_warnings = sunset_summary.get("warnings")
+        if isinstance(sunset_warnings, int) and sunset_warnings > 0:
+            if readiness_status != "blocked":
+                readiness_status = "warning"
+            warning_reasons.append("sunset policy warnings detected")
+
+        evidence = {
+            "schema_version": 1,
+            "project_id": str(ctx.config.get("project_id", "")),
+            "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+            "readiness": {
+                "status": readiness_status,
+                "blocking_reasons": blocking_reasons,
+                "warning_reasons": sorted(set(warning_reasons)),
+            },
+            "generator_migration_summary": migration_summary,
+            "generator_sunset_summary": sunset_summary,
+            "generator_rollback_summary": rollback_summary,
+            "artifact_family_summary_totals": artifact_family_summary.get("totals", {}),
+        }
+
+        dist_root = ReleaseBundleBuilder._dist_root(ctx)
+        dist_root.mkdir(parents=True, exist_ok=True)
+        evidence_path = dist_root / "generator-readiness-evidence.json"
+        evidence_path.write_text(json.dumps(evidence, ensure_ascii=True, indent=2), encoding="utf-8")
+
+        generated_files = [str(evidence_path)]
+        try:
+            ctx.publish("generated_files", generated_files)
+            ctx.publish("generator_readiness_evidence_path", str(evidence_path))
+            ctx.publish("generator_readiness_evidence", evidence)
+        except PluginDataExchangeError:
+            pass
+
+        diagnostics.append(
+            self.emit_diagnostic(
+                code="I8205",
+                severity="info",
+                stage=stage,
+                message=f"generator readiness evidence emitted with status={readiness_status}",
+                path=str(evidence_path),
+            )
+        )
+        return self.make_result(
+            diagnostics=diagnostics,
+            output_data={
+                "generator_readiness_evidence_path": str(evidence_path),
+                "generated_files": generated_files,
+                "generator_readiness_status": readiness_status,
+            },
+        )
+
+    def on_verify(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        return self.execute(ctx, stage)
+
+
 class ReleaseManifestBuilder(BuilderPlugin):
     """Emit release manifest from bundle + SBOM outputs."""
 
@@ -440,6 +548,12 @@ class ReleaseManifestBuilder(BuilderPlugin):
             )
         except PluginDataExchangeError:
             artifact_family_summary_path = ""
+        try:
+            generator_readiness_evidence_path = str(
+                ctx.subscribe("base.builder.generator_readiness_evidence", "generator_readiness_evidence_path")
+            )
+        except PluginDataExchangeError:
+            generator_readiness_evidence_path = ""
 
         dist_root = ReleaseBundleBuilder._dist_root(ctx)
         dist_root.mkdir(parents=True, exist_ok=True)
@@ -459,6 +573,7 @@ class ReleaseManifestBuilder(BuilderPlugin):
             "sbom_path": sbom_path,
             "assembly_manifest_path": assembly_manifest_path,
             "artifact_family_summary_path": artifact_family_summary_path,
+            "generator_readiness_evidence_path": generator_readiness_evidence_path,
         }
         manifest_path.write_text(json.dumps(payload, ensure_ascii=True, indent=2), encoding="utf-8")
 
