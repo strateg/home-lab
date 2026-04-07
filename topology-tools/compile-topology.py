@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -809,6 +810,68 @@ class V5Compiler:
     def _json_safe_payload(payload: dict[str, Any]) -> dict[str, Any]:
         return json.loads(json.dumps(payload, ensure_ascii=True, default=str))
 
+    @staticmethod
+    def _extract_path_leaf_token(path: str) -> str:
+        token = path.split(".")[-1].strip()
+        token = re.sub(r"\[\d+\]", "", token)
+        return token
+
+    def _collect_annotation_redaction_patterns(self, plugin_ctx: PluginContext | None) -> tuple[re.Pattern[str], ...]:
+        if plugin_ctx is None:
+            return ()
+        names: set[str] = set()
+        published = plugin_ctx.get_published_data().get("base.compiler.annotation_resolver", {})
+        for key in ("object_secret_annotations", "row_annotations_by_instance"):
+            container = published.get(key)
+            if not isinstance(container, dict):
+                continue
+            for _, annotations in container.items():
+                if not isinstance(annotations, dict):
+                    continue
+                for path, spec in annotations.items():
+                    if not isinstance(path, str) or not isinstance(spec, dict):
+                        continue
+                    if not bool(spec.get("secret")):
+                        continue
+                    leaf = self._extract_path_leaf_token(path)
+                    if leaf:
+                        names.add(leaf)
+        return tuple(re.compile(re.escape(name), re.IGNORECASE) for name in sorted(names))
+
+    def _collect_registry_redaction_patterns(self, plugin_ctx: PluginContext | None) -> tuple[re.Pattern[str], ...]:
+        if plugin_ctx is None:
+            return ()
+        secrets_root_raw = plugin_ctx.config.get("secrets_root")
+        if not isinstance(secrets_root_raw, str) or not secrets_root_raw.strip():
+            return ()
+        secrets_root = Path(secrets_root_raw.strip())
+        if not secrets_root.is_absolute():
+            secrets_root = (REPO_ROOT / secrets_root).resolve()
+        instances_dir = secrets_root / "instances"
+        if not instances_dir.exists() or not instances_dir.is_dir():
+            return ()
+
+        names: set[str] = set()
+
+        def walk(node: Any) -> None:
+            if isinstance(node, dict):
+                for key, value in node.items():
+                    if isinstance(key, str) and key not in {"sops", "instance"}:
+                        names.add(key.strip())
+                    walk(value)
+            elif isinstance(node, list):
+                for item in node:
+                    walk(item)
+
+        for path in sorted(instances_dir.glob("*.yaml")):
+            try:
+                payload = load_yaml_file(path) or {}
+            except Exception:
+                continue
+            walk(payload)
+        names = {name for name in names if name}
+        return tuple(re.compile(re.escape(name), re.IGNORECASE) for name in sorted(names))
+
     def _load_ai_output_payload(self) -> dict[str, Any] | None:
         if self.ai_output_json is None:
             return None
@@ -904,6 +967,9 @@ class V5Compiler:
             print(f"[ai-advisory] Cleaned {len(cleaned_sessions)} old sandbox sessions.", flush=True)
         print(f"[ai-advisory] Sandbox session: {self._path_for_diag(sandbox_session)}", flush=True)
         safe_effective_payload = self._json_safe_payload(effective_payload)
+        annotation_patterns = self._collect_annotation_redaction_patterns(plugin_ctx)
+        registry_patterns = self._collect_registry_redaction_patterns(plugin_ctx)
+        extra_key_patterns = annotation_patterns + registry_patterns
         stable_projection = {
             "classes": safe_effective_payload.get("classes", {}),
             "objects": safe_effective_payload.get("objects", {}),
@@ -920,6 +986,7 @@ class V5Compiler:
             effective_json=safe_effective_payload,
             stable_projection=stable_projection,
             artifact_plan=artifact_plan,
+            extra_key_patterns=extra_key_patterns,
         )
         ai_output = self._load_ai_output_payload()
         errors = validate_ai_contract_payloads(ai_input=ai_input, ai_output=ai_output, ctx=plugin_ctx)
@@ -950,6 +1017,8 @@ class V5Compiler:
                     "max_files": self.ai_sandbox_max_files,
                     "max_bytes": self.ai_sandbox_max_bytes,
                 },
+                "annotation_pattern_count": len(annotation_patterns),
+                "registry_pattern_count": len(registry_patterns),
                 "env_keys_forwarded": len(sanitized_env),
                 "env_keys_removed": removed_env_keys,
             },

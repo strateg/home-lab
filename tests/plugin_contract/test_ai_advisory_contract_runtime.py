@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -99,3 +100,17 @@ def test_redact_sensitive_fields_supports_paths_annotations_and_patterns() -> No
     assert redacted["effective_json"]["service_password"].startswith("<<REDACTED:")
     assert summary["redacted_fields"] == 3
     assert "effective_json.credentials.api_token" in summary["redacted_paths"]
+
+
+def test_build_ai_input_payload_supports_extra_key_patterns() -> None:
+    payload = build_ai_input_payload(
+        artifact_family="terraform.proxmox",
+        mode="advisory",
+        plugin_id="object.proxmox.generator.terraform",
+        effective_json={"device": {"serial_number": "ABC123"}},
+        stable_projection={"instances": []},
+        artifact_plan={"schema_version": "1.0", "planned_outputs": []},
+        extra_key_patterns=(re.compile(r"serial_number", re.IGNORECASE),),
+    )
+
+    assert payload["effective_json"]["device"]["serial_number"].startswith("<<REDACTED:")

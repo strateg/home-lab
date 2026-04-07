@@ -12,11 +12,11 @@
 ### Security Verification
 
 - [x] Redaction engine implemented and tested
-- [ ] Secrets registry integrated as redaction source
-- [ ] Field annotations integrated as redaction source
+- [x] Secrets registry integrated as redaction source
+- [x] Field annotations integrated as redaction source
 - [x] Pattern-based redaction covers common patterns
 - [x] Redaction verification tests exist and pass
-- [ ] No secrets in any test AI payload (CI verified)
+- [x] No secrets in any test AI payload (CI verified)
 
 ### Sandbox Verification
 

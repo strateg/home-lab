@@ -509,6 +509,50 @@ def test_ai_advisory_payload_normalizer_handles_non_json_scalars():
     assert normalized["ok"] is True
 
 
+def test_ai_advisory_redaction_patterns_collect_from_annotations_and_registry(tmp_path):
+    mod = _load_compiler_module()
+    test_output_dir = mod.REPO_ROOT / "build" / "test-ai-advisory-redaction-patterns"
+    compiler = mod.V5Compiler(
+        manifest_path=mod.DEFAULT_MANIFEST,
+        output_json=test_output_dir / "effective-topology.json",
+        diagnostics_json=test_output_dir / "diagnostics.json",
+        diagnostics_txt=test_output_dir / "diagnostics.txt",
+        error_catalog_path=mod.DEFAULT_ERROR_CATALOG,
+        strict_model_lock=False,
+        fail_on_warning=False,
+        require_new_model=True,
+        enable_plugins=True,
+        plugins_manifest_path=mod.DEFAULT_PLUGINS_MANIFEST,
+    )
+    ctx = mod.PluginContext(topology_path="test", profile="test-real", model_lock={})
+    secrets_root = tmp_path / "secrets"
+    (secrets_root / "instances").mkdir(parents=True, exist_ok=True)
+    (secrets_root / "instances" / "r1.yaml").write_text(
+        "instance: r1\nserial_number: SN-001\nnested:\n  interface_mac: aa:bb:cc:dd:ee:ff\n",
+        encoding="utf-8",
+    )
+    ctx.config["secrets_root"] = str(secrets_root)
+
+    ctx._set_execution_context("base.compiler.annotation_resolver", set())
+    ctx.publish(
+        "row_annotations_by_instance",
+        {"r1": {"hardware.serial_number": {"secret": True}, "nested.plain": {"secret": False}}},
+    )
+    ctx.publish(
+        "object_secret_annotations",
+        {"obj": {"credentials.api_token": {"secret": True}}},
+    )
+    ctx._clear_execution_context()
+
+    annotation_patterns = compiler._collect_annotation_redaction_patterns(ctx)
+    registry_patterns = compiler._collect_registry_redaction_patterns(ctx)
+
+    assert any(pattern.fullmatch("serial_number") for pattern in annotation_patterns)
+    assert any(pattern.fullmatch("api_token") for pattern in annotation_patterns)
+    assert any(pattern.fullmatch("serial_number") for pattern in registry_patterns)
+    assert any(pattern.fullmatch("interface_mac") for pattern in registry_patterns)
+
+
 def test_strict_only_rejects_legacy_instance_bindings_path():
     mod = _load_compiler_module()
     test_output_dir = mod.REPO_ROOT / "build" / "test-strict-only-legacy-paths"

@@ -119,6 +119,7 @@ def build_ai_input_payload(
     artifact_plan: dict[str, Any],
     secret_paths: list[str] | None = None,
     annotation_secret_paths: list[str] | None = None,
+    extra_key_patterns: tuple[re.Pattern[str], ...] = (),
     placeholder_format: str = "<<REDACTED:{field_path}>>",
 ) -> dict[str, Any]:
     payload = {
@@ -136,6 +137,7 @@ def build_ai_input_payload(
         payload,
         secret_paths=secret_paths,
         annotation_secret_paths=annotation_secret_paths,
+        key_patterns=_DEFAULT_SECRET_KEY_PATTERNS + tuple(extra_key_patterns),
         placeholder_format=placeholder_format,
     )
     payload = redacted_payload
