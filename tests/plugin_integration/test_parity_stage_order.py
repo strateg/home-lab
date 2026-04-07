@@ -461,6 +461,13 @@ def test_parser_accepts_ai_advisory_flags():
             "generated/home-lab/docs/c.md",
             "--ai-rollback-ref",
             "HEAD~1",
+            "--ai-ansible-lint",
+            "--ai-ansible-lint-cmd",
+            "ansible-lint",
+            "--ai-advisory-max-latency-seconds",
+            "30",
+            "--ai-assisted-max-latency-seconds",
+            "120",
         ]
     )
 
@@ -477,6 +484,10 @@ def test_parser_accepts_ai_advisory_flags():
     assert args.ai_rollback_all is True
     assert args.ai_rollback_paths == "generated/home-lab/docs/c.md"
     assert args.ai_rollback_ref == "HEAD~1"
+    assert args.ai_ansible_lint is True
+    assert args.ai_ansible_lint_cmd == "ansible-lint"
+    assert args.ai_advisory_max_latency_seconds == 30
+    assert args.ai_assisted_max_latency_seconds == 120
 
 
 def test_main_ai_advisory_forces_read_only_stage_set(monkeypatch, tmp_path):
@@ -523,6 +534,10 @@ def test_main_ai_advisory_forces_read_only_stage_set(monkeypatch, tmp_path):
     assert captured["ai_rollback_all"] is False
     assert captured["ai_rollback_paths"] == ()
     assert captured["ai_rollback_ref"] == "HEAD"
+    assert captured["ai_ansible_lint"] is False
+    assert captured["ai_ansible_lint_cmd"] == "ansible-lint"
+    assert captured["ai_advisory_max_latency_seconds"] == 60.0
+    assert captured["ai_assisted_max_latency_seconds"] == 300.0
 
 
 def test_main_ai_assisted_forces_read_only_stage_set(monkeypatch, tmp_path):

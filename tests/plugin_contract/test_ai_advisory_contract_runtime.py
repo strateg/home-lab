@@ -27,6 +27,7 @@ def test_build_ai_input_payload_sets_deterministic_hash() -> None:
         effective_json={"schema_version": 1},
         stable_projection={"instances": []},
         artifact_plan={"schema_version": "1.0", "planned_outputs": []},
+        generation_context_extra={"prompt_profile": "terraform_default"},
     )
     assert isinstance(payload.get("input_hash"), str)
     assert str(payload["input_hash"]).startswith("sha256-")
@@ -73,12 +74,12 @@ def test_parse_ai_output_payload_extracts_recommendations_and_scores() -> None:
             "advisory_recommendations": [
                 {"path": "generated/home-lab/docs/overview.md", "action": "suggest", "rationale": "Shorten intro"}
             ],
-            "confidence_scores": {"generated/home-lab/docs/overview.md": 0.73},
+            "confidence_scores": {"generated/home-lab/docs/overview.md": 1.73},
         }
     )
     assert parsed["metadata"]["ai_model_id"] == "gpt-5.4"
     assert len(parsed["recommendations"]) == 1
-    assert parsed["confidence_scores"]["generated/home-lab/docs/overview.md"] == 0.73
+    assert parsed["confidence_scores"]["generated/home-lab/docs/overview.md"] == 1.0
 
 
 def test_redact_sensitive_fields_supports_paths_annotations_and_patterns() -> None:

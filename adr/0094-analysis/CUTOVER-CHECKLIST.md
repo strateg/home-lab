@@ -115,21 +115,21 @@
 
 ### Ansible Support Verification
 
-- [ ] Ansible input adapter works
-- [ ] Ansible output parser works
-- [ ] Ansible-lint validation integrated
+- [x] Ansible input adapter works
+- [x] Ansible output parser works
+- [x] Ansible-lint validation integrated
 
 ### Refinement Verification
 
-- [ ] Family-specific prompting implemented
-- [ ] Confidence scores calibrated
-- [ ] Performance within limits
+- [x] Family-specific prompting implemented
+- [x] Confidence scores calibrated
+- [x] Performance within limits
 
 ### Wave 4 Sign-off
 
-- [ ] Ansible support functional
+- [x] Ansible support functional
 - [ ] All families covered
-- [ ] Performance acceptable
+- [x] Performance acceptable
 
 **Approver:** _________________ **Date:** _________
 

@@ -9,6 +9,7 @@ import json
 import os
 import re
 import sys
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -45,6 +46,11 @@ from kernel import (
     Stage,
 )
 from plugin_manifest_discovery import discover_plugin_manifest_paths, validate_module_index_consistency
+from plugins.generators.ai_ansible import (
+    build_ansible_input_adapter,
+    parse_ansible_output_candidates,
+    validate_ansible_candidates_with_lint,
+)
 from plugins.generators.ai_assisted import build_candidate_diff, materialize_candidate_artifacts
 from plugins.generators.ai_promotion import promote_approved_candidates, resolve_approvals
 from plugins.generators.ai_rollback import list_ai_promoted_artifacts, rollback_ai_promoted_artifacts
@@ -238,6 +244,10 @@ class V5Compiler:
         ai_rollback_all: bool = False,
         ai_rollback_paths: tuple[str, ...] = (),
         ai_rollback_ref: str = "HEAD",
+        ai_ansible_lint: bool = False,
+        ai_ansible_lint_cmd: str = "ansible-lint",
+        ai_advisory_max_latency_seconds: float = 60.0,
+        ai_assisted_max_latency_seconds: float = 300.0,
     ) -> None:
         if not enable_plugins:
             raise ValueError("--disable-plugins is retired; plugin-first runtime always enables plugins.")
@@ -281,6 +291,10 @@ class V5Compiler:
         self.ai_rollback_all = ai_rollback_all
         self.ai_rollback_paths = tuple(path.strip() for path in ai_rollback_paths if path.strip())
         self.ai_rollback_ref = ai_rollback_ref.strip() or "HEAD"
+        self.ai_ansible_lint = ai_ansible_lint
+        self.ai_ansible_lint_cmd = ai_ansible_lint_cmd.strip() or "ansible-lint"
+        self.ai_advisory_max_latency_seconds = max(1.0, float(ai_advisory_max_latency_seconds))
+        self.ai_assisted_max_latency_seconds = max(1.0, float(ai_assisted_max_latency_seconds))
         requested_stages = set(stages) if isinstance(stages, list) and stages else set(STAGE_ORDER)
         self.stages: tuple[Stage, ...] = tuple(stage for stage in STAGE_ORDER if stage in requested_stages)
 
@@ -950,6 +964,7 @@ class V5Compiler:
         project_id: str,
         plugin_ctx: PluginContext | None,
     ) -> None:
+        start_ts = time.monotonic()
         request_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         cleaned = cleanup_ai_audit_logs(
             repo_root=REPO_ROOT,
@@ -992,10 +1007,12 @@ class V5Compiler:
             "objects": safe_effective_payload.get("objects", {}),
             "instances": safe_effective_payload.get("instances", {}),
         }
+        ansible_adapter = build_ansible_input_adapter(safe_effective_payload)
         artifact_plan = {
             "mode": "advisory",
             "stages": [stage.value for stage in self.stages],
         }
+        prompt_profile = "ansible_family" if ansible_adapter.get("hosts") else "generic_topology"
         ai_input = build_ai_input_payload(
             artifact_family="topology",
             mode="advisory",
@@ -1003,6 +1020,7 @@ class V5Compiler:
             effective_json=safe_effective_payload,
             stable_projection=stable_projection,
             artifact_plan=artifact_plan,
+            generation_context_extra={"prompt_profile": prompt_profile},
             extra_key_patterns=extra_key_patterns,
         )
         ai_output = self._load_ai_output_payload()
@@ -1066,6 +1084,18 @@ class V5Compiler:
             input_hash=input_hash,
             output_hash=output_hash,
         )
+        elapsed = time.monotonic() - start_ts
+        if elapsed > self.ai_advisory_max_latency_seconds:
+            self.add_diag(
+                code="W8941",
+                severity="warning",
+                stage="validate",
+                message=(
+                    "AI advisory latency exceeded configured limit: "
+                    f"{elapsed:.2f}s > {self.ai_advisory_max_latency_seconds:.2f}s"
+                ),
+                path="ai-advisory:latency",
+            )
         print(f"[ai-advisory] Audit log: {self._path_for_diag(audit.log_path)}", flush=True)
 
     def _run_ai_assisted_session(
@@ -1075,6 +1105,7 @@ class V5Compiler:
         project_id: str,
         plugin_ctx: PluginContext | None,
     ) -> None:
+        start_ts = time.monotonic()
         request_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         cleaned = cleanup_ai_audit_logs(
             repo_root=REPO_ROOT,
@@ -1104,8 +1135,10 @@ class V5Compiler:
         print(f"[ai-assisted] Sandbox session: {self._path_for_diag(sandbox_session)}", flush=True)
 
         safe_effective_payload = self._json_safe_payload(effective_payload)
+        ansible_adapter = build_ansible_input_adapter(safe_effective_payload)
         annotation_patterns = self._collect_annotation_redaction_patterns(plugin_ctx)
         registry_patterns = self._collect_registry_redaction_patterns(plugin_ctx)
+        prompt_profile = "ansible_family" if ansible_adapter.get("hosts") else "generic_topology"
         ai_input = build_ai_input_payload(
             artifact_family="topology",
             mode="assisted",
@@ -1117,6 +1150,7 @@ class V5Compiler:
                 "instances": safe_effective_payload.get("instances", {}),
             },
             artifact_plan={"mode": "assisted", "stages": [stage.value for stage in self.stages]},
+            generation_context_extra={"prompt_profile": prompt_profile},
             extra_key_patterns=annotation_patterns + registry_patterns,
         )
         ai_output = self._load_ai_output_payload()
@@ -1222,6 +1256,17 @@ class V5Compiler:
         if rejected:
             for row in rejected:
                 print(f"[ai-assisted] rejected: {row['path']} ({row['reason']})", flush=True)
+        ansible_candidates = parse_ansible_output_candidates(project_id=project_id, ai_output=ai_output)
+        if self.ai_ansible_lint and ansible_candidates:
+            lint_failures = validate_ansible_candidates_with_lint(
+                candidates=accepted,
+                lint_cmd=self.ai_ansible_lint_cmd,
+            )
+            if lint_failures:
+                rejected.extend(lint_failures)
+                accepted = [row for row in accepted if str(row.get("path", "")) not in {f["path"] for f in lint_failures}]
+                for item in lint_failures:
+                    print(f"[ai-assisted] lint-rejected: {item['path']} ({item['reason']})", flush=True)
 
         enforce_sandbox_resource_limits(
             sandbox_session=sandbox_session,
@@ -1291,6 +1336,18 @@ class V5Compiler:
             input_hash=input_hash,
             output_hash=output_hash,
         )
+        elapsed = time.monotonic() - start_ts
+        if elapsed > self.ai_assisted_max_latency_seconds:
+            self.add_diag(
+                code="W8941",
+                severity="warning",
+                stage="validate",
+                message=(
+                    "AI assisted latency exceeded configured limit: "
+                    f"{elapsed:.2f}s > {self.ai_assisted_max_latency_seconds:.2f}s"
+                ),
+                path="ai-assisted:latency",
+            )
         print(f"[ai-assisted] Audit log: {self._path_for_diag(audit.log_path)}", flush=True)
 
     def _write_diagnostics(self) -> tuple[int, int, int, int]:
@@ -1921,6 +1978,28 @@ def build_parser() -> argparse.ArgumentParser:
         default="HEAD",
         help="Git ref used as rollback baseline (default: HEAD).",
     )
+    parser.add_argument(
+        "--ai-ansible-lint",
+        action="store_true",
+        help="Run ansible-lint for assisted candidates under generated/<project>/ansible/.",
+    )
+    parser.add_argument(
+        "--ai-ansible-lint-cmd",
+        default="ansible-lint",
+        help="Command used for ansible lint validation (default: ansible-lint).",
+    )
+    parser.add_argument(
+        "--ai-advisory-max-latency-seconds",
+        type=float,
+        default=60.0,
+        help="Warning threshold for advisory latency (seconds).",
+    )
+    parser.add_argument(
+        "--ai-assisted-max-latency-seconds",
+        type=float,
+        default=300.0,
+        help="Warning threshold for assisted latency (seconds).",
+    )
     parser.set_defaults(plugin_contract_errors=True)
     return parser
 
@@ -1988,6 +2067,10 @@ def main() -> int:
         ai_rollback_all=args.ai_rollback_all,
         ai_rollback_paths=rollback_paths,
         ai_rollback_ref=str(args.ai_rollback_ref),
+        ai_ansible_lint=args.ai_ansible_lint,
+        ai_ansible_lint_cmd=str(args.ai_ansible_lint_cmd),
+        ai_advisory_max_latency_seconds=float(args.ai_advisory_max_latency_seconds),
+        ai_assisted_max_latency_seconds=float(args.ai_assisted_max_latency_seconds),
     )
     return compiler.run()
 

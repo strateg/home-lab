@@ -117,18 +117,24 @@ def build_ai_input_payload(
     effective_json: dict[str, Any],
     stable_projection: dict[str, Any],
     artifact_plan: dict[str, Any],
+    generation_context_extra: dict[str, Any] | None = None,
     secret_paths: list[str] | None = None,
     annotation_secret_paths: list[str] | None = None,
     extra_key_patterns: tuple[re.Pattern[str], ...] = (),
     placeholder_format: str = "<<REDACTED:{field_path}>>",
 ) -> dict[str, Any]:
+    generation_context = {
+        "mode": str(mode),
+        "plugin_id": str(plugin_id),
+    }
+    if isinstance(generation_context_extra, dict):
+        for key, value in generation_context_extra.items():
+            if isinstance(key, str) and key.strip():
+                generation_context[key] = value
     payload = {
         "schema_version": SCHEMA_VERSION,
         "artifact_family": str(artifact_family),
-        "generation_context": {
-            "mode": str(mode),
-            "plugin_id": str(plugin_id),
-        },
+        "generation_context": generation_context,
         "effective_json": effective_json,
         "stable_projection": stable_projection,
         "artifact_plan": artifact_plan,
@@ -159,7 +165,7 @@ def parse_ai_output_payload(ai_output: dict[str, Any]) -> dict[str, Any]:
     if isinstance(raw_scores, dict):
         for key, value in raw_scores.items():
             if isinstance(key, str) and isinstance(value, (int, float)):
-                confidence_scores[key] = float(value)
+                confidence_scores[key] = max(0.0, min(1.0, float(value)))
 
     metadata = ai_output.get("metadata")
     if not isinstance(metadata, dict):
