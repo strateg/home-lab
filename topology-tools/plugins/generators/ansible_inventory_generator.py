@@ -9,6 +9,7 @@ from plugins.generators.artifact_contract import (
     build_artifact_plan,
     build_generation_report,
     build_planned_output,
+    compute_obsolete_entries,
     validate_contract_payloads,
     write_contract_artifacts,
 )
@@ -135,12 +136,31 @@ class AnsibleInventoryGenerator(BaseGenerator):
             written.append(str(host_var_path))
 
         artifact_family = "ansible.inventory"
+        obsolete_entries, obsolete_errors = compute_obsolete_entries(
+            ctx=ctx,
+            plugin_id=self.plugin_id,
+            output_root=out_root,
+            planned_outputs=planned_outputs,
+        )
+        if obsolete_errors:
+            for message in obsolete_errors:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E9303",
+                        severity="error",
+                        stage=stage,
+                        message=message,
+                        path="generator:ansible_inventory:obsolete",
+                    )
+                )
+            return self.make_result(diagnostics=diagnostics)
         artifact_plan = build_artifact_plan(
             plugin_id=self.plugin_id,
             artifact_family=artifact_family,
             planned_outputs=planned_outputs,
             projection_version="1.0",
             ir_version="1.0",
+            obsolete_candidates=obsolete_entries,
             validation_profiles=[ctx.profile],
         )
         artifact_generation_report = build_generation_report(
@@ -148,6 +168,7 @@ class AnsibleInventoryGenerator(BaseGenerator):
             artifact_family=artifact_family,
             planned_outputs=planned_outputs,
             generated=written,
+            obsolete=obsolete_entries,
         )
         contract_validation_errors = validate_contract_payloads(
             artifact_plan=artifact_plan,

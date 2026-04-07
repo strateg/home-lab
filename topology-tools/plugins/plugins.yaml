@@ -1445,6 +1445,7 @@ plugins:
     config:
       inventory_profile: production
       topology_lane: v5
+      artifact_obsolete_action: warn
     config_schema:
       type: object
       properties:
@@ -1454,6 +1455,11 @@ plugins:
         topology_lane:
           type: string
           description: Logical lane tag exported to group_vars/all.yml.
+        artifact_obsolete_action:
+          type: string
+          enum: [retain, delete, warn]
+          default: warn
+          description: Action for stale files under generator output root (ADR0093 safe obsolete protocol).
       required: []
     produces:
       - key: generated_dir

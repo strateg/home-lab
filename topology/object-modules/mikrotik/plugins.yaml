@@ -16,6 +16,7 @@ plugins:
       mikrotik_provider_version: "~> 1.40"
       mikrotik_api_host: ""
       mikrotik_host: ""
+      artifact_obsolete_action: warn
       terraform_remote_state:
         enabled: false
         backend: ""
@@ -52,6 +53,11 @@ plugins:
         mikrotik_host:
           type: string
           description: Legacy alias for mikrotik_api_host (kept for compatibility).
+        artifact_obsolete_action:
+          type: string
+          enum: [retain, delete, warn]
+          default: warn
+          description: Action for stale files under generator output root (ADR0093 safe obsolete protocol).
         terraform_remote_state:
           type: object
           description: Optional Terraform backend.tf generation for remote state.

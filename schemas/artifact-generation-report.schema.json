@@ -98,6 +98,18 @@
         "reason": {
           "type": "string",
           "minLength": 1
+        },
+        "ownership_proven": {
+          "type": "boolean"
+        },
+        "ownership_method": {
+          "type": "string",
+          "enum": [
+            "none",
+            "previous_plan_match",
+            "output_prefix_match",
+            "ownership_marker"
+          ]
         }
       }
     }

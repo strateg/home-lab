@@ -9,6 +9,7 @@ from plugins.generators.artifact_contract import (
     build_artifact_plan,
     build_generation_report,
     build_planned_output,
+    compute_obsolete_entries,
     validate_contract_payloads,
     write_contract_artifacts,
 )
@@ -169,6 +170,24 @@ class TerraformMikroTikGenerator(BaseGenerator):
             for key, value in normalized_caps.items()
             if isinstance(value, bool) and value and (key.startswith("has_") or key.startswith("cap."))
         )
+        obsolete_entries, obsolete_errors = compute_obsolete_entries(
+            ctx=ctx,
+            plugin_id=self.plugin_id,
+            output_root=out_dir,
+            planned_outputs=planned_outputs,
+        )
+        if obsolete_errors:
+            for message in obsolete_errors:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E9203",
+                        severity="error",
+                        stage=stage,
+                        message=message,
+                        path="generator:terraform_mikrotik:obsolete",
+                    )
+                )
+            return self.make_result(diagnostics=diagnostics)
         artifact_family = "terraform.mikrotik"
         artifact_plan = build_artifact_plan(
             plugin_id=self.plugin_id,
@@ -176,6 +195,7 @@ class TerraformMikroTikGenerator(BaseGenerator):
             planned_outputs=planned_outputs,
             projection_version="1.0",
             ir_version="1.0",
+            obsolete_candidates=obsolete_entries,
             capabilities=capability_flags,
             validation_profiles=[ctx.profile],
         )
@@ -184,6 +204,7 @@ class TerraformMikroTikGenerator(BaseGenerator):
             artifact_family=artifact_family,
             planned_outputs=planned_outputs,
             generated=written,
+            obsolete=obsolete_entries,
         )
         contract_validation_errors = validate_contract_payloads(
             artifact_plan=artifact_plan,
