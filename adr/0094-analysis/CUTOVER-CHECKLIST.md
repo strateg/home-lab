@@ -20,9 +20,9 @@
 
 ### Sandbox Verification
 
-- [ ] Sandbox output directory created on demand
-- [ ] Filesystem isolation enforced (cannot write outside sandbox)
-- [ ] Environment sanitization removes secrets from env vars
+- [x] Sandbox output directory created on demand
+- [x] Filesystem isolation enforced (cannot write outside sandbox)
+- [x] Environment sanitization removes secrets from env vars
 - [ ] Resource limits enforced (files, size, time)
 - [ ] Cleanup mechanism removes old sessions
 

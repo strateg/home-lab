@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -49,6 +50,7 @@ from plugins.generators.ai_advisory_contract import (
     validate_ai_contract_payloads,
 )
 from plugins.generators.ai_audit import AiAuditLogger, cleanup_ai_audit_logs
+from plugins.generators.ai_sandbox import create_ai_sandbox_session, ensure_relative_sandbox_path, sanitize_environment
 from yaml_loader import load_yaml_file
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -862,6 +864,13 @@ class V5Compiler:
             project_id=project_id,
             retain_days=self.ai_audit_retention_days,
         )
+        sandbox_session = create_ai_sandbox_session(
+            repo_root=REPO_ROOT,
+            project_id=project_id,
+            request_id=f"{project_id}-{request_id}",
+        )
+        _ = ensure_relative_sandbox_path(sandbox_session=sandbox_session, relative_path="ai-output.json")
+        sanitized_env, removed_env_keys = sanitize_environment(dict(os.environ))
         audit = AiAuditLogger(
             repo_root=REPO_ROOT,
             project_id=project_id,
@@ -869,6 +878,7 @@ class V5Compiler:
         )
         if cleaned:
             print(f"[ai-advisory] Cleaned {len(cleaned)} old audit day folders.", flush=True)
+        print(f"[ai-advisory] Sandbox session: {self._path_for_diag(sandbox_session)}", flush=True)
         safe_effective_payload = self._json_safe_payload(effective_payload)
         stable_projection = {
             "classes": safe_effective_payload.get("classes", {}),
@@ -908,7 +918,12 @@ class V5Compiler:
         input_hash = str(ai_input.get("input_hash", ""))
         audit.log_event(
             event_type="ai_request_sent",
-            payload={"mode": "advisory"},
+            payload={
+                "mode": "advisory",
+                "sandbox_session": self._path_for_diag(sandbox_session),
+                "env_keys_forwarded": len(sanitized_env),
+                "env_keys_removed": removed_env_keys,
+            },
             input_hash=input_hash,
         )
         parsed = {"recommendations": [], "confidence_scores": {}, "metadata": {}}
