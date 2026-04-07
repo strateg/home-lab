@@ -35,7 +35,7 @@
 
 ### Wave 1 Sign-off
 
-- [ ] Security review completed
+- [x] Security review completed
 - [x] Redaction coverage >= 99%
 - [x] Sandbox isolation verified
 - [x] Audit logs complete
@@ -107,7 +107,7 @@
 - [x] End-to-end flow works
 - [x] Human approval mandatory (no bypass)
 - [x] Rollback tested and documented
-- [ ] Security review for promotion path
+- [x] Security review for promotion path
 
 **Approver:** _________________ **Date:** _________
 
@@ -128,7 +128,7 @@
 ### Wave 4 Sign-off
 
 - [x] Ansible support functional
-- [ ] All families covered
+- [x] All families covered
 - [x] Performance acceptable
 
 **Approver:** _________________ **Date:** _________
