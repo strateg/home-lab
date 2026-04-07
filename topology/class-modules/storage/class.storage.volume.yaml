@@ -1,8 +1,8 @@
 @class: class.storage.volume
 @title: Storage Volume
-@description: Logical volume attached to workloads
+@description: Logical volume attached to workloads (ADR 0087 Phase 4)
 @layer: L3
-@version: 1.0.0
+@version: 1.1.0
 
 properties:
   required:
@@ -12,8 +12,12 @@ properties:
     - description
     - pool_ref
     - format
+    - role
+    - bus_attachment
+    - data_asset_ref
     - mount_point
     - readonly
+    - snapshot_capable
 
 property_schemas:
   name:
@@ -26,20 +30,58 @@ property_schemas:
     type: string
     format: instance_ref
     target_class: class.storage.pool
+    description: Reference to storage pool hosting this volume
   format:
     type: string
-    enum: [raw, qcow2, vmdk, subvol]
+    enum: [raw, qcow2, vmdk, vdi, vhd, vhdx, subvol]
     default: raw
-    description: Volume format
+    description: Volume format (validated against pool and hypervisor)
+  role:
+    type: string
+    enum: [rootfs, boot, data, cdrom, efivars, cloudinit, swap, scratch]
+    default: data
+    description: Volume role in workload
+  bus_attachment:
+    type: object
+    description: Bus attachment for VM disks
+    properties:
+      bus:
+        type: string
+        enum: [scsi, virtio, ide, sata, nvme, pvscsi, lsilogic, xvd]
+      slot:
+        type: string
+  data_asset_ref:
+    type: string
+    format: instance_ref
+    target_class: class.storage.data_asset
+    description: Reference to L3 data asset for governance chain
   mount_point:
     type: string
     description: Mount point inside workload
   readonly:
     type: boolean
     default: false
+  snapshot_capable:
+    type: boolean
+    default: true
+    description: Volume supports snapshots
+
+# Pool type → allowed formats mapping (ADR 0087 §4.4)
+pool_format_compatibility:
+  dir: [qcow2, raw, vmdk, vdi, vhd, vhdx]
+  lvm: [raw]
+  lvmthin: [raw]
+  zfspool: [raw, subvol]
+  nfs: [qcow2, raw, vmdk, vdi, vhd, vhdx]
+  cifs: [qcow2, raw, vmdk, vdi, vhd, vhdx]
+  cephfs: [qcow2, raw, vmdk]
 
 required_capabilities: []
 
 optional_capabilities:
   - cap.storage.volume.persistent
   - cap.storage.volume.snapshot
+
+invariants:
+  - volume format must be compatible with pool type
+  - data_asset_ref must resolve to valid L3 data_asset instance

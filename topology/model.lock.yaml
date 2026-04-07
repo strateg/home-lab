@@ -88,7 +88,7 @@ classes:
   class.storage.pool:
     version: 1.0.0
   class.storage.volume:
-    version: 1.0.0
+    version: 1.1.0
 objects:
   obj.apc.backups.650va:
     version: 1.0.0
