@@ -172,3 +172,9 @@ terraform.rc
 user-data-*.yml
 .cache
 Заметки/hardware_info.txt
+node_modules/
+package-lock.json
+package.json
+*.iml
+*.lnk
+.coverage.*

@@ -5,6 +5,7 @@ tasks:
     internal: true
     desc: Internal core chain (clean + strict + validate)
     cmds:
+      - task validate:repo-hygiene
       - task build:clean-generated
       - task validate:adr-consistency
       - task validate:module-growth
@@ -13,6 +14,20 @@ tasks:
       - task validate:adr0083-reactivation-evidence
       - task framework:strict
       - task validate:default
+
+  _strict-validate-core-inject:
+    internal: true
+    desc: Internal core chain (clean + strict + validate inject)
+    cmds:
+      - task validate:repo-hygiene
+      - task build:clean-generated
+      - task validate:adr-consistency
+      - task validate:module-growth
+      - task validate:adr0047-trigger
+      - task validate:adr0083-reactivation
+      - task validate:adr0083-reactivation-evidence
+      - task framework:strict
+      - task validate:inject
 
   _strict-validate-phase1:
     internal: true
@@ -41,14 +56,15 @@ tasks:
       - task: _strict-validate-core
 
   lane:
-    desc: Lane validation core via task (passthrough mode)
+    desc: Lane validation core via task (inject mode)
     cmds:
-      - task: _strict-validate-core
+      - task: _strict-validate-core-inject
 
   topology-mainline:
-    desc: Topology matrix strict mainline via task (passthrough mode)
+    desc: Topology matrix strict mainline via task (inject mode)
     cmds:
-      - task: _strict-validate-phase1
+      - task: _strict-validate-core-inject
+      - task validate:phase1-gate
 
   topology-parity-v4-current:
     desc: Topology parity lane against archive v4 baseline

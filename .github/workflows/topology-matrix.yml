@@ -27,7 +27,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.13"
 
       - name: Install Tooling Dependencies
         run: python -m pip install --upgrade pip pyyaml jsonschema
@@ -58,6 +58,14 @@ jobs:
           curl -L "https://github.com/getsops/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.linux.amd64" -o sops
           chmod +x sops
           sudo mv sops /usr/local/bin/sops
+
+      - name: Enforce inject secret path on protected branches
+        if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
+        run: |
+          if [ -z "${DEVKEY_PASSPHRASE}" ]; then
+            echo "::error::DEVKEY_PASSPHRASE must be configured for main/master topology matrix."
+            exit 1
+          fi
 
       - name: Unlock secrets
         if: ${{ env.DEVKEY_PASSPHRASE != '' }}
@@ -86,7 +94,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.13"
 
       - name: Install Tooling Dependencies
         run: python -m pip install --upgrade pip pyyaml jsonschema
@@ -117,6 +125,14 @@ jobs:
           curl -L "https://github.com/getsops/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.linux.amd64" -o sops
           chmod +x sops
           sudo mv sops /usr/local/bin/sops
+
+      - name: Enforce inject secret path on protected branches
+        if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
+        run: |
+          if [ -z "${DEVKEY_PASSPHRASE}" ]; then
+            echo "::error::DEVKEY_PASSPHRASE must be configured for main/master topology matrix."
+            exit 1
+          fi
 
       - name: Unlock secrets
         if: ${{ env.DEVKEY_PASSPHRASE != '' }}
