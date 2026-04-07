@@ -1,7 +1,7 @@
 # Plugin Authoring Guide
 
-**Last Updated:** 2026-03-29
-**Related:** ADR 0063, ADR 0065, ADR 0080
+**Last Updated:** 2026-04-07
+**Related:** ADR 0063, ADR 0065, ADR 0080, ADR 0093
 
 This guide helps topology module developers create plugins that integrate with the v5
 plugin microkernel and its stage/phase lifecycle (ADR 0080).
@@ -26,6 +26,7 @@ plugin microkernel and its stage/phase lifecycle (ADR 0080).
 14. [Testing](#testing)
 15. [Best Practices](#best-practices)
 16. [Migration from Legacy API](#migration-from-legacy-api)
+17. [ADR0093 Generator Contract](#adr0093-generator-contract)
 
 ---
 
@@ -958,3 +959,25 @@ consumes:                           # Declare inputs
     key: some_key
     required: true
 ```
+
+---
+
+## ADR0093 Generator Contract
+
+For generator families covered by ADR0093, author plugins in strict contract mode:
+
+- Always publish:
+  - `artifact_plan`
+  - `artifact_generation_report`
+  - `artifact_contract_files`
+  - `generated_dir`
+- Use `artifact_obsolete_action` (`retain|delete|warn`) and enforce ownership proof for delete.
+- Keep `generated_dir` ownership-scoped (plugin-specific root) to avoid prefix conflicts in assemble guard.
+- Do not use `migration_mode: legacy` for ADR0093 target families.
+- Ensure manifest `produces` declares all ADR0093 contract keys explicitly.
+
+Validation expectations:
+
+- Missing contract keys for migrated families fail assemble guard.
+- Overlapping ownership roots fail with `E9391`.
+- Scheduled target families in `legacy` fail validate stage with `E9399`.

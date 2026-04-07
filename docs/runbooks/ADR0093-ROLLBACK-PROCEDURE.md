@@ -5,6 +5,12 @@
 This runbook defines the operational rollback flow for generators using
 `migration_mode` under ADR0093.
 
+## Policy Baseline
+
+- ADR0093 compatibility mode is closed for target families.
+- `migration_mode: legacy` is not allowed for scheduled ADR0093 targets and fails validate stage (`E9399`).
+- Rollback is temporary and must converge back to `migrating`/`migrated`.
+
 ## Trigger Conditions
 
 - Generator enters `migration_mode: rollback` after regression.
@@ -39,6 +45,7 @@ Update rollback policy (`topology-tools/data/generator-rollback-policy.yaml`) wi
 - `W9402`: rollback started date is missing; treat as governance gap.
 - `W9403`: rollback duration exceeded policy threshold; escalate to maintainer review.
 - Repeated `W9403` across releases blocks migration completion sign-off.
+- `E9399`: target generator still in `legacy`; immediate remediation required (no legacy fallback path).
 
 ## Exit Criteria
 

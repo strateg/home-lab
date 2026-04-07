@@ -1,6 +1,6 @@
 # ADR 0093: ArtifactPlan Schema and Generator Runtime Integration
 
-**Status:** Proposed  
+**Status:** Implemented (Waves 1-5 complete; compatibility mode closed)  
 **Date:** 2026-04-05  
 **Depends on:** ADR 0063, ADR 0065, ADR 0066, ADR 0074, ADR 0077, ADR 0080, ADR 0092
 

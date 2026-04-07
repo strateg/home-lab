@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-04-07
 
-**Status:** Waves 1-3 completed, Wave 4+ pending.
+**Status:** Waves 1-5 largely completed; remaining item is mixed-mode parity test cleanup.
 
 ## Wave 1: Schema Completeness
 
@@ -126,21 +126,21 @@
 
 ### Compatibility Mode Removal
 
-- [ ] Legacy generator detection code removed
-- [ ] Fallback paths in validate stage removed
+- [x] Legacy generator detection code removed
+- [x] Fallback paths in validate stage removed
 - [x] Compatibility shims removed
 - [x] No `migration_mode: legacy` in any target family
 
 ### Documentation
 
-- [ ] ADR 0093 marked as Implemented
-- [ ] Runbook updated to remove legacy references
-- [ ] Developer guide updated
+- [x] ADR 0093 marked as Implemented
+- [x] Runbook updated to remove legacy references
+- [x] Developer guide updated
 
 ### Final Sign-off
 
-- [ ] All target families fully migrated
-- [ ] Compatibility mode code eliminated
+- [x] All target families fully migrated
+- [x] Compatibility mode code eliminated
 - [ ] Tests simplified (no mixed-mode parity)
 
 **Approver:** _________________ **Date:** _________

@@ -140,9 +140,9 @@
 
 ### Wave 5 Gate
 
-- [ ] All target families migrated
-- [ ] Compatibility mode code removed
-- [ ] Documentation updated
+- [x] All target families migrated
+- [x] Compatibility mode code removed
+- [x] Documentation updated
 - [ ] No mixed-mode tests needed
 
 ## Timeline Summary
