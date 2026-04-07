@@ -1,0 +1,100 @@
+#!/usr/bin/env python3
+"""Integration checks for ADR0093 generator sunset validator."""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+V5_TOOLS = Path(__file__).resolve().parents[2] / "topology-tools"
+sys.path.insert(0, str(V5_TOOLS))
+
+from kernel.plugin_base import PluginContext, PluginStatus, Stage
+from kernel.plugin_registry import PluginRegistry
+from plugins.validators.generator_sunset_validator import GeneratorSunsetValidator
+
+
+def _registry() -> PluginRegistry:
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(V5_TOOLS / "plugins" / "plugins.yaml")
+    registry.load_manifest(Path("topology/object-modules/proxmox/plugins.yaml"))
+    registry.load_manifest(Path("topology/object-modules/mikrotik/plugins.yaml"))
+    return registry
+
+
+def _ctx(registry: PluginRegistry, *, today: str, sunset: str, hard_error: str) -> PluginContext:
+    return PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        compiled_json={},
+        config={
+            "plugin_registry": registry,
+            "sunset_today": today,
+            "sunset_schedule": {
+                "object.proxmox.generator.terraform": {
+                    "compatibility_sunset": sunset,
+                    "hard_error_date": hard_error,
+                },
+                "object.mikrotik.generator.terraform": {
+                    "compatibility_sunset": sunset,
+                    "hard_error_date": hard_error,
+                },
+                "base.generator.ansible_inventory": {
+                    "compatibility_sunset": sunset,
+                    "hard_error_date": hard_error,
+                },
+            },
+        },
+    )
+
+
+def test_generator_sunset_validator_succeeds_for_non_legacy_targets() -> None:
+    registry = _registry()
+    validator = GeneratorSunsetValidator("base.validator.generator_sunset")
+    ctx = _ctx(registry, today="2026-04-07", sunset="2026-05-01", hard_error="2026-05-15")
+
+    result = validator.execute(ctx, Stage.VALIDATE)
+
+    assert result.status == PluginStatus.SUCCESS
+    summary = result.output_data["generator_sunset_summary"]
+    assert summary["scheduled_targets"] == 3
+    assert summary["legacy_targets"] == 0
+    assert summary["errors"] == 0
+    assert any(diag.code == "I9399" for diag in result.diagnostics)
+
+
+def test_generator_sunset_validator_warns_before_sunset_for_legacy_target() -> None:
+    registry = _registry()
+    registry.specs["object.proxmox.generator.terraform"].migration_mode = "legacy"
+    validator = GeneratorSunsetValidator("base.validator.generator_sunset")
+    ctx = _ctx(registry, today="2026-04-07", sunset="2026-05-01", hard_error="2026-05-15")
+
+    result = validator.execute(ctx, Stage.VALIDATE)
+
+    assert result.status == PluginStatus.PARTIAL
+    assert any(diag.code == "W9397" for diag in result.diagnostics)
+
+
+def test_generator_sunset_validator_warns_in_grace_period() -> None:
+    registry = _registry()
+    registry.specs["object.proxmox.generator.terraform"].migration_mode = "legacy"
+    validator = GeneratorSunsetValidator("base.validator.generator_sunset")
+    ctx = _ctx(registry, today="2026-05-10", sunset="2026-05-01", hard_error="2026-05-15")
+
+    result = validator.execute(ctx, Stage.VALIDATE)
+
+    assert result.status == PluginStatus.PARTIAL
+    assert any(diag.code == "W9398" for diag in result.diagnostics)
+
+
+def test_generator_sunset_validator_fails_after_hard_error_date() -> None:
+    registry = _registry()
+    registry.specs["object.proxmox.generator.terraform"].migration_mode = "legacy"
+    validator = GeneratorSunsetValidator("base.validator.generator_sunset")
+    ctx = _ctx(registry, today="2026-05-16", sunset="2026-05-01", hard_error="2026-05-15")
+
+    result = validator.execute(ctx, Stage.VALIDATE)
+
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E9399" for diag in result.diagnostics)

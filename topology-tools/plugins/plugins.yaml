@@ -1297,6 +1297,54 @@ plugins:
         scope: pipeline_shared
     description: Emits ADR0093 generator migration status summary (legacy/migrating/migrated/rollback).
 
+  - id: base.validator.generator_sunset
+    kind: validator_json
+    entry: validators/generator_sunset_validator.py:GeneratorSunsetValidator
+    api_version: "1.x"
+    stages: [validate]
+    phase: verify
+    order: 189
+    depends_on: [base.validator.generator_migration_status]
+    timeout: 30
+    config:
+      sunset_schedule:
+        object.proxmox.generator.terraform:
+          compatibility_sunset: "2026-05-01"
+          hard_error_date: "2026-05-15"
+        object.mikrotik.generator.terraform:
+          compatibility_sunset: "2026-05-01"
+          hard_error_date: "2026-05-15"
+        base.generator.ansible_inventory:
+          compatibility_sunset: "2026-05-01"
+          hard_error_date: "2026-05-15"
+    config_schema:
+      type: object
+      properties:
+        sunset_today:
+          type: string
+          pattern: '^\d{4}-\d{2}-\d{2}$'
+          description: Optional fixed date override (YYYY-MM-DD) for deterministic CI/tests.
+        sunset_schedule:
+          type: object
+          description: >
+            Per-generator ADR0093 sunset policy for legacy compatibility mode.
+            Keys are generator plugin IDs.
+          additionalProperties:
+            type: object
+            properties:
+              compatibility_sunset:
+                type: string
+                pattern: '^\d{4}-\d{2}-\d{2}$'
+              hard_error_date:
+                type: string
+                pattern: '^\d{4}-\d{2}-\d{2}$'
+            required: [compatibility_sunset, hard_error_date]
+      required: []
+    produces:
+      - key: generator_sunset_summary
+        scope: pipeline_shared
+    description: Enforces ADR0093 legacy generator sunset timeline (warning -> grace -> hard error).
+
   # Generator plugins (run in generate stage)
   #
   # Generator Plugin Contract Conventions:
