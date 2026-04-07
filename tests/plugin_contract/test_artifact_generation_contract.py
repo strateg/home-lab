@@ -20,6 +20,7 @@ from plugins.generators.artifact_contract import (  # noqa: E402
     build_planned_output,
     compute_obsolete_entries,
     save_current_plan,
+    validate_contract_payloads,
 )
 from kernel.plugin_base import PluginContext  # noqa: E402
 
@@ -74,6 +75,31 @@ def test_artifact_plan_schema_rejects_missing_planned_outputs() -> None:
     }
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(invalid_payload, schema)
+
+
+def test_validate_contract_payloads_rejects_unsupported_major_schema_version() -> None:
+    planned = [
+        build_planned_output(
+            path="generated/home-lab/terraform/proxmox/provider.tf",
+            template="terraform/provider.tf.j2",
+            reason="base-family",
+        )
+    ]
+    plan = build_artifact_plan(
+        plugin_id="object.proxmox.generator.terraform",
+        artifact_family="terraform.proxmox",
+        planned_outputs=planned,
+    )
+    report = build_generation_report(
+        plugin_id="object.proxmox.generator.terraform",
+        artifact_family="terraform.proxmox",
+        planned_outputs=planned,
+        generated=["generated/home-lab/terraform/proxmox/provider.tf"],
+    )
+    plan["schema_version"] = "2.0"
+
+    errors = validate_contract_payloads(artifact_plan=plan, generation_report=report)
+    assert any("artifact_plan schema_version '2.0' is unsupported" in msg for msg in errors)
 
 
 def _ctx(tmp_path: Path, **config: str) -> PluginContext:

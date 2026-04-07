@@ -1,6 +1,6 @@
 # ADR 0093 IMPLEMENTATION PLAN
 
-**Last updated:** 2026-04-06
+**Last updated:** 2026-04-07
 
 ## Wave 1 — Schema and Invariants
 
@@ -24,9 +24,9 @@
 
 ### Wave 1 Gate
 
-- [ ] Schemas exist and validate test data
-- [ ] State directory structure works
-- [ ] Schema version policy documented
+- [x] Schemas exist and validate test data
+- [x] State directory structure works
+- [x] Schema version policy documented (`adr/0093-analysis/SCHEMA-VERSION-POLICY.md`)
 
 ## Wave 2 — Runtime Integration + Ownership Proof
 
@@ -62,11 +62,11 @@
 
 ### Wave 2 Gate
 
-- [ ] Pilot generators emit valid ArtifactPlan
-- [ ] Migration status visible in CI
-- [ ] Ownership proof blocks unproven delete
-- [ ] Rollback mode works and logs events
-- [ ] Escalation warning after 7 days
+- [x] Pilot generators emit valid ArtifactPlan
+- [x] Migration status visible in CI
+- [x] Ownership proof blocks unproven delete
+- [x] Rollback mode works and logs events
+- [x] Escalation warning after 7 days
 
 ## Wave 3 — Build/Assemble Wiring + Sunset Enforcement
 
@@ -90,10 +90,10 @@
 
 ### Wave 3 Gate
 
-- [ ] Assemble/build consume metadata
-- [ ] Pilot families have sunset warnings
-- [ ] Hard error enforced after grace period
-- [ ] Consistency checks work
+- [x] Assemble/build consume metadata
+- [x] Pilot families have sunset warnings
+- [x] Hard error enforced after grace period
+- [x] Consistency checks work
 
 ## Wave 4 — Secondary Families + Compatibility Sunset
 

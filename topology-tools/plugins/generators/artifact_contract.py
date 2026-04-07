@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -10,6 +11,8 @@ from typing import Any
 from kernel.plugin_base import PluginContext
 
 SCHEMA_VERSION = "1.0"
+SCHEMA_COMPATIBILITY_RANGE = ">=1.0,<2.0"
+_SCHEMA_VERSION_RE = re.compile(r"^(?P<major>\d+)\.(?P<minor>\d+)$")
 
 try:
     import jsonschema
@@ -20,6 +23,15 @@ except ImportError:  # pragma: no cover - optional dependency in minimal runtime
 def _normalize_paths(paths: list[str]) -> list[str]:
     normalized = {str(path).strip() for path in paths if str(path).strip()}
     return sorted(normalized)
+
+
+def _is_supported_schema_version(value: Any) -> bool:
+    if not isinstance(value, str):
+        return False
+    match = _SCHEMA_VERSION_RE.fullmatch(value.strip())
+    if match is None:
+        return False
+    return int(match.group("major")) == 1
 
 
 def build_planned_output(
@@ -320,6 +332,13 @@ def validate_contract_payloads(
         (generation_report, report_schema_path, "artifact_generation_report"),
     ):
         try:
+            schema_version = payload.get("schema_version")
+            if not _is_supported_schema_version(schema_version):
+                errors.append(
+                    f"{contract_name} schema_version '{schema_version}' is unsupported; "
+                    f"supported range: {SCHEMA_COMPATIBILITY_RANGE}"
+                )
+                continue
             schema = _load_schema(schema_path)
             jsonschema.validate(payload, schema)
         except Exception as exc:
