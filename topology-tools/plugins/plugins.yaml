@@ -1595,6 +1595,32 @@ plugins:
         scope: pipeline_shared
     description: Verifies assembled workspace content and checks basic secret-leak guardrails.
 
+  - id: base.assembler.artifact_contract_guard
+    kind: assembler
+    entry: assemblers/artifact_contract_assembler.py:ArtifactContractAssembler
+    api_version: "1.x"
+    stages: [assemble]
+    phase: verify
+    order: 418
+    depends_on: []
+    timeout: 30
+    config:
+      enforce_migrating: false
+    config_schema:
+      type: object
+      properties:
+        enforce_migrating:
+          type: boolean
+          default: false
+          description: >
+            When true, missing artifact contract publications for migrating
+            generators are treated as errors instead of warnings.
+      required: []
+    produces:
+      - key: artifact_contract_guard
+        scope: pipeline_shared
+    description: Validates ADR0093 contract publications for migrated/migrating generators.
+
   - id: base.assembler.manifest
     kind: assembler
     entry: assemblers/workspace_assembler.py:AssemblyManifestAssembler
