@@ -165,6 +165,11 @@
         "description": {
           "type": "string",
           "description": "Human-readable description of what this plugin does"
+        },
+        "migration_mode": {
+          "type": "string",
+          "enum": ["legacy", "migrating", "migrated", "rollback"],
+          "description": "Optional generator migration lifecycle mode for ADR0093 cutover."
         }
       },
       "additionalProperties": false

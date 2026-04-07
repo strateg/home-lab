@@ -125,6 +125,7 @@ class PluginSpec:
     compiled_json_owner: bool = False
     model_versions: list[str] = field(default_factory=list)
     description: str = ""
+    migration_mode: str = "legacy"
     manifest_path: str = ""
     timeout: float = DEFAULT_PLUGIN_TIMEOUT
 
@@ -150,6 +151,7 @@ class PluginSpec:
             compiled_json_owner=bool(data.get("compiled_json_owner", False)),
             model_versions=data.get("model_versions", []),
             description=data.get("description", ""),
+            migration_mode=str(data.get("migration_mode", "legacy")),
             manifest_path=manifest_path,
             timeout=data.get("timeout", DEFAULT_PLUGIN_TIMEOUT),
         )

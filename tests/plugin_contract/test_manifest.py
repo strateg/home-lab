@@ -210,6 +210,31 @@ def test_manifest_schema_accepts_phase_field(tmp_path: Path):
     assert "test.validator_json.phase" in registry.specs
 
 
+def test_manifest_schema_accepts_migration_mode_field(tmp_path: Path):
+    """migration_mode is a valid optional plugin manifest field for ADR0093 rollout."""
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "test.generator.migration_mode",
+                "kind": "generator",
+                "entry": "generators/effective_json_generator.py:EffectiveJsonGenerator",
+                "api_version": "1.x",
+                "stages": ["generate"],
+                "order": 190,
+                "migration_mode": "migrating",
+            }
+        ],
+    }
+    manifest.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    spec = registry.specs["test.generator.migration_mode"]
+    assert spec.migration_mode == "migrating"
+
+
 def test_manifest_schema_declares_build_stage_and_phase_enum():
     """Schema declares the ADR0080 stage and phase enums."""
     schema_path = V5_TOOLS / "schemas" / "plugin-manifest.schema.json"
@@ -235,6 +260,7 @@ def test_manifest_schema_declares_build_stage_and_phase_enum():
     ]
     assert plugin_props["stages"]["uniqueItems"] is True
     assert plugin_props["phase"]["enum"] == ["init", "pre", "run", "post", "verify", "finalize"]
+    assert plugin_props["migration_mode"]["enum"] == ["legacy", "migrating", "migrated", "rollback"]
 
 
 def test_manifest_schema_rejects_profile_restrictions_alias(tmp_path: Path):

@@ -1278,6 +1278,25 @@ plugins:
       required: []
     description: Validates ADR0068 @required/@optional placeholders and instance_overrides.
 
+  - id: base.validator.generator_migration_status
+    kind: validator_json
+    entry: validators/generator_migration_status_validator.py:GeneratorMigrationStatusValidator
+    api_version: "1.x"
+    stages: [validate]
+    phase: verify
+    order: 188
+    depends_on: []
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    produces:
+      - key: generator_migration_summary
+        scope: pipeline_shared
+    description: Emits ADR0093 generator migration status summary (legacy/migrating/migrated/rollback).
+
   # Generator plugins (run in generate stage)
   #
   # Generator Plugin Contract Conventions:
@@ -1420,6 +1439,7 @@ plugins:
     stages: [generate]
     phase: run
     order: 230
+    migration_mode: migrating
     depends_on: []
     timeout: 30
     config:
