@@ -16,7 +16,7 @@ classes:
   class.compute.hypervisor.xen:
     version: 1.0.0
   class.compute.workload:
-    version: 1.0.0
+    version: 1.1.0
   class.compute.workload.docker:
     version: 1.1.0
   class.compute.workload.lxc:

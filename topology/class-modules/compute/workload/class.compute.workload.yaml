@@ -2,7 +2,7 @@
 @title: Compute Workload Abstract Base
 @summary: Abstract base class for compute workloads (LXC, Docker, VM).
 @layer: L4
-@version: 1.0.0
+@version: 1.1.0
 @abstract: true
 
 # Common policies - subclasses must define concrete values
@@ -23,6 +23,37 @@ host_ref_target_layers:
 - L1
 - L4
 
+# Nested topology scope (ADR 0087 Phase 5)
+# Workloads can define internal scopes for nested resources
+topology_scope_schema:
+  scope_id:
+    type: string
+    description: Unique scope identifier (e.g., scope.lxc-docker)
+  internal_networks:
+    type: list
+    items:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Network name within scope
+        driver:
+          type: string
+          enum: [bridge, host, none, macvlan, ipvlan]
+          default: bridge
+        subnet:
+          type: string
+          description: CIDR subnet for internal network
+        gateway:
+          type: string
+          description: Gateway IP within subnet
+    description: Internal networks visible only within this scope
+  exports:
+    type: list
+    items:
+      type: string
+    description: Resources exported from scope (e.g., ports, volumes)
+
 # Common capabilities inherited by all workload types
 required_capabilities: []
 optional_capabilities: []
@@ -34,3 +65,5 @@ invariants:
 - instance overrides must not violate class invariants
 - host_ref graph must be a DAG (no cycles)
 - host_ref depth must not exceed 2 levels
+- scope_id must be unique within topology
+- scope references (scope.*) must resolve within declared scope
