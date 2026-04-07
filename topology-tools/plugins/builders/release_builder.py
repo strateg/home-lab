@@ -627,6 +627,13 @@ class ReadinessReportsBuilder(BuilderPlugin):
             grace = sunset_summary.get("grace_window_legacy_targets")
             if isinstance(grace, int):
                 sunset_grace_window = grace
+        sunset_hard_error_legacy = 0
+        if isinstance(sunset_phase_breakdown, dict):
+            hard = sunset_phase_breakdown.get("hard_error_legacy_targets")
+            if isinstance(hard, int):
+                sunset_hard_error_legacy = hard
+        if sunset_hard_error_legacy == 0 and isinstance(sunset_errors, int):
+            sunset_hard_error_legacy = sunset_errors
         rollback_escalated = rollback_summary.get("escalated", 0) if isinstance(rollback_summary, dict) else 0
         rollback_missing = rollback_summary.get("missing_started_at", 0) if isinstance(rollback_summary, dict) else 0
         planned_plugins = artifact_totals.get("plugins", 0) if isinstance(artifact_totals, dict) else 0
@@ -649,6 +656,14 @@ class ReadinessReportsBuilder(BuilderPlugin):
                     "pre_sunset_legacy_targets": sunset_pre_sunset,
                     "grace_window_legacy_targets": sunset_grace_window,
                 },
+            },
+            {
+                "check_id": "sunset-hard-error-phase",
+                "status": self._resolve_check_status(
+                    passed=isinstance(sunset_hard_error_legacy, int) and sunset_hard_error_legacy == 0,
+                    blocked=isinstance(sunset_hard_error_legacy, int) and sunset_hard_error_legacy > 0,
+                ),
+                "details": {"hard_error_legacy_targets": sunset_hard_error_legacy},
             },
             {
                 "check_id": "rollback-escalation",

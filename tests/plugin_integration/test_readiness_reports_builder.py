@@ -70,11 +70,55 @@ def test_readiness_reports_builder_emits_restore_readiness_report(tmp_path: Path
     assert payload["profile"] == "adr0091.restore-readiness.v1"
     assert payload["status"] == "green"
     sunset_check = next((check for check in payload["checks"] if check["check_id"] == "sunset-enforcement"), None)
+    hard_error_phase_check = next(
+        (check for check in payload["checks"] if check["check_id"] == "sunset-hard-error-phase"),
+        None,
+    )
     assert sunset_check is not None
+    assert hard_error_phase_check is not None
     assert sunset_check["details"]["pre_sunset_legacy_targets"] == 0
     assert sunset_check["details"]["grace_window_legacy_targets"] == 0
+    assert hard_error_phase_check["details"]["hard_error_legacy_targets"] == 0
+    assert hard_error_phase_check["status"] == "pass"
     assert payload["source_evidence"]["sunset_phase_breakdown"]["hard_error_legacy_targets"] == 0
     assert rollback_payload["profile"] == "adr0093.rollback-events.v1"
+
+
+def test_readiness_reports_builder_blocks_sunset_hard_error_phase_check(tmp_path: Path) -> None:
+    dist_root = tmp_path / "dist"
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        compiled_json={},
+        config={"project_id": "home-lab"},
+        dist_root=str(dist_root),
+    )
+    evidence = _readiness_evidence(status="blocked")
+    evidence["sunset_phase_breakdown"] = {
+        "pre_sunset_legacy_targets": 0,
+        "grace_window_legacy_targets": 0,
+        "hard_error_legacy_targets": 2,
+    }
+    ctx._set_execution_context("base.builder.generator_readiness_evidence", set())  # noqa: SLF001 - test fixture setup
+    try:
+        ctx.publish("generator_readiness_evidence", evidence)
+    finally:
+        ctx._clear_execution_context()
+
+    builder = ReadinessReportsBuilder("base.builder.readiness_reports")
+    result = builder.execute(ctx, Stage.BUILD)
+
+    assert result.status == PluginStatus.SUCCESS
+    report_path = Path(result.output_data["restore_readiness_report_path"])
+    payload = json.loads(report_path.read_text(encoding="utf-8"))
+    hard_error_phase_check = next(
+        (check for check in payload["checks"] if check["check_id"] == "sunset-hard-error-phase"),
+        None,
+    )
+    assert hard_error_phase_check is not None
+    assert hard_error_phase_check["status"] == "blocked"
+    assert hard_error_phase_check["details"]["hard_error_legacy_targets"] == 2
 
 
 def test_readiness_reports_builder_fails_without_input_evidence(tmp_path: Path) -> None:
