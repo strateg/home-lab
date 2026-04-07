@@ -85,3 +85,39 @@ def test_generator_readiness_evidence_builder_emits_blocked_on_sunset_error(tmp_
         {"plugin_id": "z.generator", "sunset_phase": "grace_window"},
     ]
     assert payload["artifact_family_summary_totals"]["plugins"] == 3
+
+
+def test_generator_readiness_evidence_builder_derives_phase_counts_from_states(tmp_path: Path) -> None:
+    dist_root = tmp_path / "dist"
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        compiled_json={},
+        config={"project_id": "home-lab"},
+        dist_root=str(dist_root),
+    )
+    ctx._published_data = {  # noqa: SLF001 - test fixture setup
+        "base.validator.generator_sunset": {
+            "generator_sunset_summary": {
+                "legacy_target_states": [
+                    {"plugin_id": "b.generator", "sunset_phase": "pre_sunset"},
+                    {"plugin_id": "c.generator", "sunset_phase": "grace_window"},
+                    {"plugin_id": "a.generator", "sunset_phase": "hard_error"},
+                ]
+            }
+        }
+    }
+    builder = GeneratorReadinessEvidenceBuilder("base.builder.generator_readiness_evidence")
+
+    result = builder.execute(ctx, Stage.BUILD)
+
+    assert result.status == PluginStatus.SUCCESS
+    output_path = Path(result.output_data["generator_readiness_evidence_path"])
+    payload = json.loads(output_path.read_text(encoding="utf-8"))
+    assert payload["readiness"]["status"] == "blocked"
+    assert payload["sunset_phase_breakdown"] == {
+        "pre_sunset_legacy_targets": 1,
+        "grace_window_legacy_targets": 1,
+        "hard_error_legacy_targets": 1,
+    }

@@ -446,6 +446,21 @@ class GeneratorReadinessEvidenceBuilder(BuilderPlugin):
         normalized.sort(key=lambda item: (item["plugin_id"], item["sunset_phase"]))
         return normalized
 
+    @staticmethod
+    def _phase_counts(legacy_target_states: list[dict[str, str]]) -> tuple[int, int, int]:
+        pre_sunset = 0
+        grace_window = 0
+        hard_error = 0
+        for row in legacy_target_states:
+            phase = row.get("sunset_phase")
+            if phase == "pre_sunset":
+                pre_sunset += 1
+            elif phase == "grace_window":
+                grace_window += 1
+            elif phase == "hard_error":
+                hard_error += 1
+        return pre_sunset, grace_window, hard_error
+
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
         published = ctx.get_published_data()
@@ -471,7 +486,12 @@ class GeneratorReadinessEvidenceBuilder(BuilderPlugin):
         blocking_reasons: list[str] = []
         warning_reasons: list[str] = []
 
+        legacy_target_states = self._legacy_target_states(sunset_summary)
+        phase_pre_sunset, phase_grace_window, phase_hard_error = self._phase_counts(legacy_target_states)
+
         sunset_errors = sunset_summary.get("errors")
+        if not isinstance(sunset_errors, int):
+            sunset_errors = phase_hard_error
         if isinstance(sunset_errors, int) and sunset_errors > 0:
             readiness_status = "blocked"
             blocking_reasons.append("sunset policy hard-error violations detected")
@@ -489,19 +509,26 @@ class GeneratorReadinessEvidenceBuilder(BuilderPlugin):
             warning_reasons.append("rollback policy metadata gaps detected")
 
         sunset_warnings = sunset_summary.get("warnings")
+        if not isinstance(sunset_warnings, int):
+            sunset_warnings = phase_pre_sunset + phase_grace_window
         if isinstance(sunset_warnings, int) and sunset_warnings > 0:
             if readiness_status != "blocked":
                 readiness_status = "warning"
             warning_reasons.append("sunset policy warnings detected")
 
-        pre_sunset_legacy_targets = sunset_summary.get("pre_sunset_legacy_targets")
-        if not isinstance(pre_sunset_legacy_targets, int):
-            pre_sunset_legacy_targets = 0
-        grace_window_legacy_targets = sunset_summary.get("grace_window_legacy_targets")
-        if not isinstance(grace_window_legacy_targets, int):
-            grace_window_legacy_targets = 0
-        hard_error_legacy_targets = sunset_errors if isinstance(sunset_errors, int) else 0
-        legacy_target_states = self._legacy_target_states(sunset_summary)
+        pre_sunset_legacy_targets = phase_pre_sunset
+        grace_window_legacy_targets = phase_grace_window
+        hard_error_legacy_targets = phase_hard_error
+        if pre_sunset_legacy_targets == 0:
+            raw_pre = sunset_summary.get("pre_sunset_legacy_targets")
+            if isinstance(raw_pre, int):
+                pre_sunset_legacy_targets = raw_pre
+        if grace_window_legacy_targets == 0:
+            raw_grace = sunset_summary.get("grace_window_legacy_targets")
+            if isinstance(raw_grace, int):
+                grace_window_legacy_targets = raw_grace
+        if hard_error_legacy_targets == 0 and isinstance(sunset_errors, int):
+            hard_error_legacy_targets = sunset_errors
 
         evidence = {
             "schema_version": 1,
