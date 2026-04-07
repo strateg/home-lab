@@ -6,6 +6,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import sys
+from datetime import date
 from pathlib import Path
 
 
@@ -432,6 +433,58 @@ def test_parser_allows_disabling_default_plugin_contract_errors():
 
     assert defaults.plugin_contract_errors is True
     assert disabled.plugin_contract_errors is False
+
+
+def test_parser_accepts_ai_advisory_flags():
+    mod = _load_compiler_module()
+    parser = mod.build_parser()
+    args = parser.parse_args(["--ai-advisory", "--ai-output-json", "build/ai-output.json"])
+
+    assert args.ai_advisory is True
+    assert args.ai_output_json == "build/ai-output.json"
+
+
+def test_main_ai_advisory_forces_read_only_stage_set(monkeypatch, tmp_path):
+    mod = _load_compiler_module()
+    ai_output_path = tmp_path / "ai-output.json"
+    ai_output_path.write_text("{}", encoding="utf-8")
+    captured: dict[str, object] = {}
+
+    class _FakeCompiler:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+        def run(self) -> int:
+            return 0
+
+    monkeypatch.setattr(mod, "V5Compiler", _FakeCompiler)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "compile-topology.py",
+            "--ai-advisory",
+            "--stages",
+            "discover,compile,validate,generate,assemble,build",
+            "--ai-output-json",
+            str(ai_output_path),
+        ],
+    )
+
+    exit_code = mod.main()
+
+    assert exit_code == 0
+    assert captured["ai_advisory"] is True
+    assert captured["stages"] == [mod.Stage.DISCOVER, mod.Stage.COMPILE, mod.Stage.VALIDATE]
+    assert captured["ai_output_json"] == ai_output_path
+
+
+def test_ai_advisory_payload_normalizer_handles_non_json_scalars():
+    mod = _load_compiler_module()
+    normalized = mod.V5Compiler._json_safe_payload({"today": date(2026, 4, 7), "ok": True})
+
+    assert normalized["today"] == "2026-04-07"
+    assert normalized["ok"] is True
 
 
 def test_strict_only_rejects_legacy_instance_bindings_path():

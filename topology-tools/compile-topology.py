@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from dataclasses import dataclass
@@ -42,6 +43,12 @@ from kernel import (
     Stage,
 )
 from plugin_manifest_discovery import discover_plugin_manifest_paths, validate_module_index_consistency
+from plugins.generators.ai_advisory_contract import (
+    build_ai_input_payload,
+    parse_ai_output_payload,
+    validate_ai_contract_payloads,
+)
+from plugins.generators.ai_audit import AiAuditLogger
 from yaml_loader import load_yaml_file
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -81,6 +88,7 @@ REQUIRED_PROJECT_MANIFEST_KEYS = ("instances_root", "secrets_root")
 COMPILED_MODEL_VERSION = "1.0"
 COMPILER_PIPELINE_VERSION = "adr0069-ws2"
 SUPPORTED_COMPILED_MODEL_MAJOR = {"1"}
+ADVISORY_STAGE_SET = {Stage.DISCOVER, Stage.COMPILE, Stage.VALIDATE}
 
 
 def resolve_repo_path(value: str) -> Path:
@@ -205,6 +213,8 @@ class V5Compiler:
         release_tag: str = "",
         sbom_output_dir: Path | None = None,
         stages: list[Stage] | None = None,
+        ai_advisory: bool = False,
+        ai_output_json: Path | None = None,
     ) -> None:
         if not enable_plugins:
             raise ValueError("--disable-plugins is retired; plugin-first runtime always enables plugins.")
@@ -235,6 +245,8 @@ class V5Compiler:
         self.signing_backend = signing_backend
         self.release_tag = release_tag
         self.sbom_output_dir = sbom_output_dir
+        self.ai_advisory = ai_advisory
+        self.ai_output_json = ai_output_json
         requested_stages = set(stages) if isinstance(stages, list) and stages else set(STAGE_ORDER)
         self.stages: tuple[Stage, ...] = tuple(stage for stage in STAGE_ORDER if stage in requested_stages)
 
@@ -772,6 +784,151 @@ class V5Compiler:
             )
         return verification.ok
 
+    @staticmethod
+    def _advisory_payload_hash(payload: dict[str, Any]) -> str:
+        digest = hashlib.sha256(json.dumps(payload, ensure_ascii=True, sort_keys=True).encode("utf-8")).hexdigest()
+        return f"sha256-{digest}"
+
+    @staticmethod
+    def _json_safe_payload(payload: dict[str, Any]) -> dict[str, Any]:
+        return json.loads(json.dumps(payload, ensure_ascii=True, default=str))
+
+    def _load_ai_output_payload(self) -> dict[str, Any] | None:
+        if self.ai_output_json is None:
+            return None
+        path = self.ai_output_json
+        if not path.exists() or not path.is_file():
+            self.add_diag(
+                code="E8941",
+                severity="error",
+                stage="validate",
+                message=f"AI advisory output JSON does not exist: {path}",
+                path=self._path_for_diag(path),
+            )
+            return None
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            self.add_diag(
+                code="E8941",
+                severity="error",
+                stage="validate",
+                message=f"AI advisory output JSON parse error: {exc}",
+                path=self._path_for_diag(path),
+            )
+            return None
+        if not isinstance(payload, dict):
+            self.add_diag(
+                code="E8941",
+                severity="error",
+                stage="validate",
+                message="AI advisory output JSON root must be an object.",
+                path=self._path_for_diag(path),
+            )
+            return None
+        return payload
+
+    def _print_advisory_recommendations(self, parsed_output: dict[str, Any]) -> None:
+        recommendations = parsed_output.get("recommendations", [])
+        confidence_scores = parsed_output.get("confidence_scores", {})
+        print("[ai-advisory] Recommendations:", flush=True)
+        if not isinstance(recommendations, list) or not recommendations:
+            print("[ai-advisory] - No recommendations.", flush=True)
+            return
+        for index, row in enumerate(recommendations, start=1):
+            if not isinstance(row, dict):
+                continue
+            path = str(row.get("path", "<unknown>"))
+            action = str(row.get("action", "suggest"))
+            rationale = str(row.get("rationale", "")).strip()
+            score = confidence_scores.get(path) if isinstance(confidence_scores, dict) else None
+            score_token = f"{float(score):.2f}" if isinstance(score, (int, float)) else "n/a"
+            print(f"[ai-advisory] {index}. {action} {path} (confidence={score_token})", flush=True)
+            if rationale:
+                print(f"[ai-advisory]    rationale: {rationale}", flush=True)
+
+    def _run_ai_advisory_session(
+        self,
+        *,
+        effective_payload: dict[str, Any],
+        project_id: str,
+        plugin_ctx: PluginContext | None,
+    ) -> None:
+        request_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        audit = AiAuditLogger(
+            repo_root=REPO_ROOT,
+            project_id=project_id,
+            request_id=f"{project_id}-{request_id}",
+        )
+        safe_effective_payload = self._json_safe_payload(effective_payload)
+        stable_projection = {
+            "classes": safe_effective_payload.get("classes", {}),
+            "objects": safe_effective_payload.get("objects", {}),
+            "instances": safe_effective_payload.get("instances", {}),
+        }
+        artifact_plan = {
+            "mode": "advisory",
+            "stages": [stage.value for stage in self.stages],
+        }
+        ai_input = build_ai_input_payload(
+            artifact_family="topology",
+            mode="advisory",
+            plugin_id="base.compiler.ai_advisory",
+            effective_json=safe_effective_payload,
+            stable_projection=stable_projection,
+            artifact_plan=artifact_plan,
+        )
+        ai_output = self._load_ai_output_payload()
+        errors = validate_ai_contract_payloads(ai_input=ai_input, ai_output=ai_output, ctx=plugin_ctx)
+        if errors:
+            for message in errors:
+                self.add_diag(
+                    code="E8941",
+                    severity="error",
+                    stage="validate",
+                    message=message,
+                    path="ai-advisory:contract",
+                )
+            audit.log_event(
+                event_type="candidate_validation_result",
+                payload={"mode": "advisory", "status": "contract_error", "errors": errors},
+                input_hash=str(ai_input.get("input_hash", "")),
+            )
+            return
+
+        input_hash = str(ai_input.get("input_hash", ""))
+        audit.log_event(
+            event_type="ai_request_sent",
+            payload={"mode": "advisory"},
+            input_hash=input_hash,
+        )
+        parsed = {"recommendations": [], "confidence_scores": {}, "metadata": {}}
+        output_hash = ""
+        if ai_output is not None:
+            output_hash = self._advisory_payload_hash(ai_output)
+            parsed = parse_ai_output_payload(ai_output)
+            audit.log_event(
+                event_type="ai_response_received",
+                payload={
+                    "mode": "advisory",
+                    "recommendation_count": len(parsed.get("recommendations", [])),
+                },
+                input_hash=input_hash,
+                output_hash=output_hash,
+            )
+        self._print_advisory_recommendations(parsed)
+        audit.log_event(
+            event_type="candidate_validation_result",
+            payload={
+                "mode": "advisory",
+                "status": "completed",
+                "recommendation_count": len(parsed.get("recommendations", [])),
+            },
+            input_hash=input_hash,
+            output_hash=output_hash,
+        )
+        print(f"[ai-advisory] Audit log: {self._path_for_diag(audit.log_path)}", flush=True)
+
     def _write_diagnostics(self) -> tuple[int, int, int, int]:
         self._write_execution_trace()
         plugin_stats = self._plugin_registry.get_stats() if self._plugin_registry else None
@@ -1147,6 +1304,12 @@ class V5Compiler:
             add_diag=self.add_diag,
             repo_root=REPO_ROOT,
         )
+        if self.ai_advisory and plugin_ctx is not None and not any(item.severity == "error" for item in self._diagnostics):
+            self._run_ai_advisory_session(
+                effective_payload=effective_payload,
+                project_id=manifest_bundle.project_id,
+                plugin_ctx=plugin_ctx,
+            )
 
         if plugin_ctx is not None and not any(item.severity == "error" for item in self._diagnostics):
             if Stage.ASSEMBLE in self.stages:
@@ -1319,6 +1482,16 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_false",
         help="Disable hard errors for undeclared produces/consumes runtime usage.",
     )
+    parser.add_argument(
+        "--ai-advisory",
+        action="store_true",
+        help="Enable ADR0094 advisory mode (read-only recommendations with audit logging).",
+    )
+    parser.add_argument(
+        "--ai-output-json",
+        default="",
+        help="Optional AI response payload JSON path for advisory parsing/display.",
+    )
     parser.set_defaults(plugin_contract_errors=True)
     return parser
 
@@ -1333,6 +1506,8 @@ def main() -> int:
     except ValueError as exc:
         print(f"ERROR: invalid --stages: {exc}", file=sys.stderr)
         return 1
+    if args.ai_advisory:
+        selected_stages = [stage for stage in STAGE_ORDER if stage in ADVISORY_STAGE_SET]
     compiler = V5Compiler(
         manifest_path=manifest_path,
         output_json=resolve_repo_path(args.output_json),
@@ -1360,6 +1535,8 @@ def main() -> int:
         release_tag=args.release_tag,
         sbom_output_dir=resolve_repo_path(args.sbom_output_dir) if args.sbom_output_dir.strip() else None,
         stages=selected_stages,
+        ai_advisory=args.ai_advisory,
+        ai_output_json=resolve_repo_path(args.ai_output_json) if args.ai_output_json.strip() else None,
     )
     return compiler.run()
 

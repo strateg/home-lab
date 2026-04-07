@@ -47,26 +47,26 @@
 ### Input/Output Verification
 
 - [x] `schemas/ai-input-contract.schema.json` exists
-- [ ] Payload builder produces valid payloads
-- [ ] Redaction pipeline integrated in payload builder
-- [ ] Input hash logged for traceability
+- [x] Payload builder produces valid payloads
+- [x] Redaction pipeline integrated in payload builder
+- [x] Input hash logged for traceability
 - [x] `schemas/ai-output-contract.schema.json` exists
-- [ ] Output parser handles AI responses
-- [ ] Recommendations extracted correctly
-- [ ] Confidence scores available
+- [x] Output parser handles AI responses
+- [x] Recommendations extracted correctly
+- [x] Confidence scores available
 
 ### Advisory Mode Verification
 
-- [ ] `--ai-advisory` CLI flag works
-- [ ] Recommendations display correctly
-- [ ] No artifacts modified in advisory mode (test verified)
-- [ ] Audit trail complete for advisory sessions
+- [x] `--ai-advisory` CLI flag works
+- [x] Recommendations display correctly
+- [x] No artifacts modified in advisory mode (test verified)
+- [x] Audit trail complete for advisory sessions
 
 ### Wave 2 Sign-off
 
-- [ ] Advisory mode functional
-- [ ] Read-only verified (no artifact changes)
-- [ ] Audit complete
+- [x] Advisory mode functional
+- [x] Read-only verified (no artifact changes)
+- [x] Audit complete
 
 **Approver:** _________________ **Date:** _________
 

@@ -28,12 +28,18 @@ def test_resolve_ai_audit_log_path_points_to_ai_audit_tree(tmp_path: Path) -> No
 def test_ai_audit_logger_writes_jsonl_for_all_defined_events(tmp_path: Path) -> None:
     logger = AiAuditLogger(repo_root=tmp_path, project_id="home-lab", request_id="req-1", date_utc="2026-04-07")
     for event_type in sorted(EVENT_TYPES):
-        logger.log_event(event_type=event_type, payload={"ok": True})
+        logger.log_event(
+            event_type=event_type,
+            payload={"ok": True},
+            input_hash="sha256-" + ("a" * 64),
+        )
 
     lines = logger.log_path.read_text(encoding="utf-8").splitlines()
     assert len(lines) == len(EVENT_TYPES)
-    events = [json.loads(line)["event_type"] for line in lines]
+    parsed = [json.loads(line) for line in lines]
+    events = [row["event_type"] for row in parsed]
     assert sorted(events) == sorted(EVENT_TYPES)
+    assert all(row.get("input_hash", "").startswith("sha256-") for row in parsed)
 
 
 def test_ai_audit_logger_integrity_verification_detects_tampering(tmp_path: Path) -> None:
