@@ -1339,6 +1339,43 @@ plugins:
         scope: pipeline_shared
     description: Enforces ADR0093 legacy generator sunset timeline (warning -> grace -> hard error).
 
+  - id: base.validator.generator_rollback_escalation
+    kind: validator_json
+    entry: validators/generator_rollback_escalation_validator.py:GeneratorRollbackEscalationValidator
+    api_version: "1.x"
+    stages: [validate]
+    phase: verify
+    order: 189
+    depends_on: [base.validator.generator_migration_status]
+    timeout: 30
+    config:
+      rollback_policy_path: topology-tools/data/generator-rollback-policy.yaml
+    config_schema:
+      type: object
+      properties:
+        rollback_today:
+          type: string
+          pattern: '^\d{4}-\d{2}-\d{2}$'
+          description: Optional fixed date override (YYYY-MM-DD) for deterministic CI/tests.
+        rollback_policy_path:
+          type: string
+          description: Path to ADR0093 rollback policy YAML (repo-relative or absolute).
+        rollback_overrides:
+          type: object
+          description: Optional inline overrides by plugin_id (merged over file policy).
+          additionalProperties:
+            type: object
+            properties:
+              rollback_started_at:
+                type: string
+                pattern: '^\d{4}-\d{2}-\d{2}$'
+            required: []
+      required: []
+    produces:
+      - key: generator_rollback_summary
+        scope: pipeline_shared
+    description: Emits ADR0093 rollback escalation warnings for generators in rollback mode over threshold.
+
   # Generator plugins (run in generate stage)
   #
   # Generator Plugin Contract Conventions:
