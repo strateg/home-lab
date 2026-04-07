@@ -302,3 +302,6 @@ def test_generator_publishes_metadata_in_registry_context(
     assert "generated_dir" in published
     assert "generated_files" in published
     assert published_key in published
+    assert "artifact_plan" in published
+    assert "artifact_generation_report" in published
+    assert "artifact_contract_files" in published

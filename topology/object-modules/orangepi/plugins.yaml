@@ -10,6 +10,7 @@ plugins:
     depends_on: []
     timeout: 30
     config:
+      artifact_obsolete_action: warn
       # Bootstrap file mappings (ADR0078)
       bootstrap_files:
         - output_file: user-data.example
@@ -21,6 +22,11 @@ plugins:
     config_schema:
       type: object
       properties:
+        artifact_obsolete_action:
+          type: string
+          enum: [retain, delete, warn]
+          default: warn
+          description: Action for stale files under generator output root (ADR0093 safe obsolete protocol).
         bootstrap_files:
           type: array
           description: Bootstrap file mappings for cloud-init directory.
@@ -41,5 +47,11 @@ plugins:
       - key: generated_files
         scope: pipeline_shared
       - key: bootstrap_orangepi_files
+        scope: pipeline_shared
+      - key: artifact_plan
+        scope: pipeline_shared
+      - key: artifact_generation_report
+        scope: pipeline_shared
+      - key: artifact_contract_files
         scope: pipeline_shared
     description: Emits baseline cloud-init bootstrap artifacts for Orange Pi nodes (Phase 6 bootstrap).

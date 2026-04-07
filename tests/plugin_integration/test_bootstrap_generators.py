@@ -176,6 +176,22 @@ def _compiled_fixture_with_orangepi_contract_mechanism() -> dict:
     }
 
 
+def _assert_artifact_contract_output(result, expected_family: str) -> None:
+    artifact_plan = result.output_data.get("artifact_plan")
+    artifact_report = result.output_data.get("artifact_generation_report")
+    contract_files = result.output_data.get("artifact_contract_files")
+
+    assert isinstance(artifact_plan, dict)
+    assert isinstance(artifact_report, dict)
+    assert artifact_plan.get("artifact_family") == expected_family
+    assert artifact_report.get("artifact_family") == expected_family
+    assert artifact_plan.get("schema_version") == "1.0"
+    assert artifact_report.get("schema_version") == "1.0"
+    assert isinstance(contract_files, list) and contract_files
+    for path in contract_files:
+        assert Path(path).exists(), f"Missing contract artifact file: {path}"
+
+
 def test_bootstrap_proxmox_generator_writes_expected_files(tmp_path: Path) -> None:
     plugin_config = _load_plugin_config(PROXMOX_MANIFEST, "object.proxmox.generator.bootstrap")
     generator = BootstrapProxmoxGenerator("object.proxmox.generator.bootstrap")
@@ -187,6 +203,7 @@ def test_bootstrap_proxmox_generator_writes_expected_files(tmp_path: Path) -> No
     assert (root / "answer.toml.example").exists()
     assert (root / "post-install-minimal.sh").exists()
     assert (root / "README.md").exists()
+    _assert_artifact_contract_output(result, "bootstrap.proxmox")
 
 
 def test_bootstrap_proxmox_generator_uses_initialization_contract_mechanism(tmp_path: Path) -> None:
@@ -227,6 +244,7 @@ def test_bootstrap_mikrotik_generator_writes_expected_files(tmp_path: Path) -> N
     assert (root / "init-terraform.rsc").exists()
     assert (root / "backup-restore-overrides.rsc").exists()
     assert (root / "terraform.tfvars.example").exists()
+    _assert_artifact_contract_output(result, "bootstrap.mikrotik")
 
 
 def test_bootstrap_mikrotik_generator_uses_initialization_contract_mechanism(tmp_path: Path) -> None:
@@ -264,6 +282,7 @@ def test_bootstrap_orangepi_generator_writes_expected_files(tmp_path: Path) -> N
     assert (root / "user-data.example").exists()
     assert (root / "meta-data").exists()
     assert (root / "README.md").exists()
+    _assert_artifact_contract_output(result, "bootstrap.orangepi")
 
 
 def test_bootstrap_orangepi_generator_uses_initialization_contract_mechanism(tmp_path: Path) -> None:

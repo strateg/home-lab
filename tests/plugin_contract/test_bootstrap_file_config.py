@@ -33,6 +33,13 @@ def _plugin_entry(manifest_path: Path, plugin_id: str) -> dict:
     raise AssertionError(f"Plugin '{plugin_id}' not found in {manifest_path}")
 
 
+def _assert_adr0093_contract_fields(plugin: dict) -> None:
+    produces = plugin.get("produces")
+    assert isinstance(produces, list) and produces
+    produced_keys = {row.get("key") for row in produces if isinstance(row, dict) and isinstance(row.get("key"), str)}
+    assert {"artifact_plan", "artifact_generation_report", "artifact_contract_files"}.issubset(produced_keys)
+
+
 def test_mikrotik_bootstrap_manifest_externalizes_file_mappings() -> None:
     plugin = _plugin_entry(MIKROTIK_MANIFEST, "object.mikrotik.generator.bootstrap")
     config = plugin.get("config")
@@ -54,6 +61,7 @@ def test_mikrotik_bootstrap_manifest_externalizes_file_mappings() -> None:
 
 def test_mikrotik_bootstrap_manifest_schema_declares_file_structure() -> None:
     plugin = _plugin_entry(MIKROTIK_MANIFEST, "object.mikrotik.generator.bootstrap")
+    _assert_adr0093_contract_fields(plugin)
     schema = plugin.get("config_schema")
     assert isinstance(schema, dict), "Generator config_schema must be a mapping"
     properties = schema.get("properties")
@@ -96,6 +104,7 @@ def test_proxmox_bootstrap_manifest_externalizes_file_mappings() -> None:
 
 def test_proxmox_bootstrap_manifest_schema_declares_file_structure() -> None:
     plugin = _plugin_entry(PROXMOX_MANIFEST, "object.proxmox.generator.bootstrap")
+    _assert_adr0093_contract_fields(plugin)
     schema = plugin.get("config_schema")
     assert isinstance(schema, dict), "Generator config_schema must be a mapping"
     properties = schema.get("properties")
@@ -133,6 +142,7 @@ def test_orangepi_bootstrap_manifest_externalizes_file_mappings() -> None:
 
 def test_orangepi_bootstrap_manifest_schema_declares_file_structure() -> None:
     plugin = _plugin_entry(ORANGEPI_MANIFEST, "object.orangepi.generator.bootstrap")
+    _assert_adr0093_contract_fields(plugin)
     schema = plugin.get("config_schema")
     assert isinstance(schema, dict), "Generator config_schema must be a mapping"
     properties = schema.get("properties")
