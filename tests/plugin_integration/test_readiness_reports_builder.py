@@ -25,7 +25,12 @@ def _readiness_evidence(*, status: str = "green") -> dict[str, object]:
             "warning_reasons": [],
         },
         "generator_migration_summary": {"legacy": 0, "migrating": 3, "migrated": 0, "rollback": 0},
-        "generator_sunset_summary": {"warnings": 0, "errors": 0},
+        "generator_sunset_summary": {
+            "warnings": 0,
+            "errors": 0,
+            "pre_sunset_legacy_targets": 0,
+            "grace_window_legacy_targets": 0,
+        },
         "generator_rollback_summary": {"escalated": 0, "missing_started_at": 0},
         "artifact_family_summary_totals": {"plugins": 3},
     }
@@ -59,7 +64,10 @@ def test_readiness_reports_builder_emits_restore_readiness_report(tmp_path: Path
     rollback_payload = json.loads(rollback_events_path.read_text(encoding="utf-8"))
     assert payload["profile"] == "adr0091.restore-readiness.v1"
     assert payload["status"] == "green"
-    assert any(check["check_id"] == "sunset-enforcement" for check in payload["checks"])
+    sunset_check = next((check for check in payload["checks"] if check["check_id"] == "sunset-enforcement"), None)
+    assert sunset_check is not None
+    assert sunset_check["details"]["pre_sunset_legacy_targets"] == 0
+    assert sunset_check["details"]["grace_window_legacy_targets"] == 0
     assert rollback_payload["profile"] == "adr0093.rollback-events.v1"
 
 

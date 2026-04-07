@@ -171,6 +171,8 @@ class GeneratorSunsetValidator(ValidatorJsonPlugin):
         summary = {
             "scheduled_targets": 0,
             "legacy_targets": 0,
+            "pre_sunset_legacy_targets": 0,
+            "grace_window_legacy_targets": 0,
             "warnings": 0,
             "errors": 0,
             "today": today.date().isoformat(),
@@ -247,6 +249,7 @@ class GeneratorSunsetValidator(ValidatorJsonPlugin):
                 continue
 
             if today < sunset_date:
+                summary["pre_sunset_legacy_targets"] += 1
                 diagnostics.append(
                     self.emit_diagnostic(
                         code="W9397",
@@ -263,6 +266,7 @@ class GeneratorSunsetValidator(ValidatorJsonPlugin):
                 summary["warnings"] += 1
                 continue
 
+            summary["grace_window_legacy_targets"] += 1
             diagnostics.append(
                 self.emit_diagnostic(
                     code="W9397",
@@ -286,6 +290,8 @@ class GeneratorSunsetValidator(ValidatorJsonPlugin):
                 message=(
                     "generator sunset summary: "
                     f"scheduled={summary['scheduled_targets']} legacy={summary['legacy_targets']} "
+                    f"pre_sunset={summary['pre_sunset_legacy_targets']} "
+                    f"grace_window={summary['grace_window_legacy_targets']} "
                     f"warnings={summary['warnings']} errors={summary['errors']}"
                 ),
                 path="pipeline:validate",

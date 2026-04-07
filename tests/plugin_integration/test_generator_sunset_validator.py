@@ -63,11 +63,31 @@ def test_generator_sunset_validator_succeeds_for_non_legacy_targets() -> None:
     summary = result.output_data["generator_sunset_summary"]
     assert summary["scheduled_targets"] == 3
     assert summary["legacy_targets"] == 0
+    assert summary["pre_sunset_legacy_targets"] == 0
+    assert summary["grace_window_legacy_targets"] == 0
     assert summary["errors"] == 0
     assert any(diag.code == "I9399" for diag in result.diagnostics)
 
 
-def test_generator_sunset_validator_warns_for_legacy_target_before_hard_error() -> None:
+def test_generator_sunset_validator_warns_for_legacy_target_before_sunset() -> None:
+    registry = _registry()
+    registry.specs["object.proxmox.generator.terraform"].migration_mode = "legacy"
+    validator = GeneratorSunsetValidator("base.validator.generator_sunset")
+    ctx = _ctx(registry, today="2026-04-10", sunset="2026-05-01", hard_error="2026-05-15")
+
+    result = validator.execute(ctx, Stage.VALIDATE)
+
+    assert result.status == PluginStatus.PARTIAL
+    summary = result.output_data["generator_sunset_summary"]
+    assert summary["legacy_targets"] == 1
+    assert summary["pre_sunset_legacy_targets"] == 1
+    assert summary["grace_window_legacy_targets"] == 0
+    assert summary["warnings"] == 1
+    assert summary["errors"] == 0
+    assert any(diag.code == "W9397" for diag in result.diagnostics)
+
+
+def test_generator_sunset_validator_warns_for_legacy_target_in_grace_window() -> None:
     registry = _registry()
     registry.specs["object.proxmox.generator.terraform"].migration_mode = "legacy"
     validator = GeneratorSunsetValidator("base.validator.generator_sunset")
@@ -78,6 +98,8 @@ def test_generator_sunset_validator_warns_for_legacy_target_before_hard_error() 
     assert result.status == PluginStatus.PARTIAL
     summary = result.output_data["generator_sunset_summary"]
     assert summary["legacy_targets"] == 1
+    assert summary["pre_sunset_legacy_targets"] == 0
+    assert summary["grace_window_legacy_targets"] == 1
     assert summary["warnings"] == 1
     assert summary["errors"] == 0
     assert any(diag.code == "W9397" for diag in result.diagnostics)
@@ -94,6 +116,8 @@ def test_generator_sunset_validator_fails_for_legacy_target_after_hard_error() -
     assert result.status == PluginStatus.FAILED
     summary = result.output_data["generator_sunset_summary"]
     assert summary["legacy_targets"] == 1
+    assert summary["pre_sunset_legacy_targets"] == 0
+    assert summary["grace_window_legacy_targets"] == 0
     assert summary["errors"] == 1
     assert any(diag.code == "E9399" for diag in result.diagnostics)
 
@@ -131,6 +155,8 @@ sunset_schedule:
     summary = result.output_data["generator_sunset_summary"]
     assert summary["scheduled_targets"] == 1
     assert summary["legacy_targets"] == 0
+    assert summary["pre_sunset_legacy_targets"] == 0
+    assert summary["grace_window_legacy_targets"] == 0
 
 
 def test_generator_sunset_validator_fails_when_policy_file_is_missing(tmp_path: Path) -> None:
@@ -178,6 +204,8 @@ def test_generator_sunset_validator_default_policy_includes_secondary_families()
     summary = result.output_data["generator_sunset_summary"]
     assert summary["scheduled_targets"] == 6
     assert summary["legacy_targets"] == 0
+    assert summary["pre_sunset_legacy_targets"] == 0
+    assert summary["grace_window_legacy_targets"] == 0
     assert not any(diag.code == "W9397" for diag in result.diagnostics)
 
 

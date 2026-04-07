@@ -592,6 +592,12 @@ class ReadinessReportsBuilder(BuilderPlugin):
         legacy_count = migration_summary.get("legacy", 0) if isinstance(migration_summary, dict) else 0
         sunset_errors = sunset_summary.get("errors", 0) if isinstance(sunset_summary, dict) else 0
         sunset_warnings = sunset_summary.get("warnings", 0) if isinstance(sunset_summary, dict) else 0
+        sunset_pre_sunset = (
+            sunset_summary.get("pre_sunset_legacy_targets", 0) if isinstance(sunset_summary, dict) else 0
+        )
+        sunset_grace_window = (
+            sunset_summary.get("grace_window_legacy_targets", 0) if isinstance(sunset_summary, dict) else 0
+        )
         rollback_escalated = rollback_summary.get("escalated", 0) if isinstance(rollback_summary, dict) else 0
         rollback_missing = rollback_summary.get("missing_started_at", 0) if isinstance(rollback_summary, dict) else 0
         planned_plugins = artifact_totals.get("plugins", 0) if isinstance(artifact_totals, dict) else 0
@@ -608,7 +614,12 @@ class ReadinessReportsBuilder(BuilderPlugin):
                     passed=isinstance(sunset_warnings, int) and sunset_warnings == 0,
                     blocked=isinstance(sunset_errors, int) and sunset_errors > 0,
                 ),
-                "details": {"errors": sunset_errors, "warnings": sunset_warnings},
+                "details": {
+                    "errors": sunset_errors,
+                    "warnings": sunset_warnings,
+                    "pre_sunset_legacy_targets": sunset_pre_sunset,
+                    "grace_window_legacy_targets": sunset_grace_window,
+                },
             },
             {
                 "check_id": "rollback-escalation",
