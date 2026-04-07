@@ -22,7 +22,7 @@ _SUPPORTED_MODES = {"legacy", "migrating", "migrated", "rollback"}
 
 
 class GeneratorSunsetValidator(ValidatorJsonPlugin):
-    """Fail validation when any scheduled ADR0093 target remains in legacy mode."""
+    """Escalate legacy-mode ADR0093 targets from warning to error at hard_error_date."""
 
     @staticmethod
     def _resolve_repo_root(ctx: PluginContext) -> Path:
@@ -230,19 +230,53 @@ class GeneratorSunsetValidator(ValidatorJsonPlugin):
                 continue
 
             summary["legacy_targets"] += 1
+            if today >= hard_error_date:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E9399",
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            f"generator '{plugin_id}' remains in legacy mode after ADR0093 hard-error date "
+                            f"(sunset={sunset_date.date().isoformat()}, hard_error_date={hard_error_date.date().isoformat()})."
+                        ),
+                        path=f"plugin:{plugin_id}",
+                    )
+                )
+                summary["errors"] += 1
+                continue
+
+            if today < sunset_date:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="W9397",
+                        severity="warning",
+                        stage=stage,
+                        message=(
+                            f"generator '{plugin_id}' remains in legacy mode before ADR0093 sunset "
+                            f"(today={today.date().isoformat()}, sunset={sunset_date.date().isoformat()}, "
+                            f"hard_error_date={hard_error_date.date().isoformat()})."
+                        ),
+                        path=f"plugin:{plugin_id}",
+                    )
+                )
+                summary["warnings"] += 1
+                continue
+
             diagnostics.append(
                 self.emit_diagnostic(
-                    code="E9399",
-                    severity="error",
+                    code="W9397",
+                    severity="warning",
                     stage=stage,
                     message=(
-                        f"generator '{plugin_id}' remains in legacy mode; ADR0093 compatibility mode is closed "
-                        f"(sunset={sunset_date.date().isoformat()}, hard_error_date={hard_error_date.date().isoformat()})."
+                        f"generator '{plugin_id}' remains in legacy mode during ADR0093 grace window "
+                        f"(sunset={sunset_date.date().isoformat()}, hard_error_date={hard_error_date.date().isoformat()}, "
+                        f"today={today.date().isoformat()})."
                     ),
                     path=f"plugin:{plugin_id}",
                 )
             )
-            summary["errors"] += 1
+            summary["warnings"] += 1
 
         diagnostics.append(
             self.emit_diagnostic(

@@ -1337,7 +1337,7 @@ plugins:
     produces:
       - key: generator_sunset_summary
         scope: pipeline_shared
-    description: Enforces ADR0093 strict sunset policy; any scheduled target in legacy mode is a hard error.
+    description: Enforces ADR0093 sunset policy; scheduled legacy targets warn before hard_error_date and fail at/after hard_error_date.
 
   - id: base.validator.generator_rollback_escalation
     kind: validator_json
