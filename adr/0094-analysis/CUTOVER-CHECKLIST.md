@@ -96,16 +96,16 @@
 
 ### Rollback Verification
 
-- [ ] AI-promoted files identifiable by metadata
-- [ ] Baseline restored from VCS correctly
-- [ ] Rollback event logged
-- [ ] Validation passes after rollback
-- [ ] Rollback completes < 5 minutes
+- [x] AI-promoted files identifiable by metadata
+- [x] Baseline restored from VCS correctly
+- [x] Rollback event logged
+- [x] Validation passes after rollback
+- [x] Rollback completes < 5 minutes
 
 ### Wave 3 Sign-off
 
-- [ ] End-to-end flow works
-- [ ] Human approval mandatory (no bypass)
+- [x] End-to-end flow works
+- [x] Human approval mandatory (no bypass)
 - [ ] Rollback tested and documented
 - [ ] Security review for promotion path
 

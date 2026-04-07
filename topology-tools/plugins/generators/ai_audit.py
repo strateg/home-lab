@@ -15,6 +15,7 @@ EVENT_TYPES = {
     "candidate_validation_result",
     "human_approval_decision",
     "candidate_promotion_result",
+    "rollback_result",
 }
 
 

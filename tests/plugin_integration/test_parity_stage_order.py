@@ -456,6 +456,11 @@ def test_parser_accepts_ai_advisory_flags():
             "--ai-approve-all",
             "--ai-approve-paths",
             "generated/home-lab/docs/a.md,generated/home-lab/docs/b.md",
+            "--ai-rollback-all",
+            "--ai-rollback-paths",
+            "generated/home-lab/docs/c.md",
+            "--ai-rollback-ref",
+            "HEAD~1",
         ]
     )
 
@@ -469,6 +474,9 @@ def test_parser_accepts_ai_advisory_flags():
     assert args.ai_promote_approved is True
     assert args.ai_approve_all is True
     assert args.ai_approve_paths == "generated/home-lab/docs/a.md,generated/home-lab/docs/b.md"
+    assert args.ai_rollback_all is True
+    assert args.ai_rollback_paths == "generated/home-lab/docs/c.md"
+    assert args.ai_rollback_ref == "HEAD~1"
 
 
 def test_main_ai_advisory_forces_read_only_stage_set(monkeypatch, tmp_path):
@@ -512,6 +520,9 @@ def test_main_ai_advisory_forces_read_only_stage_set(monkeypatch, tmp_path):
     assert captured["ai_promote_approved"] is False
     assert captured["ai_approve_all"] is False
     assert captured["ai_approve_paths"] == ()
+    assert captured["ai_rollback_all"] is False
+    assert captured["ai_rollback_paths"] == ()
+    assert captured["ai_rollback_ref"] == "HEAD"
 
 
 def test_main_ai_assisted_forces_read_only_stage_set(monkeypatch, tmp_path):
@@ -571,6 +582,19 @@ def test_main_rejects_promotion_without_assisted(monkeypatch):
         [
             "compile-topology.py",
             "--ai-promote-approved",
+        ],
+    )
+    assert mod.main() == 1
+
+
+def test_main_rejects_rollback_without_assisted(monkeypatch):
+    mod = _load_compiler_module()
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "compile-topology.py",
+            "--ai-rollback-all",
         ],
     )
     assert mod.main() == 1

@@ -47,6 +47,7 @@ from kernel import (
 from plugin_manifest_discovery import discover_plugin_manifest_paths, validate_module_index_consistency
 from plugins.generators.ai_assisted import build_candidate_diff, materialize_candidate_artifacts
 from plugins.generators.ai_promotion import promote_approved_candidates, resolve_approvals
+from plugins.generators.ai_rollback import list_ai_promoted_artifacts, rollback_ai_promoted_artifacts
 from plugins.generators.ai_advisory_contract import (
     build_ai_input_payload,
     parse_ai_output_payload,
@@ -234,6 +235,9 @@ class V5Compiler:
         ai_promote_approved: bool = False,
         ai_approve_all: bool = False,
         ai_approve_paths: tuple[str, ...] = (),
+        ai_rollback_all: bool = False,
+        ai_rollback_paths: tuple[str, ...] = (),
+        ai_rollback_ref: str = "HEAD",
     ) -> None:
         if not enable_plugins:
             raise ValueError("--disable-plugins is retired; plugin-first runtime always enables plugins.")
@@ -274,6 +278,9 @@ class V5Compiler:
         self.ai_promote_approved = ai_promote_approved
         self.ai_approve_all = ai_approve_all
         self.ai_approve_paths = tuple(path.strip() for path in ai_approve_paths if path.strip())
+        self.ai_rollback_all = ai_rollback_all
+        self.ai_rollback_paths = tuple(path.strip() for path in ai_rollback_paths if path.strip())
+        self.ai_rollback_ref = ai_rollback_ref.strip() or "HEAD"
         requested_stages = set(stages) if isinstance(stages, list) and stages else set(STAGE_ORDER)
         self.stages: tuple[Stage, ...] = tuple(stage for stage in STAGE_ORDER if stage in requested_stages)
 
@@ -1143,6 +1150,42 @@ class V5Compiler:
             },
             input_hash=input_hash,
         )
+        rollback_requested = self.ai_rollback_all or bool(self.ai_rollback_paths)
+        if rollback_requested:
+            promoted = list_ai_promoted_artifacts(repo_root=REPO_ROOT, project_id=project_id)
+            if self.ai_rollback_all:
+                targets = promoted
+            else:
+                wanted = set(self.ai_rollback_paths)
+                targets = [row for row in promoted if str(row.get("path", "")) in wanted]
+            rollback = rollback_ai_promoted_artifacts(
+                repo_root=REPO_ROOT,
+                artifacts=targets,
+                ref=self.ai_rollback_ref,
+            )
+            print(
+                "[ai-assisted] rollback: "
+                f"restored={len(rollback['restored'])} "
+                f"deleted={len(rollback['deleted'])} "
+                f"failed={len(rollback['failed'])} "
+                f"duration={rollback['duration_seconds']:.3f}s",
+                flush=True,
+            )
+            audit.log_event(
+                event_type="rollback_result",
+                payload={
+                    "mode": "assisted",
+                    "ref": self.ai_rollback_ref,
+                    "target_count": len(targets),
+                    "restored": rollback["restored"],
+                    "deleted": rollback["deleted"],
+                    "failed": rollback["failed"],
+                    "duration_seconds": rollback["duration_seconds"],
+                },
+                input_hash=input_hash,
+            )
+            print(f"[ai-assisted] Audit log: {self._path_for_diag(audit.log_path)}", flush=True)
+            return
         if ai_output is None:
             self.add_diag(
                 code="E8941",
@@ -1863,6 +1906,21 @@ def build_parser() -> argparse.ArgumentParser:
         default="",
         help="Comma-separated assisted candidate paths to approve selectively.",
     )
+    parser.add_argument(
+        "--ai-rollback-all",
+        action="store_true",
+        help="Rollback all AI-promoted files for active project.",
+    )
+    parser.add_argument(
+        "--ai-rollback-paths",
+        default="",
+        help="Comma-separated AI-promoted paths to rollback selectively.",
+    )
+    parser.add_argument(
+        "--ai-rollback-ref",
+        default="HEAD",
+        help="Git ref used as rollback baseline (default: HEAD).",
+    )
     parser.set_defaults(plugin_contract_errors=True)
     return parser
 
@@ -1883,9 +1941,13 @@ def main() -> int:
     if args.ai_promote_approved and not args.ai_assisted:
         print("ERROR: --ai-promote-approved requires --ai-assisted.", file=sys.stderr)
         return 1
+    if (args.ai_rollback_all or str(args.ai_rollback_paths).strip()) and not args.ai_assisted:
+        print("ERROR: rollback flags require --ai-assisted.", file=sys.stderr)
+        return 1
     if args.ai_advisory or args.ai_assisted:
         selected_stages = [stage for stage in STAGE_ORDER if stage in ADVISORY_STAGE_SET]
     approve_paths = tuple(path.strip() for path in str(args.ai_approve_paths).split(",") if path.strip())
+    rollback_paths = tuple(path.strip() for path in str(args.ai_rollback_paths).split(",") if path.strip())
     compiler = V5Compiler(
         manifest_path=manifest_path,
         output_json=resolve_repo_path(args.output_json),
@@ -1923,6 +1985,9 @@ def main() -> int:
         ai_promote_approved=args.ai_promote_approved,
         ai_approve_all=args.ai_approve_all,
         ai_approve_paths=approve_paths,
+        ai_rollback_all=args.ai_rollback_all,
+        ai_rollback_paths=rollback_paths,
+        ai_rollback_ref=str(args.ai_rollback_ref),
     )
     return compiler.run()
 
