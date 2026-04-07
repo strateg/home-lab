@@ -3,12 +3,18 @@
 from __future__ import annotations
 
 import json
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 from kernel.plugin_base import PluginContext
 
 SCHEMA_VERSION = "1.0"
+
+try:
+    import jsonschema
+except ImportError:  # pragma: no cover - optional dependency in minimal runtime
+    jsonschema = None  # type: ignore[assignment]
 
 
 def _normalize_paths(paths: list[str]) -> list[str]:
@@ -144,3 +150,43 @@ def write_contract_artifacts(
         "artifact_generation_report_path": str(report_path),
         "artifact_family_summary_path": str(summary_path),
     }
+
+
+def _resolve_repo_root(ctx: PluginContext | None = None) -> Path:
+    if ctx is not None:
+        repo_root_raw = ctx.config.get("repo_root")
+        if isinstance(repo_root_raw, str) and repo_root_raw.strip():
+            return Path(repo_root_raw.strip()).resolve()
+    return Path(__file__).resolve().parents[3]
+
+
+@lru_cache(maxsize=16)
+def _load_schema(schema_path: str) -> dict[str, Any]:
+    path = Path(schema_path)
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def validate_contract_payloads(
+    *,
+    artifact_plan: dict[str, Any],
+    generation_report: dict[str, Any],
+    ctx: PluginContext | None = None,
+) -> list[str]:
+    if jsonschema is None:
+        return []
+
+    repo_root = _resolve_repo_root(ctx)
+    plan_schema_path = str((repo_root / "schemas" / "artifact-plan.schema.json").resolve())
+    report_schema_path = str((repo_root / "schemas" / "artifact-generation-report.schema.json").resolve())
+
+    errors: list[str] = []
+    for payload, schema_path, contract_name in (
+        (artifact_plan, plan_schema_path, "artifact_plan"),
+        (generation_report, report_schema_path, "artifact_generation_report"),
+    ):
+        try:
+            schema = _load_schema(schema_path)
+            jsonschema.validate(payload, schema)
+        except Exception as exc:
+            errors.append(f"{contract_name} validation failed: {exc}")
+    return errors

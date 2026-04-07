@@ -9,6 +9,7 @@ from plugins.generators.artifact_contract import (
     build_artifact_plan,
     build_generation_report,
     build_planned_output,
+    validate_contract_payloads,
     write_contract_artifacts,
 )
 from plugins.generators.base_generator import BaseGenerator
@@ -184,6 +185,23 @@ class TerraformMikroTikGenerator(BaseGenerator):
             planned_outputs=planned_outputs,
             generated=written,
         )
+        contract_validation_errors = validate_contract_payloads(
+            artifact_plan=artifact_plan,
+            generation_report=artifact_generation_report,
+            ctx=ctx,
+        )
+        if contract_validation_errors:
+            for message in contract_validation_errors:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E9202",
+                        severity="error",
+                        stage=stage,
+                        message=message,
+                        path="generator:terraform_mikrotik:artifact_contract",
+                    )
+                )
+            return self.make_result(diagnostics=diagnostics)
         contract_paths = write_contract_artifacts(
             ctx=ctx,
             plugin_id=self.plugin_id,
