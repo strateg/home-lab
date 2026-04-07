@@ -21,6 +21,20 @@ def _registry() -> PluginRegistry:
     return registry
 
 
+def _seed_migrating_contract_publications(ctx: PluginContext, registry: PluginRegistry) -> None:
+    """Populate required ADR0093 contract keys for migrating generators."""
+    for plugin_id, spec in registry.specs.items():
+        if getattr(spec, "kind", None).value != "generator":
+            continue
+        if getattr(spec, "migration_mode", "legacy") != "migrating":
+            continue
+        ctx._published_data[plugin_id] = {  # noqa: SLF001 - test fixture setup
+            "artifact_plan": {"schema_version": "1.0"},
+            "artifact_generation_report": {"schema_version": "1.0"},
+            "artifact_contract_files": [f"/tmp/{plugin_id}.json"],
+        }
+
+
 def test_assemble_and_build_stage_plugins_produce_release_artifacts(tmp_path: Path):
     registry = _registry()
     repo_root = tmp_path
@@ -66,6 +80,7 @@ def test_assemble_and_build_stage_plugins_produce_release_artifacts(tmp_path: Pa
             "project_id": "home-lab",
             "workspace_root": str(workspace_root),
             "dist_root": str(dist_root),
+            "plugin_registry": registry,
         },
         workspace_root=str(workspace_root),
         dist_root=str(dist_root),
@@ -79,11 +94,13 @@ def test_assemble_and_build_stage_plugins_produce_release_artifacts(tmp_path: Pa
         ctx.publish("artifact_manifest_path", str(artifact_manifest_path))
     finally:
         ctx._clear_execution_context()
+    _seed_migrating_contract_publications(ctx, registry)
 
     assemble_results = registry.execute_stage(Stage.ASSEMBLE, ctx)
     assert [r.plugin_id for r in assemble_results] == [
         "base.assembler.changed_scopes",
         "base.assembler.workspace",
+        "base.assembler.artifact_contract_guard",
         "base.assembler.verify",
         "base.assembler.manifest",
         "base.assembler.deploy_bundle",
@@ -174,6 +191,7 @@ def test_assemble_verify_flags_secret_like_content(tmp_path: Path):
             "repo_root": str(repo_root),
             "project_id": "home-lab",
             "workspace_root": str(workspace_root),
+            "plugin_registry": registry,
         },
         workspace_root=str(workspace_root),
     )
@@ -183,6 +201,7 @@ def test_assemble_verify_flags_secret_like_content(tmp_path: Path):
         ctx.publish("artifact_manifest_path", str(artifact_manifest_path))
     finally:
         ctx._clear_execution_context()
+    _seed_migrating_contract_publications(ctx, registry)
 
     results = registry.execute_stage(Stage.ASSEMBLE, ctx)
     by_id = {result.plugin_id: result for result in results}
@@ -236,6 +255,7 @@ def test_changed_input_scopes_are_empty_on_second_identical_run(tmp_path: Path):
             "repo_root": str(repo_root),
             "project_id": "home-lab",
             "workspace_root": str(workspace_root),
+            "plugin_registry": registry,
         },
         workspace_root=str(workspace_root),
     )
@@ -244,6 +264,7 @@ def test_changed_input_scopes_are_empty_on_second_identical_run(tmp_path: Path):
         first_ctx.publish("artifact_manifest_path", str(artifact_manifest_path))
     finally:
         first_ctx._clear_execution_context()
+    _seed_migrating_contract_publications(first_ctx, registry)
     first_results = registry.execute_stage(Stage.ASSEMBLE, first_ctx)
     assert all(result.status == PluginStatus.SUCCESS for result in first_results)
     assert isinstance(first_ctx.changed_input_scopes, list)
@@ -257,6 +278,7 @@ def test_changed_input_scopes_are_empty_on_second_identical_run(tmp_path: Path):
             "repo_root": str(repo_root),
             "project_id": "home-lab",
             "workspace_root": str(workspace_root),
+            "plugin_registry": registry,
         },
         workspace_root=str(workspace_root),
     )
@@ -265,6 +287,7 @@ def test_changed_input_scopes_are_empty_on_second_identical_run(tmp_path: Path):
         second_ctx.publish("artifact_manifest_path", str(artifact_manifest_path))
     finally:
         second_ctx._clear_execution_context()
+    _seed_migrating_contract_publications(second_ctx, registry)
     second_results = registry.execute_stage(Stage.ASSEMBLE, second_ctx)
     assert all(result.status == PluginStatus.SUCCESS for result in second_results)
     assert second_ctx.changed_input_scopes == []
