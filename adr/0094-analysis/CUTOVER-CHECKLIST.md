@@ -85,14 +85,14 @@
 - [x] Diff displays correctly in CLI
 - [x] Change summary accurate
 - [x] Confidence scores displayed
-- [ ] Selective approval works (per-file)
+- [x] Selective approval works (per-file)
 
 ### Promotion Workflow Verification
 
-- [ ] Approval gate prevents auto-promotion
-- [ ] Approved files copied to generated/
-- [ ] AI metadata preserved in promoted files
-- [ ] Promotion logged to audit
+- [x] Approval gate prevents auto-promotion
+- [x] Approved files copied to generated/
+- [x] AI metadata preserved in promoted files
+- [x] Promotion logged to audit
 
 ### Rollback Verification
 

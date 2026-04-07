@@ -46,6 +46,7 @@ from kernel import (
 )
 from plugin_manifest_discovery import discover_plugin_manifest_paths, validate_module_index_consistency
 from plugins.generators.ai_assisted import build_candidate_diff, materialize_candidate_artifacts
+from plugins.generators.ai_promotion import promote_approved_candidates, resolve_approvals
 from plugins.generators.ai_advisory_contract import (
     build_ai_input_payload,
     parse_ai_output_payload,
@@ -230,6 +231,9 @@ class V5Compiler:
         ai_sandbox_retention_days: int = 7,
         ai_sandbox_max_files: int = 128,
         ai_sandbox_max_bytes: int = 10 * 1024 * 1024,
+        ai_promote_approved: bool = False,
+        ai_approve_all: bool = False,
+        ai_approve_paths: tuple[str, ...] = (),
     ) -> None:
         if not enable_plugins:
             raise ValueError("--disable-plugins is retired; plugin-first runtime always enables plugins.")
@@ -267,6 +271,9 @@ class V5Compiler:
         self.ai_sandbox_retention_days = ai_sandbox_retention_days
         self.ai_sandbox_max_files = ai_sandbox_max_files
         self.ai_sandbox_max_bytes = ai_sandbox_max_bytes
+        self.ai_promote_approved = ai_promote_approved
+        self.ai_approve_all = ai_approve_all
+        self.ai_approve_paths = tuple(path.strip() for path in ai_approve_paths if path.strip())
         requested_stages = set(stages) if isinstance(stages, list) and stages else set(STAGE_ORDER)
         self.stages: tuple[Stage, ...] = tuple(stage for stage in STAGE_ORDER if stage in requested_stages)
 
@@ -1178,6 +1185,36 @@ class V5Compiler:
             max_files=self.ai_sandbox_max_files,
             max_bytes=self.ai_sandbox_max_bytes,
         )
+        approve_paths_set = set(self.ai_approve_paths)
+        approved, approval_rejected = resolve_approvals(
+            candidates=accepted,
+            approve_all=self.ai_approve_all,
+            approve_paths=approve_paths_set,
+        )
+        audit.log_event(
+            event_type="human_approval_decision",
+            payload={
+                "mode": "assisted",
+                "approve_all": self.ai_approve_all,
+                "approved_count": len(approved),
+                "rejected_count": len(approval_rejected),
+                "approved_paths": [str(row.get("path", "")) for row in approved],
+            },
+            input_hash=input_hash,
+            output_hash=output_hash,
+        )
+
+        promoted: list[dict[str, str]] = []
+        if self.ai_promote_approved:
+            if not approved:
+                print("[ai-assisted] promotion skipped: no approved candidates.", flush=True)
+            else:
+                promoted = promote_approved_candidates(repo_root=REPO_ROOT, approved=approved)
+                for row in promoted:
+                    print(f"[ai-assisted] promoted: {row['path']}", flush=True)
+        else:
+            print("[ai-assisted] promotion gate: disabled (use --ai-promote-approved).", flush=True)
+
         audit.log_event(
             event_type="ai_response_received",
             payload={
@@ -1201,8 +1238,13 @@ class V5Compiler:
             output_hash=output_hash,
         )
         audit.log_event(
-            event_type="human_approval_decision",
-            payload={"mode": "assisted", "status": "pending_manual_approval"},
+            event_type="candidate_promotion_result",
+            payload={
+                "mode": "assisted",
+                "promotion_enabled": self.ai_promote_approved,
+                "promoted_count": len(promoted),
+                "promoted_paths": [row["path"] for row in promoted],
+            },
             input_hash=input_hash,
             output_hash=output_hash,
         )
@@ -1806,6 +1848,21 @@ def build_parser() -> argparse.ArgumentParser:
         default=10 * 1024 * 1024,
         help="Maximum total bytes allowed in one advisory sandbox session (default: 10485760).",
     )
+    parser.add_argument(
+        "--ai-promote-approved",
+        action="store_true",
+        help="Promote approved assisted candidates from sandbox into generated/.",
+    )
+    parser.add_argument(
+        "--ai-approve-all",
+        action="store_true",
+        help="Approve all valid assisted candidates.",
+    )
+    parser.add_argument(
+        "--ai-approve-paths",
+        default="",
+        help="Comma-separated assisted candidate paths to approve selectively.",
+    )
     parser.set_defaults(plugin_contract_errors=True)
     return parser
 
@@ -1823,8 +1880,12 @@ def main() -> int:
     if args.ai_advisory and args.ai_assisted:
         print("ERROR: --ai-advisory and --ai-assisted are mutually exclusive.", file=sys.stderr)
         return 1
+    if args.ai_promote_approved and not args.ai_assisted:
+        print("ERROR: --ai-promote-approved requires --ai-assisted.", file=sys.stderr)
+        return 1
     if args.ai_advisory or args.ai_assisted:
         selected_stages = [stage for stage in STAGE_ORDER if stage in ADVISORY_STAGE_SET]
+    approve_paths = tuple(path.strip() for path in str(args.ai_approve_paths).split(",") if path.strip())
     compiler = V5Compiler(
         manifest_path=manifest_path,
         output_json=resolve_repo_path(args.output_json),
@@ -1859,6 +1920,9 @@ def main() -> int:
         ai_sandbox_retention_days=max(1, int(args.ai_sandbox_retention_days)),
         ai_sandbox_max_files=max(1, int(args.ai_sandbox_max_files)),
         ai_sandbox_max_bytes=max(1, int(args.ai_sandbox_max_bytes)),
+        ai_promote_approved=args.ai_promote_approved,
+        ai_approve_all=args.ai_approve_all,
+        ai_approve_paths=approve_paths,
     )
     return compiler.run()
 

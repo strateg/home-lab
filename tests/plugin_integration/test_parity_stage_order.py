@@ -452,6 +452,10 @@ def test_parser_accepts_ai_advisory_flags():
             "16",
             "--ai-sandbox-max-bytes",
             "4096",
+            "--ai-promote-approved",
+            "--ai-approve-all",
+            "--ai-approve-paths",
+            "generated/home-lab/docs/a.md,generated/home-lab/docs/b.md",
         ]
     )
 
@@ -462,6 +466,9 @@ def test_parser_accepts_ai_advisory_flags():
     assert args.ai_sandbox_retention_days == 3
     assert args.ai_sandbox_max_files == 16
     assert args.ai_sandbox_max_bytes == 4096
+    assert args.ai_promote_approved is True
+    assert args.ai_approve_all is True
+    assert args.ai_approve_paths == "generated/home-lab/docs/a.md,generated/home-lab/docs/b.md"
 
 
 def test_main_ai_advisory_forces_read_only_stage_set(monkeypatch, tmp_path):
@@ -502,6 +509,9 @@ def test_main_ai_advisory_forces_read_only_stage_set(monkeypatch, tmp_path):
     assert captured["ai_sandbox_retention_days"] == 7
     assert captured["ai_sandbox_max_files"] == 128
     assert captured["ai_sandbox_max_bytes"] == 10 * 1024 * 1024
+    assert captured["ai_promote_approved"] is False
+    assert captured["ai_approve_all"] is False
+    assert captured["ai_approve_paths"] == ()
 
 
 def test_main_ai_assisted_forces_read_only_stage_set(monkeypatch, tmp_path):
@@ -548,6 +558,19 @@ def test_main_rejects_simultaneous_ai_modes(monkeypatch):
             "compile-topology.py",
             "--ai-advisory",
             "--ai-assisted",
+        ],
+    )
+    assert mod.main() == 1
+
+
+def test_main_rejects_promotion_without_assisted(monkeypatch):
+    mod = _load_compiler_module()
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "compile-topology.py",
+            "--ai-promote-approved",
         ],
     )
     assert mod.main() == 1
