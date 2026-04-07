@@ -12,6 +12,12 @@ from kernel.plugin_base import PluginContext
 
 SCHEMA_VERSION = "1.0"
 _SCHEMA_VERSION_RE = re.compile(r"^(?P<major>\d+)\.(?P<minor>\d+)$")
+_DEFAULT_SECRET_KEY_PATTERNS = (
+    re.compile(r".*_password$", re.IGNORECASE),
+    re.compile(r".*_token$", re.IGNORECASE),
+    re.compile(r".*_key$", re.IGNORECASE),
+    re.compile(r".*_secret$", re.IGNORECASE),
+)
 
 try:
     import jsonschema
@@ -37,6 +43,72 @@ def _compute_input_hash(payload_without_hash: dict[str, Any]) -> str:
     return f"sha256-{digest}"
 
 
+def _normalize_secret_paths(paths: list[str] | None) -> set[str]:
+    if not isinstance(paths, list):
+        return set()
+    return {str(path).strip() for path in paths if isinstance(path, str) and path.strip()}
+
+
+def _looks_secret_key(path: str, key_name: str, key_patterns: tuple[re.Pattern[str], ...]) -> bool:
+    token = key_name.strip()
+    if not token:
+        return False
+    if any(pattern.fullmatch(token) for pattern in key_patterns):
+        return True
+    full_path = f"{path}.{token}" if path else token
+    return any(pattern.fullmatch(full_path) for pattern in key_patterns)
+
+
+def redact_sensitive_fields(
+    payload: dict[str, Any],
+    *,
+    secret_paths: list[str] | None = None,
+    annotation_secret_paths: list[str] | None = None,
+    key_patterns: tuple[re.Pattern[str], ...] = _DEFAULT_SECRET_KEY_PATTERNS,
+    placeholder_format: str = "<<REDACTED:{field_path}>>",
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    redacted_paths: set[str] = set()
+    explicit_paths = _normalize_secret_paths(secret_paths) | _normalize_secret_paths(annotation_secret_paths)
+    cloned = json.loads(json.dumps(payload, ensure_ascii=True))
+
+    def walk(node: Any, path: str, in_credentials_scope: bool = False) -> Any:
+        if path in explicit_paths:
+            redacted_paths.add(path)
+            return placeholder_format.format(field_path=path)
+        if in_credentials_scope and not isinstance(node, (dict, list)):
+            redacted_paths.add(path)
+            return placeholder_format.format(field_path=path)
+        if isinstance(node, dict):
+            out: dict[str, Any] = {}
+            for key, value in node.items():
+                key_name = str(key)
+                child_path = f"{path}.{key_name}" if path else key_name
+                child_in_credentials_scope = in_credentials_scope or (key_name.lower() == "credentials")
+                if _looks_secret_key(path, key_name, key_patterns):
+                    redacted_paths.add(child_path)
+                    out[key_name] = placeholder_format.format(field_path=child_path)
+                    continue
+                out[key_name] = walk(value, child_path, child_in_credentials_scope)
+            return out
+        if isinstance(node, list):
+            out_list: list[Any] = []
+            for idx, value in enumerate(node):
+                child_path = f"{path}[{idx}]"
+                out_list.append(walk(value, child_path, in_credentials_scope))
+            return out_list
+        return node
+
+    redacted = walk(cloned, "")
+    summary = {
+        "redacted_fields": len(redacted_paths),
+        "placeholder_format": placeholder_format,
+        "redacted_paths": sorted(redacted_paths),
+    }
+    if not isinstance(redacted, dict):
+        redacted = {}
+    return redacted, summary
+
+
 def build_ai_input_payload(
     *,
     artifact_family: str,
@@ -45,7 +117,9 @@ def build_ai_input_payload(
     effective_json: dict[str, Any],
     stable_projection: dict[str, Any],
     artifact_plan: dict[str, Any],
-    redaction_summary: dict[str, Any],
+    secret_paths: list[str] | None = None,
+    annotation_secret_paths: list[str] | None = None,
+    placeholder_format: str = "<<REDACTED:{field_path}>>",
 ) -> dict[str, Any]:
     payload = {
         "schema_version": SCHEMA_VERSION,
@@ -57,8 +131,15 @@ def build_ai_input_payload(
         "effective_json": effective_json,
         "stable_projection": stable_projection,
         "artifact_plan": artifact_plan,
-        "redaction_summary": redaction_summary,
     }
+    redacted_payload, redaction_summary = redact_sensitive_fields(
+        payload,
+        secret_paths=secret_paths,
+        annotation_secret_paths=annotation_secret_paths,
+        placeholder_format=placeholder_format,
+    )
+    payload = redacted_payload
+    payload["redaction_summary"] = redaction_summary
     payload["input_hash"] = _compute_input_hash(payload)
     return payload
 
