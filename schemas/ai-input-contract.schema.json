@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/ai-input-contract.schema.json",
+  "title": "ADR0094 AI Input Contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "artifact_family",
+    "generation_context",
+    "effective_json",
+    "stable_projection",
+    "artifact_plan",
+    "redaction_summary",
+    "input_hash"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^1\\.[0-9]+$"
+    },
+    "artifact_family": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generation_context": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "mode",
+        "plugin_id"
+      ],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "advisory",
+            "assisted"
+          ]
+        },
+        "plugin_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "effective_json": {
+      "type": "object"
+    },
+    "stable_projection": {
+      "type": "object"
+    },
+    "artifact_plan": {
+      "type": "object"
+    },
+    "redaction_summary": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "redacted_fields",
+        "placeholder_format"
+      ],
+      "properties": {
+        "redacted_fields": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "placeholder_format": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "input_hash": {
+      "type": "string",
+      "pattern": "^sha256-[a-f0-9]{64}$"
+    }
+  }
+}

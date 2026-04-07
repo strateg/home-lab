@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/ai-output-contract.schema.json",
+  "title": "ADR0094 AI Output Contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "metadata"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^1\\.[0-9]+$"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ai_model_id",
+        "ai_request_id",
+        "generation_timestamp",
+        "input_hash"
+      ],
+      "properties": {
+        "ai_model_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ai_request_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "generation_timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "input_hash": {
+          "type": "string",
+          "pattern": "^sha256-[a-f0-9]{64}$"
+        }
+      }
+    },
+    "candidate_artifact_plan": {
+      "type": "object"
+    },
+    "candidate_artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "path"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "advisory_recommendations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "action",
+          "rationale"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "suggest",
+              "modify",
+              "remove"
+            ]
+          },
+          "rationale": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "confidence_scores": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+      }
+    }
+  },
+  "anyOf": [
+    {
+      "required": [
+        "candidate_artifact_plan"
+      ]
+    },
+    {
+      "required": [
+        "candidate_artifacts"
+      ]
+    },
+    {
+      "required": [
+        "advisory_recommendations"
+      ]
+    },
+    {
+      "required": [
+        "confidence_scores"
+      ]
+    }
+  ]
+}
