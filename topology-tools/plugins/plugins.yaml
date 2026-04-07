@@ -1909,6 +1909,10 @@ plugins:
         scope: pipeline_shared
       - key: restore_readiness_report
         scope: pipeline_shared
+      - key: rollback_events_report_path
+        scope: pipeline_shared
+      - key: rollback_events_report
+        scope: pipeline_shared
     description: Emits ADR0091-compatible reports/restore-readiness.json from generator readiness evidence.
 
   - id: base.builder.release_manifest
@@ -1952,6 +1956,9 @@ plugins:
         required: false
       - from_plugin: base.builder.readiness_reports
         key: restore_readiness_report_path
+        required: false
+      - from_plugin: base.builder.readiness_reports
+        key: rollback_events_report_path
         required: false
     produces:
       - key: generated_files

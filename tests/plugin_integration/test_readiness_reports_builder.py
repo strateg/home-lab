@@ -52,11 +52,15 @@ def test_readiness_reports_builder_emits_restore_readiness_report(tmp_path: Path
 
     assert result.status == PluginStatus.SUCCESS
     report_path = Path(result.output_data["restore_readiness_report_path"])
+    rollback_events_path = Path(result.output_data["rollback_events_report_path"])
     assert report_path.exists()
+    assert rollback_events_path.exists()
     payload = json.loads(report_path.read_text(encoding="utf-8"))
+    rollback_payload = json.loads(rollback_events_path.read_text(encoding="utf-8"))
     assert payload["profile"] == "adr0091.restore-readiness.v1"
     assert payload["status"] == "green"
     assert any(check["check_id"] == "sunset-enforcement" for check in payload["checks"])
+    assert rollback_payload["profile"] == "adr0093.rollback-events.v1"
 
 
 def test_readiness_reports_builder_fails_without_input_evidence(tmp_path: Path) -> None:

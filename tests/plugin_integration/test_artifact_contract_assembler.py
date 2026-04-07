@@ -32,11 +32,12 @@ def _ctx(registry: PluginRegistry, *, enforce_migrating: bool = False) -> Plugin
     )
 
 
-def _required_keys_payload() -> dict[str, object]:
+def _required_keys_payload(*, generated_dir: str | None = None) -> dict[str, object]:
     return {
         "artifact_plan": {"schema_version": "1.0"},
         "artifact_generation_report": {"schema_version": "1.0"},
         "artifact_contract_files": ["/tmp/artifact-plan.json"],
+        "generated_dir": generated_dir or "/tmp/generated/default",
     }
 
 
@@ -51,8 +52,10 @@ def _migrating_generators(registry: PluginRegistry) -> list[str]:
 def test_artifact_contract_assembler_passes_when_migrating_generators_publish_contracts() -> None:
     registry = _registry()
     ctx = _ctx(registry)
-    for plugin_id in _migrating_generators(registry):
-        ctx._published_data[plugin_id] = _required_keys_payload()  # noqa: SLF001 - test fixture setup
+    for idx, plugin_id in enumerate(_migrating_generators(registry)):
+        ctx._published_data[plugin_id] = _required_keys_payload(  # noqa: SLF001 - test fixture setup
+            generated_dir=f"/tmp/generated/{plugin_id.replace('.', '_')}_{idx}"
+        )
 
     plugin = ArtifactContractAssembler("base.assembler.artifact_contract_guard")
     result = plugin.execute(ctx, Stage.ASSEMBLE)
@@ -71,7 +74,9 @@ def test_artifact_contract_assembler_warns_for_missing_migrating_contracts_by_de
     migrating = _migrating_generators(registry)
     assert migrating
     for plugin_id in migrating[1:]:
-        ctx._published_data[plugin_id] = _required_keys_payload()  # noqa: SLF001 - test fixture setup
+        ctx._published_data[plugin_id] = _required_keys_payload(  # noqa: SLF001 - test fixture setup
+            generated_dir=f"/tmp/generated/{plugin_id.replace('.', '_')}"
+        )
 
     plugin = ArtifactContractAssembler("base.assembler.artifact_contract_guard")
     result = plugin.execute(ctx, Stage.ASSEMBLE)
@@ -103,3 +108,27 @@ def test_artifact_contract_assembler_errors_for_missing_migrated_contracts() -> 
 
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E9394" for diag in result.diagnostics)
+
+
+def test_artifact_contract_assembler_detects_overlapping_generated_dir_prefixes() -> None:
+    registry = _registry()
+    ctx = _ctx(registry, enforce_migrating=False)
+    migrating = _migrating_generators(registry)
+    assert len(migrating) >= 2
+
+    ctx._published_data[migrating[0]] = _required_keys_payload(  # noqa: SLF001 - test fixture setup
+        generated_dir="/tmp/generated/shared"
+    )
+    ctx._published_data[migrating[1]] = _required_keys_payload(  # noqa: SLF001 - test fixture setup
+        generated_dir="/tmp/generated/shared/nested"
+    )
+    for plugin_id in migrating[2:]:
+        ctx._published_data[plugin_id] = _required_keys_payload(  # noqa: SLF001 - test fixture setup
+            generated_dir=f"/tmp/generated/{plugin_id.replace('.', '_')}"
+        )
+
+    plugin = ArtifactContractAssembler("base.assembler.artifact_contract_guard")
+    result = plugin.execute(ctx, Stage.ASSEMBLE)
+
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E9391" for diag in result.diagnostics)

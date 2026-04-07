@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from kernel.plugin_base import (
@@ -37,6 +38,25 @@ class ArtifactContractAssembler(AssemblerPlugin):
             return False
         return all(isinstance(item, str) and item.strip() for item in value)
 
+    @staticmethod
+    def _normalize_generated_dir(value: Any) -> Path | None:
+        if not isinstance(value, str) or not value.strip():
+            return None
+        return Path(value.strip()).resolve()
+
+    @staticmethod
+    def _paths_overlap(left: Path, right: Path) -> bool:
+        if left == right:
+            return True
+        left_parts = left.parts
+        right_parts = right.parts
+        shared_len = min(len(left_parts), len(right_parts))
+        if shared_len == 0:
+            return False
+        if left_parts[:shared_len] != right_parts[:shared_len]:
+            return False
+        return left == right or left in right.parents or right in left.parents
+
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
         registry = self._resolve_registry(ctx)
@@ -63,7 +83,9 @@ class ArtifactContractAssembler(AssemblerPlugin):
             "rollback": 0,
             "checked": 0,
             "missing_contracts": [],
+            "prefix_conflicts": [],
         }
+        generator_output_roots: list[tuple[str, str, Path]] = []
 
         for plugin_id, spec in sorted(specs.items()):
             if spec.kind != PluginKind.GENERATOR:
@@ -84,27 +106,57 @@ class ArtifactContractAssembler(AssemblerPlugin):
                 missing.append("artifact_contract_files(non-empty-list)")
 
             if not missing:
-                continue
-
-            summary["missing_contracts"].append({"plugin_id": plugin_id, "mode": mode, "missing": sorted(missing)})
-            if mode == "migrated" or (mode == "migrating" and enforce_migrating):
-                severity = "error"
-                code = "E9394"
+                generated_dir = self._normalize_generated_dir(payload.get("generated_dir"))
+                if generated_dir is not None:
+                    generator_output_roots.append((plugin_id, mode, generated_dir))
             else:
-                severity = "warning"
-                code = "W9393"
-            diagnostics.append(
-                self.emit_diagnostic(
-                    code=code,
-                    severity=severity,
-                    stage=stage,
-                    message=(
-                        f"generator '{plugin_id}' migration_mode={mode} is missing required contract keys: "
-                        + ", ".join(sorted(missing))
-                    ),
-                    path=f"plugin:{plugin_id}",
+                summary["missing_contracts"].append({"plugin_id": plugin_id, "mode": mode, "missing": sorted(missing)})
+                if mode == "migrated" or (mode == "migrating" and enforce_migrating):
+                    severity = "error"
+                    code = "E9394"
+                else:
+                    severity = "warning"
+                    code = "W9393"
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code=code,
+                        severity=severity,
+                        stage=stage,
+                        message=(
+                            f"generator '{plugin_id}' migration_mode={mode} is missing required contract keys: "
+                            + ", ".join(sorted(missing))
+                        ),
+                        path=f"plugin:{plugin_id}",
+                    )
                 )
-            )
+
+        for idx, left in enumerate(generator_output_roots):
+            left_id, left_mode, left_root = left
+            for right_id, right_mode, right_root in generator_output_roots[idx + 1 :]:
+                if not self._paths_overlap(left_root, right_root):
+                    continue
+                summary["prefix_conflicts"].append(
+                    {
+                        "plugin_a": left_id,
+                        "mode_a": left_mode,
+                        "generated_dir_a": str(left_root),
+                        "plugin_b": right_id,
+                        "mode_b": right_mode,
+                        "generated_dir_b": str(right_root),
+                    }
+                )
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E9391",
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            "overlapping generator output prefixes detected for ADR0093 ownership contract: "
+                            f"'{left_id}' ({left_root}) and '{right_id}' ({right_root})"
+                        ),
+                        path=f"plugin:{left_id}|{right_id}",
+                    )
+                )
 
         diagnostics.append(
             self.emit_diagnostic(
@@ -115,7 +167,8 @@ class ArtifactContractAssembler(AssemblerPlugin):
                     "artifact contract guard summary: "
                     f"legacy={summary['legacy']} migrating={summary['migrating']} "
                     f"migrated={summary['migrated']} rollback={summary['rollback']} "
-                    f"checked={summary['checked']} missing={len(summary['missing_contracts'])}"
+                    f"checked={summary['checked']} missing={len(summary['missing_contracts'])} "
+                    f"prefix_conflicts={len(summary['prefix_conflicts'])}"
                 ),
                 path="pipeline:assemble",
             )

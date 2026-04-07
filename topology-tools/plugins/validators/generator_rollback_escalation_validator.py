@@ -154,6 +154,7 @@ class GeneratorRollbackEscalationValidator(ValidatorJsonPlugin):
             "warnings": 0,
             "max_rollback_days": max_days,
             "today": today.date().isoformat(),
+            "events": [],
         }
 
         for plugin_id, spec in sorted(specs.items()):
@@ -168,6 +169,14 @@ class GeneratorRollbackEscalationValidator(ValidatorJsonPlugin):
             started_at_raw = item.get("rollback_started_at") if isinstance(item, dict) else None
             started_at = self._parse_date(started_at_raw)
             if started_at is None:
+                summary["events"].append(
+                    {
+                        "event_type": "rollback_missing_started_at",
+                        "plugin_id": plugin_id,
+                        "recorded_at": today.date().isoformat(),
+                        "severity": "warning",
+                    }
+                )
                 diagnostics.append(
                     self.emit_diagnostic(
                         code="W9402",
@@ -186,6 +195,17 @@ class GeneratorRollbackEscalationValidator(ValidatorJsonPlugin):
 
             rollback_days = (today.date() - started_at.date()).days
             if rollback_days > max_days:
+                summary["events"].append(
+                    {
+                        "event_type": "rollback_escalated",
+                        "plugin_id": plugin_id,
+                        "recorded_at": today.date().isoformat(),
+                        "severity": "warning",
+                        "rollback_days": rollback_days,
+                        "max_rollback_days": max_days,
+                        "rollback_started_at": started_at.date().isoformat(),
+                    }
+                )
                 diagnostics.append(
                     self.emit_diagnostic(
                         code="W9403",
@@ -200,6 +220,18 @@ class GeneratorRollbackEscalationValidator(ValidatorJsonPlugin):
                 )
                 summary["escalated"] += 1
                 summary["warnings"] += 1
+            else:
+                summary["events"].append(
+                    {
+                        "event_type": "rollback_within_threshold",
+                        "plugin_id": plugin_id,
+                        "recorded_at": today.date().isoformat(),
+                        "severity": "info",
+                        "rollback_days": rollback_days,
+                        "max_rollback_days": max_days,
+                        "rollback_started_at": started_at.date().isoformat(),
+                    }
+                )
 
         diagnostics.append(
             self.emit_diagnostic(

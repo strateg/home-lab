@@ -583,6 +583,11 @@ class ReadinessReportsBuilder(BuilderPlugin):
         sunset_summary = readiness_evidence.get("generator_sunset_summary", {})
         rollback_summary = readiness_evidence.get("generator_rollback_summary", {})
         artifact_totals = readiness_evidence.get("artifact_family_summary_totals", {})
+        rollback_events = (
+            rollback_summary.get("events")
+            if isinstance(rollback_summary, dict) and isinstance(rollback_summary.get("events"), list)
+            else []
+        )
 
         legacy_count = migration_summary.get("legacy", 0) if isinstance(migration_summary, dict) else 0
         sunset_errors = sunset_summary.get("errors", 0) if isinstance(sunset_summary, dict) else 0
@@ -641,12 +646,34 @@ class ReadinessReportsBuilder(BuilderPlugin):
         reports_root.mkdir(parents=True, exist_ok=True)
         report_path = reports_root / "restore-readiness.json"
         report_path.write_text(json.dumps(report_payload, ensure_ascii=True, indent=2), encoding="utf-8")
+        rollback_events_path = reports_root / "rollback-events.json"
+        rollback_events_payload = {
+            "schema_version": 1,
+            "profile": "adr0093.rollback-events.v1",
+            "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+            "project_id": str(ctx.config.get("project_id", "")),
+            "events": rollback_events,
+            "summary": {
+                "rollback_generators": (
+                    rollback_summary.get("rollback_generators", 0) if isinstance(rollback_summary, dict) else 0
+                ),
+                "escalated": rollback_summary.get("escalated", 0) if isinstance(rollback_summary, dict) else 0,
+                "missing_started_at": (
+                    rollback_summary.get("missing_started_at", 0) if isinstance(rollback_summary, dict) else 0
+                ),
+            },
+        }
+        rollback_events_path.write_text(
+            json.dumps(rollback_events_payload, ensure_ascii=True, indent=2), encoding="utf-8"
+        )
 
-        generated_files = [str(report_path)]
+        generated_files = [str(report_path), str(rollback_events_path)]
         try:
             ctx.publish("generated_files", generated_files)
             ctx.publish("restore_readiness_report_path", str(report_path))
             ctx.publish("restore_readiness_report", report_payload)
+            ctx.publish("rollback_events_report_path", str(rollback_events_path))
+            ctx.publish("rollback_events_report", rollback_events_payload)
         except PluginDataExchangeError:
             pass
 
@@ -663,6 +690,7 @@ class ReadinessReportsBuilder(BuilderPlugin):
             diagnostics=diagnostics,
             output_data={
                 "restore_readiness_report_path": str(report_path),
+                "rollback_events_report_path": str(rollback_events_path),
                 "generated_files": generated_files,
             },
         )
@@ -711,6 +739,12 @@ class ReleaseManifestBuilder(BuilderPlugin):
             )
         except PluginDataExchangeError:
             restore_readiness_report_path = ""
+        try:
+            rollback_events_report_path = str(
+                ctx.subscribe("base.builder.readiness_reports", "rollback_events_report_path")
+            )
+        except PluginDataExchangeError:
+            rollback_events_report_path = ""
 
         dist_root = ReleaseBundleBuilder._dist_root(ctx)
         dist_root.mkdir(parents=True, exist_ok=True)
@@ -732,6 +766,7 @@ class ReleaseManifestBuilder(BuilderPlugin):
             "artifact_family_summary_path": artifact_family_summary_path,
             "generator_readiness_evidence_path": generator_readiness_evidence_path,
             "restore_readiness_report_path": restore_readiness_report_path,
+            "rollback_events_report_path": rollback_events_report_path,
         }
         manifest_path.write_text(json.dumps(payload, ensure_ascii=True, indent=2), encoding="utf-8")
 
