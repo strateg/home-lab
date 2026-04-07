@@ -184,7 +184,11 @@ class BootstrapMikroTikGenerator(BaseGenerator):
                 path=str(out_root),
             )
         )
-        generated_dir = sorted(ownership_roots)[0] if ownership_roots else str(out_root)
+        generated_dir = (
+            sorted(ownership_roots)[0]
+            if ownership_roots
+            else str((out_root / self.plugin_id.replace(".", "__")).resolve())
+        )
         self.publish_if_possible(ctx, "generated_dir", generated_dir)
         self.publish_if_possible(ctx, "generated_files", written)
         self.publish_if_possible(ctx, "bootstrap_mikrotik_files", written)
