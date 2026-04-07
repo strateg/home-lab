@@ -50,7 +50,13 @@ from plugins.generators.ai_advisory_contract import (
     validate_ai_contract_payloads,
 )
 from plugins.generators.ai_audit import AiAuditLogger, cleanup_ai_audit_logs
-from plugins.generators.ai_sandbox import create_ai_sandbox_session, ensure_relative_sandbox_path, sanitize_environment
+from plugins.generators.ai_sandbox import (
+    cleanup_ai_sandbox_sessions,
+    create_ai_sandbox_session,
+    enforce_sandbox_resource_limits,
+    ensure_relative_sandbox_path,
+    sanitize_environment,
+)
 from yaml_loader import load_yaml_file
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -218,6 +224,9 @@ class V5Compiler:
         ai_advisory: bool = False,
         ai_output_json: Path | None = None,
         ai_audit_retention_days: int = 30,
+        ai_sandbox_retention_days: int = 7,
+        ai_sandbox_max_files: int = 128,
+        ai_sandbox_max_bytes: int = 10 * 1024 * 1024,
     ) -> None:
         if not enable_plugins:
             raise ValueError("--disable-plugins is retired; plugin-first runtime always enables plugins.")
@@ -251,6 +260,9 @@ class V5Compiler:
         self.ai_advisory = ai_advisory
         self.ai_output_json = ai_output_json
         self.ai_audit_retention_days = ai_audit_retention_days
+        self.ai_sandbox_retention_days = ai_sandbox_retention_days
+        self.ai_sandbox_max_files = ai_sandbox_max_files
+        self.ai_sandbox_max_bytes = ai_sandbox_max_bytes
         requested_stages = set(stages) if isinstance(stages, list) and stages else set(STAGE_ORDER)
         self.stages: tuple[Stage, ...] = tuple(stage for stage in STAGE_ORDER if stage in requested_stages)
 
@@ -864,12 +876,22 @@ class V5Compiler:
             project_id=project_id,
             retain_days=self.ai_audit_retention_days,
         )
+        cleaned_sessions = cleanup_ai_sandbox_sessions(
+            repo_root=REPO_ROOT,
+            project_id=project_id,
+            retain_days=self.ai_sandbox_retention_days,
+        )
         sandbox_session = create_ai_sandbox_session(
             repo_root=REPO_ROOT,
             project_id=project_id,
             request_id=f"{project_id}-{request_id}",
         )
         _ = ensure_relative_sandbox_path(sandbox_session=sandbox_session, relative_path="ai-output.json")
+        sandbox_usage = enforce_sandbox_resource_limits(
+            sandbox_session=sandbox_session,
+            max_files=self.ai_sandbox_max_files,
+            max_bytes=self.ai_sandbox_max_bytes,
+        )
         sanitized_env, removed_env_keys = sanitize_environment(dict(os.environ))
         audit = AiAuditLogger(
             repo_root=REPO_ROOT,
@@ -878,6 +900,8 @@ class V5Compiler:
         )
         if cleaned:
             print(f"[ai-advisory] Cleaned {len(cleaned)} old audit day folders.", flush=True)
+        if cleaned_sessions:
+            print(f"[ai-advisory] Cleaned {len(cleaned_sessions)} old sandbox sessions.", flush=True)
         print(f"[ai-advisory] Sandbox session: {self._path_for_diag(sandbox_session)}", flush=True)
         safe_effective_payload = self._json_safe_payload(effective_payload)
         stable_projection = {
@@ -921,6 +945,11 @@ class V5Compiler:
             payload={
                 "mode": "advisory",
                 "sandbox_session": self._path_for_diag(sandbox_session),
+                "sandbox_usage": sandbox_usage,
+                "sandbox_limits": {
+                    "max_files": self.ai_sandbox_max_files,
+                    "max_bytes": self.ai_sandbox_max_bytes,
+                },
                 "env_keys_forwarded": len(sanitized_env),
                 "env_keys_removed": removed_env_keys,
             },
@@ -1522,6 +1551,24 @@ def build_parser() -> argparse.ArgumentParser:
         default=30,
         help="AI advisory audit retention period in days (default: 30).",
     )
+    parser.add_argument(
+        "--ai-sandbox-retention-days",
+        type=int,
+        default=7,
+        help="AI advisory sandbox session retention period in days (default: 7).",
+    )
+    parser.add_argument(
+        "--ai-sandbox-max-files",
+        type=int,
+        default=128,
+        help="Maximum files allowed in one advisory sandbox session (default: 128).",
+    )
+    parser.add_argument(
+        "--ai-sandbox-max-bytes",
+        type=int,
+        default=10 * 1024 * 1024,
+        help="Maximum total bytes allowed in one advisory sandbox session (default: 10485760).",
+    )
     parser.set_defaults(plugin_contract_errors=True)
     return parser
 
@@ -1568,6 +1615,9 @@ def main() -> int:
         ai_advisory=args.ai_advisory,
         ai_output_json=resolve_repo_path(args.ai_output_json) if args.ai_output_json.strip() else None,
         ai_audit_retention_days=max(1, int(args.ai_audit_retention_days)),
+        ai_sandbox_retention_days=max(1, int(args.ai_sandbox_retention_days)),
+        ai_sandbox_max_files=max(1, int(args.ai_sandbox_max_files)),
+        ai_sandbox_max_bytes=max(1, int(args.ai_sandbox_max_bytes)),
     )
     return compiler.run()
 

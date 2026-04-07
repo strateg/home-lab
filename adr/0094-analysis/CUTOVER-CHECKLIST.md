@@ -23,8 +23,8 @@
 - [x] Sandbox output directory created on demand
 - [x] Filesystem isolation enforced (cannot write outside sandbox)
 - [x] Environment sanitization removes secrets from env vars
-- [ ] Resource limits enforced (files, size, time)
-- [ ] Cleanup mechanism removes old sessions
+- [x] Resource limits enforced (files, size, time)
+- [x] Cleanup mechanism removes old sessions
 
 ### Audit Verification
 
