@@ -65,6 +65,7 @@ def test_generator_sunset_validator_succeeds_for_non_legacy_targets() -> None:
     assert summary["legacy_targets"] == 0
     assert summary["pre_sunset_legacy_targets"] == 0
     assert summary["grace_window_legacy_targets"] == 0
+    assert summary["legacy_target_states"] == []
     assert summary["errors"] == 0
     assert any(diag.code == "I9399" for diag in result.diagnostics)
 
@@ -82,6 +83,9 @@ def test_generator_sunset_validator_warns_for_legacy_target_before_sunset() -> N
     assert summary["legacy_targets"] == 1
     assert summary["pre_sunset_legacy_targets"] == 1
     assert summary["grace_window_legacy_targets"] == 0
+    assert len(summary["legacy_target_states"]) == 1
+    assert summary["legacy_target_states"][0]["plugin_id"] == "object.proxmox.generator.terraform"
+    assert summary["legacy_target_states"][0]["sunset_phase"] == "pre_sunset"
     assert summary["warnings"] == 1
     assert summary["errors"] == 0
     assert any(diag.code == "W9397" for diag in result.diagnostics)
@@ -100,6 +104,9 @@ def test_generator_sunset_validator_warns_for_legacy_target_in_grace_window() ->
     assert summary["legacy_targets"] == 1
     assert summary["pre_sunset_legacy_targets"] == 0
     assert summary["grace_window_legacy_targets"] == 1
+    assert len(summary["legacy_target_states"]) == 1
+    assert summary["legacy_target_states"][0]["plugin_id"] == "object.proxmox.generator.terraform"
+    assert summary["legacy_target_states"][0]["sunset_phase"] == "grace_window"
     assert summary["warnings"] == 1
     assert summary["errors"] == 0
     assert any(diag.code == "W9397" for diag in result.diagnostics)
@@ -118,6 +125,9 @@ def test_generator_sunset_validator_fails_for_legacy_target_after_hard_error() -
     assert summary["legacy_targets"] == 1
     assert summary["pre_sunset_legacy_targets"] == 0
     assert summary["grace_window_legacy_targets"] == 0
+    assert len(summary["legacy_target_states"]) == 1
+    assert summary["legacy_target_states"][0]["plugin_id"] == "object.proxmox.generator.terraform"
+    assert summary["legacy_target_states"][0]["sunset_phase"] == "hard_error"
     assert summary["errors"] == 1
     assert any(diag.code == "E9399" for diag in result.diagnostics)
 
@@ -157,6 +167,7 @@ sunset_schedule:
     assert summary["legacy_targets"] == 0
     assert summary["pre_sunset_legacy_targets"] == 0
     assert summary["grace_window_legacy_targets"] == 0
+    assert summary["legacy_target_states"] == []
 
 
 def test_generator_sunset_validator_fails_when_policy_file_is_missing(tmp_path: Path) -> None:
@@ -206,6 +217,7 @@ def test_generator_sunset_validator_default_policy_includes_secondary_families()
     assert summary["legacy_targets"] == 0
     assert summary["pre_sunset_legacy_targets"] == 0
     assert summary["grace_window_legacy_targets"] == 0
+    assert summary["legacy_target_states"] == []
     assert not any(diag.code == "W9397" for diag in result.diagnostics)
 
 

@@ -173,6 +173,7 @@ class GeneratorSunsetValidator(ValidatorJsonPlugin):
             "legacy_targets": 0,
             "pre_sunset_legacy_targets": 0,
             "grace_window_legacy_targets": 0,
+            "legacy_target_states": [],
             "warnings": 0,
             "errors": 0,
             "today": today.date().isoformat(),
@@ -233,6 +234,15 @@ class GeneratorSunsetValidator(ValidatorJsonPlugin):
 
             summary["legacy_targets"] += 1
             if today >= hard_error_date:
+                summary["legacy_target_states"].append(
+                    {
+                        "plugin_id": plugin_id,
+                        "sunset_phase": "hard_error",
+                        "today": today.date().isoformat(),
+                        "compatibility_sunset": sunset_date.date().isoformat(),
+                        "hard_error_date": hard_error_date.date().isoformat(),
+                    }
+                )
                 diagnostics.append(
                     self.emit_diagnostic(
                         code="E9399",
@@ -250,6 +260,15 @@ class GeneratorSunsetValidator(ValidatorJsonPlugin):
 
             if today < sunset_date:
                 summary["pre_sunset_legacy_targets"] += 1
+                summary["legacy_target_states"].append(
+                    {
+                        "plugin_id": plugin_id,
+                        "sunset_phase": "pre_sunset",
+                        "today": today.date().isoformat(),
+                        "compatibility_sunset": sunset_date.date().isoformat(),
+                        "hard_error_date": hard_error_date.date().isoformat(),
+                    }
+                )
                 diagnostics.append(
                     self.emit_diagnostic(
                         code="W9397",
@@ -267,6 +286,15 @@ class GeneratorSunsetValidator(ValidatorJsonPlugin):
                 continue
 
             summary["grace_window_legacy_targets"] += 1
+            summary["legacy_target_states"].append(
+                {
+                    "plugin_id": plugin_id,
+                    "sunset_phase": "grace_window",
+                    "today": today.date().isoformat(),
+                    "compatibility_sunset": sunset_date.date().isoformat(),
+                    "hard_error_date": hard_error_date.date().isoformat(),
+                }
+            )
             diagnostics.append(
                 self.emit_diagnostic(
                     code="W9397",
