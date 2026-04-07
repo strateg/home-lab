@@ -14,6 +14,7 @@ V5_ROOT = Path(__file__).resolve().parents[2]
 V5_TOOLS = Path(__file__).resolve().parents[2] / "topology-tools"
 sys.path.insert(0, str(V5_TOOLS))
 
+import pytest
 from kernel.plugin_base import PluginContext, PluginStatus, Stage
 
 # Plugin manifest paths
@@ -310,3 +311,55 @@ def test_bootstrap_generators_report_projection_error(tmp_path: Path) -> None:
         result = generator.execute(ctx, Stage.GENERATE)
         assert result.status == PluginStatus.FAILED
         assert any(diag.code == code for diag in result.diagnostics)
+
+
+@pytest.mark.parametrize(
+    ("generator_cls", "plugin_id", "manifest_path", "stale_rel_path", "expected_family"),
+    [
+        (
+            BootstrapProxmoxGenerator,
+            "object.proxmox.generator.bootstrap",
+            PROXMOX_MANIFEST,
+            Path("bootstrap/srv-gamayun/stale.proxmox.tmp"),
+            "bootstrap.proxmox",
+        ),
+        (
+            BootstrapMikroTikGenerator,
+            "object.mikrotik.generator.bootstrap",
+            MIKROTIK_MANIFEST,
+            Path("bootstrap/rtr-mk/stale.mikrotik.tmp"),
+            "bootstrap.mikrotik",
+        ),
+        (
+            BootstrapOrangePiGenerator,
+            "object.orangepi.generator.bootstrap",
+            ORANGEPI_MANIFEST,
+            Path("bootstrap/srv-orangepi5/cloud-init/stale.orangepi.tmp"),
+            "bootstrap.orangepi",
+        ),
+    ],
+)
+def test_bootstrap_generators_obsolete_delete_uses_output_prefix_ownership(
+    tmp_path: Path,
+    generator_cls,
+    plugin_id: str,
+    manifest_path: Path,
+    stale_rel_path: Path,
+    expected_family: str,
+) -> None:
+    plugin_config = _load_plugin_config(manifest_path, plugin_id)
+    plugin_config["artifact_obsolete_action"] = "delete"
+    stale_path = tmp_path / "generated" / stale_rel_path
+    stale_path.parent.mkdir(parents=True, exist_ok=True)
+    stale_path.write_text("# stale\n", encoding="utf-8")
+
+    generator = generator_cls(plugin_id)
+    result = generator.execute(_ctx(tmp_path, _compiled_fixture(), plugin_config), Stage.GENERATE)
+
+    assert result.status == PluginStatus.SUCCESS
+    report = result.output_data["artifact_generation_report"]
+    assert report["artifact_family"] == expected_family
+    stale_entry = next(item for item in report["obsolete"] if item["path"] == str(stale_path.resolve()))
+    assert stale_entry["action"] == "delete"
+    assert stale_entry["ownership_proven"] is True
+    assert stale_entry["ownership_method"] == "output_prefix_match"

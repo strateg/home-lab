@@ -103,9 +103,9 @@
 ### Secondary Family Migration
 
 - [x] Ansible inventory generator emits ArtifactPlan
-- [ ] Ansible group_vars generator emits ArtifactPlan
+- [x] Ansible group_vars artifacts are covered by ArtifactPlan (via `base.generator.ansible_inventory`)
 - [x] Bootstrap scripts generator emits ArtifactPlan
-- [ ] Ownership proof applies to all new families
+- [x] Ownership proof applies to all new families
 
 ### Sunset Schedule
 
@@ -115,8 +115,8 @@
 
 ### Wave 4 Sign-off
 
-- [ ] All secondary families migrated
-- [ ] Sunset enforcement consistent
+- [x] All secondary families migrated
+- [x] Sunset enforcement consistent
 
 **Approver:** _________________ **Date:** _________
 

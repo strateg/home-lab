@@ -94,6 +94,37 @@ def test_ansible_inventory_generator_writes_expected_files(tmp_path: Path) -> No
     assert list(children["lxc"]["hosts"].keys()) == ["lxc-redis"]
 
 
+def test_ansible_inventory_artifact_plan_includes_group_vars_output(tmp_path: Path) -> None:
+    generator = AnsibleInventoryGenerator("base.generator.ansible_inventory")
+    ctx = _ctx(tmp_path, _compiled_fixture())
+
+    result = generator.execute(ctx, Stage.GENERATE)
+
+    assert result.status == PluginStatus.SUCCESS
+    artifact_plan = result.output_data["artifact_plan"]
+    planned_paths = [str(item.get("path", "")) for item in artifact_plan.get("planned_outputs", [])]
+    assert any(path.endswith("/group_vars/all.yml") for path in planned_paths)
+
+
+def test_ansible_inventory_obsolete_delete_uses_ownership_proof(tmp_path: Path) -> None:
+    generator = AnsibleInventoryGenerator("base.generator.ansible_inventory")
+    ctx = _ctx(tmp_path, _compiled_fixture())
+    ctx.config["artifact_obsolete_action"] = "delete"
+
+    stale_path = tmp_path / "generated" / "ansible" / "inventory" / "production" / "stale.yml"
+    stale_path.parent.mkdir(parents=True, exist_ok=True)
+    stale_path.write_text("# stale\n", encoding="utf-8")
+
+    result = generator.execute(ctx, Stage.GENERATE)
+
+    assert result.status == PluginStatus.SUCCESS
+    obsolete = result.output_data["artifact_generation_report"]["obsolete"]
+    stale_entry = next(item for item in obsolete if item["path"] == str(stale_path.resolve()))
+    assert stale_entry["action"] == "delete"
+    assert stale_entry["ownership_proven"] is True
+    assert stale_entry["ownership_method"] == "output_prefix_match"
+
+
 def test_ansible_inventory_generator_reports_projection_error(tmp_path: Path) -> None:
     generator = AnsibleInventoryGenerator("base.generator.ansible_inventory")
     ctx = _ctx(tmp_path, {"instances": {"devices": [{}]}})

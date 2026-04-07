@@ -115,9 +115,9 @@
 
 ### Wave 4 Gate
 
-- [ ] Secondary families migrated
-- [ ] All target families have sunset schedule
-- [ ] Ownership proof works for all families
+- [x] Secondary families migrated
+- [x] All target families have sunset schedule
+- [x] Ownership proof works for all families
 
 ## Wave 5 — Cleanup and Expansion
 
