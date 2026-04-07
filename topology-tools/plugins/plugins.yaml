@@ -1307,16 +1307,7 @@ plugins:
     depends_on: [base.validator.generator_migration_status]
     timeout: 30
     config:
-      sunset_schedule:
-        object.proxmox.generator.terraform:
-          compatibility_sunset: "2026-05-01"
-          hard_error_date: "2026-05-15"
-        object.mikrotik.generator.terraform:
-          compatibility_sunset: "2026-05-01"
-          hard_error_date: "2026-05-15"
-        base.generator.ansible_inventory:
-          compatibility_sunset: "2026-05-01"
-          hard_error_date: "2026-05-15"
+      sunset_policy_path: topology-tools/data/generator-sunset-policy.yaml
     config_schema:
       type: object
       properties:
@@ -1324,11 +1315,14 @@ plugins:
           type: string
           pattern: '^\d{4}-\d{2}-\d{2}$'
           description: Optional fixed date override (YYYY-MM-DD) for deterministic CI/tests.
+        sunset_policy_path:
+          type: string
+          description: Path to ADR0093 sunset policy YAML (repo-relative or absolute).
         sunset_schedule:
           type: object
           description: >
-            Per-generator ADR0093 sunset policy for legacy compatibility mode.
-            Keys are generator plugin IDs.
+            Optional inline overrides for ADR0093 sunset policy.
+            Keys are generator plugin IDs; values override file-based policy.
           additionalProperties:
             type: object
             properties:

@@ -1,0 +1,11 @@
+schema_version: 1
+sunset_schedule:
+  object.proxmox.generator.terraform:
+    compatibility_sunset: "2026-05-01"
+    hard_error_date: "2026-05-15"
+  object.mikrotik.generator.terraform:
+    compatibility_sunset: "2026-05-01"
+    hard_error_date: "2026-05-15"
+  base.generator.ansible_inventory:
+    compatibility_sunset: "2026-05-01"
+    hard_error_date: "2026-05-15"

@@ -98,3 +98,60 @@ def test_generator_sunset_validator_fails_after_hard_error_date() -> None:
 
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E9399" for diag in result.diagnostics)
+
+
+def test_generator_sunset_validator_loads_schedule_from_policy_file(tmp_path: Path) -> None:
+    registry = _registry()
+    validator = GeneratorSunsetValidator("base.validator.generator_sunset")
+    policy_file = tmp_path / "generator-sunset-policy.yaml"
+    policy_file.write_text(
+        """
+schema_version: 1
+sunset_schedule:
+  object.proxmox.generator.terraform:
+    compatibility_sunset: "2026-05-01"
+    hard_error_date: "2026-05-15"
+""".strip() + "\n",
+        encoding="utf-8",
+    )
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        compiled_json={},
+        config={
+            "plugin_registry": registry,
+            "repo_root": str(tmp_path),
+            "sunset_today": "2026-04-07",
+            "sunset_policy_path": "generator-sunset-policy.yaml",
+        },
+    )
+
+    result = validator.execute(ctx, Stage.VALIDATE)
+
+    assert result.status == PluginStatus.SUCCESS
+    summary = result.output_data["generator_sunset_summary"]
+    assert summary["scheduled_targets"] == 1
+    assert summary["legacy_targets"] == 0
+
+
+def test_generator_sunset_validator_fails_when_policy_file_is_missing(tmp_path: Path) -> None:
+    registry = _registry()
+    validator = GeneratorSunsetValidator("base.validator.generator_sunset")
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        compiled_json={},
+        config={
+            "plugin_registry": registry,
+            "repo_root": str(tmp_path),
+            "sunset_today": "2026-04-07",
+            "sunset_policy_path": "missing-policy.yaml",
+        },
+    )
+
+    result = validator.execute(ctx, Stage.VALIDATE)
+
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E9396" for diag in result.diagnostics)

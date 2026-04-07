@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
+import yaml
 from kernel.plugin_base import (
     PluginContext,
     PluginDataExchangeError,
@@ -14,12 +16,99 @@ from kernel.plugin_base import (
     Stage,
     ValidatorJsonPlugin,
 )
+from yaml_loader import load_yaml_file
 
 _SUPPORTED_MODES = {"legacy", "migrating", "migrated", "rollback"}
 
 
 class GeneratorSunsetValidator(ValidatorJsonPlugin):
     """Apply sunset/grace/hard-error policy for scheduled legacy generators."""
+
+    @staticmethod
+    def _resolve_repo_root(ctx: PluginContext) -> Path:
+        raw = ctx.config.get("repo_root")
+        if isinstance(raw, str) and raw.strip():
+            return Path(raw.strip()).resolve()
+        return Path(__file__).resolve().parents[3]
+
+    def _resolve_policy_path(self, *, ctx: PluginContext, value: str) -> Path:
+        candidate = Path(value.strip())
+        if candidate.is_absolute():
+            return candidate.resolve()
+        return (self._resolve_repo_root(ctx) / candidate).resolve()
+
+    def _load_policy_schedule(
+        self,
+        *,
+        ctx: PluginContext,
+        stage: Stage,
+    ) -> tuple[dict[str, Any], list[PluginDiagnostic]]:
+        diagnostics: list[PluginDiagnostic] = []
+        policy_path_raw = ctx.config.get("sunset_policy_path")
+        if not isinstance(policy_path_raw, str) or not policy_path_raw.strip():
+            return {}, diagnostics
+
+        policy_path = self._resolve_policy_path(ctx=ctx, value=policy_path_raw)
+        if not policy_path.exists() or not policy_path.is_file():
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E9396",
+                    severity="error",
+                    stage=stage,
+                    message=f"sunset policy file does not exist: {policy_path}",
+                    path=f"pipeline:config.sunset_policy_path={policy_path}",
+                )
+            )
+            return {}, diagnostics
+        try:
+            payload = load_yaml_file(policy_path)
+        except (OSError, yaml.YAMLError) as exc:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E9396",
+                    severity="error",
+                    stage=stage,
+                    message=f"failed to load sunset policy file '{policy_path}': {exc}",
+                    path=str(policy_path),
+                )
+            )
+            return {}, diagnostics
+        if not isinstance(payload, dict):
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E9396",
+                    severity="error",
+                    stage=stage,
+                    message=f"sunset policy '{policy_path}' must be a YAML object.",
+                    path=str(policy_path),
+                )
+            )
+            return {}, diagnostics
+        schema_version = payload.get("schema_version")
+        if schema_version != 1:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E9396",
+                    severity="error",
+                    stage=stage,
+                    message=f"sunset policy '{policy_path}' schema_version must be 1.",
+                    path=str(policy_path),
+                )
+            )
+            return {}, diagnostics
+        raw_schedule = payload.get("sunset_schedule")
+        if not isinstance(raw_schedule, dict):
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E9396",
+                    severity="error",
+                    stage=stage,
+                    message=f"sunset policy '{policy_path}' must define object key 'sunset_schedule'.",
+                    path=str(policy_path),
+                )
+            )
+            return {}, diagnostics
+        return dict(raw_schedule), diagnostics
 
     @staticmethod
     def _parse_date(value: Any) -> datetime | None:
@@ -50,8 +139,14 @@ class GeneratorSunsetValidator(ValidatorJsonPlugin):
         config_today = self._parse_date(ctx.config.get("sunset_today"))
         today = config_today or datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
 
-        raw_schedule = ctx.config.get("sunset_schedule")
-        schedule = raw_schedule if isinstance(raw_schedule, dict) else {}
+        schedule, policy_diags = self._load_policy_schedule(ctx=ctx, stage=stage)
+        diagnostics.extend(policy_diags)
+        if any(diag.severity == "error" for diag in policy_diags):
+            return self.make_result(diagnostics=diagnostics)
+
+        raw_schedule_override = ctx.config.get("sunset_schedule")
+        if isinstance(raw_schedule_override, dict):
+            schedule.update(raw_schedule_override)
 
         summary = {
             "scheduled_targets": 0,
