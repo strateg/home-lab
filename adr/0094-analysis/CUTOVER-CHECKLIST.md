@@ -30,7 +30,7 @@
 
 - [x] Audit logger writes to JSONL format
 - [x] All defined events are logged
-- [ ] Log retention policy implemented
+- [x] Log retention policy implemented
 - [x] Log integrity verification works
 
 ### Wave 1 Sign-off

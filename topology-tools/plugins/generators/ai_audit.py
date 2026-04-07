@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -33,6 +33,40 @@ def _event_hash(payload: dict[str, Any]) -> str:
 
 def resolve_ai_audit_log_path(*, repo_root: Path, project_id: str, date_utc: str) -> Path:
     return (repo_root / ".work" / "ai-audit" / project_id / date_utc / LOG_FILE_NAME).resolve()
+
+
+def cleanup_ai_audit_logs(
+    *,
+    repo_root: Path,
+    project_id: str,
+    retain_days: int,
+    now_utc: date | None = None,
+) -> list[Path]:
+    if retain_days < 1:
+        raise ValueError("retain_days must be >= 1")
+    today = now_utc or datetime.now(timezone.utc).date()
+    cutoff = today - timedelta(days=retain_days - 1)
+    project_root = (repo_root.resolve() / ".work" / "ai-audit" / project_id.strip()).resolve()
+    if not project_root.exists() or not project_root.is_dir():
+        return []
+
+    removed: list[Path] = []
+    for child in sorted(project_root.iterdir(), key=lambda item: item.name):
+        if not child.is_dir():
+            continue
+        try:
+            day = datetime.strptime(child.name, "%Y-%m-%d").date()
+        except ValueError:
+            continue
+        if day < cutoff:
+            for nested in sorted(child.rglob("*"), reverse=True):
+                if nested.is_file() or nested.is_symlink():
+                    nested.unlink(missing_ok=True)
+                elif nested.is_dir():
+                    nested.rmdir()
+            child.rmdir()
+            removed.append(child)
+    return removed
 
 
 class AiAuditLogger:

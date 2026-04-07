@@ -48,7 +48,7 @@ from plugins.generators.ai_advisory_contract import (
     parse_ai_output_payload,
     validate_ai_contract_payloads,
 )
-from plugins.generators.ai_audit import AiAuditLogger
+from plugins.generators.ai_audit import AiAuditLogger, cleanup_ai_audit_logs
 from yaml_loader import load_yaml_file
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -215,6 +215,7 @@ class V5Compiler:
         stages: list[Stage] | None = None,
         ai_advisory: bool = False,
         ai_output_json: Path | None = None,
+        ai_audit_retention_days: int = 30,
     ) -> None:
         if not enable_plugins:
             raise ValueError("--disable-plugins is retired; plugin-first runtime always enables plugins.")
@@ -247,6 +248,7 @@ class V5Compiler:
         self.sbom_output_dir = sbom_output_dir
         self.ai_advisory = ai_advisory
         self.ai_output_json = ai_output_json
+        self.ai_audit_retention_days = ai_audit_retention_days
         requested_stages = set(stages) if isinstance(stages, list) and stages else set(STAGE_ORDER)
         self.stages: tuple[Stage, ...] = tuple(stage for stage in STAGE_ORDER if stage in requested_stages)
 
@@ -855,11 +857,18 @@ class V5Compiler:
         plugin_ctx: PluginContext | None,
     ) -> None:
         request_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        cleaned = cleanup_ai_audit_logs(
+            repo_root=REPO_ROOT,
+            project_id=project_id,
+            retain_days=self.ai_audit_retention_days,
+        )
         audit = AiAuditLogger(
             repo_root=REPO_ROOT,
             project_id=project_id,
             request_id=f"{project_id}-{request_id}",
         )
+        if cleaned:
+            print(f"[ai-advisory] Cleaned {len(cleaned)} old audit day folders.", flush=True)
         safe_effective_payload = self._json_safe_payload(effective_payload)
         stable_projection = {
             "classes": safe_effective_payload.get("classes", {}),
@@ -1492,6 +1501,12 @@ def build_parser() -> argparse.ArgumentParser:
         default="",
         help="Optional AI response payload JSON path for advisory parsing/display.",
     )
+    parser.add_argument(
+        "--ai-audit-retention-days",
+        type=int,
+        default=30,
+        help="AI advisory audit retention period in days (default: 30).",
+    )
     parser.set_defaults(plugin_contract_errors=True)
     return parser
 
@@ -1537,6 +1552,7 @@ def main() -> int:
         stages=selected_stages,
         ai_advisory=args.ai_advisory,
         ai_output_json=resolve_repo_path(args.ai_output_json) if args.ai_output_json.strip() else None,
+        ai_audit_retention_days=max(1, int(args.ai_audit_retention_days)),
     )
     return compiler.run()
 

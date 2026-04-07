@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import sys
+from datetime import date
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -14,6 +15,7 @@ sys.path.insert(0, str(V5_TOOLS))
 from plugins.generators.ai_audit import (  # noqa: E402
     AiAuditLogger,
     EVENT_TYPES,
+    cleanup_ai_audit_logs,
     resolve_ai_audit_log_path,
     verify_ai_audit_log_integrity,
 )
@@ -59,3 +61,24 @@ def test_ai_audit_logger_integrity_verification_detects_tampering(tmp_path: Path
     ok2, reason2 = verify_ai_audit_log_integrity(logger.log_path)
     assert ok2 is False
     assert "event hash mismatch" in reason2
+
+
+def test_cleanup_ai_audit_logs_removes_only_expired_days(tmp_path: Path) -> None:
+    project_id = "home-lab"
+    old_day = tmp_path / ".work" / "ai-audit" / project_id / "2026-03-01"
+    keep_day = tmp_path / ".work" / "ai-audit" / project_id / "2026-04-06"
+    old_day.mkdir(parents=True, exist_ok=True)
+    keep_day.mkdir(parents=True, exist_ok=True)
+    (old_day / "ai-advisory-audit.jsonl").write_text("{}", encoding="utf-8")
+    (keep_day / "ai-advisory-audit.jsonl").write_text("{}", encoding="utf-8")
+
+    removed = cleanup_ai_audit_logs(
+        repo_root=tmp_path,
+        project_id=project_id,
+        retain_days=3,
+        now_utc=date(2026, 4, 7),
+    )
+
+    assert [path.name for path in removed] == ["2026-03-01"]
+    assert old_day.exists() is False
+    assert keep_day.exists() is True
