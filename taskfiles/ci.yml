@@ -14,6 +14,7 @@ tasks:
       - task validate:adr0083-reactivation-evidence
       - task framework:strict
       - task validate:default
+      - task test:ai-redaction
 
   _strict-validate-core-inject:
     internal: true

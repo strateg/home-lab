@@ -44,6 +44,11 @@ tasks:
     cmds:
       - "{{.PYTHON}} -m pytest -o addopts= tests/plugin_regression -v --durations=10"
 
+  ai-redaction:
+    desc: Run ADR0094 redaction verification tests
+    cmds:
+      - "{{.PYTHON}} -m pytest -o addopts= tests/plugin_contract/test_ai_advisory_contract_runtime.py -q"
+
   ci-coverage:
     desc: Run repository test suite with coverage report for CI
     cmds:

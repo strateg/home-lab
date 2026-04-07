@@ -151,3 +151,8 @@ tasks:
     desc: Render ADR0083 reactivation evidence markdown from diagnostics snapshots
     cmds:
       - "{{.PYTHON}} scripts/validation/render_adr0083_reactivation_evidence.py {{if .BUNDLE}}--bundle {{.BUNDLE}}{{end}} --output-md build/diagnostics/adr0083-reactivation-evidence.md"
+
+  ai-usage-metrics:
+    desc: Generate opt-in ADR0094 AI usage metrics from local audit logs
+    cmds:
+      - "{{.PYTHON}} scripts/validation/report_ai_usage_metrics.py --project-id home-lab --output-json build/diagnostics/ai-usage-metrics.json"

@@ -106,7 +106,7 @@
 
 - [x] End-to-end flow works
 - [x] Human approval mandatory (no bypass)
-- [ ] Rollback tested and documented
+- [x] Rollback tested and documented
 - [ ] Security review for promotion path
 
 **Approver:** _________________ **Date:** _________
@@ -137,13 +137,13 @@
 
 ### Operational Checklist
 
-- [ ] AI advisory/assisted documented in operator guide
-- [ ] Rollback procedure documented
-- [ ] Audit log review process established
-- [ ] Incident response for secrets leak defined
+- [x] AI advisory/assisted documented in operator guide
+- [x] Rollback procedure documented
+- [x] Audit log review process established
+- [x] Incident response for secrets leak defined
 
 ### Monitoring
 
-- [ ] Redaction verification runs in CI
-- [ ] Audit logs reviewed periodically
-- [ ] AI usage metrics collected (opt-in)
+- [x] Redaction verification runs in CI
+- [x] Audit logs reviewed periodically
+- [x] AI usage metrics collected (opt-in)

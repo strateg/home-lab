@@ -1,0 +1,22 @@
+version: "3"
+
+tasks:
+  ai-advisory:
+    desc: Run ADR0094 advisory mode (read-only recommendations + audit trail)
+    cmds:
+      - "{{.PYTHON}} topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode passthrough --ai-advisory {{if .AI_OUTPUT_JSON}}--ai-output-json {{.AI_OUTPUT_JSON}}{{end}}"
+
+  ai-assisted:
+    desc: Run ADR0094 assisted mode (sandbox candidates, no promotion by default)
+    cmds:
+      - "{{.PYTHON}} topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode passthrough --ai-assisted {{if .AI_OUTPUT_JSON}}--ai-output-json {{.AI_OUTPUT_JSON}}{{end}} {{if .AI_ANSIBLE_LINT}}--ai-ansible-lint{{end}}"
+
+  ai-assisted-promote:
+    desc: Promote approved ADR0094 assisted candidates into generated/
+    cmds:
+      - "{{.PYTHON}} topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode passthrough --ai-assisted --ai-promote-approved {{if .AI_OUTPUT_JSON}}--ai-output-json {{.AI_OUTPUT_JSON}}{{end}} {{if .AI_APPROVE_ALL}}--ai-approve-all{{end}} {{if .AI_APPROVE_PATHS}}--ai-approve-paths {{.AI_APPROVE_PATHS}}{{end}} {{if .AI_ANSIBLE_LINT}}--ai-ansible-lint{{end}}"
+
+  ai-assisted-rollback:
+    desc: Roll back ADR0094 AI-promoted files from git baseline
+    cmds:
+      - "{{.PYTHON}} topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode passthrough --ai-assisted {{if .AI_ROLLBACK_ALL}}--ai-rollback-all{{end}} {{if .AI_ROLLBACK_PATHS}}--ai-rollback-paths {{.AI_ROLLBACK_PATHS}}{{end}} {{if .AI_ROLLBACK_REF}}--ai-rollback-ref {{.AI_ROLLBACK_REF}}{{end}}"

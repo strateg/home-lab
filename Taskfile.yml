@@ -92,6 +92,11 @@ includes:
     dir: .
     vars:
       PROJECT_ID: "{{.PROJECT_ID}}"
+  generate:
+    taskfile: ./taskfiles/generate.yml
+    dir: .
+    vars:
+      PYTHON: "{{.PYTHON}}"
 
 tasks:
   clean:
