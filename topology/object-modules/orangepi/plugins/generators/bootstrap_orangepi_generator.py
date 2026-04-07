@@ -63,6 +63,7 @@ class BootstrapOrangePiGenerator(BaseGenerator):
         nodes = projection.get("orangepi_nodes", [])
         written: list[str] = []
         planned_outputs: list[dict[str, object]] = []
+        ownership_roots: set[str] = set()
         out_root = self.resolve_output_path(ctx, "bootstrap")
 
         # Get file mappings from config (ADR0078 WP-003)
@@ -73,6 +74,7 @@ class BootstrapOrangePiGenerator(BaseGenerator):
             if not instance_id:
                 continue
             cloud_init_root = self.resolve_output_path(ctx, "bootstrap", instance_id, "cloud-init")
+            ownership_roots.add(str(cloud_init_root.resolve()))
             render_ctx = {"instance_id": instance_id}
 
             # Generate bootstrap files from config (ADR0078)
@@ -164,7 +166,8 @@ class BootstrapOrangePiGenerator(BaseGenerator):
                 path=str(out_root),
             )
         )
-        self.publish_if_possible(ctx, "generated_dir", str(out_root))
+        generated_dir = sorted(ownership_roots)[0] if ownership_roots else str(out_root)
+        self.publish_if_possible(ctx, "generated_dir", generated_dir)
         self.publish_if_possible(ctx, "generated_files", written)
         self.publish_if_possible(ctx, "bootstrap_orangepi_files", written)
         self.publish_if_possible(ctx, "artifact_plan", artifact_plan)

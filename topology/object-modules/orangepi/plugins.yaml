@@ -7,6 +7,7 @@ plugins:
     stages: [generate]
     phase: run
     order: 330
+    migration_mode: migrating
     depends_on: []
     timeout: 30
     config:

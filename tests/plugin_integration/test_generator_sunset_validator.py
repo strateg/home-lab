@@ -6,6 +6,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import yaml
+
 V5_TOOLS = Path(__file__).resolve().parents[2] / "topology-tools"
 sys.path.insert(0, str(V5_TOOLS))
 
@@ -177,8 +179,25 @@ def test_generator_sunset_validator_default_policy_includes_secondary_families()
 
     result = validator.execute(ctx, Stage.VALIDATE)
 
-    assert result.status == PluginStatus.PARTIAL
+    assert result.status == PluginStatus.SUCCESS
     summary = result.output_data["generator_sunset_summary"]
     assert summary["scheduled_targets"] == 6
-    assert summary["legacy_targets"] >= 3
-    assert any(diag.code == "W9397" for diag in result.diagnostics)
+    assert summary["legacy_targets"] == 0
+    assert not any(diag.code == "W9397" for diag in result.diagnostics)
+
+
+def test_generator_sunset_policy_targets_are_non_legacy() -> None:
+    registry = _registry()
+    policy_path = Path(__file__).resolve().parents[2] / "topology-tools" / "data" / "generator-sunset-policy.yaml"
+    payload = yaml.safe_load(policy_path.read_text(encoding="utf-8")) or {}
+    sunset_schedule = payload.get("sunset_schedule", {})
+    assert isinstance(sunset_schedule, dict)
+
+    target_ids = sorted(sunset_schedule.keys())
+    assert target_ids
+    for plugin_id in target_ids:
+        spec = registry.specs.get(plugin_id)
+        assert spec is not None, f"Policy target missing in registry: {plugin_id}"
+        assert (
+            str(getattr(spec, "migration_mode", "")).strip().lower() != "legacy"
+        ), f"Policy target must not remain legacy: {plugin_id}"

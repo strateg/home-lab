@@ -129,7 +129,7 @@
 - [ ] Legacy generator detection code removed
 - [ ] Fallback paths in validate stage removed
 - [ ] Compatibility shims removed
-- [ ] No `migration_mode: legacy` in any target family
+- [x] No `migration_mode: legacy` in any target family
 
 ### Documentation
 

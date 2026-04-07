@@ -63,6 +63,7 @@ class BootstrapMikroTikGenerator(BaseGenerator):
         nodes = projection.get("mikrotik_nodes", [])
         written: list[str] = []
         planned_outputs: list[dict[str, object]] = []
+        ownership_roots: set[str] = set()
         out_root = self.resolve_output_path(ctx, "bootstrap")
 
         # Get file mappings from config (ADR0078 WP-003)
@@ -73,6 +74,7 @@ class BootstrapMikroTikGenerator(BaseGenerator):
             if not instance_id:
                 continue
             node_root = self.resolve_output_path(ctx, "bootstrap", instance_id)
+            ownership_roots.add(str(node_root.resolve()))
             render_ctx = {
                 "instance_id": instance_id,
                 "node": row,
@@ -182,7 +184,8 @@ class BootstrapMikroTikGenerator(BaseGenerator):
                 path=str(out_root),
             )
         )
-        self.publish_if_possible(ctx, "generated_dir", str(out_root))
+        generated_dir = sorted(ownership_roots)[0] if ownership_roots else str(out_root)
+        self.publish_if_possible(ctx, "generated_dir", generated_dir)
         self.publish_if_possible(ctx, "generated_files", written)
         self.publish_if_possible(ctx, "bootstrap_mikrotik_files", written)
         self.publish_if_possible(ctx, "artifact_plan", artifact_plan)
