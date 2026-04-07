@@ -470,6 +470,14 @@ class GeneratorReadinessEvidenceBuilder(BuilderPlugin):
                 readiness_status = "warning"
             warning_reasons.append("sunset policy warnings detected")
 
+        pre_sunset_legacy_targets = sunset_summary.get("pre_sunset_legacy_targets")
+        if not isinstance(pre_sunset_legacy_targets, int):
+            pre_sunset_legacy_targets = 0
+        grace_window_legacy_targets = sunset_summary.get("grace_window_legacy_targets")
+        if not isinstance(grace_window_legacy_targets, int):
+            grace_window_legacy_targets = 0
+        hard_error_legacy_targets = sunset_errors if isinstance(sunset_errors, int) else 0
+
         evidence = {
             "schema_version": 1,
             "project_id": str(ctx.config.get("project_id", "")),
@@ -481,6 +489,11 @@ class GeneratorReadinessEvidenceBuilder(BuilderPlugin):
             },
             "generator_migration_summary": migration_summary,
             "generator_sunset_summary": sunset_summary,
+            "sunset_phase_breakdown": {
+                "pre_sunset_legacy_targets": pre_sunset_legacy_targets,
+                "grace_window_legacy_targets": grace_window_legacy_targets,
+                "hard_error_legacy_targets": hard_error_legacy_targets,
+            },
             "generator_rollback_summary": rollback_summary,
             "artifact_family_summary_totals": artifact_family_summary.get("totals", {}),
         }
@@ -583,6 +596,7 @@ class ReadinessReportsBuilder(BuilderPlugin):
         sunset_summary = readiness_evidence.get("generator_sunset_summary", {})
         rollback_summary = readiness_evidence.get("generator_rollback_summary", {})
         artifact_totals = readiness_evidence.get("artifact_family_summary_totals", {})
+        sunset_phase_breakdown = readiness_evidence.get("sunset_phase_breakdown", {})
         rollback_events = (
             rollback_summary.get("events")
             if isinstance(rollback_summary, dict) and isinstance(rollback_summary.get("events"), list)
@@ -592,12 +606,27 @@ class ReadinessReportsBuilder(BuilderPlugin):
         legacy_count = migration_summary.get("legacy", 0) if isinstance(migration_summary, dict) else 0
         sunset_errors = sunset_summary.get("errors", 0) if isinstance(sunset_summary, dict) else 0
         sunset_warnings = sunset_summary.get("warnings", 0) if isinstance(sunset_summary, dict) else 0
-        sunset_pre_sunset = (
-            sunset_summary.get("pre_sunset_legacy_targets", 0) if isinstance(sunset_summary, dict) else 0
-        )
-        sunset_grace_window = (
-            sunset_summary.get("grace_window_legacy_targets", 0) if isinstance(sunset_summary, dict) else 0
-        )
+        sunset_pre_sunset = 0
+        sunset_grace_window = 0
+        if isinstance(sunset_phase_breakdown, dict):
+            pre = sunset_phase_breakdown.get("pre_sunset_legacy_targets")
+            grace = sunset_phase_breakdown.get("grace_window_legacy_targets")
+            if isinstance(pre, int):
+                sunset_pre_sunset = pre
+            if isinstance(grace, int):
+                sunset_grace_window = grace
+        if not isinstance(sunset_pre_sunset, int):
+            sunset_pre_sunset = 0
+        if not isinstance(sunset_grace_window, int):
+            sunset_grace_window = 0
+        if sunset_pre_sunset == 0 and isinstance(sunset_summary, dict):
+            pre = sunset_summary.get("pre_sunset_legacy_targets")
+            if isinstance(pre, int):
+                sunset_pre_sunset = pre
+        if sunset_grace_window == 0 and isinstance(sunset_summary, dict):
+            grace = sunset_summary.get("grace_window_legacy_targets")
+            if isinstance(grace, int):
+                sunset_grace_window = grace
         rollback_escalated = rollback_summary.get("escalated", 0) if isinstance(rollback_summary, dict) else 0
         rollback_missing = rollback_summary.get("missing_started_at", 0) if isinstance(rollback_summary, dict) else 0
         planned_plugins = artifact_totals.get("plugins", 0) if isinstance(artifact_totals, dict) else 0
@@ -647,6 +676,7 @@ class ReadinessReportsBuilder(BuilderPlugin):
                 "generator_readiness_status": normalized_status,
                 "generator_migration_summary": migration_summary if isinstance(migration_summary, dict) else {},
                 "generator_sunset_summary": sunset_summary if isinstance(sunset_summary, dict) else {},
+                "sunset_phase_breakdown": sunset_phase_breakdown if isinstance(sunset_phase_breakdown, dict) else {},
                 "generator_rollback_summary": rollback_summary if isinstance(rollback_summary, dict) else {},
                 "artifact_family_summary_totals": artifact_totals if isinstance(artifact_totals, dict) else {},
             },

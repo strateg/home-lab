@@ -33,6 +33,9 @@ def test_generator_readiness_evidence_builder_emits_green_when_no_signals(tmp_pa
     assert output_path.exists()
     payload = json.loads(output_path.read_text(encoding="utf-8"))
     assert payload["readiness"]["status"] == "green"
+    assert payload["sunset_phase_breakdown"]["pre_sunset_legacy_targets"] == 0
+    assert payload["sunset_phase_breakdown"]["grace_window_legacy_targets"] == 0
+    assert payload["sunset_phase_breakdown"]["hard_error_legacy_targets"] == 0
 
 
 def test_generator_readiness_evidence_builder_emits_blocked_on_sunset_error(tmp_path: Path) -> None:
@@ -50,7 +53,13 @@ def test_generator_readiness_evidence_builder_emits_blocked_on_sunset_error(tmp_
             "generator_migration_summary": {"legacy": 1, "migrating": 0, "migrated": 0, "rollback": 0}
         },
         "base.validator.generator_sunset": {
-            "generator_sunset_summary": {"warnings": 1, "errors": 1, "legacy_targets": 1}
+            "generator_sunset_summary": {
+                "warnings": 1,
+                "errors": 1,
+                "legacy_targets": 1,
+                "pre_sunset_legacy_targets": 0,
+                "grace_window_legacy_targets": 0,
+            }
         },
         "base.validator.generator_rollback_escalation": {
             "generator_rollback_summary": {"warnings": 0, "escalated": 0, "missing_started_at": 0}
@@ -65,4 +74,5 @@ def test_generator_readiness_evidence_builder_emits_blocked_on_sunset_error(tmp_
     output_path = Path(result.output_data["generator_readiness_evidence_path"])
     payload = json.loads(output_path.read_text(encoding="utf-8"))
     assert payload["readiness"]["status"] == "blocked"
+    assert payload["sunset_phase_breakdown"]["hard_error_legacy_targets"] == 1
     assert payload["artifact_family_summary_totals"]["plugins"] == 3
