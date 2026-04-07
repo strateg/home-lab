@@ -200,8 +200,10 @@ def test_assemble_and_build_stage_plugins_produce_release_artifacts(tmp_path: Pa
     assert artifact_family_summary["totals"]["plugins"] >= 1
     assert generator_readiness["readiness"]["status"] in {"green", "warning", "blocked"}
     assert "sunset_phase_breakdown" in generator_readiness
+    assert "sunset_legacy_target_states" in generator_readiness
     assert restore_readiness["profile"] == "adr0091.restore-readiness.v1"
     assert "sunset_phase_breakdown" in restore_readiness["source_evidence"]
+    assert "sunset_legacy_target_states" in restore_readiness["source_evidence"]
     assert rollback_events["profile"] == "adr0093.rollback-events.v1"
 
 

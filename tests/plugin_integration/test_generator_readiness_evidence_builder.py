@@ -36,6 +36,7 @@ def test_generator_readiness_evidence_builder_emits_green_when_no_signals(tmp_pa
     assert payload["sunset_phase_breakdown"]["pre_sunset_legacy_targets"] == 0
     assert payload["sunset_phase_breakdown"]["grace_window_legacy_targets"] == 0
     assert payload["sunset_phase_breakdown"]["hard_error_legacy_targets"] == 0
+    assert payload["sunset_legacy_target_states"] == []
 
 
 def test_generator_readiness_evidence_builder_emits_blocked_on_sunset_error(tmp_path: Path) -> None:
@@ -59,6 +60,10 @@ def test_generator_readiness_evidence_builder_emits_blocked_on_sunset_error(tmp_
                 "legacy_targets": 1,
                 "pre_sunset_legacy_targets": 0,
                 "grace_window_legacy_targets": 0,
+                "legacy_target_states": [
+                    {"plugin_id": "z.generator", "sunset_phase": "grace_window"},
+                    {"plugin_id": "a.generator", "sunset_phase": "hard_error"},
+                ],
             }
         },
         "base.validator.generator_rollback_escalation": {
@@ -75,4 +80,8 @@ def test_generator_readiness_evidence_builder_emits_blocked_on_sunset_error(tmp_
     payload = json.loads(output_path.read_text(encoding="utf-8"))
     assert payload["readiness"]["status"] == "blocked"
     assert payload["sunset_phase_breakdown"]["hard_error_legacy_targets"] == 1
+    assert payload["sunset_legacy_target_states"] == [
+        {"plugin_id": "a.generator", "sunset_phase": "hard_error"},
+        {"plugin_id": "z.generator", "sunset_phase": "grace_window"},
+    ]
     assert payload["artifact_family_summary_totals"]["plugins"] == 3

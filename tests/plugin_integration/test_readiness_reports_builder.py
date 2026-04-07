@@ -36,6 +36,7 @@ def _readiness_evidence(*, status: str = "green") -> dict[str, object]:
             "grace_window_legacy_targets": 0,
             "hard_error_legacy_targets": 0,
         },
+        "sunset_legacy_target_states": [],
         "generator_rollback_summary": {"escalated": 0, "missing_started_at": 0},
         "artifact_family_summary_totals": {"plugins": 3},
     }
@@ -81,6 +82,7 @@ def test_readiness_reports_builder_emits_restore_readiness_report(tmp_path: Path
     assert hard_error_phase_check["details"]["hard_error_legacy_targets"] == 0
     assert hard_error_phase_check["status"] == "pass"
     assert payload["source_evidence"]["sunset_phase_breakdown"]["hard_error_legacy_targets"] == 0
+    assert payload["source_evidence"]["sunset_legacy_target_states"] == []
     assert rollback_payload["profile"] == "adr0093.rollback-events.v1"
 
 

@@ -422,6 +422,30 @@ class GeneratorReadinessEvidenceBuilder(BuilderPlugin):
         value = payload.get(key)
         return value if isinstance(value, dict) else {}
 
+    @staticmethod
+    def _legacy_target_states(sunset_summary: dict[str, Any]) -> list[dict[str, str]]:
+        rows = sunset_summary.get("legacy_target_states")
+        if not isinstance(rows, list):
+            return []
+        normalized: list[dict[str, str]] = []
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            plugin_id = row.get("plugin_id")
+            sunset_phase = row.get("sunset_phase")
+            if not isinstance(plugin_id, str) or not plugin_id.strip():
+                continue
+            if not isinstance(sunset_phase, str) or not sunset_phase.strip():
+                continue
+            normalized.append(
+                {
+                    "plugin_id": plugin_id.strip(),
+                    "sunset_phase": sunset_phase.strip(),
+                }
+            )
+        normalized.sort(key=lambda item: (item["plugin_id"], item["sunset_phase"]))
+        return normalized
+
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
         published = ctx.get_published_data()
@@ -477,6 +501,7 @@ class GeneratorReadinessEvidenceBuilder(BuilderPlugin):
         if not isinstance(grace_window_legacy_targets, int):
             grace_window_legacy_targets = 0
         hard_error_legacy_targets = sunset_errors if isinstance(sunset_errors, int) else 0
+        legacy_target_states = self._legacy_target_states(sunset_summary)
 
         evidence = {
             "schema_version": 1,
@@ -494,6 +519,7 @@ class GeneratorReadinessEvidenceBuilder(BuilderPlugin):
                 "grace_window_legacy_targets": grace_window_legacy_targets,
                 "hard_error_legacy_targets": hard_error_legacy_targets,
             },
+            "sunset_legacy_target_states": legacy_target_states,
             "generator_rollback_summary": rollback_summary,
             "artifact_family_summary_totals": artifact_family_summary.get("totals", {}),
         }
@@ -597,6 +623,9 @@ class ReadinessReportsBuilder(BuilderPlugin):
         rollback_summary = readiness_evidence.get("generator_rollback_summary", {})
         artifact_totals = readiness_evidence.get("artifact_family_summary_totals", {})
         sunset_phase_breakdown = readiness_evidence.get("sunset_phase_breakdown", {})
+        sunset_legacy_target_states = readiness_evidence.get("sunset_legacy_target_states", [])
+        if not isinstance(sunset_legacy_target_states, list):
+            sunset_legacy_target_states = []
         rollback_events = (
             rollback_summary.get("events")
             if isinstance(rollback_summary, dict) and isinstance(rollback_summary.get("events"), list)
@@ -692,6 +721,7 @@ class ReadinessReportsBuilder(BuilderPlugin):
                 "generator_migration_summary": migration_summary if isinstance(migration_summary, dict) else {},
                 "generator_sunset_summary": sunset_summary if isinstance(sunset_summary, dict) else {},
                 "sunset_phase_breakdown": sunset_phase_breakdown if isinstance(sunset_phase_breakdown, dict) else {},
+                "sunset_legacy_target_states": sunset_legacy_target_states,
                 "generator_rollback_summary": rollback_summary if isinstance(rollback_summary, dict) else {},
                 "artifact_family_summary_totals": artifact_totals if isinstance(artifact_totals, dict) else {},
             },
