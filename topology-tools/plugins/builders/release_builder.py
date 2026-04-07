@@ -244,6 +244,174 @@ class SbomBuilder(BuilderPlugin):
         return self.execute(ctx, stage)
 
 
+class ArtifactFamilySummaryBuilder(BuilderPlugin):
+    """Aggregate ADR0093 generation metadata into build artifact-family summary."""
+
+    @staticmethod
+    def _as_sorted_strings(values: Any) -> list[str]:
+        if not isinstance(values, list):
+            return []
+        normalized = {str(item).strip() for item in values if isinstance(item, str) and item.strip()}
+        return sorted(normalized)
+
+    @staticmethod
+    def _migration_mode(ctx: PluginContext, plugin_id: str) -> str:
+        registry = ctx.config.get("plugin_registry")
+        specs = getattr(registry, "specs", None)
+        if isinstance(specs, dict):
+            spec = specs.get(plugin_id)
+            if spec is not None:
+                raw = getattr(spec, "migration_mode", "legacy")
+                if isinstance(raw, str) and raw.strip():
+                    token = raw.strip().lower()
+                    if token in {"legacy", "migrating", "migrated", "rollback"}:
+                        return token
+        return "legacy"
+
+    def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        diagnostics: list[PluginDiagnostic] = []
+        published = ctx.get_published_data()
+        families: list[dict[str, Any]] = []
+        totals = {
+            "plugins": 0,
+            "planned_outputs": 0,
+            "generated": 0,
+            "skipped": 0,
+            "obsolete": 0,
+            "warnings": 0,
+        }
+
+        for plugin_id in sorted(published.keys()):
+            payload = published.get(plugin_id)
+            if not isinstance(payload, dict):
+                continue
+            artifact_plan = payload.get("artifact_plan")
+            generation_report = payload.get("artifact_generation_report")
+            if not isinstance(artifact_plan, dict) and not isinstance(generation_report, dict):
+                continue
+
+            planned_entries = self._as_sorted_strings(
+                [
+                    item.get("path")
+                    for item in artifact_plan.get("planned_outputs", [])
+                    if isinstance(item, dict) and isinstance(item.get("path"), str)
+                ]
+                if isinstance(artifact_plan, dict)
+                else []
+            )
+            generated_entries = self._as_sorted_strings(
+                generation_report.get("generated", []) if isinstance(generation_report, dict) else []
+            )
+            skipped_entries = self._as_sorted_strings(
+                generation_report.get("skipped", []) if isinstance(generation_report, dict) else []
+            )
+
+            issues: list[str] = []
+            overlap = sorted(set(generated_entries) & set(skipped_entries))
+            if overlap:
+                issues.append("generated and skipped overlap")
+            if planned_entries:
+                unknown_generated = sorted(set(generated_entries) - set(planned_entries))
+                unknown_skipped = sorted(set(skipped_entries) - set(planned_entries))
+                if unknown_generated:
+                    issues.append("generated contains entries outside planned_outputs")
+                if unknown_skipped:
+                    issues.append("skipped contains entries outside planned_outputs")
+
+            if issues:
+                totals["warnings"] += len(issues)
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="W8204",
+                        severity="warning",
+                        stage=stage,
+                        message=f"artifact metadata consistency issues for '{plugin_id}': {'; '.join(issues)}",
+                        path=f"plugin:{plugin_id}",
+                    )
+                )
+
+            summary_obj = generation_report.get("summary", {}) if isinstance(generation_report, dict) else {}
+            planned_count = len(planned_entries)
+            generated_count = len(generated_entries)
+            skipped_count = len(skipped_entries)
+            obsolete_count = 0
+            if isinstance(summary_obj, dict):
+                obsolete_raw = summary_obj.get("obsolete_count")
+                if isinstance(obsolete_raw, int) and obsolete_raw >= 0:
+                    obsolete_count = obsolete_raw
+
+            totals["plugins"] += 1
+            totals["planned_outputs"] += planned_count
+            totals["generated"] += generated_count
+            totals["skipped"] += skipped_count
+            totals["obsolete"] += obsolete_count
+
+            artifact_family = ""
+            if isinstance(generation_report, dict) and isinstance(generation_report.get("artifact_family"), str):
+                artifact_family = generation_report["artifact_family"].strip()
+            if (
+                not artifact_family
+                and isinstance(artifact_plan, dict)
+                and isinstance(artifact_plan.get("artifact_family"), str)
+            ):
+                artifact_family = artifact_plan["artifact_family"].strip()
+
+            families.append(
+                {
+                    "plugin_id": plugin_id,
+                    "migration_mode": self._migration_mode(ctx, plugin_id),
+                    "artifact_family": artifact_family,
+                    "planned_count": planned_count,
+                    "generated_count": generated_count,
+                    "skipped_count": skipped_count,
+                    "obsolete_count": obsolete_count,
+                    "issues": issues,
+                }
+            )
+
+        payload = {
+            "schema_version": 1,
+            "project_id": str(ctx.config.get("project_id", "")),
+            "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+            "totals": totals,
+            "families": families,
+        }
+
+        dist_root = ReleaseBundleBuilder._dist_root(ctx)
+        dist_root.mkdir(parents=True, exist_ok=True)
+        summary_path = dist_root / "artifact-family-summary.json"
+        summary_path.write_text(json.dumps(payload, ensure_ascii=True, indent=2), encoding="utf-8")
+
+        generated_files = [str(summary_path)]
+        try:
+            ctx.publish("generated_files", generated_files)
+            ctx.publish("artifact_family_summary_path", str(summary_path))
+            ctx.publish("artifact_family_summary", payload)
+        except PluginDataExchangeError:
+            pass
+
+        diagnostics.append(
+            self.emit_diagnostic(
+                code="I8204",
+                severity="info",
+                stage=stage,
+                message=f"artifact family summary generated for {totals['plugins']} plugins",
+                path=str(summary_path),
+            )
+        )
+        return self.make_result(
+            diagnostics=diagnostics,
+            output_data={
+                "artifact_family_summary_path": str(summary_path),
+                "generated_files": generated_files,
+                "artifact_family_plugins": totals["plugins"],
+            },
+        )
+
+    def on_verify(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        return self.execute(ctx, stage)
+
+
 class ReleaseManifestBuilder(BuilderPlugin):
     """Emit release manifest from bundle + SBOM outputs."""
 
@@ -266,6 +434,12 @@ class ReleaseManifestBuilder(BuilderPlugin):
                 )
             )
             return self.make_result(diagnostics)
+        try:
+            artifact_family_summary_path = str(
+                ctx.subscribe("base.builder.artifact_family_summary", "artifact_family_summary_path")
+            )
+        except PluginDataExchangeError:
+            artifact_family_summary_path = ""
 
         dist_root = ReleaseBundleBuilder._dist_root(ctx)
         dist_root.mkdir(parents=True, exist_ok=True)
@@ -284,6 +458,7 @@ class ReleaseManifestBuilder(BuilderPlugin):
             },
             "sbom_path": sbom_path,
             "assembly_manifest_path": assembly_manifest_path,
+            "artifact_family_summary_path": artifact_family_summary_path,
         }
         manifest_path.write_text(json.dumps(payload, ensure_ascii=True, indent=2), encoding="utf-8")
 

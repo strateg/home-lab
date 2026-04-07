@@ -28,10 +28,39 @@ def _seed_migrating_contract_publications(ctx: PluginContext, registry: PluginRe
             continue
         if getattr(spec, "migration_mode", "legacy") != "migrating":
             continue
+        planned_path = f"generated/home-lab/contracts/{plugin_id}.json"
         ctx._published_data[plugin_id] = {  # noqa: SLF001 - test fixture setup
-            "artifact_plan": {"schema_version": "1.0"},
-            "artifact_generation_report": {"schema_version": "1.0"},
-            "artifact_contract_files": [f"/tmp/{plugin_id}.json"],
+            "artifact_plan": {
+                "schema_version": "1.0",
+                "plugin_id": plugin_id,
+                "artifact_family": f"test.{plugin_id}",
+                "planned_outputs": [
+                    {
+                        "path": planned_path,
+                        "renderer": "jinja2",
+                        "required": True,
+                        "reason": "base-family",
+                    }
+                ],
+                "obsolete_candidates": [],
+                "capabilities": [],
+                "validation_profiles": [],
+            },
+            "artifact_generation_report": {
+                "schema_version": "1.0",
+                "plugin_id": plugin_id,
+                "artifact_family": f"test.{plugin_id}",
+                "generated": [planned_path],
+                "skipped": [],
+                "obsolete": [],
+                "summary": {
+                    "planned_count": 1,
+                    "generated_count": 1,
+                    "skipped_count": 0,
+                    "obsolete_count": 0,
+                },
+            },
+            "artifact_contract_files": [f"/tmp/{plugin_id}.artifact-plan.json"],
         }
 
 
@@ -132,22 +161,28 @@ def test_assemble_and_build_stage_plugins_produce_release_artifacts(tmp_path: Pa
     assert [r.plugin_id for r in build_results] == [
         "base.builder.bundle",
         "base.builder.sbom",
+        "base.builder.artifact_family_summary",
         "base.builder.release_manifest",
     ]
     assert all(result.status == PluginStatus.SUCCESS for result in build_results)
 
     bundle_path = dist_root / "home-lab-snapshot.zip"
     sbom_path = sbom_root / "sbom.json"
+    artifact_family_summary_path = dist_root / "artifact-family-summary.json"
     release_manifest_path = dist_root / "release-manifest.json"
     assert bundle_path.exists()
     assert sbom_path.exists()
+    assert artifact_family_summary_path.exists()
     assert release_manifest_path.exists()
     with zipfile.ZipFile(bundle_path, "r") as archive:
         assert sorted(archive.namelist()) == ["docs/overview.md"]
 
     release_manifest = json.loads(release_manifest_path.read_text(encoding="utf-8"))
+    artifact_family_summary = json.loads(artifact_family_summary_path.read_text(encoding="utf-8"))
     assert release_manifest["bundle"]["path"] == str(bundle_path)
     assert release_manifest["assembly_manifest_path"] == str(assembly_manifest)
+    assert release_manifest["artifact_family_summary_path"] == str(artifact_family_summary_path)
+    assert artifact_family_summary["totals"]["plugins"] >= 1
 
 
 def test_assemble_verify_flags_secret_like_content(tmp_path: Path):
