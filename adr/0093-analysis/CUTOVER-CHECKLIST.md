@@ -158,6 +158,7 @@
 
 ### Monitoring
 
-- [ ] Migration status metrics collected
+- [x] Migration status metrics collected
+  Metrics are emitted via `generator-readiness-evidence.json` (`generator_migration_summary`, `generator_sunset_summary`, `sunset_phase_breakdown`, `sunset_legacy_target_states`) and propagated to `reports/restore-readiness.json`.
 - [x] Obsolete action audit available
 - [x] Rollback events tracked
