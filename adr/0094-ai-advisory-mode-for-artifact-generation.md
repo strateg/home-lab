@@ -1,6 +1,6 @@
 # ADR 0094: AI Advisory Mode for Artifact Generation
 
-**Status:** Proposed
+**Status:** Implemented (Waves 1-4 complete; checklist closed)
 **Date:** 2026-04-06
 **Depends on:** ADR 0063, ADR 0072, ADR 0073, ADR 0074, ADR 0080, ADR 0092, ADR 0093
 **Extracted from:** ADR 0092 D10
@@ -566,12 +566,20 @@ Without these foundations, AI advisory would be working with unstable/unstructur
 
 ---
 
-## Suggested Repository Updates
+## Repository Updates (Implemented)
 
-1. Add `adr/0094-ai-advisory-mode-for-artifact-generation.md`
-2. Update `adr/REGISTER.md`
-3. Create `adr/0094-analysis/` with standard documents
-4. Update ADR 0092 to reference this ADR instead of D10/Wave 5
-5. Add `topology-tools/ai/` directory structure (Wave 2)
-6. Add `schemas/ai-input-contract.schema.json` (Wave 1)
-7. Add `schemas/ai-output-contract.schema.json` (Wave 1)
+1. `adr/0094-ai-advisory-mode-for-artifact-generation.md` added and tracked in register.
+2. `adr/REGISTER.md` updated (`0094` marked implemented).
+3. `adr/0094-analysis/` created with plan, gap, checklist, security, and coverage artifacts.
+4. ADR 0092 references aligned to keep deterministic path separated from AI advisory path.
+5. AI advisory runtime components implemented under generator plugin domain:
+   - `topology-tools/plugins/generators/ai_advisory_contract.py`
+   - `topology-tools/plugins/generators/ai_sandbox.py`
+   - `topology-tools/plugins/generators/ai_audit.py`
+   - `topology-tools/plugins/generators/ai_assisted.py`
+   - `topology-tools/plugins/generators/ai_promotion.py`
+   - `topology-tools/plugins/generators/ai_rollback.py`
+   - `topology-tools/plugins/generators/ai_ansible.py`
+6. Schemas added:
+   - `schemas/ai-input-contract.schema.json`
+   - `schemas/ai-output-contract.schema.json`

@@ -1,13 +1,16 @@
 # ADR 0094 IMPLEMENTATION PLAN
 
+**Status:** Completed (Waves 1-4 delivered)  
+**Last updated:** 2026-04-08
+
 ## Prerequisites
 
 Before starting Wave 1:
 
-- [ ] ADR 0092 approved (provides projection/ArtifactPlan contracts)
-- [ ] ADR 0093 approved (provides schema for AI input)
-- [ ] Secrets registry operational (ADR 0072)
-- [ ] Field annotations operational (ADR 0073)
+- [x] ADR 0092 approved (provides projection/ArtifactPlan contracts)
+- [x] ADR 0093 approved (provides schema for AI input)
+- [x] Secrets registry operational (ADR 0072)
+- [x] Field annotations operational (ADR 0073)
 
 ## Wave 1 — Sandbox Foundation
 
@@ -46,10 +49,10 @@ Before starting Wave 1:
 
 ### Wave 1 Gate
 
-- [ ] Redaction coverage >= 99% (measured by test suite)
-- [ ] Zero secrets in test AI payloads
-- [ ] Sandbox isolation verified
-- [ ] Audit logs complete for test scenarios
+- [x] Redaction coverage >= 99% (measured by test suite)
+- [x] Zero secrets in test AI payloads
+- [x] Sandbox isolation verified
+- [x] Audit logs complete for test scenarios
 
 ## Wave 2 — Advisory Mode
 
@@ -83,10 +86,10 @@ Before starting Wave 1:
 
 ### Wave 2 Gate
 
-- [ ] Advisory mode produces valid recommendations
-- [ ] No artifacts modified (verified by tests)
-- [ ] Audit trail complete
-- [ ] Recommendations display correctly
+- [x] Advisory mode produces valid recommendations
+- [x] No artifacts modified (verified by tests)
+- [x] Audit trail complete
+- [x] Recommendations display correctly
 
 ## Wave 3 — Assisted Mode
 
@@ -130,11 +133,11 @@ Before starting Wave 1:
 
 ### Wave 3 Gate
 
-- [ ] End-to-end assisted flow works
-- [ ] Human approval required (no bypass)
-- [ ] Diff review accurate
-- [ ] Rollback restores baseline < 5 min
-- [ ] All promoted files traceable to AI
+- [x] End-to-end assisted flow works
+- [x] Human approval required (no bypass)
+- [x] Diff review accurate
+- [x] Rollback restores baseline < 5 min
+- [x] All promoted files traceable to AI
 
 ## Wave 4 — Expansion
 
@@ -158,9 +161,9 @@ Before starting Wave 1:
 
 ### Wave 4 Gate
 
-- [ ] Ansible artifacts supported
-- [ ] Family-specific features work
-- [ ] Performance within limits
+- [x] Ansible artifacts supported
+- [x] Family-specific features work
+- [x] Performance within limits
 
 ## Timeline Dependencies
 
