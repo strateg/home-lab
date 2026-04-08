@@ -1,0 +1,4 @@
+schema_version: 1
+bundle_id: bundle.edge-routing
+title: Edge Routing
+summary: WAN/LAN routing baseline and egress policy controls.

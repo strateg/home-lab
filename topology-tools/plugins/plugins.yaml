@@ -255,6 +255,29 @@ plugins:
         scope: pipeline_shared
     description: Loads capability catalog and packs contract for plugin-first pipeline.
 
+  - id: base.compiler.soho_profile_resolver
+    kind: compiler
+    entry: compilers/soho_profile_resolver_compiler.py:SohoProfileResolverCompiler
+    api_version: "1.x"
+    stages: [compile]
+    phase: run
+    order: 55
+    depends_on: []
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    produces:
+      - key: soho_profile_resolution
+        scope: pipeline_shared
+      - key: effective_product_bundles
+        scope: pipeline_shared
+      - key: available_product_bundles
+        scope: pipeline_shared
+    description: Resolves ADR0089 canonical SOHO profile contract and effective required bundle set.
+
   - id: base.compiler.effective_model
     kind: compiler
     entry: compilers/effective_model_compiler.py:EffectiveModelCompiler
@@ -1304,7 +1327,7 @@ plugins:
     stages: [validate]
     phase: verify
     order: 187
-    depends_on: []
+    depends_on: [base.compiler.soho_profile_resolver]
     timeout: 30
     config:
       soho_migration_policy_path: topology-tools/data/soho-migration-state-policy.yaml
@@ -1318,6 +1341,16 @@ plugins:
     produces:
       - key: product_profile_state
         scope: pipeline_shared
+    consumes:
+      - from_plugin: base.compiler.soho_profile_resolver
+        key: soho_profile_resolution
+        required: false
+      - from_plugin: base.compiler.soho_profile_resolver
+        key: effective_product_bundles
+        required: false
+      - from_plugin: base.compiler.soho_profile_resolver
+        key: available_product_bundles
+        required: false
     description: Validates ADR0089 product_profile contract and emits machine-readable migration state report.
 
   - id: base.validator.generator_sunset

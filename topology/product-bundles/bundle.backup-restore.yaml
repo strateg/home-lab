@@ -1,0 +1,4 @@
+schema_version: 1
+bundle_id: bundle.backup-restore
+title: Backup and Restore
+summary: Backup targets, schedules, and restore readiness controls.

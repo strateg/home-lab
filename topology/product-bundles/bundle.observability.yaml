@@ -1,0 +1,4 @@
+schema_version: 1
+bundle_id: bundle.observability
+title: Observability
+summary: Metrics, logging, and alerting essentials for SOHO operations.

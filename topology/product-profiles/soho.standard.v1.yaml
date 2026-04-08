@@ -1,0 +1,34 @@
+schema_version: 1
+profile_id: soho.standard.v1
+title: SOHO Standard v1
+summary: Canonical SOHO baseline profile for single and small multi-site deployments.
+core_required_bundles:
+  - bundle.edge-routing
+  - bundle.network-segmentation
+  - bundle.secrets-governance
+deployment_classes:
+  starter:
+    required_bundles:
+      - bundle.remote-access
+      - bundle.operator-workflows
+  managed-soho:
+    required_bundles:
+      - bundle.remote-access
+      - bundle.backup-restore
+      - bundle.observability
+      - bundle.operator-workflows
+      - bundle.update-management
+  advanced-soho:
+    required_bundles:
+      - bundle.remote-access
+      - bundle.backup-restore
+      - bundle.observability
+      - bundle.operator-workflows
+      - bundle.update-management
+      - bundle.incident-response
+      - bundle.multi-uplink-resilience
+supported_dimensions:
+  site_classes: [single-site, multi-site]
+  user_band_pattern: '^[0-9]+-[0-9]+$'
+  operator_modes: [single-operator, team-operator]
+  release_channels: [stable, candidate, dev]

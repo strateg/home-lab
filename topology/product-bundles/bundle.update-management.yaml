@@ -1,0 +1,4 @@
+schema_version: 1
+bundle_id: bundle.update-management
+title: Update Management
+summary: Controlled update workflows with preflight and rollback policy.

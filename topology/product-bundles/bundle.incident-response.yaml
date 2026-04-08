@@ -1,0 +1,4 @@
+schema_version: 1
+bundle_id: bundle.incident-response
+title: Incident Response
+summary: Incident runbooks, escalation paths, and evidence capture.

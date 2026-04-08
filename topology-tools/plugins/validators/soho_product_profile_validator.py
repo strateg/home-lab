@@ -7,7 +7,14 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage, ValidatorJsonPlugin
+from kernel.plugin_base import (
+    PluginContext,
+    PluginDataExchangeError,
+    PluginDiagnostic,
+    PluginResult,
+    Stage,
+    ValidatorJsonPlugin,
+)
 
 try:
     import jsonschema
@@ -44,6 +51,7 @@ _CLASS_OVERLAYS = {
     },
 }
 _STATE_FALLBACK = "legacy"
+_SOHO_PROFILE_RESOLVER_PLUGIN = "base.compiler.soho_profile_resolver"
 
 
 class SohoProductProfileValidator(ValidatorJsonPlugin):
@@ -84,6 +92,8 @@ class SohoProductProfileValidator(ValidatorJsonPlugin):
                 profile_id="(missing)",
                 deployment_class="(missing)",
                 bundle_ids=bundle_ids,
+                required_bundles=set(),
+                available_bundles=set(),
                 diagnostics=diagnostics,
             )
             self._write_state_report(ctx=ctx, report=report)
@@ -108,6 +118,8 @@ class SohoProductProfileValidator(ValidatorJsonPlugin):
                 profile_id=str(product_profile.get("profile_id", "")),
                 deployment_class=str(product_profile.get("deployment_class", "")),
                 bundle_ids=bundle_ids,
+                required_bundles=set(),
+                available_bundles=set(),
                 diagnostics=diagnostics,
             )
             self._write_state_report(ctx=ctx, report=report)
@@ -128,8 +140,27 @@ class SohoProductProfileValidator(ValidatorJsonPlugin):
                 )
             )
 
-        required_bundles = set(_CORE_BUNDLES)
-        required_bundles.update(_CLASS_OVERLAYS.get(deployment_class, set()))
+        required_bundles, available_bundles, missing_contract_bundles = self._resolve_required_bundles(
+            ctx=ctx,
+            profile_id=profile_id,
+            deployment_class=deployment_class,
+        )
+        if missing_contract_bundles:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7942",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        "required bundles are not defined in canonical product-bundle catalog: "
+                        + ", ".join(sorted(missing_contract_bundles))
+                    ),
+                    path="topology/product-bundles",
+                )
+            )
+        if not required_bundles:
+            required_bundles = set(_CORE_BUNDLES)
+            required_bundles.update(_CLASS_OVERLAYS.get(deployment_class, set()))
         missing_bundles = sorted(required_bundles - bundle_ids)
 
         if missing_bundles:
@@ -182,6 +213,8 @@ class SohoProductProfileValidator(ValidatorJsonPlugin):
             profile_id=profile_id,
             deployment_class=deployment_class,
             bundle_ids=bundle_ids,
+            required_bundles=required_bundles,
+            available_bundles=available_bundles,
             diagnostics=diagnostics,
         )
         self._write_state_report(ctx=ctx, report=report)
@@ -234,6 +267,46 @@ class SohoProductProfileValidator(ValidatorJsonPlugin):
             return f"invalid migration_state transition: {previous_state} -> {current_state}."
         return None
 
+    def _resolve_required_bundles(
+        self,
+        *,
+        ctx: PluginContext,
+        profile_id: str,
+        deployment_class: str,
+    ) -> tuple[set[str], set[str], set[str]]:
+        try:
+            required_payload = ctx.subscribe(_SOHO_PROFILE_RESOLVER_PLUGIN, "effective_product_bundles")
+            available_payload = ctx.subscribe(_SOHO_PROFILE_RESOLVER_PLUGIN, "available_product_bundles")
+            resolution_payload = ctx.subscribe(_SOHO_PROFILE_RESOLVER_PLUGIN, "soho_profile_resolution")
+        except PluginDataExchangeError:
+            required_payload = None
+            available_payload = None
+            resolution_payload = None
+
+        required: set[str] = set()
+        available: set[str] = set()
+        missing_catalog: set[str] = set()
+        if isinstance(required_payload, list):
+            required = {str(item).strip() for item in required_payload if isinstance(item, str) and str(item).strip()}
+        if isinstance(available_payload, list):
+            available = {
+                str(item).strip() for item in available_payload if isinstance(item, str) and str(item).strip()
+            }
+        if isinstance(resolution_payload, dict):
+            missing_raw = resolution_payload.get("missing_bundle_definitions", [])
+            if isinstance(missing_raw, list):
+                missing_catalog = {
+                    str(item).strip() for item in missing_raw if isinstance(item, str) and str(item).strip()
+                }
+
+        if required:
+            return required, available, missing_catalog
+
+        # Fallback for direct/integration execution without registry bus.
+        required = set(_CORE_BUNDLES)
+        required.update(_CLASS_OVERLAYS.get(deployment_class, set()))
+        return required, available, missing_catalog
+
     @staticmethod
     def _bundle_ids(project_manifest: dict[str, Any]) -> set[str]:
         raw = project_manifest.get("product_bundles", [])
@@ -283,6 +356,8 @@ class SohoProductProfileValidator(ValidatorJsonPlugin):
         profile_id: str,
         deployment_class: str,
         bundle_ids: set[str],
+        required_bundles: set[str],
+        available_bundles: set[str],
         diagnostics: list[PluginDiagnostic],
     ) -> dict[str, Any]:
         project_id = str(project_manifest.get("project", ctx.config.get("project_id", "unknown"))).strip() or "unknown"
@@ -297,6 +372,8 @@ class SohoProductProfileValidator(ValidatorJsonPlugin):
             "migration_state": migration_state,
             "status": status,
             "bundles": sorted(bundle_ids),
+            "required_bundles": sorted(required_bundles),
+            "available_bundles": sorted(available_bundles),
             "diagnostics": [
                 {
                     "code": item.code,

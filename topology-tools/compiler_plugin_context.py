@@ -79,6 +79,16 @@ def create_plugin_context(
         project_manifest_value = str(project_manifest_path.relative_to(repo_root).as_posix())
     except ValueError:
         project_manifest_value = str(project_manifest_path.as_posix())
+    product_profiles_root = repo_root / "topology" / "product-profiles"
+    product_bundles_root = repo_root / "topology" / "product-bundles"
+    try:
+        product_profiles_root_value = str(product_profiles_root.relative_to(repo_root).as_posix())
+    except ValueError:
+        product_profiles_root_value = str(product_profiles_root.as_posix())
+    try:
+        product_bundles_root_value = str(product_bundles_root.relative_to(repo_root).as_posix())
+    except ValueError:
+        product_bundles_root_value = str(product_bundles_root.as_posix())
 
     embedded_in_owner = validation_owner("embedded_in")
     model_lock_owner = validation_owner("model_lock")
@@ -122,6 +132,8 @@ def create_plugin_context(
             "project_id": project_id,
             "project_root": project_root_value,
             "project_manifest_path": project_manifest_value,
+            "product_profiles_root": product_profiles_root_value,
+            "product_bundles_root": product_bundles_root_value,
             "require_new_model": require_new_model,
             "generator_artifacts_root": artifacts_root_value,
             "workspace_root": workspace_root_value,
