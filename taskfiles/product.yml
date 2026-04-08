@@ -13,10 +13,9 @@ tasks:
       - task inspect:default
 
   plan:
-    desc: Product change preview (non-destructive validation/build)
+    desc: Product change preview (non-destructive validation)
     cmds:
       - task validate:default
-      - task build:default
 
   apply:
     desc: Product apply workflow (requires BUNDLE + ALLOW_APPLY=YES)

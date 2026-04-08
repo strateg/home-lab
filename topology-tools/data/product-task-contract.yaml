@@ -1,0 +1,74 @@
+schema_version: 1
+tasks:
+  product:init:
+    side_effects: write
+    mode: controlled-bootstrap
+    preconditions:
+      - dev environment is ready
+    postconditions:
+      - baseline validation/build artifacts are generated
+
+  product:doctor:
+    side_effects: none
+    mode: read-only
+    preconditions:
+      - topology inputs are present
+    postconditions:
+      - normalized operator status snapshot is available
+
+  product:plan:
+    side_effects: none
+    mode: dry-run
+    preconditions:
+      - topology inputs are present
+    postconditions:
+      - validation diagnostics for planned change are available
+
+  product:apply:
+    side_effects: write
+    mode: controlled-execution
+    preconditions:
+      - BUNDLE is provided
+      - ALLOW_APPLY is YES
+    postconditions:
+      - deploy apply workflow has executed with evidence output
+
+  product:backup:
+    side_effects: write
+    mode: controlled-execution
+    preconditions:
+      - deploy runner and targets are reachable
+    postconditions:
+      - backup evidence check report is produced
+
+  product:restore:
+    side_effects: write
+    mode: controlled-drill
+    preconditions:
+      - restore source metadata is available
+    postconditions:
+      - restore drill report is produced
+
+  product:update:
+    side_effects: write
+    mode: controlled-preflight
+    preconditions:
+      - update target and rollback inputs are resolvable
+    postconditions:
+      - update preflight report is produced
+
+  product:audit:
+    side_effects: none
+    mode: read-only
+    preconditions:
+      - diagnostics output directory is writable
+    postconditions:
+      - validation + AI usage metrics snapshot is produced
+
+  product:handover:
+    side_effects: write
+    mode: artifact-assembly
+    preconditions:
+      - generated artifacts exist
+    postconditions:
+      - immutable deploy bundle inventory is refreshed

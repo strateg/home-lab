@@ -51,8 +51,8 @@ Validation evidence:
 ### Step B: ADR0090 operator lifecycle surface
 - [x] Add task wrappers:
   - `product:init`, `product:doctor`, `product:plan`, `product:apply`, `product:backup`, `product:restore`, `product:update`, `product:audit`, `product:handover`
-- [ ] Define explicit precondition/postcondition contracts per task.
-- [ ] Add contract tests proving read-only tasks have no side effects.
+- [x] Define explicit precondition/postcondition contracts per task.
+- [x] Add contract tests proving read-only tasks have no side effects.
 
 ### Step C: ADR0091 readiness evidence stack
 - [ ] Add missing schemas:
