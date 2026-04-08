@@ -2,8 +2,8 @@
 
 Comprehensive documentation for operating and developing the home lab infrastructure.
 
-**ADR Reference:** 0062, 0063, 0072, 0074, 0080, 0082, 0083, 0084, 0085, 0086
-**Last Updated:** 2026-04-03
+**ADR Reference:** 0062, 0063, 0072, 0074, 0080, 0082, 0083, 0084, 0085, 0086, 0092, 0093, 0094
+**Last Updated:** 2026-04-08
 
 ---
 
@@ -54,6 +54,7 @@ Build-time layer for topology compilation and artifact generation.
 - Pipeline Stages - discover → compile → validate → generate → assemble → build
 - Plugin Microkernel - Extensible compilation architecture
 - Class-Object-Instance - Three-level topology hierarchy
+- Artifact Contracts - `ArtifactPlan` / `ArtifactGenerationReport` for migrated generators (ADR0093)
 
 ---
 

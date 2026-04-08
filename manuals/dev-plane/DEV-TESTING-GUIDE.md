@@ -44,7 +44,7 @@ tests/
 
 ```bash
 task test
-# Output: 822 passed, 4 skipped
+# Output: full repository test suite
 ```
 
 ### By Category

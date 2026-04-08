@@ -237,6 +237,30 @@ python scripts/orchestration/lane.py phase1-gate
 
 ---
 
+## MCP Helper Commands
+
+### MikroTik MCP setup (Claude/Codex)
+
+```bash
+# Claude Code MCP registration
+python scripts/orchestration/mcp/setup-mikrotik-mcp-claude.py --check
+python scripts/orchestration/mcp/setup-mikrotik-mcp-claude.py
+
+# Codex MCP registration
+python scripts/orchestration/mcp/setup-mikrotik-mcp-codex.py --check
+python scripts/orchestration/mcp/setup-mikrotik-mcp-codex.py
+
+# Remove MCP registrations
+python scripts/orchestration/mcp/setup-mikrotik-mcp-claude.py --remove
+python scripts/orchestration/mcp/setup-mikrotik-mcp-codex.py --remove
+```
+
+Notes:
+- Both scripts decrypt credentials from SOPS secrets.
+- Codex registration uses `codex mcp add`; Claude registration writes to Claude config.
+
+---
+
 ## Project Commands
 
 ### Project Initialization

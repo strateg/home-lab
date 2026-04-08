@@ -1,8 +1,8 @@
 # Development Plane Operator Manual
 
 **Version:** 1.0
-**ADR Reference:** 0062, 0063, 0074, 0080
-**Last Updated:** 2026-04-03
+**ADR Reference:** 0062, 0063, 0074, 0080, 0092, 0093, 0094
+**Last Updated:** 2026-04-08
 
 ---
 
@@ -29,6 +29,7 @@ Development Plane is the build-time layer for Infrastructure-as-Data topology co
 - **Plugin-based microkernel** - Extensible compiler with discover → compile → validate → generate → assemble → build pipeline (ADR 0063, 0080)
 - **Class-Object-Instance model** - Three-level topology hierarchy (ADR 0062)
 - **Generator architecture** - Terraform, Ansible, Bootstrap artifact generation (ADR 0074)
+- **Smart artifact generation contracts** - projection → plan → report lifecycle (ADR 0092, ADR 0093)
 - **Framework/Project separation** - Reusable framework with project-specific instances (ADR 0075)
 
 ### Key Principles
@@ -276,7 +277,7 @@ schema_version: "1.0"
 framework:
   class_modules_root: topology/class-modules
   object_modules_root: topology/object-modules
-  model_lock: topology/model-lock.yaml
+  model_lock: topology/model.lock.yaml
   layer_contract: topology/layer-contract.yaml
   capability_catalog: topology/capability-catalog.yaml
   capability_packs: topology/capability-packs.yaml
