@@ -167,7 +167,7 @@ class GeneratorRollbackEscalationValidator(ValidatorJsonPlugin):
         config_today = self._parse_date(ctx.config.get("rollback_today"))
         today = config_today or datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
 
-        summary = {
+        summary: dict[str, Any] = {
             "rollback_generators": 0,
             "escalated": 0,
             "missing_started_at": 0,

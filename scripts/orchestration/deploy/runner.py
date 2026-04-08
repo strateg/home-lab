@@ -38,6 +38,14 @@ if TYPE_CHECKING:
     from typing import Sequence
 
 
+def _timeout_stdout(value: str | bytes | None) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return value
+
+
 @dataclass
 class RunResult:
     """Result of a command execution."""
@@ -171,7 +179,7 @@ class NativeRunner(DeployRunner):
         except subprocess.TimeoutExpired as exc:
             return RunResult(
                 exit_code=-1,
-                stdout=exc.stdout or "",
+                stdout=_timeout_stdout(exc.stdout),
                 stderr=f"Command timed out after {timeout}s",
             )
         except Exception as exc:  # pragma: no cover - defensive
@@ -269,7 +277,7 @@ class WSLRunner(DeployRunner):
         except subprocess.TimeoutExpired as exc:
             return RunResult(
                 exit_code=-1,
-                stdout=exc.stdout or "",
+                stdout=_timeout_stdout(exc.stdout),
                 stderr=f"Command timed out after {timeout}s",
             )
         except Exception as exc:  # pragma: no cover - defensive
@@ -442,7 +450,7 @@ class DockerRunner(DeployRunner):
         except subprocess.TimeoutExpired as exc:
             return RunResult(
                 exit_code=-1,
-                stdout=exc.stdout or "",
+                stdout=_timeout_stdout(exc.stdout),
                 stderr=f"Command timed out after {timeout}s",
             )
         except Exception as exc:  # pragma: no cover - defensive
@@ -562,7 +570,7 @@ class RemoteLinuxRunner(DeployRunner):
         except subprocess.TimeoutExpired as exc:
             return RunResult(
                 exit_code=-1,
-                stdout=exc.stdout or "",
+                stdout=_timeout_stdout(exc.stdout),
                 stderr=f"Command timed out after {timeout}s",
             )
         except Exception as exc:  # pragma: no cover - defensive
@@ -689,7 +697,7 @@ def get_runner(
 
 
 def _get_explicit_runner(preference: str, **kwargs) -> DeployRunner:
-    runners = {
+    runners: dict[str, type[DeployRunner]] = {
         "native": NativeRunner,
         "wsl": WSLRunner,
         "docker": DockerRunner,
@@ -739,9 +747,9 @@ def _auto_detect_runner() -> DeployRunner:
     system = platform.system()
 
     if system == "Windows":
-        runner = WSLRunner()
-        if runner.is_available():
-            return runner
+        wsl_runner = WSLRunner()
+        if wsl_runner.is_available():
+            return wsl_runner
         raise RuntimeError(
             "Deploy plane requires Linux execution environment.\n\n"
             "You are on Windows but WSL is not available.\n"
@@ -751,9 +759,9 @@ def _auto_detect_runner() -> DeployRunner:
         )
 
     if system == "Linux":
-        runner = NativeRunner()
-        if runner.is_available():
-            return runner
+        native_runner = NativeRunner()
+        if native_runner.is_available():
+            return native_runner
 
     raise RuntimeError(
         f"No suitable deploy runner for platform: {system}. " "Canonical deploy execution is Linux-backed."

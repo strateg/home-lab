@@ -519,8 +519,8 @@ def main() -> int:
         generated += 1
 
     if errors:
-        for row in errors:
-            print(f"ERROR: {row}", file=sys.stderr)
+        for error_row in errors:
+            print(f"ERROR: {error_row}", file=sys.stderr)
         return 2
 
     print(

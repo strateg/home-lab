@@ -68,7 +68,7 @@ class DeployTimeouts:
 @dataclass(frozen=True)
 class BundlePolicy:
     retention_count: int = DEFAULT_BUNDLE["retention_count"]
-    auto_cleanup: bool = DEFAULT_BUNDLE["auto_cleanup"]
+    auto_cleanup: bool = bool(DEFAULT_BUNDLE["auto_cleanup"])
 
 
 @dataclass(frozen=True)

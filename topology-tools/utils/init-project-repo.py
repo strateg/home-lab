@@ -316,10 +316,10 @@ def _create_layer_structure(
 
     for group_name in sorted(group_layers):
         layer = group_layers[group_name]
-        bucket = LAYER_BUCKETS.get(layer)
-        if not isinstance(bucket, str):
+        bucket_name = LAYER_BUCKETS.get(layer)
+        if not isinstance(bucket_name, str):
             continue
-        _touch_gitkeep(instances_root / bucket / group_name)
+        _touch_gitkeep(instances_root / bucket_name / group_name)
 
     _touch_gitkeep(project_root / "secrets" / "instances")
     _touch_gitkeep(project_root / "secrets" / "terraform")

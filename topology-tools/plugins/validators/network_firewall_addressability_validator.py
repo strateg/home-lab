@@ -66,7 +66,7 @@ class NetworkFirewallAddressabilityValidator(ValidatorJsonPlugin):
 
             trust_zone_ref = self._resolve_field(ctx=ctx, row=row, key="trust_zone_ref")
             if isinstance(trust_zone_ref, str) and trust_zone_ref:
-                has_static = isinstance(cidr, str) and cidr and cidr != "dhcp"
+                has_static = bool(isinstance(cidr, str) and cidr and cidr != "dhcp")
                 zone_has_static_cidr[trust_zone_ref] = zone_has_static_cidr.get(trust_zone_ref, False) or has_static
 
         for row in rows:

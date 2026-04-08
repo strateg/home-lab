@@ -246,9 +246,12 @@ class EffectiveModelCompiler(CompilerPlugin):
         by_group: dict[str, list[dict[str, Any]]] = {}
         for row in rows:
             group_name = row.get("group")
+            group_key = group_name if isinstance(group_name, str) and group_name else "ungrouped"
             class_ref = row.get("class_ref")
             object_ref = row.get("object_ref")
             instance_id = row.get("instance")
+            object_ref_key = object_ref if isinstance(object_ref, str) else ""
+            instance_id_key = instance_id if isinstance(instance_id, str) else ""
 
             class_payload = ctx.classes.get(class_ref, {}) if isinstance(class_ref, str) else {}
             if not isinstance(class_payload, dict):
@@ -290,7 +293,7 @@ class EffectiveModelCompiler(CompilerPlugin):
                     "version": object_payload.get("version"),
                     "enabled_capabilities": object_payload.get("enabled_capabilities", []),
                     "enabled_packs": object_payload.get("enabled_packs", []),
-                    "derived_capabilities": object_derived_caps.get(object_ref, []),
+                    "derived_capabilities": object_derived_caps.get(object_ref_key, []),
                     "vendor_capabilities": object_payload.get("vendor_capabilities", []),
                     "vendor": object_payload.get("vendor"),
                     "model": object_payload.get("model"),
@@ -312,7 +315,7 @@ class EffectiveModelCompiler(CompilerPlugin):
                 "resolved_lineage": resolved_lineage,
                 "firmware_ref": None,
                 "os_refs": [],
-                "derived_capabilities": instance_derived_caps.get(instance_id, []),
+                "derived_capabilities": instance_derived_caps.get(instance_id_key, []),
                 "effective_software": {},
             }
             software_refs = instance_software_refs.get(instance_id) if isinstance(instance_id, str) else None
@@ -332,7 +335,7 @@ class EffectiveModelCompiler(CompilerPlugin):
                 if isinstance(os_ref, str) and os_ref:
                     effective_item["object"]["prerequisites"] = {"os_ref": os_ref}
 
-            by_group.setdefault(group_name, []).append(effective_item)
+            by_group.setdefault(group_key, []).append(effective_item)
 
         for group_rows in by_group.values():
             group_rows.sort(key=lambda item: str(item.get("instance", "")))

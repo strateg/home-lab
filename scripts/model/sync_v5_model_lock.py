@@ -13,6 +13,7 @@ TOOLS_ROOT = ROOT / "topology-tools"
 sys.path.insert(0, str(TOOLS_ROOT))
 
 from yaml_loader import load_yaml_file
+
 LOCK_PATH = ROOT / "topology/model.lock.yaml"
 CLASS_ROOT = ROOT / "topology/class-modules"
 OBJECT_ROOT = ROOT / "topology/object-modules"

@@ -1,5 +1,3 @@
-# adr/0092-smart-artifact-generation-and-hybrid-rendering.md
-
 # ADR 0092: Smart Artifact Generation and Hybrid Rendering
 
 **Status:** Implemented (Waves 1-4 complete; AI path extracted to ADR 0094)

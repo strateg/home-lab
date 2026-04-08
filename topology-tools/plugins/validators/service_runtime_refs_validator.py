@@ -423,7 +423,7 @@ class ServiceRuntimeRefsValidator(ValidatorJsonPlugin):
                     expected_label = expected_classes
                 else:
                     class_ok = target_class in expected_classes
-                    expected_label = sorted(expected_classes)
+                    expected_label = ", ".join(sorted(expected_classes))
                 if class_ok:
                     continue
                 diagnostics.append(

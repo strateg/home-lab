@@ -839,7 +839,8 @@ class V5Compiler:
 
     @staticmethod
     def _json_safe_payload(payload: dict[str, Any]) -> dict[str, Any]:
-        return json.loads(json.dumps(payload, ensure_ascii=True, default=str))
+        parsed = json.loads(json.dumps(payload, ensure_ascii=True, default=str))
+        return parsed if isinstance(parsed, dict) else {}
 
     @staticmethod
     def _extract_path_leaf_token(path: str) -> str:
@@ -1059,7 +1060,7 @@ class V5Compiler:
             },
             input_hash=input_hash,
         )
-        parsed = {"recommendations": [], "confidence_scores": {}, "metadata": {}}
+        parsed: dict[str, Any] = {"recommendations": [], "confidence_scores": {}, "metadata": {}}
         output_hash = ""
         if ai_output is not None:
             output_hash = self._advisory_payload_hash(ai_output)
@@ -1186,12 +1187,12 @@ class V5Compiler:
         )
         rollback_requested = self.ai_rollback_all or bool(self.ai_rollback_paths)
         if rollback_requested:
-            promoted = list_ai_promoted_artifacts(repo_root=REPO_ROOT, project_id=project_id)
+            rollback_candidates = list_ai_promoted_artifacts(repo_root=REPO_ROOT, project_id=project_id)
             if self.ai_rollback_all:
-                targets = promoted
+                targets = rollback_candidates
             else:
                 wanted = set(self.ai_rollback_paths)
-                targets = [row for row in promoted if str(row.get("path", "")) in wanted]
+                targets = [row for row in rollback_candidates if str(row.get("path", "")) in wanted]
             rollback = rollback_ai_promoted_artifacts(
                 repo_root=REPO_ROOT,
                 artifacts=targets,

@@ -77,11 +77,9 @@ class CapabilityContractLoaderCompiler(CompilerPlugin):
 
         owner = ctx.config.get("compilation_owner_capability_contract_data")
         if owner is not None and owner != "plugin":
-            catalog_ids: list[str] = []
-            packs_map: dict[str, dict[str, Any]] = {}
             return self.make_result(
                 diagnostics,
-                output_data={"catalog_ids": catalog_ids, "packs_map": packs_map},
+                output_data={"catalog_ids": [], "packs_map": {}},
             )
 
         catalog_path_raw = ctx.config.get("capability_catalog_path")

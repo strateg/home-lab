@@ -206,7 +206,8 @@ def _resolve_schema_paths(ctx: PluginContext | None = None) -> tuple[str, str]:
 
 
 def _load_schema(schema_path: str) -> dict[str, Any]:
-    return json.loads(Path(schema_path).read_text(encoding="utf-8"))
+    payload = json.loads(Path(schema_path).read_text(encoding="utf-8"))
+    return payload if isinstance(payload, dict) else {}
 
 
 def validate_ai_contract_payloads(

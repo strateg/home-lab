@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from threading import Lock
 from types import MappingProxyType
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, cast
 
 
 class PluginKind(str, Enum):
@@ -691,7 +691,7 @@ class PluginBase(ABC):
         handler_name = f"on_{phase.value}"
         handler = getattr(self, handler_name, None)
         if callable(handler):
-            return handler(ctx, stage)
+            return cast(Callable[[PluginContext, Stage], PluginResult], handler)(ctx, stage)
         if phase == Phase.RUN:
             return self.execute(ctx, stage)
         return PluginResult.skipped(self.plugin_id, self.api_version, reason=f"phase '{phase.value}' not implemented")

@@ -152,7 +152,8 @@ def load_previous_plan(*, ctx: PluginContext, plugin_id: str) -> dict[str, Any] 
     if not path.exists() or not path.is_file():
         return None
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        return payload if isinstance(payload, dict) else None
     except Exception:
         return None
 
@@ -349,7 +350,8 @@ def _resolve_schema_paths(ctx: PluginContext | None = None) -> tuple[str, str]:
 @lru_cache(maxsize=16)
 def _load_schema(schema_path: str) -> dict[str, Any]:
     path = Path(schema_path)
-    return json.loads(path.read_text(encoding="utf-8"))
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    return payload if isinstance(payload, dict) else {}
 
 
 def validate_contract_payloads(

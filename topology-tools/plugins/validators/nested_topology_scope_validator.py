@@ -68,6 +68,8 @@ class NestedTopologyScopeValidator(ValidatorJsonPlugin):
                 continue
 
             row_id = row.get("instance")
+            if not isinstance(row_id, str) or not row_id:
+                continue
             extensions = self._extensions(row)
 
             # Check for topology_scope declaration
@@ -112,6 +114,8 @@ class NestedTopologyScopeValidator(ValidatorJsonPlugin):
                 continue
 
             row_id = row.get("instance")
+            if not isinstance(row_id, str) or not row_id:
+                continue
             group = row.get("group", "workloads")
             row_prefix = f"instance:{group}:{row_id}"
             extensions = self._extensions(row)

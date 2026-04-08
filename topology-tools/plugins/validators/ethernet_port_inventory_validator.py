@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from kernel.plugin_base import PluginContext, PluginResult, Stage, ValidatorJsonPlugin
+from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage, ValidatorJsonPlugin
 
 
 class EthernetPortInventoryValidator(ValidatorJsonPlugin):
@@ -14,7 +14,7 @@ class EthernetPortInventoryValidator(ValidatorJsonPlugin):
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         _ = stage
-        diagnostics = []
+        diagnostics: list[PluginDiagnostic] = []
         inventory: dict[str, list[str]] = {}
 
         for object_id, payload in ctx.objects.items():

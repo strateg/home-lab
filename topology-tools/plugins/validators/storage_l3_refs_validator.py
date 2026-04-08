@@ -710,16 +710,6 @@ class StorageL3RefsValidator(ValidatorJsonPlugin):
         if isinstance(extensions, dict):
             return extensions
         return {}
-        self._validate_ref(
-            row=row,
-            row_by_id=row_by_id,
-            field_name="mount_point_ref",
-            expected_classes={"class.storage.mount_point"},
-            expected_layers={"L3"},
-            code="E7865",
-            stage=stage,
-            diagnostics=diagnostics,
-        )
 
     @staticmethod
     def _get_extension_field(row: dict[str, Any], key: str) -> Any:

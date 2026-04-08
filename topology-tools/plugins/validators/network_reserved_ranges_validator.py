@@ -134,7 +134,22 @@ class NetworkReservedRangesValidator(ValidatorJsonPlugin):
                 )
                 continue
 
-            if start_ip > end_ip:
+            if start_ip.version != end_ip.version:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E7820",
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            f"reserved range {start_str}-{end_str} mixes IP families; "
+                            "start and end must both be IPv4 or both IPv6."
+                        ),
+                        path=f"{ranges_path}[{idx}]",
+                    )
+                )
+                continue
+
+            if int(start_ip) > int(end_ip):
                 diagnostics.append(
                     self.emit_diagnostic(
                         code="E7820",

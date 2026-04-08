@@ -6,16 +6,6 @@ framework:
   version: 5.0.0
   source: git
   repository: git@github.com:strateg/home-lab.git
-  revision: a432be88650e347e859c45312d3c4c265113ef35
-  integrity: sha256-4689ae094a2b5569c3de7934ef81b072c350588b0a0ad03b8b86d38190c81c96
-locked_at: '2026-04-08T07:31:45.808756+00:00'
-
-# ADR 0087: Unified Container Ontology — migration state
-adr_0087:
-  phase1_enabled: true
-  phase2_enabled: true
-  phase3_enabled: true
-  phase4_enabled: true
-  phase5_enabled: true
-  phase6_enabled: true
-  migration_mode: migrating
+  revision: ebc1743ad117b6f9e29b248aca0e6d1f03dd3c50
+  integrity: sha256-bc8af59859649402952033efc76ab68917828da1c25378dc6802dfe2a3434c0b
+locked_at: '2026-04-08T08:42:55.597616+00:00'

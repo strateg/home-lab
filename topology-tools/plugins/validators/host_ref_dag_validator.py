@@ -75,11 +75,11 @@ class HostRefDagValidator(ValidatorJsonPlugin):
 
         # Validate each workload node
         for node_id, host_ref in host_ref_graph.items():
-            row = row_by_id.get(node_id)
-            if not isinstance(row, dict):
+            row_payload = row_by_id.get(node_id)
+            if not isinstance(row_payload, dict):
                 continue
 
-            group = row.get("group", "workload")
+            group = row_payload.get("group", "workload")
             row_prefix = f"instance:{group}:{node_id}"
 
             # Check for cycles

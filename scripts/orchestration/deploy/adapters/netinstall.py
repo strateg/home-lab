@@ -379,7 +379,7 @@ def _execute_via_paramiko_import(
     timeout_s: int,
 ) -> BootstrapResult:
     try:
-        import paramiko
+        import paramiko  # type: ignore[import-untyped]
     except Exception as exc:
         return BootstrapResult(
             status=AdapterStatus.FAILED,
@@ -484,7 +484,7 @@ def _resolve_native_netinstall_contract() -> dict[str, Any]:
     routeros_package = _first_non_empty_env("INIT_NODE_NETINSTALL_ROUTEROS_PACKAGE", "MIKROTIK_ROUTEROS_PACKAGE")
     netinstall_bin = _first_non_empty_env("INIT_NODE_NETINSTALL_BIN") or "netinstall-cli"
 
-    values = {
+    values: dict[str, Any] = {
         "target_mac": target_mac,
         "netinstall_interface": netinstall_interface,
         "netinstall_client_ip": netinstall_client_ip,

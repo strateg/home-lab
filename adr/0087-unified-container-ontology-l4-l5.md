@@ -1,5 +1,8 @@
 # ADR 0087: Unified Container Ontology for L4/L5
 
+**Status:** Implemented (Phase 1 GATE PASSED; Phase 2 core complete; Phase 3-6 pending)
+**Date:** 2026-04-03
+
 | Field | Value |
 |-------|-------|
 | **Status** | Implemented (Phase 1 GATE PASSED; Phase 2 core complete; Phase 3-6 pending) |

@@ -168,7 +168,7 @@ class GeneratorSunsetValidator(ValidatorJsonPlugin):
         if isinstance(raw_schedule_override, dict):
             schedule.update(raw_schedule_override)
 
-        summary = {
+        summary: dict[str, Any] = {
             "scheduled_targets": 0,
             "legacy_targets": 0,
             "pre_sunset_legacy_targets": 0,

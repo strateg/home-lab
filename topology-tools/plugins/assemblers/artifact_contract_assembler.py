@@ -67,7 +67,7 @@ class ArtifactContractAssembler(AssemblerPlugin):
             return self.make_result(diagnostics=diagnostics, output_data={"artifact_contract_guard": None})
 
         published_data = ctx.get_published_data()
-        summary = {
+        summary: dict[str, Any] = {
             "legacy": 0,
             "migrating": 0,
             "migrated": 0,

@@ -105,6 +105,8 @@ class_layers:
     allowed_layers: [L4]
   class.compute.workload.docker:
     allowed_layers: [L4]
+  class.compute.workload.docker.stack:
+    allowed_layers: [L4]
   class.compute.workload.vm:
     allowed_layers: [L1, L4]
 
