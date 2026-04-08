@@ -15,6 +15,7 @@ from plugins.generators.artifact_contract import (
 )
 from plugins.generators.base_generator import BaseGenerator
 from plugins.generators.object_projection_loader import load_object_projection_module
+from plugins.generators.terraform_ir import build_terraform_module_family_ir
 
 # ADR0078 WP-001/WP-002: Use shared helpers via dynamic loader
 from plugins.generators.shared_helper_loader import load_capability_helpers, load_terraform_helpers
@@ -145,31 +146,35 @@ class TerraformMikroTikGenerator(BaseGenerator):
             render_context["remote_state_backend"] = backend_name
             render_context["remote_state_items"] = [{"key": key, "value": value} for key, value in backend_items]
 
-        written: list[str] = []
-        planned_outputs: list[dict[str, object]] = []
-        for filename, template_name in templates.items():
-            output_path = out_dir / filename
-            reason = "base-family"
-            if filename in capability_templates:
-                reason = "capability-enabled"
-            elif filename == "backend.tf":
-                reason = "dependency-enabled"
-            planned_outputs.append(
-                build_planned_output(
-                    path=str(output_path),
-                    template=template_name,
-                    reason=reason,
-                )
-            )
-            content = self.render_template(ctx, template_name, render_context)
-            self.write_text_atomic(output_path, content)
-            written.append(str(output_path))
-
         capability_flags = sorted(
             key
             for key, value in normalized_caps.items()
             if isinstance(value, bool) and value and (key.startswith("has_") or key.startswith("cap."))
         )
+        terraform_ir = build_terraform_module_family_ir(
+            artifact_family="terraform.mikrotik",
+            templates=templates,
+            capability_templates=capability_templates,
+            remote_state_enabled=bool(remote_state),
+            capability_flags=capability_flags,
+        )
+
+        written: list[str] = []
+        planned_outputs: list[dict[str, object]] = []
+        for item in terraform_ir.planned_files:
+            filename = item.filename
+            template_name = item.template
+            output_path = out_dir / filename
+            planned_outputs.append(
+                build_planned_output(
+                    path=str(output_path),
+                    template=template_name,
+                    reason=item.reason,
+                )
+            )
+            content = self.render_template(ctx, template_name, render_context)
+            self.write_text_atomic(output_path, content)
+            written.append(str(output_path))
         obsolete_entries, obsolete_errors = compute_obsolete_entries(
             ctx=ctx,
             plugin_id=self.plugin_id,
@@ -193,10 +198,10 @@ class TerraformMikroTikGenerator(BaseGenerator):
             plugin_id=self.plugin_id,
             artifact_family=artifact_family,
             planned_outputs=planned_outputs,
-            projection_version="1.0",
-            ir_version="1.0",
+            projection_version=terraform_ir.projection_version,
+            ir_version=terraform_ir.ir_version,
             obsolete_candidates=obsolete_entries,
-            capabilities=capability_flags,
+            capabilities=list(terraform_ir.capabilities),
             validation_profiles=[ctx.profile],
         )
         artifact_generation_report = build_generation_report(
@@ -263,5 +268,6 @@ class TerraformMikroTikGenerator(BaseGenerator):
                 "artifact_plan": artifact_plan,
                 "artifact_generation_report": artifact_generation_report,
                 "artifact_contract_files": sorted(contract_paths.values()),
+                "terraform_ir": terraform_ir.to_dict(),
             },
         )

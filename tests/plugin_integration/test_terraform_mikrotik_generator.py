@@ -143,6 +143,8 @@ def test_terraform_mikrotik_generator_writes_expected_files(tmp_path: Path) -> N
     assert not (target_dir / "backend.tf").exists()
     assert result.output_data is not None
     assert result.output_data["artifact_plan"]["artifact_family"] == "terraform.mikrotik"
+    assert result.output_data["terraform_ir"]["artifact_family"] == "terraform.mikrotik"
+    assert result.output_data["terraform_ir"]["ir_version"] == "1.0"
     assert result.output_data["artifact_generation_report"]["summary"]["generated_count"] == len(
         result.output_data["terraform_mikrotik_files"]
     )
