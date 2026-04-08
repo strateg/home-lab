@@ -858,6 +858,18 @@ class ReleaseManifestBuilder(BuilderPlugin):
             )
         except PluginDataExchangeError:
             rollback_events_report_path = ""
+        try:
+            operator_readiness_report_path = str(
+                ctx.subscribe("base.builder.soho_readiness_package", "operator_readiness_report_path")
+            )
+        except PluginDataExchangeError:
+            operator_readiness_report_path = ""
+        try:
+            support_bundle_manifest_path = str(
+                ctx.subscribe("base.builder.soho_readiness_package", "support_bundle_manifest_path")
+            )
+        except PluginDataExchangeError:
+            support_bundle_manifest_path = ""
 
         dist_root = ReleaseBundleBuilder._dist_root(ctx)
         dist_root.mkdir(parents=True, exist_ok=True)
@@ -880,6 +892,8 @@ class ReleaseManifestBuilder(BuilderPlugin):
             "generator_readiness_evidence_path": generator_readiness_evidence_path,
             "restore_readiness_report_path": restore_readiness_report_path,
             "rollback_events_report_path": rollback_events_report_path,
+            "operator_readiness_report_path": operator_readiness_report_path,
+            "support_bundle_manifest_path": support_bundle_manifest_path,
         }
         manifest_path.write_text(json.dumps(payload, ensure_ascii=True, indent=2), encoding="utf-8")
 

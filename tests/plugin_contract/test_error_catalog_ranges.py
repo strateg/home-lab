@@ -74,6 +74,10 @@ def test_soho_readiness_ranges_are_reserved_without_foreign_overlap():
     required = {
         "E7941",
         "E7942",
+        "E7943",
+        "E7944",
+        "E7945",
+        "E7946",
         "E7947",
         "W7941",
         "W7942",

@@ -731,6 +731,26 @@ codes:
     stage: validate
     title: SOHO Required Bundle Missing
     hint: Add required product_bundles for the selected profile/deployment_class.
+  E7943:
+    severity: error
+    stage: build
+    title: SOHO Backup Evidence Missing
+    hint: Provide backup-status evidence for ADR0091 readiness package.
+  E7944:
+    severity: error
+    stage: build
+    title: SOHO Restore Evidence Missing
+    hint: Provide restore-readiness evidence for ADR0091 readiness package.
+  E7945:
+    severity: error
+    stage: build
+    title: SOHO Handover Package Incomplete
+    hint: Ensure required product/handover artifacts are present.
+  E7946:
+    severity: error
+    stage: build
+    title: SOHO Deployment Class Unsupported
+    hint: Use supported deployment_class values only (starter|managed-soho|advanced-soho).
   E7947:
     severity: error
     stage: validate
@@ -746,6 +766,11 @@ codes:
     stage: validate
     title: SOHO Bundles Incomplete in Soft Migration
     hint: Complete required bundles before promoting migration_state to migrated-hard.
+  I7941:
+    severity: info
+    stage: build
+    title: SOHO Readiness Package Emitted
+    hint: SOHO operator handover and readiness reports were emitted.
   I6901:
     severity: info
     stage: validate

@@ -155,13 +155,22 @@
                 "schema_validated": { "type": "boolean" }
               },
               "required": ["present"]
+            },
+            "support-bundle-manifest.json": {
+              "type": "object",
+              "properties": {
+                "present": { "type": "boolean" },
+                "schema_validated": { "type": "boolean" }
+              },
+              "required": ["present"]
             }
           },
           "required": [
             "health-report.json",
             "drift-report.json",
             "backup-status.json",
-            "restore-readiness.json"
+            "restore-readiness.json",
+            "support-bundle-manifest.json"
           ]
         }
       },

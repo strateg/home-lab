@@ -55,13 +55,13 @@ Validation evidence:
 - [x] Add contract tests proving read-only tasks have no side effects.
 
 ### Step C: ADR0091 readiness evidence stack
-- [ ] Add missing schemas:
+- [x] Add missing schemas:
   - `schemas/backup-status.schema.json`
   - `schemas/restore-readiness.schema.json`
   - `schemas/support-bundle-manifest.schema.json`
-- [ ] Generate required reports and handover package structure under `generated/<project>/product/`.
-- [ ] Add readiness gate validator for completeness and blocking rules (`green/yellow/red`).
-- [ ] Add sanitization tests for operator-facing artifacts (ADR0072 compliance).
+- [x] Generate required reports and handover package structure under `generated/<project>/product/`.
+- [x] Add readiness gate validator for completeness and blocking rules (`green/yellow/red`).
+- [x] Add sanitization tests for operator-facing artifacts (ADR0072 compliance).
 
 ## 5. Acceptance Criteria
 

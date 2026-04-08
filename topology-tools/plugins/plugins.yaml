@@ -1993,6 +1993,44 @@ plugins:
         scope: pipeline_shared
     description: Emits ADR0091-compatible reports/restore-readiness.json from generator readiness evidence.
 
+  - id: base.builder.soho_readiness_package
+    kind: builder
+    entry: builders/soho_readiness_builder.py:SohoReadinessBuilder
+    api_version: "1.x"
+    stages: [build]
+    phase: verify
+    order: 529
+    depends_on:
+      - base.builder.readiness_reports
+      - base.validator.soho_product_profile
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    consumes:
+      - from_plugin: base.builder.readiness_reports
+        key: restore_readiness_report
+        required: false
+      - from_plugin: base.validator.soho_product_profile
+        key: product_profile_state
+        required: false
+    produces:
+      - key: generated_files
+        scope: pipeline_shared
+      - key: product_handover_dir
+        scope: pipeline_shared
+      - key: product_reports_dir
+        scope: pipeline_shared
+      - key: operator_readiness_report_path
+        scope: pipeline_shared
+      - key: support_bundle_manifest_path
+        scope: pipeline_shared
+      - key: operator_readiness
+        scope: pipeline_shared
+    description: Emits ADR0091 SOHO product handover/reports package and enforces readiness gate diagnostics.
+
   - id: base.builder.release_manifest
     kind: builder
     entry: builders/release_builder.py:ReleaseManifestBuilder
@@ -2005,6 +2043,7 @@ plugins:
       - base.builder.artifact_family_summary
       - base.builder.generator_readiness_evidence
       - base.builder.readiness_reports
+      - base.builder.soho_readiness_package
       - base.builder.bundle
       - base.assembler.manifest
     timeout: 30
@@ -2037,6 +2076,12 @@ plugins:
         required: false
       - from_plugin: base.builder.readiness_reports
         key: rollback_events_report_path
+        required: false
+      - from_plugin: base.builder.soho_readiness_package
+        key: operator_readiness_report_path
+        required: false
+      - from_plugin: base.builder.soho_readiness_package
+        key: support_bundle_manifest_path
         required: false
     produces:
       - key: generated_files

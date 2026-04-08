@@ -40,3 +40,53 @@ def test_operator_readiness_schema_accepts_minimal_payload() -> None:
         ],
     }
     jsonschema.validate(payload, _schema("operator-readiness.schema.json"))
+
+
+def test_backup_status_schema_accepts_minimal_payload() -> None:
+    payload = {
+        "schema_version": "1.0",
+        "timestamp": "2026-04-09T00:00:00+00:00",
+        "completeness_state": "complete",
+    }
+    jsonschema.validate(payload, _schema("backup-status.schema.json"))
+
+
+def test_restore_readiness_schema_accepts_minimal_payload() -> None:
+    payload = {
+        "schema_version": "1.0",
+        "timestamp": "2026-04-09T00:00:00+00:00",
+        "completeness_state": "partial",
+    }
+    jsonschema.validate(payload, _schema("restore-readiness.schema.json"))
+
+
+def test_support_bundle_manifest_schema_accepts_payload_with_self_report_entry() -> None:
+    payload = {
+        "schema_version": "1.0",
+        "timestamp": "2026-04-09T00:00:00+00:00",
+        "project_id": "home-lab",
+        "profile_id": "soho.standard.v1",
+        "deployment_class": "managed-soho",
+        "artifacts": {
+            "handover": {
+                "SYSTEM-SUMMARY.md": {"present": True},
+                "NETWORK-SUMMARY.md": {"present": True},
+                "ACCESS-RUNBOOK.md": {"present": True},
+                "BACKUP-RUNBOOK.md": {"present": True},
+                "RESTORE-RUNBOOK.md": {"present": True},
+                "UPDATE-RUNBOOK.md": {"present": True},
+                "INCIDENT-CHECKLIST.md": {"present": True},
+                "ASSET-INVENTORY.csv": {"present": True},
+                "CHANGELOG-SNAPSHOT.md": {"present": True},
+            },
+            "reports": {
+                "health-report.json": {"present": True},
+                "drift-report.json": {"present": True},
+                "backup-status.json": {"present": True},
+                "restore-readiness.json": {"present": True},
+                "support-bundle-manifest.json": {"present": True},
+            },
+        },
+        "completeness_state": "complete",
+    }
+    jsonschema.validate(payload, _schema("support-bundle-manifest.schema.json"))

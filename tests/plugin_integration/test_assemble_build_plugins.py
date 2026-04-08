@@ -165,6 +165,7 @@ def test_assemble_and_build_stage_plugins_produce_release_artifacts(tmp_path: Pa
         "base.builder.artifact_family_summary",
         "base.builder.generator_readiness_evidence",
         "base.builder.readiness_reports",
+        "base.builder.soho_readiness_package",
         "base.builder.release_manifest",
     ]
     assert all(result.status == PluginStatus.SUCCESS for result in build_results)
@@ -175,6 +176,8 @@ def test_assemble_and_build_stage_plugins_produce_release_artifacts(tmp_path: Pa
     generator_readiness_evidence_path = dist_root / "generator-readiness-evidence.json"
     restore_readiness_report_path = dist_root / "reports" / "restore-readiness.json"
     rollback_events_report_path = dist_root / "reports" / "rollback-events.json"
+    operator_readiness_report_path = generated_root / "product" / "reports" / "operator-readiness.json"
+    support_bundle_manifest_path = generated_root / "product" / "reports" / "support-bundle-manifest.json"
     release_manifest_path = dist_root / "release-manifest.json"
     assert bundle_path.exists()
     assert sbom_path.exists()
@@ -182,6 +185,8 @@ def test_assemble_and_build_stage_plugins_produce_release_artifacts(tmp_path: Pa
     assert generator_readiness_evidence_path.exists()
     assert restore_readiness_report_path.exists()
     assert rollback_events_report_path.exists()
+    assert operator_readiness_report_path.exists()
+    assert support_bundle_manifest_path.exists()
     assert release_manifest_path.exists()
     with zipfile.ZipFile(bundle_path, "r") as archive:
         assert sorted(archive.namelist()) == ["docs/overview.md"]
@@ -197,6 +202,8 @@ def test_assemble_and_build_stage_plugins_produce_release_artifacts(tmp_path: Pa
     assert release_manifest["generator_readiness_evidence_path"] == str(generator_readiness_evidence_path)
     assert release_manifest["restore_readiness_report_path"] == str(restore_readiness_report_path)
     assert release_manifest["rollback_events_report_path"] == str(rollback_events_report_path)
+    assert release_manifest["operator_readiness_report_path"] == str(operator_readiness_report_path)
+    assert release_manifest["support_bundle_manifest_path"] == str(support_bundle_manifest_path)
     assert artifact_family_summary["totals"]["plugins"] >= 1
     assert generator_readiness["readiness"]["status"] in {"green", "warning", "blocked"}
     assert "sunset_phase_breakdown" in generator_readiness
