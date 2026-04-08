@@ -1,0 +1,177 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://home-lab.local/schemas/support-bundle-manifest.schema.json",
+  "title": "Support Bundle Manifest",
+  "description": "Schema for handover package manifest (ADR 0091 D6)",
+  "type": "object",
+  "required": ["schema_version", "timestamp", "project_id", "artifacts"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Schema version for compatibility tracking"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Manifest generation timestamp (ISO 8601)"
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Project identifier"
+    },
+    "profile_id": {
+      "type": "string",
+      "description": "Product profile identifier (ADR 0089)"
+    },
+    "deployment_class": {
+      "type": "string",
+      "enum": ["starter", "managed-soho", "advanced-soho"],
+      "description": "Deployment class (ADR 0089)"
+    },
+    "artifacts": {
+      "type": "object",
+      "description": "Handover artifacts inventory (ADR 0091 D1)",
+      "properties": {
+        "handover": {
+          "type": "object",
+          "properties": {
+            "SYSTEM-SUMMARY.md": {
+              "type": "object",
+              "properties": {
+                "present": { "type": "boolean" },
+                "checksum": { "type": "string" }
+              },
+              "required": ["present"]
+            },
+            "NETWORK-SUMMARY.md": {
+              "type": "object",
+              "properties": {
+                "present": { "type": "boolean" },
+                "checksum": { "type": "string" }
+              },
+              "required": ["present"]
+            },
+            "ACCESS-RUNBOOK.md": {
+              "type": "object",
+              "properties": {
+                "present": { "type": "boolean" },
+                "checksum": { "type": "string" }
+              },
+              "required": ["present"]
+            },
+            "BACKUP-RUNBOOK.md": {
+              "type": "object",
+              "properties": {
+                "present": { "type": "boolean" },
+                "checksum": { "type": "string" }
+              },
+              "required": ["present"]
+            },
+            "RESTORE-RUNBOOK.md": {
+              "type": "object",
+              "properties": {
+                "present": { "type": "boolean" },
+                "checksum": { "type": "string" }
+              },
+              "required": ["present"]
+            },
+            "UPDATE-RUNBOOK.md": {
+              "type": "object",
+              "properties": {
+                "present": { "type": "boolean" },
+                "checksum": { "type": "string" }
+              },
+              "required": ["present"]
+            },
+            "INCIDENT-CHECKLIST.md": {
+              "type": "object",
+              "properties": {
+                "present": { "type": "boolean" },
+                "checksum": { "type": "string" }
+              },
+              "required": ["present"]
+            },
+            "ASSET-INVENTORY.csv": {
+              "type": "object",
+              "properties": {
+                "present": { "type": "boolean" },
+                "checksum": { "type": "string" }
+              },
+              "required": ["present"]
+            },
+            "CHANGELOG-SNAPSHOT.md": {
+              "type": "object",
+              "properties": {
+                "present": { "type": "boolean" },
+                "checksum": { "type": "string" }
+              },
+              "required": ["present"]
+            }
+          },
+          "required": [
+            "SYSTEM-SUMMARY.md",
+            "NETWORK-SUMMARY.md",
+            "ACCESS-RUNBOOK.md",
+            "BACKUP-RUNBOOK.md",
+            "RESTORE-RUNBOOK.md",
+            "UPDATE-RUNBOOK.md",
+            "INCIDENT-CHECKLIST.md",
+            "ASSET-INVENTORY.csv",
+            "CHANGELOG-SNAPSHOT.md"
+          ]
+        },
+        "reports": {
+          "type": "object",
+          "properties": {
+            "health-report.json": {
+              "type": "object",
+              "properties": {
+                "present": { "type": "boolean" },
+                "schema_validated": { "type": "boolean" }
+              },
+              "required": ["present"]
+            },
+            "drift-report.json": {
+              "type": "object",
+              "properties": {
+                "present": { "type": "boolean" },
+                "schema_validated": { "type": "boolean" }
+              },
+              "required": ["present"]
+            },
+            "backup-status.json": {
+              "type": "object",
+              "properties": {
+                "present": { "type": "boolean" },
+                "schema_validated": { "type": "boolean" }
+              },
+              "required": ["present"]
+            },
+            "restore-readiness.json": {
+              "type": "object",
+              "properties": {
+                "present": { "type": "boolean" },
+                "schema_validated": { "type": "boolean" }
+              },
+              "required": ["present"]
+            }
+          },
+          "required": [
+            "health-report.json",
+            "drift-report.json",
+            "backup-status.json",
+            "restore-readiness.json"
+          ]
+        }
+      },
+      "required": ["handover", "reports"]
+    },
+    "completeness_state": {
+      "type": "string",
+      "enum": ["missing", "partial", "complete"],
+      "description": "Package completeness (ADR 0091 D4)"
+    }
+  },
+  "additionalProperties": false
+}

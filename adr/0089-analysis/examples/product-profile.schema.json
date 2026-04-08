@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://home-lab.local/schemas/product-profile.schema.json",
+  "title": "SOHO Product Profile Contract",
+  "description": "Schema for SOHO product profile definitions (ADR 0089)",
+  "type": "object",
+  "required": [
+    "profile_id",
+    "deployment_class",
+    "site_class",
+    "user_band",
+    "operator_mode",
+    "release_channel"
+  ],
+  "properties": {
+    "profile_id": {
+      "type": "string",
+      "enum": ["soho.standard.v1"],
+      "description": "Canonical profile identifier"
+    },
+    "deployment_class": {
+      "type": "string",
+      "enum": ["starter", "managed-soho", "advanced-soho"],
+      "description": "Deployment class selection"
+    },
+    "site_class": {
+      "type": "string",
+      "enum": ["single-site"],
+      "description": "Site topology class"
+    },
+    "user_band": {
+      "type": "string",
+      "pattern": "^\\d+-\\d+$",
+      "description": "User count range (e.g., '1-25')",
+      "examples": ["1-10", "5-25", "10-25"]
+    },
+    "operator_mode": {
+      "type": "string",
+      "enum": ["single-operator"],
+      "description": "Operator model"
+    },
+    "release_channel": {
+      "type": "string",
+      "enum": ["stable", "beta", "dev"],
+      "description": "Release channel selection"
+    },
+    "migration_state": {
+      "type": "string",
+      "enum": ["legacy", "migrated-soft", "migrated-hard"],
+      "description": "Migration state (ADR 0089 D9)",
+      "default": "legacy"
+    }
+  },
+  "additionalProperties": false
+}

@@ -87,35 +87,76 @@ are validation failures.
 
 ### D4. SOHO bundle resolution is profile-driven
 
-`soho.standard.v1` defines deterministic bundle resolution as:
+`soho.standard.v1` defines deterministic bundle resolution as **additive composition** of core bundles + deployment-class-specific bundles.
 
-Core bundles (all deployment classes):
+#### Core bundles (required for all deployment classes):
 
 - `bundle.edge-routing`
 - `bundle.network-segmentation`
 - `bundle.secrets-governance`
 
-Class overlays:
+#### Deployment-class-specific bundles:
 
-- `starter`:
-  - `bundle.remote-access`
-  - `bundle.operator-workflows`
-- `managed-soho`:
-  - `bundle.remote-access`
-  - `bundle.backup-restore`
-  - `bundle.observability`
-  - `bundle.operator-workflows`
-  - `bundle.update-management`
-- `advanced-soho`:
-  - `bundle.remote-access`
-  - `bundle.backup-restore`
-  - `bundle.observability`
-  - `bundle.operator-workflows`
-  - `bundle.update-management`
-  - `bundle.incident-response`
-  - `bundle.multi-uplink-resilience`
+**starter:**
+- `bundle.remote-access`
+- `bundle.operator-workflows`
 
-Bundle selection must be deterministic and derived from the profile and deployment class, not manually assembled ad hoc per project.
+**managed-soho:**
+- `bundle.remote-access`
+- `bundle.backup-restore`
+- `bundle.observability`
+- `bundle.operator-workflows`
+- `bundle.update-management`
+
+**advanced-soho:**
+- `bundle.remote-access`
+- `bundle.backup-restore`
+- `bundle.observability`
+- `bundle.operator-workflows`
+- `bundle.update-management`
+- `bundle.incident-response`
+- `bundle.multi-uplink-resilience`
+
+#### Effective bundle resolution (deterministic):
+
+The effective bundle set for a given deployment class is computed as:
+
+```
+effective_bundles = core_bundles ∪ class_specific_bundles
+```
+
+**Examples:**
+
+For `deployment_class: managed-soho`, the effective bundle set is:
+
+```yaml
+effective_bundles:
+  - bundle.edge-routing              # core
+  - bundle.network-segmentation      # core
+  - bundle.secrets-governance        # core
+  - bundle.remote-access             # class-specific
+  - bundle.backup-restore            # class-specific
+  - bundle.observability             # class-specific
+  - bundle.operator-workflows        # class-specific
+  - bundle.update-management         # class-specific
+```
+
+Total: **8 required bundles** for managed-soho.
+
+For `deployment_class: starter`, the effective bundle set is:
+
+```yaml
+effective_bundles:
+  - bundle.edge-routing              # core
+  - bundle.network-segmentation      # core
+  - bundle.secrets-governance        # core
+  - bundle.remote-access             # class-specific
+  - bundle.operator-workflows        # class-specific
+```
+
+Total: **5 required bundles** for starter.
+
+Bundle resolution must be deterministic and derived mechanically from the profile and deployment_class, not manually assembled ad hoc per project.
 
 ### D5. New canonical contracts
 
@@ -141,6 +182,34 @@ Projects are classified as:
 - `legacy` — no `product_profile`
 - `migrated-soft` — `product_profile` present, warnings may still be tolerated during cutover
 - `migrated-hard` — `product_profile` present and all profile requirements are blocking
+
+#### Migration state pipeline enforcement
+
+Pipeline stage behavior is conditional on migration state:
+
+| Migration State | Discover Stage | Compile Stage | Validate Stage |
+|---|---|---|
+| **legacy** | Profile resolution **advisory only**<br/>Diagnostic: INFO | Bundle resolution **advisory only**<br/>Diagnostic: INFO | Compatibility checks **advisory only**<br/>Diagnostic: WARN |
+| **migrated-soft** | Profile resolution **required**<br/>Missing profile → ERROR | Bundle resolution **required**<br/>Missing bundles → ERROR | **Warnings allowed**, only critical blocking<br/>Example: backup policy missing → WARN |
+| **migrated-hard** | Profile resolution **required**<br/>Missing profile → ERROR, pipeline halt | Bundle resolution **required**<br/>Missing bundles → ERROR, pipeline halt | **All profile requirements blocking**<br/>Any WARN → ERROR, pipeline halt |
+
+**Enforcement mechanism:**
+
+Pipeline stages must:
+
+1. Read `project.yaml → product_profile.migration_state`
+2. Adjust diagnostic severity based on state
+3. Block or allow pipeline continuation per table above
+
+**State transition rules:**
+
+- `legacy → migrated-soft`: Manual opt-in via `project.yaml` update + validation passes with warnings
+- `migrated-soft → migrated-hard`: All warnings resolved + validation passes clean
+- Downgrades (e.g., `migrated-hard → legacy`) are **invalid** and rejected by validation
+
+**Sunset enforcement:**
+
+After `sunset_policy.legacy_end_date` (defined in profile contract), `legacy` projects are automatically treated as `migrated-hard` for blocking purposes.
 
 Cutover policy must define when a project moves from `legacy` to `migrated-soft` to `migrated-hard`.
 

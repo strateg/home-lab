@@ -1,0 +1,66 @@
+# Example product bundle contract
+# Location: topology/product-bundles/bundle.backup-restore.yaml
+# ADR: 0089 D5
+
+bundle_id: bundle.backup-restore
+bundle_version: "1.0.0"
+schema_version: "1.0"
+
+description: |
+  Backup and restore capability bundle for SOHO deployments.
+  Provides scheduled backups, restore workflows, and evidence tracking.
+
+category: lifecycle-management
+
+requires:
+  bundles:
+    - bundle.secrets-governance    # For encrypted backup storage
+    - bundle.operator-workflows    # For restore orchestration
+
+provides:
+  capabilities:
+    - scheduled-backup
+    - on-demand-backup
+    - restore-from-backup
+    - backup-integrity-check
+    - restore-readiness-drill
+
+  artifacts:
+    - generated/<project>/product/reports/backup-status.json
+    - generated/<project>/product/handover/BACKUP-RUNBOOK.md
+    - generated/<project>/product/handover/RESTORE-RUNBOOK.md
+
+  runtime_requirements:
+    - backup_target_reachable: true
+    - secrets_mode: decrypt
+    - min_disk_space_gb: 50
+
+deployment_class_support:
+  - managed-soho
+  - advanced-soho
+
+lifecycle_phases:
+  - backup
+  - restore
+
+evidence_requirements:
+  - backup_exists_within_7_days
+  - restore_drill_passed_within_30_days
+
+diagnostics:
+  errors:
+    - E7943  # backup policy missing
+    - E7944  # restore evidence missing
+  warnings:
+    - W7943  # backup older than 7 days
+
+validation_rules:
+  - name: backup_policy_defined
+    check: project.yaml contains backup_schedule
+    severity: error
+    diagnostic_code: E7943
+
+  - name: restore_tested_recently
+    check: last_restore_drill < 30 days
+    severity: warning
+    diagnostic_code: W7944

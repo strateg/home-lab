@@ -1,0 +1,76 @@
+# Example product profile contract for SOHO standard v1
+# Location: topology/product-profiles/soho.standard.v1.yaml
+# ADR: 0089 D5
+
+profile_id: soho.standard.v1
+profile_version: "1.0.0"
+schema_version: "1.0"
+
+description: |
+  Canonical SOHO product profile for single-site, single-operator deployments
+  with user counts between 1-25.
+
+supported_deployment_classes:
+  - id: starter
+    description: Entry-level SOHO with basic routing and remote access
+    min_user_band: 1
+    max_user_band: 10
+    required_bundles:
+      - bundle.edge-routing
+      - bundle.network-segmentation
+      - bundle.secrets-governance
+      - bundle.remote-access
+      - bundle.operator-workflows
+
+  - id: managed-soho
+    description: Standard managed SOHO with backup, observability, updates
+    min_user_band: 5
+    max_user_band: 25
+    required_bundles:
+      - bundle.edge-routing
+      - bundle.network-segmentation
+      - bundle.secrets-governance
+      - bundle.remote-access
+      - bundle.backup-restore
+      - bundle.observability
+      - bundle.operator-workflows
+      - bundle.update-management
+
+  - id: advanced-soho
+    description: Advanced SOHO with incident response and multi-uplink
+    min_user_band: 10
+    max_user_band: 25
+    required_bundles:
+      - bundle.edge-routing
+      - bundle.network-segmentation
+      - bundle.secrets-governance
+      - bundle.remote-access
+      - bundle.backup-restore
+      - bundle.observability
+      - bundle.operator-workflows
+      - bundle.update-management
+      - bundle.incident-response
+      - bundle.multi-uplink-resilience
+
+site_class: single-site
+operator_mode: single-operator
+release_channel: stable
+
+hardware_compatibility:
+  supported_routers:
+    - mikrotik.chateau.lte7ax
+  supported_hypervisors:
+    - proxmox.ve.8
+    - proxmox.ve.9
+  supported_sbcs:
+    - orangepi.5.16gb
+
+bundle_resolution_mode: additive  # core + class-specific
+
+migration_states:
+  - legacy           # no product_profile, advisory-only
+  - migrated-soft    # product_profile present, warnings tolerated
+  - migrated-hard    # full blocking enforcement
+
+sunset_policy:
+  legacy_end_date: "2026-12-31"  # After this, legacy becomes blocking

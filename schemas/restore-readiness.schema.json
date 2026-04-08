@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://home-lab.local/schemas/restore-readiness.schema.json",
+  "title": "Restore Readiness Report",
+  "description": "Schema for restore readiness evidence (ADR 0091 D6)",
+  "type": "object",
+  "required": ["schema_version", "timestamp", "completeness_state"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Schema version for compatibility tracking"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Report generation timestamp (ISO 8601)"
+    },
+    "last_restore_drill_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of most recent restore drill"
+    },
+    "drill_result": {
+      "type": "string",
+      "enum": ["passed", "failed", "not-tested"],
+      "description": "Result of most recent restore drill"
+    },
+    "restore_time_estimate_minutes": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Estimated time to complete restore (minutes)"
+    },
+    "restore_source_integrity": {
+      "type": "string",
+      "enum": ["verified", "failed", "unknown"],
+      "description": "Backup archive integrity check status"
+    },
+    "completeness_state": {
+      "type": "string",
+      "enum": ["missing", "partial", "complete"],
+      "description": "Evidence completeness (ADR 0091 D4)"
+    }
+  },
+  "additionalProperties": false
+}

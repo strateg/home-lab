@@ -78,24 +78,63 @@ Initial mapping:
 
 ### D3. Acceptance evidence is mandatory
 
-SOHO readiness requires evidence for:
+SOHO readiness requires documented evidence for the following acceptance scenarios:
 
-- greenfield-first-install
-- brownfield-adoption
-- router-replacement
-- secret-rotation
-- scheduled-update
-- failed-update-rollback
-- backup-and-restore
-- operator-handover
+- **greenfield-first-install** — initial deployment to new hardware
+- **brownfield-adoption** — migration from existing network
+- **router-replacement** — hardware swap without topology change
+- **secret-rotation** — key/password rotation procedure
+- **scheduled-update** — routine update workflow
+- **failed-update-rollback** — rollback after failed update
+- **backup-and-restore** — backup creation and restore drill
+- **operator-handover** — knowledge transfer and runbook validation
+
+Each evidence domain must have:
+- procedure documentation
+- execution logs or artifacts
+- validation checkpoints
+- last-execution timestamp
+
+Evidence domains map to lifecycle phases (ADR 0090 D1) and must cover all operator-facing workflows.
 
 ### D4. Evidence completeness state is normalized
 
 Each required evidence domain is classified as:
 
-- `missing`
-- `partial`
-- `complete`
+- `missing` — no evidence artifacts exist
+- `partial` — evidence exists but fails quality/recency criteria
+- `complete` — evidence exists and meets all quality/recency criteria
+
+#### Evidence state criteria (deterministic)
+
+| Evidence Domain | Missing | Partial | Complete |
+|---|---|---|---|
+| **greenfield-first-install** | No installation logs/artifacts | Install evidence > 90 days old OR missing validation checkpoints | Fresh install evidence < 90 days + all checkpoints passed |
+| **brownfield-adoption** | No migration evidence | Migration evidence > 90 days old OR incomplete cutover checklist | Migration evidence < 90 days + cutover checklist 100% |
+| **router-replacement** | No replacement procedure docs | Procedure exists but not tested OR last test > 180 days | Procedure tested < 180 days + runbook validated |
+| **secret-rotation** | No rotation logs | Last rotation > 180 days OR incomplete rotation checklist | Last rotation < 90 days + all secrets rotated |
+| **scheduled-update** | No update logs | Last successful update > 90 days OR update failed | Last successful update < 60 days + release notes archived |
+| **failed-update-rollback** | No rollback evidence | Rollback procedure exists but not tested OR test > 180 days | Rollback drill passed < 180 days + runbook validated |
+| **backup-and-restore** | No backup exists | Backup > 7 days old OR no restore drill OR drill > 30 days | Valid backup < 7 days + restore drill passed < 30 days |
+| **operator-handover** | No handover package | Package exists but missing ≥1 required artifact (ADR 0091 D1) | All D1 artifacts present + schema-validated + reviewed |
+
+**Quality criteria:**
+
+- **Recency**: Time-based thresholds ensure evidence is current
+- **Completeness**: All required artifacts/checkpoints present
+- **Validation**: Evidence has been tested/verified (not just documented)
+
+**Machine readability:**
+
+Evidence state must be derivable from:
+
+- File timestamps (for recency checks)
+- JSON report fields (for validation status)
+- Artifact inventory (for completeness checks)
+
+No subjective operator interpretation required.
+
+#### Readiness status derivation
 
 Readiness status is derived as:
 
@@ -110,7 +149,7 @@ SOHO build/publish is blocked when any of the following is true:
 - handover package is missing or incomplete;
 - backup/restore evidence is missing;
 - critical readiness diagnostics exist;
-- required TUC evidence set is missing.
+- required acceptance evidence (ADR 0091 D3) is incomplete.
 
 ### D6. Machine-readable report contracts are required
 

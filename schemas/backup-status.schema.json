@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://home-lab.local/schemas/backup-status.schema.json",
+  "title": "Backup Status Report",
+  "description": "Schema for backup status evidence (ADR 0091 D6)",
+  "type": "object",
+  "required": ["schema_version", "timestamp", "completeness_state"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Schema version for compatibility tracking"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Report generation timestamp (ISO 8601)"
+    },
+    "last_backup_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of most recent backup"
+    },
+    "backup_size_mb": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Total backup size in megabytes"
+    },
+    "backup_targets": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of backup target URIs"
+    },
+    "backup_integrity": {
+      "type": "string",
+      "enum": ["verified", "failed", "unknown"],
+      "description": "Backup integrity check status"
+    },
+    "completeness_state": {
+      "type": "string",
+      "enum": ["missing", "partial", "complete"],
+      "description": "Evidence completeness (ADR 0091 D4)"
+    }
+  },
+  "additionalProperties": false
+}

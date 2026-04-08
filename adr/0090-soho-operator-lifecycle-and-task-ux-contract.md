@@ -104,6 +104,63 @@ Canonical phase -> task mapping:
 
 Note: `product:init` is the mandatory operator wrapper for the lifecycle `bootstrap` phase.
 
+#### Detailed semantics: `product:init`
+
+**Purpose:** Initialize project workspace and validate deployment preconditions without creating infrastructure.
+
+**Side Effects (explicit):**
+
+1. Validates `project.yaml` contains valid `product_profile` (ADR 0089)
+2. Creates workspace state directory: `.work/deploy/state/<project>/`
+3. Writes initialization state: `.work/deploy/state/<project>/init-state.json`
+4. Runs `terraform init` for required providers (downloads provider plugins only, no remote state access)
+5. Verifies secrets access: checks age key availability at `~/.config/sops/age/keys.txt` (does **not** decrypt secrets)
+6. Validates bundle graph completeness (all required bundles resolvable)
+
+**Side Effects (prohibited):**
+
+- ❌ Does **NOT** create VMs or LXC containers
+- ❌ Does **NOT** apply Terraform configurations
+- ❌ Does **NOT** modify remote state (Proxmox, MikroTik)
+- ❌ Does **NOT** decrypt or write secrets to disk
+
+**Idempotency:** Safe to rerun. Re-validates preconditions and updates `init-state.json` timestamp. Existing workspace preserved.
+
+**Preconditions:**
+
+- Valid `project.yaml` with `product_profile` field
+- Age encryption keys present: `~/.config/sops/age/keys.txt`
+- Network access to Terraform provider registry (for plugin download)
+
+**Postconditions:**
+
+- `.work/deploy/state/<project>/init-state.json` exists with:
+
+  ```json
+  {
+    "status": "initialized",
+    "timestamp": "2026-04-08T10:30:00Z",
+    "profile_id": "soho.standard.v1",
+    "deployment_class": "managed-soho",
+    "validated_bundles": ["bundle.edge-routing", "..."],
+    "terraform_providers": ["bpg/proxmox", "terraform-routeros/routeros"]
+  }
+  ```
+
+- Terraform providers downloaded to `.terraform/providers/`
+- Operator can proceed to `product:plan`
+
+**Failure modes:**
+
+| Failure | Exit Code | Operator Action |
+|---|---|---|
+| Invalid product_profile | 1 | Fix project.yaml |
+| Missing age keys | 2 | Run age-keygen or restore keys |
+| Bundle resolution failed | 3 | Check profile/class compatibility |
+| Terraform provider download failed | 4 | Check network connectivity |
+
+**Rerun safety:** Operator can rerun `product:init` after fixing precondition failures without risk of state corruption.
+
 ### D5. Idempotency and rerun expectations
 
 - `product:doctor`, `product:plan`, and `product:audit` must be side-effect free.
