@@ -5,27 +5,6 @@
   "obsolete_candidates": [],
   "planned_outputs": [
     {
-      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/proxmox/versions.tf",
-      "reason": "base-family",
-      "renderer": "jinja2",
-      "required": true,
-      "template": "terraform/versions.tf.j2"
-    },
-    {
-      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/proxmox/provider.tf",
-      "reason": "base-family",
-      "renderer": "jinja2",
-      "required": true,
-      "template": "terraform/provider.tf.j2"
-    },
-    {
-      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/proxmox/variables.tf",
-      "reason": "base-family",
-      "renderer": "jinja2",
-      "required": true,
-      "template": "terraform/variables.tf.j2"
-    },
-    {
       "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/proxmox/bridges.tf",
       "reason": "base-family",
       "renderer": "jinja2",
@@ -40,13 +19,6 @@
       "template": "terraform/lxc.tf.j2"
     },
     {
-      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/proxmox/vms.tf",
-      "reason": "base-family",
-      "renderer": "jinja2",
-      "required": true,
-      "template": "terraform/vms.tf.j2"
-    },
-    {
       "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/proxmox/outputs.tf",
       "reason": "base-family",
       "renderer": "jinja2",
@@ -54,11 +26,39 @@
       "template": "terraform/outputs.tf.j2"
     },
     {
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/proxmox/provider.tf",
+      "reason": "base-family",
+      "renderer": "jinja2",
+      "required": true,
+      "template": "terraform/provider.tf.j2"
+    },
+    {
       "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/proxmox/terraform.tfvars.example",
       "reason": "base-family",
       "renderer": "jinja2",
       "required": true,
       "template": "terraform/terraform.tfvars.example.j2"
+    },
+    {
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/proxmox/variables.tf",
+      "reason": "base-family",
+      "renderer": "jinja2",
+      "required": true,
+      "template": "terraform/variables.tf.j2"
+    },
+    {
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/proxmox/versions.tf",
+      "reason": "base-family",
+      "renderer": "jinja2",
+      "required": true,
+      "template": "terraform/versions.tf.j2"
+    },
+    {
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/proxmox/vms.tf",
+      "reason": "base-family",
+      "renderer": "jinja2",
+      "required": true,
+      "template": "terraform/vms.tf.j2"
     }
   ],
   "plugin_id": "object.proxmox.generator.terraform",

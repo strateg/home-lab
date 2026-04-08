@@ -17,25 +17,18 @@
   "obsolete_candidates": [],
   "planned_outputs": [
     {
-      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/provider.tf",
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/addresses.tf",
       "reason": "base-family",
       "renderer": "jinja2",
       "required": true,
-      "template": "terraform/provider.tf.j2"
+      "template": "terraform/addresses.tf.j2"
     },
     {
-      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/interfaces.tf",
-      "reason": "base-family",
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/containers.tf",
+      "reason": "capability-enabled",
       "renderer": "jinja2",
       "required": true,
-      "template": "terraform/interfaces.tf.j2"
-    },
-    {
-      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/firewall.tf",
-      "reason": "base-family",
-      "renderer": "jinja2",
-      "required": true,
-      "template": "terraform/firewall.tf.j2"
+      "template": "terraform/containers.tf.j2"
     },
     {
       "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/dhcp.tf",
@@ -52,18 +45,18 @@
       "template": "terraform/dns.tf.j2"
     },
     {
-      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/addresses.tf",
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/firewall.tf",
       "reason": "base-family",
       "renderer": "jinja2",
       "required": true,
-      "template": "terraform/addresses.tf.j2"
+      "template": "terraform/firewall.tf.j2"
     },
     {
-      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/variables.tf",
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/interfaces.tf",
       "reason": "base-family",
       "renderer": "jinja2",
       "required": true,
-      "template": "terraform/variables.tf.j2"
+      "template": "terraform/interfaces.tf.j2"
     },
     {
       "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/outputs.tf",
@@ -73,11 +66,11 @@
       "template": "terraform/outputs.tf.j2"
     },
     {
-      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/terraform.tfvars.example",
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/provider.tf",
       "reason": "base-family",
       "renderer": "jinja2",
       "required": true,
-      "template": "terraform/terraform.tfvars.example.j2"
+      "template": "terraform/provider.tf.j2"
     },
     {
       "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/qos.tf",
@@ -87,18 +80,25 @@
       "template": "terraform/qos.tf.j2"
     },
     {
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/terraform.tfvars.example",
+      "reason": "base-family",
+      "renderer": "jinja2",
+      "required": true,
+      "template": "terraform/terraform.tfvars.example.j2"
+    },
+    {
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/variables.tf",
+      "reason": "base-family",
+      "renderer": "jinja2",
+      "required": true,
+      "template": "terraform/variables.tf.j2"
+    },
+    {
       "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/vpn.tf",
       "reason": "capability-enabled",
       "renderer": "jinja2",
       "required": true,
       "template": "terraform/vpn.tf.j2"
-    },
-    {
-      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/containers.tf",
-      "reason": "capability-enabled",
-      "renderer": "jinja2",
-      "required": true,
-      "template": "terraform/containers.tf.j2"
     }
   ],
   "plugin_id": "object.mikrotik.generator.terraform",
