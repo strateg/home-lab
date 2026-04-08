@@ -43,6 +43,10 @@ def test_build_terraform_ir_is_order_independent_for_templates() -> None:
 
     assert ir_a.to_dict() == ir_b.to_dict()
     reasons = {item.filename: item.reason for item in ir_a.planned_files}
+    renderers = {item.filename: item.renderer for item in ir_a.planned_files}
     assert reasons["provider.tf"] == "base-family"
     assert reasons["backend.tf"] == "dependency-enabled"
     assert reasons["qos.tf"] == "capability-enabled"
+    assert renderers["provider.tf"] == "jinja2"
+    assert renderers["backend.tf"] == "programmatic"
+    assert renderers["qos.tf"] == "jinja2"

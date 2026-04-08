@@ -10,12 +10,14 @@ class TerraformPlannedFileIR:
     """One planned Terraform output in family-level IR."""
 
     filename: str
+    renderer: str
     template: str
     reason: str
 
     def to_dict(self) -> dict[str, str]:
         return {
             "filename": self.filename,
+            "renderer": self.renderer,
             "template": self.template,
             "reason": self.reason,
         }
@@ -55,13 +57,16 @@ def build_terraform_module_family_ir(
     planned_files: list[TerraformPlannedFileIR] = []
     for filename in sorted(templates.keys()):
         reason = "base-family"
+        renderer = "jinja2"
         if filename in capability_templates:
             reason = "capability-enabled"
         elif filename == "backend.tf" and remote_state_enabled:
             reason = "dependency-enabled"
+            renderer = "programmatic"
         planned_files.append(
             TerraformPlannedFileIR(
                 filename=filename,
+                renderer=renderer,
                 template=str(templates[filename]),
                 reason=reason,
             )

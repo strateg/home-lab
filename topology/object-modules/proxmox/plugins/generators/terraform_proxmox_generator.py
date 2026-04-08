@@ -16,6 +16,7 @@ from plugins.generators.artifact_contract import (
 from plugins.generators.base_generator import BaseGenerator
 from plugins.generators.object_projection_loader import load_object_projection_module
 from plugins.generators.terraform_ir import build_terraform_module_family_ir
+from plugins.generators.terraform_programmatic import render_backend_tf
 
 # ADR0078 WP-001/WP-002: Use shared helpers via dynamic loader
 from plugins.generators.shared_helper_loader import load_capability_helpers, load_terraform_helpers
@@ -120,9 +121,13 @@ class TerraformProxmoxGenerator(BaseGenerator):
         capability_templates = get_capability_templates(caps, ctx.config)
         templates.update(capability_templates)
 
+        remote_state_backend_name = ""
+        remote_state_backend_items: list[tuple[str, str]] = []
         remote_state = resolve_remote_state_backend(ctx.config.get("terraform_remote_state"))
         if remote_state:
             backend_name, backend_items = remote_state
+            remote_state_backend_name = backend_name
+            remote_state_backend_items = backend_items
             templates["backend.tf"] = "terraform/backend.tf.j2"
             render_context["remote_state_backend"] = backend_name
             render_context["remote_state_items"] = [{"key": key, "value": value} for key, value in backend_items]
@@ -149,11 +154,18 @@ class TerraformProxmoxGenerator(BaseGenerator):
             planned_outputs.append(
                 build_planned_output(
                     path=str(output_path),
+                    renderer=item.renderer,
                     template=template_name,
                     reason=item.reason,
                 )
             )
-            content = self.render_template(ctx, template_name, render_context)
+            if item.renderer == "programmatic" and filename == "backend.tf" and remote_state:
+                content = render_backend_tf(
+                    backend_name=remote_state_backend_name,
+                    backend_items=remote_state_backend_items,
+                )
+            else:
+                content = self.render_template(ctx, template_name, render_context)
             self.write_text_atomic(output_path, content)
             written.append(str(output_path))
         obsolete_entries, obsolete_errors = compute_obsolete_entries(
