@@ -66,7 +66,7 @@ Validation evidence:
 ## 5. Acceptance Criteria
 
 - [ ] `task validate:default` passes with all new validators enabled.
-- [ ] `product:doctor` returns normalized status (`green|yellow|red`) from machine-readable evidence.
+- [x] `product:doctor` returns normalized status (`green|yellow|red`) from machine-readable evidence.
 - [ ] `product:handover` produces complete mandatory artifact set.
 - [ ] Build/release is blocked on critical readiness failures (`E794x`) and missing mandatory evidence.
 - [ ] TUC evidence coverage exists for ADR0091 required domains.

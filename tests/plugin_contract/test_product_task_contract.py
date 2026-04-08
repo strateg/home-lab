@@ -85,6 +85,17 @@ def test_read_only_product_tasks_do_not_invoke_apply_workflows() -> None:
             assert token not in cmds_serialized, f"read-only task '{task_name}' references '{token}'"
 
 
+def test_product_doctor_uses_machine_readable_evidence_resolver() -> None:
+    taskfile = _load_yaml(TASKFILE_PATH)
+    tasks = taskfile.get("tasks", {})
+    assert isinstance(tasks, dict)
+
+    doctor = tasks.get("doctor", {})
+    assert isinstance(doctor, dict)
+    serialized = "\n".join(_task_cmd_strings(doctor))
+    assert "scripts/orchestration/product/doctor.py" in serialized
+
+
 def test_product_apply_task_has_explicit_safety_gate() -> None:
     taskfile = _load_yaml(TASKFILE_PATH)
     tasks = taskfile.get("tasks", {})

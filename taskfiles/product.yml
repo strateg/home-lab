@@ -11,6 +11,7 @@ tasks:
     cmds:
       - task validate:default
       - task inspect:default
+      - "{{.PYTHON}} scripts/orchestration/product/doctor.py --project-id {{.PROJECT_ID}}"
 
   plan:
     desc: Product change preview (non-destructive validation)
