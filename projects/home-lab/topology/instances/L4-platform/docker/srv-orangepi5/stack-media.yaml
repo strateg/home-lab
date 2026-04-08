@@ -1,0 +1,14 @@
+@instance: stack-media
+@extends: obj.docker.stack.media
+group: docker
+@layer: L4
+@version: 1.0.0
+source_id: stack-media
+status: modeled
+notes: Media services stack on Orange Pi 5
+
+host_ref: srv-orangepi5
+
+stack_name: media
+member_refs:
+  - docker-jellyfin

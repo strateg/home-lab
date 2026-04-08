@@ -34,9 +34,11 @@ storage:
     - mount_path: /var/lib/postgresql/data
       pool_ref: inst.storage.pool.local_lvm
       size_gb: 20
+      data_asset_ref: inst.data_asset.postgresql_db
     - mount_path: /var/backups/postgresql
       pool_ref: inst.storage.pool.local_hdd
       size_gb: 50
+      data_asset_ref: inst.data_asset.postgresql_dumps
 
 network:
   interface: eth0

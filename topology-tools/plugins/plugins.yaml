@@ -1555,6 +1555,32 @@ plugins:
         scope: pipeline_shared
     description: Emits baseline Ansible inventory artifacts from v5 projections (Phase 5 bootstrap).
 
+  - id: base.generator.docker_compose
+    kind: generator
+    entry: generators/docker_compose_generator.py:DockerComposeGenerator
+    api_version: "1.x"
+    stages: [generate]
+    phase: post
+    order: 230
+    depends_on:
+      - base.compiler.instance_rows
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    consumes:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        required: false
+    produces:
+      - key: compose_files
+        scope: pipeline_shared
+      - key: compose_dir
+        scope: pipeline_shared
+    description: Generates docker-compose.yaml files from Docker stack instances (ADR 0087 Phase 6).
+
   - id: base.generator.artifact_manifest
     kind: generator
     entry: generators/artifact_manifest_generator.py:ArtifactManifestGenerator
@@ -1568,6 +1594,7 @@ plugins:
       - base.generator.ansible_inventory
       - base.generator.docs
       - base.generator.diagrams
+      - base.generator.docker_compose
     timeout: 30
     config: {}
     config_schema:

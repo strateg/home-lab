@@ -1,0 +1,16 @@
+@object: obj.storage.volume.vm_disk
+@extends: class.storage.volume
+@title: VM Disk Volume
+@description: Generic virtual machine disk volume template (ADR 0087 Phase 4)
+@layer: L3
+@version: 1.0.0
+
+properties:
+  name: vm-disk
+  format: qcow2
+  role: data
+  readonly: false
+  snapshot_capable: true
+
+enabled_capabilities:
+  - cap.storage.volume.persistent

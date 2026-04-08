@@ -1,0 +1,17 @@
+@instance: stack-monitoring
+@extends: obj.docker.stack.monitoring
+group: docker
+@layer: L4
+@version: 1.0.0
+source_id: stack-monitoring
+status: modeled
+notes: Observability stack on Orange Pi 5
+
+host_ref: srv-orangepi5
+
+stack_name: monitoring
+member_refs:
+  - docker-prometheus
+  - docker-grafana
+  - docker-alertmanager
+  - docker-loki

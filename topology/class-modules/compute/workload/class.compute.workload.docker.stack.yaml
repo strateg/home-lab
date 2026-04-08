@@ -1,0 +1,58 @@
+@class: class.compute.workload.docker.stack
+@extends: class.compute.workload.docker
+@title: Docker Compose Stack
+@summary: Logical grouping of Docker containers managed as a single Compose stack (ADR 0087 Phase 6).
+@layer: L4
+@version: 1.0.0
+
+# Stack-level properties
+stack_schema:
+  stack_name:
+    type: string
+    required: true
+    description: Docker Compose project name
+  compose_version:
+    type: string
+    default: "3.8"
+    description: Compose file version
+  member_refs:
+    type: list
+    items:
+      type: string
+      format: instance_ref
+      target_class: class.compute.workload.docker
+    description: References to Docker container instances in this stack
+  shared_networks:
+    type: list
+    items:
+      type: object
+      properties:
+        name:
+          type: string
+        driver:
+          type: string
+          enum: [bridge, host, none, macvlan, ipvlan, overlay]
+          default: bridge
+        external:
+          type: boolean
+          default: false
+    description: Docker networks shared among stack members
+  shared_volumes:
+    type: list
+    items:
+      type: object
+      properties:
+        name:
+          type: string
+        driver:
+          type: string
+          default: local
+        external:
+          type: boolean
+          default: false
+    description: Named volumes shared among stack members
+
+invariants:
+- stack_name must be unique per host
+- member_refs must all share the same host_ref
+- member_refs must resolve to valid Docker container instances

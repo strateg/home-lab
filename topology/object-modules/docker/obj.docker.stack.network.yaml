@@ -1,0 +1,14 @@
+@object: obj.docker.stack.network
+@extends: class.compute.workload.docker.stack
+@title: Network Services Stack
+@description: DNS, reverse proxy, VPN, and MQTT network services
+@layer: L4
+@version: 1.0.0
+
+properties:
+  stack_name: network
+  compose_version: "3.8"
+
+shared_networks:
+  - name: proxy
+    driver: bridge

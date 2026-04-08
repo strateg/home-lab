@@ -34,6 +34,7 @@ storage:
     - mount_path: /var/lib/redis
       pool_ref: inst.storage.pool.local_lvm
       size_gb: 4
+      data_asset_ref: inst.data_asset.redis
 
 network:
   interface: eth0

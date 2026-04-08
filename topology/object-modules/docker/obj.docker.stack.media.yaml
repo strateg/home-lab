@@ -1,0 +1,10 @@
+@object: obj.docker.stack.media
+@extends: class.compute.workload.docker.stack
+@title: Media Stack
+@description: Media services stack (Jellyfin)
+@layer: L4
+@version: 1.0.0
+
+properties:
+  stack_name: media
+  compose_version: "3.8"

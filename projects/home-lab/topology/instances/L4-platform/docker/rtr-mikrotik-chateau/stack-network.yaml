@@ -1,0 +1,17 @@
+@instance: stack-network
+@extends: obj.docker.stack.network
+group: docker
+@layer: L4
+@version: 1.0.0
+source_id: stack-network
+status: modeled
+notes: Network services stack on MikroTik
+
+host_ref: rtr-mikrotik-chateau
+
+stack_name: network
+member_refs:
+  - docker-adguard
+  - docker-nginx
+  - docker-mosquitto
+  - docker-tailscale
