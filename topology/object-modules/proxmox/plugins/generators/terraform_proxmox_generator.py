@@ -15,11 +15,11 @@ from plugins.generators.artifact_contract import (
 )
 from plugins.generators.base_generator import BaseGenerator
 from plugins.generators.object_projection_loader import load_object_projection_module
-from plugins.generators.terraform_ir import build_terraform_module_family_ir
-from plugins.generators.terraform_programmatic import render_backend_tf
 
 # ADR0078 WP-001/WP-002: Use shared helpers via dynamic loader
 from plugins.generators.shared_helper_loader import load_capability_helpers, load_terraform_helpers
+from plugins.generators.terraform_ir import build_terraform_module_family_ir
+from plugins.generators.terraform_programmatic import render_backend_tf
 
 
 class TerraformProxmoxGenerator(BaseGenerator):

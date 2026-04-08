@@ -95,9 +95,7 @@ def test_docker_compose_generator_produces_compose_file(tmp_path: Path) -> None:
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.GENERATE)
     assert result.status == PluginStatus.SUCCESS
 
-    compose_path = (
-        tmp_path / "generated" / "docker-compose" / "srv-orangepi5" / "monitoring" / "docker-compose.yaml"
-    )
+    compose_path = tmp_path / "generated" / "docker-compose" / "srv-orangepi5" / "monitoring" / "docker-compose.yaml"
     assert compose_path.exists(), f"Expected {compose_path} to exist"
 
     compose = yaml.safe_load(compose_path.read_text(encoding="utf-8"))
@@ -116,9 +114,7 @@ def test_docker_compose_generator_includes_networks(tmp_path: Path) -> None:
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.GENERATE)
     assert result.status == PluginStatus.SUCCESS
 
-    compose_path = (
-        tmp_path / "generated" / "docker-compose" / "srv-orangepi5" / "monitoring" / "docker-compose.yaml"
-    )
+    compose_path = tmp_path / "generated" / "docker-compose" / "srv-orangepi5" / "monitoring" / "docker-compose.yaml"
     compose = yaml.safe_load(compose_path.read_text(encoding="utf-8"))
     assert "monitoring" in compose.get("networks", {})
 
@@ -131,9 +127,7 @@ def test_docker_compose_generator_sets_restart_policy(tmp_path: Path) -> None:
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.GENERATE)
     assert result.status == PluginStatus.SUCCESS
 
-    compose_path = (
-        tmp_path / "generated" / "docker-compose" / "srv-orangepi5" / "monitoring" / "docker-compose.yaml"
-    )
+    compose_path = tmp_path / "generated" / "docker-compose" / "srv-orangepi5" / "monitoring" / "docker-compose.yaml"
     compose = yaml.safe_load(compose_path.read_text(encoding="utf-8"))
     for svc in compose["services"].values():
         assert svc.get("restart") == "unless-stopped"

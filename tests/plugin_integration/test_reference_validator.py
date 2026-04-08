@@ -237,9 +237,7 @@ def test_reference_validator_rejects_unknown_storage_relation_target():
         model_lock={},
         config={"validation_owner_references": "plugin"},
         classes={"class.compute.workload.lxc": {"class": "class.compute.workload.lxc"}},
-        objects={
-            "obj.workload.local": {"object": "obj.workload.local", "class_ref": "class.compute.workload.lxc"}
-        },
+        objects={"obj.workload.local": {"object": "obj.workload.local", "class_ref": "class.compute.workload.lxc"}},
         instance_bindings={"instance_bindings": {}},
     )
     ctx._set_execution_context("base.compiler.instance_rows", set())
@@ -422,9 +420,7 @@ def test_reference_validator_rejects_unknown_network_bridge_target():
         model_lock={},
         config={"validation_owner_references": "plugin"},
         classes={"class.compute.workload.lxc": {"class": "class.compute.workload.lxc"}},
-        objects={
-            "obj.workload.local": {"object": "obj.workload.local", "class_ref": "class.compute.workload.lxc"}
-        },
+        objects={"obj.workload.local": {"object": "obj.workload.local", "class_ref": "class.compute.workload.lxc"}},
         instance_bindings={"instance_bindings": {}},
     )
     ctx._set_execution_context("base.compiler.instance_rows", set())
@@ -607,9 +603,7 @@ def test_reference_validator_rejects_unknown_network_vlan_target():
         model_lock={},
         config={"validation_owner_references": "plugin"},
         classes={"class.compute.workload.lxc": {"class": "class.compute.workload.lxc"}},
-        objects={
-            "obj.workload.local": {"object": "obj.workload.local", "class_ref": "class.compute.workload.lxc"}
-        },
+        objects={"obj.workload.local": {"object": "obj.workload.local", "class_ref": "class.compute.workload.lxc"}},
         instance_bindings={"instance_bindings": {}},
     )
     ctx._set_execution_context("base.compiler.instance_rows", set())
@@ -742,9 +736,7 @@ def test_reference_validator_rejects_network_vlan_ref_format():
         model_lock={},
         config={"validation_owner_references": "plugin"},
         classes={"class.compute.workload.lxc": {"class": "class.compute.workload.lxc"}},
-        objects={
-            "obj.workload.local": {"object": "obj.workload.local", "class_ref": "class.compute.workload.lxc"}
-        },
+        objects={"obj.workload.local": {"object": "obj.workload.local", "class_ref": "class.compute.workload.lxc"}},
         instance_bindings={"instance_bindings": {}},
     )
     ctx._set_execution_context("base.compiler.instance_rows", set())

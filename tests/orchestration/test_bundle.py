@@ -203,7 +203,9 @@ def test_bundle_checksum_verification_detects_modification(tmp_path: Path) -> No
     target.write_text('resource "x" "tampered" {}\n', encoding="utf-8")
     ok_after, mismatches_after = verify_bundle_checksums(info.bundle_path)
     assert ok_after is False
-    assert any(item.startswith("mismatch:artifacts/generated/home-lab/terraform/proxmox/main.tf") for item in mismatches_after)
+    assert any(
+        item.startswith("mismatch:artifacts/generated/home-lab/terraform/proxmox/main.tf") for item in mismatches_after
+    )
 
 
 def test_bundle_create_is_idempotent_for_existing_immutable_bundle(tmp_path: Path) -> None:

@@ -361,9 +361,7 @@ class ModuleLoaderCompiler(CompilerPlugin):
                         code="E8804",
                         severity="error",
                         stage="validate",
-                        message=(
-                            f"class module '@extends' target '{extends_ref}' does not exist in class registry."
-                        ),
+                        message=(f"class module '@extends' target '{extends_ref}' does not exist in class registry."),
                         path=class_path if isinstance(class_path, str) else f"class:{class_id}",
                         plugin_id=self.plugin_id,
                     )
@@ -482,7 +480,9 @@ class ModuleLoaderCompiler(CompilerPlugin):
         class_root = Path(class_root_raw)
         object_root = Path(object_root_raw)
         semantic_keywords_path = (
-            Path(semantic_keywords_path_raw) if isinstance(semantic_keywords_path_raw, str) and semantic_keywords_path_raw else None
+            Path(semantic_keywords_path_raw)
+            if isinstance(semantic_keywords_path_raw, str) and semantic_keywords_path_raw
+            else None
         )
 
         class_map, class_paths = self._load_module_map(

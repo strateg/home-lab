@@ -233,9 +233,7 @@ def validate_ai_contract_payloads(
         try:
             schema_version = payload.get("schema_version")
             if not _is_supported_schema_version(schema_version):
-                errors.append(
-                    f"{contract_name} schema_version '{schema_version}' is unsupported; expected major 1.x."
-                )
+                errors.append(f"{contract_name} schema_version '{schema_version}' is unsupported; expected major 1.x.")
                 continue
             schema = _load_schema(schema_path)
             jsonschema.validate(payload, schema)

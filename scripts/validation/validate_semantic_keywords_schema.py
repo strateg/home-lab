@@ -18,7 +18,6 @@ import sys
 sys.path.insert(0, str(TOOLS_ROOT))
 from yaml_loader import load_yaml_file
 
-
 DEFAULT_KEYWORDS_PATH = ROOT / "topology" / "semantic-keywords.yaml"
 DEFAULT_SCHEMA_PATH = ROOT / "schemas" / "semantic-keywords.schema.json"
 

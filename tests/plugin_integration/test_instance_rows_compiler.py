@@ -130,7 +130,10 @@ def test_instance_rows_compiler_rejects_semantic_key_collision():
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
     assert result.has_errors
-    assert any(diag.code == "E8803" and "both '@extends' and legacy 'object_ref'" in diag.message for diag in result.diagnostics)
+    assert any(
+        diag.code == "E8803" and "both '@extends' and legacy 'object_ref'" in diag.message
+        for diag in result.diagnostics
+    )
 
 
 def test_instance_rows_compiler_rejects_typed_extends_mismatch():
@@ -158,7 +161,10 @@ def test_instance_rows_compiler_rejects_typed_extends_mismatch():
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
     assert result.has_errors
-    assert any(diag.code == "E8804" and "instance inheritance requires object id" in diag.message for diag in result.diagnostics)
+    assert any(
+        diag.code == "E8804" and "instance inheritance requires object id" in diag.message
+        for diag in result.diagnostics
+    )
 
 
 def test_sidecar_merge_passthrough_preserves_placeholders():

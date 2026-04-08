@@ -101,4 +101,3 @@ def build_candidate_diff(*, baseline_path: Path, candidate_path: Path, logical_p
         "diff_text": "\n".join(diff_lines),
         "added_lines": max(0, len(new) - len(old)),
     }
-

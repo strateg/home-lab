@@ -91,8 +91,7 @@ class HostRefDagValidator(ValidatorJsonPlugin):
                         severity="error",
                         stage=stage,
                         message=(
-                            f"Workload '{node_id}' has circular host_ref dependency: "
-                            f"{' -> '.join(cycle_path)}"
+                            f"Workload '{node_id}' has circular host_ref dependency: " f"{' -> '.join(cycle_path)}"
                         ),
                         path=f"{row_prefix}.host_ref",
                     )

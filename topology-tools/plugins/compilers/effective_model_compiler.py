@@ -260,7 +260,9 @@ class EffectiveModelCompiler(CompilerPlugin):
             if not isinstance(object_payload, dict):
                 object_payload = {}
             class_parent = class_payload.get("extends") if isinstance(class_payload.get("extends"), str) else None
-            object_class_ref = object_payload.get("class_ref") if isinstance(object_payload.get("class_ref"), str) else None
+            object_class_ref = (
+                object_payload.get("class_ref") if isinstance(object_payload.get("class_ref"), str) else None
+            )
             if isinstance(class_ref, str) and class_ref:
                 resolved_lineage = class_lineage_map.get(class_ref, [class_ref])
             else:
@@ -299,9 +301,11 @@ class EffectiveModelCompiler(CompilerPlugin):
                     "model": object_payload.get("model"),
                     "extends_class": object_class_ref,
                     "materializes_class": object_class_ref,
-                    "class_lineage": class_lineage_map.get(object_class_ref, [object_class_ref])
-                    if isinstance(object_class_ref, str) and object_class_ref
-                    else [],
+                    "class_lineage": (
+                        class_lineage_map.get(object_class_ref, [object_class_ref])
+                        if isinstance(object_class_ref, str) and object_class_ref
+                        else []
+                    ),
                 },
             }
             row_extensions = row.get("extensions")

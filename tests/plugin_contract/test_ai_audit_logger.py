@@ -13,8 +13,8 @@ V5_TOOLS = REPO_ROOT / "topology-tools"
 sys.path.insert(0, str(V5_TOOLS))
 
 from plugins.generators.ai_audit import (  # noqa: E402
-    AiAuditLogger,
     EVENT_TYPES,
+    AiAuditLogger,
     cleanup_ai_audit_logs,
     resolve_ai_audit_log_path,
     verify_ai_audit_log_integrity,

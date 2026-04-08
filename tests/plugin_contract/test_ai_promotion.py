@@ -32,7 +32,18 @@ def test_resolve_approvals_supports_all_and_selective() -> None:
 
 
 def test_promote_approved_candidates_copies_artifact_and_metadata(tmp_path: Path) -> None:
-    candidate = tmp_path / ".work" / "ai-sandbox" / "home-lab" / "req-1" / "candidates" / "generated" / "home-lab" / "docs" / "a.md"
+    candidate = (
+        tmp_path
+        / ".work"
+        / "ai-sandbox"
+        / "home-lab"
+        / "req-1"
+        / "candidates"
+        / "generated"
+        / "home-lab"
+        / "docs"
+        / "a.md"
+    )
     candidate.parent.mkdir(parents=True, exist_ok=True)
     candidate.write_text("hello\n", encoding="utf-8")
     meta = candidate.with_suffix(candidate.suffix + ".ai-metadata.json")
@@ -52,4 +63,3 @@ def test_promote_approved_candidates_copies_artifact_and_metadata(tmp_path: Path
     assert target.exists()
     assert target.read_text(encoding="utf-8") == "hello\n"
     assert Path(promoted[0]["metadata_path"]).exists()
-

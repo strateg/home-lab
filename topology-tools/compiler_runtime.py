@@ -235,7 +235,17 @@ def _load_sharded_instance_payload(
                 path=_diag_path(repo_root=repo_root, path=path),
             )
             continue
-        legacy_keys = ("instance", "extends", "object_ref", "class_ref", "version", "title", "summary", "description", "layer")
+        legacy_keys = (
+            "instance",
+            "extends",
+            "object_ref",
+            "class_ref",
+            "version",
+            "title",
+            "summary",
+            "description",
+            "layer",
+        )
         present_legacy = [key for key in legacy_keys if key in payload]
         if present_legacy:
             add_diag(

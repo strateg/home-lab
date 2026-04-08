@@ -14,6 +14,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 V5_TOOLS = REPO_ROOT / "topology-tools"
 sys.path.insert(0, str(V5_TOOLS))
 
+from kernel.plugin_base import PluginContext  # noqa: E402
 from plugins.generators.artifact_contract import (  # noqa: E402
     build_artifact_plan,
     build_generation_report,
@@ -22,7 +23,6 @@ from plugins.generators.artifact_contract import (  # noqa: E402
     save_current_plan,
     validate_contract_payloads,
 )
-from kernel.plugin_base import PluginContext  # noqa: E402
 
 
 def _load_schema(name: str) -> dict:

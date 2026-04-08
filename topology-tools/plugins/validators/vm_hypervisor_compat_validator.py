@@ -231,8 +231,7 @@ class VmHypervisorCompatValidator(ValidatorJsonPlugin):
                                 severity="error",
                                 stage=stage,
                                 message=(
-                                    f"VM '{row_id}' boot_order[{idx}] references unknown "
-                                    f"disk_id '{boot_entry}'."
+                                    f"VM '{row_id}' boot_order[{idx}] references unknown " f"disk_id '{boot_entry}'."
                                 ),
                                 path=f"{row_prefix}.boot_order[{idx}]",
                             )

@@ -14,8 +14,8 @@ from plugins.generators.projection_core import (  # ADR0078 WP-006: Group canoni
     _get_instance_data,
     _group_rows,
     _instance_groups,
-    _require_object_ref,
     _require_non_empty_str,
+    _require_object_ref,
     _sorted_rows,
 )
 

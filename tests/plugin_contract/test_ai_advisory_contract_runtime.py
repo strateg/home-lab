@@ -132,7 +132,4 @@ def test_redaction_coverage_is_at_least_99_percent_for_secret_markers() -> None:
     coverage = redacted_fields / total_secret_fields
 
     assert coverage >= 0.99
-    assert all(
-        str(redacted["effective_json"][key]).startswith("<<REDACTED:")
-        for key in secret_source
-    )
+    assert all(str(redacted["effective_json"][key]).startswith("<<REDACTED:") for key in secret_source)

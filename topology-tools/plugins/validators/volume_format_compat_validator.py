@@ -135,8 +135,7 @@ class VolumeFormatCompatValidator(ValidatorJsonPlugin):
                             severity="warning",
                             stage=stage,
                             message=(
-                                f"Volume '{row_id}' pool_ref '{pool_ref}' "
-                                "does not reference a known pool instance."
+                                f"Volume '{row_id}' pool_ref '{pool_ref}' " "does not reference a known pool instance."
                             ),
                             path=f"{row_prefix}.pool_ref",
                         )

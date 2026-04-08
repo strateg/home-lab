@@ -106,8 +106,7 @@ class DockerRefsValidator(ValidatorJsonPlugin):
                         severity="error",
                         stage=stage,
                         message=(
-                            f"Docker container '{row_id}' host_ref '{host_ref}' "
-                            "does not reference a known instance."
+                            f"Docker container '{row_id}' host_ref '{host_ref}' " "does not reference a known instance."
                         ),
                         path=f"{row_prefix}.host_ref",
                     )

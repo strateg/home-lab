@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import json
-import yaml
 
+import yaml
 from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage
 from plugins.generators.artifact_contract import (
     build_artifact_plan,

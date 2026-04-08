@@ -68,4 +68,3 @@ def rollback_ai_promoted_artifacts(
         "failed": failed,
         "duration_seconds": duration_seconds,
     }
-

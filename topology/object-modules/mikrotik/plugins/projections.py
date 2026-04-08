@@ -13,8 +13,8 @@ from plugins.generators.projection_core import (  # ADR0078 WP-006: Group canoni
     ProjectionError,
     _group_rows,
     _instance_groups,
-    _require_object_ref,
     _require_non_empty_str,
+    _require_object_ref,
     _resolved_object_ref,
     _sorted_rows,
 )
@@ -80,6 +80,7 @@ def _derive_mikrotik_capability_flags(routers: list[dict[str, Any]]) -> dict[str
 def _load_object_properties(object_ref: str) -> dict[str, Any]:
     """Load properties from object module YAML file."""
     from pathlib import Path
+
     import yaml
 
     # Determine repo root from this file's location

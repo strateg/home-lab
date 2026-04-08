@@ -20,145 +20,145 @@ from plugins.generators.docs.storage_projection import build_storage_projection 
 def _compiled_fixture() -> dict:
     return _semanticize(
         {
-        "instances": {
-            "devices": [
-                {
-                    "instance_id": "rtr-a",
-                    "object_ref": "obj.router.a",
-                    "class_ref": "class.network.router",
-                    "status": "mapped",
-                }
-            ],
-            "network": [
-                {
-                    "instance_id": "inst.trust_zone.servers",
-                    "object_ref": "obj.network.trust_zone.servers",
-                    "class_ref": "class.network.trust_zone",
-                    "status": "mapped",
-                },
-                {
-                    "instance_id": "inst.bridge.vmbr0",
-                    "object_ref": "obj.network.bridge.vmbr0",
-                    "class_ref": "class.network.bridge",
-                    "status": "mapped",
-                    "instance_data": {"host_ref": "srv-hv"},
-                },
-                {
-                    "instance_id": "inst.vlan.servers",
-                    "object_ref": "obj.network.vlan.servers",
-                    "class_ref": "class.network.vlan",
-                    "status": "mapped",
-                    "instance_data": {
-                        "managed_by_ref": "rtr-a",
-                        "trust_zone_ref": "inst.trust_zone.servers",
-                        "dhcp_range": "10.0.30.100-10.0.30.200",
-                        "ip_allocations": [{"ip": "10.0.30.2", "device_ref": "srv-a"}],
+            "instances": {
+                "devices": [
+                    {
+                        "instance_id": "rtr-a",
+                        "object_ref": "obj.router.a",
+                        "class_ref": "class.network.router",
+                        "status": "mapped",
+                    }
+                ],
+                "network": [
+                    {
+                        "instance_id": "inst.trust_zone.servers",
+                        "object_ref": "obj.network.trust_zone.servers",
+                        "class_ref": "class.network.trust_zone",
+                        "status": "mapped",
                     },
-                },
-            ],
-            "data-channels": [
-                {
-                    "instance_id": "inst.chan.eth.rtr_to_srv",
-                    "class_ref": "class.network.data_link",
-                    "instance_data": {
-                        "endpoint_a": {"device_ref": "rtr-a", "port": "ether1"},
-                        "endpoint_b": {"device_ref": "srv-a", "port": "eno1"},
+                    {
+                        "instance_id": "inst.bridge.vmbr0",
+                        "object_ref": "obj.network.bridge.vmbr0",
+                        "class_ref": "class.network.bridge",
+                        "status": "mapped",
+                        "instance_data": {"host_ref": "srv-hv"},
                     },
-                }
-            ],
-            "physical-links": [
-                {
-                    "instance_id": "inst.ethernet_cable.rtr_to_srv",
-                    "class_ref": "class.network.physical_link",
-                    "instance_data": {
-                        "endpoint_a": {"device_ref": "rtr-a", "port": "ether1"},
-                        "endpoint_b": {"device_ref": "srv-a", "port": "eno1"},
+                    {
+                        "instance_id": "inst.vlan.servers",
+                        "object_ref": "obj.network.vlan.servers",
+                        "class_ref": "class.network.vlan",
+                        "status": "mapped",
+                        "instance_data": {
+                            "managed_by_ref": "rtr-a",
+                            "trust_zone_ref": "inst.trust_zone.servers",
+                            "dhcp_range": "10.0.30.100-10.0.30.200",
+                            "ip_allocations": [{"ip": "10.0.30.2", "device_ref": "srv-a"}],
+                        },
                     },
-                }
-            ],
-            "power": [
-                {
-                    "instance_id": "ups-main",
-                    "class_ref": "class.power.ups",
-                    "instance_data": {"power": {"external_source": "utility-grid", "max_watts": 500}},
-                }
-            ],
-            "firewall": [
-                {
-                    "instance_id": "inst.fw.default",
-                    "object_ref": "obj.network.firewall_policy.default",
-                    "class_ref": "class.network.firewall_policy",
-                    "instance_data": {"chain": "forward", "managed_by_ref": "rtr-a"},
-                    "status": "mapped",
-                }
-            ],
-            "pools": [
-                {
-                    "instance_id": "inst.pool.local",
-                    "object_ref": "obj.storage.pool.local",
-                    "class_ref": "class.storage.pool",
-                    "instance_data": {"host_ref": "srv-a"},
-                    "status": "mapped",
-                },
-            ],
-            "data-assets": [
-                {
-                    "instance_id": "inst.data_asset.pg",
-                    "object_ref": "obj.storage.asset.pg",
-                    "class_ref": "class.storage.data_asset",
-                    "instance_data": {"host_ref": "srv-a", "engine": "postgresql"},
-                    "status": "mapped",
-                },
-            ],
-            "operations": [
-                {
-                    "instance_id": "backup-pg",
-                    "object_ref": "obj.operations.backup.default",
-                    "class_ref": "class.operations.backup",
-                    "instance_data": {
-                        "target_ref": "lxc-postgresql",
-                        "storage_ref": "inst.pool.local",
-                        "data_asset_ref": "inst.data_asset.pg",
+                ],
+                "data-channels": [
+                    {
+                        "instance_id": "inst.chan.eth.rtr_to_srv",
+                        "class_ref": "class.network.data_link",
+                        "instance_data": {
+                            "endpoint_a": {"device_ref": "rtr-a", "port": "ether1"},
+                            "endpoint_b": {"device_ref": "srv-a", "port": "eno1"},
+                        },
+                    }
+                ],
+                "physical-links": [
+                    {
+                        "instance_id": "inst.ethernet_cable.rtr_to_srv",
+                        "class_ref": "class.network.physical_link",
+                        "instance_data": {
+                            "endpoint_a": {"device_ref": "rtr-a", "port": "ether1"},
+                            "endpoint_b": {"device_ref": "srv-a", "port": "eno1"},
+                        },
+                    }
+                ],
+                "power": [
+                    {
+                        "instance_id": "ups-main",
+                        "class_ref": "class.power.ups",
+                        "instance_data": {"power": {"external_source": "utility-grid", "max_watts": 500}},
+                    }
+                ],
+                "firewall": [
+                    {
+                        "instance_id": "inst.fw.default",
+                        "object_ref": "obj.network.firewall_policy.default",
+                        "class_ref": "class.network.firewall_policy",
+                        "instance_data": {"chain": "forward", "managed_by_ref": "rtr-a"},
+                        "status": "mapped",
+                    }
+                ],
+                "pools": [
+                    {
+                        "instance_id": "inst.pool.local",
+                        "object_ref": "obj.storage.pool.local",
+                        "class_ref": "class.storage.pool",
+                        "instance_data": {"host_ref": "srv-a"},
+                        "status": "mapped",
                     },
-                    "status": "mapped",
-                }
-            ],
-            "observability": [
-                {
-                    "instance_id": "health-pg",
-                    "object_ref": "obj.observability.healthcheck.pg",
-                    "class_ref": "class.observability.healthcheck",
-                    "instance_data": {"target_ref": "lxc-postgresql", "interval": "60s"},
-                    "status": "mapped",
-                },
-                {
-                    "instance_id": "alert-pg",
-                    "object_ref": "obj.observability.alert.pg",
-                    "class_ref": "class.observability.alert",
-                    "instance_data": {"severity": "critical", "channels": ["email"]},
-                    "status": "mapped",
-                },
-            ],
-            "services": [
-                {
-                    "instance_id": "svc-vpn",
-                    "object_ref": "obj.service.vpn.tailscale",
-                    "class_ref": "class.service.vpn",
-                    "instance_data": {"vpn_type": "tailscale", "trust_zone_ref": "inst.trust_zone.servers"},
-                    "status": "mapped",
-                }
-            ],
-            "qos": [
-                {
-                    "instance_id": "inst.qos.wan",
-                    "object_ref": "obj.network.qos.wan",
-                    "class_ref": "class.network.qos",
-                    "instance_data": {"managed_by_ref": "rtr-a", "interface": "ether1"},
-                    "status": "mapped",
-                }
-            ],
+                ],
+                "data-assets": [
+                    {
+                        "instance_id": "inst.data_asset.pg",
+                        "object_ref": "obj.storage.asset.pg",
+                        "class_ref": "class.storage.data_asset",
+                        "instance_data": {"host_ref": "srv-a", "engine": "postgresql"},
+                        "status": "mapped",
+                    },
+                ],
+                "operations": [
+                    {
+                        "instance_id": "backup-pg",
+                        "object_ref": "obj.operations.backup.default",
+                        "class_ref": "class.operations.backup",
+                        "instance_data": {
+                            "target_ref": "lxc-postgresql",
+                            "storage_ref": "inst.pool.local",
+                            "data_asset_ref": "inst.data_asset.pg",
+                        },
+                        "status": "mapped",
+                    }
+                ],
+                "observability": [
+                    {
+                        "instance_id": "health-pg",
+                        "object_ref": "obj.observability.healthcheck.pg",
+                        "class_ref": "class.observability.healthcheck",
+                        "instance_data": {"target_ref": "lxc-postgresql", "interval": "60s"},
+                        "status": "mapped",
+                    },
+                    {
+                        "instance_id": "alert-pg",
+                        "object_ref": "obj.observability.alert.pg",
+                        "class_ref": "class.observability.alert",
+                        "instance_data": {"severity": "critical", "channels": ["email"]},
+                        "status": "mapped",
+                    },
+                ],
+                "services": [
+                    {
+                        "instance_id": "svc-vpn",
+                        "object_ref": "obj.service.vpn.tailscale",
+                        "class_ref": "class.service.vpn",
+                        "instance_data": {"vpn_type": "tailscale", "trust_zone_ref": "inst.trust_zone.servers"},
+                        "status": "mapped",
+                    }
+                ],
+                "qos": [
+                    {
+                        "instance_id": "inst.qos.wan",
+                        "object_ref": "obj.network.qos.wan",
+                        "class_ref": "class.network.qos",
+                        "instance_data": {"managed_by_ref": "rtr-a", "interface": "ether1"},
+                        "status": "mapped",
+                    }
+                ],
+            }
         }
-    }
     )
 
 

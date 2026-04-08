@@ -3,10 +3,10 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 import copy
+import hashlib
 import importlib.util
+import json
 import subprocess
 from pathlib import Path
 
@@ -225,9 +225,7 @@ def test_tuc0002_terraform_semantic_file_contract_and_renderers(tmp_path: Path) 
         assert renderers.issubset({"jinja2", "programmatic"})
 
         backend_rows = [
-            item
-            for item in planned
-            if isinstance(item, dict) and str(item.get("path", "")).endswith("/backend.tf")
+            item for item in planned if isinstance(item, dict) and str(item.get("path", "")).endswith("/backend.tf")
         ]
         for row in backend_rows:
             assert row.get("renderer") == "programmatic"
@@ -272,9 +270,7 @@ def test_tuc0002_mikrotik_remote_state_backend_uses_programmatic_renderer(tmp_pa
     plan_rows = result.output_data["artifact_plan"]["planned_outputs"]
     backend_entry = next(item for item in plan_rows if str(item.get("path", "")).endswith("/backend.tf"))
     assert backend_entry["renderer"] == "programmatic"
-    backend_tf = (
-        tmp_path / "generated" / "terraform" / "mikrotik" / "backend.tf"
-    ).read_text(encoding="utf-8")
+    backend_tf = (tmp_path / "generated" / "terraform" / "mikrotik" / "backend.tf").read_text(encoding="utf-8")
     assert 'backend "pg"' in backend_tf
 
 
@@ -313,7 +309,5 @@ def test_tuc0002_proxmox_remote_state_backend_uses_programmatic_renderer(tmp_pat
     plan_rows = result.output_data["artifact_plan"]["planned_outputs"]
     backend_entry = next(item for item in plan_rows if str(item.get("path", "")).endswith("/backend.tf"))
     assert backend_entry["renderer"] == "programmatic"
-    backend_tf = (
-        tmp_path / "generated" / "terraform" / "proxmox" / "backend.tf"
-    ).read_text(encoding="utf-8")
+    backend_tf = (tmp_path / "generated" / "terraform" / "proxmox" / "backend.tf").read_text(encoding="utf-8")
     assert 'backend "s3"' in backend_tf

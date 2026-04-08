@@ -46,20 +46,20 @@ from kernel import (
     Stage,
 )
 from plugin_manifest_discovery import discover_plugin_manifest_paths, validate_module_index_consistency
+from plugins.generators.ai_advisory_contract import (
+    build_ai_input_payload,
+    parse_ai_output_payload,
+    validate_ai_contract_payloads,
+)
 from plugins.generators.ai_ansible import (
     build_ansible_input_adapter,
     parse_ansible_output_candidates,
     validate_ansible_candidates_with_lint,
 )
 from plugins.generators.ai_assisted import build_candidate_diff, materialize_candidate_artifacts
+from plugins.generators.ai_audit import AiAuditLogger, cleanup_ai_audit_logs
 from plugins.generators.ai_promotion import promote_approved_candidates, resolve_approvals
 from plugins.generators.ai_rollback import list_ai_promoted_artifacts, rollback_ai_promoted_artifacts
-from plugins.generators.ai_advisory_contract import (
-    build_ai_input_payload,
-    parse_ai_output_payload,
-    validate_ai_contract_payloads,
-)
-from plugins.generators.ai_audit import AiAuditLogger, cleanup_ai_audit_logs
 from plugins.generators.ai_sandbox import (
     cleanup_ai_sandbox_sessions,
     create_ai_sandbox_session,
@@ -1265,7 +1265,9 @@ class V5Compiler:
             )
             if lint_failures:
                 rejected.extend(lint_failures)
-                accepted = [row for row in accepted if str(row.get("path", "")) not in {f["path"] for f in lint_failures}]
+                accepted = [
+                    row for row in accepted if str(row.get("path", "")) not in {f["path"] for f in lint_failures}
+                ]
                 for item in lint_failures:
                     print(f"[ai-assisted] lint-rejected: {item['path']} ({item['reason']})", flush=True)
 
@@ -1726,13 +1728,21 @@ class V5Compiler:
             add_diag=self.add_diag,
             repo_root=REPO_ROOT,
         )
-        if self.ai_advisory and plugin_ctx is not None and not any(item.severity == "error" for item in self._diagnostics):
+        if (
+            self.ai_advisory
+            and plugin_ctx is not None
+            and not any(item.severity == "error" for item in self._diagnostics)
+        ):
             self._run_ai_advisory_session(
                 effective_payload=effective_payload,
                 project_id=manifest_bundle.project_id,
                 plugin_ctx=plugin_ctx,
             )
-        if self.ai_assisted and plugin_ctx is not None and not any(item.severity == "error" for item in self._diagnostics):
+        if (
+            self.ai_assisted
+            and plugin_ctx is not None
+            and not any(item.severity == "error" for item in self._diagnostics)
+        ):
             self._run_ai_assisted_session(
                 effective_payload=effective_payload,
                 project_id=manifest_bundle.project_id,

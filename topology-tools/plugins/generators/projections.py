@@ -6,7 +6,11 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
-from plugins.icons.icon_manager import IconManager
+from plugins.generators.docs.network_projection import build_network_projection
+from plugins.generators.docs.operations_projection import build_operations_projection
+from plugins.generators.docs.physical_projection import build_physical_projection
+from plugins.generators.docs.security_projection import build_security_projection
+from plugins.generators.docs.storage_projection import build_storage_projection
 from plugins.generators.projection_core import (  # ADR0078 WP-006: Group canonical name constants
     GROUP_DEVICES,
     GROUP_LXC,
@@ -18,17 +22,13 @@ from plugins.generators.projection_core import (  # ADR0078 WP-006: Group canoni
     _group_rows,
     _instance_groups,
     _is_ansible_host_candidate,
-    _require_object_ref,
     _require_non_empty_str,
+    _require_object_ref,
     _resolved_class_ref,
     _resolved_object_ref,
     _sorted_rows,
 )
-from plugins.generators.docs.network_projection import build_network_projection
-from plugins.generators.docs.operations_projection import build_operations_projection
-from plugins.generators.docs.physical_projection import build_physical_projection
-from plugins.generators.docs.security_projection import build_security_projection
-from plugins.generators.docs.storage_projection import build_storage_projection
+from plugins.icons.icon_manager import IconManager
 
 _ICONS = IconManager()
 

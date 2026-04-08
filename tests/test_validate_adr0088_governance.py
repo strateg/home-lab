@@ -34,7 +34,9 @@ def _write_text(path: Path, content: str) -> None:
 
 
 def _write_diagnostics(path: Path, warning_code: str = "W7816", count: int = 1) -> None:
-    diagnostics = [{"code": warning_code, "severity": "warning", "stage": "validate", "message": "warn", "path": "x"}] * count
+    diagnostics = [
+        {"code": warning_code, "severity": "warning", "stage": "validate", "message": "warn", "path": "x"}
+    ] * count
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps({"diagnostics": diagnostics}, ensure_ascii=True), encoding="utf-8")
 

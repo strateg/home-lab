@@ -46,81 +46,81 @@ def _ctx(tmp_path: Path, compiled_json: dict) -> PluginContext:
 def _compiled_fixture() -> dict:
     return _semanticize(
         {
-        "instances": {
-            "devices": [
-                {
-                    "instance_id": "rtr-slate",
-                    "class_ref": "class.network.router",
-                    "object_ref": "obj.glinet.slate_ax1800",
-                    "layer": "L1",
-                    "status": "mapped",
-                },
-                {
-                    "instance_id": "srv-gamayun",
-                    "class_ref": "class.compute.hypervisor",
-                    "object_ref": "obj.proxmox.ve",
-                    "layer": "L1",
-                    "status": "mapped",
-                },
-            ],
-            "network": [
-                {
-                    "instance_id": "inst.trust_zone.servers",
-                    "class_ref": "class.network.trust_zone",
-                    "object_ref": "obj.network.trust_zone.servers",
-                    "status": "mapped",
-                },
-                {
-                    "instance_id": "inst.vlan.servers",
-                    "class_ref": "class.network.vlan",
-                    "object_ref": "obj.network.vlan.servers",
-                    "status": "mapped",
-                    "instance_data": {
-                        "vlan_id": 30,
-                        "cidr": "10.0.30.0/24",
-                        "gateway": "10.0.30.1",
-                        "trust_zone_ref": "inst.trust_zone.servers",
+            "instances": {
+                "devices": [
+                    {
+                        "instance_id": "rtr-slate",
+                        "class_ref": "class.network.router",
+                        "object_ref": "obj.glinet.slate_ax1800",
+                        "layer": "L1",
+                        "status": "mapped",
                     },
-                },
-                {
-                    "instance_id": "inst.data_link.rtr_to_hv",
-                    "class_ref": "class.network.data_link",
-                    "object_ref": "obj.network.ethernet_link",
-                    "status": "mapped",
-                    "instance_data": {
-                        "endpoint_a": {"device_ref": "rtr-slate"},
-                        "endpoint_b": {"device_ref": "srv-gamayun"},
-                        "medium": "ethernet",
-                        "speed_mbps": 1000,
+                    {
+                        "instance_id": "srv-gamayun",
+                        "class_ref": "class.compute.hypervisor",
+                        "object_ref": "obj.proxmox.ve",
+                        "layer": "L1",
+                        "status": "mapped",
                     },
-                },
-            ],
-            "services": [
-                {
-                    "instance_id": "svc-prometheus",
-                    "class_ref": "class.service.monitoring",
-                    "object_ref": "obj.service.prometheus",
-                    "status": "mapped",
-                    "runtime": {"type": "container", "target_ref": "lxc-prometheus"},
-                }
-            ],
-            "lxc": [
-                {
-                    "instance_id": "lxc-prometheus",
-                    "class_ref": "class.compute.workload.lxc",
-                    "object_ref": "obj.proxmox.lxc.debian12.prometheus",
-                    "status": "mapped",
-                    "instance_data": {
-                        "hostname": "prometheus",
-                        "host_ref": "srv-gamayun",
-                        "trust_zone_ref": "inst.trust_zone.servers",
+                ],
+                "network": [
+                    {
+                        "instance_id": "inst.trust_zone.servers",
+                        "class_ref": "class.network.trust_zone",
+                        "object_ref": "obj.network.trust_zone.servers",
+                        "status": "mapped",
                     },
-                }
-            ],
-            "vm": [],
-            "vms": [],
+                    {
+                        "instance_id": "inst.vlan.servers",
+                        "class_ref": "class.network.vlan",
+                        "object_ref": "obj.network.vlan.servers",
+                        "status": "mapped",
+                        "instance_data": {
+                            "vlan_id": 30,
+                            "cidr": "10.0.30.0/24",
+                            "gateway": "10.0.30.1",
+                            "trust_zone_ref": "inst.trust_zone.servers",
+                        },
+                    },
+                    {
+                        "instance_id": "inst.data_link.rtr_to_hv",
+                        "class_ref": "class.network.data_link",
+                        "object_ref": "obj.network.ethernet_link",
+                        "status": "mapped",
+                        "instance_data": {
+                            "endpoint_a": {"device_ref": "rtr-slate"},
+                            "endpoint_b": {"device_ref": "srv-gamayun"},
+                            "medium": "ethernet",
+                            "speed_mbps": 1000,
+                        },
+                    },
+                ],
+                "services": [
+                    {
+                        "instance_id": "svc-prometheus",
+                        "class_ref": "class.service.monitoring",
+                        "object_ref": "obj.service.prometheus",
+                        "status": "mapped",
+                        "runtime": {"type": "container", "target_ref": "lxc-prometheus"},
+                    }
+                ],
+                "lxc": [
+                    {
+                        "instance_id": "lxc-prometheus",
+                        "class_ref": "class.compute.workload.lxc",
+                        "object_ref": "obj.proxmox.lxc.debian12.prometheus",
+                        "status": "mapped",
+                        "instance_data": {
+                            "hostname": "prometheus",
+                            "host_ref": "srv-gamayun",
+                            "trust_zone_ref": "inst.trust_zone.servers",
+                        },
+                    }
+                ],
+                "vm": [],
+                "vms": [],
+            }
         }
-    }
     )
 
 

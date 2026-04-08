@@ -62,4 +62,3 @@ def validate_ansible_candidates_with_lint(
             stderr = str(getattr(result, "stderr", "")).strip()
             failures.append({"path": logical_path or "<unknown>", "reason": stderr or "ansible-lint failed"})
     return failures
-

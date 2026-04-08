@@ -370,11 +370,7 @@ def test_placeholder_plugin_accepts_sops_ciphertext_for_optional_secret() -> Non
     ctx = _context(
         object_defaults={"hardware_identity": {"serial_number": "@optional_secret:string"}},
         instance_overrides={
-            "defaults": {
-                "hardware_identity": {
-                    "serial_number": "ENC[AES256_GCM,data:abc,iv:def,tag:ghi,type:str]"
-                }
-            }
+            "defaults": {"hardware_identity": {"serial_number": "ENC[AES256_GCM,data:abc,iv:def,tag:ghi,type:str]"}}
         },
     )
 

@@ -206,7 +206,11 @@ class ServiceRuntimeRefsValidator(ValidatorJsonPlugin):
                         stage=stage,
                         diagnostics=diagnostics,
                     )
-                elif runtime_type == "docker" and target_layer == "L4" and target_class == "class.compute.workload.docker":
+                elif (
+                    runtime_type == "docker"
+                    and target_layer == "L4"
+                    and target_class == "class.compute.workload.docker"
+                ):
                     pass
                 else:
                     diagnostics.append(

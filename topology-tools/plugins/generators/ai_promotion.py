@@ -54,4 +54,3 @@ def promote_approved_candidates(
             }
         )
     return promoted
-

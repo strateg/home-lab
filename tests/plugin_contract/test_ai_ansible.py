@@ -66,4 +66,3 @@ def test_validate_ansible_candidates_with_lint_returns_failures() -> None:
     )
     assert len(calls) == 2
     assert failures == [{"path": "generated/home-lab/ansible/inventory/bad.yml", "reason": "syntax error"}]
-

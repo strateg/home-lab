@@ -83,8 +83,7 @@ def build_security_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
         )
 
     normalized_bindings = {
-        zone: sorted(values)
-        for zone, values in sorted(zone_network_bindings.items(), key=lambda item: item[0])
+        zone: sorted(values) for zone, values in sorted(zone_network_bindings.items(), key=lambda item: item[0])
     }
     return {
         "trust_zones": _sorted_rows(trust_zones),

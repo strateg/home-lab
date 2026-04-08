@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-
 from kernel.plugin_base import (
     PluginContext,
     PluginDiagnostic,
@@ -42,11 +41,7 @@ class DockerComposeGenerator(BaseGenerator):
                 row_by_id[row_id] = row
 
         # Find stack instances
-        stacks = [
-            row
-            for row in rows
-            if row.get("class_ref") in self._STACK_CLASSES
-        ]
+        stacks = [row for row in rows if row.get("class_ref") in self._STACK_CLASSES]
 
         if not stacks:
             diagnostics.append(
@@ -67,36 +62,12 @@ class DockerComposeGenerator(BaseGenerator):
             stack_id = stack_row.get("instance", "unknown")
             extensions = self._extensions(stack_row)
 
-            stack_name = (
-                extensions.get("stack_name")
-                or stack_row.get("stack_name")
-                or stack_id
-            )
-            host_ref = (
-                extensions.get("host_ref")
-                or stack_row.get("host_ref")
-                or "unknown"
-            )
-            member_refs = (
-                extensions.get("member_refs")
-                or stack_row.get("member_refs")
-                or []
-            )
-            compose_version = (
-                extensions.get("compose_version")
-                or stack_row.get("compose_version")
-                or "3.8"
-            )
-            shared_networks = (
-                extensions.get("shared_networks")
-                or stack_row.get("shared_networks")
-                or []
-            )
-            shared_volumes = (
-                extensions.get("shared_volumes")
-                or stack_row.get("shared_volumes")
-                or []
-            )
+            stack_name = extensions.get("stack_name") or stack_row.get("stack_name") or stack_id
+            host_ref = extensions.get("host_ref") or stack_row.get("host_ref") or "unknown"
+            member_refs = extensions.get("member_refs") or stack_row.get("member_refs") or []
+            compose_version = extensions.get("compose_version") or stack_row.get("compose_version") or "3.8"
+            shared_networks = extensions.get("shared_networks") or stack_row.get("shared_networks") or []
+            shared_volumes = extensions.get("shared_volumes") or stack_row.get("shared_volumes") or []
 
             # Resolve member containers
             services: dict[str, Any] = {}
@@ -110,10 +81,7 @@ class DockerComposeGenerator(BaseGenerator):
                             code="W7931",
                             severity="warning",
                             stage=stage,
-                            message=(
-                                f"Stack '{stack_id}' member_ref '{ref}' "
-                                "does not resolve to a known instance."
-                            ),
+                            message=(f"Stack '{stack_id}' member_ref '{ref}' " "does not resolve to a known instance."),
                             path=f"instance:docker:{stack_id}.member_refs",
                         )
                     )
@@ -161,9 +129,7 @@ class DockerComposeGenerator(BaseGenerator):
                 # Environment variables
                 env = member_ext.get("environment") or member.get("environment")
                 if isinstance(env, dict) and env:
-                    service_def["environment"] = {
-                        str(k): str(v) for k, v in env.items()
-                    }
+                    service_def["environment"] = {str(k): str(v) for k, v in env.items()}
                 elif isinstance(env, list) and env:
                     service_def["environment"] = [str(e) for e in env]
 

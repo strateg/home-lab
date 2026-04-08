@@ -56,7 +56,18 @@ def test_build_candidate_diff_handles_added_and_modified(tmp_path: Path) -> None
     baseline = tmp_path / "generated" / "home-lab" / "docs" / "overview.md"
     baseline.parent.mkdir(parents=True, exist_ok=True)
     baseline.write_text("old\n", encoding="utf-8")
-    candidate = tmp_path / ".work" / "ai-sandbox" / "home-lab" / "req-2" / "candidates" / "generated" / "home-lab" / "docs" / "overview.md"
+    candidate = (
+        tmp_path
+        / ".work"
+        / "ai-sandbox"
+        / "home-lab"
+        / "req-2"
+        / "candidates"
+        / "generated"
+        / "home-lab"
+        / "docs"
+        / "overview.md"
+    )
     candidate.parent.mkdir(parents=True, exist_ok=True)
     candidate.write_text("new\n", encoding="utf-8")
 
@@ -67,4 +78,3 @@ def test_build_candidate_diff_handles_added_and_modified(tmp_path: Path) -> None
     )
     assert payload["change_type"] == "modified"
     assert "@@" in payload["diff_text"]
-

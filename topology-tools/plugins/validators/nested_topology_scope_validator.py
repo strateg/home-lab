@@ -188,10 +188,7 @@ class NestedTopologyScopeValidator(ValidatorJsonPlugin):
                         code="E7922",
                         severity="error",
                         stage=stage,
-                        message=(
-                            f"Scope '{scope_id}' internal_networks[{idx}] "
-                            "requires non-empty 'name' property."
-                        ),
+                        message=(f"Scope '{scope_id}' internal_networks[{idx}] " "requires non-empty 'name' property."),
                         path=f"{row_prefix}.topology_scope.internal_networks[{idx}].name",
                     )
                 )
@@ -203,9 +200,7 @@ class NestedTopologyScopeValidator(ValidatorJsonPlugin):
                         code="E7922",
                         severity="error",
                         stage=stage,
-                        message=(
-                            f"Scope '{scope_id}' has duplicate internal network name '{name}'."
-                        ),
+                        message=(f"Scope '{scope_id}' has duplicate internal network name '{name}'."),
                         path=f"{row_prefix}.topology_scope.internal_networks[{idx}].name",
                     )
                 )
@@ -317,10 +312,7 @@ class NestedTopologyScopeValidator(ValidatorJsonPlugin):
                     code="E7923",
                     severity="error",
                     stage=stage,
-                    message=(
-                        f"Workload '{row_id}' references unknown scope '{ref_scope_id}' "
-                        f"in '{ref_value}'."
-                    ),
+                    message=(f"Workload '{row_id}' references unknown scope '{ref_scope_id}' " f"in '{ref_value}'."),
                     path=ref_path,
                 )
             )

@@ -394,5 +394,5 @@ def test_terraform_mikrotik_generator_reflects_full_network_topology(tmp_path: P
     firewall_tf = (target_dir / "firewall.tf").read_text(encoding="utf-8")
     assert 'resource "routeros_ip_firewall_nat" "runtime_nat_1"' in firewall_tf
     assert 'resource "routeros_ip_firewall_nat" "runtime_nat_2"' in firewall_tf
-    assert "src_address = \"192.168.30.0/24\"" in firewall_tf
-    assert "dst_address = \"10.0.30.0/24\"" in firewall_tf
+    assert 'src_address = "192.168.30.0/24"' in firewall_tf
+    assert 'dst_address = "10.0.30.0/24"' in firewall_tf

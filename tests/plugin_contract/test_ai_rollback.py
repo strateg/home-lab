@@ -62,4 +62,3 @@ def test_rollback_ai_promoted_artifacts_restores_or_deletes(tmp_path: Path) -> N
     assert tracked.read_text(encoding="utf-8") == "baseline\n"
     assert new_file.exists() is False
     assert tracked.with_suffix(".md.ai-metadata.json").exists() is False
-

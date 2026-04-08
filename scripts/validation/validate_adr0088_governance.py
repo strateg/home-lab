@@ -184,7 +184,9 @@ def _evaluate_warning_governance(
     max_counts_raw = cfg.get("max_counts", {})
     allowlist = {item for item in allowlist_raw if isinstance(item, str)}
     if not isinstance(max_counts_raw, dict):
-        _append(errors, area="warning_governance", code="P2003", message="warning_governance.max_counts must be mapping")
+        _append(
+            errors, area="warning_governance", code="P2003", message="warning_governance.max_counts must be mapping"
+        )
         max_counts_raw = {}
 
     counts = _warning_code_counts(diagnostics_json)
@@ -254,7 +256,9 @@ def _evaluate_legacy_boundary(
     exclude_globs_raw = cfg.get("exclude_globs", [])
     key_patterns_raw = cfg.get("key_patterns", {})
     if not isinstance(scan_root_raw, str) or not scan_root_raw:
-        _append(errors, area="legacy_boundary", code="P3002", message="legacy_boundary.scan_root must be non-empty string")
+        _append(
+            errors, area="legacy_boundary", code="P3002", message="legacy_boundary.scan_root must be non-empty string"
+        )
         return {}
     if not isinstance(active_root_raw, str) or not active_root_raw:
         _append(
@@ -278,7 +282,9 @@ def _evaluate_legacy_boundary(
         try:
             patterns[key] = re.compile(pattern_raw)
         except re.error as exc:
-            _append(errors, area="legacy_boundary", code="P3006", message=f"invalid regex for key pattern '{key}': {exc}")
+            _append(
+                errors, area="legacy_boundary", code="P3006", message=f"invalid regex for key pattern '{key}': {exc}"
+            )
     if not patterns:
         _append(errors, area="legacy_boundary", code="P3007", message="no valid key_patterns configured")
         return {}
@@ -432,7 +438,9 @@ def main() -> int:
     args = build_parser().parse_args()
     repo_root = ROOT.resolve()
     policy_path = args.policy.resolve() if not args.policy.is_absolute() else args.policy
-    diagnostics_json = args.diagnostics_json.resolve() if not args.diagnostics_json.is_absolute() else args.diagnostics_json
+    diagnostics_json = (
+        args.diagnostics_json.resolve() if not args.diagnostics_json.is_absolute() else args.diagnostics_json
+    )
     output_json = args.output_json.resolve() if not args.output_json.is_absolute() else args.output_json
 
     report = run_governance(

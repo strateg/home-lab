@@ -111,13 +111,15 @@ def test_vm_hypervisor_compat_rejects_duplicate_disk_id():
     registry = _registry()
     ctx = _context()
     rows = _base_rows()
-    rows[1]["extensions"]["disks"].append({
-        "disk_id": "boot0",  # Duplicate!
-        "role": "data",
-        "format": "qcow2",
-        "bus": "scsi",
-        "slot": "1",
-    })
+    rows[1]["extensions"]["disks"].append(
+        {
+            "disk_id": "boot0",  # Duplicate!
+            "role": "data",
+            "format": "qcow2",
+            "bus": "scsi",
+            "slot": "1",
+        }
+    )
     _publish_rows(ctx, rows)
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
@@ -130,13 +132,15 @@ def test_vm_hypervisor_compat_rejects_duplicate_bus_slot():
     registry = _registry()
     ctx = _context()
     rows = _base_rows()
-    rows[1]["extensions"]["disks"].append({
-        "disk_id": "data0",
-        "role": "data",
-        "format": "qcow2",
-        "bus": "scsi",
-        "slot": "0",  # Duplicate bus:slot!
-    })
+    rows[1]["extensions"]["disks"].append(
+        {
+            "disk_id": "data0",
+            "role": "data",
+            "format": "qcow2",
+            "bus": "scsi",
+            "slot": "0",  # Duplicate bus:slot!
+        }
+    )
     _publish_rows(ctx, rows)
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
@@ -162,13 +166,15 @@ def test_vm_hypervisor_compat_rejects_multiple_boot_disks():
     registry = _registry()
     ctx = _context()
     rows = _base_rows()
-    rows[1]["extensions"]["disks"].append({
-        "disk_id": "boot1",
-        "role": "boot",  # Second boot disk!
-        "format": "qcow2",
-        "bus": "scsi",
-        "slot": "1",
-    })
+    rows[1]["extensions"]["disks"].append(
+        {
+            "disk_id": "boot1",
+            "role": "boot",  # Second boot disk!
+            "format": "qcow2",
+            "bus": "scsi",
+            "slot": "1",
+        }
+    )
     _publish_rows(ctx, rows)
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
@@ -194,13 +200,15 @@ def test_vm_hypervisor_compat_accepts_valid_boot_order():
     registry = _registry()
     ctx = _context()
     rows = _base_rows()
-    rows[1]["extensions"]["disks"].append({
-        "disk_id": "data0",
-        "role": "data",
-        "format": "qcow2",
-        "bus": "scsi",
-        "slot": "1",
-    })
+    rows[1]["extensions"]["disks"].append(
+        {
+            "disk_id": "data0",
+            "role": "data",
+            "format": "qcow2",
+            "bus": "scsi",
+            "slot": "1",
+        }
+    )
     rows[1]["extensions"]["boot_order"] = ["boot0", "data0"]
     _publish_rows(ctx, rows)
 
