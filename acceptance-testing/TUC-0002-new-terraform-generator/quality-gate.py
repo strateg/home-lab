@@ -3,11 +3,14 @@
 
 from __future__ import annotations
 
-import os
-import sys
 from pathlib import Path
 
 import yaml
+
+EXPECTED_TERRAFORM_PLUGIN_IDS = (
+    "object.mikrotik.generator.terraform",
+    "object.proxmox.generator.terraform",
+)
 
 
 def _list_plugin_ids(manifest_path: Path) -> set[str]:
@@ -53,22 +56,24 @@ def main() -> int:
     if not marker.exists():
         marker.write_text("", encoding="utf-8")
 
-    plugin_id = os.getenv("NEW_TERRAFORM_PLUGIN_ID", "").strip()
-    if plugin_id:
-        manifest_paths = [
-            repo_root / "topology-tools" / "plugins" / "plugins.yaml",
-            *sorted((repo_root / "topology" / "object-modules").glob("*/plugins.yaml")),
-        ]
-        discovered: set[str] = set()
-        for manifest in manifest_paths:
-            if manifest.exists():
-                discovered.update(_list_plugin_ids(manifest))
-        if plugin_id not in discovered:
-            print(f"Quality gate failed: plugin id not found in manifests: {plugin_id}")
-            return 1
-        print(f"Plugin check passed: {plugin_id}")
-    else:
-        print("Plugin check skipped: set NEW_TERRAFORM_PLUGIN_ID for strict manifest validation.")
+    manifest_paths = [
+        repo_root / "topology-tools" / "plugins" / "plugins.yaml",
+        *sorted((repo_root / "topology" / "object-modules").glob("*/plugins.yaml")),
+    ]
+    discovered: set[str] = set()
+    for manifest in manifest_paths:
+        if manifest.exists():
+            discovered.update(_list_plugin_ids(manifest))
+
+    missing_ids = [plugin_id for plugin_id in EXPECTED_TERRAFORM_PLUGIN_IDS if plugin_id not in discovered]
+    if missing_ids:
+        print("Quality gate failed: expected Terraform plugin ids are missing:")
+        for plugin_id in missing_ids:
+            print(f"- {plugin_id}")
+        return 1
+    print("Plugin check passed:")
+    for plugin_id in EXPECTED_TERRAFORM_PLUGIN_IDS:
+        print(f"- {plugin_id}")
 
     print("Quality gate passed: TUC-0002 structure is valid.")
     return 0

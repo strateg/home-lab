@@ -39,15 +39,15 @@ Validate that a newly introduced Terraform generator follows generator runtime c
 - Plugin manifests:
   - `topology-tools/plugins/plugins.yaml`
   - `topology/object-modules/**/plugins.yaml`
+- Target plugin ids:
+  - `object.mikrotik.generator.terraform`
+  - `object.proxmox.generator.terraform`
 - Expected generator tests:
   - `tests/plugin_integration/test_terraform_*.py`
-- Optional exact plugin id (for quality gate):
-  - env `NEW_TERRAFORM_PLUGIN_ID`
-
 ## Expected Outcomes
 
 - Compile succeeds in strict mode.
-- New generator publishes valid `artifact_plan` and `artifact_generation_report`.
+- Target Terraform generators publish valid `artifact_plan` and `artifact_generation_report`.
 - Generated Terraform files for the new family are deterministic across repeated runs.
 
 ## Acceptance Criteria

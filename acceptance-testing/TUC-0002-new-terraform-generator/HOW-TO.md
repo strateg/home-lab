@@ -6,13 +6,6 @@
 python3 acceptance-testing/TUC-0002-new-terraform-generator/quality-gate.py
 ```
 
-Optional strict plugin check:
-
-```bash
-NEW_TERRAFORM_PLUGIN_ID=object.example.generator.terraform \
-python3 acceptance-testing/TUC-0002-new-terraform-generator/quality-gate.py
-```
-
 ## 2. Compile into TUC artifacts
 
 ```bash

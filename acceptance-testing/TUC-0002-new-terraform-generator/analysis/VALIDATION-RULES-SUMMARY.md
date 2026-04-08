@@ -14,6 +14,6 @@ Describe validation rules for onboarding a new Terraform generator.
 
 | Scenario | Test | Result |
 |---|---|---|
-| Manifest wiring | `quality-gate.py` (+ `NEW_TERRAFORM_PLUGIN_ID`) | `pending` |
-| Artifact contract publication | `test_tuc0002_new_terraform_generator.py` | `pending` |
+| Manifest wiring | `quality-gate.py` | `pass` |
+| Expected terraform ids present | `test_tuc0002_new_terraform_generator.py` | `pass` |
 | Determinism | compile twice + diff selected files | `pending` |
