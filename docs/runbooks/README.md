@@ -1,7 +1,7 @@
 # Runbooks Index
 
 **Status:** Active
-**Updated:** 2026-04-07
+**Updated:** 2026-04-08
 **Scope:** V5 post-migration operational readiness (Wave D / Phase 12)
 
 ---
@@ -15,6 +15,7 @@
 - `docs/runbooks/DISASTER-RECOVERY-PLAYBOOK.md` - disaster recovery execution plan with RTO/RPO checkpoints.
 - `docs/runbooks/MONITORING-ALERT-RUNBOOKS.md` - alert handling procedures by signal family.
 - `docs/runbooks/SERVICE-DEPLOYMENT-CHAIN-VALIDATION.md` - evidence template for full service deployment chain validation.
+- `docs/runbooks/MIKROTIK-TERRAFORM-DRIFT-CHECK.md` - live/runtime drift review checklist for MikroTik Terraform lane.
 - `docs/runbooks/ADR0094-AI-OPERATOR-GUIDE.md` - advisory/assisted operating flow, audit review cadence, and incident response.
 - `docs/runbooks/ADR0094-ROLLBACK-PROCEDURE.md` - rollback execution for AI-promoted artifacts.
 - `docs/guides/DEPLOY-BUNDLE-WORKFLOW.md` - bundle lifecycle and bundle-based service-chain execution workflow.
