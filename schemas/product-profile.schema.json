@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://home-lab.local/schemas/product-profile.schema.json",
+  "title": "SOHO Product Profile",
+  "description": "Project-level SOHO profile contract (ADR 0089).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "profile_id",
+    "deployment_class",
+    "site_class",
+    "user_band",
+    "operator_mode",
+    "release_channel",
+    "migration_state"
+  ],
+  "properties": {
+    "profile_id": {
+      "type": "string",
+      "pattern": "^soho\\.[a-z0-9_.-]+\\.v[0-9]+$"
+    },
+    "deployment_class": {
+      "type": "string",
+      "enum": [
+        "starter",
+        "managed-soho",
+        "advanced-soho"
+      ]
+    },
+    "site_class": {
+      "type": "string",
+      "enum": [
+        "single-site",
+        "multi-site"
+      ]
+    },
+    "user_band": {
+      "type": "string",
+      "pattern": "^[0-9]+-[0-9]+$"
+    },
+    "operator_mode": {
+      "type": "string",
+      "enum": [
+        "single-operator",
+        "team-operator"
+      ]
+    },
+    "release_channel": {
+      "type": "string",
+      "enum": [
+        "stable",
+        "candidate",
+        "dev"
+      ]
+    },
+    "migration_state": {
+      "type": "string",
+      "enum": [
+        "legacy",
+        "migrated-soft",
+        "migrated-hard"
+      ]
+    }
+  }
+}

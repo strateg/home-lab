@@ -53,7 +53,7 @@ class DockerComposeGenerator(BaseGenerator):
                     path="generator:docker_compose",
                 )
             )
-            return self.make_result(diagnostics)
+            return self.make_result(diagnostics=diagnostics)
 
         compose_root = self.resolve_output_path(ctx, "docker-compose")
         generated_files: list[str] = []
@@ -231,6 +231,7 @@ class DockerComposeGenerator(BaseGenerator):
             )
 
         self.publish_if_possible(ctx, "compose_files", generated_files)
+        self.publish_if_possible(ctx, "generated_files", generated_files)
         self.publish_if_possible(ctx, "compose_dir", str(compose_root))
 
         return self.make_result(
@@ -238,8 +239,12 @@ class DockerComposeGenerator(BaseGenerator):
             output_data={
                 "compose_dir": str(compose_root),
                 "compose_files": generated_files,
+                "generated_files": generated_files,
             },
         )
+
+    def on_post(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        return self.execute(ctx, stage)
 
     def _collect_rows(self, ctx: PluginContext) -> list[dict[str, Any]]:
         """Collect normalized rows from compiled_json or pipeline subscription."""

@@ -1,0 +1,69 @@
+version: "3"
+
+tasks:
+  init:
+    desc: Bootstrap product baseline (thin wrapper over workflow:dev)
+    cmds:
+      - task workflow:dev
+
+  doctor:
+    desc: Product readiness/status snapshot (validation + topology summary)
+    cmds:
+      - task validate:default
+      - task inspect:default
+
+  plan:
+    desc: Product change preview (non-destructive validation/build)
+    cmds:
+      - task validate:default
+      - task build:default
+
+  apply:
+    desc: Product apply workflow (requires BUNDLE + ALLOW_APPLY=YES)
+    requires:
+      vars:
+        - BUNDLE
+        - ALLOW_APPLY
+    preconditions:
+      - sh: 'test "{{.ALLOW_APPLY}}" = "YES"'
+        msg: "Set ALLOW_APPLY=YES to run product:apply."
+    cmds:
+      - task: workflow:deploy-apply
+        vars:
+          BUNDLE: "{{.BUNDLE}}"
+          ALLOW_APPLY: "{{.ALLOW_APPLY}}"
+          CONTINUE_ON_FAILURE: "{{.CONTINUE_ON_FAILURE}}"
+          DEPLOY_RUNNER: "{{.DEPLOY_RUNNER}}"
+          ANSIBLE_VIA_WSL: "{{.ANSIBLE_VIA_WSL}}"
+          TERRAFORM_AUTO_APPROVE: "{{.TERRAFORM_AUTO_APPROVE}}"
+          INJECT_SECRETS: "{{.INJECT_SECRETS}}"
+          PROXMOX_BACKEND_CONFIG: "{{.PROXMOX_BACKEND_CONFIG}}"
+          MIKROTIK_BACKEND_CONFIG: "{{.MIKROTIK_BACKEND_CONFIG}}"
+          PROXMOX_VAR_FILE: "{{.PROXMOX_VAR_FILE}}"
+          MIKROTIK_VAR_FILE: "{{.MIKROTIK_VAR_FILE}}"
+
+  backup:
+    desc: Product backup readiness/evidence check (non-destructive)
+    cmds:
+      - task deploy:service-chain-evidence-check
+
+  restore:
+    desc: Product restore drill (non-destructive dry mode)
+    cmds:
+      - task deploy:service-chain-evidence-dry
+
+  update:
+    desc: Product update preflight (non-destructive)
+    cmds:
+      - task deploy:service-chain-evidence-check
+
+  audit:
+    desc: Product audit snapshot (validation + ADR0094 usage metrics)
+    cmds:
+      - task validate:default
+      - task validate:ai-usage-metrics
+
+  handover:
+    desc: Assemble product handover bundle
+    cmds:
+      - task workflow:bundle

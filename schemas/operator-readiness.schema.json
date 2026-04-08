@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://home-lab.local/schemas/operator-readiness.schema.json",
+  "title": "SOHO Operator Readiness",
+  "description": "Machine-readable SOHO readiness summary contract (ADR 0091).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "status",
+    "evidence",
+    "diagnostics"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^1\\.[0-9]+$"
+    },
+    "project_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "green",
+        "yellow",
+        "red"
+      ]
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "enum": [
+          "missing",
+          "partial",
+          "complete"
+        ]
+      }
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "severity",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^[EWI][0-9]{4}$"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "error",
+              "warning",
+              "info"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

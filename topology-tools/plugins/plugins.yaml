@@ -1297,6 +1297,29 @@ plugins:
         scope: pipeline_shared
     description: Emits ADR0093 generator migration status summary (legacy/migrating/migrated/rollback).
 
+  - id: base.validator.soho_product_profile
+    kind: validator_json
+    entry: validators/soho_product_profile_validator.py:SohoProductProfileValidator
+    api_version: "1.x"
+    stages: [validate]
+    phase: verify
+    order: 187
+    depends_on: []
+    timeout: 30
+    config:
+      soho_migration_policy_path: topology-tools/data/soho-migration-state-policy.yaml
+    config_schema:
+      type: object
+      properties:
+        soho_migration_policy_path:
+          type: string
+          description: Path to SOHO migration-state transition policy YAML.
+      required: []
+    produces:
+      - key: product_profile_state
+        scope: pipeline_shared
+    description: Validates ADR0089 product_profile contract and emits machine-readable migration state report.
+
   - id: base.validator.generator_sunset
     kind: validator_json
     entry: validators/generator_sunset_validator.py:GeneratorSunsetValidator
@@ -1575,6 +1598,8 @@ plugins:
         key: normalized_rows
         required: false
     produces:
+      - key: generated_files
+        scope: pipeline_shared
       - key: compose_files
         scope: pipeline_shared
       - key: compose_dir

@@ -61,3 +61,21 @@ def test_adr0080_ranges_are_reserved_without_foreign_overlap():
         "W7110",
     }
     assert required.issubset(set(codes.keys()))
+
+
+def test_soho_readiness_ranges_are_reserved_without_foreign_overlap():
+    codes = _load_codes()
+    soho_prefixes = ("E794", "W794")
+
+    for code in codes.keys():
+        if code.startswith(soho_prefixes):
+            assert code.startswith(soho_prefixes), f"Unexpected SOHO code prefix shape: {code}"
+
+    required = {
+        "E7941",
+        "E7942",
+        "E7947",
+        "W7941",
+        "W7942",
+    }
+    assert required.issubset(set(codes.keys()))

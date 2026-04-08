@@ -102,6 +102,11 @@ includes:
     dir: .
     vars:
       PYTHON: "{{.PYTHON}}"
+  product:
+    taskfile: ./taskfiles/product.yml
+    dir: .
+    vars:
+      PYTHON: "{{.PYTHON}}"
 
 tasks:
   clean:

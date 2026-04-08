@@ -1,0 +1,15 @@
+schema_version: 1
+states:
+  - legacy
+  - migrated-soft
+  - migrated-hard
+allowed_transitions:
+  legacy:
+    - legacy
+    - migrated-soft
+  migrated-soft:
+    - migrated-soft
+    - migrated-hard
+  migrated-hard:
+    - migrated-hard
+blocking_on_invalid_transition: true

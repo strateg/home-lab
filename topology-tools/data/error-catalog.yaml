@@ -720,6 +720,32 @@ codes:
     stage: validate
     title: Framework SBOM Missing
     hint: Provide SBOM metadata for package-based framework source.
+  # ADR 0089/0091 SOHO product profile and readiness contracts
+  E7941:
+    severity: error
+    stage: validate
+    title: SOHO Product Profile Invalid
+    hint: Fix product_profile fields and supported profile_id/deployment_class values.
+  E7942:
+    severity: error
+    stage: validate
+    title: SOHO Required Bundle Missing
+    hint: Add required product_bundles for the selected profile/deployment_class.
+  E7947:
+    severity: error
+    stage: validate
+    title: SOHO Migration State Transition Invalid
+    hint: Use allowed migration transitions only (legacy -> migrated-soft -> migrated-hard).
+  W7941:
+    severity: warning
+    stage: validate
+    title: SOHO Product Profile Missing
+    hint: Add product_profile to move from legacy state to migrated governance modes.
+  W7942:
+    severity: warning
+    stage: validate
+    title: SOHO Bundles Incomplete in Soft Migration
+    hint: Complete required bundles before promoting migration_state to migrated-hard.
   I6901:
     severity: info
     stage: validate
