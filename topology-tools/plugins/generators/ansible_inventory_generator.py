@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import yaml
 
 from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage
 from plugins.generators.artifact_contract import (
@@ -19,6 +20,11 @@ from plugins.generators.projections import ProjectionError, build_ansible_projec
 
 class AnsibleInventoryGenerator(BaseGenerator):
     """Emit baseline Ansible inventory from ansible projection."""
+
+    @staticmethod
+    def _dump_yaml(payload: dict[str, object]) -> str:
+        # Structured serializer for ADR0092 Wave 3: deterministic YAML emission.
+        return yaml.safe_dump(payload, sort_keys=False, allow_unicode=False)
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
@@ -65,14 +71,19 @@ class AnsibleInventoryGenerator(BaseGenerator):
         planned_outputs.append(
             build_planned_output(
                 path=str(hosts_path),
-                template="ansible/inventory/hosts.yml.j2",
+                renderer="structured",
                 reason="base-family",
             )
         )
-        hosts_yml_content = self.render_template(
-            ctx,
-            "ansible/inventory/hosts.yml.j2",
-            {"device_hosts": device_hosts, "lxc_hosts": lxc_hosts},
+        hosts_yml_content = self._dump_yaml(
+            {
+                "all": {
+                    "children": {
+                        "devices": {"hosts": {str(row.get("instance_id", "")): {} for row in device_hosts}},
+                        "lxc": {"hosts": {str(row.get("instance_id", "")): {} for row in lxc_hosts}},
+                    }
+                }
+            }
         )
         self.write_text_atomic(hosts_path, hosts_yml_content)
         written.append(str(hosts_path))
@@ -81,18 +92,16 @@ class AnsibleInventoryGenerator(BaseGenerator):
         planned_outputs.append(
             build_planned_output(
                 path=str(group_vars_path),
-                template="ansible/inventory/group_vars_all.yml.j2",
+                renderer="structured",
                 reason="base-family",
             )
         )
-        group_vars_content = self.render_template(
-            ctx,
-            "ansible/inventory/group_vars_all.yml.j2",
+        group_vars_content = self._dump_yaml(
             {
-                "host_count": len(hosts_rows),
                 "topology_lane": topology_lane,
                 "inventory_profile": inventory_profile,
-            },
+                "inventory_host_count": len(hosts_rows),
+            }
         )
         self.write_text_atomic(group_vars_path, group_vars_content)
         written.append(str(group_vars_path))
@@ -110,13 +119,11 @@ class AnsibleInventoryGenerator(BaseGenerator):
             planned_outputs.append(
                 build_planned_output(
                     path=str(host_var_path),
-                    template="ansible/inventory/host_vars.yml.j2",
+                    renderer="structured",
                     reason="base-family",
                 )
             )
-            host_var_content = self.render_template(
-                ctx,
-                "ansible/inventory/host_vars.yml.j2",
+            host_var_content = self._dump_yaml(
                 {
                     "instance_id": instance_id,
                     "object_ref": row.get("object_ref", ""),
@@ -130,7 +137,7 @@ class AnsibleInventoryGenerator(BaseGenerator):
                         ensure_ascii=True,
                         sort_keys=True,
                     ),
-                },
+                }
             )
             self.write_text_atomic(host_var_path, host_var_content)
             written.append(str(host_var_path))

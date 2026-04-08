@@ -104,6 +104,7 @@ def test_ansible_inventory_artifact_plan_includes_group_vars_output(tmp_path: Pa
     artifact_plan = result.output_data["artifact_plan"]
     planned_paths = [str(item.get("path", "")) for item in artifact_plan.get("planned_outputs", [])]
     assert any(path.endswith("/group_vars/all.yml") for path in planned_paths)
+    assert all(item.get("renderer") == "structured" for item in artifact_plan.get("planned_outputs", []))
 
 
 def test_ansible_inventory_obsolete_delete_uses_ownership_proof(tmp_path: Path) -> None:
