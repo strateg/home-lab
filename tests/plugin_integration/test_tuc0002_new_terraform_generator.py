@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import copy
+import importlib.util
 import subprocess
 from pathlib import Path
 
@@ -13,6 +15,7 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parents[2]
 COMPILER = REPO_ROOT / "topology-tools" / "compile-topology.py"
 TOPOLOGY = REPO_ROOT / "topology" / "topology.yaml"
+V5_TOOLS = REPO_ROOT / "topology-tools"
 
 EXPECTED_TERRAFORM_PLUGIN_IDS = {
     "object.mikrotik.generator.terraform",
@@ -41,6 +44,57 @@ EXPECTED_TERRAFORM_CORE_FILES = {
         "terraform.tfvars.example",
     },
 }
+
+
+def _load_generator_class(module_rel: str, class_name: str):
+    module_path = REPO_ROOT / module_rel
+    spec = importlib.util.spec_from_file_location(f"tuc0002_{class_name}", module_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return getattr(module, class_name)
+
+
+def _semanticize(compiled_json: dict) -> dict:
+    payload = copy.deepcopy(compiled_json)
+    instances = payload.get("instances")
+    if not isinstance(instances, dict):
+        return payload
+    for rows in instances.values():
+        if not isinstance(rows, list):
+            continue
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            object_ref = row.pop("object_ref", None)
+            class_ref = row.pop("class_ref", None)
+            if not isinstance(object_ref, str) and not isinstance(class_ref, str):
+                continue
+            instance_block = row.get("instance")
+            if not isinstance(instance_block, dict):
+                instance_block = {}
+                row["instance"] = instance_block
+            if isinstance(object_ref, str) and object_ref:
+                instance_block.setdefault("materializes_object", object_ref)
+            if isinstance(class_ref, str) and class_ref:
+                instance_block.setdefault("materializes_class", class_ref)
+    return payload
+
+
+def _plugin_ctx(tmp_path: Path, compiled_json: dict, extra_config: dict) -> object:
+    import sys
+
+    sys.path.insert(0, str(V5_TOOLS))
+    from kernel.plugin_base import PluginContext  # noqa: WPS433
+
+    return PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        compiled_json=_semanticize(compiled_json),
+        output_dir=str(tmp_path / "build"),
+        config={"generator_artifacts_root": str(tmp_path / "generated"), **extra_config},
+    )
 
 
 def _list_plugin_ids(manifest_path: Path) -> set[str]:
@@ -180,3 +234,85 @@ def test_tuc0002_terraform_semantic_file_contract_and_renderers(tmp_path: Path) 
         family_dir = "mikrotik" if "mikrotik" in plugin_id else "proxmox"
         actual_files = {path.name for path in (generated_root / family_dir).glob("*.tf*")}
         assert EXPECTED_TERRAFORM_CORE_FILES[plugin_id].issubset(actual_files)
+
+
+def test_tuc0002_mikrotik_remote_state_backend_uses_programmatic_renderer(tmp_path: Path) -> None:
+    import sys
+
+    sys.path.insert(0, str(V5_TOOLS))
+    from kernel.plugin_base import PluginStatus, Stage  # noqa: WPS433
+
+    generator_class = _load_generator_class(
+        "topology/object-modules/mikrotik/plugins/generators/terraform_mikrotik_generator.py",
+        "TerraformMikroTikGenerator",
+    )
+    compiled = {
+        "instances": {
+            "devices": [{"instance_id": "rtr-mk", "object_ref": "obj.mikrotik.chateau_lte7_ax"}],
+            "network": [],
+            "services": [],
+        }
+    }
+    ctx = _plugin_ctx(
+        tmp_path,
+        compiled,
+        {
+            "terraform_remote_state": {
+                "enabled": True,
+                "backend": "pg",
+                "config": {"schema_name": "mikrotik", "conn_str": "postgres://terraform@db.internal/terraform_state"},
+            }
+        },
+    )
+    generator = generator_class("object.mikrotik.generator.terraform")
+    result = generator.execute(ctx, Stage.GENERATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert result.output_data is not None
+    plan_rows = result.output_data["artifact_plan"]["planned_outputs"]
+    backend_entry = next(item for item in plan_rows if str(item.get("path", "")).endswith("/backend.tf"))
+    assert backend_entry["renderer"] == "programmatic"
+    backend_tf = (
+        tmp_path / "generated" / "terraform" / "mikrotik" / "backend.tf"
+    ).read_text(encoding="utf-8")
+    assert 'backend "pg"' in backend_tf
+
+
+def test_tuc0002_proxmox_remote_state_backend_uses_programmatic_renderer(tmp_path: Path) -> None:
+    import sys
+
+    sys.path.insert(0, str(V5_TOOLS))
+    from kernel.plugin_base import PluginStatus, Stage  # noqa: WPS433
+
+    generator_class = _load_generator_class(
+        "topology/object-modules/proxmox/plugins/generators/terraform_proxmox_generator.py",
+        "TerraformProxmoxGenerator",
+    )
+    compiled = {
+        "instances": {
+            "devices": [{"instance_id": "srv-gamayun", "object_ref": "obj.proxmox.ve"}],
+            "lxc": [],
+            "services": [],
+        }
+    }
+    ctx = _plugin_ctx(
+        tmp_path,
+        compiled,
+        {
+            "terraform_remote_state": {
+                "enabled": True,
+                "backend": "s3",
+                "config": {"bucket": "tf-state-home-lab", "key": "proxmox/terraform.tfstate", "encrypt": True},
+            }
+        },
+    )
+    generator = generator_class("object.proxmox.generator.terraform")
+    result = generator.execute(ctx, Stage.GENERATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert result.output_data is not None
+    plan_rows = result.output_data["artifact_plan"]["planned_outputs"]
+    backend_entry = next(item for item in plan_rows if str(item.get("path", "")).endswith("/backend.tf"))
+    assert backend_entry["renderer"] == "programmatic"
+    backend_tf = (
+        tmp_path / "generated" / "terraform" / "proxmox" / "backend.tf"
+    ).read_text(encoding="utf-8")
+    assert 'backend "s3"' in backend_tf

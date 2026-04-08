@@ -11,7 +11,7 @@
 | Check | Command | Result |
 |---|---|---|
 | Quality gate | `python3 acceptance-testing/TUC-0002-new-terraform-generator/quality-gate.py` | `pass` |
-| TUC tests | `pytest -q -o addopts= tests/plugin_integration/test_tuc0002_new_terraform_generator.py` | `pass (4 passed)` |
+| TUC tests | `pytest -q -o addopts= tests/plugin_integration/test_tuc0002_new_terraform_generator.py` | `pass (6 passed)` |
 | End-to-end run (optional) | `task acceptance:compile TUC_SLUG=TUC-0002-new-terraform-generator` | `pass` |
 
 ## Changes Since Last Report
@@ -22,5 +22,5 @@
 
 ## Next Steps
 
-1. Add optional strict checks for remote-state `backend.tf` programmatic emission under dedicated fixture.
+1. Add compile-path assertion for `backend.tf` renderer=programmatic under remote-state-enabled integration compile (not generator-only path).
 2. Decide which generated evidence files should be kept under VCS long-term.
