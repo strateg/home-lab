@@ -2,6 +2,7 @@ output "projection_counts" {
   description = "Topology projection counts"
   value = {
     routers  = {{ routers_count }}
+    bridges  = {{ bridges_count }}
     networks = {{ networks_count }}
     vlans    = {{ vlans_count }}
     services = {{ services_count }}
@@ -13,7 +14,7 @@ output "vlan_interfaces" {
   description = "Created VLAN interfaces"
   value = {
 {% for vlan in vlans %}
-{% if vlan.vlan_id %}
+{% if vlan.vlan_id and not vlan.is_native_lan %}
     {{ vlan.name }} = {
       interface = routeros_interface_vlan.{{ vlan.name }}.name
       vlan_id   = {{ vlan.vlan_id }}

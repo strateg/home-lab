@@ -5,7 +5,55 @@ locals {
   mikrotik_networks_for_firewall = {{ networks_list_expr }}
 }
 
-# Basic firewall structure - accept established/related, drop invalid
+{% if firewall_policies %}
+# Firewall policies from topology
+{% for policy in firewall_policies %}
+{% if policy.instance_id == "inst.fw.established_related" %}
+resource "routeros_ip_firewall_filter" "{{ policy.name }}_stateful" {
+  chain            = "{{ policy.chain }}"
+  action           = "accept"
+  connection_state = "established,related"
+  comment          = "{{ policy.comment or policy.instance_id }} - managed by topology"
+}
+
+{% elif policy.instance_id == "inst.fw.default_deny" %}
+resource "routeros_ip_firewall_filter" "{{ policy.name }}_wan_default_deny" {
+  chain                = "{{ policy.chain }}"
+  action               = "drop"
+  in_interface_list    = "WAN"
+  connection_nat_state = "!dstnat"
+  comment              = "{{ policy.comment or policy.instance_id }} - managed by topology"
+}
+
+{% elif policy.rules %}
+{% for rule in policy.rules %}
+resource "routeros_ip_firewall_filter" "{{ policy.name }}_rule_{{ loop.index }}" {
+  chain   = "{{ policy.chain }}"
+  action  = "{{ rule.action }}"
+{% if rule.protocol and rule.protocol != "any" %}
+  protocol = "{{ rule.protocol }}"
+{% endif %}
+{% if rule.src_cidr %}
+  src_address = "{{ rule.src_cidr }}"
+{% endif %}
+{% if rule.dst_cidr %}
+  dst_address = "{{ rule.dst_cidr }}"
+{% endif %}
+  comment = "{{ rule.comment or policy.comment or policy.instance_id }} - managed by topology"
+}
+
+{% endfor %}
+{% else %}
+resource "routeros_ip_firewall_filter" "{{ policy.name }}_default" {
+  chain   = "{{ policy.chain }}"
+  action  = "{{ policy.default_action }}"
+  comment = "{{ policy.comment or policy.instance_id }} - managed by topology"
+}
+
+{% endif %}
+{% endfor %}
+{% else %}
+# Fallback baseline firewall when no policy rows are defined
 resource "routeros_ip_firewall_filter" "accept_established" {
   chain            = "forward"
   action           = "accept"
@@ -20,33 +68,38 @@ resource "routeros_ip_firewall_filter" "drop_invalid" {
   comment          = "Drop invalid - managed by topology"
 }
 
-{% if has_vlan and vlans %}
-# VLAN inter-zone traffic rules
-{% for vlan in vlans %}
-{% if vlan.vlan_id %}
-# Allow {{ vlan.name }} to access internet (SNAT)
-resource "routeros_ip_firewall_nat" "{{ vlan.name }}_masquerade" {
-  chain       = "srcnat"
-  action      = "masquerade"
-  src_address = "{{ vlan.cidr }}"
-  out_interface_list = "WAN"
-  comment     = "{{ vlan.instance_id }} NAT - managed by topology"
-}
-
-{% endif %}
-{% endfor %}
-{% endif %}
-
-# Default deny for unsolicited inbound WAN traffic (preserves LAN->WAN internet access)
 resource "routeros_ip_firewall_filter" "drop_all_forward" {
   chain                = "forward"
   action               = "drop"
   in_interface_list    = "WAN"
   connection_nat_state = "!dstnat"
   comment              = "Default deny from WAN not DSTNATed - managed by topology"
-
-  depends_on = [
-    routeros_ip_firewall_filter.accept_established,
-    routeros_ip_firewall_filter.drop_invalid,
-  ]
 }
+{% endif %}
+
+{% if runtime_baseline.nat %}
+# NAT rules from runtime topology baseline
+{% for nat in runtime_baseline.nat %}
+resource "routeros_ip_firewall_nat" "runtime_nat_{{ loop.index }}" {
+  chain  = "{{ nat.get('chain', '') }}"
+  action = "{{ nat.get('action', '') }}"
+{% if nat.get('out_interface') %}
+  out_interface = "{{ nat.get('out_interface') }}"
+{% endif %}
+{% if nat.get('protocol') %}
+  protocol = "{{ nat.get('protocol') }}"
+{% endif %}
+{% if nat.get('dst_port') %}
+  dst_port = "{{ nat.get('dst_port') }}"
+{% endif %}
+{% if nat.get('to_addresses') %}
+  to_addresses = "{{ nat.get('to_addresses') }}"
+{% endif %}
+{% if nat.get('to_ports') %}
+  to_ports = "{{ nat.get('to_ports') }}"
+{% endif %}
+  comment = "runtime NAT baseline - managed by topology"
+}
+
+{% endfor %}
+{% endif %}

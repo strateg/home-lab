@@ -5,12 +5,22 @@ locals {
   mikrotik_routers = {{ routers_list_expr }}
 }
 
-{% if has_vlan and vlans %}
+{% if bridges %}
+# Bridge interfaces managed by topology
+{% for bridge in bridges %}
+resource "routeros_interface_bridge" "{{ bridge.name }}" {
+  name = "{{ bridge.bridge_name }}"
+}
+
+{% endfor %}
+{% endif %}
+
+{% if vlans %}
 # VLAN interfaces on bridge
 {% for vlan in vlans %}
-{% if vlan.vlan_id %}
+{% if vlan.vlan_id and not vlan.is_native_lan %}
 resource "routeros_interface_vlan" "{{ vlan.name }}" {
-  name      = "vlan{{ vlan.vlan_id }}"
+  name      = "{{ vlan.interface_name }}"
   vlan_id   = {{ vlan.vlan_id }}
   interface = "bridge"
   mtu       = {{ vlan.mtu | default(1500) }}

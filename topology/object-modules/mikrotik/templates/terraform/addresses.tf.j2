@@ -1,13 +1,31 @@
 # MikroTik IP addresses generated from topology
 
-{% if has_vlan and vlans %}
+{% if bridges %}
+# Bridge addresses from topology/runtime baseline
+{% for bridge in bridges %}
+{% if bridge.ip %}
+resource "routeros_ip_address" "{{ bridge.name }}" {
+  address   = "{{ bridge.ip }}"
+  interface = "{{ bridge.bridge_name }}"
+  comment   = "{{ bridge.instance_id }} address - managed by topology"
+}
+
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{% if vlans %}
 # Gateway addresses for VLANs
 {% for vlan in vlans %}
 {% if vlan.gateway and vlan.cidr %}
 {% set prefix = vlan.cidr.split('/')[1] %}
 resource "routeros_ip_address" "{{ vlan.name }}" {
   address   = "{{ vlan.gateway }}/{{ prefix }}"
+{% if vlan.interface_is_resource %}
   interface = routeros_interface_vlan.{{ vlan.name }}.name
+{% else %}
+  interface = "{{ vlan.interface_name }}"
+{% endif %}
   comment   = "{{ vlan.instance_id }} gateway - managed by topology"
 }
 

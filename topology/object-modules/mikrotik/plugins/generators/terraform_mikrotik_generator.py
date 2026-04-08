@@ -85,9 +85,11 @@ class TerraformMikroTikGenerator(BaseGenerator):
 
         routers = [str(row.get("instance_id", "")) for row in projection.get("routers", [])]
         networks = [str(row.get("instance_id", "")) for row in projection.get("networks", [])]
+        bridges = projection.get("bridges", [])
         services = [str(row.get("instance_id", "")) for row in projection.get("services", [])]
         vlans = projection.get("vlans", [])
         firewall_policies = projection.get("firewall_policies", [])
+        runtime_baseline = projection.get("runtime_baseline", {})
         mikrotik_host = self._resolve_mikrotik_host(ctx=ctx, routers=routers)
 
         # Extract capability flags from projection
@@ -96,7 +98,7 @@ class TerraformMikroTikGenerator(BaseGenerator):
         has_qos = caps.get("has_qos_basic", False) or caps.get("has_qos_advanced", False)
         normalized_caps = {
             # Default known template flags to avoid undefined variables when projection omits capabilities.
-            "has_vlan": bool(caps.get("has_vlan", False)),
+            "has_vlan": bool(caps.get("has_vlan", False) or vlans),
             "has_wireguard": bool(caps.get("has_wireguard", False)),
             "has_containers": bool(caps.get("has_containers", False)),
             "has_qos_basic": bool(caps.get("has_qos_basic", False)),
@@ -114,10 +116,13 @@ class TerraformMikroTikGenerator(BaseGenerator):
             "services_list_expr": render_string_list(services),
             "routers_count": len(routers),
             "networks_count": len(networks),
+            "bridges": bridges,
+            "bridges_count": len(bridges),
             "services_count": len(services),
             "vlans": vlans,
             "vlans_count": len(vlans),
             "firewall_policies": firewall_policies,
+            "runtime_baseline": runtime_baseline,
             "mikrotik_host": mikrotik_host,
             # Capability flags for conditional blocks in templates
             **normalized_caps,
@@ -258,7 +263,8 @@ class TerraformMikroTikGenerator(BaseGenerator):
                 stage=stage,
                 message=(
                     "generated MikroTik Terraform artifacts: "
-                    f"routers={len(routers)} vlans={len(vlans)} networks={len(networks)} services={len(services)} "
+                    f"routers={len(routers)} bridges={len(bridges)} vlans={len(vlans)} "
+                    f"networks={len(networks)} services={len(services)} "
                     f"caps=[{cap_summary}] "
                     f"remote_state={'enabled' if remote_state else 'disabled'}"
                 ),

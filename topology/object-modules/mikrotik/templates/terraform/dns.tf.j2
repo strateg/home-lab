@@ -2,12 +2,16 @@
 
 resource "routeros_ip_dns" "settings" {
   allow_remote_requests = true
+{% if runtime_baseline.dns_servers %}
+  servers               = [{% for dns in runtime_baseline.dns_servers %}"{{ dns }}"{% if not loop.last %}, {% endif %}{% endfor %}]
+{% else %}
   servers               = ["1.1.1.1", "8.8.8.8"]
+{% endif %}
   cache_max_ttl         = "1w"
   cache_size            = 2048
 }
 
-{% if has_vlan and vlans %}
+{% if vlans %}
 # Static DNS entries for VLAN gateways
 {% for vlan in vlans %}
 {% if vlan.gateway %}

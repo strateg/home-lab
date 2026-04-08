@@ -1,9 +1,36 @@
 # MikroTik DHCP server configuration generated from topology
 
-{% if has_vlan and vlans %}
+{% if runtime_baseline.dhcp.enabled %}
+# Baseline LAN DHCP from router profile
+resource "routeros_ip_pool" "lan_pool" {
+  name   = "default-dhcp"
+  ranges = ["{{ runtime_baseline.dhcp.pool_range }}"]
+}
+
+resource "routeros_ip_dhcp_server" "lan_dhcp" {
+  name         = "{{ runtime_baseline.dhcp.server_name }}"
+  interface    = "{{ runtime_baseline.dhcp.interface }}"
+  address_pool = routeros_ip_pool.lan_pool.name
+  lease_time   = "{{ runtime_baseline.dhcp.lease_time }}"
+  disabled     = false
+  comment      = "LAN DHCP - managed by topology"
+}
+
+resource "routeros_ip_dhcp_server_network" "lan_network" {
+  address    = "{{ runtime_baseline.dhcp.network_cidr }}"
+  gateway    = "{{ runtime_baseline.dhcp.gateway }}"
+{% if runtime_baseline.dns_servers %}
+  dns_server = [{% for dns in runtime_baseline.dns_servers %}"{{ dns }}"{% if not loop.last %}, {% endif %}{% endfor %}]
+{% endif %}
+  comment    = "LAN DHCP network - managed by topology"
+}
+
+{% endif %}
+
+{% if vlans %}
 # DHCP pools and servers for VLANs with DHCP enabled
 {% for vlan in vlans %}
-{% if vlan.dhcp_enabled or vlan.dhcp_range %}
+{% if (vlan.dhcp_enabled or vlan.dhcp_range) and not vlan.is_native_lan %}
 {% set pool_name = vlan.name ~ "_pool" %}
 {% set server_name = vlan.name ~ "_dhcp" %}
 {% if vlan.dhcp_range %}
@@ -15,7 +42,11 @@ resource "routeros_ip_pool" "{{ pool_name }}" {
 
 resource "routeros_ip_dhcp_server" "{{ server_name }}" {
   name         = "{{ server_name }}"
+{% if vlan.interface_is_resource %}
   interface    = routeros_interface_vlan.{{ vlan.name }}.name
+{% else %}
+  interface    = "{{ vlan.interface_name }}"
+{% endif %}
   address_pool = routeros_ip_pool.{{ pool_name }}.name
   disabled     = false
   comment      = "{{ vlan.instance_id }} DHCP - managed by topology"

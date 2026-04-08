@@ -252,3 +252,147 @@ def test_terraform_mikrotik_generator_emits_backend_tf_when_remote_state_enabled
     plan_outputs = result.output_data["artifact_plan"]["planned_outputs"]
     backend_entry = next(item for item in plan_outputs if str(item.get("path", "")).endswith("/backend.tf"))
     assert backend_entry["renderer"] == "programmatic"
+
+
+def _full_topology_fixture() -> dict:
+    return _semanticize(
+        {
+            "instances": {
+                "devices": [
+                    {
+                        "instance_id": "rtr-mikrotik-chateau",
+                        "object_ref": "obj.mikrotik.chateau_lte7_ax",
+                        "instance_data": {
+                            "observed_runtime": {
+                                "lan": {
+                                    "gateway_ref": "inst.vlan.lan",
+                                    "dhcp_pool": "192.168.88.10-192.168.88.254",
+                                    "dhcp_server": "defconf",
+                                    "dhcp_lease_time": "30m",
+                                    "bridge_interface": "bridge",
+                                },
+                                "dns": {"servers": ["1.1.1.1", "8.8.8.8"]},
+                                "nat": [
+                                    {"chain": "srcnat", "action": "masquerade", "out_interface": "ether1"},
+                                    {
+                                        "chain": "dstnat",
+                                        "action": "dst-nat",
+                                        "protocol": "tcp",
+                                        "dst_port": 8080,
+                                        "to_addresses": "172.18.0.2",
+                                        "to_ports": 80,
+                                    },
+                                ],
+                            }
+                        },
+                    }
+                ],
+                "network": [
+                    {
+                        "instance_id": "inst.bridge.containers",
+                        "object_ref": "obj.network.bridge.containers",
+                        "instance_data": {
+                            "host_ref": "rtr-mikrotik-chateau",
+                            "ip": "172.18.0.1/24",
+                            "cidr": "172.18.0.0/24",
+                        },
+                    },
+                    {
+                        "instance_id": "inst.vlan.lan",
+                        "object_ref": "obj.network.vlan.lan",
+                        "instance_data": {
+                            "trust_zone_ref": "inst.trust_zone.user",
+                            "dhcp_range": "192.168.88.10-192.168.88.254",
+                            "ip_allocations": [
+                                {"device_ref": "rtr-mikrotik-chateau", "ip": "192.168.88.1/24"},
+                            ],
+                        },
+                    },
+                    {
+                        "instance_id": "inst.vlan.guest",
+                        "object_ref": "obj.network.vlan.guest",
+                        "instance_data": {
+                            "trust_zone_ref": "inst.trust_zone.guest",
+                            "dhcp_range": "192.168.30.100-192.168.30.200",
+                        },
+                    },
+                    {
+                        "instance_id": "inst.vlan.iot",
+                        "object_ref": "obj.network.vlan.iot",
+                        "instance_data": {
+                            "trust_zone_ref": "inst.trust_zone.iot",
+                            "dhcp_range": "192.168.40.100-192.168.40.200",
+                        },
+                    },
+                    {
+                        "instance_id": "inst.vlan.management",
+                        "object_ref": "obj.network.vlan.management",
+                        "instance_data": {"trust_zone_ref": "inst.trust_zone.management"},
+                    },
+                    {
+                        "instance_id": "inst.vlan.servers",
+                        "object_ref": "obj.network.vlan.servers",
+                        "instance_data": {"trust_zone_ref": "inst.trust_zone.servers"},
+                    },
+                ],
+                "firewall": [
+                    {
+                        "instance_id": "inst.fw.established_related",
+                        "object_ref": "obj.network.firewall_policy.established_related",
+                        "instance_data": {"chain": "forward", "managed_by_ref": "rtr-mikrotik-chateau"},
+                    },
+                    {
+                        "instance_id": "inst.fw.default_deny",
+                        "object_ref": "obj.network.firewall_policy.default_deny",
+                        "instance_data": {"chain": "forward", "managed_by_ref": "rtr-mikrotik-chateau"},
+                    },
+                    {
+                        "instance_id": "inst.fw.guest_isolated",
+                        "object_ref": "obj.network.firewall_policy.guest_isolated",
+                        "instance_data": {},
+                    },
+                    {
+                        "instance_id": "inst.fw.iot_isolated",
+                        "object_ref": "obj.network.firewall_policy.iot_isolated",
+                        "instance_data": {},
+                    },
+                ],
+                "services": [],
+            }
+        }
+    )
+
+
+def test_terraform_mikrotik_generator_reflects_full_network_topology(tmp_path: Path) -> None:
+    generator = TerraformMikroTikGenerator("object.mikrotik.generator.terraform")
+    ctx = _ctx(tmp_path, _full_topology_fixture())
+
+    result = generator.execute(ctx, Stage.GENERATE)
+
+    assert result.status == PluginStatus.SUCCESS
+    target_dir = tmp_path / "generated" / "terraform" / "mikrotik"
+
+    interfaces_tf = (target_dir / "interfaces.tf").read_text(encoding="utf-8")
+    assert 'resource "routeros_interface_bridge" "containers"' in interfaces_tf
+    assert 'resource "routeros_interface_vlan" "guest"' in interfaces_tf
+    assert 'resource "routeros_interface_vlan" "iot"' in interfaces_tf
+    assert 'resource "routeros_interface_vlan" "management"' in interfaces_tf
+    assert 'resource "routeros_interface_vlan" "servers"' in interfaces_tf
+    assert 'resource "routeros_interface_vlan" "lan"' not in interfaces_tf
+
+    addresses_tf = (target_dir / "addresses.tf").read_text(encoding="utf-8")
+    assert 'address   = "172.18.0.1/24"' in addresses_tf
+    assert 'address   = "192.168.88.1/24"' in addresses_tf
+    assert 'address   = "192.168.30.1/24"' in addresses_tf
+
+    dhcp_tf = (target_dir / "dhcp.tf").read_text(encoding="utf-8")
+    assert 'resource "routeros_ip_dhcp_server" "lan_dhcp"' in dhcp_tf
+    assert 'resource "routeros_ip_dhcp_server_network" "lan_network"' in dhcp_tf
+    assert 'resource "routeros_ip_dhcp_server" "guest_dhcp"' in dhcp_tf
+    assert 'resource "routeros_ip_dhcp_server" "iot_dhcp"' in dhcp_tf
+
+    firewall_tf = (target_dir / "firewall.tf").read_text(encoding="utf-8")
+    assert 'resource "routeros_ip_firewall_nat" "runtime_nat_1"' in firewall_tf
+    assert 'resource "routeros_ip_firewall_nat" "runtime_nat_2"' in firewall_tf
+    assert "src_address = \"192.168.30.0/24\"" in firewall_tf
+    assert "dst_address = \"10.0.30.0/24\"" in firewall_tf
