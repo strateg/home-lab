@@ -1,7 +1,7 @@
 # ADR 0089-0091 SOHO Productization Plan
 
 **Status:** Active  
-**Last Updated:** 2026-04-08  
+**Last Updated:** 2026-04-09  
 **Scope:** Close implementation gaps for ADR 0089 (product profile), ADR 0090 (operator lifecycle), ADR 0091 (readiness evidence).
 
 ## 1. Objective
@@ -30,6 +30,7 @@ Completed now (highest-priority closure):
 
 Validation evidence:
 - `task validate:default` passes.
+- targeted SOHO contract/integration tests pass.
 
 ## 3. Deliverables
 
@@ -41,14 +42,14 @@ Validation evidence:
 ## 4. Implementation Steps
 
 ### Step A: ADR0089 hardening completion
-- [ ] Add canonical profile and bundle source data:
+- [x] Add canonical profile and bundle source data:
   - `topology/product-profiles/soho.standard.v1.yaml`
   - `topology/product-bundles/*.yaml`
-- [ ] Wire discover/compile outputs for resolved profile + effective bundle graph.
+- [x] Wire discover/compile outputs for resolved profile + effective bundle graph.
 - [ ] Enforce legacy sunset date policy (blocking after sunset).
 
 ### Step B: ADR0090 operator lifecycle surface
-- [ ] Add task wrappers:
+- [x] Add task wrappers:
   - `product:init`, `product:doctor`, `product:plan`, `product:apply`, `product:backup`, `product:restore`, `product:update`, `product:audit`, `product:handover`
 - [ ] Define explicit precondition/postcondition contracts per task.
 - [ ] Add contract tests proving read-only tasks have no side effects.
