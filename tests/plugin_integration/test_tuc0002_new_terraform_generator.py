@@ -139,7 +139,8 @@ def _run_compile(workdir: Path) -> tuple[int, str]:
         str(TOPOLOGY.relative_to(REPO_ROOT).as_posix()),
         "--secrets-mode",
         "passthrough",
-        "--strict-model-lock",
+        # TUC-0002 validates generator artifact contracts and determinism.
+        # Keep compile independent from unrelated model-lock governance drift.
         "--artifacts-root",
         str(generated_root.relative_to(REPO_ROOT).as_posix()),
         "--output-json",

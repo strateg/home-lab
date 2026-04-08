@@ -4,8 +4,8 @@ Acceptance package for validating a new Terraform generator contract and outputs
 
 ## Status
 
-- Current: `planned`
-- Next action: wire real plugin id and scenario matrix.
+- Current: `implemented`
+- Next action: keep green in CI and extend coverage as generator features evolve.
 
 ## Key Files
 

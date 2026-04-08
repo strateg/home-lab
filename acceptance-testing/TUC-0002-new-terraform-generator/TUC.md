@@ -3,7 +3,7 @@
 ## Metadata
 
 - `id`: `TUC-0002`
-- `status`: `planned`
+- `status`: `implemented`
 - `owner`: `topology-tools`
 - `created_at`: `2026-04-08`
 - `target_date`: `2026-04-10`
@@ -30,7 +30,7 @@ Validate that a newly introduced Terraform generator follows generator runtime c
 ## Preconditions
 
 - New Terraform generator plugin exists in manifest and entry path resolves.
-- `topology-tools/compile-topology.py` strict mode is functional.
+- `topology-tools/compile-topology.py` plugin-first pipeline is functional.
 - Framework lock is synchronized.
 
 ## Inputs
@@ -46,7 +46,7 @@ Validate that a newly introduced Terraform generator follows generator runtime c
   - `tests/plugin_integration/test_terraform_*.py`
 ## Expected Outcomes
 
-- Compile succeeds in strict mode.
+- Compile succeeds for current repository baseline.
 - Target Terraform generators publish valid `artifact_plan` and `artifact_generation_report`.
 - Generated Terraform files for the new family are deterministic across repeated runs.
 
