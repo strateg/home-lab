@@ -8,14 +8,31 @@
 
 ## Context
 
-SOHO deployments need a predictable operator flow that does not require framework internals knowledge.  
-Current capabilities exist, but user-facing lifecycle entrypoints are fragmented.
+SOHO deployments need a predictable operator flow that does not require framework internals knowledge.
+
+The framework already has the required building blocks:
+- deploy bundle mechanics,
+- runtime/deploy layers,
+- validation and acceptance stages,
+- task-based orchestration.
+
+But the user-facing lifecycle remains fragmented.
+Operators currently need to understand too many internal entrypoints and execution details.
 
 ---
 
 ## Problem
 
-There is no single normative lifecycle contract for SOHO operations and no unified task namespace for bootstrap, plan/apply, backup/restore, update, audit, and handover.
+There is no single normative lifecycle contract for SOHO operations and no unified user-facing task namespace for:
+
+- bootstrap,
+- plan/apply,
+- backup/restore,
+- update,
+- audit,
+- handover.
+
+This increases onboarding cost, raises the chance of workflow drift, and weakens supportability.
 
 ---
 
@@ -23,7 +40,9 @@ There is no single normative lifecycle contract for SOHO operations and no unifi
 
 Define a canonical SOHO operator lifecycle and map it to `product:*` orchestration targets.
 
-### 1. Lifecycle phases (normative)
+### D1. Lifecycle phases are normative
+
+The canonical lifecycle is:
 
 1. bootstrap
 2. plan
@@ -34,7 +53,9 @@ Define a canonical SOHO operator lifecycle and map it to `product:*` orchestrati
 7. audit
 8. handover
 
-### 2. Task namespace (normative)
+### D2. Task namespace is normative
+
+The canonical SOHO task surface is:
 
 - `product:init`
 - `product:doctor`
@@ -46,38 +67,99 @@ Define a canonical SOHO operator lifecycle and map it to `product:*` orchestrati
 - `product:audit`
 - `product:handover`
 
-### 3. Architectural constraint
+### D3. `product:*` targets are orchestration wrappers only
 
-`product:*` targets are orchestration wrappers only.  
-They must reuse existing deploy/runtime contracts (ADR0083/0085) and must not introduce a parallel execution plane.
+`product:*` targets:
+- must reuse existing deploy/runtime contracts,
+- must not introduce a parallel execution plane,
+- must not bypass validation, bundle, runner, or workspace contracts,
+- must remain thin operator-facing entrypoints.
 
-### 4. Readiness semantics
+### D4. Task semantics are explicit
 
-`product:doctor` is the single operator-ready status entrypoint and aggregates:
+| Task | Side effects | Expected mode | Notes |
+|---|---|---|---|
+| `product:init` | yes | controlled bootstrap | creates/initializes product-scoped baseline |
+| `product:doctor` | no | read-only | single operator status entrypoint |
+| `product:plan` | no | dry-run | change preview only |
+| `product:apply` | yes | controlled execution | must depend on valid plan/preconditions |
+| `product:backup` | yes | controlled execution | produces backup evidence |
+| `product:restore` | yes | controlled execution / drill | may operate in restore-readiness or active recovery mode |
+| `product:update` | yes | controlled execution | requires preflight and rollback semantics |
+| `product:audit` | no | read-only | health/drift/secret hygiene/readiness audit |
+| `product:handover` | yes | artifact assembly | assembles operator-facing package |
 
-- lifecycle preconditions
-- deploy bundle/workspace state
-- profile compatibility
-- evidence availability (from ADR0091)
+### D5. Idempotency and rerun expectations
+
+- `product:doctor`, `product:plan`, and `product:audit` must be side-effect free.
+- `product:init`, `product:backup`, and `product:handover` should be rerunnable without breaking state consistency.
+- `product:apply`, `product:restore`, and `product:update` must define controlled rerun behavior and failure/rollback expectations.
+
+### D6. `product:doctor` is the single operator-ready status entrypoint
+
+`product:doctor` aggregates:
+
+- lifecycle preconditions,
+- deploy bundle/workspace state,
+- profile compatibility (ADR 0089),
+- readiness evidence availability (ADR 0091).
+
+It must expose a normalized operator-visible status model:
+
+- `green` — ready
+- `yellow` — usable with warnings
+- `red` — blocked / not ready
+
+### D7. Preconditions and postconditions
+
+Each `product:*` command must define:
+- required preconditions,
+- produced artifacts or state changes,
+- failure class and operator-visible outcome.
+
+### D8. Invariants
+
+- The task surface must remain stable for operators.
+- Task wrappers must not fork behavior away from framework/runtime truth.
+- Dry-run tasks must not mutate managed state.
+- Status aggregation must be readable without framework internals knowledge.
 
 ---
 
 ## Out of scope
 
-This ADR does not define product profile/bundle data contracts (ADR0089) or evidence artifact schema (ADR0091).
+This ADR does not define:
+- product profile/bundle data contracts — see ADR 0089
+- readiness evidence schemas and handover artifact completeness — see ADR 0091
 
 ---
 
 ## Consequences
 
 ### Positive
-
 - Unified operator UX for SOHO lifecycle.
 - Lower onboarding and handover complexity.
-- Less dependence on ad-hoc operator knowledge.
+- Cleaner support and troubleshooting workflows.
+- Reduced dependence on internal framework knowledge.
 
 ### Trade-offs
+- Additional maintenance in task/lane adapters.
+- Strict mapping is required to prevent wrapper drift.
+- Operator UX now becomes a maintained contract.
 
-- Additional orchestration maintenance in task/lane adapters.
-- Requires strict contract mapping to avoid wrapper drift.
+### Risks
+- Wrapper drift from real runtime behavior.
+- Hidden side effects in tasks expected to be read-only.
+- Inconsistent status aggregation if evidence/profile contracts are weak.
 
+### Mitigations
+- Keep wrappers thin and contract-driven.
+- Define side-effect and precondition semantics explicitly.
+- Reuse existing deploy/runtime stages rather than duplicating behavior.
+- Test `product:*` as operator-facing acceptance surface.
+
+---
+
+## Decision summary
+
+Adopt a single normative SOHO operator lifecycle and expose it through stable `product:*` orchestration targets with explicit side-effect, status, and rerun semantics.

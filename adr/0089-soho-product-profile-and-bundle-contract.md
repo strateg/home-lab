@@ -8,24 +8,46 @@
 
 ## Context
 
-Framework contracts are mature, but SOHO scope is still implicit.  
-Project-level product behavior (supported footprint, required capabilities, gating baseline) is not formalized in one canonical contract.
+Framework-level contracts are already mature:
+- plugin-first runtime;
+- deterministic generation;
+- stage-based validation;
+- secrets discipline;
+- project/runtime separation.
 
-This causes drift between what is technically possible and what is explicitly supported for a SOHO deployment.
+But SOHO scope is still implicit.
+
+The system currently lacks one canonical contract that declares:
+- what is supported for a SOHO deployment,
+- which capability bundles are mandatory,
+- which deployment classes are valid,
+- how product-level support boundaries are validated.
+
+Without such a contract, there is drift between:
+- what the framework can technically generate,
+- what the project explicitly supports and will maintain.
 
 ---
 
 ## Problem
 
-There is no mandatory product profile in project data and no deterministic way to resolve required SOHO bundles and supported deployment classes.
+There is no mandatory project-level product profile and no deterministic mechanism to resolve:
+- SOHO deployment class,
+- required bundle set,
+- profile/class/hardware compatibility,
+- legacy-vs-migrated validation behavior.
+
+As a result, support scope is under-specified and machine validation is weaker than it should be.
 
 ---
 
 ## Decision
 
-Introduce canonical SOHO product-profile contract `soho.standard.v1` as project-level source of truth.
+Introduce canonical SOHO product-profile contract `soho.standard.v1` as the project-level source of truth.
 
-### 1. Mandatory `product_profile` block in `project.yaml`
+### D1. `product_profile` is mandatory for migrated SOHO projects
+
+`project.yaml` must contain:
 
 ```yaml
 product_profile:
@@ -37,15 +59,33 @@ product_profile:
   release_channel: stable
 ```
 
-### 2. Supported deployment classes are explicit and finite
+### D2. The profile is the source of truth for SOHO support scope
+
+For migrated SOHO projects, `product_profile` is normative for:
+- support boundary;
+- required bundle set;
+- deployment class selection;
+- release/readiness gating scope.
+
+Project-local overrides may refine implementation details, but must not weaken required profile guarantees.
+
+### D3. Supported deployment classes are explicit and finite
+
+Allowed values:
 
 - `starter`
 - `managed-soho`
 - `advanced-soho`
 
-Unsupported combinations (profile/class/hardware) are validation errors.
+Unsupported combinations of:
+- profile,
+- deployment class,
+- hardware class,
+- bundle graph
 
-### 3. SOHO bundle set is profile-resolved, not manual
+are validation failures.
+
+### D4. SOHO bundle resolution is profile-driven
 
 Required bundle IDs for `soho.standard.v1`:
 
@@ -58,17 +98,44 @@ Required bundle IDs for `soho.standard.v1`:
 - `bundle.secrets-governance`
 - `bundle.update-management`
 
-### 4. New contracts
+Bundle selection must be deterministic and derived from the profile and deployment class, not manually assembled ad hoc per project.
+
+### D5. New canonical contracts
+
+The following contracts are introduced:
 
 - `topology/product-profiles/soho.standard.v1.yaml`
 - `topology/product-bundles/*.yaml`
 - `schemas/product-profile.schema.json`
 
-### 5. Pipeline binding
+### D6. Pipeline binding
 
-- **discover**: resolve profile, class, hardware matrix compatibility
-- **compile**: materialize effective SOHO bundle graph
-- **validate**: enforce required bundles and class/profile compatibility
+- **discover**  
+  resolve profile, deployment class, hardware matrix compatibility
+- **compile**  
+  materialize effective SOHO bundle graph
+- **validate**  
+  enforce required bundles, profile/class compatibility, hardware support matrix
+
+### D7. Validation behavior and migration states
+
+Projects are classified as:
+
+- `legacy` — no `product_profile`
+- `migrated-soft` — `product_profile` present, warnings may still be tolerated during cutover
+- `migrated-hard` — `product_profile` present and all profile requirements are blocking
+
+Cutover policy must define when a project moves from `legacy` to `migrated-soft` to `migrated-hard`.
+
+### D8. Invariants
+
+For migrated SOHO projects:
+
+- profile resolution must be deterministic;
+- required bundles must be resolvable without manual operator interpretation;
+- unsupported profile/class/hardware combinations must fail validation;
+- bundle resolution must not depend on local workstation state;
+- profile contract must remain machine-validatable.
 
 ---
 
@@ -84,20 +151,40 @@ This ADR does not define:
 ## Consequences
 
 ### Positive
-
 - SOHO support boundary becomes explicit and machine-validatable.
-- Project portability improves via profile-driven contract resolution.
-- Product claims become testable against declared classes/bundles.
+- Project portability improves via profile-driven resolution.
+- Deployment class support becomes finite and testable.
+- Product-level claims become enforceable.
 
 ### Trade-offs
-
 - Additional schema and validator maintenance.
-- Bundle/version compatibility management becomes a first-class responsibility.
+- Bundle compatibility becomes a first-class governance concern.
+- Migration state management adds rollout complexity.
+
+### Risks
+- Overly broad profile semantics can blur the support boundary.
+- Weak cutover policy can leave projects indefinitely half-migrated.
+- Hardware matrix drift can produce false support claims.
+
+### Mitigations
+- Keep deployment classes finite and explicit.
+- Enforce migrated-hard mode with blocking validation.
+- Version product-profile schemas and bundle contracts.
+- Tie support claims to acceptance and readiness evidence.
 
 ---
 
 ## Migration notes
 
-Existing projects without `product_profile` remain legacy until migrated.  
-Cutover policy (warning vs blocking) is defined in implementation plan artifacts.
+Existing projects without `product_profile` remain `legacy` until migrated.
 
+Implementation artifacts must define:
+- warning vs blocking behavior for each migration state,
+- sunset timeline for `legacy`,
+- required acceptance checks before `migrated-hard`.
+
+---
+
+## Decision summary
+
+Adopt a mandatory SOHO product-profile contract as the project-level source of truth for support scope, bundle resolution, and deployment-class validation.

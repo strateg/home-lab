@@ -8,8 +8,15 @@
 
 ## Context
 
-SOHO readiness needs objective evidence, not only successful generation.  
-Operator-facing outputs and machine-readable readiness reports are required for repeatable support and handover.
+SOHO readiness cannot be asserted by successful generation alone.
+
+Repeatable support, handover, audit, and recovery require:
+- operator-facing artifacts,
+- machine-readable readiness reports,
+- readiness diagnostics,
+- release gating based on evidence.
+
+The framework already has deterministic generation and acceptance building blocks, but the evidence contract for SOHO readiness is not yet canonical.
 
 ---
 
@@ -19,7 +26,8 @@ There is no canonical evidence contract for SOHO release readiness:
 
 - backup/restore evidence format is undefined;
 - handover package completeness is not contract-checked;
-- product diagnostics range for readiness is missing.
+- readiness diagnostics are not normalized enough;
+- release decisions are not bound to a machine-readable evidence state model.
 
 ---
 
@@ -27,7 +35,7 @@ There is no canonical evidence contract for SOHO release readiness:
 
 Define mandatory SOHO readiness evidence contract and handover artifact set.
 
-### 1. Operator-facing artifact contract
+### D1. Operator-facing artifact contract is mandatory
 
 Generated in product output scope:
 
@@ -51,7 +59,7 @@ artifacts/<project>/
     support-bundle-manifest.json
 ```
 
-### 2. Product readiness diagnostics range
+### D2. Readiness diagnostics namespace is reserved
 
 - hard errors: `E7831..E7839`
 - warnings: `W7831..W7839`
@@ -65,7 +73,7 @@ Initial mapping:
 - `E7835` handover package incomplete
 - `E7836` unsupported deployment class combination
 
-### 3. Acceptance evidence is mandatory
+### D3. Acceptance evidence is mandatory
 
 SOHO readiness requires evidence for:
 
@@ -78,34 +86,97 @@ SOHO readiness requires evidence for:
 - backup-and-restore
 - operator-handover
 
-### 4. Release gate (normative)
+### D4. Evidence completeness state is normalized
 
-SOHO build/publish is blocked when any of the following is missing:
+Each required evidence domain is classified as:
 
-- complete handover package
-- backup/restore evidence
-- critical readiness diagnostics
-- required TUC evidence set
+- `missing`
+- `partial`
+- `complete`
 
-### 5. Security rule
+Readiness status is derived as:
 
-Operator artifacts must satisfy ADR0072 secret hygiene:
+- `green` — no critical diagnostics, all required evidence complete
+- `yellow` — no critical diagnostics, but one or more evidence domains partial
+- `red` — one or more critical diagnostics or mandatory evidence missing
 
-- no plaintext tracked secrets
-- deterministic redaction/sanitization in handover outputs
+### D5. Release gate is normative
+
+SOHO build/publish is blocked when any of the following is true:
+
+- handover package is missing or incomplete;
+- backup/restore evidence is missing;
+- critical readiness diagnostics exist;
+- required TUC evidence set is missing.
+
+### D6. Machine-readable report contracts are required
+
+The following contracts must exist and be versioned:
+
+- `schemas/operator-readiness.schema.json`
+- `schemas/backup-status.schema.json`
+- `schemas/restore-readiness.schema.json`
+- `schemas/support-bundle-manifest.schema.json`
+
+### D7. Provenance and retention
+
+Evidence artifacts must:
+- be attributable to a specific project and build/run context,
+- record generation timestamp and schema version,
+- be suitable for operator handover and support review,
+- support deterministic regeneration where applicable.
+
+### D8. Secret hygiene is mandatory
+
+Operator artifacts must satisfy ADR 0072 secret hygiene:
+
+- no plaintext tracked secrets,
+- deterministic redaction/sanitization in handover outputs,
+- no unsafe leakage through summaries, reports, or manifests.
+
+### D9. Invariants
+
+- Product readiness claims must be evidence-backed.
+- Handover completeness must be machine-checkable.
+- Readiness state must be derivable from machine-readable reports.
+- Sanitization must be deterministic and repeatable.
+
+---
+
+## Out of scope
+
+This ADR does not define:
+- product profile/bundle contract — see ADR 0089
+- operator lifecycle/task namespace — see ADR 0090
 
 ---
 
 ## Consequences
 
 ### Positive
-
 - Product claims become evidence-backed and auditable.
 - Handover quality becomes measurable and repeatable.
-- Incident and recovery workflows become contract-driven.
+- Recovery and incident workflows become contract-driven.
+- Release readiness becomes machine-checkable.
 
 ### Trade-offs
-
 - More generated artifacts to maintain.
 - Higher acceptance-test and evidence upkeep cost.
+- More schema/version management.
 
+### Risks
+- Artifact completeness may degrade into checklist theater without strict gates.
+- Overly loose redaction rules can leak sensitive context.
+- Evidence drift can appear if schemas and producers evolve independently.
+
+### Mitigations
+- Make readiness blocking for release.
+- Version evidence schemas explicitly.
+- Couple evidence generation to acceptance/build stages.
+- Test sanitization and completeness rules in CI.
+
+---
+
+## Decision summary
+
+Adopt a mandatory SOHO readiness evidence contract with explicit operator-facing artifacts, diagnostics, completeness states, and release-blocking readiness rules.
