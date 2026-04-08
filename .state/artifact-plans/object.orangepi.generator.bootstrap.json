@@ -7,76 +7,76 @@
       "action": "warn",
       "ownership_method": "output_prefix_match",
       "ownership_proven": true,
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/bootstrap/rtr-mikrotik-chateau/README.md",
+      "path": "generated/home-lab/bootstrap/rtr-mikrotik-chateau/README.md",
       "reason": "obsolete-shadowed"
     },
     {
       "action": "warn",
       "ownership_method": "output_prefix_match",
       "ownership_proven": true,
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/bootstrap/rtr-mikrotik-chateau/backup-restore-overrides.rsc",
+      "path": "generated/home-lab/bootstrap/rtr-mikrotik-chateau/backup-restore-overrides.rsc",
       "reason": "obsolete-shadowed"
     },
     {
       "action": "warn",
       "ownership_method": "output_prefix_match",
       "ownership_proven": true,
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc",
+      "path": "generated/home-lab/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc",
       "reason": "obsolete-shadowed"
     },
     {
       "action": "warn",
       "ownership_method": "output_prefix_match",
       "ownership_proven": true,
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/bootstrap/rtr-mikrotik-chateau/terraform.tfvars.example",
+      "path": "generated/home-lab/bootstrap/rtr-mikrotik-chateau/terraform.tfvars.example",
       "reason": "obsolete-shadowed"
     },
     {
       "action": "warn",
       "ownership_method": "output_prefix_match",
       "ownership_proven": true,
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/bootstrap/srv-gamayun/README.md",
+      "path": "generated/home-lab/bootstrap/srv-gamayun/README.md",
       "reason": "obsolete-shadowed"
     },
     {
       "action": "warn",
       "ownership_method": "output_prefix_match",
       "ownership_proven": true,
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/bootstrap/srv-gamayun/answer.toml",
+      "path": "generated/home-lab/bootstrap/srv-gamayun/answer.toml",
       "reason": "obsolete-shadowed"
     },
     {
       "action": "warn",
       "ownership_method": "output_prefix_match",
       "ownership_proven": true,
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/bootstrap/srv-gamayun/answer.toml.example",
+      "path": "generated/home-lab/bootstrap/srv-gamayun/answer.toml.example",
       "reason": "obsolete-shadowed"
     },
     {
       "action": "warn",
       "ownership_method": "output_prefix_match",
       "ownership_proven": true,
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/bootstrap/srv-gamayun/post-install-minimal.sh",
+      "path": "generated/home-lab/bootstrap/srv-gamayun/post-install-minimal.sh",
       "reason": "obsolete-shadowed"
     }
   ],
   "planned_outputs": [
     {
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/bootstrap/srv-orangepi5/cloud-init/user-data.example",
+      "path": "generated/home-lab/bootstrap/srv-orangepi5/cloud-init/user-data.example",
       "reason": "base-family",
       "renderer": "jinja2",
       "required": true,
       "template": "bootstrap/user-data.example.j2"
     },
     {
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/bootstrap/srv-orangepi5/cloud-init/meta-data",
+      "path": "generated/home-lab/bootstrap/srv-orangepi5/cloud-init/meta-data",
       "reason": "base-family",
       "renderer": "jinja2",
       "required": true,
       "template": "bootstrap/meta-data.j2"
     },
     {
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/bootstrap/srv-orangepi5/cloud-init/README.md",
+      "path": "generated/home-lab/bootstrap/srv-orangepi5/cloud-init/README.md",
       "reason": "base-family",
       "renderer": "jinja2",
       "required": true,

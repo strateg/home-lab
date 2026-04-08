@@ -17,84 +17,84 @@
   "obsolete_candidates": [],
   "planned_outputs": [
     {
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/terraform/mikrotik/addresses.tf",
+      "path": "generated/home-lab/terraform/mikrotik/addresses.tf",
       "reason": "base-family",
       "renderer": "jinja2",
       "required": true,
       "template": "terraform/addresses.tf.j2"
     },
     {
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/terraform/mikrotik/containers.tf",
+      "path": "generated/home-lab/terraform/mikrotik/containers.tf",
       "reason": "capability-enabled",
       "renderer": "jinja2",
       "required": true,
       "template": "terraform/containers.tf.j2"
     },
     {
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/terraform/mikrotik/dhcp.tf",
+      "path": "generated/home-lab/terraform/mikrotik/dhcp.tf",
       "reason": "base-family",
       "renderer": "jinja2",
       "required": true,
       "template": "terraform/dhcp.tf.j2"
     },
     {
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/terraform/mikrotik/dns.tf",
+      "path": "generated/home-lab/terraform/mikrotik/dns.tf",
       "reason": "base-family",
       "renderer": "jinja2",
       "required": true,
       "template": "terraform/dns.tf.j2"
     },
     {
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/terraform/mikrotik/firewall.tf",
+      "path": "generated/home-lab/terraform/mikrotik/firewall.tf",
       "reason": "base-family",
       "renderer": "jinja2",
       "required": true,
       "template": "terraform/firewall.tf.j2"
     },
     {
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/terraform/mikrotik/interfaces.tf",
+      "path": "generated/home-lab/terraform/mikrotik/interfaces.tf",
       "reason": "base-family",
       "renderer": "jinja2",
       "required": true,
       "template": "terraform/interfaces.tf.j2"
     },
     {
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/terraform/mikrotik/outputs.tf",
+      "path": "generated/home-lab/terraform/mikrotik/outputs.tf",
       "reason": "base-family",
       "renderer": "jinja2",
       "required": true,
       "template": "terraform/outputs.tf.j2"
     },
     {
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/terraform/mikrotik/provider.tf",
+      "path": "generated/home-lab/terraform/mikrotik/provider.tf",
       "reason": "base-family",
       "renderer": "jinja2",
       "required": true,
       "template": "terraform/provider.tf.j2"
     },
     {
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/terraform/mikrotik/qos.tf",
+      "path": "generated/home-lab/terraform/mikrotik/qos.tf",
       "reason": "capability-enabled",
       "renderer": "jinja2",
       "required": true,
       "template": "terraform/qos.tf.j2"
     },
     {
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/terraform/mikrotik/terraform.tfvars.example",
+      "path": "generated/home-lab/terraform/mikrotik/terraform.tfvars.example",
       "reason": "base-family",
       "renderer": "jinja2",
       "required": true,
       "template": "terraform/terraform.tfvars.example.j2"
     },
     {
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/terraform/mikrotik/variables.tf",
+      "path": "generated/home-lab/terraform/mikrotik/variables.tf",
       "reason": "base-family",
       "renderer": "jinja2",
       "required": true,
       "template": "terraform/variables.tf.j2"
     },
     {
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/terraform/mikrotik/vpn.tf",
+      "path": "generated/home-lab/terraform/mikrotik/vpn.tf",
       "reason": "capability-enabled",
       "renderer": "jinja2",
       "required": true,

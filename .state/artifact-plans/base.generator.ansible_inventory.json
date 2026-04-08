@@ -5,103 +5,103 @@
   "obsolete_candidates": [],
   "planned_outputs": [
     {
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/ansible/inventory/production/hosts.yml",
+      "path": "generated/home-lab/ansible/inventory/production/hosts.yml",
       "reason": "base-family",
       "renderer": "structured",
       "required": true
     },
     {
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/ansible/inventory/production/group_vars/all.yml",
+      "path": "generated/home-lab/ansible/inventory/production/group_vars/all.yml",
       "reason": "base-family",
       "renderer": "structured",
       "required": true
     },
     {
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/ansible/inventory/production/host_vars/lxc-docker.yml",
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/lxc-docker.yml",
       "reason": "base-family",
       "renderer": "structured",
       "required": true
     },
     {
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/ansible/inventory/production/host_vars/lxc-gitea.yml",
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/lxc-gitea.yml",
       "reason": "base-family",
       "renderer": "structured",
       "required": true
     },
     {
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/ansible/inventory/production/host_vars/lxc-grafana.yml",
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/lxc-grafana.yml",
       "reason": "base-family",
       "renderer": "structured",
       "required": true
     },
     {
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/ansible/inventory/production/host_vars/lxc-homeassistant.yml",
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/lxc-homeassistant.yml",
       "reason": "base-family",
       "renderer": "structured",
       "required": true
     },
     {
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/ansible/inventory/production/host_vars/lxc-nextcloud.yml",
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/lxc-nextcloud.yml",
       "reason": "base-family",
       "renderer": "structured",
       "required": true
     },
     {
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/ansible/inventory/production/host_vars/lxc-nginx-proxy.yml",
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/lxc-nginx-proxy.yml",
       "reason": "base-family",
       "renderer": "structured",
       "required": true
     },
     {
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/ansible/inventory/production/host_vars/lxc-postgresql.yml",
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/lxc-postgresql.yml",
       "reason": "base-family",
       "renderer": "structured",
       "required": true
     },
     {
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/ansible/inventory/production/host_vars/lxc-prometheus.yml",
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/lxc-prometheus.yml",
       "reason": "base-family",
       "renderer": "structured",
       "required": true
     },
     {
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/ansible/inventory/production/host_vars/lxc-redis.yml",
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/lxc-redis.yml",
       "reason": "base-family",
       "renderer": "structured",
       "required": true
     },
     {
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/ansible/inventory/production/host_vars/rtr-mikrotik-chateau.yml",
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/rtr-mikrotik-chateau.yml",
       "reason": "base-family",
       "renderer": "structured",
       "required": true
     },
     {
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/ansible/inventory/production/host_vars/rtr-slate.yml",
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/rtr-slate.yml",
       "reason": "base-family",
       "renderer": "structured",
       "required": true
     },
     {
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/ansible/inventory/production/host_vars/srv-gamayun.yml",
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/srv-gamayun.yml",
       "reason": "base-family",
       "renderer": "structured",
       "required": true
     },
     {
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/ansible/inventory/production/host_vars/srv-orangepi5.yml",
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/srv-orangepi5.yml",
       "reason": "base-family",
       "renderer": "structured",
       "required": true
     },
     {
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/ansible/inventory/production/host_vars/vps-hetzner-nuremberg.yml",
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/vps-hetzner-nuremberg.yml",
       "reason": "base-family",
       "renderer": "structured",
       "required": true
     },
     {
-      "path": "build/test-tuc0002/test_tuc0002_terraform_semanti0-semantic/generated/home-lab/ansible/inventory/production/host_vars/vps-oracle-frankfurt.yml",
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/vps-oracle-frankfurt.yml",
       "reason": "base-family",
       "renderer": "structured",
       "required": true
