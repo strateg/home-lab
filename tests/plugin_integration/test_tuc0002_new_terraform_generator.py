@@ -18,6 +18,29 @@ EXPECTED_TERRAFORM_PLUGIN_IDS = {
     "object.mikrotik.generator.terraform",
     "object.proxmox.generator.terraform",
 }
+EXPECTED_TERRAFORM_CORE_FILES = {
+    "object.mikrotik.generator.terraform": {
+        "provider.tf",
+        "interfaces.tf",
+        "firewall.tf",
+        "dhcp.tf",
+        "dns.tf",
+        "addresses.tf",
+        "variables.tf",
+        "outputs.tf",
+        "terraform.tfvars.example",
+    },
+    "object.proxmox.generator.terraform": {
+        "versions.tf",
+        "provider.tf",
+        "variables.tf",
+        "bridges.tf",
+        "lxc.tf",
+        "vms.tf",
+        "outputs.tf",
+        "terraform.tfvars.example",
+    },
+}
 
 
 def _list_plugin_ids(manifest_path: Path) -> set[str]:
@@ -126,3 +149,34 @@ def test_tuc0002_terraform_outputs_are_deterministic(tmp_path: Path) -> None:
     tree1 = _hash_tree(run1 / "generated" / "terraform")
     tree2 = _hash_tree(run2 / "generated" / "terraform")
     assert tree1 == tree2
+
+
+def test_tuc0002_terraform_semantic_file_contract_and_renderers(tmp_path: Path) -> None:
+    workdir = REPO_ROOT / "build" / "test-tuc0002" / f"{tmp_path.name}-semantic"
+    workdir.mkdir(parents=True, exist_ok=True)
+    code, output = _run_compile(workdir)
+    assert code == 0, output
+
+    contracts_root = workdir / "artifact-contracts"
+    generated_root = workdir / "generated" / "home-lab" / "terraform"
+
+    for plugin_id in sorted(EXPECTED_TERRAFORM_PLUGIN_IDS):
+        plugin_dir = contracts_root / plugin_id.replace(".", "__")
+        plan = json.loads((plugin_dir / "artifact-plan.json").read_text(encoding="utf-8"))
+
+        planned = plan.get("planned_outputs", [])
+        assert isinstance(planned, list) and planned
+        renderers = {str(item.get("renderer", "")) for item in planned if isinstance(item, dict)}
+        assert renderers.issubset({"jinja2", "programmatic"})
+
+        backend_rows = [
+            item
+            for item in planned
+            if isinstance(item, dict) and str(item.get("path", "")).endswith("/backend.tf")
+        ]
+        for row in backend_rows:
+            assert row.get("renderer") == "programmatic"
+
+        family_dir = "mikrotik" if "mikrotik" in plugin_id else "proxmox"
+        actual_files = {path.name for path in (generated_root / family_dir).glob("*.tf*")}
+        assert EXPECTED_TERRAFORM_CORE_FILES[plugin_id].issubset(actual_files)
