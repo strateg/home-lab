@@ -33,7 +33,7 @@ Collect at least these command outputs from router:
 - `/ip/pool/print detail without-paging`
 - `/ip/dhcp-server/print detail without-paging`
 - `/ip/dhcp-server/network/print detail without-paging`
-- `/ip/dns/print detail without-paging`
+- `/ip/dns/print detail` (fallback: `/ip/dns/print` on older RouterOS builds)
 - `/ip/route/print detail without-paging`
 - `/ip/firewall/filter/print detail without-paging`
 - `/ip/firewall/nat/print detail without-paging`

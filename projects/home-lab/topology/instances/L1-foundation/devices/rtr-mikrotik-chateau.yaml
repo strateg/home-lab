@@ -15,7 +15,7 @@ power:
   voltage_v: 24
   max_watts: 21.5
 observed_runtime:
-  captured_at: "2026-04-04"
+  captured_at: "2026-04-08"
   identity: rtr-mikrotik-chateau
   routeros_version: "7.22"
   # serial_number and software_id are in SOPS secrets (secrets/instances/rtr-mikrotik-chateau.yaml)
