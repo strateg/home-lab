@@ -13,6 +13,7 @@ This directory contains implementation plans for major development efforts.
 | [0081-framework-artifact-first-execution-plan.md](0081-framework-artifact-first-execution-plan.md) | Active | ADR0081 implementation plan for artifact-first framework + 1:N project repositories |
 | [0083-0085-implementation-plan.md](0083-0085-implementation-plan.md) | Active | Cross-document analysis of ADR 0083/0084/0085 deploy-domain implementation |
 | [0083-0085-unified-sequence.md](0083-0085-unified-sequence.md) | Active | Unified implementation sequence with concrete next steps |
+| [0089-0091-soho-productization-plan.md](0089-0091-soho-productization-plan.md) | Active | Implementation track for ADR0089 product profile, ADR0090 operator lifecycle, ADR0091 readiness evidence |
 
 ## Completed Plans
 
