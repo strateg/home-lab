@@ -1,0 +1,69 @@
+{
+  "artifact_family": "bootstrap.mikrotik",
+  "generated": [
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap/rtr-mikrotik-chateau/README.md",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap/rtr-mikrotik-chateau/backup-restore-overrides.rsc",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap/rtr-mikrotik-chateau/terraform.tfvars.example"
+  ],
+  "obsolete": [
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap/srv-gamayun/README.md",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap/srv-gamayun/answer.toml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap/srv-gamayun/answer.toml.example",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap/srv-gamayun/post-install-minimal.sh",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap/srv-orangepi5/cloud-init/README.md",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap/srv-orangepi5/cloud-init/meta-data",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap/srv-orangepi5/cloud-init/user-data.example",
+      "reason": "obsolete-shadowed"
+    }
+  ],
+  "plugin_id": "object.mikrotik.generator.bootstrap",
+  "schema_version": "1.0",
+  "skipped": [],
+  "summary": {
+    "generated_count": 4,
+    "obsolete_count": 7,
+    "planned_count": 4,
+    "skipped_count": 0
+  }
+}

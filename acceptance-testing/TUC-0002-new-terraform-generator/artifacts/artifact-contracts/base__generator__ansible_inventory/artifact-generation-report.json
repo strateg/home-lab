@@ -1,0 +1,32 @@
+{
+  "artifact_family": "ansible.inventory",
+  "generated": [
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/ansible/inventory/production/group_vars/all.yml",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/ansible/inventory/production/host_vars/lxc-docker.yml",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/ansible/inventory/production/host_vars/lxc-gitea.yml",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/ansible/inventory/production/host_vars/lxc-grafana.yml",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/ansible/inventory/production/host_vars/lxc-homeassistant.yml",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/ansible/inventory/production/host_vars/lxc-nextcloud.yml",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/ansible/inventory/production/host_vars/lxc-nginx-proxy.yml",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/ansible/inventory/production/host_vars/lxc-postgresql.yml",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/ansible/inventory/production/host_vars/lxc-prometheus.yml",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/ansible/inventory/production/host_vars/lxc-redis.yml",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/ansible/inventory/production/host_vars/rtr-mikrotik-chateau.yml",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/ansible/inventory/production/host_vars/rtr-slate.yml",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/ansible/inventory/production/host_vars/srv-gamayun.yml",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/ansible/inventory/production/host_vars/srv-orangepi5.yml",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/ansible/inventory/production/host_vars/vps-hetzner-nuremberg.yml",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/ansible/inventory/production/host_vars/vps-oracle-frankfurt.yml",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/ansible/inventory/production/hosts.yml"
+  ],
+  "obsolete": [],
+  "plugin_id": "base.generator.ansible_inventory",
+  "schema_version": "1.0",
+  "skipped": [],
+  "summary": {
+    "generated_count": 17,
+    "obsolete_count": 0,
+    "planned_count": 17,
+    "skipped_count": 0
+  }
+}

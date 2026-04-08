@@ -1,0 +1,102 @@
+Topology v5 Compiler Diagnostics
+================================
+
+generated_at: 2026-04-08T04:48:17+00:00
+total=94 errors=0 warnings=5 infos=89
+
+[WARNING] W7816 (validate) network:ip:10.0.30.1: IP '10.0.30.1' is reused across multiple rows: docker-adguard-secondary@extensions.network.gateway, docker-alertmanager@extensions.network.gateway, docker-grafana@extensions.network.gateway, docker-homeassistant@extensions.network.gateway, docker-jellyfin@extensions.network.gateway, docker-loki@extensions.network.gateway, docker-nextcloud@extensions.network.gateway, docker-prometheus@extensions.network.gateway, lxc-docker@extensions.network.gateway, lxc-gitea@extensions.network.gateway, lxc-grafana@extensions.network.gateway, lxc-homeassistant@extensions.network.gateway, lxc-nextcloud@extensions.network.gateway, lxc-nginx-proxy@extensions.network.gateway, lxc-postgresql@extensions.network.gateway, lxc-prometheus@extensions.network.gateway, lxc-redis@extensions.network.gateway.
+[WARNING] W7816 (validate) network:ip:10.0.30.10: IP '10.0.30.10' is reused across multiple rows: lxc-postgresql@extensions.network.ip, svc-postgresql@extensions.config.postgresql_listen_addresses.
+[WARNING] W7816 (validate) network:ip:172.18.0.1: IP '172.18.0.1' is reused across multiple rows: docker-nginx@extensions.network.gateway, inst.bridge.containers@extensions.ip.
+[WARNING] W7816 (validate) network:ip:172.18.0.2: IP '172.18.0.2' is reused across multiple rows: docker-nginx@extensions.nat_rules[0].to_address, docker-nginx@extensions.network.ip.
+[WARNING] W7816 (validate) network:ip:192.168.88.1: IP '192.168.88.1' is reused across multiple rows: docker-adguard@extensions.network.gateway, docker-mosquitto@extensions.network.gateway, docker-tailscale@extensions.network.gateway, inst.vlan.lan@extensions.ip_allocations[0].ip.
+[INFO] I8101 (assemble) /home/dmpr/workspaces/projects/home-lab/.work/native/home-lab: assembled workspace files: 75
+[INFO] I8102 (assemble) assemble:verify: assemble verification completed for 75 files
+[INFO] I8103 (assemble) /home/dmpr/workspaces/projects/home-lab/.work/native/home-lab/assembly-manifest.json: assembly manifest generated with 75 entries
+[INFO] I8104 (assemble) /home/dmpr/workspaces/projects/home-lab/.work/native/home-lab/.changed-input-scopes.json: changed_input_scopes resolved: scopes=17 changed_files=150
+[INFO] I8105 (assemble) /home/dmpr/workspaces/projects/home-lab/.work/deploy/bundles/b-b01d3b961b27: deploy bundle created: b-b01d3b961b27
+[INFO] I9396 (assemble) pipeline:assemble: artifact contract guard summary: legacy=5 migrating=6 migrated=0 rollback=0 checked=6 missing=0 prefix_conflicts=0
+[INFO] I8201 (build) /home/dmpr/workspaces/projects/home-lab/dist/home-lab/home-lab.zip: release bundle created: home-lab.zip
+[INFO] I8202 (build) /home/dmpr/workspaces/projects/home-lab/dist/home-lab/sbom/sbom.json: sbom generated: sbom.json
+[INFO] I8203 (build) /home/dmpr/workspaces/projects/home-lab/dist/home-lab/release-manifest.json: release manifest generated: release-manifest.json
+[INFO] I8204 (build) /home/dmpr/workspaces/projects/home-lab/dist/home-lab/artifact-family-summary.json: artifact family summary generated for 6 plugins
+[INFO] I8205 (build) /home/dmpr/workspaces/projects/home-lab/dist/home-lab/generator-readiness-evidence.json: generator readiness evidence emitted with status=green
+[INFO] I8206 (build) /home/dmpr/workspaces/projects/home-lab/dist/home-lab/reports/restore-readiness.json: ADR0091 restore-readiness report emitted with status=green
+[INFO] I4201 (compile) object:obj.apc.backups.650va: Derived 1 capabilities for object 'obj.apc.backups.650va'
+[INFO] I4201 (compile) object:obj.docker.container.generic: Derived 1 capabilities for object 'obj.docker.container.generic'
+[INFO] I4201 (compile) object:obj.firmware.apc.backups.650va: Derived 1 capabilities for object 'obj.firmware.apc.backups.650va'
+[INFO] I4201 (compile) object:obj.firmware.openwrt.glinet.4x: Derived 1 capabilities for object 'obj.firmware.openwrt.glinet.4x'
+[INFO] I4201 (compile) object:obj.firmware.pdu.generic.managed: Derived 1 capabilities for object 'obj.firmware.pdu.generic.managed'
+[INFO] I4201 (compile) object:obj.firmware.routeros.7.arm64: Derived 5 capabilities for object 'obj.firmware.routeros.7.arm64'
+[INFO] I4201 (compile) object:obj.firmware.routeros.7.x86_64: Derived 5 capabilities for object 'obj.firmware.routeros.7.x86_64'
+[INFO] I4201 (compile) object:obj.firmware.uboot.generic.arm64: Derived 3 capabilities for object 'obj.firmware.uboot.generic.arm64'
+[INFO] I4201 (compile) object:obj.firmware.uefi.generic.arm64: Derived 3 capabilities for object 'obj.firmware.uefi.generic.arm64'
+[INFO] I4201 (compile) object:obj.firmware.uefi.generic.x86_64: Derived 3 capabilities for object 'obj.firmware.uefi.generic.x86_64'
+[INFO] I4201 (compile) object:obj.glinet.slate_ax1800: Derived 1 capabilities for object 'obj.glinet.slate_ax1800'
+[INFO] I4201 (compile) object:obj.hetzner.cloud_vm: Derived 1 capabilities for object 'obj.hetzner.cloud_vm'
+[INFO] I4201 (compile) object:obj.mikrotik.chateau_lte7_ax: Derived 1 capabilities for object 'obj.mikrotik.chateau_lte7_ax'
+[INFO] I4201 (compile) object:obj.mikrotik.chr: Derived 1 capabilities for object 'obj.mikrotik.chr'
+[INFO] I4201 (compile) object:obj.oracle.cloud_vm: Derived 1 capabilities for object 'obj.oracle.cloud_vm'
+[INFO] I4201 (compile) object:obj.orangepi.rk3588.debian: Derived 1 capabilities for object 'obj.orangepi.rk3588.debian'
+[INFO] I4201 (compile) object:obj.os.debian.12.arm64.container_base: Derived 6 capabilities for object 'obj.os.debian.12.arm64.container_base'
+[INFO] I4201 (compile) object:obj.os.debian.12.arm64.edge: Derived 6 capabilities for object 'obj.os.debian.12.arm64.edge'
+[INFO] I4201 (compile) object:obj.os.debian.12.proxmox.lxc: Derived 6 capabilities for object 'obj.os.debian.12.proxmox.lxc'
+[INFO] I4201 (compile) object:obj.os.linux.generic.arm64: Derived 5 capabilities for object 'obj.os.linux.generic.arm64'
+[INFO] I4201 (compile) object:obj.os.linux.generic.x86_64: Derived 5 capabilities for object 'obj.os.linux.generic.x86_64'
+[INFO] I4201 (compile) object:obj.os.openwrt.glinet.4x: Derived 4 capabilities for object 'obj.os.openwrt.glinet.4x'
+[INFO] I4201 (compile) object:obj.os.proxmox.ve.9: Derived 6 capabilities for object 'obj.os.proxmox.ve.9'
+[INFO] I4201 (compile) object:obj.os.routeros.7.arm64: Derived 5 capabilities for object 'obj.os.routeros.7.arm64'
+[INFO] I4201 (compile) object:obj.os.routeros.7.x86_64: Derived 5 capabilities for object 'obj.os.routeros.7.x86_64'
+[INFO] I4201 (compile) object:obj.pdu.generic.managed: Derived 1 capabilities for object 'obj.pdu.generic.managed'
+[INFO] I4201 (compile) object:obj.proxmox.lxc.debian12.base: Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.base'
+[INFO] I4201 (compile) object:obj.proxmox.lxc.debian12.docker: Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.docker'
+[INFO] I4201 (compile) object:obj.proxmox.lxc.debian12.gitea: Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.gitea'
+[INFO] I4201 (compile) object:obj.proxmox.lxc.debian12.grafana: Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.grafana'
+[INFO] I4201 (compile) object:obj.proxmox.lxc.debian12.homeassistant: Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.homeassistant'
+[INFO] I4201 (compile) object:obj.proxmox.lxc.debian12.nextcloud: Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.nextcloud'
+[INFO] I4201 (compile) object:obj.proxmox.lxc.debian12.nginx: Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.nginx'
+[INFO] I4201 (compile) object:obj.proxmox.lxc.debian12.postgresql: Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.postgresql'
+[INFO] I4201 (compile) object:obj.proxmox.lxc.debian12.prometheus: Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.prometheus'
+[INFO] I4201 (compile) object:obj.proxmox.lxc.debian12.redis: Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.redis'
+[INFO] I4201 (compile) object:obj.proxmox.ve: Derived 1 capabilities for object 'obj.proxmox.ve'
+[INFO] I4201 (compile) object:obj.service.adguard: Derived 1 capabilities for object 'obj.service.adguard'
+[INFO] I4201 (compile) object:obj.service.alertmanager: Derived 1 capabilities for object 'obj.service.alertmanager'
+[INFO] I4201 (compile) object:obj.service.docker_host: Derived 1 capabilities for object 'obj.service.docker_host'
+[INFO] I4201 (compile) object:obj.service.gitea: Derived 1 capabilities for object 'obj.service.gitea'
+[INFO] I4201 (compile) object:obj.service.grafana: Derived 1 capabilities for object 'obj.service.grafana'
+[INFO] I4201 (compile) object:obj.service.homeassistant: Derived 1 capabilities for object 'obj.service.homeassistant'
+[INFO] I4201 (compile) object:obj.service.jellyfin: Derived 1 capabilities for object 'obj.service.jellyfin'
+[INFO] I4201 (compile) object:obj.service.loki: Derived 1 capabilities for object 'obj.service.loki'
+[INFO] I4201 (compile) object:obj.service.mikrotik.snmp: Derived 1 capabilities for object 'obj.service.mikrotik.snmp'
+[INFO] I4201 (compile) object:obj.service.mikrotik.web_ui: Derived 1 capabilities for object 'obj.service.mikrotik.web_ui'
+[INFO] I4201 (compile) object:obj.service.mosquitto: Derived 1 capabilities for object 'obj.service.mosquitto'
+[INFO] I4201 (compile) object:obj.service.nextcloud: Derived 1 capabilities for object 'obj.service.nextcloud'
+[INFO] I4201 (compile) object:obj.service.nextcloud.file_storage: Derived 1 capabilities for object 'obj.service.nextcloud.file_storage'
+[INFO] I4201 (compile) object:obj.service.nginx_proxy: Derived 1 capabilities for object 'obj.service.nginx_proxy'
+[INFO] I4201 (compile) object:obj.service.ntp: Derived 1 capabilities for object 'obj.service.ntp'
+[INFO] I4201 (compile) object:obj.service.postgresql: Derived 1 capabilities for object 'obj.service.postgresql'
+[INFO] I4201 (compile) object:obj.service.prometheus: Derived 1 capabilities for object 'obj.service.prometheus'
+[INFO] I4201 (compile) object:obj.service.proxmox.web_ui: Derived 1 capabilities for object 'obj.service.proxmox.web_ui'
+[INFO] I4201 (compile) object:obj.service.redis: Derived 1 capabilities for object 'obj.service.redis'
+[INFO] I4201 (compile) object:obj.service.syslog_forwarder: Derived 1 capabilities for object 'obj.service.syslog_forwarder'
+[INFO] I4201 (compile) object:obj.service.tailscale: Derived 1 capabilities for object 'obj.service.tailscale'
+[INFO] I4201 (compile) object:obj.service.wireguard: Derived 1 capabilities for object 'obj.service.wireguard'
+[INFO] I4001 (discover) discover:module-manifests: Plugin manifests loaded via discover bootstrap: plugins=82 manifests=5 module_manifests=4
+[INFO] I9001 (emit) acceptance-testing/TUC-0002-new-terraform-generator/artifacts/effective-test.json: Compile success.
+  hint: No action required.
+[INFO] I3901 (generate) /home/dmpr/workspaces/projects/home-lab/generated/home-lab/artifact-manifest.json: generated artifact manifest with 75 entries
+[INFO] I9001 (generate) generator:effective_yaml: Generated effective YAML artifact: /home/dmpr/workspaces/projects/home-lab/acceptance-testing/TUC-0002-new-terraform-generator/artifacts/effective-topology.yaml
+[INFO] I9101 (generate) /home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/proxmox: generated baseline Proxmox Terraform artifacts: nodes=1 lxc=9 services=9 caps=[none] remote_state=disabled
+[INFO] I9201 (generate) /home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik: generated MikroTik Terraform artifacts: routers=1 vlans=0 networks=13 services=5 caps=[qos.tf,vpn.tf,containers.tf] remote_state=disabled
+[INFO] I9301 (generate) /home/dmpr/workspaces/projects/home-lab/generated/home-lab/ansible/inventory/production: generated baseline Ansible inventory artifacts: hosts=15
+[INFO] I9401 (generate) /home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap: generated baseline Proxmox bootstrap artifacts: nodes=1
+[INFO] I9501 (generate) /home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap: generated baseline MikroTik bootstrap artifacts: nodes=1
+[INFO] I9601 (generate) /home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap: generated baseline Orange Pi bootstrap artifacts: nodes=1
+[INFO] I9701 (generate) /home/dmpr/workspaces/projects/home-lab/generated/home-lab/docs: generated baseline docs artifacts: devices=6 services=26
+[INFO] I9801 (generate) /home/dmpr/workspaces/projects/home-lab/generated/home-lab/docs/diagrams: generated diagram artifacts: icon_mode=none devices=6 trust_zones=6 vlans=5
+[INFO] I2401 (load) model.lock: model.lock loaded.
+[INFO] I6901 (validate) pipeline:mode: Pipeline mode plugin-first is active; effective output source is plugin ctx.compiled_json.
+  hint: Plugin-first effective model source is active.
+[INFO] I7899 (validate) instance:devices:srv-gamayun: Hypervisor 'srv-gamayun' is bare_metal at L1; instance represents both hypervisor and hardware.
+[INFO] I9390 (validate) pipeline:validate: generator migration status: legacy=5, migrating=6, migrated=0, rollback=0
+[INFO] I9399 (validate) pipeline:validate: generator sunset summary: scheduled=6 legacy=0 pre_sunset=0 grace_window=0 warnings=0 errors=0
+[INFO] I9400 (validate) pipeline:validate: generator rollback summary: rollback_generators=0 escalated=0 missing_started_at=0 warnings=0

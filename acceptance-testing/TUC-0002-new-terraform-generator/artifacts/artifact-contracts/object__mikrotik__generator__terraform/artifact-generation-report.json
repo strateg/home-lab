@@ -1,0 +1,27 @@
+{
+  "artifact_family": "terraform.mikrotik",
+  "generated": [
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/addresses.tf",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/containers.tf",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/dhcp.tf",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/dns.tf",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/firewall.tf",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/interfaces.tf",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/outputs.tf",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/provider.tf",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/qos.tf",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/terraform.tfvars.example",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/variables.tf",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik/vpn.tf"
+  ],
+  "obsolete": [],
+  "plugin_id": "object.mikrotik.generator.terraform",
+  "schema_version": "1.0",
+  "skipped": [],
+  "summary": {
+    "generated_count": 12,
+    "obsolete_count": 0,
+    "planned_count": 12,
+    "skipped_count": 0
+  }
+}

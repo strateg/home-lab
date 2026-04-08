@@ -1,0 +1,75 @@
+{
+  "artifact_family": "bootstrap.orangepi",
+  "generated": [
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap/srv-orangepi5/cloud-init/README.md",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap/srv-orangepi5/cloud-init/meta-data",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap/srv-orangepi5/cloud-init/user-data.example"
+  ],
+  "obsolete": [
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap/rtr-mikrotik-chateau/README.md",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap/rtr-mikrotik-chateau/backup-restore-overrides.rsc",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap/rtr-mikrotik-chateau/terraform.tfvars.example",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap/srv-gamayun/README.md",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap/srv-gamayun/answer.toml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap/srv-gamayun/answer.toml.example",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap/srv-gamayun/post-install-minimal.sh",
+      "reason": "obsolete-shadowed"
+    }
+  ],
+  "plugin_id": "object.orangepi.generator.bootstrap",
+  "schema_version": "1.0",
+  "skipped": [],
+  "summary": {
+    "generated_count": 3,
+    "obsolete_count": 8,
+    "planned_count": 3,
+    "skipped_count": 0
+  }
+}

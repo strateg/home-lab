@@ -1,0 +1,1513 @@
+{
+  "report_version": "2.0.0",
+  "tool": "topology-v5-compiler",
+  "generated_at": "2026-04-08T04:48:17+00:00",
+  "inputs": {
+    "topology": "topology/topology.yaml",
+    "schema": "topology/topology.yaml",
+    "error_catalog": "topology-tools/data/error-catalog.yaml",
+    "model_lock": "topology/model.lock.yaml",
+    "plugin_manifests": [
+      "/home/dmpr/workspaces/projects/home-lab/topology-tools/plugins/plugins.yaml",
+      "/home/dmpr/workspaces/projects/home-lab/topology/object-modules/mikrotik/plugins.yaml",
+      "/home/dmpr/workspaces/projects/home-lab/topology/object-modules/network/plugins.yaml",
+      "/home/dmpr/workspaces/projects/home-lab/topology/object-modules/orangepi/plugins.yaml",
+      "/home/dmpr/workspaces/projects/home-lab/topology/object-modules/proxmox/plugins.yaml"
+    ]
+  },
+  "outputs": {
+    "effective_json": "acceptance-testing/TUC-0002-new-terraform-generator/artifacts/effective-test.json",
+    "diagnostics_json": "acceptance-testing/TUC-0002-new-terraform-generator/artifacts/diagnostics-test.json",
+    "diagnostics_txt": "acceptance-testing/TUC-0002-new-terraform-generator/artifacts/diagnostics-test.txt"
+  },
+  "summary": {
+    "total": 94,
+    "errors": 0,
+    "warnings": 5,
+    "infos": 89,
+    "by_stage": {
+      "validate": 10,
+      "assemble": 6,
+      "build": 6,
+      "compile": 59,
+      "discover": 1,
+      "emit": 1,
+      "generate": 10,
+      "load": 1
+    },
+    "by_plugin": {
+      "base.validator.network_ip_overlap": 5,
+      "base.assembler.workspace": 1,
+      "base.assembler.verify": 1,
+      "base.assembler.manifest": 1,
+      "base.assembler.changed_scopes": 1,
+      "base.assembler.deploy_bundle": 1,
+      "base.assembler.artifact_contract_guard": 1,
+      "base.builder.bundle": 1,
+      "base.builder.sbom": 1,
+      "base.builder.release_manifest": 1,
+      "base.builder.artifact_family_summary": 1,
+      "base.builder.generator_readiness_evidence": 1,
+      "base.builder.readiness_reports": 1,
+      "base.compiler.capabilities": 59,
+      "base.discover.manifest_loader": 1,
+      "base.generator.artifact_manifest": 1,
+      "base.generator.effective_yaml": 1,
+      "object.proxmox.generator.terraform": 1,
+      "object.mikrotik.generator.terraform": 1,
+      "base.generator.ansible_inventory": 1,
+      "object.proxmox.generator.bootstrap": 1,
+      "object.mikrotik.generator.bootstrap": 1,
+      "object.orangepi.generator.bootstrap": 1,
+      "base.generator.docs": 1,
+      "base.generator.diagrams": 1,
+      "base.validator.model_lock": 1,
+      "base.validator.hypervisor_execution_model": 1,
+      "base.validator.generator_migration_status": 1,
+      "base.validator.generator_sunset": 1,
+      "base.validator.generator_rollback_escalation": 1
+    }
+  },
+  "next_actions": [
+    {
+      "file": "network",
+      "errors": 0,
+      "warnings": 5,
+      "primary_codes": [
+        "W7816"
+      ]
+    },
+    {
+      "file": "/home/dmpr/workspaces/projects/home-lab/.work/deploy/bundles/b-b01d3b961b27",
+      "errors": 0,
+      "warnings": 0,
+      "primary_codes": [
+        "I8105"
+      ]
+    },
+    {
+      "file": "/home/dmpr/workspaces/projects/home-lab/.work/native/home-lab",
+      "errors": 0,
+      "warnings": 0,
+      "primary_codes": [
+        "I8101"
+      ]
+    },
+    {
+      "file": "/home/dmpr/workspaces/projects/home-lab/.work/native/home-lab/.changed-input-scopes.json",
+      "errors": 0,
+      "warnings": 0,
+      "primary_codes": [
+        "I8104"
+      ]
+    },
+    {
+      "file": "/home/dmpr/workspaces/projects/home-lab/.work/native/home-lab/assembly-manifest.json",
+      "errors": 0,
+      "warnings": 0,
+      "primary_codes": [
+        "I8103"
+      ]
+    },
+    {
+      "file": "/home/dmpr/workspaces/projects/home-lab/dist/home-lab/artifact-family-summary.json",
+      "errors": 0,
+      "warnings": 0,
+      "primary_codes": [
+        "I8204"
+      ]
+    },
+    {
+      "file": "/home/dmpr/workspaces/projects/home-lab/dist/home-lab/generator-readiness-evidence.json",
+      "errors": 0,
+      "warnings": 0,
+      "primary_codes": [
+        "I8205"
+      ]
+    },
+    {
+      "file": "/home/dmpr/workspaces/projects/home-lab/dist/home-lab/home-lab.zip",
+      "errors": 0,
+      "warnings": 0,
+      "primary_codes": [
+        "I8201"
+      ]
+    },
+    {
+      "file": "/home/dmpr/workspaces/projects/home-lab/dist/home-lab/release-manifest.json",
+      "errors": 0,
+      "warnings": 0,
+      "primary_codes": [
+        "I8203"
+      ]
+    },
+    {
+      "file": "/home/dmpr/workspaces/projects/home-lab/dist/home-lab/reports/restore-readiness.json",
+      "errors": 0,
+      "warnings": 0,
+      "primary_codes": [
+        "I8206"
+      ]
+    },
+    {
+      "file": "/home/dmpr/workspaces/projects/home-lab/dist/home-lab/sbom/sbom.json",
+      "errors": 0,
+      "warnings": 0,
+      "primary_codes": [
+        "I8202"
+      ]
+    },
+    {
+      "file": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/ansible/inventory/production",
+      "errors": 0,
+      "warnings": 0,
+      "primary_codes": [
+        "I9301"
+      ]
+    },
+    {
+      "file": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/artifact-manifest.json",
+      "errors": 0,
+      "warnings": 0,
+      "primary_codes": [
+        "I3901"
+      ]
+    },
+    {
+      "file": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap",
+      "errors": 0,
+      "warnings": 0,
+      "primary_codes": [
+        "I9401",
+        "I9501",
+        "I9601"
+      ]
+    },
+    {
+      "file": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/docs",
+      "errors": 0,
+      "warnings": 0,
+      "primary_codes": [
+        "I9701"
+      ]
+    },
+    {
+      "file": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/docs/diagrams",
+      "errors": 0,
+      "warnings": 0,
+      "primary_codes": [
+        "I9801"
+      ]
+    },
+    {
+      "file": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik",
+      "errors": 0,
+      "warnings": 0,
+      "primary_codes": [
+        "I9201"
+      ]
+    },
+    {
+      "file": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/proxmox",
+      "errors": 0,
+      "warnings": 0,
+      "primary_codes": [
+        "I9101"
+      ]
+    },
+    {
+      "file": "acceptance-testing/TUC-0002-new-terraform-generator/artifacts/effective-test.json",
+      "errors": 0,
+      "warnings": 0,
+      "primary_codes": [
+        "I9001"
+      ]
+    },
+    {
+      "file": "assemble",
+      "errors": 0,
+      "warnings": 0,
+      "primary_codes": [
+        "I8102"
+      ]
+    },
+    {
+      "file": "discover",
+      "errors": 0,
+      "warnings": 0,
+      "primary_codes": [
+        "I4001"
+      ]
+    },
+    {
+      "file": "generator",
+      "errors": 0,
+      "warnings": 0,
+      "primary_codes": [
+        "I9001"
+      ]
+    },
+    {
+      "file": "instance",
+      "errors": 0,
+      "warnings": 0,
+      "primary_codes": [
+        "I7899"
+      ]
+    },
+    {
+      "file": "model.lock",
+      "errors": 0,
+      "warnings": 0,
+      "primary_codes": [
+        "I2401"
+      ]
+    },
+    {
+      "file": "object",
+      "errors": 0,
+      "warnings": 0,
+      "primary_codes": [
+        "I4201"
+      ]
+    },
+    {
+      "file": "pipeline",
+      "errors": 0,
+      "warnings": 0,
+      "primary_codes": [
+        "I6901",
+        "I9390",
+        "I9396"
+      ]
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "W7816",
+      "severity": "warning",
+      "stage": "validate",
+      "message": "IP '10.0.30.1' is reused across multiple rows: docker-adguard-secondary@extensions.network.gateway, docker-alertmanager@extensions.network.gateway, docker-grafana@extensions.network.gateway, docker-homeassistant@extensions.network.gateway, docker-jellyfin@extensions.network.gateway, docker-loki@extensions.network.gateway, docker-nextcloud@extensions.network.gateway, docker-prometheus@extensions.network.gateway, lxc-docker@extensions.network.gateway, lxc-gitea@extensions.network.gateway, lxc-grafana@extensions.network.gateway, lxc-homeassistant@extensions.network.gateway, lxc-nextcloud@extensions.network.gateway, lxc-nginx-proxy@extensions.network.gateway, lxc-postgresql@extensions.network.gateway, lxc-prometheus@extensions.network.gateway, lxc-redis@extensions.network.gateway.",
+      "path": "network:ip:10.0.30.1",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.validator.network_ip_overlap"
+    },
+    {
+      "code": "W7816",
+      "severity": "warning",
+      "stage": "validate",
+      "message": "IP '10.0.30.10' is reused across multiple rows: lxc-postgresql@extensions.network.ip, svc-postgresql@extensions.config.postgresql_listen_addresses.",
+      "path": "network:ip:10.0.30.10",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.validator.network_ip_overlap"
+    },
+    {
+      "code": "W7816",
+      "severity": "warning",
+      "stage": "validate",
+      "message": "IP '172.18.0.1' is reused across multiple rows: docker-nginx@extensions.network.gateway, inst.bridge.containers@extensions.ip.",
+      "path": "network:ip:172.18.0.1",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.validator.network_ip_overlap"
+    },
+    {
+      "code": "W7816",
+      "severity": "warning",
+      "stage": "validate",
+      "message": "IP '172.18.0.2' is reused across multiple rows: docker-nginx@extensions.nat_rules[0].to_address, docker-nginx@extensions.network.ip.",
+      "path": "network:ip:172.18.0.2",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.validator.network_ip_overlap"
+    },
+    {
+      "code": "W7816",
+      "severity": "warning",
+      "stage": "validate",
+      "message": "IP '192.168.88.1' is reused across multiple rows: docker-adguard@extensions.network.gateway, docker-mosquitto@extensions.network.gateway, docker-tailscale@extensions.network.gateway, inst.vlan.lan@extensions.ip_allocations[0].ip.",
+      "path": "network:ip:192.168.88.1",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.validator.network_ip_overlap"
+    },
+    {
+      "code": "I8101",
+      "severity": "info",
+      "stage": "assemble",
+      "message": "assembled workspace files: 75",
+      "path": "/home/dmpr/workspaces/projects/home-lab/.work/native/home-lab",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.assembler.workspace"
+    },
+    {
+      "code": "I8102",
+      "severity": "info",
+      "stage": "assemble",
+      "message": "assemble verification completed for 75 files",
+      "path": "assemble:verify",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.assembler.verify"
+    },
+    {
+      "code": "I8103",
+      "severity": "info",
+      "stage": "assemble",
+      "message": "assembly manifest generated with 75 entries",
+      "path": "/home/dmpr/workspaces/projects/home-lab/.work/native/home-lab/assembly-manifest.json",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.assembler.manifest"
+    },
+    {
+      "code": "I8104",
+      "severity": "info",
+      "stage": "assemble",
+      "message": "changed_input_scopes resolved: scopes=17 changed_files=150",
+      "path": "/home/dmpr/workspaces/projects/home-lab/.work/native/home-lab/.changed-input-scopes.json",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.assembler.changed_scopes"
+    },
+    {
+      "code": "I8105",
+      "severity": "info",
+      "stage": "assemble",
+      "message": "deploy bundle created: b-b01d3b961b27",
+      "path": "/home/dmpr/workspaces/projects/home-lab/.work/deploy/bundles/b-b01d3b961b27",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.assembler.deploy_bundle"
+    },
+    {
+      "code": "I9396",
+      "severity": "info",
+      "stage": "assemble",
+      "message": "artifact contract guard summary: legacy=5 migrating=6 migrated=0 rollback=0 checked=6 missing=0 prefix_conflicts=0",
+      "path": "pipeline:assemble",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.assembler.artifact_contract_guard"
+    },
+    {
+      "code": "I8201",
+      "severity": "info",
+      "stage": "build",
+      "message": "release bundle created: home-lab.zip",
+      "path": "/home/dmpr/workspaces/projects/home-lab/dist/home-lab/home-lab.zip",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.builder.bundle"
+    },
+    {
+      "code": "I8202",
+      "severity": "info",
+      "stage": "build",
+      "message": "sbom generated: sbom.json",
+      "path": "/home/dmpr/workspaces/projects/home-lab/dist/home-lab/sbom/sbom.json",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.builder.sbom"
+    },
+    {
+      "code": "I8203",
+      "severity": "info",
+      "stage": "build",
+      "message": "release manifest generated: release-manifest.json",
+      "path": "/home/dmpr/workspaces/projects/home-lab/dist/home-lab/release-manifest.json",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.builder.release_manifest"
+    },
+    {
+      "code": "I8204",
+      "severity": "info",
+      "stage": "build",
+      "message": "artifact family summary generated for 6 plugins",
+      "path": "/home/dmpr/workspaces/projects/home-lab/dist/home-lab/artifact-family-summary.json",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.builder.artifact_family_summary"
+    },
+    {
+      "code": "I8205",
+      "severity": "info",
+      "stage": "build",
+      "message": "generator readiness evidence emitted with status=green",
+      "path": "/home/dmpr/workspaces/projects/home-lab/dist/home-lab/generator-readiness-evidence.json",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.builder.generator_readiness_evidence"
+    },
+    {
+      "code": "I8206",
+      "severity": "info",
+      "stage": "build",
+      "message": "ADR0091 restore-readiness report emitted with status=green",
+      "path": "/home/dmpr/workspaces/projects/home-lab/dist/home-lab/reports/restore-readiness.json",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.builder.readiness_reports"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.apc.backups.650va'",
+      "path": "object:obj.apc.backups.650va",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.docker.container.generic'",
+      "path": "object:obj.docker.container.generic",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.firmware.apc.backups.650va'",
+      "path": "object:obj.firmware.apc.backups.650va",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.firmware.openwrt.glinet.4x'",
+      "path": "object:obj.firmware.openwrt.glinet.4x",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.firmware.pdu.generic.managed'",
+      "path": "object:obj.firmware.pdu.generic.managed",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 5 capabilities for object 'obj.firmware.routeros.7.arm64'",
+      "path": "object:obj.firmware.routeros.7.arm64",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 5 capabilities for object 'obj.firmware.routeros.7.x86_64'",
+      "path": "object:obj.firmware.routeros.7.x86_64",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 3 capabilities for object 'obj.firmware.uboot.generic.arm64'",
+      "path": "object:obj.firmware.uboot.generic.arm64",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 3 capabilities for object 'obj.firmware.uefi.generic.arm64'",
+      "path": "object:obj.firmware.uefi.generic.arm64",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 3 capabilities for object 'obj.firmware.uefi.generic.x86_64'",
+      "path": "object:obj.firmware.uefi.generic.x86_64",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.glinet.slate_ax1800'",
+      "path": "object:obj.glinet.slate_ax1800",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.hetzner.cloud_vm'",
+      "path": "object:obj.hetzner.cloud_vm",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.mikrotik.chateau_lte7_ax'",
+      "path": "object:obj.mikrotik.chateau_lte7_ax",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.mikrotik.chr'",
+      "path": "object:obj.mikrotik.chr",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.oracle.cloud_vm'",
+      "path": "object:obj.oracle.cloud_vm",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.orangepi.rk3588.debian'",
+      "path": "object:obj.orangepi.rk3588.debian",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 6 capabilities for object 'obj.os.debian.12.arm64.container_base'",
+      "path": "object:obj.os.debian.12.arm64.container_base",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 6 capabilities for object 'obj.os.debian.12.arm64.edge'",
+      "path": "object:obj.os.debian.12.arm64.edge",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 6 capabilities for object 'obj.os.debian.12.proxmox.lxc'",
+      "path": "object:obj.os.debian.12.proxmox.lxc",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 5 capabilities for object 'obj.os.linux.generic.arm64'",
+      "path": "object:obj.os.linux.generic.arm64",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 5 capabilities for object 'obj.os.linux.generic.x86_64'",
+      "path": "object:obj.os.linux.generic.x86_64",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 4 capabilities for object 'obj.os.openwrt.glinet.4x'",
+      "path": "object:obj.os.openwrt.glinet.4x",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 6 capabilities for object 'obj.os.proxmox.ve.9'",
+      "path": "object:obj.os.proxmox.ve.9",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 5 capabilities for object 'obj.os.routeros.7.arm64'",
+      "path": "object:obj.os.routeros.7.arm64",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 5 capabilities for object 'obj.os.routeros.7.x86_64'",
+      "path": "object:obj.os.routeros.7.x86_64",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.pdu.generic.managed'",
+      "path": "object:obj.pdu.generic.managed",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.base'",
+      "path": "object:obj.proxmox.lxc.debian12.base",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.docker'",
+      "path": "object:obj.proxmox.lxc.debian12.docker",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.gitea'",
+      "path": "object:obj.proxmox.lxc.debian12.gitea",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.grafana'",
+      "path": "object:obj.proxmox.lxc.debian12.grafana",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.homeassistant'",
+      "path": "object:obj.proxmox.lxc.debian12.homeassistant",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.nextcloud'",
+      "path": "object:obj.proxmox.lxc.debian12.nextcloud",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.nginx'",
+      "path": "object:obj.proxmox.lxc.debian12.nginx",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.postgresql'",
+      "path": "object:obj.proxmox.lxc.debian12.postgresql",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.prometheus'",
+      "path": "object:obj.proxmox.lxc.debian12.prometheus",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.redis'",
+      "path": "object:obj.proxmox.lxc.debian12.redis",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.proxmox.ve'",
+      "path": "object:obj.proxmox.ve",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.adguard'",
+      "path": "object:obj.service.adguard",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.alertmanager'",
+      "path": "object:obj.service.alertmanager",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.docker_host'",
+      "path": "object:obj.service.docker_host",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.gitea'",
+      "path": "object:obj.service.gitea",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.grafana'",
+      "path": "object:obj.service.grafana",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.homeassistant'",
+      "path": "object:obj.service.homeassistant",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.jellyfin'",
+      "path": "object:obj.service.jellyfin",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.loki'",
+      "path": "object:obj.service.loki",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.mikrotik.snmp'",
+      "path": "object:obj.service.mikrotik.snmp",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.mikrotik.web_ui'",
+      "path": "object:obj.service.mikrotik.web_ui",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.mosquitto'",
+      "path": "object:obj.service.mosquitto",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.nextcloud'",
+      "path": "object:obj.service.nextcloud",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.nextcloud.file_storage'",
+      "path": "object:obj.service.nextcloud.file_storage",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.nginx_proxy'",
+      "path": "object:obj.service.nginx_proxy",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.ntp'",
+      "path": "object:obj.service.ntp",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.postgresql'",
+      "path": "object:obj.service.postgresql",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.prometheus'",
+      "path": "object:obj.service.prometheus",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.proxmox.web_ui'",
+      "path": "object:obj.service.proxmox.web_ui",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.redis'",
+      "path": "object:obj.service.redis",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.syslog_forwarder'",
+      "path": "object:obj.service.syslog_forwarder",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.tailscale'",
+      "path": "object:obj.service.tailscale",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.wireguard'",
+      "path": "object:obj.service.wireguard",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4001",
+      "severity": "info",
+      "stage": "discover",
+      "message": "Plugin manifests loaded via discover bootstrap: plugins=82 manifests=5 module_manifests=4",
+      "path": "discover:module-manifests",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.discover.manifest_loader"
+    },
+    {
+      "code": "I9001",
+      "severity": "info",
+      "stage": "emit",
+      "message": "Compile success.",
+      "path": "acceptance-testing/TUC-0002-new-terraform-generator/artifacts/effective-test.json",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "hint": "No action required."
+    },
+    {
+      "code": "I3901",
+      "severity": "info",
+      "stage": "generate",
+      "message": "generated artifact manifest with 75 entries",
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/artifact-manifest.json",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.generator.artifact_manifest"
+    },
+    {
+      "code": "I9001",
+      "severity": "info",
+      "stage": "generate",
+      "message": "Generated effective YAML artifact: /home/dmpr/workspaces/projects/home-lab/acceptance-testing/TUC-0002-new-terraform-generator/artifacts/effective-topology.yaml",
+      "path": "generator:effective_yaml",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.generator.effective_yaml"
+    },
+    {
+      "code": "I9101",
+      "severity": "info",
+      "stage": "generate",
+      "message": "generated baseline Proxmox Terraform artifacts: nodes=1 lxc=9 services=9 caps=[none] remote_state=disabled",
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/proxmox",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "object.proxmox.generator.terraform"
+    },
+    {
+      "code": "I9201",
+      "severity": "info",
+      "stage": "generate",
+      "message": "generated MikroTik Terraform artifacts: routers=1 vlans=0 networks=13 services=5 caps=[qos.tf,vpn.tf,containers.tf] remote_state=disabled",
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/mikrotik",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "object.mikrotik.generator.terraform"
+    },
+    {
+      "code": "I9301",
+      "severity": "info",
+      "stage": "generate",
+      "message": "generated baseline Ansible inventory artifacts: hosts=15",
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/ansible/inventory/production",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.generator.ansible_inventory"
+    },
+    {
+      "code": "I9401",
+      "severity": "info",
+      "stage": "generate",
+      "message": "generated baseline Proxmox bootstrap artifacts: nodes=1",
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "object.proxmox.generator.bootstrap"
+    },
+    {
+      "code": "I9501",
+      "severity": "info",
+      "stage": "generate",
+      "message": "generated baseline MikroTik bootstrap artifacts: nodes=1",
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "object.mikrotik.generator.bootstrap"
+    },
+    {
+      "code": "I9601",
+      "severity": "info",
+      "stage": "generate",
+      "message": "generated baseline Orange Pi bootstrap artifacts: nodes=1",
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/bootstrap",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "object.orangepi.generator.bootstrap"
+    },
+    {
+      "code": "I9701",
+      "severity": "info",
+      "stage": "generate",
+      "message": "generated baseline docs artifacts: devices=6 services=26",
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/docs",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.generator.docs"
+    },
+    {
+      "code": "I9801",
+      "severity": "info",
+      "stage": "generate",
+      "message": "generated diagram artifacts: icon_mode=none devices=6 trust_zones=6 vlans=5",
+      "path": "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/docs/diagrams",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.generator.diagrams"
+    },
+    {
+      "code": "I2401",
+      "severity": "info",
+      "stage": "load",
+      "message": "model.lock loaded.",
+      "path": "model.lock",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.validator.model_lock"
+    },
+    {
+      "code": "I6901",
+      "severity": "info",
+      "stage": "validate",
+      "message": "Pipeline mode plugin-first is active; effective output source is plugin ctx.compiled_json.",
+      "path": "pipeline:mode",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "hint": "Plugin-first effective model source is active."
+    },
+    {
+      "code": "I7899",
+      "severity": "info",
+      "stage": "validate",
+      "message": "Hypervisor 'srv-gamayun' is bare_metal at L1; instance represents both hypervisor and hardware.",
+      "path": "instance:devices:srv-gamayun",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.validator.hypervisor_execution_model"
+    },
+    {
+      "code": "I9390",
+      "severity": "info",
+      "stage": "validate",
+      "message": "generator migration status: legacy=5, migrating=6, migrated=0, rollback=0",
+      "path": "pipeline:validate",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.validator.generator_migration_status"
+    },
+    {
+      "code": "I9399",
+      "severity": "info",
+      "stage": "validate",
+      "message": "generator sunset summary: scheduled=6 legacy=0 pre_sunset=0 grace_window=0 warnings=0 errors=0",
+      "path": "pipeline:validate",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.validator.generator_sunset"
+    },
+    {
+      "code": "I9400",
+      "severity": "info",
+      "stage": "validate",
+      "message": "generator rollback summary: rollback_generators=0 escalated=0 missing_started_at=0 warnings=0",
+      "path": "pipeline:validate",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.validator.generator_rollback_escalation"
+    }
+  ],
+  "plugins": {
+    "loaded": 82,
+    "executed": 82,
+    "failed": 0,
+    "by_kind": {
+      "discoverer": 4,
+      "compiler": 7,
+      "validator_yaml": 4,
+      "validator_json": 44,
+      "generator": 11,
+      "assembler": 6,
+      "builder": 6
+    },
+    "execution_order": [
+      "base.discover.manifest_loader",
+      "base.discover.boundary",
+      "base.discover.inventory",
+      "base.discover.capability_preflight",
+      "base.compiler.module_loader",
+      "base.compiler.model_lock_loader",
+      "base.compiler.annotation_resolver",
+      "base.compiler.capability_contract_loader",
+      "base.compiler.instance_rows",
+      "base.compiler.capabilities",
+      "base.compiler.effective_model",
+      "base.validator.governance_contract",
+      "base.validator.foundation_layout",
+      "base.validator.foundation_include_contract",
+      "base.validator.foundation_file_placement",
+      "base.validator.foundation_device_taxonomy",
+      "base.validator.references",
+      "base.validator.initialization_contract",
+      "base.validator.model_lock",
+      "base.validator.power_source_refs",
+      "base.validator.network_ip_overlap",
+      "base.validator.single_active_os",
+      "base.validator.network_reserved_ranges",
+      "base.validator.network_trust_zone_firewall_refs",
+      "base.validator.embedded_in",
+      "base.validator.network_firewall_addressability",
+      "base.validator.runtime_target_os_binding",
+      "base.validator.storage_l3_refs",
+      "base.validator.network_ip_allocation_host_os_refs",
+      "base.validator.ethernet_port_inventory",
+      "base.validator.network_vlan_zone_consistency",
+      "base.validator.network_core_refs",
+      "base.validator.network_vlan_tags",
+      "base.validator.network_mtu_consistency",
+      "base.validator.service_runtime_refs",
+      "base.validator.network_runtime_reachability",
+      "base.validator.service_dependency_refs",
+      "base.validator.storage_device_taxonomy",
+      "base.validator.storage_media_inventory",
+      "base.validator.dns_refs",
+      "base.validator.certificate_refs",
+      "base.validator.backup_refs",
+      "base.validator.security_policy_refs",
+      "base.validator.vm_refs",
+      "base.validator.lxc_refs",
+      "base.validator.host_os_refs",
+      "base.validator.router_ports",
+      "base.validator.host_ref_dag",
+      "base.validator.docker_refs",
+      "base.validator.hypervisor_execution_model",
+      "object.network.validator_json.ethernet_cable_endpoints",
+      "base.validator.vm_hypervisor_compat",
+      "base.validator.volume_format_compat",
+      "base.validator.nested_topology_scope",
+      "base.validator.capability_contract",
+      "base.validator.instance_placeholders",
+      "base.validator.generator_migration_status",
+      "base.validator.generator_rollback_escalation",
+      "base.validator.generator_sunset",
+      "base.generator.effective_json",
+      "base.generator.effective_yaml",
+      "object.proxmox.generator.terraform",
+      "object.mikrotik.generator.terraform",
+      "base.generator.ansible_inventory",
+      "object.proxmox.generator.bootstrap",
+      "object.mikrotik.generator.bootstrap",
+      "object.orangepi.generator.bootstrap",
+      "base.generator.docs",
+      "base.generator.diagrams",
+      "base.generator.artifact_manifest",
+      "base.assembler.changed_scopes",
+      "base.assembler.workspace",
+      "base.assembler.artifact_contract_guard",
+      "base.assembler.verify",
+      "base.assembler.manifest",
+      "base.assembler.deploy_bundle",
+      "base.builder.bundle",
+      "base.builder.sbom",
+      "base.builder.artifact_family_summary",
+      "base.builder.generator_readiness_evidence",
+      "base.builder.readiness_reports",
+      "base.builder.release_manifest"
+    ]
+  }
+}

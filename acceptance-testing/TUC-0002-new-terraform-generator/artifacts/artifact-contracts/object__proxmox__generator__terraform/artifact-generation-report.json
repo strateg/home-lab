@@ -1,0 +1,23 @@
+{
+  "artifact_family": "terraform.proxmox",
+  "generated": [
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/proxmox/bridges.tf",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/proxmox/lxc.tf",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/proxmox/outputs.tf",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/proxmox/provider.tf",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/proxmox/terraform.tfvars.example",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/proxmox/variables.tf",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/proxmox/versions.tf",
+    "/home/dmpr/workspaces/projects/home-lab/generated/home-lab/terraform/proxmox/vms.tf"
+  ],
+  "obsolete": [],
+  "plugin_id": "object.proxmox.generator.terraform",
+  "schema_version": "1.0",
+  "skipped": [],
+  "summary": {
+    "generated_count": 8,
+    "obsolete_count": 0,
+    "planned_count": 8,
+    "skipped_count": 0
+  }
+}

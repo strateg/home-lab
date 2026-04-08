@@ -1,0 +1,11 @@
+{
+  "artifact_family": "bootstrap.proxmox",
+  "plugin_id": "object.proxmox.generator.bootstrap",
+  "schema_version": "1.0",
+  "summary": {
+    "generated_count": 4,
+    "obsolete_count": 7,
+    "planned_count": 4,
+    "skipped_count": 0
+  }
+}
