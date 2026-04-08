@@ -1,7 +1,7 @@
 # Development Plane Operator Manual
 
 **Version:** 1.0
-**ADR Reference:** 0062, 0063, 0074, 0080, 0092, 0093, 0094
+**ADR Reference:** 0062, 0063, 0074, 0080, 0092, 0093, 0094, 0095
 **Last Updated:** 2026-04-08
 
 ---

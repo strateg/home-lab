@@ -2,7 +2,7 @@
 
 Comprehensive documentation for operating and developing the home lab infrastructure.
 
-**ADR Reference:** 0062, 0063, 0072, 0074, 0080, 0082, 0083, 0084, 0085, 0086, 0092, 0093, 0094
+**ADR Reference:** 0062, 0063, 0072, 0074, 0080, 0082, 0083, 0084, 0085, 0086, 0092, 0093, 0094, 0095
 **Last Updated:** 2026-04-08
 
 ---

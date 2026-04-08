@@ -1,0 +1,43 @@
+version: "3"
+
+tasks:
+  default:
+    desc: Topology inspection summary (classes/objects/instances counts + groups)
+    cmds:
+      - "{{.PYTHON}} scripts/inspection/inspect_topology.py summary {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
+
+  classes:
+    desc: Show class hierarchy tree
+    cmds:
+      - "{{.PYTHON}} scripts/inspection/inspect_topology.py classes {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
+
+  objects:
+    desc: Show objects grouped by materialized class
+    cmds:
+      - "{{.PYTHON}} scripts/inspection/inspect_topology.py objects {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
+
+  instances:
+    desc: Show instances grouped by layer
+    cmds:
+      - "{{.PYTHON}} scripts/inspection/inspect_topology.py instances {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
+
+  search:
+    desc: Search instances by regex (requires QUERY=<regex>)
+    requires:
+      vars:
+        - QUERY
+    cmds:
+      - "{{.PYTHON}} scripts/inspection/inspect_topology.py search --query '{{.QUERY}}' {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
+
+  deps:
+    desc: Show direct/transitive dependencies for one instance (INSTANCE=<id|source_id>)
+    requires:
+      vars:
+        - INSTANCE
+    cmds:
+      - "{{.PYTHON}} scripts/inspection/inspect_topology.py deps --instance {{.INSTANCE}} {{if .MAX_DEPTH}}--max-depth {{.MAX_DEPTH}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
+
+  deps-dot:
+    desc: Export instance dependency graph in DOT format
+    cmds:
+      - "{{.PYTHON}} scripts/inspection/inspect_topology.py deps-dot {{if .OUTPUT}}--output {{.OUTPUT}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"

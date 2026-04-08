@@ -97,6 +97,11 @@ includes:
     dir: .
     vars:
       PYTHON: "{{.PYTHON}}"
+  inspect:
+    taskfile: ./taskfiles/inspect.yml
+    dir: .
+    vars:
+      PYTHON: "{{.PYTHON}}"
 
 tasks:
   clean:

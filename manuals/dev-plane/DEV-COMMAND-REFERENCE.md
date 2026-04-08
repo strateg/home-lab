@@ -42,6 +42,20 @@ task validate:quality              # Aggregate quality gate
 
 ---
 
+## Topology Inspection Commands
+
+```bash
+task inspect:default                              # Summary (classes/objects/instances + groups)
+task inspect:classes                              # Class hierarchy tree
+task inspect:objects                              # Objects grouped by class
+task inspect:instances                            # Instances grouped by layer
+task inspect:search QUERY='mikrotik'              # Regex search across instance payloads
+task inspect:deps INSTANCE='rtr-mikrotik-chateau' # Direct/incoming/transitive dependency view
+task inspect:deps-dot                             # Export DOT graph to build/diagnostics/
+```
+
+---
+
 ## Build Commands
 
 ### Full Build
