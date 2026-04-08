@@ -220,6 +220,7 @@ class TerraformMikroTikGenerator(BaseGenerator):
             obsolete_candidates=obsolete_entries,
             capabilities=list(terraform_ir.capabilities),
             validation_profiles=[ctx.profile],
+            ctx=ctx,
         )
         artifact_generation_report = build_generation_report(
             plugin_id=self.plugin_id,
@@ -227,6 +228,7 @@ class TerraformMikroTikGenerator(BaseGenerator):
             planned_outputs=planned_outputs,
             generated=written,
             obsolete=obsolete_entries,
+            ctx=ctx,
         )
         contract_validation_errors = validate_contract_payloads(
             artifact_plan=artifact_plan,

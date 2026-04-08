@@ -66,6 +66,38 @@ def test_artifact_generation_report_schema_accepts_helper_payload() -> None:
     jsonschema.validate(report, schema)
 
 
+def test_contract_helpers_normalize_absolute_paths_to_logical_relative(tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    artifacts_root = repo_root / "generated"
+    target_file = artifacts_root / "home-lab" / "terraform" / "proxmox" / "provider.tf"
+    target_file.parent.mkdir(parents=True, exist_ok=True)
+    target_file.write_text("# placeholder\n", encoding="utf-8")
+
+    ctx = _ctx(
+        tmp_path,
+        repo_root=str(repo_root),
+        generator_artifacts_root=str(artifacts_root),
+    )
+
+    planned = [build_planned_output(path=str(target_file), template="terraform/provider.tf.j2", reason="base-family")]
+    plan = build_artifact_plan(
+        plugin_id="object.proxmox.generator.terraform",
+        artifact_family="terraform.proxmox",
+        planned_outputs=planned,
+        ctx=ctx,
+    )
+    report = build_generation_report(
+        plugin_id="object.proxmox.generator.terraform",
+        artifact_family="terraform.proxmox",
+        planned_outputs=planned,
+        generated=[str(target_file)],
+        ctx=ctx,
+    )
+
+    assert plan["planned_outputs"][0]["path"] == "generated/home-lab/terraform/proxmox/provider.tf"
+    assert report["generated"] == ["generated/home-lab/terraform/proxmox/provider.tf"]
+
+
 def test_artifact_plan_schema_rejects_missing_planned_outputs() -> None:
     schema = _load_schema("artifact-plan.schema.json")
     invalid_payload = {

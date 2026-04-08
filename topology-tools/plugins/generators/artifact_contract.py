@@ -20,8 +20,40 @@ except ImportError:  # pragma: no cover - optional dependency in minimal runtime
     jsonschema = None  # type: ignore[assignment]
 
 
-def _normalize_paths(paths: list[str]) -> list[str]:
-    normalized = {str(path).strip() for path in paths if str(path).strip()}
+def _resolve_logical_root(ctx: PluginContext | None = None) -> Path:
+    if ctx is not None:
+        artifacts_root_raw = ctx.config.get("generator_artifacts_root")
+        if isinstance(artifacts_root_raw, str) and artifacts_root_raw.strip():
+            artifacts_root = Path(artifacts_root_raw.strip())
+            if artifacts_root.is_absolute():
+                return artifacts_root.resolve().parent
+        repo_root_raw = ctx.config.get("repo_root")
+        if isinstance(repo_root_raw, str) and repo_root_raw.strip():
+            return Path(repo_root_raw.strip()).resolve()
+        if ctx.output_dir:
+            return Path(ctx.output_dir).resolve().parent
+    return Path.cwd().resolve()
+
+
+def _to_absolute_path(path: str, *, ctx: PluginContext | None = None) -> Path:
+    raw = str(path).strip()
+    candidate = Path(raw)
+    if candidate.is_absolute():
+        return candidate.resolve()
+    return (_resolve_logical_root(ctx) / candidate).resolve()
+
+
+def _to_contract_path(path: str, *, ctx: PluginContext | None = None) -> str:
+    absolute_path = _to_absolute_path(path, ctx=ctx)
+    logical_root = _resolve_logical_root(ctx)
+    try:
+        return absolute_path.relative_to(logical_root).as_posix()
+    except ValueError:
+        return absolute_path.as_posix()
+
+
+def _normalize_paths(paths: list[str], *, ctx: PluginContext | None = None) -> list[str]:
+    normalized = {_to_contract_path(str(path), ctx=ctx) for path in paths if str(path).strip()}
     return sorted(normalized)
 
 
@@ -66,15 +98,36 @@ def build_artifact_plan(
     obsolete_candidates: list[dict[str, Any]] | None = None,
     capabilities: list[str] | None = None,
     validation_profiles: list[str] | None = None,
+    ctx: PluginContext | None = None,
 ) -> dict[str, Any]:
+    normalized_planned_outputs: list[dict[str, Any]] = []
+    for item in planned_outputs:
+        if not isinstance(item, dict):
+            continue
+        normalized_item = dict(item)
+        path_value = normalized_item.get("path")
+        if isinstance(path_value, str) and path_value.strip():
+            normalized_item["path"] = _to_contract_path(path_value, ctx=ctx)
+        normalized_planned_outputs.append(normalized_item)
+
+    normalized_obsolete_candidates: list[dict[str, Any]] = []
+    for item in obsolete_candidates or []:
+        if not isinstance(item, dict):
+            continue
+        normalized_item = dict(item)
+        path_value = normalized_item.get("path")
+        if isinstance(path_value, str) and path_value.strip():
+            normalized_item["path"] = _to_contract_path(path_value, ctx=ctx)
+        normalized_obsolete_candidates.append(normalized_item)
+
     return {
         "schema_version": SCHEMA_VERSION,
         "plugin_id": plugin_id,
         "artifact_family": artifact_family,
         "projection_version": projection_version,
         "ir_version": ir_version,
-        "planned_outputs": planned_outputs,
-        "obsolete_candidates": obsolete_candidates or [],
+        "planned_outputs": normalized_planned_outputs,
+        "obsolete_candidates": normalized_obsolete_candidates,
         "capabilities": sorted({str(item) for item in capabilities or [] if str(item)}),
         "validation_profiles": sorted({str(item) for item in validation_profiles or [] if str(item)}),
     }
@@ -88,10 +141,19 @@ def build_generation_report(
     generated: list[str],
     skipped: list[str] | None = None,
     obsolete: list[dict[str, Any]] | None = None,
+    ctx: PluginContext | None = None,
 ) -> dict[str, Any]:
-    generated_paths = _normalize_paths(generated)
-    skipped_paths = _normalize_paths(skipped or [])
-    obsolete_entries = obsolete or []
+    generated_paths = _normalize_paths(generated, ctx=ctx)
+    skipped_paths = _normalize_paths(skipped or [], ctx=ctx)
+    obsolete_entries: list[dict[str, Any]] = []
+    for item in obsolete or []:
+        if not isinstance(item, dict):
+            continue
+        normalized_item = dict(item)
+        path_value = normalized_item.get("path")
+        if isinstance(path_value, str) and path_value.strip():
+            normalized_item["path"] = _to_contract_path(path_value, ctx=ctx)
+        obsolete_entries.append(normalized_item)
     return {
         "schema_version": SCHEMA_VERSION,
         "plugin_id": plugin_id,
@@ -171,7 +233,7 @@ def _collect_existing_files(root: Path) -> list[str]:
     return sorted(str(path.resolve()) for path in root.rglob("*") if path.is_file())
 
 
-def _extract_planned_paths(plan: dict[str, Any] | None) -> set[str]:
+def _extract_planned_paths(plan: dict[str, Any] | None, *, ctx: PluginContext | None = None) -> set[str]:
     if not isinstance(plan, dict):
         return set()
     payload = plan.get("planned_outputs")
@@ -184,7 +246,7 @@ def _extract_planned_paths(plan: dict[str, Any] | None) -> set[str]:
         path = item.get("path")
         if not isinstance(path, str) or not path.strip():
             continue
-        out.add(str(Path(path).resolve()))
+        out.add(str(_to_absolute_path(path, ctx=ctx)))
     return out
 
 
@@ -214,11 +276,11 @@ def compute_obsolete_entries(
     planned_outputs: list[dict[str, Any]],
     ownership_prefix: str | None = None,
 ) -> tuple[list[dict[str, Any]], list[str]]:
-    planned_paths = _extract_planned_paths({"planned_outputs": planned_outputs})
+    planned_paths = _extract_planned_paths({"planned_outputs": planned_outputs}, ctx=ctx)
     existing_paths = set(_collect_existing_files(output_root.resolve()))
     stale_paths = sorted(existing_paths - planned_paths)
     previous_plan = load_previous_plan(ctx=ctx, plugin_id=plugin_id)
-    previous_planned_paths = _extract_planned_paths(previous_plan)
+    previous_planned_paths = _extract_planned_paths(previous_plan, ctx=ctx)
     chosen_action = _resolve_obsolete_action(ctx)
 
     prefix_root = Path(ownership_prefix).resolve() if ownership_prefix else output_root.resolve()

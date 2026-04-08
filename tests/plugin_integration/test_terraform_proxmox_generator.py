@@ -272,4 +272,7 @@ def test_terraform_proxmox_generator_emits_backend_tf_when_remote_state_enabled(
     assert "encrypt = true" in backend_tf
     plan_outputs = result.output_data["artifact_plan"]["planned_outputs"]
     backend_entry = next(item for item in plan_outputs if str(item.get("path", "")).endswith("/backend.tf"))
+    assert backend_entry["path"] == "generated/terraform/proxmox/backend.tf"
     assert backend_entry["renderer"] == "programmatic"
+    generated_paths = list(result.output_data["artifact_generation_report"].get("generated", []))
+    assert all(path.startswith("generated/") for path in generated_paths)

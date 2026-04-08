@@ -85,6 +85,14 @@ def test_ansible_inventory_generator_writes_expected_files(tmp_path: Path) -> No
     assert result.output_data["artifact_generation_report"]["summary"]["generated_count"] == len(
         result.output_data["ansible_inventory_files"]
     )
+    planned_paths = [str(item.get("path", "")) for item in result.output_data["artifact_plan"]["planned_outputs"]]
+    assert planned_paths
+    assert all(path.startswith("generated/") for path in planned_paths)
+    assert all(not path.startswith(str(tmp_path)) for path in planned_paths)
+    generated_paths = list(result.output_data["artifact_generation_report"].get("generated", []))
+    assert generated_paths
+    assert all(path.startswith("generated/") for path in generated_paths)
+    assert all(not path.startswith(str(tmp_path)) for path in generated_paths)
     for contract_file in result.output_data["artifact_contract_files"]:
         assert Path(contract_file).exists()
 
@@ -120,7 +128,7 @@ def test_ansible_inventory_obsolete_delete_uses_ownership_proof(tmp_path: Path) 
 
     assert result.status == PluginStatus.SUCCESS
     obsolete = result.output_data["artifact_generation_report"]["obsolete"]
-    stale_entry = next(item for item in obsolete if item["path"] == str(stale_path.resolve()))
+    stale_entry = next(item for item in obsolete if item["path"] == "generated/ansible/inventory/production/stale.yml")
     assert stale_entry["action"] == "delete"
     assert stale_entry["ownership_proven"] is True
     assert stale_entry["ownership_method"] == "output_prefix_match"

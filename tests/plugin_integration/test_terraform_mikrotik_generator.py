@@ -251,7 +251,10 @@ def test_terraform_mikrotik_generator_emits_backend_tf_when_remote_state_enabled
     assert 'conn_str = "postgres://terraform@db.internal/terraform_state"' in backend_tf
     plan_outputs = result.output_data["artifact_plan"]["planned_outputs"]
     backend_entry = next(item for item in plan_outputs if str(item.get("path", "")).endswith("/backend.tf"))
+    assert backend_entry["path"] == "generated/terraform/mikrotik/backend.tf"
     assert backend_entry["renderer"] == "programmatic"
+    generated_paths = list(result.output_data["artifact_generation_report"].get("generated", []))
+    assert all(path.startswith("generated/") for path in generated_paths)
 
 
 def _full_topology_fixture() -> dict:

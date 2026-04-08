@@ -359,7 +359,8 @@ def test_bootstrap_generators_obsolete_delete_uses_output_prefix_ownership(
     assert result.status == PluginStatus.SUCCESS
     report = result.output_data["artifact_generation_report"]
     assert report["artifact_family"] == expected_family
-    stale_entry = next(item for item in report["obsolete"] if item["path"] == str(stale_path.resolve()))
+    expected_stale_path = Path("generated") / stale_rel_path
+    stale_entry = next(item for item in report["obsolete"] if item["path"] == expected_stale_path.as_posix())
     assert stale_entry["action"] == "delete"
     assert stale_entry["ownership_proven"] is True
     assert stale_entry["ownership_method"] == "output_prefix_match"
