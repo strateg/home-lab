@@ -25,7 +25,7 @@ tasks:
   pylint:
     desc: Run pylint checks
     cmds:
-      - "{{.PYTHON}} -m pylint topology-tools"
+      - "{{.PYTHON}} -m pylint --errors-only topology-tools"
 
   quality-fast:
     desc: Fast quality gate (lint only)

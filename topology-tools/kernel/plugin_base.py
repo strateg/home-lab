@@ -316,7 +316,7 @@ class ContextAwareConfig(MutableMapping[str, Any]):
         scope = self._scope_provider()
         if scope is None:
             return None
-        return scope.config
+        return cast(Mapping[str, Any], scope.config)
 
     def __getitem__(self, key: str) -> Any:
         scoped = self._scoped_mapping()
@@ -688,13 +688,19 @@ class PluginBase(ABC):
 
     def execute_phase(self, ctx: PluginContext, stage: Stage, phase: Phase) -> PluginResult:
         """Dispatch to a phase handler while keeping legacy execute() intact."""
-        handler_name = f"on_{phase.value}"
-        handler = getattr(self, handler_name, None)
-        if callable(handler):
-            return cast(Callable[[PluginContext, Stage], PluginResult], handler)(ctx, stage)
+        if phase == Phase.INIT:
+            return self.on_init(ctx, stage)
+        if phase == Phase.PRE:
+            return self.on_pre(ctx, stage)
         if phase == Phase.RUN:
-            return self.execute(ctx, stage)
-        return PluginResult.skipped(self.plugin_id, self.api_version, reason=f"phase '{phase.value}' not implemented")
+            return self.on_run(ctx, stage)
+        if phase == Phase.POST:
+            return self.on_post(ctx, stage)
+        if phase == Phase.VERIFY:
+            return self.on_verify(ctx, stage)
+        if phase == Phase.FINALIZE:
+            return self.on_finalize(ctx, stage)
+        return PluginResult.skipped(self.plugin_id, self.api_version, reason=f"unknown phase '{phase.value}'")
 
     def emit_diagnostic(
         self,
