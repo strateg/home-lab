@@ -67,6 +67,19 @@ The canonical SOHO task surface is:
 - `product:audit`
 - `product:handover`
 
+Canonical phase -> task mapping:
+
+| Lifecycle phase | Canonical task |
+|---|---|
+| bootstrap | `product:init` |
+| plan | `product:plan` |
+| apply | `product:apply` |
+| backup | `product:backup` |
+| restore | `product:restore` |
+| update | `product:update` |
+| audit | `product:audit` |
+| handover | `product:handover` |
+
 ### D3. `product:*` targets are orchestration wrappers only
 
 `product:*` targets:
@@ -88,6 +101,8 @@ The canonical SOHO task surface is:
 | `product:update` | yes | controlled execution | requires preflight and rollback semantics |
 | `product:audit` | no | read-only | health/drift/secret hygiene/readiness audit |
 | `product:handover` | yes | artifact assembly | assembles operator-facing package |
+
+Note: `product:init` is the mandatory operator wrapper for the lifecycle `bootstrap` phase.
 
 ### D5. Idempotency and rerun expectations
 
@@ -116,6 +131,14 @@ Each `product:*` command must define:
 - required preconditions,
 - produced artifacts or state changes,
 - failure class and operator-visible outcome.
+
+Minimum per-task precondition contract:
+- `product:plan`: validated topology + resolved profile/bundle set.
+- `product:apply`: successful `product:plan` snapshot + maintenance window policy.
+- `product:backup`: reachable backup targets + secrets/material access prechecks.
+- `product:restore`: restore source integrity + explicit restore mode.
+- `product:update`: preflight + rollback target availability.
+- `product:handover`: readiness evidence completeness (ADR 0091).
 
 ### D8. Invariants
 

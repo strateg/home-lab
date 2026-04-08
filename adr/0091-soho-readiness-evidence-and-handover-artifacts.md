@@ -40,7 +40,7 @@ Define mandatory SOHO readiness evidence contract and handover artifact set.
 Generated in product output scope:
 
 ```text
-artifacts/<project>/
+generated/<project>/product/
   handover/
     SYSTEM-SUMMARY.md
     NETWORK-SUMMARY.md
@@ -59,19 +59,22 @@ artifacts/<project>/
     support-bundle-manifest.json
 ```
 
+Deploy-bundle mapping:
+- in bundle mode, these artifacts are copied under `artifacts/generated/<project>/product/...` without semantic changes.
+
 ### D2. Readiness diagnostics namespace is reserved
 
-- hard errors: `E7831..E7839`
-- warnings: `W7831..W7839`
+- hard errors: `E7941..E7949`
+- warnings: `W7941..W7949`
 
 Initial mapping:
 
-- `E7831` unsupported product profile
-- `E7832` required lifecycle bundle missing
-- `E7833` backup policy missing
-- `E7834` restore evidence missing
-- `E7835` handover package incomplete
-- `E7836` unsupported deployment class combination
+- `E7941` unsupported product profile
+- `E7942` required lifecycle bundle missing
+- `E7943` backup policy missing
+- `E7944` restore evidence missing
+- `E7945` handover package incomplete
+- `E7946` unsupported deployment class combination
 
 ### D3. Acceptance evidence is mandatory
 

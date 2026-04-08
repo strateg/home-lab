@@ -87,16 +87,33 @@ are validation failures.
 
 ### D4. SOHO bundle resolution is profile-driven
 
-Required bundle IDs for `soho.standard.v1`:
+`soho.standard.v1` defines deterministic bundle resolution as:
+
+Core bundles (all deployment classes):
 
 - `bundle.edge-routing`
 - `bundle.network-segmentation`
-- `bundle.remote-access`
-- `bundle.backup-restore`
-- `bundle.observability`
-- `bundle.operator-workflows`
 - `bundle.secrets-governance`
-- `bundle.update-management`
+
+Class overlays:
+
+- `starter`:
+  - `bundle.remote-access`
+  - `bundle.operator-workflows`
+- `managed-soho`:
+  - `bundle.remote-access`
+  - `bundle.backup-restore`
+  - `bundle.observability`
+  - `bundle.operator-workflows`
+  - `bundle.update-management`
+- `advanced-soho`:
+  - `bundle.remote-access`
+  - `bundle.backup-restore`
+  - `bundle.observability`
+  - `bundle.operator-workflows`
+  - `bundle.update-management`
+  - `bundle.incident-response`
+  - `bundle.multi-uplink-resilience`
 
 Bundle selection must be deterministic and derived from the profile and deployment class, not manually assembled ad hoc per project.
 
@@ -136,6 +153,23 @@ For migrated SOHO projects:
 - unsupported profile/class/hardware combinations must fail validation;
 - bundle resolution must not depend on local workstation state;
 - profile contract must remain machine-validatable.
+
+### D9. Migration-state contract is explicit
+
+Migration state storage:
+- `project.yaml` field: `product_profile.migration_state`
+- allowed values: `legacy`, `migrated-soft`, `migrated-hard`
+
+Transition authority:
+- only validation/compile governance workflow may advance state; manual downgrade is invalid.
+
+Blocking policy:
+- `legacy`: advisory-only diagnostics for profile contract
+- `migrated-soft`: warnings allowed, but release blocked on critical profile incompatibility
+- `migrated-hard`: full blocking enforcement for all D1-D8 requirements
+
+Sunset:
+- `legacy` support must have explicit end date in project governance config; after sunset date `legacy` becomes blocking.
 
 ---
 
