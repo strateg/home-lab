@@ -21,6 +21,7 @@ This directory stores Testing Use Cases (TUC) and all related artefacts.
 ## Current TUCs
 
 - `TUC-0001-router-data-channel-mikrotik-glinet`
+- `TUC-0002-new-terraform-generator`
 
 ## Task Commands
 
