@@ -19,6 +19,8 @@ classes:
     version: 1.1.0
   class.compute.workload.docker:
     version: 1.1.0
+  class.compute.workload.docker.stack:
+    version: 1.0.0
   class.compute.workload.lxc:
     version: 1.1.0
   class.compute.workload.vm:
@@ -96,6 +98,15 @@ objects:
   obj.docker.container.generic:
     version: 1.0.0
     class_ref: class.compute.workload.docker
+  obj.docker.stack.media:
+    version: 1.0.0
+    class_ref: class.compute.workload.docker.stack
+  obj.docker.stack.monitoring:
+    version: 1.0.0
+    class_ref: class.compute.workload.docker.stack
+  obj.docker.stack.network:
+    version: 1.0.0
+    class_ref: class.compute.workload.docker.stack
   obj.firmware.apc.backups.650va:
     version: 1.0.0
     class_ref: class.firmware
@@ -426,3 +437,6 @@ objects:
   obj.storage.pool.local_lvm:
     version: 1.0.0
     class_ref: class.storage.pool
+  obj.storage.volume.vm_disk:
+    version: 1.0.0
+    class_ref: class.storage.volume
