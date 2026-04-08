@@ -2,7 +2,7 @@
 
 # ADR 0092: Smart Artifact Generation and Hybrid Rendering
 
-**Status:** Proposed
+**Status:** Implemented (Waves 1-4 complete; AI path extracted to ADR 0094)
 **Date:** 2026-04-05
 **Depends on:** ADR 0063, ADR 0065, ADR 0066, ADR 0074, ADR 0077, ADR 0080
 **Related:** ADR 0081, ADR 0093, ADR 0094

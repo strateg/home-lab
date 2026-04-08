@@ -15,10 +15,10 @@
 ## CI and regression readiness
 
 - [x] CI validates plan schema and plan/output consistency.
-- [ ] No regressions for legacy generator families.
+- [x] No regressions for legacy generator families.
 - [x] Mixed mode behavior is covered by tests.
 
 ## Governance readiness
 
 - [x] Sunset criteria for legacy mode is defined in ADR0093 plan.
-- [ ] Register status and analysis artifacts are synchronized.
+- [x] Register status and analysis artifacts are synchronized.
