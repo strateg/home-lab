@@ -756,6 +756,11 @@ codes:
     stage: validate
     title: SOHO Migration State Transition Invalid
     hint: Use allowed migration transitions only (legacy -> migrated-soft -> migrated-hard).
+  E7948:
+    severity: error
+    stage: validate
+    title: SOHO Legacy Migration Sunset Enforced
+    hint: Legacy mode is past sunset date; define product_profile and migrate to migrated-soft/migrated-hard.
   W7941:
     severity: warning
     stage: validate

@@ -79,6 +79,7 @@ def test_soho_readiness_ranges_are_reserved_without_foreign_overlap():
         "E7945",
         "E7946",
         "E7947",
+        "E7948",
         "W7941",
         "W7942",
     }

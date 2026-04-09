@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -15,7 +16,13 @@ from kernel.plugin_base import PluginContext, PluginStatus, Stage
 from plugins.validators.soho_product_profile_validator import SohoProductProfileValidator
 
 
-def _ctx(tmp_path: Path, project_payload: dict) -> PluginContext:
+def _ctx(
+    tmp_path: Path,
+    project_payload: dict[str, Any],
+    *,
+    legacy_end_date: str = "2099-01-01",
+    today: str | None = None,
+) -> PluginContext:
     project_manifest = tmp_path / "project.yaml"
     project_manifest.write_text(yaml.safe_dump(project_payload, sort_keys=False), encoding="utf-8")
     policy_path = tmp_path / "soho-migration-state-policy.yaml"
@@ -28,21 +35,30 @@ allowed_transitions:
   migrated-soft: [migrated-soft, migrated-hard]
   migrated-hard: [migrated-hard]
 blocking_on_invalid_transition: true
+sunset_policy:
+  legacy_end_date: "__LEGACY_END_DATE__"
 """.strip() + "\n",
         encoding="utf-8",
     )
+    policy_path.write_text(
+        policy_path.read_text(encoding="utf-8").replace("__LEGACY_END_DATE__", legacy_end_date),
+        encoding="utf-8",
+    )
+    config: dict[str, Any] = {
+        "repo_root": str(tmp_path),
+        "project_id": "home-lab",
+        "project_manifest_path": str(project_manifest),
+        "soho_migration_policy_path": str(policy_path),
+    }
+    if today:
+        config["soho_migration_today"] = today
     return PluginContext(
         topology_path="topology/topology.yaml",
         profile="test",
         model_lock={},
         compiled_json={},
         output_dir=str(tmp_path / "build"),
-        config={
-            "repo_root": str(tmp_path),
-            "project_id": "home-lab",
-            "project_manifest_path": str(project_manifest),
-            "soho_migration_policy_path": str(policy_path),
-        },
+        config=config,
     )
 
 
@@ -113,3 +129,51 @@ def test_soho_validator_fails_on_invalid_state_transition(tmp_path: Path) -> Non
 
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E7947" for diag in result.diagnostics)
+
+
+def test_soho_validator_blocks_legacy_when_sunset_is_reached(tmp_path: Path) -> None:
+    validator = SohoProductProfileValidator("base.validator.soho_product_profile")
+    ctx = _ctx(
+        tmp_path,
+        {"project": "home-lab"},
+        legacy_end_date="2026-04-01",
+        today="2026-04-09",
+    )
+
+    result = validator.execute(ctx, Stage.VALIDATE)
+
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7948" for diag in result.diagnostics)
+    state = result.output_data.get("product_profile_state", {})
+    assert isinstance(state, dict)
+    assert state.get("migration_state") == "legacy"
+    assert state.get("effective_migration_state") == "migrated-hard"
+
+
+def test_soho_validator_treats_legacy_profile_as_hard_after_sunset(tmp_path: Path) -> None:
+    validator = SohoProductProfileValidator("base.validator.soho_product_profile")
+    ctx = _ctx(
+        tmp_path,
+        {
+            "project": "home-lab",
+            "product_profile": {
+                "profile_id": "soho.standard.v1",
+                "deployment_class": "starter",
+                "site_class": "single-site",
+                "user_band": "1-25",
+                "operator_mode": "single-operator",
+                "release_channel": "stable",
+                "migration_state": "legacy",
+            },
+            "product_bundles": ["bundle.edge-routing"],
+        },
+        legacy_end_date="2026-04-01",
+        today="2026-04-09",
+    )
+
+    result = validator.execute(ctx, Stage.VALIDATE)
+
+    assert result.status == PluginStatus.FAILED
+    codes = {diag.code for diag in result.diagnostics}
+    assert "E7948" in codes
+    assert "E7942" in codes

@@ -46,7 +46,7 @@ Validation evidence:
   - `topology/product-profiles/soho.standard.v1.yaml`
   - `topology/product-bundles/*.yaml`
 - [x] Wire discover/compile outputs for resolved profile + effective bundle graph.
-- [ ] Enforce legacy sunset date policy (blocking after sunset).
+- [x] Enforce legacy sunset date policy (blocking after sunset).
 
 ### Step B: ADR0090 operator lifecycle surface
 - [x] Add task wrappers:

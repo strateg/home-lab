@@ -13,3 +13,5 @@ allowed_transitions:
   migrated-hard:
     - migrated-hard
 blocking_on_invalid_transition: true
+sunset_policy:
+  legacy_end_date: "2026-06-01"

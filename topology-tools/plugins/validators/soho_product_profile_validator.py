@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -74,6 +75,7 @@ class SohoProductProfileValidator(ValidatorJsonPlugin):
 
         product_profile = project_manifest.get("product_profile")
         bundle_ids = self._bundle_ids(project_manifest)
+        sunset_enforced = self._is_legacy_sunset_enforced(ctx)
 
         if not isinstance(product_profile, dict):
             diagnostics.append(
@@ -85,10 +87,24 @@ class SohoProductProfileValidator(ValidatorJsonPlugin):
                     path="project.yaml:product_profile",
                 )
             )
+            if sunset_enforced:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E7948",
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            "legacy migration_state sunset is enforced; "
+                            "project must define product_profile and migrate to migrated-soft/migrated-hard."
+                        ),
+                        path="project.yaml:product_profile",
+                    )
+                )
             report = self._build_state_report(
                 ctx=ctx,
                 project_manifest=project_manifest,
                 migration_state=_STATE_FALLBACK,
+                effective_migration_state="migrated-hard" if sunset_enforced else _STATE_FALLBACK,
                 profile_id="(missing)",
                 deployment_class="(missing)",
                 bundle_ids=bundle_ids,
@@ -115,6 +131,7 @@ class SohoProductProfileValidator(ValidatorJsonPlugin):
                 ctx=ctx,
                 project_manifest=project_manifest,
                 migration_state=str(product_profile.get("migration_state", _STATE_FALLBACK)),
+                effective_migration_state=str(product_profile.get("migration_state", _STATE_FALLBACK)),
                 profile_id=str(product_profile.get("profile_id", "")),
                 deployment_class=str(product_profile.get("deployment_class", "")),
                 bundle_ids=bundle_ids,
@@ -128,6 +145,21 @@ class SohoProductProfileValidator(ValidatorJsonPlugin):
         profile_id = str(product_profile.get("profile_id", "")).strip()
         deployment_class = str(product_profile.get("deployment_class", "")).strip()
         migration_state = str(product_profile.get("migration_state", _STATE_FALLBACK)).strip() or _STATE_FALLBACK
+        effective_migration_state = "migrated-hard" if (migration_state == _STATE_FALLBACK and sunset_enforced) else migration_state
+
+        if migration_state == _STATE_FALLBACK and sunset_enforced:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7948",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        "legacy migration_state is past sunset date; "
+                        "legacy projects are treated as migrated-hard for blocking checks."
+                    ),
+                    path="project.yaml:product_profile.migration_state",
+                )
+            )
 
         if profile_id != _SUPPORTED_PROFILE_ID:
             diagnostics.append(
@@ -164,7 +196,7 @@ class SohoProductProfileValidator(ValidatorJsonPlugin):
         missing_bundles = sorted(required_bundles - bundle_ids)
 
         if missing_bundles:
-            if migration_state == "migrated-hard":
+            if effective_migration_state == "migrated-hard":
                 diagnostics.append(
                     self.emit_diagnostic(
                         code="E7942",
@@ -183,7 +215,7 @@ class SohoProductProfileValidator(ValidatorJsonPlugin):
                         severity="warning",
                         stage=stage,
                         message=(
-                            f"{migration_state} project is missing required product bundles: "
+                            f"{effective_migration_state} project is missing required product bundles: "
                             + ", ".join(missing_bundles)
                         ),
                         path="project.yaml:product_bundles",
@@ -210,6 +242,7 @@ class SohoProductProfileValidator(ValidatorJsonPlugin):
             ctx=ctx,
             project_manifest=project_manifest,
             migration_state=migration_state,
+            effective_migration_state=effective_migration_state,
             profile_id=profile_id,
             deployment_class=deployment_class,
             bundle_ids=bundle_ids,
@@ -347,12 +380,54 @@ class SohoProductProfileValidator(ValidatorJsonPlugin):
             return None
         return candidate
 
+    def _is_legacy_sunset_enforced(self, ctx: PluginContext) -> bool:
+        policy_path = self._resolve_policy_path(ctx)
+        if policy_path is None:
+            return False
+        try:
+            policy_payload = yaml.safe_load(policy_path.read_text(encoding="utf-8")) or {}
+        except Exception:
+            return False
+        if not isinstance(policy_payload, dict):
+            return False
+        sunset_payload = policy_payload.get("sunset_policy")
+        if not isinstance(sunset_payload, dict):
+            return False
+        raw_legacy_end_date = sunset_payload.get("legacy_end_date")
+        if not isinstance(raw_legacy_end_date, str) or not raw_legacy_end_date.strip():
+            return False
+        legacy_end_date = self._parse_iso_date(raw_legacy_end_date)
+        if legacy_end_date is None:
+            return False
+        today = self._resolve_today(ctx)
+        return today >= legacy_end_date
+
+    @staticmethod
+    def _resolve_today(ctx: PluginContext) -> date:
+        raw = ctx.config.get("soho_migration_today")
+        if isinstance(raw, str):
+            parsed = SohoProductProfileValidator._parse_iso_date(raw)
+            if parsed is not None:
+                return parsed
+        return date.today()
+
+    @staticmethod
+    def _parse_iso_date(raw: str) -> date | None:
+        token = str(raw).strip()
+        if not token:
+            return None
+        try:
+            return date.fromisoformat(token)
+        except ValueError:
+            return None
+
     def _build_state_report(
         self,
         *,
         ctx: PluginContext,
         project_manifest: dict[str, Any],
         migration_state: str,
+        effective_migration_state: str,
         profile_id: str,
         deployment_class: str,
         bundle_ids: set[str],
@@ -370,6 +445,7 @@ class SohoProductProfileValidator(ValidatorJsonPlugin):
             "profile_id": profile_id,
             "deployment_class": deployment_class,
             "migration_state": migration_state,
+            "effective_migration_state": effective_migration_state,
             "status": status,
             "bundles": sorted(bundle_ids),
             "required_bundles": sorted(required_bundles),
