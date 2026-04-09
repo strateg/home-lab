@@ -48,8 +48,7 @@ class BaseGenerator(GeneratorPlugin):
     def resolve_output_path(self, ctx: PluginContext, *parts: str) -> Path:
         return self.artifacts_root(ctx).joinpath(*parts)
 
-    @staticmethod
-    def write_text_atomic(path: Path, content: str, *, encoding: str = "utf-8") -> None:
+    def write_text_atomic(self, path: Path, content: str, *, encoding: str = "utf-8") -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         tmp_path = path.parent / f".{path.name}.tmp"
         tmp_path.write_text(content, encoding=encoding)

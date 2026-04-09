@@ -90,6 +90,14 @@ class TerraformMikroTikGenerator(BaseGenerator):
         vlans = projection.get("vlans", [])
         firewall_policies = projection.get("firewall_policies", [])
         runtime_baseline = projection.get("runtime_baseline", {})
+        if not isinstance(runtime_baseline, dict):
+            runtime_baseline = {}
+        runtime_baseline.setdefault("dhcp", {})
+        if not isinstance(runtime_baseline.get("dhcp"), dict):
+            runtime_baseline["dhcp"] = {}
+        runtime_baseline.setdefault("dns_servers", [])
+        runtime_baseline.setdefault("nat", [])
+        runtime_baseline["dhcp"].setdefault("enabled", False)
         mikrotik_host = self._resolve_mikrotik_host(ctx=ctx, routers=routers)
 
         # Extract capability flags from projection
