@@ -112,7 +112,7 @@
 ## Wave E - Policy Decisions and Expansion (P2/P3)
 
 - [ ] ADR0053: lock execution default (`native` or `dist`) and align task/docs/CI.
-- [ ] ADR0047: choose execute-now vs deferred trigger and update status accordingly.
+- [x] ADR0047: choose execute-now vs deferred trigger and update status accordingly.
 - [x] ADR0076: physical multi-repo extraction track started.
   Execution artifacts:
   - `adr/plan/0076-phase13-physical-extraction-plan.md`

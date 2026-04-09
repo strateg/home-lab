@@ -47,7 +47,7 @@
 | [0044](0044-ip-derivation-from-refs.md) | IP Derivation from Refs | Accepted | 2026-02-24 | - | - |
 | [0045](0045-model-and-project-improvements.md) | Improvements to project model, development workflow and automation | Superseded | 2026-02-25 | - | [0066](0066-plugin-testing-and-ci-strategy.md), [0075](0075-framework-project-separation.md), [0077](0077-go-task-developer-orchestration.md) |
 | [0046](0046-generators-architecture-refactoring.md) | Generators Architecture Refactoring | Implemented (All 6 phases complete) | 2026-02-25 | - | - |
-| [0047](0047-l6-observability-modularization.md) | L6 Observability Modularization | Partially Implemented | 2026-02-26 | - | - |
+| [0047](0047-l6-observability-modularization.md) | L6 Observability Modularization | Implemented (Phase 1-2; trigger-gated) | 2026-02-26 | - | - |
 | [0048](0048-topology-v4-architecture-consolidation.md) | Topology v4 Architecture Consolidation | Accepted | 2026-02-28 | [0049](0049-mikrotik-bootstrap-automation.md), [0050](0050-generated-directory-restructuring.md) | - |
 | [0049](0049-mikrotik-bootstrap-automation.md) | MikroTik Bootstrap Automation | Superseded | 2026-02-28 | - | [0048](0048-topology-v4-architecture-consolidation.md), [0057](0057-mikrotik-netinstall-bootstrap-and-terraform-handover.md) |
 | [0050](0050-generated-directory-restructuring.md) | Generated Directory Restructuring | Accepted | 2026-02-28 | - | [0048](0048-topology-v4-architecture-consolidation.md) |

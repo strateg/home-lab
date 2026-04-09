@@ -2,7 +2,7 @@
 
 **Date:** 2026-02-26
 **Updated:** 2026-03-01
-**Status:** Partially Implemented
+**Status:** Implemented (Phase 1-2 complete; Phase 3/4 trigger-gated)
 **Trigger:** Implement remaining phases when alerts > 50 OR services > 30
 **Harmonized With:** ADR 0064 (Firmware + OS Two-Entity Model)
 
@@ -236,3 +236,13 @@ If `gate=triggered`:
 1. Open ADR governance update and mark ADR0047 Phase 3/4 reactivation planning as `IN-PROGRESS`.
 2. Prepare modularization scope split (`alerts/definitions`, `alerts/policies`, `sla-slo`, generator updates).
 3. Add implementation timeline and rollback points to `adr/plan/NEXT-STEPS-2026-04.md` (or active monthly plan).
+
+---
+
+## Trigger Evidence (2026-04-09)
+
+- `task validate:adr0047-trigger`
+- alerts_count: 11 (threshold 50)
+- services_count: 0 (threshold 30)
+- gate: ok
+- evidence: `build/diagnostics/adr0047-trigger.json`
