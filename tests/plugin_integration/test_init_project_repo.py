@@ -119,6 +119,8 @@ def _fake_framework_distribution_zip(tmp_path: Path, *, version: str = "1.2.3") 
     )
     _write(dist_root / "topology" / "model.lock.yaml", "schema_version: 1\n")
     _write(dist_root / "topology" / "profile-map.yaml", "profiles: {}\n")
+    _write(dist_root / "topology" / "product-bundles" / "default.yaml", "schema_version: 1\n")
+    _write(dist_root / "topology" / "product-profiles" / "default.yaml", "schema_version: 1\n")
     _write(dist_root / "topology" / "class-modules" / ".gitkeep", "")
     _write(dist_root / "topology" / "object-modules" / ".gitkeep", "")
 
@@ -161,6 +163,7 @@ def test_init_project_repo_creates_l0_l7_structure_and_submodule(tmp_path: Path)
     assert (output_root / "framework.lock.yaml").exists()
     assert (output_root / "Taskfile.yml").exists()
     assert (output_root / "taskfiles" / "project.yml").exists()
+    assert (output_root / "plugins" / "plugins.yaml").exists()
 
     for bucket in (
         "L0-meta",
@@ -201,6 +204,9 @@ def test_init_project_repo_default_flow_passes_strict_compile_with_real_framewor
     assert run.returncode == 0, run.stdout + "\n" + run.stderr
     assert (output_root / "generated" / "effective-topology.json").exists()
     assert (output_root / "generated" / "diagnostics.json").exists()
+    assert (output_root / "plugins" / "plugins.yaml").exists()
+    assert (output_root / "topology" / "product-bundles").exists()
+    assert (output_root / "topology" / "product-profiles").exists()
 
 
 def test_init_project_repo_can_use_distribution_zip_package_dependency(tmp_path: Path) -> None:
@@ -226,6 +232,8 @@ def test_init_project_repo_can_use_distribution_zip_package_dependency(tmp_path:
     assert run.returncode == 0, run.stdout + "\n" + run.stderr
     assert not (output_root / ".gitmodules").exists()
     assert (output_root / "framework" / "framework.yaml").exists()
+    assert (output_root / "topology" / "product-bundles" / "default.yaml").exists()
+    assert (output_root / "topology" / "product-profiles" / "default.yaml").exists()
     lock_payload = yaml.safe_load((output_root / "framework.lock.yaml").read_text(encoding="utf-8")) or {}
     framework_payload = lock_payload.get("framework", {})
     assert framework_payload.get("source") == "package"

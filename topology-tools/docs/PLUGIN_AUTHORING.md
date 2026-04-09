@@ -33,6 +33,16 @@ Kind/stage affinity is enforced at manifest load:
 5. `assembler -> assemble`
 6. `builder -> build`
 
+## Generator Artifact Contract Paths (ADR0093)
+
+For generator plugins publishing `artifact_plan` / `artifact_generation_report`:
+
+- `planned_outputs[].path`, `generated[]`, and `obsolete[].path` are **logical artifact IDs**.
+- Paths must stay repo-portable and use logical prefix form such as `generated/<project>/...`.
+- Do not leak execution-local absolute paths (`/home/...`) or workflow-specific roots (`build/phase13/...`).
+
+Runtime normalizes physical output roots (for example custom `generator_artifacts_root`) to logical contract paths.
+
 ## Quick Start
 
 ### 1. Create Plugin Module
@@ -146,6 +156,9 @@ Manifest discovery order is deterministic:
 1. base manifest (`topology-tools/plugins/plugins.yaml`)
 2. class module manifests (`topology/class-modules/**/plugins.yaml`)
 3. object module manifests (`topology/object-modules/**/plugins.yaml`)
+4. project manifests (`projects/<project>/plugins/**/plugins.yaml` in monorepo or `<project-root>/plugins/**/plugins.yaml` in standalone repo)
+
+Global plugin IDs must stay unique across all discovered levels (no shadowing/overrides by later levels).
 
 ## Plugin Context
 

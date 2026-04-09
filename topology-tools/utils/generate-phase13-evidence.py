@@ -70,6 +70,18 @@ def main() -> int:
     commands = [
         ("verify_lock", [python, "topology-tools/verify-framework-lock.py", "--strict"], output_dir / "verify-lock.txt"),
         (
+            "verify_lock_package_trust_signature",
+            [
+                python,
+                "topology-tools/verify-framework-lock.py",
+                "--strict",
+                "--enforce-package-trust",
+                "--verify-package-artifact-files",
+                "--verify-package-signature",
+            ],
+            output_dir / "verify-lock-package-trust-signature.txt",
+        ),
+        (
             "compile_strict",
             [python, "topology-tools/compile-topology.py", "--topology", "topology/topology.yaml", "--strict-model-lock", "--secrets-mode", "passthrough"],
             output_dir / "compile.txt",

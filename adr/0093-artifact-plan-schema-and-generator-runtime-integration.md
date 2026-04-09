@@ -122,6 +122,11 @@ Assemble/build получают:
 - `skipped_count`
 - `obsolete_count`
 
+Норматив по path identity:
+- `path` в `ArtifactPlan` и `ArtifactGenerationReport` — это **logical artifact identity**, а не локальный execution path.
+- Допустимый формат: переносимый относительный путь (например `generated/<project>/terraform/...`).
+- Недопустимо протекание абсолютных workstation paths (`/home/...`) и временных execution roots (`build/.../generated-artifacts/...`).
+
 ### D10. Зафиксировать compatibility и sunset policy
 - Legacy generator без `ArtifactPlan` допускается только в compatibility mode.
 - Для migrated generator отсутствие валидного `ArtifactPlan` — hard error.

@@ -22,17 +22,27 @@ def _load_compiler_module():
     return module
 
 
-def _write_manifest(path: Path, *, plugin_id: str, description: str = "") -> None:
+def _write_manifest(
+    path: Path,
+    *,
+    plugin_id: str,
+    description: str = "",
+    kind: str = "validator_json",
+    entry: str = "validators/reference_validator.py:ReferenceValidator",
+    stages: list[str] | None = None,
+    order: int = 100,
+) -> None:
+    effective_stages = stages if isinstance(stages, list) and stages else ["validate"]
     payload = {
         "schema_version": 1,
         "plugins": [
             {
                 "id": plugin_id,
-                "kind": "validator_json",
-                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "kind": kind,
+                "entry": entry,
                 "api_version": "1.x",
-                "stages": ["validate"],
-                "order": 100,
+                "stages": effective_stages,
+                "order": order,
                 "description": description,
             }
         ],
@@ -267,3 +277,56 @@ def test_discover_boundary_rejects_project_manifests_outside_project_plugins_roo
 
     assert result.status == mod.PluginStatus.FAILED
     assert any(d.path.endswith("projects/home-lab/plugins-extra/plugins.yaml") for d in result.diagnostics)
+
+
+def test_project_manifest_duplicate_plugin_id_with_object_manifest_is_reported(tmp_path: Path) -> None:
+    mod = _load_compiler_module()
+    compiler = _create_compiler(mod, tmp_path)
+    assert compiler._plugin_registry is not None
+
+    class_root = tmp_path / "class-modules"
+    object_root = tmp_path / "object-modules"
+    project_plugins_root = tmp_path / "project-root" / "plugins"
+
+    _write_manifest(object_root / "beta" / "plugins.yaml", plugin_id="shared.validator.duplicate")
+    _write_manifest(project_plugins_root / "plugins.yaml", plugin_id="shared.validator.duplicate")
+
+    summary = compiler._load_module_plugin_manifests(
+        class_modules_root=class_root,
+        object_modules_root=object_root,
+        project_plugins_root=project_plugins_root,
+        emit_diagnostics=True,
+    )
+
+    errors = [str(item) for item in summary.get("errors", [])]
+    assert any("Duplicate plugin ID: shared.validator.duplicate" in item for item in errors)
+    assert any(diag.code == "E4001" for diag in compiler._diagnostics)
+
+
+def test_project_manifest_stage_family_affinity_violation_is_reported(tmp_path: Path) -> None:
+    mod = _load_compiler_module()
+    compiler = _create_compiler(mod, tmp_path)
+    assert compiler._plugin_registry is not None
+
+    class_root = tmp_path / "class-modules"
+    object_root = tmp_path / "object-modules"
+    project_plugins_root = tmp_path / "project-root" / "plugins"
+
+    _write_manifest(
+        project_plugins_root / "plugins.yaml",
+        plugin_id="project.compiler.bad_stage",
+        kind="compiler",
+        entry="compilers/effective_json_compiler.py:EffectiveJsonCompiler",
+        stages=["validate"],
+        order=50,
+    )
+
+    summary = compiler._load_module_plugin_manifests(
+        class_modules_root=class_root,
+        object_modules_root=object_root,
+        project_plugins_root=project_plugins_root,
+        emit_diagnostics=True,
+    )
+    errors = [str(item) for item in summary.get("errors", [])]
+    assert any("cannot run in stage" in item for item in errors)
+    assert any(diag.code == "E4001" for diag in compiler._diagnostics)

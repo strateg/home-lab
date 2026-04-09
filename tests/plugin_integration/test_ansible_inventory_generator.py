@@ -42,14 +42,15 @@ def _semanticize(compiled_json: dict) -> dict:
     return payload
 
 
-def _ctx(tmp_path: Path, compiled_json: dict) -> PluginContext:
+def _ctx(tmp_path: Path, compiled_json: dict, *, artifacts_root: Path | None = None) -> PluginContext:
+    root = artifacts_root or (tmp_path / "generated")
     return PluginContext(
         topology_path="topology/topology.yaml",
         profile="test",
         model_lock={},
         compiled_json=_semanticize(compiled_json),
         output_dir=str(tmp_path / "build"),
-        config={"generator_artifacts_root": str(tmp_path / "generated")},
+        config={"generator_artifacts_root": str(root)},
     )
 
 
@@ -113,6 +114,21 @@ def test_ansible_inventory_artifact_plan_includes_group_vars_output(tmp_path: Pa
     planned_paths = [str(item.get("path", "")) for item in artifact_plan.get("planned_outputs", [])]
     assert any(path.endswith("/group_vars/all.yml") for path in planned_paths)
     assert all(item.get("renderer") == "structured" for item in artifact_plan.get("planned_outputs", []))
+
+
+def test_ansible_inventory_artifact_plan_is_logical_when_artifacts_root_is_custom(tmp_path: Path) -> None:
+    generator = AnsibleInventoryGenerator("base.generator.ansible_inventory")
+    custom_root = tmp_path / "build" / "phase13" / "split-rehearsal" / "generated-artifacts"
+    ctx = _ctx(tmp_path, _compiled_fixture(), artifacts_root=custom_root)
+
+    result = generator.execute(ctx, Stage.GENERATE)
+
+    assert result.status == PluginStatus.SUCCESS
+    planned_paths = [str(item.get("path", "")) for item in result.output_data["artifact_plan"]["planned_outputs"]]
+    assert planned_paths
+    assert all(path.startswith("generated/") for path in planned_paths)
+    assert all("split-rehearsal" not in path for path in planned_paths)
+    assert all(not path.startswith(str(tmp_path)) for path in planned_paths)
 
 
 def test_ansible_inventory_obsolete_delete_uses_ownership_proof(tmp_path: Path) -> None:

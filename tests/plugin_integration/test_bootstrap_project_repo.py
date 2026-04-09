@@ -50,6 +50,8 @@ def _fake_framework_repo(tmp_path: Path) -> Path:
             sort_keys=False,
         ),
     )
+    _write(root / "topology" / "product-bundles" / "default.yaml", "schema_version: 1\n")
+    _write(root / "topology" / "product-profiles" / "default.yaml", "schema_version: 1\n")
     return root
 
 
@@ -75,6 +77,8 @@ def _fake_extracted_framework_repo(tmp_path: Path) -> Path:
         ),
     )
     _write(root / "topology" / "class-modules" / "router" / "class.router.test.yaml", "class: test\n")
+    _write(root / "topology" / "product-bundles" / "default.yaml", "schema_version: 1\n")
+    _write(root / "topology" / "product-profiles" / "default.yaml", "schema_version: 1\n")
     return root
 
 
@@ -83,6 +87,7 @@ def _fake_seed_project_root(tmp_path: Path) -> Path:
     _write(root / "topology" / "instances" / "L1-foundation" / "compute" / "vm.seed.yaml", "instance: vm.seed\n")
     _write(root / "secrets" / "instances" / "vm.seed.yaml", "secret: value\n")
     _write(root / "overrides" / "ansible" / "inventory-overrides" / "production" / "group_vars.yml", "a: b\n")
+    _write(root / "plugins" / "plugins.yaml", "schema_version: 1\nplugins: []\n")
     return root
 
 
@@ -111,6 +116,11 @@ def test_bootstrap_project_repo_generates_manifests_and_lock(tmp_path: Path) -> 
     assert (output_root / "framework.lock.yaml").exists()
     assert (output_root / "topology" / "instances").exists()
     assert (output_root / "secrets").exists()
+    assert (output_root / "plugins").exists()
+    assert (output_root / "plugins" / "plugins.yaml").exists()
+    assert (output_root / "topology" / "product-bundles" / "default.yaml").exists()
+    assert (output_root / "topology" / "product-profiles" / "default.yaml").exists()
+    assert (output_root / "generated-artifacts").exists()
     assert (output_root / "BOOTSTRAP-NOTES.md").exists()
     assert (output_root / "Taskfile.yml").exists()
     assert (output_root / "taskfiles" / "project.yml").exists()
@@ -202,6 +212,7 @@ def test_bootstrap_project_repo_can_seed_project_data(tmp_path: Path) -> None:
     assert (output_root / "topology" / "instances" / "L1-foundation" / "compute" / "vm.seed.yaml").exists()
     assert (output_root / "secrets" / "instances" / "vm.seed.yaml").exists()
     assert (output_root / "overrides" / "ansible" / "inventory-overrides" / "production" / "group_vars.yml").exists()
+    assert (output_root / "plugins" / "plugins.yaml").exists()
 
 
 def test_bootstrap_project_repo_emits_mounted_framework_tool_commands(tmp_path: Path) -> None:

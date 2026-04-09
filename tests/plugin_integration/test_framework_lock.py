@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import subprocess
 import sys
 from pathlib import Path
@@ -132,6 +133,9 @@ def _run_verify(
     topology_manifest: Path,
     *,
     enforce_package_trust: bool = False,
+    verify_package_artifact_files: bool = False,
+    verify_package_signature: bool = False,
+    cosign_bin: str | None = None,
 ) -> subprocess.CompletedProcess[str]:
     cmd = [
         sys.executable,
@@ -144,12 +148,22 @@ def _run_verify(
     ]
     if enforce_package_trust:
         cmd.append("--enforce-package-trust")
+    if verify_package_artifact_files:
+        cmd.append("--verify-package-artifact-files")
+    if verify_package_signature:
+        cmd.append("--verify-package-signature")
+    if isinstance(cosign_bin, str) and cosign_bin.strip():
+        cmd.extend(["--cosign-bin", cosign_bin.strip()])
     return subprocess.run(
         cmd,
         text=True,
         capture_output=True,
         check=False,
     )
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def test_generate_and_verify_framework_lock_success(tmp_path: Path):
@@ -270,6 +284,298 @@ def test_verify_package_trust_passes_with_non_placeholder_metadata(tmp_path: Pat
 
     verify = _run_verify(repo_root, topology_manifest, enforce_package_trust=True)
     assert verify.returncode == 0, verify.stdout + "\n" + verify.stderr
+
+
+def test_verify_package_trust_artifact_files_pass_with_matching_digests(tmp_path: Path):
+    repo_root, topology_manifest, _ = _create_fixture_repo(tmp_path)
+    generate = _run_generate(repo_root, topology_manifest, source="package")
+    assert generate.returncode == 0, generate.stderr
+
+    signature_bundle = repo_root / "dist" / "framework" / "signature.sigstore"
+    provenance_file = repo_root / "dist" / "framework" / "provenance.json"
+    sbom_file = repo_root / "dist" / "framework" / "sbom.spdx.json"
+    signature_bundle.parent.mkdir(parents=True, exist_ok=True)
+    signature_bundle.write_text("sigstore-bundle\n", encoding="utf-8")
+    provenance_file.write_text("{\"predicateType\":\"slsa\"}\n", encoding="utf-8")
+    sbom_file.write_text("{\"spdxVersion\":\"SPDX-2.3\"}\n", encoding="utf-8")
+
+    lock_path = repo_root / "projects" / "home-lab" / "framework.lock.yaml"
+    payload = yaml.safe_load(lock_path.read_text(encoding="utf-8"))
+    payload["framework"]["signature"] = {
+        "issuer": "https://token.actions.githubusercontent.com",
+        "subject": "https://github.com/strateg/infra-topology-framework/.github/workflows/release.yml@refs/tags/v1.0.0",
+        "verified": True,
+        "bundle_uri": signature_bundle.resolve().as_uri(),
+        "bundle_sha256": _sha256(signature_bundle),
+    }
+    payload["provenance"] = {
+        "predicate_type": "https://slsa.dev/provenance/v1",
+        "uri": provenance_file.resolve().as_uri(),
+        "sha256": _sha256(provenance_file),
+    }
+    payload["sbom"] = {
+        "format": "spdx-json",
+        "uri": sbom_file.resolve().as_uri(),
+        "sha256": _sha256(sbom_file),
+    }
+    lock_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    verify = _run_verify(
+        repo_root,
+        topology_manifest,
+        enforce_package_trust=True,
+        verify_package_artifact_files=True,
+    )
+    assert verify.returncode == 0, verify.stdout + "\n" + verify.stderr
+
+
+def test_verify_package_trust_artifact_files_fail_on_digest_mismatch(tmp_path: Path):
+    repo_root, topology_manifest, _ = _create_fixture_repo(tmp_path)
+    generate = _run_generate(repo_root, topology_manifest, source="package")
+    assert generate.returncode == 0, generate.stderr
+
+    signature_bundle = repo_root / "dist" / "framework" / "signature.sigstore"
+    provenance_file = repo_root / "dist" / "framework" / "provenance.json"
+    sbom_file = repo_root / "dist" / "framework" / "sbom.spdx.json"
+    signature_bundle.parent.mkdir(parents=True, exist_ok=True)
+    signature_bundle.write_text("sigstore-bundle\n", encoding="utf-8")
+    provenance_file.write_text("{\"predicateType\":\"slsa\"}\n", encoding="utf-8")
+    sbom_file.write_text("{\"spdxVersion\":\"SPDX-2.3\"}\n", encoding="utf-8")
+
+    lock_path = repo_root / "projects" / "home-lab" / "framework.lock.yaml"
+    payload = yaml.safe_load(lock_path.read_text(encoding="utf-8"))
+    payload["framework"]["signature"] = {
+        "issuer": "https://token.actions.githubusercontent.com",
+        "subject": "https://github.com/strateg/infra-topology-framework/.github/workflows/release.yml@refs/tags/v1.0.0",
+        "verified": True,
+        "bundle_uri": signature_bundle.resolve().as_uri(),
+        "bundle_sha256": _sha256(signature_bundle),
+    }
+    payload["provenance"] = {
+        "predicate_type": "https://slsa.dev/provenance/v1",
+        "uri": provenance_file.resolve().as_uri(),
+        "sha256": "0" * 64,
+    }
+    payload["sbom"] = {
+        "format": "spdx-json",
+        "uri": sbom_file.resolve().as_uri(),
+        "sha256": _sha256(sbom_file),
+    }
+    lock_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    verify = _run_verify(
+        repo_root,
+        topology_manifest,
+        enforce_package_trust=True,
+        verify_package_artifact_files=True,
+    )
+    assert verify.returncode != 0
+    assert "E7826" in verify.stdout
+
+
+def test_generate_package_lock_from_release_trust_root(tmp_path: Path):
+    repo_root, topology_manifest, _ = _create_fixture_repo(tmp_path)
+    release_root = repo_root / "framework-dist"
+    release_root.mkdir(parents=True, exist_ok=True)
+
+    checksums = release_root / "checksums.sha256"
+    sig = release_root / "checksums.sha256.sig"
+    crt = release_root / "checksums.sha256.crt"
+    provenance = release_root / "provenance" / "provenance.json"
+    sbom = release_root / "sbom.spdx.json"
+    checksums.write_text("abc  file\n", encoding="utf-8")
+    sig.write_text("sig\n", encoding="utf-8")
+    crt.write_text("crt\n", encoding="utf-8")
+    provenance.parent.mkdir(parents=True, exist_ok=True)
+    provenance.write_text("{\"predicateType\":\"slsa\"}\n", encoding="utf-8")
+    sbom.write_text("{\"spdxVersion\":\"SPDX-2.3\"}\n", encoding="utf-8")
+
+    generate = subprocess.run(
+        [
+            sys.executable,
+            str(GENERATE_SCRIPT),
+            "--repo-root",
+            str(repo_root),
+            "--topology",
+            str(topology_manifest),
+            "--source",
+            "package",
+            "--package-trust-release-root",
+            str(release_root),
+            "--package-signature-subject",
+            "https://github.com/strateg/infra-topology-framework/.github/workflows/release.yml@refs/tags/v1.2.3",
+            "--package-signature-verified",
+            "--force",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert generate.returncode == 0, generate.stdout + "\n" + generate.stderr
+
+    lock_path = repo_root / "projects" / "home-lab" / "framework.lock.yaml"
+    payload = yaml.safe_load(lock_path.read_text(encoding="utf-8"))
+    signature = payload["framework"]["signature"]
+    assert signature["bundle_uri"].startswith("file://")
+    assert signature["bundle_sha256"] == _sha256(sig)
+    assert signature["signature_uri"] == sig.resolve().as_uri()
+    assert signature["certificate_uri"] == crt.resolve().as_uri()
+    assert signature["signed_blob_uri"] == checksums.resolve().as_uri()
+    assert payload["provenance"]["sha256"] == _sha256(provenance)
+    assert payload["sbom"]["sha256"] == _sha256(sbom)
+
+    verify = _run_verify(
+        repo_root,
+        topology_manifest,
+        enforce_package_trust=True,
+        verify_package_artifact_files=True,
+    )
+    assert verify.returncode == 0, verify.stdout + "\n" + verify.stderr
+
+
+def test_generate_package_lock_fails_when_release_trust_root_incomplete(tmp_path: Path):
+    repo_root, topology_manifest, _ = _create_fixture_repo(tmp_path)
+    release_root = repo_root / "framework-dist"
+    release_root.mkdir(parents=True, exist_ok=True)
+    (release_root / "checksums.sha256.sig").write_text("sig\n", encoding="utf-8")
+
+    generate = subprocess.run(
+        [
+            sys.executable,
+            str(GENERATE_SCRIPT),
+            "--repo-root",
+            str(repo_root),
+            "--topology",
+            str(topology_manifest),
+            "--source",
+            "package",
+            "--package-trust-release-root",
+            str(release_root),
+            "--force",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert generate.returncode != 0
+
+
+def _write_fake_cosign(path: Path, *, succeed: bool) -> None:
+    body = "#!/usr/bin/env bash\n"
+    body += "if [ \"$1\" != \"verify-blob\" ]; then exit 9; fi\n"
+    body += "if [ \"$2\" != \"--certificate\" ]; then exit 8; fi\n"
+    body += ("exit 0\n" if succeed else "echo 'invalid signature' >&2\nexit 1\n")
+    path.write_text(body, encoding="utf-8")
+    path.chmod(0o755)
+
+
+def test_verify_package_signature_passes_with_fake_cosign(tmp_path: Path):
+    repo_root, topology_manifest, _ = _create_fixture_repo(tmp_path)
+    generate = _run_generate(repo_root, topology_manifest, source="package")
+    assert generate.returncode == 0, generate.stderr
+
+    checksums = repo_root / "dist" / "framework" / "checksums.sha256"
+    sig = repo_root / "dist" / "framework" / "checksums.sha256.sig"
+    crt = repo_root / "dist" / "framework" / "checksums.sha256.crt"
+    provenance = repo_root / "dist" / "framework" / "provenance.json"
+    sbom = repo_root / "dist" / "framework" / "sbom.spdx.json"
+    checksums.parent.mkdir(parents=True, exist_ok=True)
+    checksums.write_text("abc  file\n", encoding="utf-8")
+    sig.write_text("sig\n", encoding="utf-8")
+    crt.write_text("crt\n", encoding="utf-8")
+    provenance.write_text("{\"predicateType\":\"slsa\"}\n", encoding="utf-8")
+    sbom.write_text("{\"spdxVersion\":\"SPDX-2.3\"}\n", encoding="utf-8")
+    cosign = repo_root / "fake-cosign.sh"
+    _write_fake_cosign(cosign, succeed=True)
+
+    lock_path = repo_root / "projects" / "home-lab" / "framework.lock.yaml"
+    payload = yaml.safe_load(lock_path.read_text(encoding="utf-8"))
+    payload["framework"]["signature"] = {
+        "issuer": "https://token.actions.githubusercontent.com",
+        "subject": "https://github.com/strateg/infra-topology-framework/.github/workflows/release.yml@refs/tags/v1.0.0",
+        "verified": True,
+        "bundle_uri": sig.resolve().as_uri(),
+        "bundle_sha256": _sha256(sig),
+        "signature_uri": sig.resolve().as_uri(),
+        "certificate_uri": crt.resolve().as_uri(),
+        "signed_blob_uri": checksums.resolve().as_uri(),
+    }
+    payload["provenance"] = {
+        "predicate_type": "https://slsa.dev/provenance/v1",
+        "uri": provenance.resolve().as_uri(),
+        "sha256": _sha256(provenance),
+    }
+    payload["sbom"] = {
+        "format": "spdx-json",
+        "uri": sbom.resolve().as_uri(),
+        "sha256": _sha256(sbom),
+    }
+    lock_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    verify = _run_verify(
+        repo_root,
+        topology_manifest,
+        enforce_package_trust=True,
+        verify_package_artifact_files=True,
+        verify_package_signature=True,
+        cosign_bin=str(cosign),
+    )
+    assert verify.returncode == 0, verify.stdout + "\n" + verify.stderr
+
+
+def test_verify_package_signature_fails_with_invalid_signature(tmp_path: Path):
+    repo_root, topology_manifest, _ = _create_fixture_repo(tmp_path)
+    generate = _run_generate(repo_root, topology_manifest, source="package")
+    assert generate.returncode == 0, generate.stderr
+
+    checksums = repo_root / "dist" / "framework" / "checksums.sha256"
+    sig = repo_root / "dist" / "framework" / "checksums.sha256.sig"
+    crt = repo_root / "dist" / "framework" / "checksums.sha256.crt"
+    provenance = repo_root / "dist" / "framework" / "provenance.json"
+    sbom = repo_root / "dist" / "framework" / "sbom.spdx.json"
+    checksums.parent.mkdir(parents=True, exist_ok=True)
+    checksums.write_text("abc  file\n", encoding="utf-8")
+    sig.write_text("sig\n", encoding="utf-8")
+    crt.write_text("crt\n", encoding="utf-8")
+    provenance.write_text("{\"predicateType\":\"slsa\"}\n", encoding="utf-8")
+    sbom.write_text("{\"spdxVersion\":\"SPDX-2.3\"}\n", encoding="utf-8")
+    cosign = repo_root / "fake-cosign.sh"
+    _write_fake_cosign(cosign, succeed=False)
+
+    lock_path = repo_root / "projects" / "home-lab" / "framework.lock.yaml"
+    payload = yaml.safe_load(lock_path.read_text(encoding="utf-8"))
+    payload["framework"]["signature"] = {
+        "issuer": "https://token.actions.githubusercontent.com",
+        "subject": "https://github.com/strateg/infra-topology-framework/.github/workflows/release.yml@refs/tags/v1.0.0",
+        "verified": True,
+        "bundle_uri": sig.resolve().as_uri(),
+        "bundle_sha256": _sha256(sig),
+        "signature_uri": sig.resolve().as_uri(),
+        "certificate_uri": crt.resolve().as_uri(),
+        "signed_blob_uri": checksums.resolve().as_uri(),
+    }
+    payload["provenance"] = {
+        "predicate_type": "https://slsa.dev/provenance/v1",
+        "uri": provenance.resolve().as_uri(),
+        "sha256": _sha256(provenance),
+    }
+    payload["sbom"] = {
+        "format": "spdx-json",
+        "uri": sbom.resolve().as_uri(),
+        "sha256": _sha256(sbom),
+    }
+    lock_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    verify = _run_verify(
+        repo_root,
+        topology_manifest,
+        enforce_package_trust=True,
+        verify_package_artifact_files=True,
+        verify_package_signature=True,
+        cosign_bin=str(cosign),
+    )
+    assert verify.returncode != 0
+    assert "E7825" in verify.stdout
 
 
 def test_verify_bypasses_revision_mismatch_in_monorepo_mode(tmp_path: Path):
@@ -529,3 +835,86 @@ def test_generate_and_verify_support_extracted_framework_manifest_auto_detect(tm
         check=False,
     )
     assert verify.returncode == 0, verify.stdout + "\n" + verify.stderr
+
+
+def test_verify_detects_revision_mismatch_in_extracted_layout(tmp_path: Path) -> None:
+    framework_root = tmp_path / "framework-repo"
+    project_root = tmp_path / "project-repo"
+    project_manifest = project_root / "project.yaml"
+    lock_path = project_root / "framework.lock.yaml"
+
+    _write_yaml(
+        framework_root / "framework.yaml",
+        {
+            "schema_version": 1,
+            "framework_id": "home-lab-v5-framework",
+            "framework_api_version": "5.0.0",
+            "supported_project_schema_range": ">=1.0.0 <2.0.0",
+            "distribution": {
+                "layout_version": 1,
+                "include": ["framework.yaml"],
+            },
+        },
+    )
+    _write_yaml(
+        project_manifest,
+        {
+            "schema_version": 1,
+            "project_schema_version": "1.0.0",
+            "project": "home-lab",
+            "project_min_framework_version": "5.0.0",
+            "project_contract_revision": 1,
+            "instances_root": "instances",
+            "secrets_root": "secrets",
+        },
+    )
+    _git_init_and_commit(framework_root)
+
+    generate = subprocess.run(
+        [
+            sys.executable,
+            str(GENERATE_SCRIPT),
+            "--repo-root",
+            str(project_root),
+            "--project-root",
+            str(project_root),
+            "--project-manifest",
+            str(project_manifest),
+            "--framework-root",
+            str(framework_root),
+            "--lock-file",
+            str(lock_path),
+            "--force",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert generate.returncode == 0, generate.stdout + "\n" + generate.stderr
+
+    payload = yaml.safe_load(lock_path.read_text(encoding="utf-8"))
+    payload["framework"]["revision"] = "deadbeef"
+    lock_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    verify = subprocess.run(
+        [
+            sys.executable,
+            str(VERIFY_SCRIPT),
+            "--repo-root",
+            str(project_root),
+            "--project-root",
+            str(project_root),
+            "--project-manifest",
+            str(project_manifest),
+            "--framework-root",
+            str(framework_root),
+            "--lock-file",
+            str(lock_path),
+            "--strict",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert verify.returncode != 0
+    assert "E7823" in verify.stdout

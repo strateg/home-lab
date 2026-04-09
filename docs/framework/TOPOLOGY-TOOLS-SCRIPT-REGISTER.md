@@ -18,7 +18,7 @@
 | `topology-tools/check-capability-contract.py` | Проверка capability contract class/object модулей | runtime contract gate | MUST |
 | `topology-tools/assemble-ansible-runtime.py` | Сборка runtime inventory для Ansible из generated + overrides | runtime assemble | MUST |
 | `topology-tools/generate-framework-lock.py` | Генерация `framework.lock.yaml` | runtime dependency lock | MUST |
-| `topology-tools/verify-framework-lock.py` | Верификация lock/integrity/compatibility перед compile | runtime dependency verify | MUST |
+| `topology-tools/verify-framework-lock.py` | Верификация lock/integrity/compatibility (+ package trust/signature опционально) перед compile | runtime dependency verify | MUST |
 
 ## Runtime Support Modules (TRE)
 
@@ -41,6 +41,7 @@
 | Script / module | Ответственность | Artifact |
 |---|---|---|
 | `topology-tools/utils/build-framework-distribution.py` | Сборка release artifact по `framework.yaml` | MUST NOT |
+| `topology-tools/utils/generate-framework-provenance.py` | Генерация provenance attestation payload по release bundle | MUST NOT |
 | `topology-tools/utils/bootstrap-framework-repo.py` | Bootstrap standalone framework repo из monorepo | MUST NOT |
 | `topology-tools/utils/extract-framework-history.py` | Историческое extraction с сохранением git history | MUST NOT |
 | `topology-tools/utils/extract-framework-worktree.py` | Быстрый framework-only export worktree | MUST NOT |

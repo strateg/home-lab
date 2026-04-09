@@ -76,9 +76,9 @@ Out of scope:
 
 ### WS0.1 Lock Integrity Recovery
 
-- [ ] Regenerate `projects/home-lab/framework.lock.yaml` from current trusted root.
-- [ ] Re-run strict gates until baseline is green.
-- [ ] Store diagnostics snapshot as entry evidence for Phase 13.
+- [x] Regenerate `projects/home-lab/framework.lock.yaml` from current trusted root.
+- [x] Re-run strict gates until baseline is green.
+- [x] Store diagnostics snapshot as entry evidence for Phase 13.
 
 Entry Gate:
 
@@ -119,20 +119,20 @@ Gate:
   - ADR0091 D3 evidence domains present,
   - normalized support bundle completeness state present.
 - [x] Add semantic parity comparison against monorepo baseline for operator-readiness payload.
-- [ ] Promote split-rehearsal summary as mandatory Phase13 CI artifact.
+- [x] Promote split-rehearsal summary as mandatory Phase13 CI artifact.
 
 ### WS1.2 Contract Hardening for Extracted Mode
 
-- [ ] Add explicit tests for extracted-repo lock revision behavior (no accidental monorepo bypass in extracted topology).
-- [ ] Add guard tests for distribution include-path stability after extraction.
-- [ ] Add contract test for generated project skeleton paths (`topology/instances`, `generated`, `generated-artifacts`).
-- [ ] Add extracted-mode contract test for `product:doctor` status derivation from generated machine-readable evidence.
-- [ ] Add extracted-mode contract test for `product:handover` completeness gate behavior.
+- [x] Add explicit tests for extracted-repo lock revision behavior (no accidental monorepo bypass in extracted topology).
+- [x] Add guard tests for distribution include-path stability after extraction.
+- [x] Add contract test for generated project skeleton paths (`topology/instances`, `generated`, `generated-artifacts`).
+- [x] Add extracted-mode contract test for `product:doctor` status derivation from generated machine-readable evidence.
+- [x] Add extracted-mode contract test for `product:handover` completeness gate behavior.
 
 ### WS1.3 Trust Pipeline Hardening
 
-- [ ] Replace provenance placeholder flow with real attestation publication/verification path.
-- [ ] Add strict verification for package-mode trust fields (not only existence checks).
+- [x] Replace provenance placeholder flow with real attestation publication/verification path.
+- [x] Add strict verification for package-mode trust fields (not only existence checks).
 
 ---
 

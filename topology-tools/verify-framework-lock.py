@@ -76,6 +76,21 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="When source=package, enforce non-placeholder trust fields and signature verification flag.",
     )
+    parser.add_argument(
+        "--verify-package-artifact-files",
+        action="store_true",
+        help="When source=package, verify local trust artifact files and sha256 digests.",
+    )
+    parser.add_argument(
+        "--verify-package-signature",
+        action="store_true",
+        help="When source=package, run cosign verify-blob against signature/certificate/blob metadata.",
+    )
+    parser.add_argument(
+        "--cosign-bin",
+        default="cosign",
+        help="Cosign executable used by --verify-package-signature (default: cosign).",
+    )
     return parser.parse_args()
 
 
@@ -96,6 +111,9 @@ def main() -> int:
         paths=paths,
         strict=bool(args.strict),
         enforce_package_trust=bool(args.enforce_package_trust),
+        verify_package_artifact_files=bool(args.verify_package_artifact_files),
+        verify_package_signature=bool(args.verify_package_signature),
+        cosign_bin=str(args.cosign_bin).strip() or "cosign",
     )
     if not result.diagnostics:
         print("Framework lock verification: OK")

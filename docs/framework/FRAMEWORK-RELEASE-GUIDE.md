@@ -110,7 +110,8 @@ git push origin v1.0.8
 4. provenance;
 5. checksum signing (`cosign`);
 6. verify completeness/signature;
-7. upload artifacts + publish GitHub Release assets.
+7. verify package-lock trust contract against release artifacts (`generate-framework-lock.py --source package` + `verify-framework-lock.py --verify-package-signature`);
+8. upload artifacts + publish GitHub Release assets.
 
 ---
 
@@ -131,7 +132,8 @@ No-Go:
 
 1. отсутствует любой из файлов выше;
 2. CI verify-step не прошел;
-3. есть unresolved `E781x/E782x`.
+3. package-lock trust verification не прошел (`--enforce-package-trust --verify-package-artifact-files --verify-package-signature`);
+4. есть unresolved `E781x/E782x`.
 
 ### 5.1 ADR0078 Ownership Quick Check
 

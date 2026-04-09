@@ -108,6 +108,16 @@ def _write_if_missing(path: Path, content: str, *, force: bool) -> None:
     path.write_text(content, encoding="utf-8")
 
 
+def _project_plugins_manifest_stub() -> str:
+    return "\n".join(
+        [
+            "schema_version: 1",
+            "plugins: []",
+            "",
+        ]
+    )
+
+
 def _run(cmd: list[str], *, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(cmd, text=True, capture_output=True, check=False, cwd=cwd)
 
@@ -178,6 +188,17 @@ def _copy_tree_if_exists(
         shutil.rmtree(destination)
     shutil.copytree(source, destination)
     return True
+
+
+def _seed_framework_catalogs(*, framework_root: Path, output_root: Path, force: bool) -> None:
+    for relative in ("topology/product-bundles", "topology/product-profiles"):
+        _copy_tree_if_exists(
+            source_root=framework_root,
+            target_root=output_root,
+            source_relative=relative,
+            target_relative=relative,
+            force=force,
+        )
 
 
 def _detect_framework_manifest(framework_root: Path) -> tuple[Path, str]:
@@ -398,7 +419,11 @@ def main() -> int:
     (output_root / PROJECT_INSTANCES_ROOT).mkdir(parents=True, exist_ok=True)
     (output_root / "secrets").mkdir(parents=True, exist_ok=True)
     (output_root / "overrides").mkdir(parents=True, exist_ok=True)
+    (output_root / "plugins").mkdir(parents=True, exist_ok=True)
     (output_root / "generated").mkdir(parents=True, exist_ok=True)
+    (output_root / "generated-artifacts").mkdir(parents=True, exist_ok=True)
+    _write_if_missing(output_root / "plugins" / "plugins.yaml", _project_plugins_manifest_stub(), force=bool(args.force))
+    _seed_framework_catalogs(framework_root=framework_root_for_lock, output_root=output_root, force=bool(args.force))
     if seed_project_root is not None:
         copied_instances = _copy_tree_if_exists(
             source_root=seed_project_root,
@@ -425,6 +450,12 @@ def main() -> int:
             source_root=seed_project_root,
             target_root=output_root,
             source_relative="overrides",
+            force=bool(args.force),
+        )
+        _copy_tree_if_exists(
+            source_root=seed_project_root,
+            target_root=output_root,
+            source_relative="plugins",
             force=bool(args.force),
         )
 

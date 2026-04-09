@@ -294,6 +294,15 @@ def _touch_gitkeep(path: Path) -> None:
     (path / ".gitkeep").write_text("", encoding="utf-8")
 
 
+def _ensure_project_plugins_manifest(project_root: Path) -> None:
+    plugins_root = project_root / "plugins"
+    plugins_root.mkdir(parents=True, exist_ok=True)
+    manifest = plugins_root / "plugins.yaml"
+    if manifest.exists():
+        return
+    manifest.write_text("schema_version: 1\nplugins: []\n", encoding="utf-8")
+
+
 def _resolve_project_instances_root(project_root: Path) -> Path:
     project_manifest_path = project_root / "project.yaml"
     payload = yaml.safe_load(project_manifest_path.read_text(encoding="utf-8")) or {}
@@ -303,6 +312,19 @@ def _resolve_project_instances_root(project_root: Path) -> Path:
     if isinstance(instances_root, str) and instances_root.strip():
         return project_root / instances_root.strip()
     return project_root / "topology" / "instances"
+
+
+def _seed_project_catalogs_from_framework(*, framework_root: Path, project_root: Path) -> None:
+    framework_topology = framework_root / "topology"
+    project_topology = project_root / "topology"
+    for name in ("product-bundles", "product-profiles"):
+        source = framework_topology / name
+        target = project_topology / name
+        if not source.exists() or not source.is_dir():
+            continue
+        if target.exists():
+            shutil.rmtree(target)
+        shutil.copytree(source, target)
 
 
 def _create_layer_structure(
@@ -326,6 +348,7 @@ def _create_layer_structure(
     _touch_gitkeep(project_root / "secrets" / "bootstrap")
     _touch_gitkeep(project_root / "generated")
     _touch_gitkeep(project_root / "generated-artifacts")
+    _ensure_project_plugins_manifest(project_root)
 
 
 def _write_starter_files(*, instances_root: Path) -> None:
@@ -459,6 +482,7 @@ def main() -> int:
                 force=bool(args.force),
             )
         _bootstrap_project(framework_root=framework_root, output_root=output_root, project_id=project_id)
+        _seed_project_catalogs_from_framework(framework_root=framework_root, project_root=output_root)
         if framework_dist_zip is not None:
             framework_manifest = _resolve_framework_manifest_only(framework_root)
             dist_version = _resolve_distribution_version(

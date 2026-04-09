@@ -33,7 +33,7 @@ Cross-ADR bridge to keep artifact-first extraction aligned with SOHO product con
 - [x] Phase13 evidence bundle includes split rehearsal (`task framework:phase13-evidence`).
 - [x] Split rehearsal summary validates ADR0091 handover/report contract and D3 domain coverage.
 - [x] Add deterministic parity check between monorepo and extracted `operator-readiness.json` semantics.
-- [ ] Promote split-rehearsal summary publication as mandatory CI artifact in Phase13 gate.
+- [x] Promote split-rehearsal summary publication as mandatory CI artifact in Phase13 gate.
 - [x] Add Go/No-Go guard: any critical `E794x` in extracted-mode evidence is No-Go for cutover.
 
 Execution priority now:
@@ -59,9 +59,9 @@ Execution priority now:
 
 ### P0 — Baseline Recovery (Blocker)
 
-- [ ] Refresh and commit valid `framework.lock.yaml` for baseline project.
-- [ ] Restore green strict gates (`E7824` resolution).
-- [ ] Store baseline evidence snapshot under `build/diagnostics/`.
+- [x] Refresh and commit valid `framework.lock.yaml` for baseline project.
+- [x] Restore green strict gates (`E7824` resolution).
+- [x] Store baseline evidence snapshot under `build/diagnostics/`.
 
 Gate commands:
 
@@ -80,10 +80,10 @@ Definition of Done:
 
 ### P1 — Runtime Artifact Boundary Hardening
 
-- [ ] Verify `topology/framework.yaml` distribution spec covers exactly §2.1 contents from ADR 0081.
-- [ ] Add explicit exclusions to distribution spec per ADR 0081 §2.2 (tests, adr, docs, projects, archive, dev tooling, AI config, IDE config, generated outputs, bytecode).
-- [ ] Add artifact content contract tests: assert included files, assert excluded files.
-- [ ] Build trial artifact and verify against contract.
+- [x] Verify `topology/framework.yaml` distribution spec covers exactly §2.1 contents from ADR 0081.
+- [x] Add explicit exclusions to distribution spec per ADR 0081 §2.2 (tests, adr, docs, projects, archive, dev tooling, AI config, IDE config, generated outputs, bytecode).
+- [x] Add artifact content contract tests: assert included files, assert excluded files.
+- [x] Build trial artifact and verify against contract.
 
 Gate commands:
 
@@ -101,12 +101,12 @@ Definition of Done:
 
 ### P2 — Project Plugin Root Completion
 
-- [ ] Implement project-level plugin manifest discovery (`<project-root>/plugins/plugins.yaml`).
-- [ ] Extend `plugin_manifest_discovery.py` with project level in merge chain (kernel → framework → class → object → **project**).
-- [ ] Add stage-family affinity validation for project plugins.
-- [ ] Add tests for project plugin discovery, ordering, and ID conflict detection.
-- [ ] Document project plugin authoring in runtime reference.
-- [ ] Keep global plugin-id uniqueness (no cross-level shadowing).
+- [x] Implement project-level plugin manifest discovery (`<project-root>/plugins/plugins.yaml`).
+- [x] Extend `plugin_manifest_discovery.py` with project level in merge chain (kernel → framework → class → object → **project**).
+- [x] Add stage-family affinity validation for project plugins.
+- [x] Add tests for project plugin discovery, ordering, and ID conflict detection.
+- [x] Document project plugin authoring in runtime reference.
+- [x] Keep global plugin-id uniqueness (no cross-level shadowing).
 
 Gate commands:
 
@@ -125,9 +125,9 @@ Definition of Done:
 
 ### P2.5 — Topology Execution Environment Script Compatibility
 
-- [ ] Add contract tests that monorepo and standalone project modes use equivalent runtime entrypoints (`compile-topology.py`, `generate-framework-lock.py`, `verify-framework-lock.py`).
-- [ ] Ensure bootstrap utilities generate runnable Task/CI command templates for mounted framework path (`framework/topology-tools/...`).
-- [ ] Add rehearsal test for project dependency integration: build artifact -> bootstrap project -> strict verify + compile with mounted scripts.
+- [x] Add contract tests that monorepo and standalone project modes use equivalent runtime entrypoints (`compile-topology.py`, `generate-framework-lock.py`, `verify-framework-lock.py`).
+- [x] Ensure bootstrap utilities generate runnable Task/CI command templates for mounted framework path (`framework/topology-tools/...`).
+- [x] Add rehearsal test for project dependency integration: build artifact -> bootstrap project -> strict verify + compile with mounted scripts.
 
 Gate commands:
 
@@ -147,11 +147,11 @@ Definition of Done:
 
 ### P3 — Package Trust Verification Hardening
 
-- [ ] Replace metadata-presence-only checks with integrity verification flow.
-- [ ] Implement cryptographic signature validation for package mode.
-- [ ] Implement provenance attestation verification.
-- [ ] Implement SBOM presence check.
-- [ ] Gate: package mode strict verification fails on invalid trust metadata.
+- [x] Replace metadata-presence-only checks with integrity verification flow.
+- [x] Implement cryptographic signature validation for package mode.
+- [x] Implement provenance attestation verification.
+- [x] Implement SBOM presence check.
+ - [x] Gate: package mode strict verification fails on invalid trust metadata.
 
 Gate commands:
 
@@ -201,9 +201,9 @@ Definition of Done:
 
 ### P5 — Cutover and Documentation
 
-- [ ] Align Phase 13 plan/checklist with ADR 0081 artifact-first primary mode.
+- [x] Align Phase 13 plan/checklist with ADR 0081 artifact-first primary mode.
 - [ ] Execute cutover checklist with updated gates.
-- [ ] Update `README.md` with 1:N project model documentation.
+- [x] Update `README.md` with 1:N project model documentation.
 - [ ] Mark closure in production-readiness plan.
 
 Definition of Done:

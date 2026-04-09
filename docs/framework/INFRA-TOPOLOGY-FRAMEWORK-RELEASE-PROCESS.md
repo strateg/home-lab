@@ -73,11 +73,12 @@ task framework:release-candidate FRAMEWORK_VERSION=1.0.8
 3. Preflight gates (`task framework:release-ci`, fallback на legacy chain).
 4. Build distribution (`task framework:release-build`, fallback на script).
 5. Generate SBOM.
-6. Generate provenance placeholder (заменяется на реальную attestation при подключении полноценной provenance pipeline).
+6. Generate provenance attestation payload from built release bundle (`generate-framework-provenance.py`).
 7. Sign checksum blob (`cosign`).
 8. Verify release bundle completeness и подпись checksum blob.
-9. Upload workflow artifacts.
-10. Publish GitHub Release assets (только для tag-run).
+9. Generate package-mode lock from release artifacts and verify full trust contract.
+10. Upload workflow artifacts.
+11. Publish GitHub Release assets (только для tag-run).
 
 ---
 

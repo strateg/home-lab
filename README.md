@@ -15,6 +15,13 @@ Infrastructure-as-Data home lab with Class-Object-Instance topology model.
 | Deploy Runner | 0084 | Cross-platform dev / Linux deploy plane |
 | Node Init | 0083 | Unified bootstrap contract (scaffold) |
 
+### Framework / Project Model (1:N)
+
+- One framework artifact can serve multiple project repositories.
+- Project repository keeps local topology instances/secrets and optional project-level plugins.
+- Discovery order is deterministic: base -> class -> object -> project (`<project-root>/plugins/**/plugins.yaml`).
+- `framework.lock.yaml` is mandatory for strict verification before compile.
+
 ## Repository Layout
 
 ```
@@ -26,6 +33,7 @@ home-lab/
 ├── projects/home-lab/           # Project-specific data
 │   ├── topology/instances/      # Instance definitions
 │   ├── secrets/                 # SOPS-encrypted secrets
+│   ├── plugins/                 # Optional project-level plugins
 │   └── deploy/                  # Deploy profile
 ├── topology-tools/              # Plugin runtime
 │   └── plugins/                 # Compiler/validator/generator plugins

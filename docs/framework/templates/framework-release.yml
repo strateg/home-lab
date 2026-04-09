@@ -137,16 +137,22 @@ jobs:
           format: spdx-json
           output-file: framework-dist/sbom.spdx.json
 
-      - name: Generate provenance placeholder
+      - name: Verify artifact content boundary
         run: |
-          mkdir -p framework-dist/provenance
-          cat > framework-dist/provenance/provenance.json <<'JSON'
-          {
-            "schema_version": 1,
-            "predicate_type": "https://slsa.dev/provenance/v1",
-            "note": "Replace placeholder with real provenance attestation pipeline output."
-          }
-          JSON
+          python "$FRAMEWORK_TOOLS/utils/verify-framework-artifact-contents.py" \
+            --dist-root framework-dist \
+            --framework-id infra-topology-framework \
+            --version "$RELEASE_VERSION"
+
+      - name: Generate provenance attestation payload
+        run: |
+          python "$FRAMEWORK_TOOLS/utils/generate-framework-provenance.py" \
+            --dist-root framework-dist \
+            --output framework-dist/provenance/provenance.json \
+            --repo "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
+            --revision "${GITHUB_SHA}" \
+            --release-tag "${RELEASE_TAG}" \
+            --builder-id "github-actions"
 
       - name: Install cosign
         uses: sigstore/cosign-installer@v3
@@ -184,6 +190,49 @@ jobs:
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
             --certificate-identity-regexp "$IDENTITY_REGEX" \
             "$CHECKSUM_FILE"
+
+      - name: Verify package lock trust contract against release artifacts
+        run: |
+          set -e
+          LOCK_ROOT="framework-dist/lock-check"
+          PROJECT_ROOT="${LOCK_ROOT}/project"
+          mkdir -p "${PROJECT_ROOT}/topology/instances"
+          cat > "${PROJECT_ROOT}/project.yaml" <<'YAML'
+          schema_version: 1
+          project_schema_version: "1.0.0"
+          project: lock-check
+          project_min_framework_version: "5.0.0"
+          project_contract_revision: 1
+          instances_root: topology/instances
+          secrets_root: secrets
+          YAML
+          LOCK_PATH="${PROJECT_ROOT}/framework.lock.yaml"
+          SIGNATURE_SUBJECT="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/.github/workflows/release.yml@${GITHUB_REF}"
+          python "$FRAMEWORK_TOOLS/generate-framework-lock.py" \
+            --repo-root . \
+            --project-root "${PROJECT_ROOT}" \
+            --project-manifest "${PROJECT_ROOT}/project.yaml" \
+            --framework-root . \
+            --framework-manifest "$FRAMEWORK_MANIFEST" \
+            --lock-file "${LOCK_PATH}" \
+            --source package \
+            --package-trust-release-root framework-dist \
+            --package-signature-issuer "https://token.actions.githubusercontent.com" \
+            --package-signature-subject "${SIGNATURE_SUBJECT}" \
+            --package-signature-verified \
+            --force
+          python "$FRAMEWORK_TOOLS/verify-framework-lock.py" \
+            --repo-root . \
+            --project-root "${PROJECT_ROOT}" \
+            --project-manifest "${PROJECT_ROOT}/project.yaml" \
+            --framework-root . \
+            --framework-manifest "$FRAMEWORK_MANIFEST" \
+            --lock-file "${LOCK_PATH}" \
+            --strict \
+            --enforce-package-trust \
+            --verify-package-artifact-files \
+            --verify-package-signature \
+            --cosign-bin cosign
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4

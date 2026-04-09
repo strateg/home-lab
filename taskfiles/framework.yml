@@ -2,6 +2,7 @@ version: "3"
 
 vars:
   FRAMEWORK_VERSION: '{{.FRAMEWORK_VERSION}}'
+  FRAMEWORK_ID: '{{default "infra-topology-framework" .FRAMEWORK_ID}}'
   FRAMEWORK_DIST_OUTPUT: '{{default "dist/framework" .FRAMEWORK_DIST_OUTPUT}}'
   FRAMEWORK_BOOTSTRAP_OUTPUT: '{{default "build/infra-topology-framework-bootstrap" .FRAMEWORK_BOOTSTRAP_OUTPUT}}'
 
@@ -17,9 +18,19 @@ tasks:
       - "{{.PYTHON}} topology-tools/verify-framework-lock.py --strict"
 
   verify-lock-package-trust:
-    desc: Verify framework.lock in strict mode with enforced package trust field quality
+    desc: Verify framework.lock in strict mode with enforced package trust metadata quality
     cmds:
       - "{{.PYTHON}} topology-tools/verify-framework-lock.py --strict --enforce-package-trust"
+
+  verify-lock-package-trust-artifacts:
+    desc: Verify package trust local artifact files and sha256 digests
+    cmds:
+      - "{{.PYTHON}} topology-tools/verify-framework-lock.py --strict --enforce-package-trust --verify-package-artifact-files"
+
+  verify-lock-package-trust-signature:
+    desc: Verify package trust signature cryptographically with cosign verify-blob
+    cmds:
+      - "{{.PYTHON}} topology-tools/verify-framework-lock.py --strict --enforce-package-trust --verify-package-artifact-files --verify-package-signature"
 
   compile:
     desc: Compile topology with strict model lock and passthrough secrets
@@ -50,6 +61,11 @@ tasks:
     desc: Generate full cutover readiness report (includes v4/current parity + current test suite)
     cmds:
       - "{{.PYTHON}} topology-tools/utils/cutover-readiness-report.py"
+
+  baseline-evidence:
+    desc: Generate baseline strict/validate evidence snapshot for ADR0076/ADR0081 P0
+    cmds:
+      - "{{.PYTHON}} topology-tools/utils/generate-baseline-evidence.py"
 
   phase13-evidence:
     desc: Generate ADR0076 Phase 13 strict-gate evidence bundle
@@ -87,12 +103,18 @@ tasks:
   release-tests:
     desc: Run framework-focused release test suite
     cmds:
-      - "{{.PYTHON}} -m pytest -o addopts= tests/plugin_api tests/plugin_contract tests/plugin_integration/test_framework_lock.py tests/plugin_integration/test_build_framework_distribution.py tests/plugin_integration/test_extract_framework_worktree.py tests/plugin_integration/test_extract_framework_history.py tests/plugin_integration/test_generator_base.py tests/plugin_integration/test_terraform_mikrotik_generator.py tests/plugin_integration/test_terraform_proxmox_generator.py tests/plugin_integration/test_bootstrap_generators.py tests/plugin_integration/test_generator_projection_contract.py tests/plugin_integration/test_generator_template_and_publish_contract.py tests/plugin_integration/test_module_manifest_discovery.py tests/plugin_integration/test_strict_runtime_entrypoint_audit.py tests/plugin_integration/test_docs_projection_modules.py tests/plugin_integration/test_docs_generator.py tests/plugin_integration/test_docs_generator_determinism.py tests/plugin_integration/test_diagram_generator.py tests/plugin_integration/test_icon_manager.py tests/test_mermaid_render_validation.py tests/test_cutover_readiness_report.py tests/test_root_layout_docs_contract.py tests/test_agent_instruction_sync.py tests/test_strict_profile_placeholder_contract.py tests/test_l4_lxc_resource_profile_contract.py tests/test_service_chain_evidence_plan.py tests/test_ansible_service_playbook_contract.py -q"
+      - "{{.PYTHON}} -m pytest -o addopts= tests/plugin_api tests/plugin_contract tests/plugin_contract/test_framework_release_workflow_contract.py tests/plugin_integration/test_framework_lock.py tests/plugin_integration/test_build_framework_distribution.py tests/plugin_integration/test_extract_framework_worktree.py tests/plugin_integration/test_extract_framework_history.py tests/plugin_integration/test_generate_framework_provenance.py tests/plugin_integration/test_generator_base.py tests/plugin_integration/test_terraform_mikrotik_generator.py tests/plugin_integration/test_terraform_proxmox_generator.py tests/plugin_integration/test_bootstrap_generators.py tests/plugin_integration/test_generator_projection_contract.py tests/plugin_integration/test_generator_template_and_publish_contract.py tests/plugin_integration/test_module_manifest_discovery.py tests/plugin_integration/test_strict_runtime_entrypoint_audit.py tests/plugin_integration/test_docs_projection_modules.py tests/plugin_integration/test_docs_generator.py tests/plugin_integration/test_docs_generator_determinism.py tests/plugin_integration/test_diagram_generator.py tests/plugin_integration/test_icon_manager.py tests/test_mermaid_render_validation.py tests/test_cutover_readiness_report.py tests/test_root_layout_docs_contract.py tests/test_agent_instruction_sync.py tests/test_strict_profile_placeholder_contract.py tests/test_l4_lxc_resource_profile_contract.py tests/test_service_chain_evidence_plan.py tests/test_ansible_service_playbook_contract.py -q"
+
+  package-trust-gate:
+    desc: Enforce package-mode trust verification failure matrix (invalid metadata/signature must fail)
+    cmds:
+      - "{{.PYTHON}} -m pytest -o addopts= tests/plugin_integration/test_framework_lock.py -k \"package_placeholders_rejected_with_enforce_flag or package_trust_artifact_files_fail_on_digest_mismatch or package_signature_fails_with_invalid_signature or package_signature_passes_with_fake_cosign\" -q"
 
   release-ci:
     desc: Run release CI parity gate (strict + framework-focused tests)
     deps:
       - strict
+      - package-trust-gate
       - release-tests
 
   release-preflight:
@@ -111,6 +133,11 @@ tasks:
     cmds:
       - "{{.PYTHON}} topology-tools/utils/build-framework-distribution.py --repo-root . --framework-manifest topology/framework.yaml --output-root {{.FRAMEWORK_DIST_OUTPUT}} --version {{.FRAMEWORK_VERSION}} --archive-format both"
 
+  verify-artifact-contents:
+    desc: Verify built framework distribution contents against ADR0081 runtime boundary
+    cmds:
+      - "{{.PYTHON}} topology-tools/utils/verify-framework-artifact-contents.py --dist-root {{.FRAMEWORK_DIST_OUTPUT}} --framework-id {{.FRAMEWORK_ID}} --version {{.FRAMEWORK_VERSION}}"
+
   release-bootstrap:
     desc: Bootstrap standalone infra-topology-framework repository candidate
     cmds:
@@ -124,4 +151,5 @@ tasks:
     deps:
       - release-preflight
       - release-build
+      - verify-artifact-contents
       - release-bootstrap

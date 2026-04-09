@@ -98,6 +98,29 @@ def test_contract_helpers_normalize_absolute_paths_to_logical_relative(tmp_path:
     assert report["generated"] == ["generated/home-lab/terraform/proxmox/provider.tf"]
 
 
+def test_contract_helpers_keep_logical_identity_with_custom_artifacts_root(tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    artifacts_root = repo_root / "build" / "phase13" / "split-rehearsal" / "generated-artifacts"
+    target_file = artifacts_root / "home-lab" / "ansible" / "inventory" / "production" / "hosts.yml"
+    target_file.parent.mkdir(parents=True, exist_ok=True)
+    target_file.write_text("# placeholder\n", encoding="utf-8")
+
+    ctx = _ctx(
+        tmp_path,
+        repo_root=str(repo_root),
+        generator_artifacts_root=str(artifacts_root),
+    )
+
+    plan = build_artifact_plan(
+        plugin_id="base.generator.ansible_inventory",
+        artifact_family="ansible.inventory",
+        planned_outputs=[build_planned_output(path=str(target_file), reason="base-family", renderer="structured")],
+        ctx=ctx,
+    )
+
+    assert plan["planned_outputs"][0]["path"] == "generated/home-lab/ansible/inventory/production/hosts.yml"
+
+
 def test_artifact_plan_schema_rejects_missing_planned_outputs() -> None:
     schema = _load_schema("artifact-plan.schema.json")
     invalid_payload = {

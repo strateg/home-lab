@@ -38,6 +38,7 @@ Evidence:
 - [ ] Optional helper executed: `task framework:phase13-evidence` (writes `build/diagnostics/phase13/*`).
 - [ ] Optional helper executed: `task framework:phase13-go-no-go` returns `GO`.
 - [ ] `verify-framework-lock --strict` output attached (`build/diagnostics/phase13/verify-lock.txt`).
+- [ ] `verify-framework-lock --strict --enforce-package-trust --verify-package-artifact-files --verify-package-signature` output attached (`build/diagnostics/phase13/verify-lock-package-trust-signature.txt`).
 - [ ] `compile-topology --strict-model-lock` output attached (`build/diagnostics/phase13/compile.txt`).
 - [ ] `validate-framework-compatibility-matrix.py` output attached (`build/diagnostics/phase13/compatibility.txt`).
 - [ ] `audit-strict-runtime-entrypoints.py` output attached (`build/diagnostics/phase13/audit-entrypoints.txt`).

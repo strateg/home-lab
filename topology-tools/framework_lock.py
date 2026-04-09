@@ -207,6 +207,37 @@ def _is_valid_uri(value: Any) -> bool:
     return bool(parsed.path or parsed.netloc)
 
 
+def _is_sha256_digest(value: Any) -> bool:
+    if not isinstance(value, str):
+        return False
+    return bool(re.fullmatch(r"[0-9a-f]{64}", value.strip().lower()))
+
+
+def _resolve_local_uri_path(value: str, *, base_dir: Path) -> Path | None:
+    raw = str(value).strip()
+    if not raw:
+        return None
+    parsed = urlparse(raw)
+    if parsed.scheme == "file":
+        if not parsed.path:
+            return None
+        return Path(parsed.path).resolve()
+    if parsed.scheme:
+        return None
+    candidate = Path(raw)
+    if candidate.is_absolute():
+        return candidate.resolve()
+    return (base_dir / candidate).resolve()
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(65536), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def _excluded(path: str, patterns: list[str]) -> bool:
     normalized = path.replace("\\", "/")
     for pattern in patterns:
@@ -388,6 +419,9 @@ def verify_framework_lock(
     paths: ResolvedPaths,
     strict: bool,
     enforce_package_trust: bool = False,
+    verify_package_artifact_files: bool = False,
+    verify_package_signature: bool = False,
+    cosign_bin: str = "cosign",
 ) -> LockVerifyResult:
     diagnostics: list[LockDiagnostic] = []
 
@@ -720,6 +754,166 @@ def verify_framework_lock(
                         path=f"{paths.lock_path}:framework.signature.issuer",
                     )
                 )
+            if verify_package_artifact_files:
+                signature_bundle_uri = signature.get("bundle_uri")
+                signature_bundle_sha256 = signature.get("bundle_sha256")
+                if not _is_valid_uri(signature_bundle_uri) or _is_placeholder_token(signature_bundle_uri):
+                    diagnostics.append(
+                        LockDiagnostic(
+                            code="E7825",
+                            severity="error",
+                            message="framework.signature.bundle_uri must be a valid non-placeholder URI",
+                            path=f"{paths.lock_path}:framework.signature.bundle_uri",
+                        )
+                    )
+                if not _is_sha256_digest(signature_bundle_sha256):
+                    diagnostics.append(
+                        LockDiagnostic(
+                            code="E7825",
+                            severity="error",
+                            message="framework.signature.bundle_sha256 must be a 64-char lowercase hex digest",
+                            path=f"{paths.lock_path}:framework.signature.bundle_sha256",
+                        )
+                    )
+                if _is_valid_uri(signature_bundle_uri) and _is_sha256_digest(signature_bundle_sha256):
+                    resolved = _resolve_local_uri_path(str(signature_bundle_uri), base_dir=paths.lock_path.parent)
+                    if resolved is None:
+                        diagnostics.append(
+                            LockDiagnostic(
+                                code="E7825",
+                                severity="error",
+                                message=(
+                                    "framework.signature.bundle_uri must resolve to local file path "
+                                    "in artifact verification mode"
+                                ),
+                                path=f"{paths.lock_path}:framework.signature.bundle_uri",
+                            )
+                        )
+                    elif not resolved.exists():
+                        diagnostics.append(
+                            LockDiagnostic(
+                                code="E7825",
+                                severity="error",
+                                message=f"framework.signature bundle file not found: {resolved}",
+                                path=f"{paths.lock_path}:framework.signature.bundle_uri",
+                            )
+                        )
+                    else:
+                        actual = _sha256_file(resolved)
+                        if actual != str(signature_bundle_sha256).strip().lower():
+                            diagnostics.append(
+                                LockDiagnostic(
+                                    code="E7825",
+                                    severity="error",
+                                    message=(
+                                        "framework.signature bundle sha256 mismatch: "
+                                        f"lock '{signature_bundle_sha256}' != actual '{actual}'"
+                                    ),
+                                    path=f"{paths.lock_path}:framework.signature.bundle_sha256",
+                                )
+                            )
+            if verify_package_signature:
+                signature_uri = signature.get("signature_uri")
+                certificate_uri = signature.get("certificate_uri")
+                signed_blob_uri = signature.get("signed_blob_uri")
+                for key, value in (
+                    ("signature_uri", signature_uri),
+                    ("certificate_uri", certificate_uri),
+                    ("signed_blob_uri", signed_blob_uri),
+                ):
+                    if not _is_valid_uri(value) or _is_placeholder_token(value):
+                        diagnostics.append(
+                            LockDiagnostic(
+                                code="E7825",
+                                severity="error",
+                                message=f"framework.signature.{key} must be a valid non-placeholder URI",
+                                path=f"{paths.lock_path}:framework.signature.{key}",
+                            )
+                        )
+
+                sig_path = (
+                    _resolve_local_uri_path(str(signature_uri), base_dir=paths.lock_path.parent)
+                    if _is_valid_uri(signature_uri)
+                    else None
+                )
+                cert_path = (
+                    _resolve_local_uri_path(str(certificate_uri), base_dir=paths.lock_path.parent)
+                    if _is_valid_uri(certificate_uri)
+                    else None
+                )
+                blob_path = (
+                    _resolve_local_uri_path(str(signed_blob_uri), base_dir=paths.lock_path.parent)
+                    if _is_valid_uri(signed_blob_uri)
+                    else None
+                )
+                for name, path in (
+                    ("signature_uri", sig_path),
+                    ("certificate_uri", cert_path),
+                    ("signed_blob_uri", blob_path),
+                ):
+                    if path is None:
+                        continue
+                    if not path.exists():
+                        diagnostics.append(
+                            LockDiagnostic(
+                                code="E7825",
+                                severity="error",
+                                message=f"framework.signature.{name} file not found: {path}",
+                                path=f"{paths.lock_path}:framework.signature.{name}",
+                            )
+                        )
+                if (
+                    isinstance(issuer, str)
+                    and issuer.strip()
+                    and isinstance(subject, str)
+                    and subject.strip()
+                    and sig_path is not None
+                    and cert_path is not None
+                    and blob_path is not None
+                    and sig_path.exists()
+                    and cert_path.exists()
+                    and blob_path.exists()
+                ):
+                    try:
+                        verify_cmd = [
+                            cosign_bin,
+                            "verify-blob",
+                            "--certificate",
+                            str(cert_path),
+                            "--signature",
+                            str(sig_path),
+                            "--certificate-oidc-issuer",
+                            issuer.strip(),
+                            "--certificate-identity",
+                            subject.strip(),
+                            str(blob_path),
+                        ]
+                        verify_run = subprocess.run(
+                            verify_cmd,
+                            capture_output=True,
+                            text=True,
+                            check=False,
+                        )
+                    except OSError as exc:
+                        diagnostics.append(
+                            LockDiagnostic(
+                                code="E7825",
+                                severity="error",
+                                message=f"cosign verification failed to start: {exc}",
+                                path=f"{paths.lock_path}:framework.signature",
+                            )
+                        )
+                    else:
+                        if verify_run.returncode != 0:
+                            merged = ((verify_run.stdout or "") + (verify_run.stderr or "")).strip()
+                            diagnostics.append(
+                                LockDiagnostic(
+                                    code="E7825",
+                                    severity="error",
+                                    message=f"cosign verify-blob failed: {merged[:300]}",
+                                    path=f"{paths.lock_path}:framework.signature",
+                                )
+                            )
             if not _is_non_empty_str(subject) or _is_placeholder_token(subject):
                 diagnostics.append(
                     LockDiagnostic(
@@ -742,6 +936,7 @@ def verify_framework_lock(
         if enforce_package_trust and isinstance(provenance, dict):
             predicate_type = provenance.get("predicate_type")
             uri = provenance.get("uri")
+            provenance_sha256 = provenance.get("sha256")
             if not _is_non_empty_str(predicate_type) or _is_placeholder_token(predicate_type):
                 diagnostics.append(
                     LockDiagnostic(
@@ -760,10 +955,58 @@ def verify_framework_lock(
                         path=f"{paths.lock_path}:provenance.uri",
                     )
                 )
+            if verify_package_artifact_files:
+                if not _is_sha256_digest(provenance_sha256):
+                    diagnostics.append(
+                        LockDiagnostic(
+                            code="E7826",
+                            severity="error",
+                            message="provenance.sha256 must be a 64-char lowercase hex digest",
+                            path=f"{paths.lock_path}:provenance.sha256",
+                        )
+                    )
+                if _is_valid_uri(uri) and _is_sha256_digest(provenance_sha256):
+                    resolved = _resolve_local_uri_path(str(uri), base_dir=paths.lock_path.parent)
+                    if resolved is None:
+                        diagnostics.append(
+                            LockDiagnostic(
+                                code="E7826",
+                                severity="error",
+                                message=(
+                                    "provenance.uri must resolve to local file path "
+                                    "in artifact verification mode"
+                                ),
+                                path=f"{paths.lock_path}:provenance.uri",
+                            )
+                        )
+                    elif not resolved.exists():
+                        diagnostics.append(
+                            LockDiagnostic(
+                                code="E7826",
+                                severity="error",
+                                message=f"provenance file not found: {resolved}",
+                                path=f"{paths.lock_path}:provenance.uri",
+                            )
+                        )
+                    else:
+                        actual = _sha256_file(resolved)
+                        if actual != str(provenance_sha256).strip().lower():
+                            diagnostics.append(
+                                LockDiagnostic(
+                                    code="E7826",
+                                    severity="error",
+                                    message=(
+                                        "provenance sha256 mismatch: "
+                                        f"lock '{provenance_sha256}' != actual '{actual}'"
+                                    ),
+                                    path=f"{paths.lock_path}:provenance.sha256",
+                                )
+                            )
 
         if enforce_package_trust and isinstance(sbom, dict):
             sbom_format = sbom.get("format")
             uri = sbom.get("uri")
+            sbom_sha256 = sbom.get("sha256")
             if not _is_non_empty_str(sbom_format) or _is_placeholder_token(sbom_format):
                 diagnostics.append(
                     LockDiagnostic(
@@ -782,6 +1025,50 @@ def verify_framework_lock(
                         path=f"{paths.lock_path}:sbom.uri",
                     )
                 )
+            if verify_package_artifact_files:
+                if not _is_sha256_digest(sbom_sha256):
+                    diagnostics.append(
+                        LockDiagnostic(
+                            code="E7828",
+                            severity="error",
+                            message="sbom.sha256 must be a 64-char lowercase hex digest",
+                            path=f"{paths.lock_path}:sbom.sha256",
+                        )
+                    )
+                if _is_valid_uri(uri) and _is_sha256_digest(sbom_sha256):
+                    resolved = _resolve_local_uri_path(str(uri), base_dir=paths.lock_path.parent)
+                    if resolved is None:
+                        diagnostics.append(
+                            LockDiagnostic(
+                                code="E7828",
+                                severity="error",
+                                message="sbom.uri must resolve to local file path in artifact verification mode",
+                                path=f"{paths.lock_path}:sbom.uri",
+                            )
+                        )
+                    elif not resolved.exists():
+                        diagnostics.append(
+                            LockDiagnostic(
+                                code="E7828",
+                                severity="error",
+                                message=f"sbom file not found: {resolved}",
+                                path=f"{paths.lock_path}:sbom.uri",
+                            )
+                        )
+                    else:
+                        actual = _sha256_file(resolved)
+                        if actual != str(sbom_sha256).strip().lower():
+                            diagnostics.append(
+                                LockDiagnostic(
+                                    code="E7828",
+                                    severity="error",
+                                    message=(
+                                        "sbom sha256 mismatch: "
+                                        f"lock '{sbom_sha256}' != actual '{actual}'"
+                                    ),
+                                    path=f"{paths.lock_path}:sbom.sha256",
+                                )
+                            )
 
     has_errors = any(item.severity == "error" for item in diagnostics)
     context = {

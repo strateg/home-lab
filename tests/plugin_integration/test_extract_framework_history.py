@@ -112,6 +112,16 @@ def test_extract_framework_history_preserves_git_and_normalizes_layout(tmp_path:
     manifest = yaml.safe_load((output_root / "framework.yaml").read_text(encoding="utf-8"))
     include = manifest["distribution"]["include"]
     assert "framework.yaml" in include
+    expected_include = {
+        "framework.yaml",
+        "topology/class-modules",
+        "topology/object-modules",
+        "topology/layer-contract.yaml",
+        "topology/model.lock.yaml",
+        "topology/profile-map.yaml",
+        "topology-tools",
+    }
+    assert set(include) == expected_include
     assert all(not str(item).startswith("v5/") for item in include)
 
     commits = _git(output_root, "rev-list", "--count", "HEAD")

@@ -35,6 +35,29 @@ def _resolve_logical_root(ctx: PluginContext | None = None) -> Path:
     return Path.cwd().resolve()
 
 
+def _resolve_artifact_root(ctx: PluginContext | None = None) -> Path | None:
+    if ctx is None:
+        return None
+    artifacts_root_raw = ctx.config.get("generator_artifacts_root")
+    if not isinstance(artifacts_root_raw, str) or not artifacts_root_raw.strip():
+        return None
+    artifact_root = Path(artifacts_root_raw.strip())
+    if artifact_root.is_absolute():
+        return artifact_root.resolve()
+    repo_root_raw = ctx.config.get("repo_root")
+    if isinstance(repo_root_raw, str) and repo_root_raw.strip():
+        return (Path(repo_root_raw.strip()).resolve() / artifact_root).resolve()
+    return artifact_root.resolve()
+
+
+def _resolve_contract_artifact_prefix(ctx: PluginContext | None = None) -> str:
+    if ctx is not None:
+        raw = ctx.config.get("generator_contract_artifacts_prefix")
+        if isinstance(raw, str) and raw.strip():
+            return raw.strip().strip("/")
+    return "generated"
+
+
 def _to_absolute_path(path: str, *, ctx: PluginContext | None = None) -> Path:
     raw = str(path).strip()
     candidate = Path(raw)
@@ -45,6 +68,16 @@ def _to_absolute_path(path: str, *, ctx: PluginContext | None = None) -> Path:
 
 def _to_contract_path(path: str, *, ctx: PluginContext | None = None) -> str:
     absolute_path = _to_absolute_path(path, ctx=ctx)
+    artifact_root = _resolve_artifact_root(ctx)
+    if artifact_root is not None:
+        try:
+            relative_to_artifacts = absolute_path.relative_to(artifact_root)
+            prefix = _resolve_contract_artifact_prefix(ctx)
+            if prefix:
+                return f"{prefix}/{relative_to_artifacts.as_posix()}"
+            return relative_to_artifacts.as_posix()
+        except ValueError:
+            pass
     logical_root = _resolve_logical_root(ctx)
     try:
         return absolute_path.relative_to(logical_root).as_posix()

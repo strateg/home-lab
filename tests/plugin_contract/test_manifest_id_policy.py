@@ -12,6 +12,7 @@ V5_ROOT = Path(__file__).resolve().parents[2]
 BASE_MANIFEST = V5_ROOT / "topology-tools" / "plugins" / "plugins.yaml"
 CLASS_ROOT = V5_ROOT / "topology" / "class-modules"
 OBJECT_ROOT = V5_ROOT / "topology" / "object-modules"
+PROJECT_PLUGIN_ROOT = V5_ROOT / "projects" / "home-lab" / "plugins"
 
 # Transitional policy: support dot/underscore styles, require lowercase and segmented IDs.
 ID_PATTERN = re.compile(r"^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$")
@@ -25,6 +26,8 @@ def _iter_manifest_paths() -> list[Path]:
         manifests.extend(sorted(path for path in CLASS_ROOT.rglob("plugins.yaml") if path.is_file()))
     if OBJECT_ROOT.exists():
         manifests.extend(sorted(path for path in OBJECT_ROOT.rglob("plugins.yaml") if path.is_file()))
+    if PROJECT_PLUGIN_ROOT.exists():
+        manifests.extend(sorted(path for path in PROJECT_PLUGIN_ROOT.rglob("plugins.yaml") if path.is_file()))
     return manifests
 
 
