@@ -82,6 +82,7 @@ Artifact-first release and consumption flow for framework distribution.
 | [COMMAND-REFERENCE.md](distribution-plane/COMMAND-REFERENCE.md) | Command quick reference for distribution plane |
 | [RELEASE-CHECKLIST.md](distribution-plane/RELEASE-CHECKLIST.md) | Release checklist for distribution artifacts |
 | [UPGRADE-RUNBOOK.md](distribution-plane/UPGRADE-RUNBOOK.md) | Production upgrade runbook (artifact-first) |
+| [UPGRADE-REPORT-TEMPLATE.md](distribution-plane/UPGRADE-REPORT-TEMPLATE.md) | Upgrade report template |
 
 **Key Concepts:**
 - Distribution artifact - framework zip archive built from `topology/framework.yaml`
