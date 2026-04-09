@@ -84,6 +84,8 @@ Artifact-first release and consumption flow for framework distribution.
 | [UPGRADE-RUNBOOK.md](distribution-plane/UPGRADE-RUNBOOK.md) | Production upgrade runbook (artifact-first) |
 | [UPGRADE-REPORT-TEMPLATE.md](distribution-plane/UPGRADE-REPORT-TEMPLATE.md) | Upgrade report template |
 | [UPGRADE-REPORT-SAMPLE.md](distribution-plane/UPGRADE-REPORT-SAMPLE.md) | Sample filled upgrade report |
+| [GO-NO-GO-TEMPLATE.md](distribution-plane/GO-NO-GO-TEMPLATE.md) | Go/No-Go decision record template |
+| [RELEASE-LOG.md](distribution-plane/RELEASE-LOG.md) | Release log for distribution plane |
 
 **Key Concepts:**
 - Distribution artifact - framework zip archive built from `topology/framework.yaml`
