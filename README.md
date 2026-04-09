@@ -125,6 +125,9 @@ task deploy:service-chain-evidence-check-bundle BUNDLE=<id> DEPLOY_RUNNER=wsl
 
 ## Key Documentation
 
+### Manuals
+- [Operator Manuals](manuals/README.md) — distribution, deploy, dev, and validation planes
+
 ### Deploy Operations
 - [DEPLOY-BUNDLE-WORKFLOW.md](docs/guides/DEPLOY-BUNDLE-WORKFLOW.md)
 - [NODE-INITIALIZATION.md](docs/guides/NODE-INITIALIZATION.md)
