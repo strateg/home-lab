@@ -8,7 +8,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DOCTOR_SCRIPT = REPO_ROOT / "scripts" / "orchestration" / "product" / "doctor.py"
 HANDOVER_SCRIPT = REPO_ROOT / "scripts" / "orchestration" / "product" / "handover_check.py"

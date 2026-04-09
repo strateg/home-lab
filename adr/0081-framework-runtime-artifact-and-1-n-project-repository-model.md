@@ -1,6 +1,6 @@
 # ADR 0081: Framework Runtime Artifact and 1:N Project Repository Model
 
-- Status: Accepted
+- Status: Implemented (artifact-first canonical)
 - Date: 2026-03-29
 - Revised: 2026-03-29
 - Depends on: ADR 0063, ADR 0065, ADR 0069, ADR 0071, ADR 0074, ADR 0075, ADR 0076, ADR 0078, ADR 0080

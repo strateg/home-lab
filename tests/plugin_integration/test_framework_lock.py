@@ -296,8 +296,8 @@ def test_verify_package_trust_artifact_files_pass_with_matching_digests(tmp_path
     sbom_file = repo_root / "dist" / "framework" / "sbom.spdx.json"
     signature_bundle.parent.mkdir(parents=True, exist_ok=True)
     signature_bundle.write_text("sigstore-bundle\n", encoding="utf-8")
-    provenance_file.write_text("{\"predicateType\":\"slsa\"}\n", encoding="utf-8")
-    sbom_file.write_text("{\"spdxVersion\":\"SPDX-2.3\"}\n", encoding="utf-8")
+    provenance_file.write_text('{"predicateType":"slsa"}\n', encoding="utf-8")
+    sbom_file.write_text('{"spdxVersion":"SPDX-2.3"}\n', encoding="utf-8")
 
     lock_path = repo_root / "projects" / "home-lab" / "framework.lock.yaml"
     payload = yaml.safe_load(lock_path.read_text(encoding="utf-8"))
@@ -339,8 +339,8 @@ def test_verify_package_trust_artifact_files_fail_on_digest_mismatch(tmp_path: P
     sbom_file = repo_root / "dist" / "framework" / "sbom.spdx.json"
     signature_bundle.parent.mkdir(parents=True, exist_ok=True)
     signature_bundle.write_text("sigstore-bundle\n", encoding="utf-8")
-    provenance_file.write_text("{\"predicateType\":\"slsa\"}\n", encoding="utf-8")
-    sbom_file.write_text("{\"spdxVersion\":\"SPDX-2.3\"}\n", encoding="utf-8")
+    provenance_file.write_text('{"predicateType":"slsa"}\n', encoding="utf-8")
+    sbom_file.write_text('{"spdxVersion":"SPDX-2.3"}\n', encoding="utf-8")
 
     lock_path = repo_root / "projects" / "home-lab" / "framework.lock.yaml"
     payload = yaml.safe_load(lock_path.read_text(encoding="utf-8"))
@@ -387,8 +387,8 @@ def test_generate_package_lock_from_release_trust_root(tmp_path: Path):
     sig.write_text("sig\n", encoding="utf-8")
     crt.write_text("crt\n", encoding="utf-8")
     provenance.parent.mkdir(parents=True, exist_ok=True)
-    provenance.write_text("{\"predicateType\":\"slsa\"}\n", encoding="utf-8")
-    sbom.write_text("{\"spdxVersion\":\"SPDX-2.3\"}\n", encoding="utf-8")
+    provenance.write_text('{"predicateType":"slsa"}\n', encoding="utf-8")
+    sbom.write_text('{"spdxVersion":"SPDX-2.3"}\n', encoding="utf-8")
 
     generate = subprocess.run(
         [
@@ -462,9 +462,9 @@ def test_generate_package_lock_fails_when_release_trust_root_incomplete(tmp_path
 
 def _write_fake_cosign(path: Path, *, succeed: bool) -> None:
     body = "#!/usr/bin/env bash\n"
-    body += "if [ \"$1\" != \"verify-blob\" ]; then exit 9; fi\n"
-    body += "if [ \"$2\" != \"--certificate\" ]; then exit 8; fi\n"
-    body += ("exit 0\n" if succeed else "echo 'invalid signature' >&2\nexit 1\n")
+    body += 'if [ "$1" != "verify-blob" ]; then exit 9; fi\n'
+    body += 'if [ "$2" != "--certificate" ]; then exit 8; fi\n'
+    body += "exit 0\n" if succeed else "echo 'invalid signature' >&2\nexit 1\n"
     path.write_text(body, encoding="utf-8")
     path.chmod(0o755)
 
@@ -483,8 +483,8 @@ def test_verify_package_signature_passes_with_fake_cosign(tmp_path: Path):
     checksums.write_text("abc  file\n", encoding="utf-8")
     sig.write_text("sig\n", encoding="utf-8")
     crt.write_text("crt\n", encoding="utf-8")
-    provenance.write_text("{\"predicateType\":\"slsa\"}\n", encoding="utf-8")
-    sbom.write_text("{\"spdxVersion\":\"SPDX-2.3\"}\n", encoding="utf-8")
+    provenance.write_text('{"predicateType":"slsa"}\n', encoding="utf-8")
+    sbom.write_text('{"spdxVersion":"SPDX-2.3"}\n', encoding="utf-8")
     cosign = repo_root / "fake-cosign.sh"
     _write_fake_cosign(cosign, succeed=True)
 
@@ -537,8 +537,8 @@ def test_verify_package_signature_fails_with_invalid_signature(tmp_path: Path):
     checksums.write_text("abc  file\n", encoding="utf-8")
     sig.write_text("sig\n", encoding="utf-8")
     crt.write_text("crt\n", encoding="utf-8")
-    provenance.write_text("{\"predicateType\":\"slsa\"}\n", encoding="utf-8")
-    sbom.write_text("{\"spdxVersion\":\"SPDX-2.3\"}\n", encoding="utf-8")
+    provenance.write_text('{"predicateType":"slsa"}\n', encoding="utf-8")
+    sbom.write_text('{"spdxVersion":"SPDX-2.3"}\n', encoding="utf-8")
     cosign = repo_root / "fake-cosign.sh"
     _write_fake_cosign(cosign, succeed=False)
 

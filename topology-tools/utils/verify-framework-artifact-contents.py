@@ -111,9 +111,7 @@ def main() -> int:
     }
 
     missing_required = sorted(req for req in _REQUIRED_PATHS if not _has_path(paths, req))
-    forbidden_present = sorted(
-        path for path in paths if any(path.startswith(prefix) for prefix in _FORBIDDEN_PREFIXES)
-    )
+    forbidden_present = sorted(path for path in paths if any(path.startswith(prefix) for prefix in _FORBIDDEN_PREFIXES))
     ok = not missing_required and not forbidden_present
 
     result = {

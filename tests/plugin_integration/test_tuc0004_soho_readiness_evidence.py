@@ -8,7 +8,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 COMPILER = REPO_ROOT / "topology-tools" / "compile-topology.py"
 TOPOLOGY = REPO_ROOT / "topology" / "topology.yaml"
@@ -72,7 +71,9 @@ def _run_compile(workdir: Path) -> tuple[int, str]:
 
 
 def test_tuc0004_quality_gate_passes() -> None:
-    result = subprocess.run([sys.executable, str(QUALITY_GATE)], cwd=REPO_ROOT, text=True, capture_output=True, check=False)
+    result = subprocess.run(
+        [sys.executable, str(QUALITY_GATE)], cwd=REPO_ROOT, text=True, capture_output=True, check=False
+    )
     assert result.returncode == 0, result.stdout + "\n" + result.stderr
 
 
@@ -111,4 +112,3 @@ def test_tuc0004_operator_readiness_contains_all_adr0091_domains(tmp_path: Path)
     assert ADR0091_D3_DOMAINS.issubset(set(evidence.keys()))
     assert operator_payload.get("status") in {"green", "yellow", "red"}
     assert manifest_payload.get("completeness_state") in {"missing", "partial", "complete"}
-

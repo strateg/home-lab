@@ -110,6 +110,11 @@ includes:
       PROJECT_ID: "{{.PROJECT_ID}}"
 
 tasks:
+  ci:
+    desc: Alias for the local CI gate
+    cmds:
+      - task ci:local
+
   clean:
     desc: Clean generated/runtime artifacts (mvn clean equivalent)
     cmds:

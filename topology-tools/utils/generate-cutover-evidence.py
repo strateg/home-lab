@@ -68,7 +68,11 @@ def main() -> int:
 
     python = str(repo_root / ".venv" / "bin" / "python")
     commands = [
-        ("verify_lock", [python, "topology-tools/verify-framework-lock.py", "--strict"], output_dir / "verify-lock.txt"),
+        (
+            "verify_lock",
+            [python, "topology-tools/verify-framework-lock.py", "--strict"],
+            output_dir / "verify-lock.txt",
+        ),
         (
             "verify_lock_package_trust_signature",
             [
@@ -83,7 +87,15 @@ def main() -> int:
         ),
         (
             "compile_strict",
-            [python, "topology-tools/compile-topology.py", "--topology", "topology/topology.yaml", "--strict-model-lock", "--secrets-mode", "passthrough"],
+            [
+                python,
+                "topology-tools/compile-topology.py",
+                "--topology",
+                "topology/topology.yaml",
+                "--strict-model-lock",
+                "--secrets-mode",
+                "passthrough",
+            ],
             output_dir / "compile.txt",
         ),
         (
@@ -140,7 +152,11 @@ def main() -> int:
 
     summary_path = output_dir / "summary.json"
     summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
-    print(json.dumps({"output_dir": str(output_dir), "summary": str(summary_path), "exit_code": exit_code}, ensure_ascii=True))
+    print(
+        json.dumps(
+            {"output_dir": str(output_dir), "summary": str(summary_path), "exit_code": exit_code}, ensure_ascii=True
+        )
+    )
     return exit_code
 
 

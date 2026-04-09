@@ -5,7 +5,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW_TEMPLATE = REPO_ROOT / "docs" / "framework" / "templates" / "framework-release.yml"
 

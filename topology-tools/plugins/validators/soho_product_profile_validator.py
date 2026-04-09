@@ -145,7 +145,9 @@ class SohoProductProfileValidator(ValidatorJsonPlugin):
         profile_id = str(product_profile.get("profile_id", "")).strip()
         deployment_class = str(product_profile.get("deployment_class", "")).strip()
         migration_state = str(product_profile.get("migration_state", _STATE_FALLBACK)).strip() or _STATE_FALLBACK
-        effective_migration_state = "migrated-hard" if (migration_state == _STATE_FALLBACK and sunset_enforced) else migration_state
+        effective_migration_state = (
+            "migrated-hard" if (migration_state == _STATE_FALLBACK and sunset_enforced) else migration_state
+        )
 
         if migration_state == _STATE_FALLBACK and sunset_enforced:
             diagnostics.append(
@@ -322,9 +324,7 @@ class SohoProductProfileValidator(ValidatorJsonPlugin):
         if isinstance(required_payload, list):
             required = {str(item).strip() for item in required_payload if isinstance(item, str) and str(item).strip()}
         if isinstance(available_payload, list):
-            available = {
-                str(item).strip() for item in available_payload if isinstance(item, str) and str(item).strip()
-            }
+            available = {str(item).strip() for item in available_payload if isinstance(item, str) and str(item).strip()}
         if isinstance(resolution_payload, dict):
             missing_raw = resolution_payload.get("missing_bundle_definitions", [])
             if isinstance(missing_raw, list):

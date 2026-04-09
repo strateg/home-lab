@@ -8,7 +8,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = REPO_ROOT / "topology-tools" / "utils" / "verify-framework-artifact-contents.py"
 
@@ -25,14 +24,7 @@ def _write_manifest(path: Path, files: list[str]) -> None:
 
 
 def test_verify_framework_artifact_contents_passes_on_runtime_only_manifest(tmp_path: Path) -> None:
-    manifest = (
-        tmp_path
-        / "dist"
-        / "framework"
-        / "infra-topology-framework"
-        / "1.2.3"
-        / "framework-dist-manifest.json"
-    )
+    manifest = tmp_path / "dist" / "framework" / "infra-topology-framework" / "1.2.3" / "framework-dist-manifest.json"
     _write_manifest(
         manifest,
         [
@@ -68,14 +60,7 @@ def test_verify_framework_artifact_contents_passes_on_runtime_only_manifest(tmp_
 
 
 def test_verify_framework_artifact_contents_fails_on_forbidden_paths(tmp_path: Path) -> None:
-    manifest = (
-        tmp_path
-        / "dist"
-        / "framework"
-        / "infra-topology-framework"
-        / "1.2.3"
-        / "framework-dist-manifest.json"
-    )
+    manifest = tmp_path / "dist" / "framework" / "infra-topology-framework" / "1.2.3" / "framework-dist-manifest.json"
     _write_manifest(
         manifest,
         [

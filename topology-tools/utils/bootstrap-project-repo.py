@@ -422,7 +422,9 @@ def main() -> int:
     (output_root / "plugins").mkdir(parents=True, exist_ok=True)
     (output_root / "generated").mkdir(parents=True, exist_ok=True)
     (output_root / "generated-artifacts").mkdir(parents=True, exist_ok=True)
-    _write_if_missing(output_root / "plugins" / "plugins.yaml", _project_plugins_manifest_stub(), force=bool(args.force))
+    _write_if_missing(
+        output_root / "plugins" / "plugins.yaml", _project_plugins_manifest_stub(), force=bool(args.force)
+    )
     _seed_framework_catalogs(framework_root=framework_root_for_lock, output_root=output_root, force=bool(args.force))
     if seed_project_root is not None:
         copied_instances = _copy_tree_if_exists(

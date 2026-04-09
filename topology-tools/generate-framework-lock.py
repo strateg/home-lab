@@ -269,11 +269,7 @@ def main() -> int:
         if isinstance(args.package_trust_release_root, Path)
         else None
     )
-    if (
-        args.source == "package"
-        and isinstance(args.package_trust_release_root, Path)
-        and package_trust is None
-    ):
+    if args.source == "package" and isinstance(args.package_trust_release_root, Path) and package_trust is None:
         print(
             "ERROR: package trust release root does not contain required files "
             "(checksums.sha256, checksums.sha256.sig|*.sigstore, checksums.sha256.crt|*.crt, "

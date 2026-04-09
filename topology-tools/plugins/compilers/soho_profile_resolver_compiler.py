@@ -18,8 +18,6 @@ class SohoProfileResolverCompiler(CompilerPlugin):
         diagnostics: list[PluginDiagnostic] = []
 
         project_manifest = self._load_project_manifest(ctx)
-        available_bundles = self._load_available_bundles(ctx=ctx, diagnostics=diagnostics, stage=stage)
-
         product_profile = project_manifest.get("product_profile") if isinstance(project_manifest, dict) else None
         if not isinstance(product_profile, dict):
             resolution = {
@@ -28,18 +26,21 @@ class SohoProfileResolverCompiler(CompilerPlugin):
                 "profile_id": "",
                 "deployment_class": "",
                 "required_bundles": [],
-                "available_bundles": sorted(available_bundles),
+                "available_bundles": [],
                 "catalog_status": "ok",
             }
             self.publish_if_possible(ctx, "soho_profile_resolution", resolution)
             self.publish_if_possible(ctx, "effective_product_bundles", [])
-            self.publish_if_possible(ctx, "available_product_bundles", sorted(available_bundles))
+            self.publish_if_possible(ctx, "available_product_bundles", [])
             return self.make_result(diagnostics=diagnostics, output_data=resolution)
 
         profile_id = str(product_profile.get("profile_id", "")).strip()
         deployment_class = str(product_profile.get("deployment_class", "")).strip()
-        migration_state = str(product_profile.get("migration_state", self._STATE_FALLBACK)).strip() or self._STATE_FALLBACK
+        migration_state = (
+            str(product_profile.get("migration_state", self._STATE_FALLBACK)).strip() or self._STATE_FALLBACK
+        )
 
+        available_bundles = self._load_available_bundles(ctx=ctx, diagnostics=diagnostics, stage=stage)
         required_bundles: list[str] = []
         missing_from_catalog: list[str] = []
         catalog_status = "ok"
@@ -149,7 +150,9 @@ class SohoProfileResolverCompiler(CompilerPlugin):
         core = payload.get("core_required_bundles", [])
         classes = payload.get("deployment_classes", {})
 
-        core_items = [item.strip() for item in core if isinstance(item, str) and item.strip()] if isinstance(core, list) else []
+        core_items = (
+            [item.strip() for item in core if isinstance(item, str) and item.strip()] if isinstance(core, list) else []
+        )
         class_items: list[str] = []
         class_payload = classes.get(deployment_class) if isinstance(classes, dict) else None
         if isinstance(class_payload, dict):

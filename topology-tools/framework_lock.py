@@ -973,8 +973,7 @@ def verify_framework_lock(
                                 code="E7826",
                                 severity="error",
                                 message=(
-                                    "provenance.uri must resolve to local file path "
-                                    "in artifact verification mode"
+                                    "provenance.uri must resolve to local file path " "in artifact verification mode"
                                 ),
                                 path=f"{paths.lock_path}:provenance.uri",
                             )
@@ -1062,10 +1061,7 @@ def verify_framework_lock(
                                 LockDiagnostic(
                                     code="E7828",
                                     severity="error",
-                                    message=(
-                                        "sbom sha256 mismatch: "
-                                        f"lock '{sbom_sha256}' != actual '{actual}'"
-                                    ),
+                                    message=("sbom sha256 mismatch: " f"lock '{sbom_sha256}' != actual '{actual}'"),
                                     path=f"{paths.lock_path}:sbom.sha256",
                                 )
                             )

@@ -8,7 +8,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from kernel.plugin_base import BuilderPlugin, PluginContext, PluginDataExchangeError, PluginDiagnostic, PluginResult, Stage
+from kernel.plugin_base import (
+    BuilderPlugin,
+    PluginContext,
+    PluginDataExchangeError,
+    PluginDiagnostic,
+    PluginResult,
+    Stage,
+)
 
 try:
     import jsonschema
@@ -165,9 +172,7 @@ class SohoReadinessBuilder(BuilderPlugin):
                     code="E7946",
                     severity="error",
                     stage=stage,
-                    message=(
-                        f"unsupported deployment_class '{deployment_class}' for SOHO readiness package."
-                    ),
+                    message=(f"unsupported deployment_class '{deployment_class}' for SOHO readiness package."),
                     path="project.yaml:product_profile.deployment_class",
                 )
             )
@@ -284,13 +289,19 @@ class SohoReadinessBuilder(BuilderPlugin):
         has_error = any(item.severity == "error" for item in diagnostics)
         evidence_map = {
             "greenfield-first-install": self._evidence_state(
-                complete=(handover_inventory["SYSTEM-SUMMARY.md"]["present"] and handover_inventory["NETWORK-SUMMARY.md"]["present"]),
+                complete=(
+                    handover_inventory["SYSTEM-SUMMARY.md"]["present"]
+                    and handover_inventory["NETWORK-SUMMARY.md"]["present"]
+                ),
             ),
             "brownfield-adoption": self._evidence_state(
                 complete=handover_inventory["CHANGELOG-SNAPSHOT.md"]["present"],
             ),
             "router-replacement": self._evidence_state(
-                complete=(handover_inventory["NETWORK-SUMMARY.md"]["present"] and handover_inventory["ASSET-INVENTORY.csv"]["present"]),
+                complete=(
+                    handover_inventory["NETWORK-SUMMARY.md"]["present"]
+                    and handover_inventory["ASSET-INVENTORY.csv"]["present"]
+                ),
             ),
             "secret-rotation": self._evidence_state(
                 complete=handover_inventory["ACCESS-RUNBOOK.md"]["present"],
