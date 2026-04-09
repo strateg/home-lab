@@ -13,6 +13,17 @@ sys.path.insert(0, str(V5_TOOLS))
 from kernel.plugin_base import PluginContext, PluginStatus, Stage
 from plugins.builders.soho_readiness_builder import SohoReadinessBuilder
 
+_ADR0091_DOMAINS = {
+    "greenfield-first-install",
+    "brownfield-adoption",
+    "router-replacement",
+    "secret-rotation",
+    "scheduled-update",
+    "failed-update-rollback",
+    "backup-and-restore",
+    "operator-handover",
+}
+
 
 def _publish(ctx: PluginContext, plugin_id: str, payload: dict) -> None:
     ctx._set_execution_context(plugin_id, set())  # noqa: SLF001 - test fixture setup
@@ -76,6 +87,7 @@ def test_soho_readiness_builder_emits_product_package_and_reports(tmp_path: Path
 
     operator_payload = json.loads(operator_path.read_text(encoding="utf-8"))
     assert operator_payload["status"] == "green"
+    assert _ADR0091_DOMAINS.issubset(set(operator_payload["evidence"].keys()))
 
     manifest_payload = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert manifest_payload["artifacts"]["reports"]["support-bundle-manifest.json"]["present"] is True

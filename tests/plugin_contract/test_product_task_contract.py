@@ -116,3 +116,15 @@ def test_product_apply_task_has_explicit_safety_gate() -> None:
     serialized = "\n".join(str(item) for item in preconditions)
     assert "ALLOW_APPLY" in serialized
     assert "YES" in serialized
+
+
+def test_product_handover_runs_explicit_completeness_check() -> None:
+    taskfile = _load_yaml(TASKFILE_PATH)
+    tasks = taskfile.get("tasks", {})
+    assert isinstance(tasks, dict)
+
+    handover = tasks.get("handover", {})
+    assert isinstance(handover, dict)
+    serialized = "\n".join(_task_cmd_strings(handover))
+    assert "scripts/orchestration/product/handover_check.py" in serialized
+    assert "--require-complete" in serialized

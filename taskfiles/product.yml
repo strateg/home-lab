@@ -66,4 +66,6 @@ tasks:
   handover:
     desc: Assemble product handover bundle
     cmds:
+      - task build:default
+      - "{{.PYTHON}} scripts/orchestration/product/handover_check.py --project-id {{.PROJECT_ID}} --require-complete"
       - task workflow:bundle

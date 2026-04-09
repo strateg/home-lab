@@ -37,6 +37,16 @@ _REQUIRED_REPORT_FILES = (
 )
 
 _SUPPORTED_CLASSES = {"starter", "managed-soho", "advanced-soho"}
+_ADR0091_EVIDENCE_DOMAINS = (
+    "greenfield-first-install",
+    "brownfield-adoption",
+    "router-replacement",
+    "secret-rotation",
+    "scheduled-update",
+    "failed-update-rollback",
+    "backup-and-restore",
+    "operator-handover",
+)
 
 
 class SohoReadinessBuilder(BuilderPlugin):
@@ -125,6 +135,12 @@ class SohoReadinessBuilder(BuilderPlugin):
         if token in {"green", "warning", "blocked"}:
             return token
         return "warning"
+
+    @staticmethod
+    def _evidence_state(*, complete: bool, partial: bool = False) -> str:
+        if complete:
+            return "complete"
+        return "partial" if partial else "missing"
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
@@ -267,10 +283,34 @@ class SohoReadinessBuilder(BuilderPlugin):
 
         has_error = any(item.severity == "error" for item in diagnostics)
         evidence_map = {
-            "backup-and-restore": "complete" if backup_completeness == "complete" and restore_completeness == "complete" else "missing",
-            "handover-package": "complete" if not missing_handover else "missing",
-            "profile-contract": "complete" if str(product_state.get("status", "")) == "green" else "partial",
+            "greenfield-first-install": self._evidence_state(
+                complete=(handover_inventory["SYSTEM-SUMMARY.md"]["present"] and handover_inventory["NETWORK-SUMMARY.md"]["present"]),
+            ),
+            "brownfield-adoption": self._evidence_state(
+                complete=handover_inventory["CHANGELOG-SNAPSHOT.md"]["present"],
+            ),
+            "router-replacement": self._evidence_state(
+                complete=(handover_inventory["NETWORK-SUMMARY.md"]["present"] and handover_inventory["ASSET-INVENTORY.csv"]["present"]),
+            ),
+            "secret-rotation": self._evidence_state(
+                complete=handover_inventory["ACCESS-RUNBOOK.md"]["present"],
+            ),
+            "scheduled-update": self._evidence_state(
+                complete=handover_inventory["UPDATE-RUNBOOK.md"]["present"],
+            ),
+            "failed-update-rollback": self._evidence_state(
+                complete=(
+                    handover_inventory["RESTORE-RUNBOOK.md"]["present"]
+                    and handover_inventory["INCIDENT-CHECKLIST.md"]["present"]
+                ),
+            ),
+            "backup-and-restore": self._evidence_state(
+                complete=(backup_completeness == "complete" and restore_completeness == "complete"),
+            ),
+            "operator-handover": self._evidence_state(complete=not missing_handover),
         }
+        for domain in _ADR0091_EVIDENCE_DOMAINS:
+            evidence_map.setdefault(domain, "missing")
         has_partial = any(value == "partial" for value in evidence_map.values())
         status = "red" if has_error else ("yellow" if has_partial else "green")
 
