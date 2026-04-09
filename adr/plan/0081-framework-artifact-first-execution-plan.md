@@ -31,10 +31,10 @@ Make artifact-first framework consumption the canonical model for framework + mu
 Cross-ADR bridge to keep artifact-first extraction aligned with SOHO product contracts (ADR0089-0091):
 
 - [x] Split rehearsal lane is automated (`task framework:split-rehearsal`).
-- [x] Phase13 evidence bundle includes split rehearsal (`task framework:phase13-evidence`).
+- [x] Cutover evidence bundle includes split rehearsal (`task framework:cutover-evidence`).
 - [x] Split rehearsal summary validates ADR0091 handover/report contract and D3 domain coverage.
 - [x] Add deterministic parity check between monorepo and extracted `operator-readiness.json` semantics.
-- [x] Promote split-rehearsal summary publication as mandatory CI artifact in Phase13 gate.
+- [x] Promote split-rehearsal summary publication as mandatory CI artifact in Cutover gate.
 - [x] Add Go/No-Go guard: any critical `E794x` in extracted-mode evidence is No-Go for cutover.
 
 Execution priority now:

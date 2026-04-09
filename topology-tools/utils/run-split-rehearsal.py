@@ -50,8 +50,8 @@ def _repo_root() -> Path:
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run split rehearsal lane for framework/project extraction flow.")
     parser.add_argument("--repo-root", type=Path, default=_repo_root())
-    parser.add_argument("--workspace-root", type=Path, default=Path("build/phase13/split-rehearsal/home-lab"))
-    parser.add_argument("--summary-path", type=Path, default=Path("build/diagnostics/phase13/split-rehearsal.json"))
+    parser.add_argument("--workspace-root", type=Path, default=Path("build/cutover/split-rehearsal/home-lab"))
+    parser.add_argument("--summary-path", type=Path, default=Path("build/diagnostics/cutover/split-rehearsal.json"))
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--skip-parity-check", action="store_true")
     return parser.parse_args()

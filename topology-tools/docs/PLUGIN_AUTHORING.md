@@ -39,7 +39,7 @@ For generator plugins publishing `artifact_plan` / `artifact_generation_report`:
 
 - `planned_outputs[].path`, `generated[]`, and `obsolete[].path` are **logical artifact IDs**.
 - Paths must stay repo-portable and use logical prefix form such as `generated/<project>/...`.
-- Do not leak execution-local absolute paths (`/home/...`) or workflow-specific roots (`build/phase13/...`).
+- Do not leak execution-local absolute paths (`/home/...`) or workflow-specific roots (`build/cutover/...`).
 
 Runtime normalizes physical output roots (for example custom `generator_artifacts_root`) to logical contract paths.
 

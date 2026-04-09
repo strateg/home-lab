@@ -80,14 +80,14 @@ task product:handover
 
 ---
 
-## 7. Phase13 Evidence (если это cutover окно)
+## 7. Cutover Evidence (если это cutover окно)
 
 ```bash
-task framework:phase13-evidence
-task framework:phase13-go-no-go
+task framework:cutover-evidence
+task framework:cutover-go-no-go
 ```
 
-Проверить `build/diagnostics/phase13/summary.json` и `split-rehearsal.json`.
+Проверить `build/diagnostics/cutover/summary.json` и `split-rehearsal.json`.
 
 ---
 
@@ -122,7 +122,7 @@ task validate:passthrough
 
 ## Outputs to Archive
 
-- `build/diagnostics/phase13/*` (если выполнялись cutover шаги)
+- `build/diagnostics/cutover/*` (если выполнялись cutover шаги)
 - `build/diagnostics/report.txt`
 - `projects/<project>/framework.lock.yaml`
 

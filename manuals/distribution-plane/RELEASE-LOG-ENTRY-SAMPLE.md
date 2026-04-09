@@ -10,5 +10,4 @@
 - **Decision:** GO
 - **Report:** `manuals/distribution-plane/UPGRADE-REPORT-SAMPLE.md`
 - **Go/No-Go Record:** `manuals/distribution-plane/GO-NO-GO-SAMPLE.md`
-- **Notes:** Phase13 cutover window; split-rehearsal parity confirmed; trust verification PASS.
-
+- **Notes:** Cutover window; split-rehearsal parity confirmed; trust verification PASS.

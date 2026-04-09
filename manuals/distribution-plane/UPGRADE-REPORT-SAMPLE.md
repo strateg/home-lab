@@ -11,7 +11,7 @@
 - **Project:** home-lab
 - **Framework Version (from):** 5.0.0-rc1
 - **Framework Version (to):** 5.0.0-rc2
-- **Change Window:** 2026-04-09-adr0076-phase13-physical-cutover
+- **Change Window:** 2026-04-09-adr0076-cutover-physical-extraction
 - **Decision:** GO
 
 ---
@@ -67,11 +67,11 @@ Notes:
 
 ---
 
-## 7. Phase13 Evidence (если применимо)
+## 7. Cutover Evidence (если применимо)
 
-- `task framework:phase13-evidence`: PASS
-- `task framework:phase13-go-no-go`: GO
-- Evidence: `build/diagnostics/phase13/summary.json`
+- `task framework:cutover-evidence`: PASS
+- `task framework:cutover-go-no-go`: GO
+- Evidence: `build/diagnostics/cutover/summary.json`
 
 Notes:
 - Split rehearsal parity confirmed.
@@ -103,7 +103,7 @@ Notes:
 ## 11. Attachments
 
 - `build/diagnostics/report.txt`
-- `build/diagnostics/phase13/summary.json`
-- `build/diagnostics/phase13/split-rehearsal.json`
+- `build/diagnostics/cutover/summary.json`
+- `build/diagnostics/cutover/split-rehearsal.json`
 - `projects/home-lab/framework.lock.yaml`
 

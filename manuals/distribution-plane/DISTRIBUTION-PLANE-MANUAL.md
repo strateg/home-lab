@@ -112,16 +112,16 @@ task framework:strict
 
 ---
 
-**5. Phase13 Evidence (Cutover)**
+**5. Cutover Evidence**
 
 Сбор evidence-пакета и Go/No-Go решения для физического cutover.
 
 ```bash
-task framework:phase13-evidence
-task framework:phase13-go-no-go
+task framework:cutover-evidence
+task framework:cutover-go-no-go
 ```
 
-Evidence-файлы сохраняются в `build/diagnostics/phase13/`.
+Evidence-файлы сохраняются в `build/diagnostics/cutover/`.
 
 ---
 
@@ -156,7 +156,7 @@ task product:handover
 
 - `E781x/E782x` в strict-режиме: запусти `task framework:lock-refresh` и повтори `task framework:strict`.
 - Trust verification failures: проверь наличие signature/provenance/SBOM в артефакте, пересобери `framework:release-build`.
-- Несоответствие артефактов в standalone: пересоздай проект через `project:init-from-dist` и сравни `build/diagnostics/phase13/split-rehearsal.json`.
+- Несоответствие артефактов в standalone: пересоздай проект через `project:init-from-dist` и сравни `build/diagnostics/cutover/split-rehearsal.json`.
 
 ---
 

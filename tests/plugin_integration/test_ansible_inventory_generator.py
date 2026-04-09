@@ -118,7 +118,7 @@ def test_ansible_inventory_artifact_plan_includes_group_vars_output(tmp_path: Pa
 
 def test_ansible_inventory_artifact_plan_is_logical_when_artifacts_root_is_custom(tmp_path: Path) -> None:
     generator = AnsibleInventoryGenerator("base.generator.ansible_inventory")
-    custom_root = tmp_path / "build" / "phase13" / "split-rehearsal" / "generated-artifacts"
+    custom_root = tmp_path / "build" / "cutover" / "split-rehearsal" / "generated-artifacts"
     ctx = _ctx(tmp_path, _compiled_fixture(), artifacts_root=custom_root)
 
     result = generator.execute(ctx, Stage.GENERATE)

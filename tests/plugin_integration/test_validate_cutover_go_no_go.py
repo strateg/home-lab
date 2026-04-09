@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Integration checks for Phase13 Go/No-Go validator utility."""
+"""Integration checks for cutover Go/No-Go validator utility."""
 
 from __future__ import annotations
 
@@ -10,10 +10,10 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SCRIPT = REPO_ROOT / "topology-tools" / "utils" / "validate-phase13-go-no-go.py"
+SCRIPT = REPO_ROOT / "topology-tools" / "utils" / "validate-cutover-go-no-go.py"
 
 
-def test_validate_phase13_go_no_go_returns_go_for_green_payload(tmp_path: Path) -> None:
+def test_validate_cutover_go_no_go_returns_go_for_green_payload(tmp_path: Path) -> None:
     split_summary = tmp_path / "split-rehearsal.json"
     split_summary.write_text(
         json.dumps(
@@ -53,7 +53,7 @@ def test_validate_phase13_go_no_go_returns_go_for_green_payload(tmp_path: Path) 
     assert payload["decision"] == "GO"
 
 
-def test_validate_phase13_go_no_go_returns_no_go_for_critical_e794x(tmp_path: Path) -> None:
+def test_validate_cutover_go_no_go_returns_no_go_for_critical_e794x(tmp_path: Path) -> None:
     split_summary = tmp_path / "split-rehearsal.json"
     split_summary.write_text(
         json.dumps(
@@ -90,4 +90,3 @@ def test_validate_phase13_go_no_go_returns_no_go_for_critical_e794x(tmp_path: Pa
     assert run.returncode == 1, run.stdout + "\n" + run.stderr
     payload = json.loads(run.stdout.strip())
     assert payload["decision"] == "NO-GO"
-

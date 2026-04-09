@@ -67,20 +67,30 @@ tasks:
     cmds:
       - "{{.PYTHON}} topology-tools/utils/generate-baseline-evidence.py"
 
-  phase13-evidence:
-    desc: Generate ADR0076 Phase 13 strict-gate evidence bundle
+  cutover-evidence:
+    desc: Generate ADR0076 cutover strict-gate evidence bundle
     cmds:
-      - "{{.PYTHON}} topology-tools/utils/generate-phase13-evidence.py"
+      - "{{.PYTHON}} topology-tools/utils/generate-cutover-evidence.py"
 
   split-rehearsal:
     desc: Run ADR0076/ADR0081 split rehearsal lane and emit summary
     cmds:
       - "{{.PYTHON}} topology-tools/utils/run-split-rehearsal.py"
 
-  phase13-go-no-go:
-    desc: Evaluate Phase13 evidence bundle and emit Go/No-Go decision
+  cutover-go-no-go:
+    desc: Evaluate cutover evidence bundle and emit Go/No-Go decision
     cmds:
-      - "{{.PYTHON}} topology-tools/utils/validate-phase13-go-no-go.py"
+      - "{{.PYTHON}} topology-tools/utils/validate-cutover-go-no-go.py"
+
+  phase13-evidence:
+    desc: Deprecated alias for cutover-evidence
+    cmds:
+      - task: cutover-evidence
+
+  phase13-go-no-go:
+    desc: Deprecated alias for cutover-go-no-go
+    cmds:
+      - task: cutover-go-no-go
 
   archive-v4-compile:
     desc: Compile legacy archive/v4 baseline for parity drift monitoring

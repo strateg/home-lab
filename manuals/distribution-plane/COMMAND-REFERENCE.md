@@ -61,12 +61,12 @@ task project:init-from-dist -- \
 
 ---
 
-## Phase 13 Evidence (Cutover)
+## Cutover Evidence
 
 ```bash
 # Evidence bundle and GO/NO-GO
-task framework:phase13-evidence
-task framework:phase13-go-no-go
+task framework:cutover-evidence
+task framework:cutover-go-no-go
 ```
 
 ---

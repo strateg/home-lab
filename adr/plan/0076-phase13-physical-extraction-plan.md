@@ -104,7 +104,7 @@ Entry Gate:
   - bootstrap external project repo,
   - generate+verify lock in extracted layout,
   - compile in strict mode (`passthrough` secrets mode).
-- [x] Publish rehearsal report under `build/diagnostics/phase13/`.
+- [x] Publish rehearsal report under `build/diagnostics/cutover/`.
 
 Gate:
 
@@ -120,7 +120,7 @@ Gate:
   - ADR0091 D3 evidence domains present,
   - normalized support bundle completeness state present.
 - [x] Add semantic parity comparison against monorepo baseline for operator-readiness payload.
-- [x] Promote split-rehearsal summary as mandatory Phase13 CI artifact.
+- [x] Promote split-rehearsal summary as mandatory Cutover CI artifact.
 
 ### WS1.2 Contract Hardening for Extracted Mode
 
@@ -193,7 +193,7 @@ Gate:
 3. Integrated split rehearsal lane and diagnostics evidence.
 4. Completed cutover checklist with Go/No-Go and rollback evidence.
 5. Updated ADR/runbook docs where extracted flow is canonical.
-6. Phase 13 evidence bundle (`build/diagnostics/phase13/*`) captured.
+6. Phase 13 evidence bundle (`build/diagnostics/cutover/*`) captured.
 
 ---
 

@@ -67,11 +67,11 @@ Notes:
 
 ---
 
-## 7. Phase13 Evidence (если применимо)
+## 7. Cutover Evidence (если применимо)
 
-- `task framework:phase13-evidence`: PASS | FAIL
-- `task framework:phase13-go-no-go`: GO | NO-GO
-- Evidence: `build/diagnostics/phase13/summary.json`
+- `task framework:cutover-evidence`: PASS | FAIL
+- `task framework:cutover-go-no-go`: GO | NO-GO
+- Evidence: `build/diagnostics/cutover/summary.json`
 
 Notes:
 - <details>
@@ -103,6 +103,6 @@ Notes:
 ## 11. Attachments
 
 - `build/diagnostics/report.txt`
-- `build/diagnostics/phase13/*` (if applicable)
+- `build/diagnostics/cutover/*` (if applicable)
 - `projects/<project>/framework.lock.yaml`
 

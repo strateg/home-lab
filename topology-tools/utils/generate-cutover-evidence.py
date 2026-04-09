@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate ADR0076 Phase 13 evidence bundle under build/diagnostics/phase13."""
+"""Generate ADR0076 cutover evidence bundle under build/diagnostics/cutover."""
 
 from __future__ import annotations
 
@@ -16,9 +16,9 @@ def _repo_root() -> Path:
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Generate Phase 13 strict-gate evidence files.")
+    parser = argparse.ArgumentParser(description="Generate cutover strict-gate evidence files.")
     parser.add_argument("--repo-root", type=Path, default=_repo_root())
-    parser.add_argument("--output-dir", type=Path, default=Path("build/diagnostics/phase13"))
+    parser.add_argument("--output-dir", type=Path, default=Path("build/diagnostics/cutover"))
     parser.add_argument("--dry-run", action="store_true", help="Write placeholder evidence without running commands.")
     return parser.parse_args()
 

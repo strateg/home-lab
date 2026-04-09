@@ -37,11 +37,11 @@
 
 ---
 
-## D. Phase13 (если cutover)
+## D. Cutover (если cutover)
 
-- [ ] `task framework:phase13-evidence` сформировал evidence пакет.
-- [ ] `task framework:phase13-go-no-go` вернул `GO`.
-- [ ] `build/diagnostics/phase13/summary.json` сохранен.
+- [ ] `task framework:cutover-evidence` сформировал evidence пакет.
+- [ ] `task framework:cutover-go-no-go` вернул `GO`.
+- [ ] `build/diagnostics/cutover/summary.json` сохранен.
 
 ---
 

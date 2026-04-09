@@ -81,21 +81,21 @@ jobs:
         if: always()
         run: rm -f ~/.config/sops/age/keys.txt
 
-      - name: Upload phase13 diagnostics
+      - name: Upload cutover diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: phase13-diagnostics-mainline
+          name: cutover-diagnostics-mainline
           path: |
-            build/diagnostics/phase13/summary.json
-            build/diagnostics/phase13/verify-lock.txt
-            build/diagnostics/phase13/verify-lock-package-trust-signature.txt
-            build/diagnostics/phase13/compile.txt
-            build/diagnostics/phase13/compatibility.txt
-            build/diagnostics/phase13/audit-entrypoints.txt
-            build/diagnostics/phase13/cutover-readiness.txt
-            build/diagnostics/phase13/split-rehearsal.json
-            build/diagnostics/phase13/split-rehearsal.txt
+            build/diagnostics/cutover/summary.json
+            build/diagnostics/cutover/verify-lock.txt
+            build/diagnostics/cutover/verify-lock-package-trust-signature.txt
+            build/diagnostics/cutover/compile.txt
+            build/diagnostics/cutover/compatibility.txt
+            build/diagnostics/cutover/audit-entrypoints.txt
+            build/diagnostics/cutover/cutover-readiness.txt
+            build/diagnostics/cutover/split-rehearsal.json
+            build/diagnostics/cutover/split-rehearsal.txt
           if-no-files-found: warn
 
   legacy-v4-maintenance:
@@ -165,19 +165,19 @@ jobs:
         if: always()
         run: rm -f ~/.config/sops/age/keys.txt
 
-      - name: Upload phase13 diagnostics
+      - name: Upload cutover diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: phase13-diagnostics-legacy
+          name: cutover-diagnostics-legacy
           path: |
-            build/diagnostics/phase13/summary.json
-            build/diagnostics/phase13/verify-lock.txt
-            build/diagnostics/phase13/verify-lock-package-trust-signature.txt
-            build/diagnostics/phase13/compile.txt
-            build/diagnostics/phase13/compatibility.txt
-            build/diagnostics/phase13/audit-entrypoints.txt
-            build/diagnostics/phase13/cutover-readiness.txt
-            build/diagnostics/phase13/split-rehearsal.json
-            build/diagnostics/phase13/split-rehearsal.txt
+            build/diagnostics/cutover/summary.json
+            build/diagnostics/cutover/verify-lock.txt
+            build/diagnostics/cutover/verify-lock-package-trust-signature.txt
+            build/diagnostics/cutover/compile.txt
+            build/diagnostics/cutover/compatibility.txt
+            build/diagnostics/cutover/audit-entrypoints.txt
+            build/diagnostics/cutover/cutover-readiness.txt
+            build/diagnostics/cutover/split-rehearsal.json
+            build/diagnostics/cutover/split-rehearsal.txt
           if-no-files-found: warn

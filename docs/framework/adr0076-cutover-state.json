@@ -3,13 +3,13 @@
   "adr": "0076",
   "production_cutover_complete": true,
   "completed_at": "2026-04-09T08:23:31Z",
-  "change_window": "2026-04-09-adr0076-phase13-physical-cutover",
-  "announcement": "ADR0076 Phase 13 physical extraction cutover completed; artifact-first multi-repo flow is canonical.",
-  "freeze_switch": "legacy integrated flow remains frozen; phase13 split-rehearsal gates are mandatory before lock updates.",
+  "change_window": "2026-04-09-adr0076-cutover-physical-extraction",
+  "announcement": "ADR0076 cutover physical extraction completed; artifact-first multi-repo flow is canonical.",
+  "freeze_switch": "legacy integrated flow remains frozen; cutover split-rehearsal gates are mandatory before lock updates.",
   "evidence": [
     "adr/plan/0076-phase13-physical-extraction-plan.md",
     "adr/plan/0076-phase13-cutover-checklist.md",
-    "build/diagnostics/phase13/summary.json",
-    "build/diagnostics/phase13/cutover-readiness.txt"
+    "build/diagnostics/cutover/summary.json",
+    "build/diagnostics/cutover/cutover-readiness.txt"
   ]
 }

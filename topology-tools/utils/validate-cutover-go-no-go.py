@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate Phase 13 evidence bundle and emit Go/No-Go decision payload."""
+"""Validate cutover evidence bundle and emit Go/No-Go decision payload."""
 
 from __future__ import annotations
 
@@ -13,9 +13,9 @@ def _repo_root() -> Path:
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Validate Phase13 evidence and derive Go/No-Go decision.")
+    parser = argparse.ArgumentParser(description="Validate cutover evidence and derive Go/No-Go decision.")
     parser.add_argument("--repo-root", type=Path, default=_repo_root())
-    parser.add_argument("--summary-path", type=Path, default=Path("build/diagnostics/phase13/summary.json"))
+    parser.add_argument("--summary-path", type=Path, default=Path("build/diagnostics/cutover/summary.json"))
     return parser.parse_args()
 
 
@@ -41,7 +41,7 @@ def main() -> int:
     else:
         checks = summary.get("checks", [])
         if not isinstance(checks, list):
-            reasons.append("phase13 summary has invalid checks payload")
+            reasons.append("cutover summary has invalid checks payload")
             checks = []
         for row in checks:
             if not isinstance(row, dict):
@@ -49,7 +49,7 @@ def main() -> int:
             name = str(row.get("name", "unknown"))
             rc = int(row.get("return_code", 1))
             if rc != 0:
-                reasons.append(f"phase13 check failed: {name} (rc={rc})")
+                reasons.append(f"cutover check failed: {name} (rc={rc})")
 
         split_row = next(
             (row for row in checks if isinstance(row, dict) and str(row.get("name", "")) == "split_rehearsal"),
@@ -78,7 +78,7 @@ def main() -> int:
                 if not isinstance(parity, dict) or not bool(parity.get("ok")):
                     reasons.append("operator-readiness parity check failed")
         else:
-            reasons.append("split_rehearsal check entry is missing from phase13 summary")
+            reasons.append("split_rehearsal check entry is missing from cutover summary")
 
     decision = "GO" if not reasons else "NO-GO"
     payload = {
@@ -92,4 +92,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

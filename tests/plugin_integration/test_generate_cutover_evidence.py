@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Integration checks for ADR0076 Phase 13 evidence generator utility."""
+"""Integration checks for ADR0076 cutover evidence generator utility."""
 
 from __future__ import annotations
 
@@ -10,11 +10,11 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SCRIPT = REPO_ROOT / "topology-tools" / "utils" / "generate-phase13-evidence.py"
+SCRIPT = REPO_ROOT / "topology-tools" / "utils" / "generate-cutover-evidence.py"
 
 
-def test_generate_phase13_evidence_dry_run_writes_expected_files(tmp_path: Path) -> None:
-    output_dir = tmp_path / "phase13"
+def test_generate_cutover_evidence_dry_run_writes_expected_files(tmp_path: Path) -> None:
+    output_dir = tmp_path / "cutover"
     run = subprocess.run(
         [
             sys.executable,

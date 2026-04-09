@@ -7,7 +7,7 @@
 - **Date:** 2026-04-09
 - **Decision:** GO
 - **Approvers:** release-engineer, platform-owner
-- **Change Window:** 2026-04-09-adr0076-phase13-physical-cutover
+- **Change Window:** 2026-04-09-adr0076-cutover-physical-extraction
 
 ---
 
@@ -16,15 +16,15 @@
 - **Strict gates:** PASS
 - **Release tests:** PASS
 - **Trust verification:** PASS
-- **Phase13 evidence (if applicable):** GO
+- **Cutover evidence (if applicable):** GO
 
 ---
 
 ## 3. Evidence Links
 
 - `build/diagnostics/report.txt`
-- `build/diagnostics/phase13/summary.json`
-- `build/diagnostics/phase13/split-rehearsal.json`
+- `build/diagnostics/cutover/summary.json`
+- `build/diagnostics/cutover/split-rehearsal.json`
 - `projects/home-lab/framework.lock.yaml`
 
 ---

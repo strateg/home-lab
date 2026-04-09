@@ -4,7 +4,7 @@
 **Status:** Completed
 **Owner:** _TBD_
 **Approver:** _TBD_
-**Change Window:** 2026-04-09-adr0076-phase13-cutover
+**Change Window:** 2026-04-09-adr0076-cutover-physical-extraction
 
 Reference plan: `adr/plan/0076-phase13-physical-extraction-plan.md`
 
@@ -19,7 +19,7 @@ Reference plan: `adr/plan/0076-phase13-physical-extraction-plan.md`
 Evidence:
 
 - [x] `build/diagnostics/report.txt` attached.
-- [x] strict gate output attached (`build/diagnostics/phase13/summary.json`).
+- [x] strict gate output attached (`build/diagnostics/cutover/summary.json`).
 
 ---
 
@@ -35,14 +35,14 @@ Evidence:
 
 Evidence:
 
-- [x] Optional helper executed: `task framework:phase13-evidence` (writes `build/diagnostics/phase13/*`).
-- [x] Optional helper executed: `task framework:phase13-go-no-go` returns `GO`.
-- [x] `verify-framework-lock --strict` output attached (`build/diagnostics/phase13/verify-lock.txt`).
-- [x] `verify-framework-lock --strict --enforce-package-trust --verify-package-artifact-files --verify-package-signature` output attached (`build/diagnostics/phase13/verify-lock-package-trust-signature.txt`).
-- [x] `compile-topology --strict-model-lock` output attached (`build/diagnostics/phase13/compile.txt`).
-- [x] `validate-framework-compatibility-matrix.py` output attached (`build/diagnostics/phase13/compatibility.txt`).
-- [x] `audit-strict-runtime-entrypoints.py` output attached (`build/diagnostics/phase13/audit-entrypoints.txt`).
-- [x] Split rehearsal summary (`build/diagnostics/phase13/split-rehearsal.json`).
+- [x] Optional helper executed: `task framework:cutover-evidence` (writes `build/diagnostics/cutover/*`).
+- [x] Optional helper executed: `task framework:cutover-go-no-go` returns `GO`.
+- [x] `verify-framework-lock --strict` output attached (`build/diagnostics/cutover/verify-lock.txt`).
+- [x] `verify-framework-lock --strict --enforce-package-trust --verify-package-artifact-files --verify-package-signature` output attached (`build/diagnostics/cutover/verify-lock-package-trust-signature.txt`).
+- [x] `compile-topology --strict-model-lock` output attached (`build/diagnostics/cutover/compile.txt`).
+- [x] `validate-framework-compatibility-matrix.py` output attached (`build/diagnostics/cutover/compatibility.txt`).
+- [x] `audit-strict-runtime-entrypoints.py` output attached (`build/diagnostics/cutover/audit-entrypoints.txt`).
+- [x] Split rehearsal summary (`build/diagnostics/cutover/split-rehearsal.json`).
 - [x] Split rehearsal summary confirms ADR0089-0091 SOHO contract checks are green.
 
 ---
@@ -86,13 +86,13 @@ Approver sign-off:
 
 Evidence links:
 
-- [x] Framework release/tag: build/diagnostics/phase13/summary.json
-- [x] Framework checksums/sig/crt: build/diagnostics/phase13/verify-lock-package-trust-signature.txt
-- [x] Framework SBOM URI: build/diagnostics/phase13/summary.json
-- [x] Framework provenance URI: build/diagnostics/phase13/summary.json
+- [x] Framework release/tag: build/diagnostics/cutover/summary.json
+- [x] Framework checksums/sig/crt: build/diagnostics/cutover/verify-lock-package-trust-signature.txt
+- [x] Framework SBOM URI: build/diagnostics/cutover/summary.json
+- [x] Framework provenance URI: build/diagnostics/cutover/summary.json
 - [x] Project lock revision: projects/home-lab/framework.lock.yaml
-- [x] CI run URLs: build/diagnostics/phase13/summary.json
-- [x] Cutover readiness report: build/diagnostics/phase13/cutover-readiness.txt
+- [x] CI run URLs: build/diagnostics/cutover/summary.json
+- [x] Cutover readiness report: build/diagnostics/cutover/cutover-readiness.txt
 
 ---
 
@@ -116,7 +116,7 @@ Evidence links:
 
 Evidence:
 
-- [x] `rehearse-framework-rollback.py` output attached (`build/diagnostics/phase13/cutover-readiness.txt`).
+- [x] `rehearse-framework-rollback.py` output attached (`build/diagnostics/cutover/cutover-readiness.txt`).
 - [x] Rollback decision log attached.
 
 ---

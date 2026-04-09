@@ -13,7 +13,7 @@ tasks:
       - task validate:adr0083-reactivation
       - task validate:adr0083-reactivation-evidence
       - task framework:strict
-      - task ci:phase13-gate
+      - task ci:cutover-gate
       - task validate:default
       - task test:ai-redaction
 
@@ -29,14 +29,19 @@ tasks:
       - task validate:adr0083-reactivation
       - task validate:adr0083-reactivation-evidence
       - task framework:strict
-      - task ci:phase13-gate
+      - task ci:cutover-gate
       - task validate:inject
 
-  phase13-gate:
-    desc: Phase13 extraction safety gate (evidence + go/no-go decision)
+  cutover-gate:
+    desc: Cutover extraction safety gate (evidence + go/no-go decision)
     cmds:
-      - task framework:phase13-evidence
-      - task framework:phase13-go-no-go
+      - task framework:cutover-evidence
+      - task framework:cutover-go-no-go
+
+  phase13-gate:
+    desc: Deprecated alias for cutover-gate
+    cmds:
+      - task ci:cutover-gate
 
   _strict-validate-phase1:
     internal: true

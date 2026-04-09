@@ -18,15 +18,15 @@
 - **Strict gates:** PASS | FAIL
 - **Release tests:** PASS | FAIL
 - **Trust verification:** PASS | FAIL
-- **Phase13 evidence (if applicable):** GO | NO-GO | N/A
+- **Cutover evidence (if applicable):** GO | NO-GO | N/A
 
 ---
 
 ## 3. Evidence Links
 
 - `build/diagnostics/report.txt`
-- `build/diagnostics/phase13/summary.json`
-- `build/diagnostics/phase13/split-rehearsal.json`
+- `build/diagnostics/cutover/summary.json`
+- `build/diagnostics/cutover/split-rehearsal.json`
 - `projects/<project>/framework.lock.yaml`
 
 ---

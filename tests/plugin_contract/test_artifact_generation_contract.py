@@ -100,7 +100,7 @@ def test_contract_helpers_normalize_absolute_paths_to_logical_relative(tmp_path:
 
 def test_contract_helpers_keep_logical_identity_with_custom_artifacts_root(tmp_path: Path) -> None:
     repo_root = tmp_path / "repo"
-    artifacts_root = repo_root / "build" / "phase13" / "split-rehearsal" / "generated-artifacts"
+    artifacts_root = repo_root / "build" / "cutover" / "split-rehearsal" / "generated-artifacts"
     target_file = artifacts_root / "home-lab" / "ansible" / "inventory" / "production" / "hosts.yml"
     target_file.parent.mkdir(parents=True, exist_ok=True)
     target_file.write_text("# placeholder\n", encoding="utf-8")
