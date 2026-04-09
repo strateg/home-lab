@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import sys
+import re
 from pathlib import Path
 from typing import Any
 
@@ -22,8 +23,12 @@ class TUC0001QualityGate:
         self.router_objects: dict[str, dict[str, Any]] = {}
 
     def _load_yaml(self, path: Path) -> dict[str, Any] | None:
+        raw = path.read_text(encoding="utf-8")
+        # Semantic topology shards use unquoted keys like `@instance:` / `@object:`.
+        # Normalize them into valid YAML keys for quality-gate parsing.
+        normalized = re.sub(r"^(\s*)(@[A-Za-z0-9_.-]+)\s*:", r'\1"\2":', raw, flags=re.MULTILINE)
         try:
-            payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+            payload = yaml.safe_load(normalized)
         except Exception as exc:
             self.errors.append(f"failed to read {path}: {exc}")
             return None
@@ -39,7 +44,7 @@ class TUC0001QualityGate:
             payload = self._load_yaml(instance_file)
             if not payload:
                 continue
-            instance_id = payload.get("instance")
+            instance_id = payload.get("instance") or payload.get("@instance")
             if not isinstance(instance_id, str) or not instance_id:
                 self.warnings.append(f"{instance_file}: missing 'instance' id")
                 continue
@@ -54,9 +59,10 @@ class TUC0001QualityGate:
             payload = self._load_yaml(obj_file)
             if not payload:
                 continue
-            if payload.get("class_ref") != "class.router":
+            class_ref = payload.get("class_ref") or payload.get("@extends")
+            if class_ref != "class.router":
                 continue
-            object_id = payload.get("object")
+            object_id = payload.get("object") or payload.get("@object")
             if isinstance(object_id, str) and object_id:
                 self.router_objects[object_id] = payload
 
@@ -107,7 +113,7 @@ class TUC0001QualityGate:
         if not isinstance(device_row, dict):
             self.errors.append(f"{owner}: {field}.device_ref '{device_ref}' does not exist")
             return
-        object_ref = device_row.get("object_ref")
+        object_ref = device_row.get("object_ref") or device_row.get("@extends")
         if not isinstance(object_ref, str) or object_ref not in self.router_objects:
             self.errors.append(f"{owner}: device '{device_ref}' has unknown router object '{object_ref}'")
             return
@@ -134,9 +140,12 @@ class TUC0001QualityGate:
         if cable is None or channel is None:
             return
 
-        if cable.get("object_ref") != "obj.network.ethernet_cable":
+        cable_obj_ref = cable.get("object_ref") or cable.get("@extends")
+        channel_obj_ref = channel.get("object_ref") or channel.get("@extends")
+
+        if cable_obj_ref != "obj.network.ethernet_cable":
             self.errors.append("inst.ethernet_cable.cat5e: unexpected object_ref")
-        if channel.get("object_ref") != "obj.network.ethernet_channel":
+        if channel_obj_ref != "obj.network.ethernet_channel":
             self.errors.append("inst.chan.eth.chateau_to_slate: unexpected object_ref")
 
         for field in ("endpoint_a", "endpoint_b"):
