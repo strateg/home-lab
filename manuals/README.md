@@ -78,7 +78,7 @@ Artifact-first release and consumption flow for framework distribution.
 
 | Document | Description |
 |----------|-------------|
-| [DISTRIBUTION-PLANE-MANUAL.md](distribution-plane/DISTRIBUTION-PLANE-MANUAL.md) | End-to-end distribution, trust verification, bootstrap and upgrade |
+| [DISTRIBUTION-PLANE-MANUAL.md](distribution-plane/DISTRIBUTION-PLANE-MANUAL.md) | End-to-end distribution, trust verification, bootstrap and upgrade (see Quick Links) |
 | [COMMAND-REFERENCE.md](distribution-plane/COMMAND-REFERENCE.md) | Command quick reference for distribution plane |
 | [RELEASE-CHECKLIST.md](distribution-plane/RELEASE-CHECKLIST.md) | Release checklist for distribution artifacts |
 | [UPGRADE-RUNBOOK.md](distribution-plane/UPGRADE-RUNBOOK.md) | Production upgrade runbook (artifact-first) |
