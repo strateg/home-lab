@@ -9,13 +9,14 @@ Comprehensive documentation for operating and developing the home lab infrastruc
 
 ## Documentation Overview
 
-This manual set covers three operational planes:
+This manual set covers four operational planes:
 
 | Plane | Purpose | Audience |
 |-------|---------|----------|
 | **Quality & CI Plane** | Validation, test lanes, CI and acceptance gates | Developers, Maintainers |
 | **Deploy Plane** | Runtime execution and infrastructure deployment | Operators |
 | **Development Plane** | Topology authoring and artifact generation | Developers |
+| **Distribution Plane** | Framework distribution, trust verification, project bootstrap/upgrade | Release Engineers, Maintainers |
 
 ---
 
@@ -68,6 +69,21 @@ Quality and verification layer for local and CI gates.
 | `test:*` | Unit/integration/regression test suites |
 | `ci:*` | Composed CI lanes |
 | `acceptance:*` | Acceptance scenarios and quality gates |
+
+---
+
+## Distribution Plane (Release/Packaging)
+
+Artifact-first release and consumption flow for framework distribution.
+
+| Document | Description |
+|----------|-------------|
+| [DISTRIBUTION-PLANE-MANUAL.md](distribution-plane/DISTRIBUTION-PLANE-MANUAL.md) | End-to-end distribution, trust verification, bootstrap and upgrade |
+
+**Key Concepts:**
+- Distribution artifact - framework zip archive built from `topology/framework.yaml`
+- Trust metadata - signature/provenance/SBOM enforced in strict verification
+- Framework lock - `framework.lock.yaml` binds project to release artifact
 
 ---
 
