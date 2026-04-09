@@ -1,6 +1,6 @@
 # ADR 0089-0091 SOHO Productization Plan
 
-**Status:** Active  
+**Status:** Completed  
 **Last Updated:** 2026-04-09  
 **Scope:** Close implementation gaps for ADR 0089 (product profile), ADR 0090 (operator lifecycle), ADR 0091 (readiness evidence).
 
