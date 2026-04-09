@@ -98,12 +98,12 @@ Entry Gate:
 
 ### WS1.1 Split Rehearsal Lane (missing gate)
 
-- [ ] Add CI/local task that performs end-to-end rehearsal:
+- [x] Add CI/local task that performs end-to-end rehearsal:
   - extract framework with history,
   - bootstrap external project repo,
   - generate+verify lock in extracted layout,
   - compile in strict mode (`passthrough` secrets mode).
-- [ ] Publish rehearsal report under `build/diagnostics/phase13/`.
+- [x] Publish rehearsal report under `build/diagnostics/phase13/`.
 
 Gate:
 

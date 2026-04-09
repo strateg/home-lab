@@ -56,6 +56,11 @@ tasks:
     cmds:
       - "{{.PYTHON}} topology-tools/utils/generate-phase13-evidence.py"
 
+  split-rehearsal:
+    desc: Run ADR0076/ADR0081 split rehearsal lane and emit summary
+    cmds:
+      - "{{.PYTHON}} topology-tools/utils/run-split-rehearsal.py"
+
   archive-v4-compile:
     desc: Compile legacy archive/v4 baseline for parity drift monitoring
     cmds:

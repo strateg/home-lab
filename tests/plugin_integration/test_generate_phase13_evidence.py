@@ -38,6 +38,8 @@ def test_generate_phase13_evidence_dry_run_writes_expected_files(tmp_path: Path)
         "compatibility.txt",
         "audit-entrypoints.txt",
         "cutover-readiness.txt",
+        "split-rehearsal.txt",
+        "split-rehearsal.json",
         "summary.json",
     }
     actual = {path.name for path in output_dir.glob("*") if path.is_file()}
@@ -46,6 +48,5 @@ def test_generate_phase13_evidence_dry_run_writes_expected_files(tmp_path: Path)
     summary = json.loads((output_dir / "summary.json").read_text(encoding="utf-8"))
     checks = summary.get("checks", [])
     assert isinstance(checks, list)
-    assert len(checks) == 5
+    assert len(checks) == 6
     assert all(isinstance(item, dict) and int(item.get("return_code", 1)) == 0 for item in checks)
-

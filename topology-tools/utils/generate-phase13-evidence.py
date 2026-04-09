@@ -25,6 +25,27 @@ def _parse_args() -> argparse.Namespace:
 
 def _run_command(*, repo_root: Path, cmd: list[str], output_path: Path, dry_run: bool) -> int:
     if dry_run:
+        if any("run-split-rehearsal.py" in token for token in cmd):
+            try:
+                idx = cmd.index("--summary-path")
+                summary_path = Path(cmd[idx + 1])
+                summary_path.parent.mkdir(parents=True, exist_ok=True)
+                summary_path.write_text(
+                    json.dumps(
+                        {
+                            "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+                            "dry_run": True,
+                            "status": "ok",
+                            "steps": [],
+                        },
+                        indent=2,
+                        ensure_ascii=True,
+                    )
+                    + "\n",
+                    encoding="utf-8",
+                )
+            except Exception:
+                pass
         output_path.write_text(
             "DRY-RUN\n" + "COMMAND: " + " ".join(cmd) + "\n",
             encoding="utf-8",
@@ -68,6 +89,19 @@ def main() -> int:
             [python, "topology-tools/utils/cutover-readiness-report.py", "--quick"],
             output_dir / "cutover-readiness.txt",
         ),
+        (
+            "split_rehearsal",
+            [
+                python,
+                "topology-tools/utils/run-split-rehearsal.py",
+                "--repo-root",
+                str(repo_root),
+                "--summary-path",
+                str(output_dir / "split-rehearsal.json"),
+            ]
+            + (["--dry-run"] if args.dry_run else []),
+            output_dir / "split-rehearsal.txt",
+        ),
     ]
 
     summary: dict[str, object] = {
@@ -100,4 +134,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
