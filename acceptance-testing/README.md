@@ -23,6 +23,7 @@ This directory stores Testing Use Cases (TUC) and all related artefacts.
 - `TUC-0001-router-data-channel-mikrotik-glinet`
 - `TUC-0002-new-terraform-generator`
 - `TUC-0003-mikrotik-live-parity-drift`
+- `TUC-0004-soho-readiness-evidence`
 
 ## Task Commands
 
