@@ -2,14 +2,14 @@
   "schema_version": 1,
   "adr": "0076",
   "production_cutover_complete": true,
-  "completed_at": "2026-03-20T20:00:00Z",
-  "change_window": "2026-03-20-adr0076-wave4-cutover",
-  "announcement": "ADR0076 production cutover announced; strict multi-repo flow is the operational baseline.",
-  "freeze_switch": "legacy integrated flow frozen; cutover dry-run gates are mandatory before framework lock updates.",
+  "completed_at": "2026-04-09T08:23:31Z",
+  "change_window": "2026-04-09-adr0076-phase13-physical-cutover",
+  "announcement": "ADR0076 Phase 13 physical extraction cutover completed; artifact-first multi-repo flow is canonical.",
+  "freeze_switch": "legacy integrated flow remains frozen; phase13 split-rehearsal gates are mandatory before lock updates.",
   "evidence": [
-    "docs/framework/CUTOVER-DRY-RUN-RUNBOOK.md",
-    "docs/framework/OPERATOR-WORKFLOWS.md",
-    "topology-tools/utils/cutover-readiness-report.py",
-    "docs/release-notes/2026-03-20-adr0076-production-cutover.md"
+    "adr/plan/0076-phase13-physical-extraction-plan.md",
+    "adr/plan/0076-phase13-cutover-checklist.md",
+    "build/diagnostics/phase13/summary.json",
+    "build/diagnostics/phase13/cutover-readiness.txt"
   ]
 }

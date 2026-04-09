@@ -1,6 +1,6 @@
 # ADR 0091: SOHO Readiness Evidence and Handover Artifacts
 
-- Status: Proposed
+- Status: Implemented (complete)
 - Date: 2026-04-05
 - Depends on: ADR 0070, ADR 0072, ADR 0074, ADR 0080, ADR 0085, ADR 0089, ADR 0090
 

@@ -1,6 +1,6 @@
 # ADR 0090: SOHO Operator Lifecycle and Task UX Contract
 
-- Status: Proposed
+- Status: Implemented (complete)
 - Date: 2026-04-05
 - Depends on: ADR 0070, ADR 0077, ADR 0080, ADR 0083, ADR 0084, ADR 0085, ADR 0089
 

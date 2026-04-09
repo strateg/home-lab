@@ -1,7 +1,8 @@
 # ADR 0081: Framework Artifact-First Execution Plan
 
 **Date:** 2026-03-29
-**Status:** Active
+**Status:** Completed
+**Last Updated:** 2026-04-09
 **Implements:** `adr/0081-framework-runtime-artifact-and-1-n-project-repository-model.md`
 **Depends on:** ADR0076 Stage 2 baseline + Phase 13 assets
 
@@ -202,9 +203,9 @@ Definition of Done:
 ### P5 — Cutover and Documentation
 
 - [x] Align Phase 13 plan/checklist with ADR 0081 artifact-first primary mode.
-- [ ] Execute cutover checklist with updated gates.
+- [x] Execute cutover checklist with updated gates.
 - [x] Update `README.md` with 1:N project model documentation.
-- [ ] Mark closure in production-readiness plan.
+- [x] Mark closure in production-readiness plan.
 
 Definition of Done:
 

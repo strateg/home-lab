@@ -89,9 +89,9 @@
 | [0086](0086-flatten-plugin-hierarchy-and-reduce-granularity.md) | Flatten Plugin Hierarchy and Reduce Plugin Granularity | Accepted (complete) | 2026-04-01 | ADR 0063 Section 4B | - |
 | [0087](0087-unified-container-ontology-l4-l5.md) | Unified Container Ontology for L4/L5 | Implemented (Phase 1 PASSED) | 2026-04-03 | - | - |
 | [0088](0088-semantic-keyword-registry-and-at-prefixed-meta-fields.md) | Semantic Keyword Registry and `@`-Prefixed Meta Fields | Accepted (implemented) | 2026-04-05 | [0067](0067-entity-specific-identifier-keys-in-yaml-authoring.md) | - |
-| [0089](0089-soho-product-profile-and-bundle-contract.md) | SOHO Product Profile and Bundle Contract | Proposed | 2026-04-05 | - | - |
-| [0090](0090-soho-operator-lifecycle-and-task-ux-contract.md) | SOHO Operator Lifecycle and Task UX Contract | Proposed | 2026-04-05 | - | - |
-| [0091](0091-soho-readiness-evidence-and-handover-artifacts.md) | SOHO Readiness Evidence and Handover Artifacts | Proposed | 2026-04-05 | - | - |
+| [0089](0089-soho-product-profile-and-bundle-contract.md) | SOHO Product Profile and Bundle Contract | Implemented (complete) | 2026-04-05 | - | - |
+| [0090](0090-soho-operator-lifecycle-and-task-ux-contract.md) | SOHO Operator Lifecycle and Task UX Contract | Implemented (complete) | 2026-04-05 | - | - |
+| [0091](0091-soho-readiness-evidence-and-handover-artifacts.md) | SOHO Readiness Evidence and Handover Artifacts | Implemented (complete) | 2026-04-05 | - | - |
 | [0092](0092-smart-artifact-generation-and-hybrid-rendering.md) | Smart Artifact Generation and Hybrid Rendering | Implemented (Waves 1-4 complete; AI extracted to ADR0094) | 2026-04-05 | - | - |
 | [0093](0093-artifact-plan-schema-and-generator-runtime-integration.md) | ArtifactPlan Schema and Generator Runtime Integration | Implemented (Waves 1-5 complete; compatibility mode closed) | 2026-04-05 | - | - |
 | [0094](0094-ai-advisory-mode-for-artifact-generation.md) | AI Advisory Mode for Artifact Generation | Implemented (Waves 1-4 complete; checklist closed) | 2026-04-06 | ADR 0092 D10 | - |

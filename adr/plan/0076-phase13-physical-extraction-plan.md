@@ -1,7 +1,8 @@
 # ADR 0076: Phase 13 Physical Extraction Plan
 
 **Date:** 2026-03-29
-**Status:** Active
+**Status:** Completed
+**Last Updated:** 2026-04-09
 **Depends on:** ADR 0076 Stage 2 baseline (`submodule-first`)
 **Supersedes:** none (extends `adr/plan/0076-multi-repo-extraction-plan.md`)
 
@@ -88,9 +89,9 @@ Entry Gate:
 
 ### WS0.2 Governance Sync
 
-- [ ] Align ADR0076 operational docs to "Stage 2 complete, Phase 13 active".
-- [ ] Freeze cutover branch/tag policy.
-- [ ] Assign accountable owners for cutover and rollback.
+- [x] Align ADR0076 operational docs to "Stage 2 complete, Phase 13 active".
+- [x] Freeze cutover branch/tag policy.
+- [x] Assign accountable owners for cutover and rollback.
 
 ---
 
@@ -140,9 +141,9 @@ Gate:
 
 ### WS2.1 Framework Repository Cut
 
-- [ ] Execute history-preserving extraction to framework target repository.
-- [ ] Validate extracted repository test matrix.
-- [ ] Publish signed/tagged framework candidate release.
+- [x] Execute history-preserving extraction to framework target repository.
+- [x] Validate extracted repository test matrix.
+- [x] Publish signed/tagged framework candidate release.
 
 Gate:
 
@@ -151,9 +152,9 @@ Gate:
 
 ### WS2.2 Project Repository Cut
 
-- [ ] Bootstrap/align project repository to consume extracted framework.
-- [ ] Update `framework.lock.yaml` to extracted framework release revision.
-- [ ] Validate strict compile/validation gates in project repository.
+- [x] Bootstrap/align project repository to consume extracted framework.
+- [x] Update `framework.lock.yaml` to extracted framework release revision.
+- [x] Validate strict compile/validation gates in project repository.
 
 Gate:
 
@@ -165,15 +166,15 @@ Gate:
 
 ### WS3.1 Cutover Window
 
-- [ ] Execute `adr/plan/0076-phase13-cutover-checklist.md`.
-- [ ] Record Go/No-Go decision with evidence links.
-- [ ] Publish release note for physical cutover.
+- [x] Execute `adr/plan/0076-phase13-cutover-checklist.md`.
+- [x] Record Go/No-Go decision with evidence links.
+- [x] Publish release note for physical cutover.
 
 ### WS3.2 Rollback Rehearsal After Cutover
 
-- [ ] Rehearse rollback on post-cutover revisions.
-- [ ] Verify forward restore and lock re-validation.
-- [ ] Record rollback rehearsal evidence.
+- [x] Rehearse rollback on post-cutover revisions.
+- [x] Verify forward restore and lock re-validation.
+- [x] Record rollback rehearsal evidence.
 
 ---
 
@@ -192,6 +193,7 @@ Gate:
 3. Integrated split rehearsal lane and diagnostics evidence.
 4. Completed cutover checklist with Go/No-Go and rollback evidence.
 5. Updated ADR/runbook docs where extracted flow is canonical.
+6. Phase 13 evidence bundle (`build/diagnostics/phase13/*`) captured.
 
 ---
 

@@ -8,12 +8,8 @@ This directory contains implementation plans for major development efforts.
 |------|--------|-------------|
 | [v5-post-migration-roadmap-2026-03-27.md](v5-post-migration-roadmap-2026-03-27.md) | Active | Post-migration development roadmap: governance, ADR0079 docs/diagrams, production hardening |
 | [v5-production-readiness.md](v5-production-readiness.md) | Active | Master plan for v5 deployment capability |
-| [0076-phase13-physical-extraction-plan.md](0076-phase13-physical-extraction-plan.md) | Active | ADR0076 Phase 13 physical framework/project repository extraction |
-| [0076-phase13-cutover-checklist.md](0076-phase13-cutover-checklist.md) | Active | ADR0076 Phase 13 execution checklist for physical extraction cutover |
-| [0081-framework-artifact-first-execution-plan.md](0081-framework-artifact-first-execution-plan.md) | Active | ADR0081 implementation plan for artifact-first framework + 1:N project repositories |
 | [0083-0085-implementation-plan.md](0083-0085-implementation-plan.md) | Active | Cross-document analysis of ADR 0083/0084/0085 deploy-domain implementation |
 | [0083-0085-unified-sequence.md](0083-0085-unified-sequence.md) | Active | Unified implementation sequence with concrete next steps |
-| [0089-0091-soho-productization-plan.md](0089-0091-soho-productization-plan.md) | Active | Implementation track for ADR0089 product profile, ADR0090 operator lifecycle, ADR0091 readiness evidence |
 
 ## Completed Plans
 
@@ -26,7 +22,11 @@ This directory contains implementation plans for major development efforts.
 | [0078-v5-unified-plugin-refactor-prep.md](0078-v5-unified-plugin-refactor-prep.md) | 2026-03-22 | Unified plugin boundary hardening (WP6-WP10) |
 | [0078-wave-d-v4-validator-mapping.md](0078-wave-d-v4-validator-mapping.md) | 2026-03-22 | v4 validator mapping and parity closure notes |
 | [0076-multi-repo-extraction-plan.md](0076-multi-repo-extraction-plan.md) | 2026-03-24 | ADR0076 Stage 2 closure (completed in submodule-first mode) |
+| [0076-phase13-physical-extraction-plan.md](0076-phase13-physical-extraction-plan.md) | 2026-04-09 | ADR0076 Phase 13 physical framework/project repository extraction |
+| [0076-phase13-cutover-checklist.md](0076-phase13-cutover-checklist.md) | 2026-04-09 | ADR0076 Phase 13 execution checklist for physical extraction cutover |
 | [phase1-generator-framework.md](phase1-generator-framework.md) | Superseded | Generator plugin infrastructure (see ADR 0074) |
+| [0081-framework-artifact-first-execution-plan.md](0081-framework-artifact-first-execution-plan.md) | 2026-04-09 | ADR0081 implementation plan for artifact-first framework + 1:N project repositories |
+| [0089-0091-soho-productization-plan.md](0089-0091-soho-productization-plan.md) | 2026-04-09 | Implementation track for ADR0089 product profile, ADR0090 operator lifecycle, ADR0091 readiness evidence |
 
 ## Migration Agreement (0075/0078)
 

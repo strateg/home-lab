@@ -1,6 +1,6 @@
 # ADR 0089: SOHO Product Profile and Bundle Contract
 
-- Status: Proposed
+- Status: Implemented (complete)
 - Date: 2026-04-05
 - Depends on: ADR 0063, ADR 0070, ADR 0072, ADR 0074, ADR 0075, ADR 0077, ADR 0080, ADR 0085
 
