@@ -112,11 +112,22 @@ Gate:
 - `python topology-tools/verify-framework-lock.py --strict ...`
 - `python topology-tools/compile-topology.py --strict-model-lock ...`
 
+### WS1.1b SOHO Product-Contract Bridge (ADR0089-0091)
+
+- [x] Enforce SOHO contract checks in split rehearsal summary:
+  - mandatory handover/report files present,
+  - ADR0091 D3 evidence domains present,
+  - normalized support bundle completeness state present.
+- [ ] Add semantic parity comparison against monorepo baseline for operator-readiness payload.
+- [ ] Promote split-rehearsal summary as mandatory Phase13 CI artifact.
+
 ### WS1.2 Contract Hardening for Extracted Mode
 
 - [ ] Add explicit tests for extracted-repo lock revision behavior (no accidental monorepo bypass in extracted topology).
 - [ ] Add guard tests for distribution include-path stability after extraction.
 - [ ] Add contract test for generated project skeleton paths (`topology/instances`, `generated`, `generated-artifacts`).
+- [ ] Add extracted-mode contract test for `product:doctor` status derivation from generated machine-readable evidence.
+- [ ] Add extracted-mode contract test for `product:handover` completeness gate behavior.
 
 ### WS1.3 Trust Pipeline Hardening
 

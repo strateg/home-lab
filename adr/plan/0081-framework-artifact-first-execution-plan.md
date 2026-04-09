@@ -25,6 +25,26 @@ Make artifact-first framework consumption the canonical model for framework + mu
 
 ---
 
+## Active Implementation Track (2026-04-09)
+
+Cross-ADR bridge to keep artifact-first extraction aligned with SOHO product contracts (ADR0089-0091):
+
+- [x] Split rehearsal lane is automated (`task framework:split-rehearsal`).
+- [x] Phase13 evidence bundle includes split rehearsal (`task framework:phase13-evidence`).
+- [x] Split rehearsal summary validates ADR0091 handover/report contract and D3 domain coverage.
+- [ ] Add deterministic parity check between monorepo and extracted `operator-readiness.json` semantics.
+- [ ] Promote split-rehearsal summary publication as mandatory CI artifact in Phase13 gate.
+- [ ] Add Go/No-Go guard: any critical `E794x` in extracted-mode evidence is No-Go for cutover.
+
+Execution priority now:
+
+1. Finish P0 baseline recovery (strict green baseline).
+2. Close P2.5 extracted-mode compatibility tests.
+3. Close P3 trust hardening (package verification).
+4. Execute P5 cutover checklist with new SOHO bridge gates.
+
+---
+
 ## Target State
 
 1. Framework source repository produces runtime-only artifact (classes, objects, plugins, toolchain — no tests/ADR/dev-docs).
@@ -151,13 +171,17 @@ Note: trust verification is phased per ADR 0081 §4.3. Integrity checks are mand
 
 ### P4 — Split Rehearsal Lane
 
-- [ ] Add deterministic rehearsal workflow:
+- [x] Add deterministic rehearsal workflow:
   1. Extract framework artifact from current repo.
   2. Bootstrap project repository from artifact.
   3. Generate lock in project repo.
   4. Strict verify + compile in project repo (no access to framework source).
   5. Generate artifacts and verify determinism.
-- [ ] Publish machine-readable rehearsal summary.
+- [x] Publish machine-readable rehearsal summary.
+- [x] Validate ADR0089-0091 SOHO contract outputs in rehearsal summary:
+  1. mandatory handover/report files are present in extracted-mode output;
+  2. `operator-readiness.json` includes all ADR0091 D3 evidence domains;
+  3. support bundle manifest exposes normalized completeness state.
 
 Gate commands:
 

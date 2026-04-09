@@ -41,6 +41,7 @@ Evidence:
 - [ ] `validate-framework-compatibility-matrix.py` output attached (`build/diagnostics/phase13/compatibility.txt`).
 - [ ] `audit-strict-runtime-entrypoints.py` output attached (`build/diagnostics/phase13/audit-entrypoints.txt`).
 - [ ] Split rehearsal summary (`build/diagnostics/phase13/split-rehearsal.json`).
+- [ ] Split rehearsal summary confirms ADR0089-0091 SOHO contract checks are green.
 
 ---
 

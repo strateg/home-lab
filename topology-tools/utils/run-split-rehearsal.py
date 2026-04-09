@@ -12,6 +12,36 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+_REQUIRED_HANDOVER_FILES = {
+    "SYSTEM-SUMMARY.md",
+    "NETWORK-SUMMARY.md",
+    "ACCESS-RUNBOOK.md",
+    "BACKUP-RUNBOOK.md",
+    "RESTORE-RUNBOOK.md",
+    "UPDATE-RUNBOOK.md",
+    "INCIDENT-CHECKLIST.md",
+    "ASSET-INVENTORY.csv",
+    "CHANGELOG-SNAPSHOT.md",
+}
+_REQUIRED_REPORT_FILES = {
+    "health-report.json",
+    "drift-report.json",
+    "backup-status.json",
+    "restore-readiness.json",
+    "operator-readiness.json",
+    "support-bundle-manifest.json",
+}
+_ADR0091_D3_DOMAINS = {
+    "greenfield-first-install",
+    "brownfield-adoption",
+    "router-replacement",
+    "secret-rotation",
+    "scheduled-update",
+    "failed-update-rollback",
+    "backup-and-restore",
+    "operator-handover",
+}
+
 
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
@@ -45,6 +75,43 @@ def _run_command(*, cmd: list[str], cwd: Path, dry_run: bool) -> tuple[int, str]
     run = subprocess.run(cmd, cwd=cwd, text=True, capture_output=True, check=False)
     output = (run.stdout or "") + (run.stderr or "")
     return int(run.returncode), output
+
+
+def _load_json(path: Path) -> dict | None:
+    if not path.exists():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _evaluate_soho_artifacts(generated_artifacts_root: Path) -> dict[str, object]:
+    product_root = generated_artifacts_root / "home-lab" / "product"
+    handover_root = product_root / "handover"
+    reports_root = product_root / "reports"
+
+    handover_missing = sorted(name for name in _REQUIRED_HANDOVER_FILES if not (handover_root / name).exists())
+    reports_missing = sorted(name for name in _REQUIRED_REPORT_FILES if not (reports_root / name).exists())
+
+    operator_payload = _load_json(reports_root / "operator-readiness.json") or {}
+    manifest_payload = _load_json(reports_root / "support-bundle-manifest.json") or {}
+    evidence_payload = operator_payload.get("evidence", {})
+    evidence_keys = set(evidence_payload.keys()) if isinstance(evidence_payload, dict) else set()
+    missing_domains = sorted(_ADR0091_D3_DOMAINS - evidence_keys)
+
+    manifest_state = str(manifest_payload.get("completeness_state", "unknown"))
+    status = str(operator_payload.get("status", "unknown"))
+    ok = not handover_missing and not reports_missing and not missing_domains and manifest_state != "unknown"
+    return {
+        "ok": ok,
+        "handover_missing": handover_missing,
+        "reports_missing": reports_missing,
+        "missing_adr0091_domains": missing_domains,
+        "operator_status": status,
+        "manifest_completeness_state": manifest_state,
+    }
 
 
 def _seed_soho_catalogs(*, repo_root: Path, workspace_root: Path, dry_run: bool) -> tuple[int, str]:
@@ -206,6 +273,9 @@ def main() -> int:
 
     generated_artifacts_hash = _hash_tree(workspace_root / "generated-artifacts")
     generated_hash = _hash_tree(workspace_root / "generated")
+    soho_checks = _evaluate_soho_artifacts(workspace_root / "generated-artifacts")
+    if not bool(soho_checks.get("ok")) and not args.dry_run:
+        exit_code = 1
     summary: dict[str, object] = {
         "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
         "repo_root": str(repo_root),
@@ -213,6 +283,7 @@ def main() -> int:
         "dry_run": bool(args.dry_run),
         "status": "failed" if exit_code else "ok",
         "steps": run_steps,
+        "soho_contract_checks": soho_checks,
         "generated_artifacts_file_count": len(generated_artifacts_hash),
         "generated_file_count": len(generated_hash),
         "generated_artifacts_hash": generated_artifacts_hash,
