@@ -51,6 +51,11 @@ tasks:
     cmds:
       - "{{.PYTHON}} topology-tools/utils/cutover-readiness-report.py"
 
+  phase13-evidence:
+    desc: Generate ADR0076 Phase 13 strict-gate evidence bundle
+    cmds:
+      - "{{.PYTHON}} topology-tools/utils/generate-phase13-evidence.py"
+
   archive-v4-compile:
     desc: Compile legacy archive/v4 baseline for parity drift monitoring
     cmds:
