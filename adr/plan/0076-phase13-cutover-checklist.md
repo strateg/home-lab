@@ -36,6 +36,7 @@ Evidence:
 Evidence:
 
 - [ ] Optional helper executed: `task framework:phase13-evidence` (writes `build/diagnostics/phase13/*`).
+- [ ] Optional helper executed: `task framework:phase13-go-no-go` returns `GO`.
 - [ ] `verify-framework-lock --strict` output attached (`build/diagnostics/phase13/verify-lock.txt`).
 - [ ] `compile-topology --strict-model-lock` output attached (`build/diagnostics/phase13/compile.txt`).
 - [ ] `validate-framework-compatibility-matrix.py` output attached (`build/diagnostics/phase13/compatibility.txt`).
@@ -59,6 +60,7 @@ No-Go triggers:
 - [ ] Any compatibility matrix failure for target version set.
 - [ ] Missing release provenance/signature/SBOM for framework artifact.
 - [ ] Split rehearsal lane fails in candidate revisions.
+- [ ] Any critical `E794x` diagnostics in split-rehearsal SOHO evidence checks.
 
 Decision:
 

@@ -61,6 +61,11 @@ tasks:
     cmds:
       - "{{.PYTHON}} topology-tools/utils/run-split-rehearsal.py"
 
+  phase13-go-no-go:
+    desc: Evaluate Phase13 evidence bundle and emit Go/No-Go decision
+    cmds:
+      - "{{.PYTHON}} topology-tools/utils/validate-phase13-go-no-go.py"
+
   archive-v4-compile:
     desc: Compile legacy archive/v4 baseline for parity drift monitoring
     cmds:

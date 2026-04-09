@@ -41,3 +41,15 @@ def test_framework_split_rehearsal_task_is_defined() -> None:
     assert isinstance(cmds, list)
     serialized = "\n".join(str(item) for item in cmds)
     assert "topology-tools/utils/run-split-rehearsal.py" in serialized
+
+
+def test_framework_phase13_go_no_go_task_is_defined() -> None:
+    payload = _load_yaml(TASKFILE_PATH)
+    tasks = payload.get("tasks", {})
+    assert isinstance(tasks, dict)
+    task_payload = tasks.get("phase13-go-no-go")
+    assert isinstance(task_payload, dict)
+    cmds = task_payload.get("cmds", [])
+    assert isinstance(cmds, list)
+    serialized = "\n".join(str(item) for item in cmds)
+    assert "topology-tools/utils/validate-phase13-go-no-go.py" in serialized

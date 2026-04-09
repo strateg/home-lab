@@ -34,7 +34,7 @@ Cross-ADR bridge to keep artifact-first extraction aligned with SOHO product con
 - [x] Split rehearsal summary validates ADR0091 handover/report contract and D3 domain coverage.
 - [x] Add deterministic parity check between monorepo and extracted `operator-readiness.json` semantics.
 - [ ] Promote split-rehearsal summary publication as mandatory CI artifact in Phase13 gate.
-- [ ] Add Go/No-Go guard: any critical `E794x` in extracted-mode evidence is No-Go for cutover.
+- [x] Add Go/No-Go guard: any critical `E794x` in extracted-mode evidence is No-Go for cutover.
 
 Execution priority now:
 

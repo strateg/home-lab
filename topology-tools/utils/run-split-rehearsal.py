@@ -101,15 +101,33 @@ def _evaluate_soho_artifacts(generated_artifacts_root: Path) -> dict[str, object
     evidence_payload = operator_payload.get("evidence", {})
     evidence_keys = set(evidence_payload.keys()) if isinstance(evidence_payload, dict) else set()
     missing_domains = sorted(_ADR0091_D3_DOMAINS - evidence_keys)
+    diagnostics_payload = operator_payload.get("diagnostics", [])
+    critical_e794x: list[str] = []
+    if isinstance(diagnostics_payload, list):
+        for row in diagnostics_payload:
+            if not isinstance(row, dict):
+                continue
+            code = str(row.get("code", "")).strip()
+            severity = str(row.get("severity", "")).strip().lower()
+            if severity == "error" and code.startswith("E794"):
+                critical_e794x.append(code)
+    critical_e794x = sorted(set(critical_e794x))
 
     manifest_state = str(manifest_payload.get("completeness_state", "unknown"))
     status = str(operator_payload.get("status", "unknown"))
-    ok = not handover_missing and not reports_missing and not missing_domains and manifest_state != "unknown"
+    ok = (
+        not handover_missing
+        and not reports_missing
+        and not missing_domains
+        and manifest_state != "unknown"
+        and not critical_e794x
+    )
     return {
         "ok": ok,
         "handover_missing": handover_missing,
         "reports_missing": reports_missing,
         "missing_adr0091_domains": missing_domains,
+        "critical_e794x": critical_e794x,
         "operator_status": status,
         "manifest_completeness_state": manifest_state,
     }
