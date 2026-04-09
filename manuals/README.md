@@ -79,6 +79,8 @@ Artifact-first release and consumption flow for framework distribution.
 | Document | Description |
 |----------|-------------|
 | [DISTRIBUTION-PLANE-MANUAL.md](distribution-plane/DISTRIBUTION-PLANE-MANUAL.md) | End-to-end distribution, trust verification, bootstrap and upgrade |
+| [COMMAND-REFERENCE.md](distribution-plane/COMMAND-REFERENCE.md) | Command quick reference for distribution plane |
+| [RELEASE-CHECKLIST.md](distribution-plane/RELEASE-CHECKLIST.md) | Release checklist for distribution artifacts |
 
 **Key Concepts:**
 - Distribution artifact - framework zip archive built from `topology/framework.yaml`
