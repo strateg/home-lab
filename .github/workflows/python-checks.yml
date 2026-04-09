@@ -56,6 +56,15 @@ jobs:
             build/diagnostics/adr0047-trigger.json
             build/diagnostics/adr0083-reactivation.json
             build/diagnostics/adr0083-reactivation-evidence.md
+            build/diagnostics/phase13/summary.json
+            build/diagnostics/phase13/verify-lock.txt
+            build/diagnostics/phase13/verify-lock-package-trust-signature.txt
+            build/diagnostics/phase13/compile.txt
+            build/diagnostics/phase13/compatibility.txt
+            build/diagnostics/phase13/audit-entrypoints.txt
+            build/diagnostics/phase13/cutover-readiness.txt
+            build/diagnostics/phase13/split-rehearsal.json
+            build/diagnostics/phase13/split-rehearsal.txt
           if-no-files-found: warn
 
   test:
