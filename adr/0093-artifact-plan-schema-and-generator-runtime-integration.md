@@ -558,3 +558,15 @@ state_and_audit_contract:
 - **Ownership proof**: три метода проверки для надёжности.
 - **Sunset**: grace period + warnings перед hard error.
 - **Rollback**: автоматическая эскалация предотвращает застревание.
+
+---
+
+## Validation
+
+- `pytest` по релевантным наборам (контракты/интеграции): 23 passed, затем 75 passed.
+- `pytest tests/plugin_contract/test_artifact_generation_contract.py tests/plugin_integration/test_ansible_inventory_generator.py`: 14 passed.
+- `task framework:package-trust-gate`: PASS.
+- `task framework:verify-lock-package-trust-signature`: PASS.
+- `task ci:phase13-gate`: PASS (GO).
+- `verify-framework-lock --strict`: OK.
+- `compile-topology --strict-model-lock --secrets-mode passthrough`: errors=0.
