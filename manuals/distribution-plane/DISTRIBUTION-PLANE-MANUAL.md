@@ -148,6 +148,15 @@ task product:handover
 
 **References**
 
+- `manuals/distribution-plane/COMMAND-REFERENCE.md`
+- `manuals/distribution-plane/RELEASE-CHECKLIST.md`
+- `manuals/distribution-plane/UPGRADE-RUNBOOK.md`
+- `manuals/distribution-plane/UPGRADE-REPORT-TEMPLATE.md`
+- `manuals/distribution-plane/UPGRADE-REPORT-SAMPLE.md`
+- `manuals/distribution-plane/GO-NO-GO-TEMPLATE.md`
+- `manuals/distribution-plane/GO-NO-GO-SAMPLE.md`
+- `manuals/distribution-plane/RELEASE-LOG.md`
+- `manuals/distribution-plane/RELEASE-LOG-ENTRY-SAMPLE.md`
 - `docs/framework/INFRA-TOPOLOGY-FRAMEWORK-RELEASE-PROCESS.md`
 - `docs/framework/FRAMEWORK-RELEASE-GUIDE.md`
 - `docs/framework/PROJECT-BOOTSTRAP-AND-FRAMEWORK-INTEGRATION.md`
