@@ -10,6 +10,8 @@ This directory contains implementation plans for major development efforts.
 | [v5-production-readiness.md](v5-production-readiness.md) | Active | Master plan for v5 deployment capability |
 | [0083-0085-implementation-plan.md](0083-0085-implementation-plan.md) | Active | Cross-document analysis of ADR 0083/0084/0085 deploy-domain implementation |
 | [0083-0085-unified-sequence.md](0083-0085-unified-sequence.md) | Active | Unified implementation sequence with concrete next steps |
+| [PROJECT-SWOT-2026-04-09.md](PROJECT-SWOT-2026-04-09.md) | Active | Whole-project SWOT across architecture, runtime, deploy domain, productization, and governance |
+| [PROJECT-TOWS-2026-04-09.md](PROJECT-TOWS-2026-04-09.md) | Active | Strategy matrix derived from the whole-project SWOT with prioritized actions |
 
 ## Completed Plans
 
