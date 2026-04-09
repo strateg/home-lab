@@ -1,6 +1,6 @@
 # ADR 0095: Topology Inspection and Introspection Toolkit
 
-**Status:** Proposed  
+**Status:** Implemented (v1)  
 **Date:** 2026-04-08  
 **Depends on:** ADR 0062, ADR 0077, ADR 0080, ADR 0092, ADR 0093
 
