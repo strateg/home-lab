@@ -118,7 +118,7 @@ Gate:
   - mandatory handover/report files present,
   - ADR0091 D3 evidence domains present,
   - normalized support bundle completeness state present.
-- [ ] Add semantic parity comparison against monorepo baseline for operator-readiness payload.
+- [x] Add semantic parity comparison against monorepo baseline for operator-readiness payload.
 - [ ] Promote split-rehearsal summary as mandatory Phase13 CI artifact.
 
 ### WS1.2 Contract Hardening for Extracted Mode

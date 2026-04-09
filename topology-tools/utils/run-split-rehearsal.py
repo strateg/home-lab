@@ -53,6 +53,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--workspace-root", type=Path, default=Path("build/phase13/split-rehearsal/home-lab"))
     parser.add_argument("--summary-path", type=Path, default=Path("build/diagnostics/phase13/split-rehearsal.json"))
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--skip-parity-check", action="store_true")
     return parser.parse_args()
 
 
@@ -112,6 +113,94 @@ def _evaluate_soho_artifacts(generated_artifacts_root: Path) -> dict[str, object
         "operator_status": status,
         "manifest_completeness_state": manifest_state,
     }
+
+
+def _compare_operator_readiness_payloads(
+    *,
+    extracted_payload: dict,
+    baseline_payload: dict,
+) -> dict[str, object]:
+    extracted_status = str(extracted_payload.get("status", "unknown"))
+    baseline_status = str(baseline_payload.get("status", "unknown"))
+    extracted_evidence = extracted_payload.get("evidence", {})
+    baseline_evidence = baseline_payload.get("evidence", {})
+    extracted_keys = set(extracted_evidence.keys()) if isinstance(extracted_evidence, dict) else set()
+    baseline_keys = set(baseline_evidence.keys()) if isinstance(baseline_evidence, dict) else set()
+    missing_in_extracted = sorted(baseline_keys - extracted_keys)
+    extra_in_extracted = sorted(extracted_keys - baseline_keys)
+    status_mismatch = extracted_status != baseline_status
+    ok = not status_mismatch and not missing_in_extracted
+    return {
+        "ok": ok,
+        "extracted_status": extracted_status,
+        "baseline_status": baseline_status,
+        "missing_evidence_keys_in_extracted": missing_in_extracted,
+        "extra_evidence_keys_in_extracted": extra_in_extracted,
+    }
+
+
+def _evaluate_monorepo_parity(*, repo_root: Path, workspace_root: Path, dry_run: bool) -> dict[str, object]:
+    if dry_run:
+        return {
+            "ok": True,
+            "mode": "dry-run",
+            "reason": "parity check skipped in dry-run",
+        }
+
+    python = str(repo_root / ".venv" / "bin" / "python")
+    baseline_root = workspace_root.parent / "monorepo-baseline"
+    if baseline_root.exists():
+        shutil.rmtree(baseline_root)
+    baseline_root.mkdir(parents=True, exist_ok=True)
+    cmd = [
+        python,
+        str(repo_root / "topology-tools" / "compile-topology.py"),
+        "--repo-root",
+        str(repo_root),
+        "--topology",
+        "topology/topology.yaml",
+        "--secrets-mode",
+        "passthrough",
+        "--strict-model-lock",
+        "--output-json",
+        str(baseline_root / "effective.json"),
+        "--diagnostics-json",
+        str(baseline_root / "diagnostics.json"),
+        "--diagnostics-txt",
+        str(baseline_root / "diagnostics.txt"),
+        "--artifacts-root",
+        str(baseline_root / "generated-artifacts"),
+    ]
+    rc, output = _run_command(cmd=cmd, cwd=repo_root, dry_run=False)
+    if rc != 0:
+        return {
+            "ok": False,
+            "mode": "live",
+            "reason": "monorepo compile failed",
+            "return_code": rc,
+            "output_preview": output[:1200],
+        }
+
+    extracted_operator = _load_json(
+        workspace_root / "generated-artifacts" / "home-lab" / "product" / "reports" / "operator-readiness.json"
+    )
+    baseline_operator = _load_json(
+        baseline_root / "generated-artifacts" / "home-lab" / "product" / "reports" / "operator-readiness.json"
+    )
+    if not isinstance(extracted_operator, dict) or not isinstance(baseline_operator, dict):
+        return {
+            "ok": False,
+            "mode": "live",
+            "reason": "operator-readiness payload missing in extracted or baseline output",
+        }
+
+    comparison = _compare_operator_readiness_payloads(
+        extracted_payload=extracted_operator,
+        baseline_payload=baseline_operator,
+    )
+    comparison["mode"] = "live"
+    comparison["baseline_root"] = str(baseline_root)
+    return comparison
 
 
 def _seed_soho_catalogs(*, repo_root: Path, workspace_root: Path, dry_run: bool) -> tuple[int, str]:
@@ -274,7 +363,22 @@ def main() -> int:
     generated_artifacts_hash = _hash_tree(workspace_root / "generated-artifacts")
     generated_hash = _hash_tree(workspace_root / "generated")
     soho_checks = _evaluate_soho_artifacts(workspace_root / "generated-artifacts")
+    parity_check: dict[str, object]
+    if args.skip_parity_check:
+        parity_check = {
+            "ok": True,
+            "mode": "skipped",
+            "reason": "--skip-parity-check is set",
+        }
+    else:
+        parity_check = _evaluate_monorepo_parity(
+            repo_root=repo_root,
+            workspace_root=workspace_root,
+            dry_run=bool(args.dry_run),
+        )
     if not bool(soho_checks.get("ok")) and not args.dry_run:
+        exit_code = 1
+    if not bool(parity_check.get("ok")) and not args.dry_run:
         exit_code = 1
     summary: dict[str, object] = {
         "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
@@ -284,6 +388,7 @@ def main() -> int:
         "status": "failed" if exit_code else "ok",
         "steps": run_steps,
         "soho_contract_checks": soho_checks,
+        "operator_readiness_parity_check": parity_check,
         "generated_artifacts_file_count": len(generated_artifacts_hash),
         "generated_file_count": len(generated_hash),
         "generated_artifacts_hash": generated_artifacts_hash,
