@@ -3,6 +3,7 @@
 - Status: Implemented (complete)
 - Date: 2026-04-05
 - Depends on: ADR 0063, ADR 0070, ADR 0072, ADR 0074, ADR 0075, ADR 0077, ADR 0080, ADR 0085
+- Analysis: `adr/0089-analysis/` (GAP-ANALYSIS.md, IMPLEMENTATION-PLAN.md, E2E-SCENARIO.md, SWOT-ANALYSIS.md)
 
 ---
 
@@ -242,12 +243,14 @@ Sunset:
 
 ---
 
-## Out of scope
+## Related ADRs
 
-This ADR does not define:
+This ADR establishes the foundational product profile contract. Implementation details are specified in:
 
-- operator lifecycle command surface (`product:*`) — see ADR 0090
-- handover/evidence artifact contract and readiness diagnostics — see ADR 0091
+- ADR 0090: Operator lifecycle command surface (`product:*` tasks)
+- ADR 0091: Handover/evidence artifact contract and readiness diagnostics
+
+These ADRs depend on this one (ADR 0089) and extend the product profile contract with operational semantics.
 
 ---
 

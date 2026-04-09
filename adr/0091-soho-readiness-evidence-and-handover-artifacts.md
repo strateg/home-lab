@@ -60,7 +60,24 @@ generated/<project>/product/
 ```
 
 Deploy-bundle mapping:
+
 - in bundle mode, these artifacts are copied under `artifacts/generated/<project>/product/...` without semantic changes.
+
+#### Artifact validation scope
+
+| Artifact type | Validation method | Scope |
+|---|---|---|
+| **JSON reports** (`reports/*.json`) | Schema-validated per ADR 0091 D6 | Full structural validation |
+| **Markdown artifacts** (`handover/*.md`) | Presence + non-empty check | Operator-facing, not schema-validated |
+| **CSV artifacts** (`handover/*.csv`) | Header structure check | Column names validated, content operator responsibility |
+
+Handover completeness check (ADR 0091 D5) verifies:
+
+1. All required files present (filename check)
+2. JSON reports pass schema validation
+3. Markdown/CSV files are non-empty and have expected structure (header/frontmatter presence)
+
+Quality assurance for Markdown/CSV content is operator responsibility during handover review.
 
 ### D2. Readiness diagnostics namespace is reserved
 
@@ -170,11 +187,30 @@ Evidence artifacts must:
 
 ### D8. Secret hygiene is mandatory
 
-Operator artifacts must satisfy ADR 0072 secret hygiene:
+Operator artifacts must satisfy ADR 0072 secret hygiene discipline:
 
-- no plaintext tracked secrets,
-- deterministic redaction/sanitization in handover outputs,
-- no unsafe leakage through summaries, reports, or manifests.
+- no plaintext tracked secrets in handover outputs,
+- deterministic redaction/sanitization in summaries, reports, and manifests,
+- no unsafe leakage through logs or diagnostic artifacts.
+
+#### Sanitization rules (ADR 0072 compliance)
+
+| Secret type | Sanitization rule | Example output |
+|---|---|---|
+| Passwords / Passphrases | Full redaction | `[REDACTED]` |
+| API tokens / keys | First 4 chars + ellipsis | `sk_test...` (from `sk_test_abc123xyz`) |
+| IP addresses (internal) | Preserve subnet, mask host | `10.0.10.xxx` (from `10.0.10.42`) |
+| SSH keys | Key type + fingerprint only | `ssh-ed25519 SHA256:abc...` |
+| Age public keys | Full key (safe to expose) | `age1abc...` |
+| Age private keys | Never include | `[PRIVATE KEY REDACTED]` |
+
+**Enforcement:**
+
+- Sanitization must be applied during artifact generation, not as post-processing
+- Handover package completeness check (ADR 0091 D5) must verify no plaintext secrets leaked
+- Violation of secret hygiene blocks release (same severity as missing evidence)
+
+**Reference:** ADR 0072 for full secret management discipline.
 
 ### D9. Invariants
 

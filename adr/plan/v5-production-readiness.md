@@ -1,9 +1,9 @@
 # V5 Production Readiness Plan
 
 **Created:** 2026-03-15
-**Revised:** 2026-03-28
+**Revised:** 2026-04-09
 **Goal:** Complete v4→v5 migration and achieve full production parity
-**Current State:** Core infrastructure generation operational (Phases 0-10 complete, E2E validated 2026-03-24). Remaining: service-chain execution evidence, advanced infrastructure backlog, and ADR/documentation consistency sweep.
+**Current State:** Framework extraction complete (Phase 13 cutover 2026-04-09). SOHO productization contracts implemented (ADR 0089-0091). Remaining: service-chain execution evidence and hardware deployment.
 
 ---
 
@@ -20,10 +20,14 @@ v5 architecture is **operational for deployable artifacts** with:
 - ✅ ADR 0075/0074 master migration (monorepo separation, project-aware generators)
 - ✅ ADR 0078 Phase 5 unified refactor (WP-001 through WP-006)
 - ✅ ADR 0080 unified build pipeline (parallel execution, strict contracts)
+- ✅ ADR 0076 Phase 13: Framework physical extraction cutover (2026-04-09)
+- ✅ ADR 0081: Artifact-first framework consumption canonical (2026-04-09)
+- ✅ ADR 0089-0091: SOHO product profile, operator lifecycle, readiness evidence (2026-04-09)
 
 **Remaining gaps (by priority):**
-- P1: Service-chain execution evidence and advanced infra backlog (Phase 12.2/12.3).
-- P1: ADR/documentation consistency sweep (`adr/0058-0071-remaining-work.md`, P2.6).
+- P1: Service-chain execution evidence (hardware deployment pending).
+- P2: Advanced infrastructure backlog (Phase 12.2/12.3).
+- P2: ADR/documentation consistency sweep (`adr/0058-0071-remaining-work.md`).
 
 ---
 

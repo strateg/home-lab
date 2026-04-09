@@ -104,6 +104,21 @@ Canonical phase -> task mapping:
 
 Note: `product:init` is the mandatory operator wrapper for the lifecycle `bootstrap` phase.
 
+#### Dry-run mode support
+
+All tasks with side effects MUST support `--dry-run` flag for safe preview mode:
+
+| Task | Dry-run behavior |
+|---|---|
+| `product:apply --dry-run` | Plan-only mode (terraform plan without apply) |
+| `product:backup --dry-run` | Connectivity check (verify backup targets reachable) |
+| `product:restore --dry-run` | Validation-only (check restore source integrity) |
+| `product:update --dry-run` | Preflight-only (validate update package, no apply) |
+| `product:init --dry-run` | Validation-only (check prerequisites, no state creation) |
+| `product:handover --dry-run` | Preview mode (list artifacts to be generated) |
+
+Dry-run mode must not mutate managed state or produce side effects beyond informational output.
+
 #### Detailed semantics: `product:init`
 
 **Purpose:** Initialize project workspace and validate deployment preconditions without creating infrastructure.
@@ -185,17 +200,28 @@ It must expose a normalized operator-visible status model:
 ### D7. Preconditions and postconditions
 
 Each `product:*` command must define:
+
 - required preconditions,
 - produced artifacts or state changes,
 - failure class and operator-visible outcome.
 
-Minimum per-task precondition contract:
-- `product:plan`: validated topology + resolved profile/bundle set.
-- `product:apply`: successful `product:plan` snapshot + maintenance window policy.
-- `product:backup`: reachable backup targets + secrets/material access prechecks.
-- `product:restore`: restore source integrity + explicit restore mode.
-- `product:update`: preflight + rollback target availability.
-- `product:handover`: readiness evidence completeness (ADR 0091).
+#### Precondition verification table
+
+| Task | Precondition | How verified | Failure diagnostic |
+|---|---|---|---|
+| `product:plan` | Topology validates clean | `compile-topology.py --validate` exit code 0 | E7941 if profile invalid |
+| `product:plan` | Profile/bundle set resolved | `project.yaml` contains `product_profile` + all required bundles exist | E7942 if bundles missing |
+| `product:apply` | Valid plan snapshot exists | `.work/deploy/bundles/<id>/plan-snapshot.json` exists + checksum valid | Error if plan missing/stale |
+| `product:apply` | Maintenance window active | Current time within `project.yaml → maintenance_window` OR `--force` flag | Warn if outside window |
+| `product:backup` | Backup targets reachable | SSH/rsync connectivity test to all backup_targets | E7943 if unreachable |
+| `product:backup` | Secrets access validated | Age keys available + test decrypt of sample secret | E7940 if secrets inaccessible |
+| `product:restore` | Restore source integrity | Checksum validation of backup archive | E7944 if integrity check fails |
+| `product:restore` | Explicit restore mode set | `--mode={drill\|recovery}` flag required | Error if mode not specified |
+| `product:update` | Preflight validation passes | Update package signature valid + compatibility checks pass | Error if preflight fails |
+| `product:update` | Rollback target available | Previous known-good snapshot exists | Warn if no rollback available |
+| `product:handover` | Readiness evidence complete | All D3 evidence domains in "complete" state (ADR 0091) | E7945 if incomplete |
+
+Verification mechanisms must be mechanically checkable. No subjective operator interpretation required.
 
 ### D8. Invariants
 

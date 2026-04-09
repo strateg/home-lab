@@ -76,12 +76,12 @@
 | [0073](0073-field-annotations-and-secret-conflict-resolution.md) | Field Annotation System and Secret Conflict Resolution | Accepted (implemented) | 2026-03-18 | - | - |
 | [0074](0074-v5-generator-architecture.md) | V5 Generator Architecture (Contract-First) | Final | 2026-03-19 | - | - |
 | [0075](0075-framework-project-separation.md) | Monorepo Framework/Project Boundary (Stage 1) | Accepted | 2026-03-20 | - | - |
-| [0076](0076-framework-distribution-and-multi-repository-extraction.md) | Framework Distribution and Multi-Repository Extraction (Stage 2) | Accepted | 2026-03-20 | - | - |
+| [0076](0076-framework-distribution-and-multi-repository-extraction.md) | Framework Distribution and Multi-Repository Extraction (Stage 2) | Implemented (Stage 2 + Phase 13 cutover complete) | 2026-03-20 | - | - |
 | [0077](0077-go-task-developer-orchestration.md) | Go-Task as Developer Orchestration Layer | Accepted | 2026-03-21 | - | - |
 | [0078](0078-object-module-local-template-layout.md) | Object-Module Local Plugin Ownership and Runtime Layout | Accepted | 2026-03-21 | - | - |
 | [0079](0079-v5-documentation-and-diagram-generation-migration.md) | V5 Documentation and Diagram Generation Migration | Accepted | 2026-03-24 | - | - |
 | [0080](0080-unified-build-pipeline-stage-phase-and-plugin-data-bus.md) | Unified Build Pipeline, Stage-Phase Lifecycle, and Contractual Plugin Data Bus | Accepted | 2026-03-26 | - | - |
-| [0081](0081-framework-runtime-artifact-and-1-n-project-repository-model.md) | Framework Runtime Artifact and 1:N Project Repository Model | Accepted | 2026-03-29 | - | - |
+| [0081](0081-framework-runtime-artifact-and-1-n-project-repository-model.md) | Framework Runtime Artifact and 1:N Project Repository Model | Implemented (artifact-first canonical) | 2026-03-29 | - | - |
 | [0082](0082-plugin-module-pack-composition-and-index-first-discovery-analysis.md) | Plugin Module-Pack Composition and Index-First Discovery Analysis | Accepted (A+ index governance) | 2026-03-29 | - | - |
 | [0083](0083-unified-node-initialization-contract.md) | Unified Node Initialization Contract and Deploy-Domain Initialization Phase | Proposed (scaffold complete, hardware pending) | 2026-03-30 | - | - |
 | [0084](0084-cross-platform-dev-plane-and-linux-deploy-plane.md) | Cross-Platform Dev Plane and Linux Deploy Plane | Accepted (complete) | 2026-03-31 | - | - |
