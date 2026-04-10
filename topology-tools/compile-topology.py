@@ -3,10 +3,8 @@
 
 from __future__ import annotations
 
-import argparse
 import hashlib
 import json
-import os
 import re
 import sys
 import time
@@ -21,6 +19,8 @@ import yaml
 TOPOLOGY_TOOLS = Path(__file__).resolve().parent
 sys.path.insert(0, str(TOPOLOGY_TOOLS))
 
+from compiler_ai_sessions import AiConfig, AiSessionPreparation, json_safe_payload, prepare_ai_session
+from compiler_cli import CompilerCliDependencies, build_parser as build_compiler_parser, run_cli
 from compiler_contract import manifest_digest, validate_compiled_model_contract
 from compiler_decisions import select_effective_payload
 from compiler_ownership import artifact_owner, compilation_owner, validation_owner
@@ -46,27 +46,15 @@ from kernel import (
     Stage,
 )
 from plugin_manifest_discovery import discover_plugin_manifest_paths, validate_module_index_consistency
-from plugins.generators.ai_advisory_contract import (
-    build_ai_input_payload,
-    parse_ai_output_payload,
-    validate_ai_contract_payloads,
-)
+from plugins.generators.ai_advisory_contract import parse_ai_output_payload, validate_ai_contract_payloads
 from plugins.generators.ai_ansible import (
-    build_ansible_input_adapter,
     parse_ansible_output_candidates,
     validate_ansible_candidates_with_lint,
 )
 from plugins.generators.ai_assisted import build_candidate_diff, materialize_candidate_artifacts
-from plugins.generators.ai_audit import AiAuditLogger, cleanup_ai_audit_logs
 from plugins.generators.ai_promotion import promote_approved_candidates, resolve_approvals
 from plugins.generators.ai_rollback import list_ai_promoted_artifacts, rollback_ai_promoted_artifacts
-from plugins.generators.ai_sandbox import (
-    cleanup_ai_sandbox_sessions,
-    create_ai_sandbox_session,
-    enforce_sandbox_resource_limits,
-    ensure_relative_sandbox_path,
-    sanitize_environment,
-)
+from plugins.generators.ai_sandbox import enforce_sandbox_resource_limits
 from yaml_loader import load_yaml_file
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -198,62 +186,6 @@ class Diagnostic:
             hint=plugin_diag.hint,
             plugin_id=plugin_diag.plugin_id,
         )
-
-
-@dataclass(frozen=True)
-class AiConfig:
-    advisory: bool = False
-    assisted: bool = False
-    output_json: Path | None = None
-    audit_retention_days: int = 30
-    sandbox_retention_days: int = 7
-    sandbox_max_files: int = 128
-    sandbox_max_bytes: int = 10 * 1024 * 1024
-    promote_approved: bool = False
-    approve_all: bool = False
-    approve_paths: tuple[str, ...] = ()
-    rollback_all: bool = False
-    rollback_paths: tuple[str, ...] = ()
-    rollback_ref: str = "HEAD"
-    ansible_lint: bool = False
-    ansible_lint_cmd: str = "ansible-lint"
-    advisory_max_latency_seconds: float = 60.0
-    assisted_max_latency_seconds: float = 300.0
-
-    def __post_init__(self) -> None:
-        object.__setattr__(self, "audit_retention_days", max(1, int(self.audit_retention_days)))
-        object.__setattr__(self, "sandbox_retention_days", max(1, int(self.sandbox_retention_days)))
-        object.__setattr__(self, "sandbox_max_files", max(1, int(self.sandbox_max_files)))
-        object.__setattr__(self, "sandbox_max_bytes", max(1, int(self.sandbox_max_bytes)))
-        object.__setattr__(self, "approve_paths", tuple(path.strip() for path in self.approve_paths if path.strip()))
-        object.__setattr__(
-            self,
-            "rollback_paths",
-            tuple(path.strip() for path in self.rollback_paths if path.strip()),
-        )
-        object.__setattr__(self, "rollback_ref", self.rollback_ref.strip() or "HEAD")
-        object.__setattr__(self, "ansible_lint_cmd", self.ansible_lint_cmd.strip() or "ansible-lint")
-        object.__setattr__(self, "advisory_max_latency_seconds", max(1.0, float(self.advisory_max_latency_seconds)))
-        object.__setattr__(self, "assisted_max_latency_seconds", max(1.0, float(self.assisted_max_latency_seconds)))
-
-
-@dataclass(frozen=True)
-class AiSessionPreparation:
-    mode: str
-    request_id: str
-    cleaned_audit_logs: list[Path]
-    cleaned_sandbox_sessions: list[Path]
-    sandbox_session: Path
-    sandbox_usage: dict[str, int]
-    sanitized_env: dict[str, str]
-    removed_env_keys: list[str]
-    audit: AiAuditLogger
-    safe_effective_payload: dict[str, Any]
-    ansible_adapter: dict[str, Any]
-    annotation_patterns: tuple[re.Pattern[str], ...]
-    registry_patterns: tuple[re.Pattern[str], ...]
-    prompt_profile: str
-    ai_input: dict[str, Any]
 
 
 class V5Compiler:
@@ -914,8 +846,7 @@ class V5Compiler:
 
     @staticmethod
     def _json_safe_payload(payload: dict[str, Any]) -> dict[str, Any]:
-        parsed = json.loads(json.dumps(payload, ensure_ascii=True, default=str))
-        return parsed if isinstance(parsed, dict) else {}
+        return json_safe_payload(payload)
 
     @staticmethod
     def _extract_path_leaf_token(path: str) -> str:
@@ -1043,79 +974,17 @@ class V5Compiler:
         plugin_id: str,
         enforce_initial_sandbox_limits: bool,
     ) -> AiSessionPreparation:
-        request_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-        request_token = f"{project_id}-{request_id}"
-        cleaned_audit_logs = cleanup_ai_audit_logs(
+        return prepare_ai_session(
+            ai_config=self.ai_config,
             repo_root=REPO_ROOT,
-            project_id=project_id,
-            retain_days=self.ai_config.audit_retention_days,
-        )
-        cleaned_sandbox_sessions = cleanup_ai_sandbox_sessions(
-            repo_root=REPO_ROOT,
-            project_id=project_id,
-            retain_days=self.ai_config.sandbox_retention_days,
-        )
-        sandbox_session = create_ai_sandbox_session(
-            repo_root=REPO_ROOT,
-            project_id=project_id,
-            request_id=request_token,
-        )
-        _ = ensure_relative_sandbox_path(sandbox_session=sandbox_session, relative_path="ai-output.json")
-        sandbox_usage = (
-            enforce_sandbox_resource_limits(
-                sandbox_session=sandbox_session,
-                max_files=self.ai_config.sandbox_max_files,
-                max_bytes=self.ai_config.sandbox_max_bytes,
-            )
-            if enforce_initial_sandbox_limits
-            else {"files": 0, "bytes": 0}
-        )
-        sanitized_env, removed_env_keys = sanitize_environment(dict(os.environ))
-        audit = AiAuditLogger(
-            repo_root=REPO_ROOT,
-            project_id=project_id,
-            request_id=request_token,
-        )
-        safe_effective_payload = self._json_safe_payload(effective_payload)
-        ansible_adapter = build_ansible_input_adapter(safe_effective_payload)
-        annotation_patterns = self._collect_annotation_redaction_patterns(plugin_ctx)
-        registry_patterns = self._collect_registry_redaction_patterns(plugin_ctx)
-        stable_projection = {
-            "classes": safe_effective_payload.get("classes", {}),
-            "objects": safe_effective_payload.get("objects", {}),
-            "instances": safe_effective_payload.get("instances", {}),
-        }
-        artifact_plan = {
-            "mode": mode,
-            "stages": [stage.value for stage in self.stages],
-        }
-        prompt_profile = "ansible_family" if ansible_adapter.get("hosts") else "generic_topology"
-        ai_input = build_ai_input_payload(
-            artifact_family="topology",
             mode=mode,
+            effective_payload=effective_payload,
+            project_id=project_id,
             plugin_id=plugin_id,
-            effective_json=safe_effective_payload,
-            stable_projection=stable_projection,
-            artifact_plan=artifact_plan,
-            generation_context_extra={"prompt_profile": prompt_profile},
-            extra_key_patterns=annotation_patterns + registry_patterns,
-        )
-        return AiSessionPreparation(
-            mode=mode,
-            request_id=request_token,
-            cleaned_audit_logs=cleaned_audit_logs,
-            cleaned_sandbox_sessions=cleaned_sandbox_sessions,
-            sandbox_session=sandbox_session,
-            sandbox_usage=sandbox_usage,
-            sanitized_env=sanitized_env,
-            removed_env_keys=removed_env_keys,
-            audit=audit,
-            safe_effective_payload=safe_effective_payload,
-            ansible_adapter=ansible_adapter,
-            annotation_patterns=annotation_patterns,
-            registry_patterns=registry_patterns,
-            prompt_profile=prompt_profile,
-            ai_input=ai_input,
+            stages=self.stages,
+            enforce_initial_sandbox_limits=enforce_initial_sandbox_limits,
+            annotation_patterns=self._collect_annotation_redaction_patterns(plugin_ctx),
+            registry_patterns=self._collect_registry_redaction_patterns(plugin_ctx),
         )
 
     def _run_ai_advisory_session(
@@ -1850,324 +1719,42 @@ class V5Compiler:
         return 0
 
 
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Compile v5 topology manifest into canonical JSON.")
-    parser.add_argument(
-        "--repo-root",
-        default=str(REPO_ROOT.as_posix()),
-        help="Repository root for resolving relative paths.",
+def _set_cli_repo_root(repo_root: Path) -> None:
+    global REPO_ROOT
+    REPO_ROOT = repo_root
+
+
+def _build_cli_dependencies() -> CompilerCliDependencies:
+    return CompilerCliDependencies(
+        compiler_cls=V5Compiler,
+        repo_root=REPO_ROOT,
+        default_topology_relative=DEFAULT_TOPOLOGY_RELATIVE,
+        default_output_json=DEFAULT_OUTPUT_JSON,
+        default_diagnostics_json=DEFAULT_DIAGNOSTICS_JSON,
+        default_diagnostics_txt=DEFAULT_DIAGNOSTICS_TXT,
+        default_error_catalog=DEFAULT_ERROR_CATALOG,
+        default_artifacts_root=DEFAULT_ARTIFACTS_ROOT,
+        default_workspace_root=DEFAULT_WORKSPACE_ROOT,
+        default_dist_root=DEFAULT_DIST_ROOT,
+        default_plugins_manifest=DEFAULT_PLUGINS_MANIFEST,
+        supported_runtime_profiles=SUPPORTED_RUNTIME_PROFILES,
+        supported_instance_source_modes=SUPPORTED_INSTANCE_SOURCE_MODES,
+        supported_secrets_modes=SUPPORTED_SECRETS_MODES,
+        stage_order=STAGE_ORDER,
+        advisory_stage_set=ADVISORY_STAGE_SET,
+        parse_stages_arg=parse_stages_arg,
+        resolve_repo_path=resolve_repo_path,
+        resolve_topology_path=resolve_topology_path,
+        set_repo_root=_set_cli_repo_root,
     )
-    parser.add_argument(
-        "--topology",
-        default=DEFAULT_TOPOLOGY_RELATIVE,
-        help="Path to v5 topology manifest YAML.",
-    )
-    parser.add_argument(
-        "--output-json",
-        default=str(DEFAULT_OUTPUT_JSON.relative_to(REPO_ROOT).as_posix()),
-        help="Path to effective topology JSON output.",
-    )
-    parser.add_argument(
-        "--diagnostics-json",
-        default=str(DEFAULT_DIAGNOSTICS_JSON.relative_to(REPO_ROOT).as_posix()),
-        help="Path to diagnostics JSON output.",
-    )
-    parser.add_argument(
-        "--diagnostics-txt",
-        default=str(DEFAULT_DIAGNOSTICS_TXT.relative_to(REPO_ROOT).as_posix()),
-        help="Path to diagnostics TXT output.",
-    )
-    parser.add_argument(
-        "--error-catalog",
-        default=str(DEFAULT_ERROR_CATALOG.as_posix()),
-        help="Path to error catalog YAML (defaults to compiler script directory).",
-    )
-    parser.add_argument(
-        "--artifacts-root",
-        default=str(DEFAULT_ARTIFACTS_ROOT.relative_to(REPO_ROOT).as_posix()),
-        help="Root directory for generator-produced deployable artifacts (for example terraform/ansible/bootstrap).",
-    )
-    parser.add_argument(
-        "--workspace-root",
-        default=str(DEFAULT_WORKSPACE_ROOT.relative_to(REPO_ROOT).as_posix()),
-        help="Root directory for assembled workspace artifacts (assemble stage).",
-    )
-    parser.add_argument(
-        "--dist-root",
-        default=str(DEFAULT_DIST_ROOT.relative_to(REPO_ROOT).as_posix()),
-        help="Root directory for build-stage release artifacts.",
-    )
-    parser.add_argument(
-        "--signing-backend",
-        default="none",
-        choices=["none", "age", "gpg"],
-        help="Signing backend identifier passed to build-stage plugins.",
-    )
-    parser.add_argument(
-        "--release-tag",
-        default="",
-        help="Optional release tag embedded into build-stage artifacts.",
-    )
-    parser.add_argument(
-        "--sbom-output-dir",
-        default="",
-        help="Optional SBOM output directory override (defaults to <dist-root>/<project>/sbom).",
-    )
-    parser.add_argument(
-        "--strict-model-lock",
-        action="store_true",
-        help="Treat unpinned class/object references as errors.",
-    )
-    parser.add_argument(
-        "--fail-on-warning",
-        action="store_true",
-        help="Return non-zero exit code when warnings are present.",
-    )
-    parser.add_argument(
-        "--require-new-model",
-        action="store_true",
-        help="Require ADR 0064 firmware_ref/os_refs model; legacy software.os fields are errors.",
-    )
-    parser.add_argument(
-        "--profile",
-        choices=list(SUPPORTED_RUNTIME_PROFILES),
-        default="production",
-        help="Runtime execution profile for plugin restrictions and diagnostics.",
-    )
-    parser.add_argument(
-        "--instance-source-mode",
-        choices=list(SUPPORTED_INSTANCE_SOURCE_MODES),
-        default="auto",
-        help=("Instance source mode: sharded-only or auto " "(auto resolves to sharded-only)."),
-    )
-    parser.add_argument(
-        "--secrets-mode",
-        choices=list(SUPPORTED_SECRETS_MODES),
-        default="passthrough",
-        help="Secrets resolution mode for instance fields: inject, passthrough, or strict.",
-    )
-    parser.add_argument(
-        "--secrets-root",
-        default="",
-        help=(
-            "Optional root directory for side-car secret files (relative to repo root). "
-            "When omitted, uses project manifest secrets_root."
-        ),
-    )
-    parser.add_argument(
-        "--pipeline-mode",
-        choices=["plugin-first"],
-        default="plugin-first",
-        help="Pipeline mode (plugin-first only).",
-    )
-    parser.add_argument(
-        "--stages",
-        default="discover,compile,validate,generate,assemble,build",
-        help="Comma-separated stage list to execute in plugin-first runtime.",
-    )
-    parser.add_argument(
-        "--plugins-manifest",
-        default=str(DEFAULT_PLUGINS_MANIFEST.as_posix()),
-        help="Path to plugin manifest YAML (defaults to compiler script directory).",
-    )
-    parser.set_defaults(parallel_plugins=True)
-    parser.add_argument(
-        "--parallel-plugins",
-        dest="parallel_plugins",
-        action="store_true",
-        help="Enable parallel plugin execution within each stage phase (default).",
-    )
-    parser.add_argument(
-        "--no-parallel-plugins",
-        dest="parallel_plugins",
-        action="store_false",
-        help="Disable parallel plugin execution and force sequential stage-phase execution.",
-    )
-    parser.add_argument(
-        "--trace-execution",
-        action="store_true",
-        help="Write stage/phase/plugin execution trace to diagnostics directory.",
-    )
-    parser.add_argument(
-        "--plugin-contract-warnings",
-        action="store_true",
-        help="Emit W800x warnings for undeclared produces/consumes runtime usage.",
-    )
-    parser.add_argument(
-        "--plugin-contract-errors",
-        action="store_true",
-        help="Treat undeclared produces/consumes runtime usage as hard errors (E8004-E8007, default).",
-    )
-    parser.add_argument(
-        "--no-plugin-contract-errors",
-        dest="plugin_contract_errors",
-        action="store_false",
-        help="Disable hard errors for undeclared produces/consumes runtime usage.",
-    )
-    parser.add_argument(
-        "--ai-advisory",
-        action="store_true",
-        help="Enable ADR0094 advisory mode (read-only recommendations with audit logging).",
-    )
-    parser.add_argument(
-        "--ai-assisted",
-        action="store_true",
-        help="Enable ADR0094 assisted mode (candidate artifacts in sandbox, no auto-promotion).",
-    )
-    parser.add_argument(
-        "--ai-output-json",
-        default="",
-        help="Optional AI response payload JSON path for advisory parsing/display.",
-    )
-    parser.add_argument(
-        "--ai-audit-retention-days",
-        type=int,
-        default=30,
-        help="AI advisory audit retention period in days (default: 30).",
-    )
-    parser.add_argument(
-        "--ai-sandbox-retention-days",
-        type=int,
-        default=7,
-        help="AI advisory sandbox session retention period in days (default: 7).",
-    )
-    parser.add_argument(
-        "--ai-sandbox-max-files",
-        type=int,
-        default=128,
-        help="Maximum files allowed in one advisory sandbox session (default: 128).",
-    )
-    parser.add_argument(
-        "--ai-sandbox-max-bytes",
-        type=int,
-        default=10 * 1024 * 1024,
-        help="Maximum total bytes allowed in one advisory sandbox session (default: 10485760).",
-    )
-    parser.add_argument(
-        "--ai-promote-approved",
-        action="store_true",
-        help="Promote approved assisted candidates from sandbox into generated/.",
-    )
-    parser.add_argument(
-        "--ai-approve-all",
-        action="store_true",
-        help="Approve all valid assisted candidates.",
-    )
-    parser.add_argument(
-        "--ai-approve-paths",
-        default="",
-        help="Comma-separated assisted candidate paths to approve selectively.",
-    )
-    parser.add_argument(
-        "--ai-rollback-all",
-        action="store_true",
-        help="Rollback all AI-promoted files for active project.",
-    )
-    parser.add_argument(
-        "--ai-rollback-paths",
-        default="",
-        help="Comma-separated AI-promoted paths to rollback selectively.",
-    )
-    parser.add_argument(
-        "--ai-rollback-ref",
-        default="HEAD",
-        help="Git ref used as rollback baseline (default: HEAD).",
-    )
-    parser.add_argument(
-        "--ai-ansible-lint",
-        action="store_true",
-        help="Run ansible-lint for assisted candidates under generated/<project>/ansible/.",
-    )
-    parser.add_argument(
-        "--ai-ansible-lint-cmd",
-        default="ansible-lint",
-        help="Command used for ansible lint validation (default: ansible-lint).",
-    )
-    parser.add_argument(
-        "--ai-advisory-max-latency-seconds",
-        type=float,
-        default=60.0,
-        help="Warning threshold for advisory latency (seconds).",
-    )
-    parser.add_argument(
-        "--ai-assisted-max-latency-seconds",
-        type=float,
-        default=300.0,
-        help="Warning threshold for assisted latency (seconds).",
-    )
-    parser.set_defaults(plugin_contract_errors=True)
-    return parser
+
+
+def build_parser():
+    return build_compiler_parser(_build_cli_dependencies())
 
 
 def main() -> int:
-    args = build_parser().parse_args()
-    global REPO_ROOT
-    REPO_ROOT = Path(args.repo_root).resolve()
-    manifest_path = resolve_topology_path(args.topology)
-    try:
-        selected_stages = parse_stages_arg(args.stages)
-    except ValueError as exc:
-        print(f"ERROR: invalid --stages: {exc}", file=sys.stderr)
-        return 1
-    if args.ai_advisory and args.ai_assisted:
-        print("ERROR: --ai-advisory and --ai-assisted are mutually exclusive.", file=sys.stderr)
-        return 1
-    if args.ai_promote_approved and not args.ai_assisted:
-        print("ERROR: --ai-promote-approved requires --ai-assisted.", file=sys.stderr)
-        return 1
-    if (args.ai_rollback_all or str(args.ai_rollback_paths).strip()) and not args.ai_assisted:
-        print("ERROR: rollback flags require --ai-assisted.", file=sys.stderr)
-        return 1
-    if args.ai_advisory or args.ai_assisted:
-        selected_stages = [stage for stage in STAGE_ORDER if stage in ADVISORY_STAGE_SET]
-    approve_paths = tuple(path.strip() for path in str(args.ai_approve_paths).split(",") if path.strip())
-    rollback_paths = tuple(path.strip() for path in str(args.ai_rollback_paths).split(",") if path.strip())
-    compiler = V5Compiler(
-        manifest_path=manifest_path,
-        output_json=resolve_repo_path(args.output_json),
-        diagnostics_json=resolve_repo_path(args.diagnostics_json),
-        diagnostics_txt=resolve_repo_path(args.diagnostics_txt),
-        artifacts_root=resolve_repo_path(args.artifacts_root),
-        error_catalog_path=resolve_repo_path(args.error_catalog),
-        strict_model_lock=args.strict_model_lock,
-        fail_on_warning=args.fail_on_warning,
-        require_new_model=args.require_new_model,
-        runtime_profile=args.profile,
-        instance_source_mode=args.instance_source_mode,
-        secrets_mode=args.secrets_mode,
-        secrets_root=args.secrets_root,
-        pipeline_mode=args.pipeline_mode,
-        parity_gate=False,
-        plugins_manifest_path=resolve_repo_path(args.plugins_manifest),
-        parallel_plugins=args.parallel_plugins,
-        trace_execution=args.trace_execution,
-        plugin_contract_warnings=args.plugin_contract_warnings,
-        plugin_contract_errors=args.plugin_contract_errors,
-        workspace_root=resolve_repo_path(args.workspace_root),
-        dist_root=resolve_repo_path(args.dist_root),
-        signing_backend=args.signing_backend,
-        release_tag=args.release_tag,
-        sbom_output_dir=resolve_repo_path(args.sbom_output_dir) if args.sbom_output_dir.strip() else None,
-        stages=selected_stages,
-        ai_advisory=args.ai_advisory,
-        ai_assisted=args.ai_assisted,
-        ai_output_json=resolve_repo_path(args.ai_output_json) if args.ai_output_json.strip() else None,
-        ai_audit_retention_days=max(1, int(args.ai_audit_retention_days)),
-        ai_sandbox_retention_days=max(1, int(args.ai_sandbox_retention_days)),
-        ai_sandbox_max_files=max(1, int(args.ai_sandbox_max_files)),
-        ai_sandbox_max_bytes=max(1, int(args.ai_sandbox_max_bytes)),
-        ai_promote_approved=args.ai_promote_approved,
-        ai_approve_all=args.ai_approve_all,
-        ai_approve_paths=approve_paths,
-        ai_rollback_all=args.ai_rollback_all,
-        ai_rollback_paths=rollback_paths,
-        ai_rollback_ref=str(args.ai_rollback_ref),
-        ai_ansible_lint=args.ai_ansible_lint,
-        ai_ansible_lint_cmd=str(args.ai_ansible_lint_cmd),
-        ai_advisory_max_latency_seconds=float(args.ai_advisory_max_latency_seconds),
-        ai_assisted_max_latency_seconds=float(args.ai_assisted_max_latency_seconds),
-    )
-    return compiler.run()
+    return run_cli(_build_cli_dependencies())
 
 
 if __name__ == "__main__":
