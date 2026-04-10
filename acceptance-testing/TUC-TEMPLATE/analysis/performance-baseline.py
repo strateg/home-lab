@@ -10,11 +10,11 @@ from pathlib import Path
 def main() -> int:
     started = time.time()
     tuc_root = Path(__file__).resolve().parents[1]
-    artefacts = tuc_root / "artefacts"
-    artefacts.mkdir(parents=True, exist_ok=True)
+    artifacts = tuc_root / "artifacts"
+    artifacts.mkdir(parents=True, exist_ok=True)
     elapsed = time.time() - started
     print(f"Template performance baseline completed in {elapsed:.3f}s")
-    print(f"Artefacts directory: {artefacts}")
+    print(f"Artifacts directory: {artifacts}")
     return 0
 
 

@@ -22,11 +22,11 @@ pytest -q <path-to-tuc-tests-or-markers>
 ```bash
 <command-under-test> \
   <args> \
-  > acceptance-testing/TUC-XXXX-short-name/artefacts/<output-file>
+  > acceptance-testing/TUC-XXXX-short-name/artifacts/<output-file>
 ```
 
 ## 5. Capture Evidence
 
-1. Save command outputs into `artefacts/`.
+1. Save command outputs into `artifacts/`.
 2. Update `analysis/EVIDENCE-LOG.md`.
 3. Update `analysis/PROJECT-STATUS-REPORT.md`.

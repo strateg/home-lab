@@ -2,6 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Universal AI Rulebook (Mandatory)
+
+Claude Code must treat `docs/ai/AGENT-RULEBOOK.md` as the compact, ADR-derived rulebook for this repository.
+
+Use `docs/ai/ADR-RULE-MAP.yaml` to select scoped rule packs under `docs/ai/rules/` before changing code, topology, deploy workflows, tests, or ADRs.
+
+`CLAUDE.md` is a Claude-specific adapter/bootloader. It must not diverge from the universal rulebook or become a separate architectural source of truth.
+
 ## V5 Architecture (Current)
 
 This is an **Infrastructure-as-Data** home lab project using a **Class -> Object -> Instance** topology model. The v5 architecture implements:

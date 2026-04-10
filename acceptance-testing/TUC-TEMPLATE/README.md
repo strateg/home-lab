@@ -10,7 +10,7 @@ Use this folder as a template for new acceptance testing use cases.
 4. Fill execution steps in `HOW-TO.md`.
 5. Customize `quality-gate.py` for the specific feature.
 6. Fill analysis docs in `analysis/`.
-7. Store generated outputs and logs in `artefacts/`.
+7. Store generated outputs and logs in `artifacts/`.
 
 ## Required Files
 
@@ -24,4 +24,4 @@ Use this folder as a template for new acceptance testing use cases.
 - `analysis/ROADMAP.md` (optional)
 - `analysis/VALIDATION-RULES-SUMMARY.md` (optional)
 - `analysis/performance-baseline.py` (optional)
-- `artefacts/` (store outputs, logs, reports)
+- `artifacts/` (store outputs, logs, reports)

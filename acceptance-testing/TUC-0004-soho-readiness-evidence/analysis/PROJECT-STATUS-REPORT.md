@@ -12,5 +12,5 @@ TUC-0004 scaffolds acceptance coverage for ADR0091 readiness evidence and ADR009
 
 ## Next Actions
 
-1. Attach runtime artefacts in `artefacts/` from CI/local runs.
+1. Attach runtime artifacts in `artifacts/` from CI/local runs.
 2. Promote TUC-0004 from local acceptance to CI acceptance lane once stable.

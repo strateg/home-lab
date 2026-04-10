@@ -1,6 +1,6 @@
 # Acceptance Testing
 
-This directory stores Testing Use Cases (TUC) and all related artefacts.
+This directory stores Testing Use Cases (TUC) and all related artifacts.
 
 ## Rules
 
@@ -10,7 +10,7 @@ This directory stores Testing Use Cases (TUC) and all related artefacts.
    - root docs: `TUC.md`, `README.md`, `TEST-MATRIX.md`, `HOW-TO.md`
    - quality gate script: `quality-gate.py`
    - analysis docs/scripts: `analysis/`
-   - generated outputs and logs: `artefacts/`
+   - generated outputs and logs: `artifacts/`
 3. Use `acceptance-testing/TUC-TEMPLATE/` as the baseline.
 
 ## Naming

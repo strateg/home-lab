@@ -8,7 +8,7 @@ from pathlib import Path
 
 def main() -> int:
     tuc_root = Path(__file__).resolve().parent
-    artefacts_dir = tuc_root / "artefacts"
+    artifacts_dir = tuc_root / "artifacts"
     analysis_dir = tuc_root / "analysis"
 
     required = [
@@ -27,7 +27,7 @@ def main() -> int:
             print(f"- {path}")
         return 1
 
-    artefacts_dir.mkdir(parents=True, exist_ok=True)
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
     print("Quality gate passed: template structure is valid.")
     return 0
 

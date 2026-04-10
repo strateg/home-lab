@@ -1,0 +1,199 @@
+schema_version: 1
+generated_from_adr: "0096"
+purpose: "Compact ADR-derived rule registry for universal AI coding agents."
+
+rule_packs:
+  plugin-runtime:
+    path: docs/ai/rules/plugin-runtime.md
+    source_adr: ["0063", "0065", "0066", "0069", "0078", "0080", "0086"]
+    files_glob:
+      - "topology-tools/plugins/**"
+      - "topology/**/plugins.yaml"
+      - "topology-tools/kernel/**"
+      - "topology-tools/plugin_manifest_discovery.py"
+  topology-model:
+    path: docs/ai/rules/topology-model.md
+    source_adr: ["0062", "0067", "0068", "0071", "0087", "0088"]
+    files_glob:
+      - "topology/**"
+      - "projects/*/topology/**"
+  deploy-domain:
+    path: docs/ai/rules/deploy-domain.md
+    source_adr: ["0083", "0084", "0085", "0090", "0091"]
+    files_glob:
+      - "scripts/orchestration/deploy/**"
+      - "taskfiles/deploy.yml"
+      - "taskfiles/product.yml"
+      - "schemas/deploy-*.schema.json"
+      - "schemas/initialization-contract.schema.json"
+  generator-artifacts:
+    path: docs/ai/rules/generator-artifacts.md
+    source_adr: ["0074", "0075", "0078", "0079", "0092", "0093"]
+    files_glob:
+      - "topology-tools/plugins/generators/**"
+      - "topology/**/templates/**"
+      - "topology-tools/templates/**"
+      - "tests/fixtures/projections/**"
+  secrets:
+    path: docs/ai/rules/secrets.md
+    source_adr: ["0072", "0073", "0085", "0094"]
+    files_glob:
+      - "projects/*/secrets/**"
+      - "topology-tools/plugins/**/annotation*"
+      - "taskfiles/*tfvars*"
+      - "scripts/orchestration/deploy/bundle.py"
+  adr-governance:
+    path: docs/ai/rules/adr-governance.md
+    source_adr: ["0080", "0095", "0096"]
+    files_glob:
+      - "adr/**"
+      - "docs/ai/**"
+      - "AGENTS.md"
+      - "CLAUDE.md"
+      - ".github/copilot-instructions.md"
+  testing-ci:
+    path: docs/ai/rules/testing-ci.md
+    source_adr: ["0066", "0070", "0077", "0080", "0086"]
+    files_glob:
+      - "tests/**"
+      - "taskfiles/**"
+      - ".github/workflows/**"
+  acceptance-tuc:
+    path: docs/ai/rules/acceptance-tuc.md
+    source_adr: ["0066", "0070", "0069", "0071", "0080", "0089", "0091"]
+    files_glob:
+      - "acceptance-testing/**"
+      - "tests/plugin_integration/test_tuc*.py"
+      - "scripts/acceptance/**"
+      - "taskfiles/acceptance.yml"
+
+rules:
+  - id: CORE-001
+    scope: root-layout
+    trigger: "Any repository change"
+    must:
+      - "Work in active root layout: topology/, topology-tools/, projects/, tests/, scripts/, taskfiles/."
+    never:
+      - "Do not create root v4/ or root v5/ directories."
+      - "Do not modify archive/v4/ unless explicitly requested for legacy hotfix or parity investigation."
+    validate:
+      - "task validate:workspace-layout"
+    source_adr: ["0075", "0080", "0086"]
+
+  - id: PLG-001
+    scope: plugin-runtime
+    trigger: "Adding or modifying plugins, plugin manifests, or kernel runtime contracts"
+    rule_pack: plugin-runtime
+    must:
+      - "Preserve stage affinity: discover, compile, validate, generate, assemble, build."
+      - "Declare depends_on, consumes, and produces explicitly."
+      - "Respect framework -> class -> object -> project discovery order."
+    never:
+      - "Do not add hidden plugin coupling outside manifest contracts."
+    validate:
+      - "task validate:plugin-manifests"
+      - "task test:plugin-contract"
+    source_adr: ["0063", "0065", "0080", "0086"]
+
+  - id: TOP-001
+    scope: topology-model
+    trigger: "Adding or modifying topology, class, object, or instance files"
+    rule_pack: topology-model
+    must:
+      - "Preserve Class -> Object -> Instance modeling."
+      - "Use canonical semantic keys and active lane paths."
+    never:
+      - "Do not edit generated outputs to represent topology changes."
+    validate:
+      - "task validate:default"
+    source_adr: ["0062", "0071", "0088"]
+
+  - id: GEN-001
+    scope: generator-artifacts
+    trigger: "Changing generated artifact behavior"
+    rule_pack: generator-artifacts
+    must:
+      - "Change generators, projections, or templates rather than generated/ outputs."
+      - "Update golden snapshots only for intentional stable contract changes."
+    never:
+      - "Do not hand-edit generated/."
+    validate:
+      - "task test:plugin-integration"
+      - "relevant terraform/ansible validation task when outputs change"
+    source_adr: ["0074", "0075", "0092", "0093"]
+
+  - id: DEP-001
+    scope: deploy-domain
+    trigger: "Changing deploy runner, bundle, init-node, or product workflows"
+    rule_pack: deploy-domain
+    must:
+      - "Keep immutable deploy bundle as execution input."
+      - "Execute deploy operations through workspace-aware DeployRunner backends."
+    never:
+      - "Do not reintroduce direct generated/ execution as the canonical deploy path."
+    validate:
+      - "relevant deploy runner/bundle tests"
+      - "task workflow:bundle when bundle behavior changes"
+    source_adr: ["0084", "0085", "0090", "0091"]
+
+  - id: SEC-001
+    scope: secrets
+    trigger: "Changing secrets, secret annotations, tfvars, deploy bundle injection, or AI prompts"
+    rule_pack: secrets
+    must:
+      - "Keep committed secrets encrypted or represented as placeholders."
+      - "Use SOPS/age and approved bundle injection paths."
+      - "Apply redaction before AI advisory or assisted workflows."
+    never:
+      - "Do not commit plaintext secrets."
+      - "Do not include secrets in AI prompts or audit logs."
+    validate:
+      - "task validate:default"
+      - "task test:ai-redaction"
+    source_adr: ["0072", "0073", "0085", "0094"]
+
+  - id: ADR-001
+    scope: adr-governance
+    trigger: "Any architecture, governance, or rulebook change"
+    rule_pack: adr-governance
+    must:
+      - "Update ADR files and adr/REGISTER.md together."
+      - "Keep agent-specific instruction files as adapters to the universal rulebook."
+    never:
+      - "Do not create divergent architectural truth in AGENTS.md, CLAUDE.md, or Copilot instructions."
+    validate:
+      - "task validate:adr-consistency"
+    source_adr: ["0080", "0096"]
+
+  - id: TST-001
+    scope: testing-ci
+    trigger: "Any code, contract, or workflow change"
+    rule_pack: testing-ci
+    must:
+      - "Run targeted tests for the touched domain."
+      - "Run task ci before integration-level closure when feasible."
+    never:
+      - "Do not claim validation without command evidence."
+    validate:
+      - "targeted pytest"
+      - "task ci"
+    source_adr: ["0066", "0070", "0077", "0080"]
+
+  - id: TUC-001
+    scope: acceptance-tuc
+    trigger: "Adding or modifying Testing Use Case acceptance scenarios"
+    rule_pack: acceptance-tuc
+    must:
+      - "Create one folder per use case under acceptance-testing/TUC-XXXX-short-name/."
+      - "Use acceptance-testing/TUC-TEMPLATE/ as the baseline for new TUCs."
+      - "Keep contract, plan, matrix, evidence, quality gate, and artifacts/logs inside the TUC folder."
+      - "Add executable pytest coverage under tests/plugin_integration/test_tuc*.py."
+    never:
+      - "Do not scatter TUC evidence across ADR analysis directories."
+      - "Do not expand an existing TUC scope when a new scenario should get a new TUC number."
+    validate:
+      - "task acceptance:quality TUC_SLUG=TUC-XXXX-short-name"
+      - "task acceptance:test TUC_TEST='tests/plugin_integration/test_tucXXXX_*.py'"
+      - "task acceptance:compile TUC_SLUG=TUC-XXXX-short-name when compile artifacts are part of evidence"
+      - "task acceptance:tests-all before release/cutover closure"
+    source_adr: ["0070", "0066", "0069", "0071", "0080"]

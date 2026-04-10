@@ -2,6 +2,10 @@
 
 This file provides guidance when working with code in this repository.
 
+## Universal AI Rulebook
+
+Use `docs/ai/AGENT-RULEBOOK.md` as the compact ADR-derived implementation rulebook for AI agents, and use `docs/ai/ADR-RULE-MAP.yaml` to select scoped rule packs. This file is an adapter for GitHub Copilot behavior and must not diverge from the universal rulebook.
+
 ## Contract Compliance Mode (Mandatory)
 
 All work in this repository must follow `contract.md` as a binding process contract.

@@ -4,6 +4,8 @@
 
 This document provides essential, actionable guidance for AI coding agents working in this repository. It summarizes the architecture, workflows, and conventions that are unique to this project. **Read this before making any code or topology changes.**
 
+**Universal rulebook:** for compact, ADR-derived implementation rules shared by Claude Code, Codex, Copilot, and other AI agents, read `docs/ai/AGENT-RULEBOOK.md` first and use `docs/ai/ADR-RULE-MAP.yaml` to select scoped rule packs. `AGENTS.md` is an adapter/bootloader, not a separate architectural source of truth.
+
 ---
 
 ### 1. Big Picture Architecture

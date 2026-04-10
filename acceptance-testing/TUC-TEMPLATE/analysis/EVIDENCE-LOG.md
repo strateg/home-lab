@@ -4,7 +4,7 @@
 
 | Date | Command | Result | Evidence Path |
 |---|---|---|---|
-| `<YYYY-MM-DD>` | `<command>` | `<pass/fail>` | `artefacts/<file>` |
+| `<YYYY-MM-DD>` | `<command>` | `<pass/fail>` | `artifacts/<file>` |
 
 ## Notes
 

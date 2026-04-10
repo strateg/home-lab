@@ -9,7 +9,7 @@ from pathlib import Path
 def main() -> int:
     tuc_root = Path(__file__).resolve().parent
     analysis_dir = tuc_root / "analysis"
-    artefacts_dir = tuc_root / "artefacts"
+    artifacts_dir = tuc_root / "artifacts"
 
     required = [
         tuc_root / "TUC.md",
@@ -28,7 +28,7 @@ def main() -> int:
             print(f"- {path}")
         return 1
 
-    artefacts_dir.mkdir(parents=True, exist_ok=True)
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
     print("Quality gate passed: TUC-0004 structure is valid.")
     return 0
 
