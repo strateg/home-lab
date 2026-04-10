@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import re
 import sys
 import time
@@ -87,6 +88,40 @@ COMPILED_MODEL_VERSION = "1.0"
 COMPILER_PIPELINE_VERSION = "adr0069-ws2"
 SUPPORTED_COMPILED_MODEL_MAJOR = {"1"}
 ADVISORY_STAGE_SET = {Stage.DISCOVER, Stage.COMPILE, Stage.VALIDATE}
+
+
+class _DynamicStderrHandler(logging.Handler):
+    """Logging handler that writes to the current stderr stream."""
+
+    terminator = "\n"
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            message = self.format(record)
+            sys.stderr.write(message + self.terminator)
+            self.flush()
+        except Exception:
+            self.handleError(record)
+
+    def flush(self) -> None:
+        try:
+            sys.stderr.flush()
+        except Exception:
+            pass
+
+
+def _configure_runtime_logger() -> logging.Logger:
+    logger = logging.getLogger("home_lab.compile_topology")
+    if not any(isinstance(handler, _DynamicStderrHandler) for handler in logger.handlers):
+        handler = _DynamicStderrHandler()
+        handler.setFormatter(logging.Formatter("%(message)s"))
+        logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+    return logger
+
+
+LOGGER = _configure_runtime_logger()
 
 
 def resolve_repo_path(value: str) -> Path:
@@ -898,9 +933,9 @@ class V5Compiler:
     def _print_advisory_recommendations(self, parsed_output: dict[str, Any]) -> None:
         recommendations = parsed_output.get("recommendations", [])
         confidence_scores = parsed_output.get("confidence_scores", {})
-        print("[ai-advisory] Recommendations:", flush=True)
+        LOGGER.info("[ai-advisory] Recommendations:")
         if not isinstance(recommendations, list) or not recommendations:
-            print("[ai-advisory] - No recommendations.", flush=True)
+            LOGGER.info("[ai-advisory] - No recommendations.")
             return
         for index, row in enumerate(recommendations, start=1):
             if not isinstance(row, dict):
@@ -910,9 +945,9 @@ class V5Compiler:
             rationale = str(row.get("rationale", "")).strip()
             score = confidence_scores.get(path) if isinstance(confidence_scores, dict) else None
             score_token = f"{float(score):.2f}" if isinstance(score, (int, float)) else "n/a"
-            print(f"[ai-advisory] {index}. {action} {path} (confidence={score_token})", flush=True)
+            LOGGER.info(f"[ai-advisory] {index}. {action} {path} (confidence={score_token})")
             if rationale:
-                print(f"[ai-advisory]    rationale: {rationale}", flush=True)
+                LOGGER.info(f"[ai-advisory]    rationale: {rationale}")
 
     def _prepare_ai_session(
         self,
@@ -954,10 +989,10 @@ class V5Compiler:
             enforce_initial_sandbox_limits=True,
         )
         if session.cleaned_audit_logs:
-            print(f"[ai-advisory] Cleaned {len(session.cleaned_audit_logs)} old audit day folders.", flush=True)
+            LOGGER.info(f"[ai-advisory] Cleaned {len(session.cleaned_audit_logs)} old audit day folders.")
         if session.cleaned_sandbox_sessions:
-            print(f"[ai-advisory] Cleaned {len(session.cleaned_sandbox_sessions)} old sandbox sessions.", flush=True)
-        print(f"[ai-advisory] Sandbox session: {self._path_for_diag(session.sandbox_session)}", flush=True)
+            LOGGER.info(f"[ai-advisory] Cleaned {len(session.cleaned_sandbox_sessions)} old sandbox sessions.")
+        LOGGER.info(f"[ai-advisory] Sandbox session: {self._path_for_diag(session.sandbox_session)}")
         ai_input = session.ai_input
         ai_output = self._load_ai_output_payload()
         errors = validate_ai_contract_payloads(ai_input=ai_input, ai_output=ai_output, ctx=plugin_ctx)
@@ -1032,7 +1067,7 @@ class V5Compiler:
                 ),
                 path="ai-advisory:latency",
             )
-        print(f"[ai-advisory] Audit log: {self._path_for_diag(session.audit.log_path)}", flush=True)
+        LOGGER.info(f"[ai-advisory] Audit log: {self._path_for_diag(session.audit.log_path)}")
 
     def _run_ai_assisted_session(
         self,
@@ -1051,10 +1086,10 @@ class V5Compiler:
             enforce_initial_sandbox_limits=False,
         )
         if session.cleaned_audit_logs:
-            print(f"[ai-assisted] Cleaned {len(session.cleaned_audit_logs)} old audit day folders.", flush=True)
+            LOGGER.info(f"[ai-assisted] Cleaned {len(session.cleaned_audit_logs)} old audit day folders.")
         if session.cleaned_sandbox_sessions:
-            print(f"[ai-assisted] Cleaned {len(session.cleaned_sandbox_sessions)} old sandbox sessions.", flush=True)
-        print(f"[ai-assisted] Sandbox session: {self._path_for_diag(session.sandbox_session)}", flush=True)
+            LOGGER.info(f"[ai-assisted] Cleaned {len(session.cleaned_sandbox_sessions)} old sandbox sessions.")
+        LOGGER.info(f"[ai-assisted] Sandbox session: {self._path_for_diag(session.sandbox_session)}")
 
         ai_input = session.ai_input
         ai_output = self._load_ai_output_payload()
@@ -1101,13 +1136,12 @@ class V5Compiler:
                 artifacts=targets,
                 ref=self.ai_config.rollback_ref,
             )
-            print(
+            LOGGER.info(
                 "[ai-assisted] rollback: "
                 f"restored={len(rollback['restored'])} "
                 f"deleted={len(rollback['deleted'])} "
                 f"failed={len(rollback['failed'])} "
-                f"duration={rollback['duration_seconds']:.3f}s",
-                flush=True,
+                f"duration={rollback['duration_seconds']:.3f}s"
             )
             session.audit.log_event(
                 event_type="rollback_result",
@@ -1122,7 +1156,7 @@ class V5Compiler:
                 },
                 input_hash=input_hash,
             )
-            print(f"[ai-assisted] Audit log: {self._path_for_diag(session.audit.log_path)}", flush=True)
+            LOGGER.info(f"[ai-assisted] Audit log: {self._path_for_diag(session.audit.log_path)}")
             return
         if ai_output is None:
             self.add_diag(
@@ -1150,16 +1184,16 @@ class V5Compiler:
                 candidate_path=Path(row["candidate_path"]),
                 logical_path=str(row["path"]),
             )
-            print(
-                f"[ai-assisted] {diff_payload['change_type']}: {diff_payload['path']} (added_lines={diff_payload['added_lines']})",
-                flush=True,
+            LOGGER.info(
+                f"[ai-assisted] {diff_payload['change_type']}: "
+                f"{diff_payload['path']} (added_lines={diff_payload['added_lines']})"
             )
             confidence = parsed.get("confidence_scores", {}).get(str(row["path"]))
             if isinstance(confidence, (int, float)):
-                print(f"[ai-assisted]   confidence: {float(confidence):.2f}", flush=True)
+                LOGGER.info(f"[ai-assisted]   confidence: {float(confidence):.2f}")
         if rejected:
             for row in rejected:
-                print(f"[ai-assisted] rejected: {row['path']} ({row['reason']})", flush=True)
+                LOGGER.info(f"[ai-assisted] rejected: {row['path']} ({row['reason']})")
         ansible_candidates = parse_ansible_output_candidates(project_id=project_id, ai_output=ai_output)
         if self.ai_config.ansible_lint and ansible_candidates:
             lint_failures = validate_ansible_candidates_with_lint(
@@ -1172,7 +1206,7 @@ class V5Compiler:
                     row for row in accepted if str(row.get("path", "")) not in {f["path"] for f in lint_failures}
                 ]
                 for item in lint_failures:
-                    print(f"[ai-assisted] lint-rejected: {item['path']} ({item['reason']})", flush=True)
+                    LOGGER.info(f"[ai-assisted] lint-rejected: {item['path']} ({item['reason']})")
 
         enforce_sandbox_resource_limits(
             sandbox_session=session.sandbox_session,
@@ -1201,13 +1235,13 @@ class V5Compiler:
         promoted: list[dict[str, str]] = []
         if self.ai_config.promote_approved:
             if not approved:
-                print("[ai-assisted] promotion skipped: no approved candidates.", flush=True)
+                LOGGER.info("[ai-assisted] promotion skipped: no approved candidates.")
             else:
                 promoted = promote_approved_candidates(repo_root=REPO_ROOT, approved=approved)
                 for row in promoted:
-                    print(f"[ai-assisted] promoted: {row['path']}", flush=True)
+                    LOGGER.info(f"[ai-assisted] promoted: {row['path']}")
         else:
-            print("[ai-assisted] promotion gate: disabled (use --ai-promote-approved).", flush=True)
+            LOGGER.info("[ai-assisted] promotion gate: disabled (use --ai-promote-approved).")
 
         session.audit.log_event(
             event_type="ai_response_received",
@@ -1254,7 +1288,7 @@ class V5Compiler:
                 ),
                 path="ai-assisted:latency",
             )
-        print(f"[ai-assisted] Audit log: {self._path_for_diag(session.audit.log_path)}", flush=True)
+        LOGGER.info(f"[ai-assisted] Audit log: {self._path_for_diag(session.audit.log_path)}")
 
     def _write_diagnostics(self) -> tuple[int, int, int, int]:
         self._write_execution_trace()
