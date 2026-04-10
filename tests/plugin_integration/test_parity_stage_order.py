@@ -490,6 +490,77 @@ def test_parser_accepts_ai_advisory_flags():
     assert args.ai_assisted_max_latency_seconds == 120
 
 
+def test_ai_config_normalizes_operator_inputs():
+    mod = _load_compiler_module()
+    config = mod.AiConfig(
+        audit_retention_days=0,
+        sandbox_retention_days=0,
+        sandbox_max_files=0,
+        sandbox_max_bytes=0,
+        approve_paths=(" generated/a.yml ", "", "generated/b.yml"),
+        rollback_paths=(" generated/c.yml ", ""),
+        rollback_ref="",
+        ansible_lint_cmd="",
+        advisory_max_latency_seconds=0.1,
+        assisted_max_latency_seconds=0.2,
+    )
+
+    assert config.audit_retention_days == 1
+    assert config.sandbox_retention_days == 1
+    assert config.sandbox_max_files == 1
+    assert config.sandbox_max_bytes == 1
+    assert config.approve_paths == ("generated/a.yml", "generated/b.yml")
+    assert config.rollback_paths == ("generated/c.yml",)
+    assert config.rollback_ref == "HEAD"
+    assert config.ansible_lint_cmd == "ansible-lint"
+    assert config.advisory_max_latency_seconds == 1.0
+    assert config.assisted_max_latency_seconds == 1.0
+
+
+def test_prepare_ai_session_builds_shared_advisory_context(monkeypatch, tmp_path):
+    mod = _load_compiler_module()
+    monkeypatch.setattr(mod, "REPO_ROOT", tmp_path)
+    compiler = mod.V5Compiler(
+        manifest_path=tmp_path / "topology.yaml",
+        output_json=tmp_path / "effective-topology.json",
+        diagnostics_json=tmp_path / "diagnostics.json",
+        diagnostics_txt=tmp_path / "diagnostics.txt",
+        error_catalog_path=mod.DEFAULT_ERROR_CATALOG,
+        strict_model_lock=False,
+        fail_on_warning=False,
+        require_new_model=True,
+        enable_plugins=True,
+        plugins_manifest_path=mod.DEFAULT_PLUGINS_MANIFEST,
+        stages=[mod.Stage.COMPILE, mod.Stage.VALIDATE],
+    )
+    ctx = mod.PluginContext(topology_path="test", profile="test-real", model_lock={})
+
+    session = compiler._prepare_ai_session(
+        mode="advisory",
+        effective_payload={
+            "classes": {},
+            "objects": {},
+            "instances": {
+                "r1": {
+                    "credentials": {"password": "secret"},
+                },
+            },
+        },
+        project_id="home-lab",
+        plugin_ctx=ctx,
+        plugin_id="base.compiler.ai_advisory",
+        enforce_initial_sandbox_limits=True,
+    )
+
+    assert session.mode == "advisory"
+    assert session.sandbox_session.is_dir()
+    assert session.sandbox_usage == {"files": 0, "bytes": 0}
+    assert session.ai_input["generation_context"]["mode"] == "advisory"
+    assert session.ai_input["generation_context"]["plugin_id"] == "base.compiler.ai_advisory"
+    assert session.ai_input["artifact_plan"] == {"mode": "advisory", "stages": ["compile", "validate"]}
+    assert session.ai_input["effective_json"]["instances"]["r1"]["credentials"]["password"].startswith("<<REDACTED:")
+
+
 def test_main_ai_advisory_forces_read_only_stage_set(monkeypatch, tmp_path):
     mod = _load_compiler_module()
     ai_output_path = tmp_path / "ai-output.json"

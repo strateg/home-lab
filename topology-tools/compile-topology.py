@@ -200,6 +200,62 @@ class Diagnostic:
         )
 
 
+@dataclass(frozen=True)
+class AiConfig:
+    advisory: bool = False
+    assisted: bool = False
+    output_json: Path | None = None
+    audit_retention_days: int = 30
+    sandbox_retention_days: int = 7
+    sandbox_max_files: int = 128
+    sandbox_max_bytes: int = 10 * 1024 * 1024
+    promote_approved: bool = False
+    approve_all: bool = False
+    approve_paths: tuple[str, ...] = ()
+    rollback_all: bool = False
+    rollback_paths: tuple[str, ...] = ()
+    rollback_ref: str = "HEAD"
+    ansible_lint: bool = False
+    ansible_lint_cmd: str = "ansible-lint"
+    advisory_max_latency_seconds: float = 60.0
+    assisted_max_latency_seconds: float = 300.0
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "audit_retention_days", max(1, int(self.audit_retention_days)))
+        object.__setattr__(self, "sandbox_retention_days", max(1, int(self.sandbox_retention_days)))
+        object.__setattr__(self, "sandbox_max_files", max(1, int(self.sandbox_max_files)))
+        object.__setattr__(self, "sandbox_max_bytes", max(1, int(self.sandbox_max_bytes)))
+        object.__setattr__(self, "approve_paths", tuple(path.strip() for path in self.approve_paths if path.strip()))
+        object.__setattr__(
+            self,
+            "rollback_paths",
+            tuple(path.strip() for path in self.rollback_paths if path.strip()),
+        )
+        object.__setattr__(self, "rollback_ref", self.rollback_ref.strip() or "HEAD")
+        object.__setattr__(self, "ansible_lint_cmd", self.ansible_lint_cmd.strip() or "ansible-lint")
+        object.__setattr__(self, "advisory_max_latency_seconds", max(1.0, float(self.advisory_max_latency_seconds)))
+        object.__setattr__(self, "assisted_max_latency_seconds", max(1.0, float(self.assisted_max_latency_seconds)))
+
+
+@dataclass(frozen=True)
+class AiSessionPreparation:
+    mode: str
+    request_id: str
+    cleaned_audit_logs: list[Path]
+    cleaned_sandbox_sessions: list[Path]
+    sandbox_session: Path
+    sandbox_usage: dict[str, int]
+    sanitized_env: dict[str, str]
+    removed_env_keys: list[str]
+    audit: AiAuditLogger
+    safe_effective_payload: dict[str, Any]
+    ansible_adapter: dict[str, Any]
+    annotation_patterns: tuple[re.Pattern[str], ...]
+    registry_patterns: tuple[re.Pattern[str], ...]
+    prompt_profile: str
+    ai_input: dict[str, Any]
+
+
 class V5Compiler:
     def __init__(
         self,
@@ -278,23 +334,42 @@ class V5Compiler:
         self.signing_backend = signing_backend
         self.release_tag = release_tag
         self.sbom_output_dir = sbom_output_dir
-        self.ai_advisory = ai_advisory
-        self.ai_assisted = ai_assisted
-        self.ai_output_json = ai_output_json
-        self.ai_audit_retention_days = ai_audit_retention_days
-        self.ai_sandbox_retention_days = ai_sandbox_retention_days
-        self.ai_sandbox_max_files = ai_sandbox_max_files
-        self.ai_sandbox_max_bytes = ai_sandbox_max_bytes
-        self.ai_promote_approved = ai_promote_approved
-        self.ai_approve_all = ai_approve_all
-        self.ai_approve_paths = tuple(path.strip() for path in ai_approve_paths if path.strip())
-        self.ai_rollback_all = ai_rollback_all
-        self.ai_rollback_paths = tuple(path.strip() for path in ai_rollback_paths if path.strip())
-        self.ai_rollback_ref = ai_rollback_ref.strip() or "HEAD"
-        self.ai_ansible_lint = ai_ansible_lint
-        self.ai_ansible_lint_cmd = ai_ansible_lint_cmd.strip() or "ansible-lint"
-        self.ai_advisory_max_latency_seconds = max(1.0, float(ai_advisory_max_latency_seconds))
-        self.ai_assisted_max_latency_seconds = max(1.0, float(ai_assisted_max_latency_seconds))
+        self.ai_config = AiConfig(
+            advisory=ai_advisory,
+            assisted=ai_assisted,
+            output_json=ai_output_json,
+            audit_retention_days=ai_audit_retention_days,
+            sandbox_retention_days=ai_sandbox_retention_days,
+            sandbox_max_files=ai_sandbox_max_files,
+            sandbox_max_bytes=ai_sandbox_max_bytes,
+            promote_approved=ai_promote_approved,
+            approve_all=ai_approve_all,
+            approve_paths=ai_approve_paths,
+            rollback_all=ai_rollback_all,
+            rollback_paths=ai_rollback_paths,
+            rollback_ref=ai_rollback_ref,
+            ansible_lint=ai_ansible_lint,
+            ansible_lint_cmd=ai_ansible_lint_cmd,
+            advisory_max_latency_seconds=ai_advisory_max_latency_seconds,
+            assisted_max_latency_seconds=ai_assisted_max_latency_seconds,
+        )
+        self.ai_advisory = self.ai_config.advisory
+        self.ai_assisted = self.ai_config.assisted
+        self.ai_output_json = self.ai_config.output_json
+        self.ai_audit_retention_days = self.ai_config.audit_retention_days
+        self.ai_sandbox_retention_days = self.ai_config.sandbox_retention_days
+        self.ai_sandbox_max_files = self.ai_config.sandbox_max_files
+        self.ai_sandbox_max_bytes = self.ai_config.sandbox_max_bytes
+        self.ai_promote_approved = self.ai_config.promote_approved
+        self.ai_approve_all = self.ai_config.approve_all
+        self.ai_approve_paths = self.ai_config.approve_paths
+        self.ai_rollback_all = self.ai_config.rollback_all
+        self.ai_rollback_paths = self.ai_config.rollback_paths
+        self.ai_rollback_ref = self.ai_config.rollback_ref
+        self.ai_ansible_lint = self.ai_config.ansible_lint
+        self.ai_ansible_lint_cmd = self.ai_config.ansible_lint_cmd
+        self.ai_advisory_max_latency_seconds = self.ai_config.advisory_max_latency_seconds
+        self.ai_assisted_max_latency_seconds = self.ai_config.assisted_max_latency_seconds
         requested_stages = set(stages) if isinstance(stages, list) and stages else set(STAGE_ORDER)
         self.stages: tuple[Stage, ...] = tuple(stage for stage in STAGE_ORDER if stage in requested_stages)
 
@@ -958,6 +1033,91 @@ class V5Compiler:
             if rationale:
                 print(f"[ai-advisory]    rationale: {rationale}", flush=True)
 
+    def _prepare_ai_session(
+        self,
+        *,
+        mode: str,
+        effective_payload: dict[str, Any],
+        project_id: str,
+        plugin_ctx: PluginContext | None,
+        plugin_id: str,
+        enforce_initial_sandbox_limits: bool,
+    ) -> AiSessionPreparation:
+        request_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        request_token = f"{project_id}-{request_id}"
+        cleaned_audit_logs = cleanup_ai_audit_logs(
+            repo_root=REPO_ROOT,
+            project_id=project_id,
+            retain_days=self.ai_config.audit_retention_days,
+        )
+        cleaned_sandbox_sessions = cleanup_ai_sandbox_sessions(
+            repo_root=REPO_ROOT,
+            project_id=project_id,
+            retain_days=self.ai_config.sandbox_retention_days,
+        )
+        sandbox_session = create_ai_sandbox_session(
+            repo_root=REPO_ROOT,
+            project_id=project_id,
+            request_id=request_token,
+        )
+        _ = ensure_relative_sandbox_path(sandbox_session=sandbox_session, relative_path="ai-output.json")
+        sandbox_usage = (
+            enforce_sandbox_resource_limits(
+                sandbox_session=sandbox_session,
+                max_files=self.ai_config.sandbox_max_files,
+                max_bytes=self.ai_config.sandbox_max_bytes,
+            )
+            if enforce_initial_sandbox_limits
+            else {"files": 0, "bytes": 0}
+        )
+        sanitized_env, removed_env_keys = sanitize_environment(dict(os.environ))
+        audit = AiAuditLogger(
+            repo_root=REPO_ROOT,
+            project_id=project_id,
+            request_id=request_token,
+        )
+        safe_effective_payload = self._json_safe_payload(effective_payload)
+        ansible_adapter = build_ansible_input_adapter(safe_effective_payload)
+        annotation_patterns = self._collect_annotation_redaction_patterns(plugin_ctx)
+        registry_patterns = self._collect_registry_redaction_patterns(plugin_ctx)
+        stable_projection = {
+            "classes": safe_effective_payload.get("classes", {}),
+            "objects": safe_effective_payload.get("objects", {}),
+            "instances": safe_effective_payload.get("instances", {}),
+        }
+        artifact_plan = {
+            "mode": mode,
+            "stages": [stage.value for stage in self.stages],
+        }
+        prompt_profile = "ansible_family" if ansible_adapter.get("hosts") else "generic_topology"
+        ai_input = build_ai_input_payload(
+            artifact_family="topology",
+            mode=mode,
+            plugin_id=plugin_id,
+            effective_json=safe_effective_payload,
+            stable_projection=stable_projection,
+            artifact_plan=artifact_plan,
+            generation_context_extra={"prompt_profile": prompt_profile},
+            extra_key_patterns=annotation_patterns + registry_patterns,
+        )
+        return AiSessionPreparation(
+            mode=mode,
+            request_id=request_token,
+            cleaned_audit_logs=cleaned_audit_logs,
+            cleaned_sandbox_sessions=cleaned_sandbox_sessions,
+            sandbox_session=sandbox_session,
+            sandbox_usage=sandbox_usage,
+            sanitized_env=sanitized_env,
+            removed_env_keys=removed_env_keys,
+            audit=audit,
+            safe_effective_payload=safe_effective_payload,
+            ansible_adapter=ansible_adapter,
+            annotation_patterns=annotation_patterns,
+            registry_patterns=registry_patterns,
+            prompt_profile=prompt_profile,
+            ai_input=ai_input,
+        )
+
     def _run_ai_advisory_session(
         self,
         *,
@@ -966,64 +1126,20 @@ class V5Compiler:
         plugin_ctx: PluginContext | None,
     ) -> None:
         start_ts = time.monotonic()
-        request_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-        cleaned = cleanup_ai_audit_logs(
-            repo_root=REPO_ROOT,
-            project_id=project_id,
-            retain_days=self.ai_audit_retention_days,
-        )
-        cleaned_sessions = cleanup_ai_sandbox_sessions(
-            repo_root=REPO_ROOT,
-            project_id=project_id,
-            retain_days=self.ai_sandbox_retention_days,
-        )
-        sandbox_session = create_ai_sandbox_session(
-            repo_root=REPO_ROOT,
-            project_id=project_id,
-            request_id=f"{project_id}-{request_id}",
-        )
-        _ = ensure_relative_sandbox_path(sandbox_session=sandbox_session, relative_path="ai-output.json")
-        sandbox_usage = enforce_sandbox_resource_limits(
-            sandbox_session=sandbox_session,
-            max_files=self.ai_sandbox_max_files,
-            max_bytes=self.ai_sandbox_max_bytes,
-        )
-        sanitized_env, removed_env_keys = sanitize_environment(dict(os.environ))
-        audit = AiAuditLogger(
-            repo_root=REPO_ROOT,
-            project_id=project_id,
-            request_id=f"{project_id}-{request_id}",
-        )
-        if cleaned:
-            print(f"[ai-advisory] Cleaned {len(cleaned)} old audit day folders.", flush=True)
-        if cleaned_sessions:
-            print(f"[ai-advisory] Cleaned {len(cleaned_sessions)} old sandbox sessions.", flush=True)
-        print(f"[ai-advisory] Sandbox session: {self._path_for_diag(sandbox_session)}", flush=True)
-        safe_effective_payload = self._json_safe_payload(effective_payload)
-        annotation_patterns = self._collect_annotation_redaction_patterns(plugin_ctx)
-        registry_patterns = self._collect_registry_redaction_patterns(plugin_ctx)
-        extra_key_patterns = annotation_patterns + registry_patterns
-        stable_projection = {
-            "classes": safe_effective_payload.get("classes", {}),
-            "objects": safe_effective_payload.get("objects", {}),
-            "instances": safe_effective_payload.get("instances", {}),
-        }
-        ansible_adapter = build_ansible_input_adapter(safe_effective_payload)
-        artifact_plan = {
-            "mode": "advisory",
-            "stages": [stage.value for stage in self.stages],
-        }
-        prompt_profile = "ansible_family" if ansible_adapter.get("hosts") else "generic_topology"
-        ai_input = build_ai_input_payload(
-            artifact_family="topology",
+        session = self._prepare_ai_session(
             mode="advisory",
+            effective_payload=effective_payload,
+            project_id=project_id,
+            plugin_ctx=plugin_ctx,
             plugin_id="base.compiler.ai_advisory",
-            effective_json=safe_effective_payload,
-            stable_projection=stable_projection,
-            artifact_plan=artifact_plan,
-            generation_context_extra={"prompt_profile": prompt_profile},
-            extra_key_patterns=extra_key_patterns,
+            enforce_initial_sandbox_limits=True,
         )
+        if session.cleaned_audit_logs:
+            print(f"[ai-advisory] Cleaned {len(session.cleaned_audit_logs)} old audit day folders.", flush=True)
+        if session.cleaned_sandbox_sessions:
+            print(f"[ai-advisory] Cleaned {len(session.cleaned_sandbox_sessions)} old sandbox sessions.", flush=True)
+        print(f"[ai-advisory] Sandbox session: {self._path_for_diag(session.sandbox_session)}", flush=True)
+        ai_input = session.ai_input
         ai_output = self._load_ai_output_payload()
         errors = validate_ai_contract_payloads(ai_input=ai_input, ai_output=ai_output, ctx=plugin_ctx)
         if errors:
@@ -1035,7 +1151,7 @@ class V5Compiler:
                     message=message,
                     path="ai-advisory:contract",
                 )
-            audit.log_event(
+            session.audit.log_event(
                 event_type="candidate_validation_result",
                 payload={"mode": "advisory", "status": "contract_error", "errors": errors},
                 input_hash=str(ai_input.get("input_hash", "")),
@@ -1043,20 +1159,20 @@ class V5Compiler:
             return
 
         input_hash = str(ai_input.get("input_hash", ""))
-        audit.log_event(
+        session.audit.log_event(
             event_type="ai_request_sent",
             payload={
                 "mode": "advisory",
-                "sandbox_session": self._path_for_diag(sandbox_session),
-                "sandbox_usage": sandbox_usage,
+                "sandbox_session": self._path_for_diag(session.sandbox_session),
+                "sandbox_usage": session.sandbox_usage,
                 "sandbox_limits": {
-                    "max_files": self.ai_sandbox_max_files,
-                    "max_bytes": self.ai_sandbox_max_bytes,
+                    "max_files": self.ai_config.sandbox_max_files,
+                    "max_bytes": self.ai_config.sandbox_max_bytes,
                 },
-                "annotation_pattern_count": len(annotation_patterns),
-                "registry_pattern_count": len(registry_patterns),
-                "env_keys_forwarded": len(sanitized_env),
-                "env_keys_removed": removed_env_keys,
+                "annotation_pattern_count": len(session.annotation_patterns),
+                "registry_pattern_count": len(session.registry_patterns),
+                "env_keys_forwarded": len(session.sanitized_env),
+                "env_keys_removed": session.removed_env_keys,
             },
             input_hash=input_hash,
         )
@@ -1065,7 +1181,7 @@ class V5Compiler:
         if ai_output is not None:
             output_hash = self._advisory_payload_hash(ai_output)
             parsed = parse_ai_output_payload(ai_output)
-            audit.log_event(
+            session.audit.log_event(
                 event_type="ai_response_received",
                 payload={
                     "mode": "advisory",
@@ -1075,7 +1191,7 @@ class V5Compiler:
                 output_hash=output_hash,
             )
         self._print_advisory_recommendations(parsed)
-        audit.log_event(
+        session.audit.log_event(
             event_type="candidate_validation_result",
             payload={
                 "mode": "advisory",
@@ -1086,18 +1202,18 @@ class V5Compiler:
             output_hash=output_hash,
         )
         elapsed = time.monotonic() - start_ts
-        if elapsed > self.ai_advisory_max_latency_seconds:
+        if elapsed > self.ai_config.advisory_max_latency_seconds:
             self.add_diag(
                 code="W8941",
                 severity="warning",
                 stage="validate",
                 message=(
                     "AI advisory latency exceeded configured limit: "
-                    f"{elapsed:.2f}s > {self.ai_advisory_max_latency_seconds:.2f}s"
+                    f"{elapsed:.2f}s > {self.ai_config.advisory_max_latency_seconds:.2f}s"
                 ),
                 path="ai-advisory:latency",
             )
-        print(f"[ai-advisory] Audit log: {self._path_for_diag(audit.log_path)}", flush=True)
+        print(f"[ai-advisory] Audit log: {self._path_for_diag(session.audit.log_path)}", flush=True)
 
     def _run_ai_assisted_session(
         self,
@@ -1107,53 +1223,21 @@ class V5Compiler:
         plugin_ctx: PluginContext | None,
     ) -> None:
         start_ts = time.monotonic()
-        request_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-        cleaned = cleanup_ai_audit_logs(
-            repo_root=REPO_ROOT,
-            project_id=project_id,
-            retain_days=self.ai_audit_retention_days,
-        )
-        cleaned_sessions = cleanup_ai_sandbox_sessions(
-            repo_root=REPO_ROOT,
-            project_id=project_id,
-            retain_days=self.ai_sandbox_retention_days,
-        )
-        sandbox_session = create_ai_sandbox_session(
-            repo_root=REPO_ROOT,
-            project_id=project_id,
-            request_id=f"{project_id}-{request_id}",
-        )
-        sanitized_env, removed_env_keys = sanitize_environment(dict(os.environ))
-        audit = AiAuditLogger(
-            repo_root=REPO_ROOT,
-            project_id=project_id,
-            request_id=f"{project_id}-{request_id}",
-        )
-        if cleaned:
-            print(f"[ai-assisted] Cleaned {len(cleaned)} old audit day folders.", flush=True)
-        if cleaned_sessions:
-            print(f"[ai-assisted] Cleaned {len(cleaned_sessions)} old sandbox sessions.", flush=True)
-        print(f"[ai-assisted] Sandbox session: {self._path_for_diag(sandbox_session)}", flush=True)
-
-        safe_effective_payload = self._json_safe_payload(effective_payload)
-        ansible_adapter = build_ansible_input_adapter(safe_effective_payload)
-        annotation_patterns = self._collect_annotation_redaction_patterns(plugin_ctx)
-        registry_patterns = self._collect_registry_redaction_patterns(plugin_ctx)
-        prompt_profile = "ansible_family" if ansible_adapter.get("hosts") else "generic_topology"
-        ai_input = build_ai_input_payload(
-            artifact_family="topology",
+        session = self._prepare_ai_session(
             mode="assisted",
+            effective_payload=effective_payload,
+            project_id=project_id,
+            plugin_ctx=plugin_ctx,
             plugin_id="base.compiler.ai_assisted",
-            effective_json=safe_effective_payload,
-            stable_projection={
-                "classes": safe_effective_payload.get("classes", {}),
-                "objects": safe_effective_payload.get("objects", {}),
-                "instances": safe_effective_payload.get("instances", {}),
-            },
-            artifact_plan={"mode": "assisted", "stages": [stage.value for stage in self.stages]},
-            generation_context_extra={"prompt_profile": prompt_profile},
-            extra_key_patterns=annotation_patterns + registry_patterns,
+            enforce_initial_sandbox_limits=False,
         )
+        if session.cleaned_audit_logs:
+            print(f"[ai-assisted] Cleaned {len(session.cleaned_audit_logs)} old audit day folders.", flush=True)
+        if session.cleaned_sandbox_sessions:
+            print(f"[ai-assisted] Cleaned {len(session.cleaned_sandbox_sessions)} old sandbox sessions.", flush=True)
+        print(f"[ai-assisted] Sandbox session: {self._path_for_diag(session.sandbox_session)}", flush=True)
+
+        ai_input = session.ai_input
         ai_output = self._load_ai_output_payload()
         errors = validate_ai_contract_payloads(ai_input=ai_input, ai_output=ai_output, ctx=plugin_ctx)
         if errors:
@@ -1165,7 +1249,7 @@ class V5Compiler:
                     message=message,
                     path="ai-assisted:contract",
                 )
-            audit.log_event(
+            session.audit.log_event(
                 event_type="candidate_validation_result",
                 payload={"mode": "assisted", "status": "contract_error", "errors": errors},
                 input_hash=str(ai_input.get("input_hash", "")),
@@ -1173,30 +1257,30 @@ class V5Compiler:
             return
 
         input_hash = str(ai_input.get("input_hash", ""))
-        audit.log_event(
+        session.audit.log_event(
             event_type="ai_request_sent",
             payload={
                 "mode": "assisted",
-                "sandbox_session": self._path_for_diag(sandbox_session),
-                "annotation_pattern_count": len(annotation_patterns),
-                "registry_pattern_count": len(registry_patterns),
-                "env_keys_forwarded": len(sanitized_env),
-                "env_keys_removed": removed_env_keys,
+                "sandbox_session": self._path_for_diag(session.sandbox_session),
+                "annotation_pattern_count": len(session.annotation_patterns),
+                "registry_pattern_count": len(session.registry_patterns),
+                "env_keys_forwarded": len(session.sanitized_env),
+                "env_keys_removed": session.removed_env_keys,
             },
             input_hash=input_hash,
         )
-        rollback_requested = self.ai_rollback_all or bool(self.ai_rollback_paths)
+        rollback_requested = self.ai_config.rollback_all or bool(self.ai_config.rollback_paths)
         if rollback_requested:
             rollback_candidates = list_ai_promoted_artifacts(repo_root=REPO_ROOT, project_id=project_id)
-            if self.ai_rollback_all:
+            if self.ai_config.rollback_all:
                 targets = rollback_candidates
             else:
-                wanted = set(self.ai_rollback_paths)
+                wanted = set(self.ai_config.rollback_paths)
                 targets = [row for row in rollback_candidates if str(row.get("path", "")) in wanted]
             rollback = rollback_ai_promoted_artifacts(
                 repo_root=REPO_ROOT,
                 artifacts=targets,
-                ref=self.ai_rollback_ref,
+                ref=self.ai_config.rollback_ref,
             )
             print(
                 "[ai-assisted] rollback: "
@@ -1206,11 +1290,11 @@ class V5Compiler:
                 f"duration={rollback['duration_seconds']:.3f}s",
                 flush=True,
             )
-            audit.log_event(
+            session.audit.log_event(
                 event_type="rollback_result",
                 payload={
                     "mode": "assisted",
-                    "ref": self.ai_rollback_ref,
+                    "ref": self.ai_config.rollback_ref,
                     "target_count": len(targets),
                     "restored": rollback["restored"],
                     "deleted": rollback["deleted"],
@@ -1219,7 +1303,7 @@ class V5Compiler:
                 },
                 input_hash=input_hash,
             )
-            print(f"[ai-assisted] Audit log: {self._path_for_diag(audit.log_path)}", flush=True)
+            print(f"[ai-assisted] Audit log: {self._path_for_diag(session.audit.log_path)}", flush=True)
             return
         if ai_output is None:
             self.add_diag(
@@ -1237,7 +1321,7 @@ class V5Compiler:
         candidates = raw_candidates if isinstance(raw_candidates, list) else []
         accepted, rejected = materialize_candidate_artifacts(
             repo_root=REPO_ROOT,
-            sandbox_session=sandbox_session,
+            sandbox_session=session.sandbox_session,
             project_id=project_id,
             candidates=[row for row in candidates if isinstance(row, dict)],
         )
@@ -1258,10 +1342,10 @@ class V5Compiler:
             for row in rejected:
                 print(f"[ai-assisted] rejected: {row['path']} ({row['reason']})", flush=True)
         ansible_candidates = parse_ansible_output_candidates(project_id=project_id, ai_output=ai_output)
-        if self.ai_ansible_lint and ansible_candidates:
+        if self.ai_config.ansible_lint and ansible_candidates:
             lint_failures = validate_ansible_candidates_with_lint(
                 candidates=accepted,
-                lint_cmd=self.ai_ansible_lint_cmd,
+                lint_cmd=self.ai_config.ansible_lint_cmd,
             )
             if lint_failures:
                 rejected.extend(lint_failures)
@@ -1272,21 +1356,21 @@ class V5Compiler:
                     print(f"[ai-assisted] lint-rejected: {item['path']} ({item['reason']})", flush=True)
 
         enforce_sandbox_resource_limits(
-            sandbox_session=sandbox_session,
-            max_files=self.ai_sandbox_max_files,
-            max_bytes=self.ai_sandbox_max_bytes,
+            sandbox_session=session.sandbox_session,
+            max_files=self.ai_config.sandbox_max_files,
+            max_bytes=self.ai_config.sandbox_max_bytes,
         )
-        approve_paths_set = set(self.ai_approve_paths)
+        approve_paths_set = set(self.ai_config.approve_paths)
         approved, approval_rejected = resolve_approvals(
             candidates=accepted,
-            approve_all=self.ai_approve_all,
+            approve_all=self.ai_config.approve_all,
             approve_paths=approve_paths_set,
         )
-        audit.log_event(
+        session.audit.log_event(
             event_type="human_approval_decision",
             payload={
                 "mode": "assisted",
-                "approve_all": self.ai_approve_all,
+                "approve_all": self.ai_config.approve_all,
                 "approved_count": len(approved),
                 "rejected_count": len(approval_rejected),
                 "approved_paths": [str(row.get("path", "")) for row in approved],
@@ -1296,7 +1380,7 @@ class V5Compiler:
         )
 
         promoted: list[dict[str, str]] = []
-        if self.ai_promote_approved:
+        if self.ai_config.promote_approved:
             if not approved:
                 print("[ai-assisted] promotion skipped: no approved candidates.", flush=True)
             else:
@@ -1306,7 +1390,7 @@ class V5Compiler:
         else:
             print("[ai-assisted] promotion gate: disabled (use --ai-promote-approved).", flush=True)
 
-        audit.log_event(
+        session.audit.log_event(
             event_type="ai_response_received",
             payload={
                 "mode": "assisted",
@@ -1317,7 +1401,7 @@ class V5Compiler:
             input_hash=input_hash,
             output_hash=output_hash,
         )
-        audit.log_event(
+        session.audit.log_event(
             event_type="candidate_validation_result",
             payload={
                 "mode": "assisted",
@@ -1328,11 +1412,11 @@ class V5Compiler:
             input_hash=input_hash,
             output_hash=output_hash,
         )
-        audit.log_event(
+        session.audit.log_event(
             event_type="candidate_promotion_result",
             payload={
                 "mode": "assisted",
-                "promotion_enabled": self.ai_promote_approved,
+                "promotion_enabled": self.ai_config.promote_approved,
                 "promoted_count": len(promoted),
                 "promoted_paths": [row["path"] for row in promoted],
             },
@@ -1340,18 +1424,18 @@ class V5Compiler:
             output_hash=output_hash,
         )
         elapsed = time.monotonic() - start_ts
-        if elapsed > self.ai_assisted_max_latency_seconds:
+        if elapsed > self.ai_config.assisted_max_latency_seconds:
             self.add_diag(
                 code="W8941",
                 severity="warning",
                 stage="validate",
                 message=(
                     "AI assisted latency exceeded configured limit: "
-                    f"{elapsed:.2f}s > {self.ai_assisted_max_latency_seconds:.2f}s"
+                    f"{elapsed:.2f}s > {self.ai_config.assisted_max_latency_seconds:.2f}s"
                 ),
                 path="ai-assisted:latency",
             )
-        print(f"[ai-assisted] Audit log: {self._path_for_diag(audit.log_path)}", flush=True)
+        print(f"[ai-assisted] Audit log: {self._path_for_diag(session.audit.log_path)}", flush=True)
 
     def _write_diagnostics(self) -> tuple[int, int, int, int]:
         self._write_execution_trace()
