@@ -6,6 +6,10 @@ This document provides essential, actionable guidance for AI coding agents worki
 
 **Universal rulebook:** for compact, ADR-derived implementation rules shared by Claude Code, Codex, Copilot, and other AI agents, read `docs/ai/AGENT-RULEBOOK.md` first and use `docs/ai/ADR-RULE-MAP.yaml` to select scoped rule packs. `AGENTS.md` is an adapter/bootloader, not a separate architectural source of truth.
 
+## Optional SPC Mode
+
+When the user says "SPC MODE", "STRICT MODE", "Use strict process", or "Работай по контракту", load `docs/ai/spc-contract.md` and follow it as the active process protocol until the user exits strict mode.
+
 ---
 
 ### 1. Big Picture Architecture
