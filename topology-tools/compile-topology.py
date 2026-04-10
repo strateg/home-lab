@@ -8,7 +8,6 @@ import json
 import re
 import sys
 import time
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -23,6 +22,7 @@ from compiler_ai_sessions import AiConfig, AiSessionPreparation, json_safe_paylo
 from compiler_cli import CompilerCliDependencies, build_parser as build_compiler_parser, run_cli
 from compiler_contract import manifest_digest, validate_compiled_model_contract
 from compiler_decisions import select_effective_payload
+from compiler_diagnostics import Diagnostic
 from compiler_ownership import artifact_owner, compilation_owner, validation_owner
 from compiler_plugin_context import create_plugin_context
 from compiler_reporting import write_diagnostics_report
@@ -39,7 +39,6 @@ from kernel import (
     KERNEL_VERSION,
     Phase,
     PluginContext,
-    PluginDiagnostic,
     PluginRegistry,
     PluginResult,
     PluginStatus,
@@ -137,48 +136,6 @@ def parse_stages_arg(raw: str) -> list[Stage]:
         seen.add(stage)
         ordered.append(stage)
     return ordered
-
-
-@dataclass
-class Diagnostic:
-    code: str
-    severity: str
-    stage: str
-    message: str
-    path: str
-    confidence: float = 0.95
-    hint: str | None = None
-    plugin_id: str | None = None
-
-    def as_dict(self) -> dict[str, Any]:
-        payload: dict[str, Any] = {
-            "code": self.code,
-            "severity": self.severity,
-            "stage": self.stage,
-            "message": self.message,
-            "path": self.path,
-            "confidence": self.confidence,
-            "autofix": {"possible": False},
-        }
-        if self.hint:
-            payload["hint"] = self.hint
-        if self.plugin_id:
-            payload["plugin_id"] = self.plugin_id
-        return payload
-
-    @classmethod
-    def from_plugin_diagnostic(cls, plugin_diag: PluginDiagnostic) -> "Diagnostic":
-        """Convert a PluginDiagnostic to a Diagnostic."""
-        return cls(
-            code=plugin_diag.code,
-            severity=plugin_diag.severity,
-            stage=plugin_diag.stage,
-            message=plugin_diag.message,
-            path=plugin_diag.path,
-            confidence=plugin_diag.confidence,
-            hint=plugin_diag.hint,
-            plugin_id=plugin_diag.plugin_id,
-        )
 
 
 class V5Compiler:
