@@ -127,7 +127,7 @@ task bundle:delete -- BUNDLE=<bundle_id>
 ## 8. Operator Sequence (Recommended)
 
 ```powershell
-task validate:v5-passthrough
+task validate:passthrough
 task bundle:create
 task bundle:list
 task deploy:service-chain-evidence-check-bundle -- BUNDLE=<bundle_id> CONTINUE_ON_FAILURE=1 ANSIBLE_VIA_WSL=1

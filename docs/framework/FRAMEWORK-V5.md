@@ -115,13 +115,13 @@ task framework:release-candidate FRAMEWORK_VERSION=1.0.8
 
 ```powershell
 $env:V5_SECRETS_MODE='passthrough'
-python scripts/orchestration/lane.py validate-v5
+.venv/bin/python scripts/orchestration/lane.py validate-v5
 ```
 
 ### Полная компиляция + генерация
 
 ```powershell
-python topology-tools/compile-topology.py `
+.venv/bin/python topology-tools/compile-topology.py `
   --repo-root . `
   --topology topology/topology.yaml `
   --strict-model-lock `

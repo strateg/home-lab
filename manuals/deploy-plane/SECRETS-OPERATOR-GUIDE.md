@@ -79,19 +79,19 @@ sops -d projects/home-lab/secrets/terraform/mikrotik.yaml
 - Без раскрытия секретов:
 
 ```powershell
-python topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode passthrough
+.venv/bin/python topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode passthrough
 ```
 
 - С инъекцией секретов:
 
 ```powershell
-python topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode inject
+.venv/bin/python topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode inject
 ```
 
 - Строгий режим (ошибка при неразрешенных `<TODO_*>`):
 
 ```powershell
-python topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode strict
+.venv/bin/python topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode strict
 ```
 
 ### 3.4 Сгенерировать runtime tfvars (при необходимости)

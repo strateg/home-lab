@@ -191,7 +191,7 @@ task framework:cutover-readiness         # Full readiness report
 ### Basic Usage
 
 ```bash
-python topology-tools/compile-topology.py [OPTIONS]
+.venv/bin/python topology-tools/compile-topology.py [OPTIONS]
 ```
 
 ### Common Options
@@ -214,18 +214,18 @@ python topology-tools/compile-topology.py [OPTIONS]
 
 ```bash
 # Validation only
-python topology-tools/compile-topology.py \
+.venv/bin/python topology-tools/compile-topology.py \
   --stages discover,compile,validate \
   --strict-model-lock
 
 # Full build with trace
-python topology-tools/compile-topology.py \
+.venv/bin/python topology-tools/compile-topology.py \
   --trace-execution \
   --strict-model-lock \
   --secrets-mode passthrough
 
 # Debug (sequential)
-python topology-tools/compile-topology.py \
+.venv/bin/python topology-tools/compile-topology.py \
   --no-parallel-plugins \
   --trace-execution
 ```
@@ -238,9 +238,9 @@ python topology-tools/compile-topology.py \
 
 ```bash
 # Validate lane
-python scripts/orchestration/lane.py validate-v5
-python scripts/orchestration/lane.py validate-v5-passthrough
-python scripts/orchestration/lane.py validate-v5-layers
+.venv/bin/python scripts/orchestration/lane.py validate-v5
+.venv/bin/python scripts/orchestration/lane.py validate-v5-passthrough
+.venv/bin/python scripts/orchestration/lane.py validate-v5-layers
 
 # Build lane
 python scripts/orchestration/lane.py build-v5

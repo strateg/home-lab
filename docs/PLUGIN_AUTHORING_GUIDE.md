@@ -326,7 +326,7 @@ def test_long_bridge_name(ctx):
 
 ```bash
 # Plugin is auto-discovered from object-module manifest
-python topology-tools/compile-topology.py --profile production
+.venv/bin/python topology-tools/compile-topology.py --profile production
 ```
 
 ---

@@ -51,7 +51,7 @@ home-lab/
 
 ```bash
 # Validate topology
-task validate:v5-passthrough
+task validate:passthrough
 
 # Compile and generate all artifacts
 task build:default
@@ -163,7 +163,7 @@ task test
 task validate:plugin-manifests
 
 # Run with trace
-python topology-tools/compile-topology.py --trace-execution
+.venv/bin/python topology-tools/compile-topology.py --trace-execution
 ```
 
 ## Project Bootstrap

@@ -24,8 +24,8 @@ task framework:strict
 
 ```powershell
 python topology-tools/verify-framework-lock.py --strict
-python topology-tools/compile-topology.py --secrets-mode passthrough --strict-model-lock
-python scripts/orchestration/lane.py validate-v5
+.venv/bin/python topology-tools/compile-topology.py --secrets-mode passthrough --strict-model-lock
+.venv/bin/python scripts/orchestration/lane.py validate-v5
 ```
 
 Любая ошибка `E781x/E782x` блокирует дальнейший прогон.

@@ -33,13 +33,13 @@
 
 ```powershell
 $env:V5_SECRETS_MODE='inject'
-python scripts/orchestration/lane.py validate-v5
+.venv/bin/python scripts/orchestration/lane.py validate-v5
 ```
 
 ### 3.2 Generate artifacts (project-qualified)
 
 ```powershell
-python topology-tools/compile-topology.py `
+.venv/bin/python topology-tools/compile-topology.py `
   --topology topology/topology.yaml `
   --strict-model-lock `
   --secrets-mode inject `

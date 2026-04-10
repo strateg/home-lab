@@ -133,13 +133,13 @@ home-lab/
 
 ```bash
 # Validate and compile topology
-python scripts/orchestration/lane.py validate-v5
+.venv/bin/python scripts/orchestration/lane.py validate-v5
 
 # Run full compilation
-python topology-tools/compile-topology.py
+.venv/bin/python topology-tools/compile-topology.py
 # Parallel plugin execution is enabled by default.
 # Use sequential mode only for troubleshooting/parity debugging.
-python topology-tools/compile-topology.py --no-parallel-plugins
+.venv/bin/python topology-tools/compile-topology.py --no-parallel-plugins
 
 # Generate specific outputs
 python scripts/orchestration/lane.py build-v5
@@ -149,7 +149,7 @@ python scripts/orchestration/lane.py build-v5
 
 ```bash
 # Full validation
-V5_SECRETS_MODE=passthrough python scripts/orchestration/lane.py validate-v5
+V5_SECRETS_MODE=passthrough .venv/bin/python scripts/orchestration/lane.py validate-v5
 
 # Run specific phase
 python scripts/orchestration/lane.py <phase-name>
@@ -259,7 +259,7 @@ vim generated/home-lab/terraform/proxmox/bridges.tf  # Will be overwritten!
 ```bash
 # Correct:
 vim topology/object-modules/network/obj.network.vlan.servers.yaml
-python topology-tools/compile-topology.py
+.venv/bin/python topology-tools/compile-topology.py
 ```
 
 ### DON'T: Edit files outside topology hierarchy

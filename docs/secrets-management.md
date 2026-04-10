@@ -392,7 +392,7 @@ jobs:
 
       - name: Compile with secrets
         run: |
-          python topology-tools/compile-topology.py --secrets-mode inject
+          .venv/bin/python topology-tools/compile-topology.py --secrets-mode inject
 
       - name: Cleanup
         if: always()
@@ -437,9 +437,9 @@ jobs:
 | Edit file | `sops projects/home-lab/secrets/instances/rtr-mikrotik-chateau.yaml` |
 | Encrypt new file | `sops -e -i projects/home-lab/secrets/instances/new-device.yaml` |
 | Check status | `ls ~/.config/sops/age/keys.txt` |
-| Compile with secrets | `python topology-tools/compile-topology.py --secrets-mode inject` |
-| Compile with strict secret policy | `python topology-tools/compile-topology.py --secrets-mode strict` |
-| Compile without secrets | `python topology-tools/compile-topology.py --secrets-mode passthrough` |
+| Compile with secrets | `.venv/bin/python topology-tools/compile-topology.py --secrets-mode inject` |
+| Compile with strict secret policy | `.venv/bin/python topology-tools/compile-topology.py --secrets-mode strict` |
+| Compile without secrets | `.venv/bin/python topology-tools/compile-topology.py --secrets-mode passthrough` |
 | Generate Terraform tfvars | `python scripts/terraform/generate-tfvars.py all` |
 | Cleanup Terraform tfvars | `python scripts/terraform/generate-tfvars.py all --cleanup` |
 

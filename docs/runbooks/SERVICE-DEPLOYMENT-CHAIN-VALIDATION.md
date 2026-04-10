@@ -20,8 +20,8 @@
 
 ```powershell
 task framework:strict
-task validate:v5
-python topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode passthrough --artifacts-root generated
+task validate:default
+.venv/bin/python topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode passthrough --artifacts-root generated
 task terraform:validate-proxmox
 task terraform:plan-proxmox
 task terraform:validate-mikrotik

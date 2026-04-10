@@ -20,7 +20,7 @@
 
 ```powershell
 task framework:strict
-task validate:v5
+task validate:default
 task validate:plugin-manifests
 task clean
 task framework:release-tests
@@ -40,7 +40,7 @@ task ansible:check-site-inject
 1. Прогнать strict + validate + release tests.
 2. Скомпилировать и сгенерировать артефакты:
    ```powershell
-   python topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode passthrough --artifacts-root generated
+   .venv/bin/python topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode passthrough --artifacts-root generated
    ```
 3. Проверить Terraform (Proxmox и MikroTik): `validate` + `plan`.
 4. Собрать runtime inventory и прогнать playbook checks:

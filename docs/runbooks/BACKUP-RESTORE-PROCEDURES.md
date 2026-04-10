@@ -29,7 +29,7 @@ Secrets must be backed up in encrypted form only.
 
 ```powershell
 task framework:strict
-task validate:v5
+task validate:default
 ```
 
 Capture current commit SHA and change record ID before taking backup snapshot.
@@ -39,7 +39,7 @@ Capture current commit SHA and change record ID before taking backup snapshot.
 ## 3. Backup Procedure
 
 ```powershell
-python topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode passthrough --artifacts-root generated
+.venv/bin/python topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode passthrough --artifacts-root generated
 task framework:cutover-readiness-quick
 ```
 
@@ -59,14 +59,14 @@ Then archive:
 3. Rebuild generated artifacts from source:
 
 ```powershell
-python topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode passthrough --artifacts-root generated
+.venv/bin/python topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode passthrough --artifacts-root generated
 ```
 
 4. Re-run strict and validation gates:
 
 ```powershell
 task framework:strict
-task validate:v5
+task validate:default
 task framework:cutover-readiness
 ```
 

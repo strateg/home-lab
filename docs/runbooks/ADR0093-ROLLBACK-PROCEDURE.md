@@ -30,7 +30,7 @@ Update rollback policy (`topology-tools/data/generator-rollback-policy.yaml`) wi
 1. Set target generator to `migration_mode: rollback`.
 2. Record `rollback_started_at` in rollback policy.
 3. Run:
-   - `V5_SECRETS_MODE=passthrough python scripts/orchestration/lane.py validate-v5`
+   - `V5_SECRETS_MODE=passthrough .venv/bin/python scripts/orchestration/lane.py validate-v5`
    - relevant generator integration tests.
 4. Verify evidence artifacts:
    - `dist/<project>/generator-readiness-evidence.json`

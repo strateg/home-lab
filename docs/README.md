@@ -13,7 +13,7 @@ Welcome to the home lab infrastructure documentation.
 
 ```bash
 # 1. Validate topology
-task validate:v5-passthrough
+task validate:passthrough
 
 # 2. Compile and generate
 task build:default

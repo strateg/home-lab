@@ -81,7 +81,7 @@ Containment:
 
 Recovery:
 1. Roll back AI-promoted files if needed (`task generate:ai-assisted-rollback`).
-2. Re-run `task validate:v5` and required project gates.
+2. Re-run `task validate:default` and required project gates.
 3. Re-enable AI mode only after root-cause and redaction rule update.
 
 Post-incident:

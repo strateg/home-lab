@@ -34,14 +34,14 @@ Start DR process when one of the following occurs:
 4. Rebuild compiled/generated artifacts:
 
 ```powershell
-python topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode passthrough --artifacts-root generated
+.venv/bin/python topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode passthrough --artifacts-root generated
 ```
 
 5. Validate readiness:
 
 ```powershell
 task framework:strict
-task validate:v5
+task validate:default
 task framework:cutover-readiness
 ```
 

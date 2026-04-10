@@ -40,7 +40,7 @@ For release-focused lanes, also run:
 
 ```powershell
 task framework:release-tests
-task validate:v5
+task validate:default
 task ansible:runtime
 task ansible:syntax
 ```

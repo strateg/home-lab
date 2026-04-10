@@ -100,13 +100,13 @@ discover → compile → validate → generate → assemble → build
 
 ```bash
 # Run all stages (default)
-python topology-tools/compile-topology.py
+.venv/bin/python topology-tools/compile-topology.py
 
 # Run specific stages
-python topology-tools/compile-topology.py --stages discover,compile,validate
+.venv/bin/python topology-tools/compile-topology.py --stages discover,compile,validate
 
 # Skip generation (validation only)
-python topology-tools/compile-topology.py --stages discover,compile,validate
+.venv/bin/python topology-tools/compile-topology.py --stages discover,compile,validate
 ```
 
 ### Stage Dependencies
@@ -342,7 +342,7 @@ plugins:
 3. **Run:**
 
 ```bash
-python topology-tools/compile-topology.py --profile production
+.venv/bin/python topology-tools/compile-topology.py --profile production
 ```
 
 ### Data Exchange (Publish/Subscribe)
@@ -398,7 +398,7 @@ task build:default
 task build:clean-generated
 
 # 2. Run full pipeline
-python topology-tools/compile-topology.py \
+.venv/bin/python topology-tools/compile-topology.py \
   --topology topology/topology.yaml \
   --strict-model-lock \
   --secrets-mode passthrough \
@@ -657,7 +657,7 @@ build/diagnostics/report.txt     # Human-readable
 ### Enable Execution Trace
 
 ```bash
-python topology-tools/compile-topology.py --trace-execution
+.venv/bin/python topology-tools/compile-topology.py --trace-execution
 # Creates: build/diagnostics/plugin-execution-trace.json
 ```
 
@@ -746,7 +746,7 @@ task framework:cutover-readiness
 ### Basic Usage
 
 ```bash
-python topology-tools/compile-topology.py [OPTIONS]
+.venv/bin/python topology-tools/compile-topology.py [OPTIONS]
 ```
 
 ### Key Options
@@ -768,18 +768,18 @@ python topology-tools/compile-topology.py [OPTIONS]
 
 ```bash
 # Validation only
-python topology-tools/compile-topology.py \
+.venv/bin/python topology-tools/compile-topology.py \
   --stages discover,compile,validate \
   --strict-model-lock
 
 # Full build with trace
-python topology-tools/compile-topology.py \
+.venv/bin/python topology-tools/compile-topology.py \
   --trace-execution \
   --strict-model-lock \
   --secrets-mode passthrough
 
 # Sequential execution (debugging)
-python topology-tools/compile-topology.py \
+.venv/bin/python topology-tools/compile-topology.py \
   --no-parallel-plugins
 ```
 

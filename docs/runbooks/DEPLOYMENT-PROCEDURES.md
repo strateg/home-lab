@@ -19,7 +19,7 @@
 
 ```powershell
 task framework:strict
-task validate:v5
+task validate:default
 task framework:release-tests
 ```
 
@@ -30,7 +30,7 @@ Stop on first failure and remediate before deploy planning.
 ## 3. Generate Deployment Artifacts
 
 ```powershell
-python topology-tools/compile-topology.py `
+.venv/bin/python topology-tools/compile-topology.py `
   --topology topology/topology.yaml `
   --strict-model-lock `
   --secrets-mode passthrough `

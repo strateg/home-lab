@@ -32,7 +32,7 @@
 Checks:
 
 ```powershell
-task validate:v5-layers
+task validate:layers
 terraform -chdir=generated/home-lab/terraform/mikrotik plan -refresh=false
 ```
 

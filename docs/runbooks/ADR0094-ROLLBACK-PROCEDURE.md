@@ -41,7 +41,7 @@ Use when only subset of promoted files is problematic.
 ## Validation After Rollback
 
 ```bash
-task validate:v5
+task validate:default
 ```
 
 Recommended additional checks by family:

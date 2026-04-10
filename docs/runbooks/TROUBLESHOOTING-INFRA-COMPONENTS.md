@@ -9,13 +9,13 @@
 
 ### Symptom
 
-- `task validate:v5` fails.
+- `task validate:default` fails.
 
 ### Checks
 
 ```powershell
 task framework:strict
-python topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode passthrough
+.venv/bin/python topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode passthrough
 ```
 
 ### Typical Causes
