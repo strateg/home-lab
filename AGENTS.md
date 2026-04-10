@@ -19,10 +19,10 @@ This document provides essential, actionable guidance for AI coding agents worki
 
 ### 2. Critical Developer Workflows
 - **Validation & Compilation**: Use the lane orchestrator and compiler scripts:
-  - `python scripts/orchestration/lane.py validate-v5`
-  - `python topology-tools/compile-topology.py`
+  - `.venv/bin/python scripts/orchestration/lane.py validate-v5`
+  - `.venv/bin/python topology-tools/compile-topology.py`
 - **Build & Test**: Use `task` commands for all build/test flows (see `README.md`):
-  - `task validate:v5`, `task build`, `task test`, `task acceptance:tests-all`
+  - `task validate:default`, `task build`, `task test`, `task acceptance:tests-all`
   - For full deploy: see `docs/runbooks/V5-E2E-DRY-RUN.md`
 - **Terraform/Ansible**: Validate and plan using generated outputs only. Example:
   - `terraform -chdir=generated/home-lab/terraform/proxmox validate`

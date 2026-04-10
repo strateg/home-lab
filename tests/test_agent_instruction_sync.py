@@ -5,7 +5,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
-INSTRUCTION_FILES = [
+AGENT_ADAPTER_FILES = [
+    "AGENTS.md",
+    "CLAUDE.md",
+    ".github/copilot-instructions.md",
+    ".codex/AGENTS.md",
+    ".codex/rules/tech-lead-architect.md",
+]
+
+LIFECYCLE_INSTRUCTION_FILES = [
     "CLAUDE.md",
     ".github/copilot-instructions.md",
     ".codex/AGENTS.md",
@@ -15,6 +23,11 @@ INSTRUCTION_FILES = [
 ROOT_LAYOUT_PATH_FILES = [
     "CLAUDE.md",
     ".github/copilot-instructions.md",
+]
+
+UNIVERSAL_RULEBOOK_TOKENS = [
+    "docs/ai/AGENT-RULEBOOK.md",
+    "docs/ai/ADR-RULE-MAP.yaml",
 ]
 
 COMMON_REQUIRED_TOKENS = [
@@ -34,6 +47,12 @@ FORBIDDEN_TOKENS = [
     "topology-tools/plugins/generator/",
     "v4-generated/",
     "v4-dist/",
+    "All AI agents must enforce a 4-level plugin boundary model",
+    "Enforce the 4-level plugin architecture",
+    "Class-level plugins MUST NOT reference",
+    "Class-level plugins must not mention",
+    "Object-level plugins MUST NOT reference",
+    "Object-level plugins must not mention",
 ]
 
 
@@ -41,9 +60,17 @@ def _read(repo_root: Path, rel_path: str) -> str:
     return (repo_root / rel_path).read_text(encoding="utf-8")
 
 
+def test_agent_adapters_reference_universal_rulebook() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    for rel_path in AGENT_ADAPTER_FILES:
+        content = _read(repo_root, rel_path)
+        for token in UNIVERSAL_RULEBOOK_TOKENS:
+            assert token in content, f"{rel_path}: missing token '{token}'"
+
+
 def test_agent_instruction_files_include_adr0078_adr0080_contracts() -> None:
     repo_root = Path(__file__).resolve().parents[1]
-    for rel_path in INSTRUCTION_FILES:
+    for rel_path in LIFECYCLE_INSTRUCTION_FILES:
         content = _read(repo_root, rel_path)
         for token in COMMON_REQUIRED_TOKENS:
             assert token in content, f"{rel_path}: missing token '{token}'"
@@ -59,7 +86,7 @@ def test_root_layout_instruction_files_use_current_directory_contracts() -> None
 
 def test_agent_instruction_files_exclude_legacy_layout_tokens() -> None:
     repo_root = Path(__file__).resolve().parents[1]
-    for rel_path in INSTRUCTION_FILES:
+    for rel_path in AGENT_ADAPTER_FILES:
         content = _read(repo_root, rel_path)
         for token in FORBIDDEN_TOKENS:
             assert token not in content, f"{rel_path}: contains stale token '{token}'"

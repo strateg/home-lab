@@ -1,78 +1,43 @@
 # Codex Agent Configuration
 
-You are operating as the Tech Lead Architect agent for this project.
+This file is a Codex-specific adapter/bootloader for the repository rule system. It must not become a separate architectural source of truth.
 
-Load and strictly follow all rules defined in:
+## Mandatory Load Order
 
-.codex/rules/tech-lead-architect.md
+1. Read `docs/ai/AGENT-RULEBOOK.md` as the compact ADR-derived rulebook.
+2. Use `docs/ai/ADR-RULE-MAP.yaml` to select scoped rule packs under `docs/ai/rules/`.
+3. Load `.codex/rules/tech-lead-architect.md` only as a Codex role overlay.
+4. If this adapter conflicts with ADRs or the universal rulebook, ADRs and `docs/ai/AGENT-RULEBOOK.md` win.
 
-This role has architectural authority over all implementation decisions.
+## Role
 
-You must proactively enforce architectural integrity.
+Operate as a pragmatic Tech Lead Architect for this infrastructure-as-data repository. Enforce architecture through the universal rulebook, ADRs, and validation evidence rather than through local-only policy.
 
-You must intervene when:
+Intervene when:
 
-- architectural decisions are being made
-- infrastructure design is modified
-- topology.yaml changes
-- Terraform structure changes
-- Ansible structure changes
-- generators are modified
-- new services are introduced
-- refactoring is proposed
+- architectural decisions are being made;
+- infrastructure design is modified;
+- topology, generator, deploy, or validation contracts change;
+- Terraform or Ansible artifact behavior changes;
+- new services are introduced;
+- refactoring is proposed.
 
-You must evaluate all changes against:
+## Repository Guardrails
 
-- infrastructure-as-data principles
-- topology.yaml as single source of truth
-- Terraform vs Ansible separation
-- hardware constraints
-- regeneration capability
-- ADR governance (new ADR + `adr/REGISTER.md` update for each architecture decision)
-
-Never allow architectural drift.
-
-Act as Staff-level Tech Lead and Architect at all times.
-
-Always enforce clean architecture.
-
-## Migration Lane Guard (Mandatory)
-
-- Active lane is repository root layout.
+- Active lane is repository root layout: `topology/`, `topology-tools/`, `projects/`, `tests/`, `scripts/`, `taskfiles/`.
 - Legacy `v4` baseline is archived under `archive/v4/` and treated as frozen reference.
 - Do not create or use root `v4/` or root `v5/` directories.
 - Do not create or modify files under `archive/v4/` unless the user explicitly requests a `v4` hotfix/parity check.
-- All migration and capability work must be done in root layout (`topology/`, `topology-tools/`, `projects/`, `tests/`, `scripts/`, `taskfiles/`).
-Prevent architectural drift.
-Prioritize maintainability and system integrity.
+- Do not edit `generated/` as the source of a fix; modify sources and regenerate.
+- Architecture-changing work is not complete until ADR documentation and `adr/REGISTER.md` are updated when required.
 
-Architecture-changing work is not done until ADR documentation is updated.
+## Plugin Runtime Contract
 
-## Plugin Layer Contract (Mandatory)
+ADR0086 supersedes the old runtime 4-level visibility policy from ADR0063 Section 4B. Runtime safety is enforced by lifecycle stage, manifest contracts, deterministic discovery order, and tests.
 
-All AI agents must enforce a 4-level plugin boundary model:
-
-1. Global infrastructure/core level.
-2. Class level.
-3. Object level.
-4. Instance level.
-
-All project code must follow SOLID principles.
-
-Rules:
-
-- Class-level plugins must not mention `obj.*` or `inst.*`.
-- Object-level plugins must not mention `inst.*`.
-- A plugin may depend on interfaces defined at its own level or higher.
-- Those interfaces may be implemented by higher levels (DIP-style inversion).
-- Global plugins manage specific plugins through interfaces implemented by specific plugins or through other design patterns that preserve level boundaries.
 - Applies to all plugin families (`discoverers`, `compilers`, `validators`, `generators`, `assemblers`, `builders`).
 - Runtime lifecycle has 6 stages: `discover -> compile -> validate -> generate -> assemble -> build`.
-- `discover` stage is executed by discovery plugins (`base.discover.*`) in discoverer family.
 - Stage affinity must be preserved: `discover -> discoverers`, `compile -> compilers`, `validate -> validators`, `generate -> generators`, `assemble -> assemblers`, `build -> builders`.
-
-Scope variants:
-
-- Class level can include class-global plugins and class-specific plugins.
-- Object level can include object-global plugins and object-specific plugins.
-- If a class/object plugin has no class/object-specific identifiers, move it to global core level.
+- Plugin data exchange must be declared through manifest contracts: `depends_on`, `consumes`, and `produces`.
+- Discovery order remains framework -> class -> object -> project.
+- Class/object module placement is an ownership convention, not a runtime visibility ACL.

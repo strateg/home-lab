@@ -6,7 +6,8 @@ Checks:
 2. All source_adr IDs exist in adr/REGISTER.md
 3. All rule pack files exist
 4. Rule IDs are unique
-5. Adapter files reference the universal rulebook
+5. Adapter files reference the universal rulebook and rule map
+6. Adapter files do not preserve stale plugin-boundary text superseded by ADR0086
 """
 
 from __future__ import annotations
@@ -23,9 +24,33 @@ import yaml
 
 try:
     import jsonschema
+
     HAS_JSONSCHEMA = True
 except ImportError:
     HAS_JSONSCHEMA = False
+
+
+ADAPTER_FILES = (
+    "AGENTS.md",
+    "CLAUDE.md",
+    ".github/copilot-instructions.md",
+    ".codex/AGENTS.md",
+    ".codex/rules/tech-lead-architect.md",
+)
+
+ADAPTER_REQUIRED_REFS = (
+    "docs/ai/AGENT-RULEBOOK.md",
+    "docs/ai/ADR-RULE-MAP.yaml",
+)
+
+STALE_ADAPTER_TOKENS = (
+    "All AI agents must enforce a 4-level plugin boundary model",
+    "Enforce the 4-level plugin architecture",
+    "Class-level plugins MUST NOT reference",
+    "Class-level plugins must not mention",
+    "Object-level plugins MUST NOT reference",
+    "Object-level plugins must not mention",
+)
 
 
 @dataclass
@@ -144,22 +169,21 @@ def validate_adapters_reference_rulebook(
     repo_root: Path,
     result: ValidationResult,
 ) -> None:
-    """Check that adapter files reference the universal rulebook."""
-    adapters = [
-        ("AGENTS.md", "docs/ai/AGENT-RULEBOOK.md"),
-        ("CLAUDE.md", "docs/ai/AGENT-RULEBOOK.md"),
-        (".github/copilot-instructions.md", "docs/ai/AGENT-RULEBOOK.md"),
-    ]
-
-    for adapter_rel, expected_ref in adapters:
+    """Check that adapter files route to the universal rulebook contract."""
+    for adapter_rel in ADAPTER_FILES:
         adapter_path = repo_root / adapter_rel
         if not adapter_path.exists():
             result.add_warning(f"Adapter not found: {adapter_rel}")
             continue
 
         content = adapter_path.read_text(encoding="utf-8")
-        if expected_ref not in content:
-            result.add_error(f"Adapter {adapter_rel} does not reference {expected_ref}")
+        for expected_ref in ADAPTER_REQUIRED_REFS:
+            if expected_ref not in content:
+                result.add_error(f"Adapter {adapter_rel} does not reference {expected_ref}")
+
+        for stale_token in STALE_ADAPTER_TOKENS:
+            if stale_token in content:
+                result.add_error(f"Adapter {adapter_rel} contains stale ADR0086-superseded token: {stale_token}")
 
 
 def validate_rule_triggers_and_validators(rule_map: dict, result: ValidationResult) -> None:
@@ -208,9 +232,7 @@ def validate_agent_rules(
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Validate AI agent rulebook consistency per ADR 0096."
-    )
+    parser = argparse.ArgumentParser(description="Validate AI agent rulebook consistency per ADR 0096.")
     parser.add_argument(
         "--repo-root",
         default=".",
