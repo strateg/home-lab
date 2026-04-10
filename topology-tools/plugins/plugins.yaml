@@ -1844,7 +1844,9 @@ plugins:
     config: {}
     config_schema:
       type: object
-      properties: {}
+      properties:
+        deploy_bundles_root:
+          type: string
       required: []
     consumes:
       - from_plugin: base.assembler.manifest
