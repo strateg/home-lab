@@ -32,7 +32,7 @@ tasks:
   plugin-contract:
     desc: Run plugin contract tests (CI gate)
     cmds:
-      - '{{.PYTHON}} -m pytest -o addopts= tests/plugin_contract -v --cov=topology-tools/kernel --cov-report=xml:coverage-contract.xml --cov-report=term-missing --cov-fail-under=70 --durations=10'
+      - '{{.PYTHON}} -m pytest -o addopts= tests/plugin_contract tests/plugin_api tests/test_plugin_registry.py -v --cov=topology-tools/kernel --cov-report=xml:coverage-contract.xml --cov-report=term-missing --cov-fail-under=70 --durations=10'
 
   plugin-integration:
     desc: Run plugin integration tests (CI gate)

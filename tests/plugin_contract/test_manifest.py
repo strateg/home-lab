@@ -622,6 +622,13 @@ def test_base_manifest_declares_high_value_data_bus_contracts():
     assert registry.specs["base.compiler.effective_model"].phase == Phase.FINALIZE
     assert registry.specs["base.compiler.effective_model"].compiled_json_owner is True
     assert artifact_manifest.phase == Phase.FINALIZE
+    assert set(artifact_manifest.config.get("artifact_manifest_producers", [])) >= {
+        "object.proxmox.generator.terraform",
+        "object.mikrotik.generator.terraform",
+        "object.proxmox.generator.bootstrap",
+        "object.mikrotik.generator.bootstrap",
+        "object.orangepi.generator.bootstrap",
+    }
     assert {item["key"] for item in artifact_manifest.produces} >= {
         "artifact_manifest_path",
         "generated_files",

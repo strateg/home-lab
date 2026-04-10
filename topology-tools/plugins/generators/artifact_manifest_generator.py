@@ -42,7 +42,7 @@ class ArtifactManifestGenerator(BaseGenerator):
         rows: list[dict[str, Any]] = []
         seen: set[tuple[str, str]] = set()
 
-        for plugin_id in sorted(published.keys()):
+        for plugin_id in self._producer_ids(ctx, published):
             payload = published.get(plugin_id)
             if not isinstance(payload, dict):
                 continue
@@ -124,3 +124,10 @@ class ArtifactManifestGenerator(BaseGenerator):
 
     def on_finalize(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         return self.execute(ctx, stage)
+
+    @staticmethod
+    def _producer_ids(ctx: PluginContext, published: dict[str, dict[str, Any]]) -> list[str]:
+        raw = ctx.config.get("artifact_manifest_producers")
+        if not isinstance(raw, list):
+            return sorted(published.keys())
+        return sorted({item.strip() for item in raw if isinstance(item, str) and item.strip()})

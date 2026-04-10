@@ -1658,10 +1658,27 @@ plugins:
       - base.generator.diagrams
       - base.generator.docker_compose
     timeout: 30
-    config: {}
+    config:
+      artifact_manifest_producers:
+        - base.generator.effective_json
+        - base.generator.effective_yaml
+        - object.proxmox.generator.terraform
+        - object.mikrotik.generator.terraform
+        - base.generator.ansible_inventory
+        - object.proxmox.generator.bootstrap
+        - object.mikrotik.generator.bootstrap
+        - object.orangepi.generator.bootstrap
+        - base.generator.docs
+        - base.generator.diagrams
+        - base.generator.docker_compose
     config_schema:
       type: object
-      properties: {}
+      properties:
+        artifact_manifest_producers:
+          type: array
+          description: Explicit producer plugin IDs whose generated_files are included in the artifact manifest.
+          items:
+            type: string
       required: []
     consumes:
       - from_plugin: base.generator.effective_json
@@ -1677,6 +1694,9 @@ plugins:
         key: generated_files
         required: false
       - from_plugin: base.generator.diagrams
+        key: generated_files
+        required: false
+      - from_plugin: base.generator.docker_compose
         key: generated_files
         required: false
     produces:

@@ -150,6 +150,25 @@ def test_ansible_inventory_obsolete_delete_uses_ownership_proof(tmp_path: Path) 
     assert stale_entry["ownership_method"] == "output_prefix_match"
 
 
+def test_ansible_inventory_records_stale_host_vars_without_unlink(tmp_path: Path) -> None:
+    generator = AnsibleInventoryGenerator("base.generator.ansible_inventory")
+    ctx = _ctx(tmp_path, _compiled_fixture())
+
+    stale_path = tmp_path / "generated" / "ansible" / "inventory" / "production" / "host_vars" / "removed.yml"
+    stale_path.parent.mkdir(parents=True, exist_ok=True)
+    stale_path.write_text("# stale\n", encoding="utf-8")
+
+    result = generator.execute(ctx, Stage.GENERATE)
+
+    assert result.status == PluginStatus.SUCCESS
+    assert stale_path.exists()
+    obsolete = result.output_data["artifact_generation_report"]["obsolete"]
+    stale_entry = next(
+        item for item in obsolete if item["path"] == "generated/ansible/inventory/production/host_vars/removed.yml"
+    )
+    assert stale_entry["action"] == "warn"
+
+
 def test_ansible_inventory_generator_reports_projection_error(tmp_path: Path) -> None:
     generator = AnsibleInventoryGenerator("base.generator.ansible_inventory")
     ctx = _ctx(tmp_path, {"instances": {"devices": [{}]}})

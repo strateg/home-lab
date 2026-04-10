@@ -99,11 +99,6 @@ class AnsibleInventoryGenerator(BaseGenerator):
         write_text(group_vars_path, group_vars_content)
         written.append(str(group_vars_path))
 
-        # Remove stale host_vars files from previous runs to keep output deterministic.
-        if host_vars_dir.exists():
-            for stale_path in sorted(host_vars_dir.glob("*.yml")):
-                stale_path.unlink()
-
         for row in hosts_rows:
             instance_id = str(row.get("instance_id", "")).strip()
             if not instance_id:

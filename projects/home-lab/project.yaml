@@ -8,6 +8,23 @@ instances_root: topology/instances
 secrets_root: secrets
 generation:
   output_mode: project-qualified
+product_profile:
+  profile_id: soho.standard.v1
+  deployment_class: managed-soho
+  site_class: single-site
+  user_band: 1-25
+  operator_mode: single-operator
+  release_channel: stable
+  migration_state: migrated-soft
+product_bundles:
+  - bundle.edge-routing
+  - bundle.network-segmentation
+  - bundle.secrets-governance
+  - bundle.remote-access
+  - bundle.backup-restore
+  - bundle.observability
+  - bundle.operator-workflows
+  - bundle.update-management
 generated_at: '2026-03-11T14:57:34+00:00'
 migrated_from: projects/home-lab/_legacy/instance-bindings.yaml
 legacy_metadata:

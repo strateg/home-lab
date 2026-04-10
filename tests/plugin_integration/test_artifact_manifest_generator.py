@@ -114,3 +114,45 @@ def test_artifact_manifest_generator_is_deterministic_across_publish_order(tmp_p
     first = _run_with_order("base.generator.docs", "base.generator.ansible_inventory")
     second = _run_with_order("base.generator.ansible_inventory", "base.generator.docs")
     assert first == second
+
+
+def test_artifact_manifest_generator_respects_explicit_producer_list(tmp_path: Path):
+    registry = _registry()
+    artifacts_root = tmp_path / "generated"
+    project_root = artifacts_root / "home-lab"
+
+    included_path = project_root / "terraform" / "proxmox" / "provider.tf"
+    included_path.parent.mkdir(parents=True, exist_ok=True)
+    included_path.write_text("# generated\n", encoding="utf-8")
+
+    ignored_path = project_root / "docs" / "overview.md"
+    ignored_path.parent.mkdir(parents=True, exist_ok=True)
+    ignored_path.write_text("doc-content\n", encoding="utf-8")
+
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={
+            "repo_root": str(tmp_path),
+            "project_id": "home-lab",
+            "generator_artifacts_root": str(artifacts_root),
+            "artifact_manifest_producers": ["object.proxmox.generator.terraform"],
+        },
+    )
+
+    for plugin_id, artifact_path in (
+        ("object.proxmox.generator.terraform", included_path),
+        ("base.generator.docs", ignored_path),
+    ):
+        ctx._set_execution_context(plugin_id, set())
+        try:
+            ctx.publish("generated_files", [str(artifact_path)])
+        finally:
+            ctx._clear_execution_context()
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.GENERATE, phase=Phase.FINALIZE)
+
+    assert result.status == PluginStatus.SUCCESS
+    payload = json.loads((project_root / "artifact-manifest.json").read_text(encoding="utf-8"))
+    assert [row["producer_plugin"] for row in payload["artifacts"]] == ["object.proxmox.generator.terraform"]

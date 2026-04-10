@@ -20,7 +20,7 @@ class NetworkIpOverlapValidator(ValidatorJsonPlugin):
 
     _ROWS_PLUGIN_ID = "base.compiler.instance_rows"
     _ROWS_KEY = "normalized_rows"
-    _INTERESTING_KEYS = ("ip", "address", "gateway")
+    _ASSIGNMENT_KEYS = {"ip", "ip_address", "management_ip"}
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
@@ -165,7 +165,7 @@ class NetworkIpOverlapValidator(ValidatorJsonPlugin):
 
     def _is_interesting_key(self, key: str) -> bool:
         normalized = key.lower()
-        return any(token in normalized for token in self._INTERESTING_KEYS)
+        return normalized in self._ASSIGNMENT_KEYS
 
     @staticmethod
     def _normalize_ip(value: str) -> str | None:

@@ -70,6 +70,39 @@ def test_network_ip_overlap_validator_reports_duplicate_ips():
     assert any(diag.code == "W7816" for diag in result.diagnostics)
 
 
+def test_network_ip_overlap_validator_ignores_reference_ips():
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {
+                "instance": "lxc-postgresql",
+                "extensions": {"network": {"ip": "10.0.30.10/24", "gateway": "10.0.30.1"}},
+            },
+            {
+                "instance": "svc-postgresql",
+                "extensions": {"config": {"postgresql_listen_addresses": "10.0.30.10"}},
+            },
+            {
+                "instance": "lxc-redis",
+                "extensions": {"network": {"ip": "10.0.30.11/24", "gateway": "10.0.30.1"}},
+            },
+            {
+                "instance": "docker-nginx",
+                "extensions": {
+                    "network": {"ip": "172.18.0.2/24", "gateway": "172.18.0.1"},
+                    "nat_rules": [{"to_address": "172.18.0.2"}],
+                },
+            },
+        ],
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert not any(diag.code == "W7816" for diag in result.diagnostics)
+
+
 def test_network_ip_overlap_validator_reports_duplicate_network_ip_allocations_as_error():
     registry = _registry()
     ctx = _context()

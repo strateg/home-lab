@@ -93,6 +93,16 @@ tasks:
     deps:
       - default
 
+  v5:
+    desc: Deprecated alias for validate:default
+    deps:
+      - default
+
+  v5-passthrough:
+    desc: Deprecated alias for validate:passthrough
+    deps:
+      - passthrough
+
   layers:
     desc: Validate layer contract only
     cmds:
