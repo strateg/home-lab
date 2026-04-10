@@ -23,7 +23,7 @@ from compiler_ai_sessions import AiConfig, AiSessionPreparation, json_safe_paylo
 from compiler_cli import CompilerCliDependencies, build_parser as build_compiler_parser, run_cli
 from compiler_contract import manifest_digest, validate_compiled_model_contract
 from compiler_decisions import select_effective_payload
-from compiler_diagnostics import Diagnostic
+from compiler_diagnostics import CompilerDiagnostic
 from compiler_ownership import artifact_owner, compilation_owner, validation_owner
 from compiler_plugin_context import create_plugin_context
 from compiler_reporting import write_diagnostics_report
@@ -290,7 +290,7 @@ class V5Compiler:
         requested_stages = set(stages) if isinstance(stages, list) and stages else set(STAGE_ORDER)
         self.stages: tuple[Stage, ...] = tuple(stage for stage in STAGE_ORDER if stage in requested_stages)
 
-        self._diagnostics: list[Diagnostic] = []
+        self._diagnostics: list[CompilerDiagnostic] = []
         self._error_hints = self._load_error_hints(error_catalog_path)
         self._plugin_registry: PluginRegistry | None = None
         self._plugin_results: list[PluginResult] = []
@@ -615,7 +615,7 @@ class V5Compiler:
         self._plugin_results.extend(results)
         for result in results:
             for plugin_diag in result.diagnostics:
-                diag = Diagnostic.from_plugin_diagnostic(plugin_diag)
+                diag = CompilerDiagnostic.from_plugin_diagnostic(plugin_diag)
                 self._diagnostics.append(diag)
 
             if result.status == PluginStatus.TIMEOUT:
@@ -716,7 +716,7 @@ class V5Compiler:
         if hint is None:
             hint = self._error_hints.get(code)
         self._diagnostics.append(
-            Diagnostic(
+            CompilerDiagnostic(
                 code=code,
                 severity=severity,
                 stage=stage,

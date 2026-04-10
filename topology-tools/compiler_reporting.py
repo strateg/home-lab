@@ -6,10 +6,12 @@ import json
 from pathlib import Path
 from typing import Any, Callable
 
+from compiler_diagnostics import CompilerDiagnostic
+
 SEVERITY_ORDER = {"error": 0, "warning": 1, "info": 2}
 
 
-def sort_diagnostics(diagnostics: list[Any]) -> None:
+def sort_diagnostics(diagnostics: list[CompilerDiagnostic]) -> None:
     diagnostics.sort(
         key=lambda item: (
             SEVERITY_ORDER.get(getattr(item, "severity", ""), 9),
@@ -20,7 +22,7 @@ def sort_diagnostics(diagnostics: list[Any]) -> None:
     )
 
 
-def build_summary(diagnostics: list[Any]) -> tuple[dict[str, Any], int, int, int, int]:
+def build_summary(diagnostics: list[CompilerDiagnostic]) -> tuple[dict[str, Any], int, int, int, int]:
     total = len(diagnostics)
     errors = sum(1 for item in diagnostics if getattr(item, "severity", "") == "error")
     warnings = sum(1 for item in diagnostics if getattr(item, "severity", "") == "warning")
@@ -45,7 +47,7 @@ def build_summary(diagnostics: list[Any]) -> tuple[dict[str, Any], int, int, int
     return summary, total, errors, warnings, infos
 
 
-def build_next_actions(diagnostics: list[Any]) -> list[dict[str, Any]]:
+def build_next_actions(diagnostics: list[CompilerDiagnostic]) -> list[dict[str, Any]]:
     grouped: dict[str, dict[str, Any]] = {}
     for diag in diagnostics:
         path = getattr(diag, "path", "")
@@ -82,7 +84,7 @@ def _report_path(path: Path, repo_root: Path) -> str:
 
 def write_diagnostics_report(
     *,
-    diagnostics: list[Any],
+    diagnostics: list[CompilerDiagnostic],
     diagnostics_json: Path,
     diagnostics_txt: Path,
     topology_path: Path,

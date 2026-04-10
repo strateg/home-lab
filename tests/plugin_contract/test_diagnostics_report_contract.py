@@ -50,7 +50,7 @@ def test_diagnostics_report_matches_schema(tmp_path: Path):
     topology_path.write_text("version: 5.0.0\n", encoding="utf-8")
 
     diagnostics = [
-        mod.Diagnostic(
+        mod.CompilerDiagnostic(
             code="I4001",
             severity="info",
             stage="load",
