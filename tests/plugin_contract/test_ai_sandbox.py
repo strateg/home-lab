@@ -51,11 +51,65 @@ def test_sanitize_environment_removes_secret_like_keys() -> None:
         }
     )
     assert "PATH" in sanitized
-    assert "NORMAL_FLAG" in sanitized
     assert "API_TOKEN" not in sanitized
     assert "DB_PASSWORD" not in sanitized
     assert "SOPS_AGE_KEY_FILE" not in sanitized
-    assert removed == ["API_TOKEN", "DB_PASSWORD", "SOPS_AGE_KEY_FILE"]
+    assert "NORMAL_FLAG" not in sanitized
+    assert removed == ["API_TOKEN", "DB_PASSWORD", "NORMAL_FLAG", "SOPS_AGE_KEY_FILE"]
+
+
+def test_sanitize_environment_allows_only_known_safe_keys() -> None:
+    sanitized, removed = sanitize_environment(
+        {
+            "HOME": "/home/operator",
+            "LANG": "C.UTF-8",
+            "LC_ALL": "C.UTF-8",
+            "PATH": "/usr/bin",
+            "TERM": "xterm-256color",
+            "TMPDIR": "/tmp",
+            "TZ": "UTC",
+            "UNLISTED_RUNTIME_FLAG": "1",
+        }
+    )
+    assert sanitized == {
+        "HOME": "/home/operator",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "PATH": "/usr/bin",
+        "TERM": "xterm-256color",
+        "TMPDIR": "/tmp",
+        "TZ": "UTC",
+    }
+    assert removed == ["UNLISTED_RUNTIME_FLAG"]
+
+
+def test_sanitize_environment_blocks_cloud_ci_and_key_material() -> None:
+    sanitized, removed = sanitize_environment(
+        {
+            "PATH": "/usr/bin",
+            "AWS_ACCESS_KEY_ID": "aws",
+            "AZURE_CLIENT_SECRET": "azure",
+            "CI_JOB_TOKEN": "ci-token",
+            "GCP_SERVICE_ACCOUNT": "gcp",
+            "GH_TOKEN": "gh",
+            "GITHUB_TOKEN": "github",
+            "OPENAI_API_KEY": "openai",
+            "SSH_AUTH_SOCK": "/tmp/ssh.sock",
+            "TF_VAR_password": "tf",
+        }
+    )
+    assert sanitized == {"PATH": "/usr/bin"}
+    assert removed == [
+        "AWS_ACCESS_KEY_ID",
+        "AZURE_CLIENT_SECRET",
+        "CI_JOB_TOKEN",
+        "GCP_SERVICE_ACCOUNT",
+        "GH_TOKEN",
+        "GITHUB_TOKEN",
+        "OPENAI_API_KEY",
+        "SSH_AUTH_SOCK",
+        "TF_VAR_password",
+    ]
 
 
 def test_resolve_ai_sandbox_root_path(tmp_path: Path) -> None:

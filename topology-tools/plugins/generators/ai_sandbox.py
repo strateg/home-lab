@@ -9,6 +9,17 @@ from pathlib import Path
 from typing import Mapping
 
 _ENV_SECRET_PATTERNS = (
+    re.compile(r"^AWS_.*", re.IGNORECASE),
+    re.compile(r"^AZURE_.*", re.IGNORECASE),
+    re.compile(r"^GCP_.*", re.IGNORECASE),
+    re.compile(r"^GH_.*", re.IGNORECASE),
+    re.compile(r"^GITHUB_.*", re.IGNORECASE),
+    re.compile(r"^CI(?:_.*)?$", re.IGNORECASE),
+    re.compile(r"^TF_VAR_.*", re.IGNORECASE),
+    re.compile(r".*API_KEY.*", re.IGNORECASE),
+    re.compile(r".*PRIVATE_KEY.*", re.IGNORECASE),
+    re.compile(r".*_KEY$", re.IGNORECASE),
+    re.compile(r"^SSH_.*", re.IGNORECASE),
     re.compile(r".*SECRET.*", re.IGNORECASE),
     re.compile(r".*TOKEN.*", re.IGNORECASE),
     re.compile(r".*PASSWORD.*", re.IGNORECASE),
@@ -16,6 +27,23 @@ _ENV_SECRET_PATTERNS = (
     re.compile(r"^SOPS_.*", re.IGNORECASE),
     re.compile(r"^AGE_.*", re.IGNORECASE),
 )
+
+_ENV_ALLOWLIST_KEYS = {
+    "HOME",
+    "LANG",
+    "LC_ALL",
+    "LC_CTYPE",
+    "LOGNAME",
+    "PATH",
+    "PWD",
+    "SHELL",
+    "TEMP",
+    "TERM",
+    "TMP",
+    "TMPDIR",
+    "TZ",
+    "USER",
+}
 
 
 def resolve_ai_sandbox_root(*, repo_root: Path, project_id: str) -> Path:
@@ -107,9 +135,13 @@ def sanitize_environment(env: Mapping[str, str] | None = None) -> tuple[dict[str
     sanitized: dict[str, str] = {}
     removed: list[str] = []
     for key, value in source.items():
-        if any(pattern.fullmatch(key) for pattern in _ENV_SECRET_PATTERNS):
-            removed.append(key)
+        key_text = str(key)
+        if any(pattern.fullmatch(key_text) for pattern in _ENV_SECRET_PATTERNS):
+            removed.append(key_text)
             continue
-        sanitized[str(key)] = str(value)
+        if key_text not in _ENV_ALLOWLIST_KEYS:
+            removed.append(key_text)
+            continue
+        sanitized[key_text] = str(value)
     removed.sort()
     return sanitized, removed
