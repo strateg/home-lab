@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://home-lab.local/schemas/adr-rule-map.schema.json",
+  "title": "ADR Rule Map",
+  "description": "Machine-readable AI agent rule registry derived from ADR decisions (ADR 0096)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_from_adr",
+    "purpose",
+    "rule_packs",
+    "rules"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Schema version for evolution tracking"
+    },
+    "generated_from_adr": {
+      "type": "string",
+      "pattern": "^[0-9]{4}$",
+      "description": "ADR number that defines this contract"
+    },
+    "purpose": {
+      "type": "string",
+      "minLength": 10,
+      "description": "Human-readable purpose statement"
+    },
+    "rule_packs": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/rule_pack"
+      },
+      "description": "Scoped rule packs by domain"
+    },
+    "rules": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/rule"
+      },
+      "minItems": 1,
+      "description": "Individual rules with ADR traceability"
+    }
+  },
+  "$defs": {
+    "rule_pack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "source_adr",
+        "files_glob"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^docs/ai/rules/[a-z0-9-]+\\.md$",
+          "description": "Path to rule pack markdown file"
+        },
+        "source_adr": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9]{4}$"
+          },
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "ADR numbers that contribute to this rule pack"
+        },
+        "files_glob": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1,
+          "description": "Glob patterns that trigger this rule pack"
+        }
+      }
+    },
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "scope",
+        "trigger",
+        "must",
+        "never",
+        "validate",
+        "source_adr"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Z]{2,5}-[0-9]{3}$",
+          "description": "Unique rule identifier (e.g., CORE-001, PLG-001)"
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 3,
+          "description": "Rule scope domain"
+        },
+        "trigger": {
+          "type": "string",
+          "minLength": 10,
+          "description": "Condition that activates this rule"
+        },
+        "rule_pack": {
+          "type": "string",
+          "minLength": 3,
+          "description": "Associated rule pack name (for scoped rules)"
+        },
+        "must": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 5
+          },
+          "minItems": 1,
+          "description": "Required behaviors"
+        },
+        "never": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 5
+          },
+          "minItems": 1,
+          "description": "Prohibited behaviors"
+        },
+        "validate": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 3
+          },
+          "minItems": 1,
+          "description": "Validation commands or mechanisms"
+        },
+        "source_adr": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9]{4}$"
+          },
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "ADR numbers that authorize this rule"
+        }
+      }
+    }
+  }
+}

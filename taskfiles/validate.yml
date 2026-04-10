@@ -33,7 +33,7 @@ tasks:
       - lint
 
   quality-full:
-    desc: Full quality gate (lint + typecheck + pylint + plugin manifests)
+    desc: Full quality gate (lint + typecheck + pylint + plugin manifests + agent rules)
     deps:
       - lint
       - typecheck
@@ -43,6 +43,7 @@ tasks:
       - module-growth
       - adr-consistency
       - adr0083-reactivation
+      - agent-rules
 
   quality:
     desc: Aggregate quality gate (alias to validate:quality-fast)
@@ -156,3 +157,13 @@ tasks:
     desc: Generate opt-in ADR0094 AI usage metrics from local audit logs
     cmds:
       - "{{.PYTHON}} scripts/validation/report_ai_usage_metrics.py --project-id home-lab --output-json build/diagnostics/ai-usage-metrics.json"
+
+  agent-rules:
+    desc: Validate AI agent rulebook consistency per ADR0096
+    cmds:
+      - "{{.PYTHON}} scripts/validation/validate_agent_rules.py --output-json build/diagnostics/agent-rules.json"
+
+  agent-rules-strict:
+    desc: Validate AI agent rulebook with strict mode (fail on warnings)
+    cmds:
+      - "{{.PYTHON}} scripts/validation/validate_agent_rules.py --fail-on-warnings --output-json build/diagnostics/agent-rules.json"
