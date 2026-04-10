@@ -11,15 +11,17 @@ rule_packs:
       - "topology/**/plugins.yaml"
       - "topology-tools/kernel/**"
       - "topology-tools/plugin_manifest_discovery.py"
+      - "topology-tools/compiler_runtime.py"
+      - "topology-tools/compiler_*.py"
   topology-model:
     path: docs/ai/rules/topology-model.md
-    source_adr: ["0062", "0067", "0068", "0071", "0087", "0088"]
+    source_adr: ["0026", "0027", "0029", "0038", "0039", "0040", "0041", "0042", "0043", "0044", "0047", "0062", "0064", "0067", "0068", "0071", "0087", "0088"]
     files_glob:
       - "topology/**"
       - "projects/*/topology/**"
   deploy-domain:
     path: docs/ai/rules/deploy-domain.md
-    source_adr: ["0083", "0084", "0085", "0090", "0091"]
+    source_adr: ["0051", "0052", "0056", "0057", "0083", "0084", "0085", "0090", "0091"]
     files_glob:
       - "scripts/orchestration/deploy/**"
       - "taskfiles/deploy.yml"
@@ -28,7 +30,7 @@ rule_packs:
       - "schemas/initialization-contract.schema.json"
   generator-artifacts:
     path: docs/ai/rules/generator-artifacts.md
-    source_adr: ["0074", "0075", "0078", "0079", "0092", "0093"]
+    source_adr: ["0027", "0046", "0050", "0055", "0074", "0075", "0078", "0079", "0092", "0093"]
     files_glob:
       - "topology-tools/plugins/generators/**"
       - "topology/**/templates/**"
@@ -51,6 +53,7 @@ rule_packs:
       - "AGENTS.md"
       - "CLAUDE.md"
       - ".github/copilot-instructions.md"
+      - ".codex/**"
   testing-ci:
     path: docs/ai/rules/testing-ci.md
     source_adr: ["0066", "0070", "0077", "0080", "0086"]
@@ -193,7 +196,7 @@ rules:
       - "Do not edit generated outputs to represent topology changes."
     validate:
       - "task validate:default"
-    source_adr: ["0062", "0071", "0088"]
+    source_adr: ["0062", "0064", "0067", "0068", "0071", "0087", "0088"]
 
   - id: GEN-001
     scope: generator-artifacts
@@ -207,7 +210,7 @@ rules:
     validate:
       - "task test:plugin-integration"
       - "relevant terraform/ansible validation task when outputs change"
-    source_adr: ["0074", "0075", "0092", "0093"]
+    source_adr: ["0046", "0050", "0074", "0075", "0078", "0079", "0092", "0093", "0094"]
 
   - id: DEP-001
     scope: deploy-domain
@@ -221,7 +224,7 @@ rules:
     validate:
       - "relevant deploy runner/bundle tests"
       - "task workflow:bundle when bundle behavior changes"
-    source_adr: ["0084", "0085", "0090", "0091"]
+    source_adr: ["0051", "0052", "0056", "0083", "0084", "0085", "0090", "0091"]
 
   - id: SEC-001
     scope: secrets
@@ -250,7 +253,7 @@ rules:
       - "Do not create divergent architectural truth in AGENTS.md, CLAUDE.md, or Copilot instructions."
     validate:
       - "task validate:adr-consistency"
-    source_adr: ["0080", "0096"]
+    source_adr: ["0080", "0095", "0096"]
 
   - id: TST-001
     scope: testing-ci

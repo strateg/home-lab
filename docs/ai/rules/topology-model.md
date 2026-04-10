@@ -27,9 +27,21 @@ Load when changing:
 
 ## ADR Sources
 
-- ADR0062
-- ADR0067
-- ADR0068
-- ADR0071
-- ADR0087
-- ADR0088
+- ADR0026 (L3/L4 taxonomy)
+- ADR0027 (Mermaid rendering)
+- ADR0029 (Storage taxonomy)
+- ADR0038 (Network binding contracts)
+- ADR0039 (Host OS installation storage)
+- ADR0040 (L0-L5 canonical ownership)
+- ADR0041 (L4 workload network attachment)
+- ADR0042 (L5 services modularization)
+- ADR0043 (L0-L5 harmonization)
+- ADR0044 (IP derivation from refs)
+- ADR0047 (L6 observability)
+- ADR0062 (Modular topology architecture)
+- ADR0064 (OS taxonomy)
+- ADR0067 (Entity-specific identifier keys)
+- ADR0068 (Object YAML as instance template)
+- ADR0071 (Sharded instance files)
+- ADR0087 (Unified container ontology)
+- ADR0088 (Semantic keyword registry)

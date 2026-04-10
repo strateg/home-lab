@@ -27,10 +27,14 @@ Load when changing:
 
 ## ADR Sources
 
-- ADR0074
-- ADR0075
-- ADR0078
-- ADR0079
-- ADR0092
-- ADR0093
-- ADR0094
+- ADR0027 (Mermaid rendering strategy)
+- ADR0046 (Generators architecture)
+- ADR0050 (Generated directory restructuring)
+- ADR0055 (Manual Terraform extension)
+- ADR0074 (V5 generator architecture)
+- ADR0075 (Framework/project separation)
+- ADR0078 (Object-module local template layout)
+- ADR0079 (V5 documentation and diagram generation)
+- ADR0092 (Smart artifact generation)
+- ADR0093 (ArtifactPlan schema)
+- ADR0094 (AI advisory mode)

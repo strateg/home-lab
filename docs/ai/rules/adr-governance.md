@@ -22,7 +22,27 @@ Load when changing:
 ## Validation
 
 - `task validate:adr-consistency`
-- future `task validate:agent-rules`
+- `task validate:agent-rules`
+- `task validate:agent-rules-strict` when adapter/rulebook drift must fail on warnings
+
+## Rulebook Maintenance Review
+
+Review rulebook and rule packs when:
+
+1. New ADR is accepted that affects a rule pack domain.
+2. Existing ADR is superseded or significantly updated.
+3. Validation reveals drift between rule pack content and source ADRs.
+4. Agent behavior suggests rules are incomplete or misleading.
+
+Review checklist:
+
+- [ ] Rule pack `source_adr` includes all relevant ADRs.
+- [ ] Rule `source_adr` aligns with pack `source_adr` where appropriate.
+- [ ] Rule pack markdown accurately summarizes ADR intent.
+- [ ] `files_glob` patterns correctly trigger the rule pack.
+- [ ] Adapter files still route to universal rulebook without divergence.
+- [ ] `task validate:agent-rules` passes.
+- [ ] `task validate:agent-rules-strict` passes (no warnings).
 
 ## ADR Sources
 

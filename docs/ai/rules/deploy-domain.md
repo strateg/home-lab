@@ -27,8 +27,12 @@ Load when changing:
 
 ## ADR Sources
 
-- ADR0083
-- ADR0084
-- ADR0085
-- ADR0090
-- ADR0091
+- ADR0051 (Ansible runtime and secrets)
+- ADR0052 (Build pipeline after Ansible)
+- ADR0056 (Native execution workspace)
+- ADR0057 (MikroTik bootstrap)
+- ADR0083 (Unified node initialization)
+- ADR0084 (Cross-platform dev plane)
+- ADR0085 (Deploy bundle and runner)
+- ADR0090 (SOHO operator lifecycle)
+- ADR0091 (SOHO readiness evidence)
