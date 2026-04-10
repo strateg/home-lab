@@ -38,6 +38,13 @@ def _publish_minimal_compile_outputs(ctx) -> None:
     ctx._clear_execution_context()
 
 
+def test_compiler_stage_order_uses_kernel_canonical_value():
+    mod = _load_compiler_module()
+    from kernel.plugin_registry import STAGE_ORDER as kernel_stage_order
+
+    assert mod.STAGE_ORDER is kernel_stage_order
+
+
 def test_pipeline_stage_order_and_compiled_context(monkeypatch):
     mod = _load_compiler_module()
     test_output_dir = mod.REPO_ROOT / "build" / "test-stage-order"

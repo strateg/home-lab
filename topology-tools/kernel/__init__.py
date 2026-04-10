@@ -34,6 +34,7 @@ from .plugin_registry import (
     DEFAULT_PLUGIN_TIMEOUT,
     KERNEL_API_VERSION,
     KERNEL_VERSION,
+    STAGE_ORDER,
     SUPPORTED_API_VERSIONS,
     PluginConfigError,
     PluginCycleError,
@@ -79,6 +80,7 @@ __all__ = [
     "KERNEL_API_VERSION",
     "SUPPORTED_API_VERSIONS",
     "DEFAULT_PLUGIN_TIMEOUT",
+    "STAGE_ORDER",
     # Legacy
     "Diagnostic",
 ]

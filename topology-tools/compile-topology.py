@@ -43,6 +43,7 @@ from kernel import (
     PluginRegistry,
     PluginResult,
     PluginStatus,
+    STAGE_ORDER,
     Stage,
 )
 from plugin_manifest_discovery import discover_plugin_manifest_paths, validate_module_index_consistency
@@ -72,14 +73,6 @@ DEFAULT_PLUGINS_MANIFEST = TOPOLOGY_TOOLS / "plugins" / "plugins.yaml"
 SUPPORTED_RUNTIME_PROFILES = ("production", "modeled", "test-real")
 SUPPORTED_INSTANCE_SOURCE_MODES = ("auto", "sharded-only")
 SUPPORTED_SECRETS_MODES = ("inject", "passthrough", "strict")
-STAGE_ORDER = (
-    Stage.DISCOVER,
-    Stage.COMPILE,
-    Stage.VALIDATE,
-    Stage.GENERATE,
-    Stage.ASSEMBLE,
-    Stage.BUILD,
-)
 FRAMEWORK_LOCK_LOAD_CODES = {"E7821", "E7822"}
 REQUIRED_FRAMEWORK_KEYS = (
     "class_modules_root",
