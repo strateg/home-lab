@@ -5,3 +5,5 @@ reasoning_effort = "high"
 autonomy = "full"
 
 architecture_enforcement = true
+
+model_instructions_file = "AGENTS.md"

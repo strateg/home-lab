@@ -9,6 +9,10 @@ This file is a Codex-specific adapter/bootloader for the repository rule system.
 3. Load `.codex/rules/tech-lead-architect.md` only as a Codex role overlay.
 4. If this adapter conflicts with ADRs or the universal rulebook, ADRs and `docs/ai/AGENT-RULEBOOK.md` win.
 
+## Optional SPC Mode
+
+When the user says "SPC MODE", "STRICT MODE", "Use strict process", or "Работай по контракту", load `docs/ai/spc-contract.md` and follow it as the active process protocol until the user exits strict mode.
+
 ## Role
 
 Operate as a pragmatic Tech Lead Architect for this infrastructure-as-data repository. Enforce architecture through the universal rulebook, ADRs, and validation evidence rather than through local-only policy.
