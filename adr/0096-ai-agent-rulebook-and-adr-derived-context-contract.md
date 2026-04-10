@@ -1,8 +1,9 @@
 # ADR 0096: AI Agent Rulebook and ADR-Derived Context Contract
 
-**Status:** Proposed  
-**Date:** 2026-04-10  
-**Depends on:** ADR 0062, ADR 0063, ADR 0065, ADR 0066, ADR 0075, ADR 0076, ADR 0077, ADR 0080, ADR 0081, ADR 0086, ADR 0088, ADR 0094, ADR 0095
+**Status:** Accepted
+**Date:** 2026-04-10
+**Depends on (direct):** ADR 0062, ADR 0063, ADR 0065, ADR 0066, ADR 0075, ADR 0076, ADR 0077, ADR 0080, ADR 0081, ADR 0086, ADR 0088, ADR 0094, ADR 0095
+**Depends on (transitive via rule packs):** ADR 0067, ADR 0068, ADR 0069, ADR 0070, ADR 0071, ADR 0078, ADR 0079, ADR 0083, ADR 0084, ADR 0085, ADR 0087, ADR 0089, ADR 0090, ADR 0091, ADR 0092, ADR 0093
 
 ---
 
@@ -101,7 +102,7 @@ The proposed future task name is:
 This ADR does not:
 
 - replace ADRs;
-- remove `contract.md`;
+- remove `docs/ai/spc-contract.md` (SPC protocol remains a separate analysis tool);
 - require all agents to support MCP;
 - make AI-generated changes authoritative without validation;
 - introduce autonomous AI promotion;
@@ -128,10 +129,13 @@ This ADR does not:
 
 ### Risk Controls
 
-- Keep ADRs as final authority.
-- Keep `docs/ai/ADR-RULE-MAP.yaml` small and source-linked.
-- Add validation before treating rule registry as enforceable.
-- Use scoped rule packs instead of one large prompt.
+| Risk | Control | Metric / Threshold |
+|------|---------|-------------------|
+| Rulebook drift from ADRs | Keep ADRs as final authority; source_adr traceability | 100% of rules have valid source_adr |
+| Token bloat | Keep rulebook compact; use scoped rule packs | Rulebook < 10% of ADR corpus token count |
+| Registry complexity | Keep ADR-RULE-MAP.yaml small and source-linked | < 20 always-load rules; < 50 total rules |
+| Unenforced rules | Add validation task before enforcement | `task validate:agent-rules` passes |
+| Adapter divergence | Regular sync audit | All adapters reference universal rulebook |
 
 ---
 
@@ -167,6 +171,7 @@ This ADR does not:
 
 - Docs: `docs/ai/AGENT-RULEBOOK.md`
 - Docs: `docs/ai/ADR-RULE-MAP.yaml`
-- Docs: `AGENTS.md`
-- Docs: `CLAUDE.md`
-- Docs: `.github/copilot-instructions.md`
+- Docs: `docs/ai/spc-contract.md` (SPC protocol — separate analysis tool)
+- Docs: `docs/ai/rules/*.md` (scoped rule packs)
+- Adapters: `AGENTS.md`, `CLAUDE.md`, `.github/copilot-instructions.md`
+- Analysis: `adr/0096-analysis/` (SWOT, gap analysis)

@@ -6,39 +6,15 @@ This file provides guidance when working with code in this repository.
 
 Use `docs/ai/AGENT-RULEBOOK.md` as the compact ADR-derived implementation rulebook for AI agents, and use `docs/ai/ADR-RULE-MAP.yaml` to select scoped rule packs. This file is an adapter for GitHub Copilot behavior and must not diverge from the universal rulebook.
 
-## Contract Compliance Mode (Mandatory)
+## SPC Mode (Optional)
 
-All work in this repository must follow `contract.md` as a binding process contract.
+For complex analytical tasks, users may activate **Strict Process Compliance** mode.
 
-Core principles:
-- Process correctness and diagnostic precision are always prioritized over speed.
-- No shortcuts, no hidden assumptions, no merged phases.
-- Do not move to the next phase without explicit user approval.
+**Full specification:** `docs/ai/spc-contract.md`
 
-Required phase flow:
-1. STEP 0 — READ FIRST
-2. STEP 1 — Document Map
-3. STEP 2 — Constraints Register
-4. STEP 3 — Diagnostic Analysis (no decisions)
-5. STEP 4 — Problem Classification
-6. STEP 5 — Admissible Solution Space (no model changes)
-7. STEP 6 — Model Rebuild (only after approval)
-8. STEP 7 — Validation & Compliance Matrix
+Activation triggers: "SPC MODE", "STRICT MODE", "Работай по контракту"
 
-Stop/Go protocol is mandatory:
-- After each step, explicitly output: `STEP X COMPLETED`.
-- Ask: `GO STEP X+1 ?`
-- Continue only after explicit user confirmation in `GO STEP X` form.
-
-Mandatory artifacts by contract:
-- STEP 1: Document Map table.
-- STEP 2: Constraints Register table with criticality and verification mechanism.
-- STEP 7: Compliance Matrix (`Requirement | Source | Met | How verified | If No -> What must change`).
-
-Critical compliance rules:
-- If any critical constraint cannot be met, mark outcome as `NO VALID SOLUTION`.
-- Do not present decisions during STEP 3 and STEP 5.
-- Do not modify model/data before explicit authorization for STEP 6.
+SPC mode provides a formal 7-step analysis methodology with mandatory STOP/GO gates. See the contract file for details.
 
 ## V5 Architecture (Current)
 

@@ -350,84 +350,20 @@ When Claude Code helps with this repository:
 - Break plugin stage/manifest/discovery contracts
 - Skip validation steps
 
-## Strict Process Compliance Mode (Optional)
+## SPC Mode (Optional)
 
-> **Full specification:** `contract.md`
+> **Full specification:** `docs/ai/spc-contract.md`
 
-For complex analytical tasks (architecture analysis, ADR evaluation, gap analysis, migration planning), user may activate **STRICT PROCESS COMPLIANCE** mode by saying:
+For complex analytical tasks (architecture analysis, ADR evaluation, gap analysis, migration planning), user may activate **Strict Process Compliance** mode by saying:
 
 - "Работай по контракту" / "Use strict process"
 - "STRICT MODE" / "SPC MODE"
-- Reference to `contract.md`
 
-### Role in SPC Mode
+SPC mode provides a formal 7-step analysis methodology with mandatory STOP/GO gates. The agent works as an independent professional analyst with FAANG/DoD level competencies, prioritizing process correctness over speed.
 
-```
-Ты — независимый профессиональный аналитик / advisor с компетенциями FAANG и DoD уровня.
-Главная цель: корректность процесса, диагностическая точность и минимизация ошибок.
-НЕ скорость и НЕ "красивый план".
-```
+See `docs/ai/spc-contract.md` for the full protocol, mandatory artifacts, and prohibitions.
 
-### Mandatory 7-Step Protocol
-
-| Step | Name | Output | Rule |
-|------|------|--------|------|
-| 0 | READ FIRST | "ALL MATERIALS READ" | No conclusions until all materials read |
-| 1 | Document Map | Table: Document / Owner / Purpose / Binding Requirements / Data Used | Incomplete without table |
-| 2 | Constraints Register | Table: Stakeholder / Requirement / Criticality / Type / Verification / Source | If Critical cannot be met → "NO VALID SOLUTION" |
-| 3 | Diagnostic Analysis | Facts and calculations only | NO DECISIONS at this step |
-| 4 | Problem Classification | Problem type identification | Classify, NOT solve |
-| 5 | Admissible Solution Space | Problem → Mechanisms → Constraints → Why admissible | NO MODEL CHANGES |
-| 6 | Model Rebuild | Implement approved solutions only | ONCE, AFTER APPROVAL |
-| 7 | Validation & Compliance | Compliance Matrix: Requirement / Source / Met / How verified / If No | If any Critical = NO → solution INVALID |
-
-### STOP/GO Protocol (Mandatory in SPC Mode)
-
-After EACH step:
-1. Write: "STEP X COMPLETED"
-2. Ask: "GO STEP X+1 ?"
-3. DO NOT continue without explicit "GO STEP X" confirmation
-
-### Prohibitions in SPC Mode
-
-```
-ЗАПРЕЩЕНО ПРИ ЛЮБЫХ ОБСТОЯТЕЛЬСТВАХ:
-1. Переходить к следующему этапу без явного разрешения
-2. Делать выводы до завершения диагностических этапов
-3. Делать short-cuts "для ускорения"
-4. Объединять этапы
-5. Предвосхищать будущие шаги
-6. Модифицировать модель/данные до формального разрешения
-7. Использовать неразрешённые допущения
-8. "Исправлять" проблемы нарративом вместо механики
-9. Скрывать или сглаживать ошибки
-```
-
-### Self-QA Before Output (SPC Mode)
-
-Before outputting any step result, verify:
-- [ ] All mandatory artifacts for the step created?
-- [ ] No data or conclusions from future steps used?
-- [ ] No unauthorized assumptions made?
-- [ ] All prohibitions respected?
-
-If ANY answer = NO → output forbidden.
-
-### When to Use SPC Mode
-
-- ADR gap analysis and evaluation
-- Architecture decision analysis
-- Migration planning with constraints
-- Complex refactoring planning
-- Risk assessment with compliance requirements
-- Any task where "correctness > speed"
-
-### Exiting SPC Mode
-
-User can exit by saying:
-- "Выйди из строгого режима" / "Exit strict mode"
-- "Обычный режим" / "Normal mode"
-- Or simply by starting a new unrelated task
+**Exiting SPC Mode:** "Exit strict mode" / "Обычный режим" / start a new unrelated task
 
 ## V4 Archive Reference
 

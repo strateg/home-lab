@@ -68,6 +68,8 @@ rule_packs:
       - "taskfiles/acceptance.yml"
 
 rules:
+  # === ALWAYS-LOAD CORE RULES ===
+
   - id: CORE-001
     scope: root-layout
     trigger: "Any repository change"
@@ -79,6 +81,91 @@ rules:
     validate:
       - "task validate:workspace-layout"
     source_adr: ["0075", "0080", "0086"]
+
+  - id: CORE-002
+    scope: generated-output
+    trigger: "Any generated output request"
+    must:
+      - "Modify sources (topology, generators, templates), then regenerate."
+    never:
+      - "Do not edit generated/ by hand."
+    validate:
+      - "task validate:default"
+      - "relevant generator test"
+    source_adr: ["0074", "0075", "0080"]
+
+  - id: CORE-003
+    scope: topology-model
+    trigger: "Any topology/model change"
+    must:
+      - "Preserve Class -> Object -> Instance source-of-truth model."
+    never:
+      - "Do not bypass topology with generated/manual artifacts."
+    validate:
+      - "task validate:default"
+    source_adr: ["0062", "0071", "0088"]
+
+  - id: CORE-004
+    scope: plugin-runtime
+    trigger: "Any plugin/runtime change"
+    must:
+      - "Preserve stage affinity and manifest contracts."
+    never:
+      - "Do not add hidden plugin coupling outside depends_on, consumes, produces."
+    validate:
+      - "task validate:plugin-manifests"
+      - "task test:plugin-contract"
+    source_adr: ["0063", "0065", "0080", "0086"]
+
+  - id: CORE-005
+    scope: framework-runtime
+    trigger: "Any framework/runtime change"
+    must:
+      - "Refresh and verify framework.lock when framework integrity changes."
+    never:
+      - "Do not leave strict lock stale."
+    validate:
+      - "task framework:lock-refresh"
+      - "task framework:strict"
+    source_adr: ["0076", "0081"]
+
+  - id: CORE-006
+    scope: secrets
+    trigger: "Any secrets-sensitive change"
+    must:
+      - "Keep secrets encrypted and resolved only through approved SOPS/age and bundle injection paths."
+    never:
+      - "Do not commit plaintext secrets."
+    validate:
+      - "task validate:default"
+      - "relevant secrets tests"
+    source_adr: ["0072", "0073", "0085"]
+
+  - id: CORE-007
+    scope: adr-governance
+    trigger: "Any architectural change"
+    must:
+      - "Add or update ADR/register/analysis artifacts."
+    never:
+      - "Do not treat architecture changes as complete without ADR governance."
+    validate:
+      - "task validate:adr-consistency"
+    source_adr: ["0080", "0096"]
+
+  - id: CORE-008
+    scope: testing-ci
+    trigger: "Any substantial code change"
+    must:
+      - "Run targeted tests plus the narrowest relevant task gate."
+      - "Run task ci before integration-level closure when feasible."
+    never:
+      - "Do not claim validation without command evidence."
+    validate:
+      - "targeted pytest"
+      - "task ci"
+    source_adr: ["0066", "0077"]
+
+  # === SCOPED DOMAIN RULES ===
 
   - id: PLG-001
     scope: plugin-runtime
