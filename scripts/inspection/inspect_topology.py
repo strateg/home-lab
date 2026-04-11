@@ -15,6 +15,7 @@ from inspection_export import write_dot as _write_dot  # noqa: E402
 from inspection_indexes import flatten_instances as _flatten_instances  # noqa: E402
 from inspection_loader import load_effective as _load_effective  # noqa: E402
 from inspection_presenters import (  # noqa: E402
+    print_capabilities as _print_capabilities,
     print_capability_packs as _print_capability_packs,
     print_classes_tree as _print_classes_tree,
     print_deps as _print_deps,
@@ -68,6 +69,14 @@ def _parse_args() -> argparse.Namespace:
         help="Inspect capability packs and class/object dependency bindings.",
     )
     add_effective_arg(capability_parser)
+    capabilities_parser = subparsers.add_parser(
+        "capabilities",
+        help="Inspect capability relations across classes, objects, and capability packs.",
+    )
+    add_effective_arg(capabilities_parser)
+    scope = capabilities_parser.add_mutually_exclusive_group()
+    scope.add_argument("--class", dest="class_ref", help="Focused class capability view.")
+    scope.add_argument("--object", dest="object_id", help="Focused object capability view.")
 
     return parser.parse_args()
 
@@ -103,6 +112,13 @@ def main() -> int:
     if command == "capability-packs":
         _print_capability_packs(payload, effective_path=Path(args.effective))
         return 0
+    if command == "capabilities":
+        return _print_capabilities(
+            payload,
+            effective_path=Path(args.effective),
+            class_ref=args.class_ref,
+            object_id=args.object_id,
+        )
 
     print(f"Unknown command: {command}")
     return 2

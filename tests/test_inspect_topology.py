@@ -48,12 +48,16 @@ def _write_fixture_repo(tmp_path: Path) -> Path:
         "classes": {
             "class.infrastructure": {},
             "class.router": {
+                "required_capabilities": ["cap.net.routing"],
+                "optional_capabilities": ["cap.net.vpn"],
                 "capability_packs": ["pack.router.home_gateway"],
             },
             "class.router.edge": {
                 "parent_class": "class.router",
             },
-            "class.service": {},
+            "class.service": {
+                "required_capabilities": ["cap.svc.runtime"],
+            },
             "class.service.api": {
                 "parent_class": "class.service",
             },
@@ -61,6 +65,7 @@ def _write_fixture_repo(tmp_path: Path) -> Path:
         "objects": {
             "obj.router.ok": {
                 "materializes_class": "class.router",
+                "enabled_capabilities": ["cap.net.routing"],
                 "enabled_packs": ["pack.router.home_gateway"],
             },
             "obj.router.bad": {
@@ -72,6 +77,7 @@ def _write_fixture_repo(tmp_path: Path) -> Path:
             },
             "obj.service.api": {
                 "materializes_class": "class.service.api",
+                "enabled_capabilities": ["cap.svc.runtime", "cap.svc.api"],
             },
             "obj.service.worker": {
                 "extends_class": "class.service",
@@ -339,6 +345,65 @@ def test_capability_packs_inspection_prints_contract_matrix(tmp_path: Path) -> N
     assert "Class -> Pack Dependencies" in stdout
     assert "obj.router.ok" in stdout
     assert "object enabled_packs missing in catalog: pack.router.missing" in stdout
+
+
+def test_capabilities_command_prints_unified_summary(tmp_path: Path) -> None:
+    effective = _write_fixture_repo(tmp_path)
+
+    result = _run_inspect(tmp_path, "capabilities", "--effective", str(effective))
+
+    out = result.stdout
+    assert "Capability Relation Summary" in out
+    assert "classes total: 5" in out
+    assert "classes with required_capabilities: 2" in out
+    assert "classes with optional_capabilities: 1" in out
+    assert "classes with capability_packs: 1" in out
+    assert "objects with enabled_capabilities: 2" in out
+    assert "objects with enabled_packs: 2" in out
+    assert "catalog packs: 1" in out
+    assert "- class.router (required=1, optional=1, packs=1)" in out
+    assert "- obj.router.ok (class=class.router, enabled_capabilities=1, enabled_packs=1)" in out
+
+
+def test_capabilities_command_supports_focused_class_view(tmp_path: Path) -> None:
+    effective = _write_fixture_repo(tmp_path)
+
+    result = _run_inspect(
+        tmp_path,
+        "capabilities",
+        "--effective",
+        str(effective),
+        "--class",
+        "class.router",
+    )
+
+    out = result.stdout
+    assert "Capabilities for class: class.router" in out
+    assert "Required capabilities:" in out
+    assert "  - cap.net.routing" in out
+    assert "Optional capabilities:" in out
+    assert "  - cap.net.vpn" in out
+    assert "Capability packs:" in out
+    assert "  - pack.router.home_gateway [ok]" in out
+    assert "Bound objects:" in out
+    assert "  - obj.router.ok" in out
+
+
+def test_capabilities_command_returns_exit_code_2_for_unknown_object(tmp_path: Path) -> None:
+    effective = _write_fixture_repo(tmp_path)
+
+    result = _run_inspect(
+        tmp_path,
+        "capabilities",
+        "--effective",
+        str(effective),
+        "--object",
+        "obj.unknown",
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert "Unknown object reference: obj.unknown" in result.stdout
 
 
 def test_missing_effective_topology_returns_exit_code_2_and_stderr_error(tmp_path: Path) -> None:

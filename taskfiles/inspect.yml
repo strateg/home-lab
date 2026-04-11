@@ -51,3 +51,8 @@ tasks:
     desc: Inspect capability packs and class/object pack dependencies
     cmds:
       - "{{.PYTHON}} scripts/inspection/inspect_topology.py capability-packs {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
+
+  capabilities:
+    desc: Inspect capability relations (optional CLASS=<class_ref> or OBJECT=<object_id>)
+    cmds:
+      - "{{.PYTHON}} scripts/inspection/inspect_topology.py capabilities {{if .CLASS}}--class {{.CLASS}}{{end}} {{if .OBJECT}}--object {{.OBJECT}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"

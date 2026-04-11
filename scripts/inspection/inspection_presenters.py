@@ -152,6 +152,169 @@ def print_capability_packs(payload: dict[str, Any], *, effective_path: Path) -> 
             print(f"  - {row}")
 
 
+def print_capabilities(
+    payload: dict[str, Any],
+    *,
+    effective_path: Path,
+    class_ref: str | None = None,
+    object_id: str | None = None,
+) -> int:
+    classes = payload.get("classes", {})
+    objects = payload.get("objects", {})
+    if not isinstance(classes, dict):
+        classes = {}
+    if not isinstance(objects, dict):
+        objects = {}
+
+    packs_catalog, _ = load_capability_pack_catalog(payload, effective_path=effective_path)
+
+    class_required: dict[str, list[str]] = {}
+    class_optional: dict[str, list[str]] = {}
+    class_packs: dict[str, list[str]] = {}
+    for cls_id, class_payload in classes.items():
+        if not isinstance(class_payload, dict):
+            continue
+        required = sorted(
+            {item for item in (class_payload.get("required_capabilities") or []) if isinstance(item, str) and item}
+        )
+        optional = sorted(
+            {item for item in (class_payload.get("optional_capabilities") or []) if isinstance(item, str) and item}
+        )
+        packs = sorted({item for item in (class_payload.get("capability_packs") or []) if isinstance(item, str) and item})
+        if required:
+            class_required[cls_id] = required
+        if optional:
+            class_optional[cls_id] = optional
+        if packs:
+            class_packs[cls_id] = packs
+
+    object_caps: dict[str, list[str]] = {}
+    object_packs: dict[str, list[str]] = {}
+    class_objects: dict[str, list[str]] = defaultdict(list)
+    for obj_id, object_payload in objects.items():
+        if not isinstance(object_payload, dict):
+            continue
+        cls = object_class_ref(object_payload)
+        if isinstance(cls, str):
+            class_objects[cls].append(obj_id)
+        enabled_caps = sorted(
+            {item for item in (object_payload.get("enabled_capabilities") or []) if isinstance(item, str) and item}
+        )
+        enabled_packs = sorted({item for item in (object_payload.get("enabled_packs") or []) if isinstance(item, str) and item})
+        if enabled_caps:
+            object_caps[obj_id] = enabled_caps
+        if enabled_packs:
+            object_packs[obj_id] = enabled_packs
+
+    if class_ref is not None:
+        if class_ref not in classes:
+            print(f"Unknown class reference: {class_ref}")
+            return 2
+        print(f"Capabilities for class: {class_ref}")
+        print("================================")
+        required = class_required.get(class_ref, [])
+        optional = class_optional.get(class_ref, [])
+        packs = class_packs.get(class_ref, [])
+        print("Required capabilities:")
+        if not required:
+            print("  - none")
+        else:
+            for row in required:
+                print(f"  - {row}")
+        print("Optional capabilities:")
+        if not optional:
+            print("  - none")
+        else:
+            for row in optional:
+                print(f"  - {row}")
+        print("Capability packs:")
+        if not packs:
+            print("  - none")
+        else:
+            for row in packs:
+                status = "ok" if row in packs_catalog else "missing_catalog"
+                print(f"  - {row} [{status}]")
+        print("Bound objects:")
+        bound = sorted(class_objects.get(class_ref, []))
+        if not bound:
+            print("  - none")
+        else:
+            for row in bound:
+                print(f"  - {row}")
+        return 0
+
+    if object_id is not None:
+        object_payload = objects.get(object_id)
+        if not isinstance(object_payload, dict):
+            print(f"Unknown object reference: {object_id}")
+            return 2
+        cls = object_class_ref(object_payload)
+        print(f"Capabilities for object: {object_id}")
+        print("================================")
+        print(f"class: {cls if isinstance(cls, str) else '-'}")
+        print("Enabled capabilities:")
+        caps = object_caps.get(object_id, [])
+        if not caps:
+            print("  - none")
+        else:
+            for row in caps:
+                print(f"  - {row}")
+        print("Enabled packs:")
+        packs = object_packs.get(object_id, [])
+        if not packs:
+            print("  - none")
+        else:
+            for row in packs:
+                status = "ok" if row in packs_catalog else "missing_catalog"
+                print(f"  - {row} [{status}]")
+        if isinstance(cls, str):
+            print("Class required capabilities:")
+            for row in class_required.get(cls, []) or ["none"]:
+                print(f"  - {row}")
+            print("Class optional capabilities:")
+            for row in class_optional.get(cls, []) or ["none"]:
+                print(f"  - {row}")
+        return 0
+
+    print("Capability Relation Summary")
+    print("===========================")
+    print(f"classes total: {len(classes)}")
+    print(f"classes with required_capabilities: {len(class_required)}")
+    print(f"classes with optional_capabilities: {len(class_optional)}")
+    print(f"classes with capability_packs: {len(class_packs)}")
+    print(f"objects total: {len(objects)}")
+    print(f"objects with enabled_capabilities: {len(object_caps)}")
+    print(f"objects with enabled_packs: {len(object_packs)}")
+    print(f"catalog packs: {len(packs_catalog)}")
+
+    print("\nClass Capability Intents")
+    print("------------------------")
+    for cls_id in sorted({*class_required.keys(), *class_optional.keys(), *class_packs.keys()}):
+        req = len(class_required.get(cls_id, []))
+        opt = len(class_optional.get(cls_id, []))
+        packs = len(class_packs.get(cls_id, []))
+        print(f"- {cls_id} (required={req}, optional={opt}, packs={packs})")
+
+    print("\nObject Capability Activations")
+    print("-----------------------------")
+    for obj_id in sorted({*object_caps.keys(), *object_packs.keys()}):
+        caps = len(object_caps.get(obj_id, []))
+        packs = len(object_packs.get(obj_id, []))
+        cls = object_class_ref(objects.get(obj_id, {})) if isinstance(objects.get(obj_id), dict) else "-"
+        print(f"- {obj_id} (class={cls}, enabled_capabilities={caps}, enabled_packs={packs})")
+
+    print("\nPack Capability Catalog")
+    print("-----------------------")
+    for pack_id in sorted(packs_catalog):
+        row = packs_catalog[pack_id]
+        cls = row.get("class_ref", "-")
+        caps = row.get("capabilities", [])
+        cap_count = len(caps) if isinstance(caps, list) else 0
+        print(f"- {pack_id} (class_ref={cls}, capabilities={cap_count})")
+
+    return 0
+
+
 def print_classes_tree(payload: dict[str, Any]) -> None:
     classes = payload.get("classes", {})
     if not isinstance(classes, dict):
