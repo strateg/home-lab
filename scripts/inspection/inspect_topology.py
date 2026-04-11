@@ -9,7 +9,6 @@ import re
 import sys
 from collections import defaultdict, deque
 from pathlib import Path
-from typing import Any
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
@@ -18,71 +17,15 @@ if str(SCRIPT_DIR) not in sys.path:
 from inspection_indexes import (  # noqa: E402
     flatten_instances as _flatten_instances,
     object_class_ref as _object_class_ref,
-    source_aliases as _source_aliases,
 )
 from inspection_loader import (  # noqa: E402
     load_capability_pack_catalog as _load_capability_pack_catalog,
     load_effective as _load_effective,
 )
-
-REF_KEY_PATTERN = re.compile(r".*(_ref|_refs)$")
-
-def _iter_refs(data: Any, prefix: str = "") -> list[tuple[str, Any]]:
-    matches: list[tuple[str, Any]] = []
-    if isinstance(data, dict):
-        for key, value in data.items():
-            path = f"{prefix}.{key}" if prefix else key
-            if REF_KEY_PATTERN.fullmatch(key):
-                matches.append((path, value))
-            matches.extend(_iter_refs(value, path))
-    elif isinstance(data, list):
-        for index, value in enumerate(data):
-            path = f"{prefix}[{index}]"
-            matches.extend(_iter_refs(value, path))
-    return matches
-
-
-def _normalize_ref_values(raw: Any) -> list[str]:
-    if isinstance(raw, str):
-        return [raw]
-    if isinstance(raw, list):
-        values = [value for value in raw if isinstance(value, str)]
-        return values
-    return []
-
-
-def _build_dependency_graph(
-    instances: list[dict[str, Any]],
-) -> tuple[dict[str, set[str]], dict[str, list[str]], dict[str, list[str]]]:
-    aliases = _source_aliases(instances)
-    edges: dict[str, set[str]] = defaultdict(set)
-    unresolved: dict[str, list[str]] = defaultdict(list)
-    edge_labels: dict[str, list[str]] = defaultdict(list)
-
-    for item in instances:
-        instance_id = item.get("instance_id")
-        if not isinstance(instance_id, str):
-            continue
-
-        scan_roots = [item.get("instance_data"), item.get("instance")]
-        for root in scan_roots:
-            for path, raw_value in _iter_refs(root):
-                for raw_ref in _normalize_ref_values(raw_value):
-                    mapped = aliases.get(raw_ref)
-                    if mapped is None:
-                        unresolved[instance_id].append(raw_ref)
-                        continue
-                    if mapped == instance_id:
-                        continue
-                    edges[instance_id].add(mapped)
-                    edge_labels[f"{instance_id}->{mapped}"].append(path)
-
-    return edges, unresolved, edge_labels
-
-
-def _resolve_instance_id(instances: list[dict[str, Any]], value: str) -> str | None:
-    aliases = _source_aliases(instances)
-    return aliases.get(value)
+from inspection_relations import (  # noqa: E402
+    build_dependency_graph as _build_dependency_graph,
+    resolve_instance_id as _resolve_instance_id,
+)
 
 
 def _print_summary(payload: dict[str, Any], instances: list[dict[str, Any]]) -> None:
