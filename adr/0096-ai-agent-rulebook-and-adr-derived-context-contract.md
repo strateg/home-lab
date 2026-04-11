@@ -118,6 +118,15 @@ This ADR does not:
 - introduce autonomous AI promotion;
 - change production runtime behavior.
 
+### D7. AI-Assisted Commit Accountability Metadata
+
+For every AI-assisted commit, commit metadata MUST include:
+
+- `AI-Agent: <agent_name>`
+- `AI-Tokens: <tokens_used_for_commit_work>`
+
+`AI-Tokens` SHOULD be sourced from agent/runtime usage telemetry for the work represented by that commit.
+
 ---
 
 ## Consequences

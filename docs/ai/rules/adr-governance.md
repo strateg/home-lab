@@ -19,6 +19,7 @@ Load when changing:
 6. When compressing ADRs into rules, preserve source ADR references.
 7. If a compact rule conflicts with an ADR, the ADR wins.
 8. If `docs/ai/ADR-RULE-MAP.yaml` schema semantics change, update `adr/0096-analysis/SCHEMA-VERSION-POLICY.md` in the same change set.
+9. For each AI-assisted commit, include commit metadata lines: `AI-Agent: <agent_name>` and `AI-Tokens: <tokens_used_for_commit_work>`.
 
 ## Validation
 

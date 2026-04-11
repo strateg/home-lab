@@ -27,6 +27,7 @@
 | CORE-006 | Any secrets-sensitive change | Keep secrets encrypted and resolved only through approved SOPS/age and bundle injection paths | Do not commit plaintext secrets | `task validate:default`, relevant secrets tests | ADR0072, ADR0073, ADR0085 |
 | CORE-007 | Any architectural change | Add or update ADR/register/analysis artifacts | Do not treat architecture changes as complete without ADR governance | `task validate:adr-consistency` | ADR policy, ADR0080 |
 | CORE-008 | Any substantial code change | Run targeted tests plus the narrowest relevant task gate; run `task ci` before integration-level closure when feasible | Do not claim validation without command evidence | targeted pytest, `task ci` | ADR0066, ADR0077 |
+| CORE-009 | Any AI-assisted commit | Include commit metadata: `AI-Agent: <agent_name>` and `AI-Tokens: <tokens_used_for_commit_work>` | Do not finalize AI-assisted commits without both metadata fields | `git log -1 --pretty=%B` | ADR0096 |
 
 ---
 
