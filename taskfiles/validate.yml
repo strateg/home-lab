@@ -163,6 +163,16 @@ tasks:
     cmds:
       - "{{.PYTHON}} scripts/validation/render_adr0083_reactivation_evidence.py {{if .BUNDLE}}--bundle {{.BUNDLE}}{{end}} --output-md build/diagnostics/adr0083-reactivation-evidence.md"
 
+  typed-shadow-report:
+    desc: Generate typed-shadow diagnostics report artifacts
+    cmds:
+      - "{{.PYTHON}} scripts/inspection/generate_typed_shadow_report.py {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}} {{if .LAYER}}--layer {{.LAYER}}{{end}} {{if .GROUP}}--group {{.GROUP}}{{end}} --json-output build/diagnostics/typed-shadow-report.json --text-output build/diagnostics/typed-shadow-report.txt {{if .MIN_COVERAGE}}--min-coverage {{.MIN_COVERAGE}}{{end}} {{if .MAX_GENERIC_SHARE}}--max-generic-share {{.MAX_GENERIC_SHARE}}{{end}}"
+
+  typed-shadow-gate:
+    desc: Enforce typed-shadow threshold gate on current effective topology
+    cmds:
+      - "{{.PYTHON}} scripts/inspection/generate_typed_shadow_report.py --fail-on-threshold {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}} {{if .LAYER}}--layer {{.LAYER}}{{end}} {{if .GROUP}}--group {{.GROUP}}{{end}} --json-output build/diagnostics/typed-shadow-report.json --text-output build/diagnostics/typed-shadow-report.txt {{if .MIN_COVERAGE}}--min-coverage {{.MIN_COVERAGE}}{{end}} {{if .MAX_GENERIC_SHARE}}--max-generic-share {{.MAX_GENERIC_SHARE}}{{end}}"
+
   ai-usage-metrics:
     desc: Generate opt-in ADR0094 AI usage metrics from local audit logs
     cmds:

@@ -177,6 +177,9 @@ Execution note (2026-04-11):
 - diagnostics artifacts for promotion-gate evidence are available via:
   - `task inspect:typed-shadow-report` (`build/diagnostics/typed-shadow-report.{json,txt}`)
   - `task inspect:typed-shadow-gate` (same artifacts + threshold exit-code gate);
+- validate-lane aliases expose the same diagnostics in validation workflows:
+  - `task validate:typed-shadow-report`
+  - `task validate:typed-shadow-gate`;
 - current home-lab snapshot reaches G2 threshold gate (`coverage=100.0`, `generic_ref_share=0.72`), while semantic typing remains non-authoritative pending full promotion decision;
 - parity guards verify that enabling typed shadow does not change authoritative baseline dependency edge sets (`deps --json` vs `deps --json --typed-shadow`);
 - baseline dependency extraction remains authoritative until promotion criteria are accepted (see `adr/0095-analysis/SEMANTIC-TYPING-PROMOTION-CRITERIA.md`).

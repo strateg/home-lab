@@ -48,11 +48,14 @@ Evidence:
   - `build/diagnostics/typed-shadow-report.json`
   - `build/diagnostics/typed-shadow-report.txt`
   generated via `task inspect:typed-shadow-report`.
+- validate-lane aliases for diagnostics/gating:
+  - `task validate:typed-shadow-report`
+  - `task validate:typed-shadow-gate`
 
 Current snapshot (2026-04-11):
 - `coverage_percent=100.0`
 - `generic_ref_share_percent=0.72`
-- G2 threshold gate currently PASS on home-lab topology (`task inspect:typed-shadow-gate`).
+- G2 threshold gate currently PASS on home-lab topology (`task inspect:typed-shadow-gate` and `task validate:typed-shadow-gate`).
 
 ### G3 — Error/Drift Safety
 

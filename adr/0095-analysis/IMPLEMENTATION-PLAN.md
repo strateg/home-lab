@@ -81,6 +81,7 @@ Completed waves/PR-sized slices:
 - PR-10 typed-shadow diagnostics artifacts + threshold gate (`task inspect:typed-shadow-report`, `task inspect:typed-shadow-gate`).
 - PR-11 semantic typing heuristic expansion (network/runtime/storage/binding coverage) with G2 gate pass on current home-lab topology (`coverage=100.0`, `generic_ref_share=0.72`).
 - PR-12 typed-shadow parity guard tests ensuring baseline `deps` edge sets remain unchanged when typed shadow is enabled.
+- PR-13 validate-lane wiring for typed-shadow diagnostics (`validate:typed-shadow-report`, `validate:typed-shadow-gate`).
 
 Outstanding from Wave 3:
 - semantic typing promotion decision beyond shadow mode (keep as non-authoritative shadow until promotion criteria are approved).

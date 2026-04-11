@@ -24,6 +24,8 @@ task validate:module-growth        # ADR0082 growth report (JSON in build/diagno
 task validate:module-growth-gate   # Fail when active module manifests > 15
 task validate:adr0047-trigger      # ADR0047 alerts/services trigger report
 task validate:adr0047-trigger-gate # Fail when alerts>50 or services>30
+task validate:typed-shadow-report # typed-shadow diagnostics report
+task validate:typed-shadow-gate # Fail when typed-shadow thresholds are not met
 task validate:adr0083-reactivation # ADR0083 reactivation readiness snapshot
 task validate:adr0083-reactivation-gate # Fail when ADR0083 non-hardware readiness is not met
 task validate:adr0083-reactivation-evidence # Render ADR0083 readiness evidence markdown
