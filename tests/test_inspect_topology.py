@@ -213,6 +213,21 @@ def test_inheritance_command_prints_summary_when_class_not_provided(tmp_path: Pa
     assert "  - class.service" in result.stdout
 
 
+def test_inheritance_command_json_summary_contract(tmp_path: Path) -> None:
+    effective = _write_fixture_repo(tmp_path)
+
+    result = _run_inspect(tmp_path, "inheritance", "--json", "--effective", str(effective))
+    body = json.loads(result.stdout)
+
+    assert body["schema_version"] == "adr0095.inspect.inheritance.v1"
+    assert body["command"] == "inheritance"
+    assert body["scope"] == "summary"
+    assert body["counts"]["classes_total"] == 5
+    assert body["counts"]["root_classes"] == 3
+    assert body["counts"]["derived_classes"] == 2
+    assert "class.router" in body["roots"]
+
+
 def test_inheritance_command_prints_focused_lineage_for_class(tmp_path: Path) -> None:
     effective = _write_fixture_repo(tmp_path)
 
@@ -234,6 +249,29 @@ def test_inheritance_command_prints_focused_lineage_for_class(tmp_path: Path) ->
     assert "  - class.router.edge" in result.stdout
 
 
+def test_inheritance_command_json_focused_lineage_contract(tmp_path: Path) -> None:
+    effective = _write_fixture_repo(tmp_path)
+
+    result = _run_inspect(
+        tmp_path,
+        "inheritance",
+        "--json",
+        "--effective",
+        str(effective),
+        "--class",
+        "class.router",
+    )
+    body = json.loads(result.stdout)
+
+    assert body["schema_version"] == "adr0095.inspect.inheritance.v1"
+    assert body["command"] == "inheritance"
+    assert body["scope"] == "class"
+    assert body["class_ref"] == "class.router"
+    assert body["ancestors"] == []
+    assert body["direct_children"] == ["class.router.edge"]
+    assert body["all_descendants"] == ["class.router.edge"]
+
+
 def test_inheritance_command_returns_exit_code_2_for_unknown_class(tmp_path: Path) -> None:
     effective = _write_fixture_repo(tmp_path)
 
@@ -249,6 +287,28 @@ def test_inheritance_command_returns_exit_code_2_for_unknown_class(tmp_path: Pat
 
     assert result.returncode == 2
     assert "Unknown class reference: class.unknown" in result.stdout
+
+
+def test_inheritance_command_json_returns_error_for_unknown_class(tmp_path: Path) -> None:
+    effective = _write_fixture_repo(tmp_path)
+
+    result = _run_inspect(
+        tmp_path,
+        "inheritance",
+        "--json",
+        "--effective",
+        str(effective),
+        "--class",
+        "class.unknown",
+        check=False,
+    )
+    body = json.loads(result.stdout)
+
+    assert result.returncode == 2
+    assert body["schema_version"] == "adr0095.inspect.inheritance.v1"
+    assert body["command"] == "inheritance"
+    assert body["error"]["code"] == "unknown_class_reference"
+    assert body["error"]["class_ref"] == "class.unknown"
 
 
 def test_objects_command_groups_by_materialized_or_extended_class(tmp_path: Path) -> None:
@@ -457,6 +517,22 @@ def test_capabilities_command_prints_unified_summary(tmp_path: Path) -> None:
     assert "- obj.router.ok (class=class.router, enabled_capabilities=1, enabled_packs=1)" in out
 
 
+def test_capabilities_command_json_summary_contract(tmp_path: Path) -> None:
+    effective = _write_fixture_repo(tmp_path)
+
+    result = _run_inspect(tmp_path, "capabilities", "--json", "--effective", str(effective))
+    body = json.loads(result.stdout)
+
+    assert body["schema_version"] == "adr0095.inspect.capabilities.v1"
+    assert body["command"] == "capabilities"
+    assert body["scope"] == "summary"
+    assert body["counts"]["classes_total"] == 5
+    assert body["counts"]["objects_total"] == 5
+    assert body["counts"]["objects_with_enabled_capabilities"] == 2
+    assert body["counts"]["objects_with_enabled_packs"] == 2
+    assert any(row["class_ref"] == "class.router" for row in body["class_capability_intents"])
+
+
 def test_capabilities_command_supports_focused_class_view(tmp_path: Path) -> None:
     effective = _write_fixture_repo(tmp_path)
 
@@ -481,6 +557,30 @@ def test_capabilities_command_supports_focused_class_view(tmp_path: Path) -> Non
     assert "  - obj.router.ok" in out
 
 
+def test_capabilities_command_json_focused_object_contract(tmp_path: Path) -> None:
+    effective = _write_fixture_repo(tmp_path)
+
+    result = _run_inspect(
+        tmp_path,
+        "capabilities",
+        "--json",
+        "--effective",
+        str(effective),
+        "--object",
+        "obj.router.ok",
+    )
+    body = json.loads(result.stdout)
+
+    assert body["schema_version"] == "adr0095.inspect.capabilities.v1"
+    assert body["command"] == "capabilities"
+    assert body["scope"] == "object"
+    assert body["object_id"] == "obj.router.ok"
+    assert body["class_ref"] == "class.router"
+    assert body["enabled_capabilities"] == ["cap.net.routing"]
+    assert body["enabled_packs"][0]["pack_id"] == "pack.router.home_gateway"
+    assert body["enabled_packs"][0]["status"] == "ok"
+
+
 def test_capabilities_command_returns_exit_code_2_for_unknown_object(tmp_path: Path) -> None:
     effective = _write_fixture_repo(tmp_path)
 
@@ -496,6 +596,28 @@ def test_capabilities_command_returns_exit_code_2_for_unknown_object(tmp_path: P
 
     assert result.returncode == 2
     assert "Unknown object reference: obj.unknown" in result.stdout
+
+
+def test_capabilities_command_json_returns_error_for_unknown_object(tmp_path: Path) -> None:
+    effective = _write_fixture_repo(tmp_path)
+
+    result = _run_inspect(
+        tmp_path,
+        "capabilities",
+        "--json",
+        "--effective",
+        str(effective),
+        "--object",
+        "obj.unknown",
+        check=False,
+    )
+    body = json.loads(result.stdout)
+
+    assert result.returncode == 2
+    assert body["schema_version"] == "adr0095.inspect.capabilities.v1"
+    assert body["command"] == "capabilities"
+    assert body["error"]["code"] == "unknown_object_reference"
+    assert body["error"]["object_id"] == "obj.unknown"
 
 
 def test_missing_effective_topology_returns_exit_code_2_and_stderr_error(tmp_path: Path) -> None:

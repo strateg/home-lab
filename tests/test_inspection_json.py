@@ -86,3 +86,75 @@ def test_deps_payload_returns_structured_error_for_unknown_instance() -> None:
     assert body["schema_version"] == module.DEPS_SCHEMA_VERSION
     assert body["error"]["code"] == "unknown_instance_reference"
     assert body["error"]["instance_ref"] == "unknown"
+
+
+def test_inheritance_payload_summary_and_focused_contracts() -> None:
+    module = _load_module(INSPECTION_DIR / "inspection_json.py", "inspection_json_inheritance_contract")
+    payload = {
+        "classes": {
+            "class.router": {},
+            "class.router.edge": {"parent_class": "class.router"},
+        }
+    }
+    summary_code, summary = module.inheritance_payload(payload)
+    focused_code, focused = module.inheritance_payload(payload, class_ref="class.router")
+
+    assert summary_code == 0
+    assert summary["schema_version"] == module.INHERITANCE_SCHEMA_VERSION
+    assert summary["counts"]["classes_total"] == 2
+    assert summary["counts"]["root_classes"] == 1
+    assert focused_code == 0
+    assert focused["class_ref"] == "class.router"
+    assert focused["direct_children"] == ["class.router.edge"]
+
+
+def test_capabilities_payload_summary_and_error_contracts(tmp_path: Path, monkeypatch) -> None:
+    module = _load_module(INSPECTION_DIR / "inspection_json.py", "inspection_json_capabilities_contract")
+    topology_dir = tmp_path / "topology" / "class-modules" / "router"
+    topology_dir.mkdir(parents=True, exist_ok=True)
+    (tmp_path / "topology" / "topology.yaml").write_text(
+        "\n".join(
+            [
+                "version: 5.0.0",
+                "framework:",
+                "  capability_packs: topology/class-modules/router/capability-packs.yaml",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (topology_dir / "capability-packs.yaml").write_text(
+        "\n".join(
+            [
+                "version: 1",
+                "packs:",
+                "  - id: pack.router.home_gateway",
+                "    class_ref: class.router",
+                "    capabilities:",
+                "      - cap.net.routing",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    effective_path = tmp_path / "build" / "effective-topology.json"
+    effective_path.parent.mkdir(parents=True, exist_ok=True)
+    effective_path.write_text("{}\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+
+    payload = {
+        "topology_manifest": "topology/topology.yaml",
+        "classes": {"class.router": {"required_capabilities": ["cap.net.routing"]}},
+        "objects": {"obj.router": {"materializes_class": "class.router", "enabled_capabilities": ["cap.net.routing"]}},
+    }
+
+    ok_code, summary = module.capabilities_payload(payload, effective_path=effective_path)
+    err_code, err = module.capabilities_payload(payload, effective_path=effective_path, object_id="obj.unknown")
+
+    assert ok_code == 0
+    assert summary["schema_version"] == module.CAPABILITIES_SCHEMA_VERSION
+    assert summary["scope"] == "summary"
+    assert summary["counts"]["classes_total"] == 1
+    assert summary["counts"]["objects_total"] == 1
+    assert err_code == 2
+    assert err["error"]["code"] == "unknown_object_reference"

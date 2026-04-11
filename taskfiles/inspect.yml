@@ -21,6 +21,11 @@ tasks:
     cmds:
       - "{{.PYTHON}} scripts/inspection/inspect_topology.py inheritance {{if .CLASS}}--class {{.CLASS}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
 
+  inheritance-json:
+    desc: Inspect class inheritance in machine-readable JSON (optional CLASS=<class_ref>)
+    cmds:
+      - "{{.PYTHON}} scripts/inspection/inspect_topology.py inheritance --json {{if .CLASS}}--class {{.CLASS}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
+
   objects:
     desc: Show compact objects grouped by materialized class
     cmds:
@@ -79,3 +84,8 @@ tasks:
     desc: Inspect capability relations (optional CLASS=<class_ref> or OBJECT=<object_id>)
     cmds:
       - "{{.PYTHON}} scripts/inspection/inspect_topology.py capabilities {{if .CLASS}}--class {{.CLASS}}{{end}} {{if .OBJECT}}--object {{.OBJECT}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
+
+  capabilities-json:
+    desc: Inspect capability relations in machine-readable JSON (optional CLASS=<class_ref> or OBJECT=<object_id>)
+    cmds:
+      - "{{.PYTHON}} scripts/inspection/inspect_topology.py capabilities --json {{if .CLASS}}--class {{.CLASS}}{{end}} {{if .OBJECT}}--object {{.OBJECT}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"

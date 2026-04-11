@@ -15,6 +15,8 @@ if str(SCRIPT_DIR) not in sys.path:
 from inspection_export import write_dot as _write_dot  # noqa: E402
 from inspection_indexes import flatten_instances as _flatten_instances  # noqa: E402
 from inspection_json import deps_payload as _deps_payload  # noqa: E402
+from inspection_json import capabilities_payload as _capabilities_payload  # noqa: E402
+from inspection_json import inheritance_payload as _inheritance_payload  # noqa: E402
 from inspection_json import summary_payload as _summary_payload  # noqa: E402
 from inspection_loader import load_effective as _load_effective  # noqa: E402
 from inspection_presenters import (  # noqa: E402
@@ -50,6 +52,7 @@ def _parse_args() -> argparse.Namespace:
     inheritance_parser = subparsers.add_parser("inheritance", help="Inspect class inheritance and lineage.")
     add_effective_arg(inheritance_parser)
     inheritance_parser.add_argument("--class", dest="class_ref", help="Class reference for focused lineage.")
+    inheritance_parser.add_argument("--json", action="store_true", dest="as_json", help="Print machine-readable JSON.")
     objects_parser = subparsers.add_parser("objects", help="Print objects grouped by class.")
     add_effective_arg(objects_parser)
     objects_parser.add_argument("--detailed", action="store_true", help="Print detailed object rows.")
@@ -88,6 +91,7 @@ def _parse_args() -> argparse.Namespace:
     scope = capabilities_parser.add_mutually_exclusive_group()
     scope.add_argument("--class", dest="class_ref", help="Focused class capability view.")
     scope.add_argument("--object", dest="object_id", help="Focused object capability view.")
+    capabilities_parser.add_argument("--json", action="store_true", dest="as_json", help="Print machine-readable JSON.")
 
     return parser.parse_args()
 
@@ -108,6 +112,10 @@ def main() -> int:
         _print_classes_tree(payload)
         return 0
     if command == "inheritance":
+        if bool(getattr(args, "as_json", False)):
+            code, body = _inheritance_payload(payload, class_ref=args.class_ref)
+            print(json.dumps(body, ensure_ascii=False, indent=2, sort_keys=True))
+            return code
         return _print_inheritance(payload, args.class_ref)
     if command == "objects":
         _print_objects_by_class(payload, detailed=bool(args.detailed))
@@ -131,6 +139,15 @@ def main() -> int:
         _print_capability_packs(payload, effective_path=Path(args.effective))
         return 0
     if command == "capabilities":
+        if bool(getattr(args, "as_json", False)):
+            code, body = _capabilities_payload(
+                payload,
+                effective_path=Path(args.effective),
+                class_ref=args.class_ref,
+                object_id=args.object_id,
+            )
+            print(json.dumps(body, ensure_ascii=False, indent=2, sort_keys=True))
+            return code
         return _print_capabilities(
             payload,
             effective_path=Path(args.effective),

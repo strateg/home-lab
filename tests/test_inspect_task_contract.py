@@ -37,6 +37,8 @@ def test_inspect_taskfile_contains_compact_and_detailed_object_instance_tasks() 
         "instances-detailed",
         "summary-json",
         "deps-json",
+        "inheritance-json",
+        "capabilities-json",
     ):
         assert name in tasks
 
@@ -51,3 +53,5 @@ def test_json_tasks_forward_json_flag_to_cli() -> None:
     tasks = _load_tasks()
     assert "summary --json" in _first_cmd(tasks, "summary-json")
     assert "deps --instance {{.INSTANCE}} --json" in _first_cmd(tasks, "deps-json")
+    assert "inheritance --json" in _first_cmd(tasks, "inheritance-json")
+    assert "capabilities --json" in _first_cmd(tasks, "capabilities-json")
