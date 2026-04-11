@@ -183,10 +183,10 @@ rules:
     scope: ai-commit-accountability
     trigger: "Any AI-assisted commit preparation"
     must:
-      - "Include commit metadata lines: AI-Agent: <agent_name> and AI-Tokens: <tokens_used_for_commit_work>."
+      - "Include commit metadata lines: AI-Agent: <agent_name> (<model_name>) and AI-Tokens: <tokens_used_for_commit_work>."
       - "Record the AI-Tokens value from agent/runtime token usage telemetry used to prepare the committed work."
     never:
-      - "Do not finalize AI-assisted commits without AI-Agent and AI-Tokens metadata."
+      - "Do not finalize AI-assisted commits without model-qualified AI-Agent and AI-Tokens metadata."
     validate:
       - "git log -1 --pretty=%B"
       - "manual review of AI-Tokens value against agent/runtime usage telemetry"

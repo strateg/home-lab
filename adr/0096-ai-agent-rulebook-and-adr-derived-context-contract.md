@@ -122,7 +122,7 @@ This ADR does not:
 
 For every AI-assisted commit, commit metadata MUST include:
 
-- `AI-Agent: <agent_name>`
+- `AI-Agent: <agent_name> (<model_name>)`
 - `AI-Tokens: <tokens_used_for_commit_work>`
 
 `AI-Tokens` SHOULD be sourced from agent/runtime usage telemetry for the work represented by that commit.
