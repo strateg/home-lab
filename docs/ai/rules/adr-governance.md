@@ -26,6 +26,7 @@ Load when changing:
 - `task validate:agent-rules`
 - `task validate:agent-rules-strict` when adapter/rulebook drift must fail on warnings
 - `task validate:agent-rule-coverage` for reverse ADR-to-rule coverage diagnostics
+- `task validate:agent-rule-mcp-export` for MCP-style export catalog generation
 
 ## Rulebook Maintenance Review
 

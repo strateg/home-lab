@@ -69,7 +69,7 @@ The main residual risk is no longer the absence of validation tooling. The activ
 
 | # | Opportunity | Potential Impact | Feasibility |
 |---|---|---|---|
-| O1 | MCP resource export | High | Existing YAML/Markdown structure, plus coverage diagnostics, can be exposed as MCP resources |
+| O1 | Live MCP server integration | High | The exported resource catalog can be served directly if a dedicated MCP endpoint is introduced later |
 | O2 | Coverage-driven drift telemetry | High | Reverse coverage reports can be trended or compared across revisions |
 | O3 | IDE/Copilot/Cursor context integration | Medium | Scoped rule packs can be loaded by path/domain match |
 | O4 | Agent compliance telemetry | Medium | Validation outputs can become diagnostics for recurring adapter/rule drift |
@@ -94,7 +94,7 @@ The main residual risk is no longer the absence of validation tooling. The activ
 
 | Strategy Type | Strategy | Actions |
 |---|---|---|
-| SO | Use validation-backed traceability for MCP | Expose rulebook, rule map, and rule packs with ADR cross-references |
+| SO | Use validation-backed traceability for MCP | Serve the exported rulebook catalog, rule map, and rule packs with ADR cross-references |
 | SO | Use tiered rule packs for IDE context | Load scoped packs by changed path and rule map `files_glob` |
 | WO | Close adapter drift gap | Validate all active adapter files, including `.codex/*`, for universal rulebook routing |
 | WO | Operationalize ADR coverage reporting | Track reverse coverage diagnostics across revisions and use them to detect drift |
@@ -112,7 +112,7 @@ The main residual risk is no longer the absence of validation tooling. The activ
 | 2 | Remove stale strict 4-level plugin-boundary wording from Codex-local adapters | W1, T1 | Low | Targeted for this hardening pass |
 | 3 | Update adapter sync tests to require universal rulebook routing and block stale plugin ACL text | W1, T1 | Low | Targeted for this hardening pass |
 | 4 | Refresh ADR0096 wording from future validation direction to current implemented validation gate | W2 | Low | Targeted for this hardening pass |
-| 5 | Add MCP resource export | O1 | Medium | Future work |
+| 5 | Add live MCP server wiring for exported catalog | O1 | Medium | Future work |
 
 ---
 
@@ -137,4 +137,4 @@ The main residual risk is no longer the absence of validation tooling. The activ
 
 ADR 0096 is structurally sound and now has implemented validation/schema support plus reverse ADR-to-rule coverage diagnostics. Adapter drift hardening is complete for the active adapter set.
 
-The next strategic improvement after this hardening pass is optional MCP resource export, with coverage diagnostics and schema policy now available for ongoing drift review.
+The next strategic improvement after this hardening pass is optional live MCP server wiring for the exported catalog, with coverage diagnostics and schema policy available for ongoing drift review.

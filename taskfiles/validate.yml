@@ -182,3 +182,8 @@ tasks:
     desc: Generate ADR0096 ADR-to-rule reverse coverage report
     cmds:
       - "{{.PYTHON}} scripts/validation/report_adr_rule_coverage.py --output-json build/diagnostics/agent-rule-coverage.json"
+
+  agent-rule-mcp-export:
+    desc: Export ADR0096 rulebook assets as an MCP-style resource catalog
+    cmds:
+      - "{{.PYTHON}} scripts/validation/export_agent_rulebook_mcp_resources.py --output-json build/diagnostics/agent-rule-mcp-resources.json"

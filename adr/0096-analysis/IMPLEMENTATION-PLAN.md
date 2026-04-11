@@ -65,5 +65,4 @@ Bring ADR0096 analysis and implementation artifacts into alignment with the curr
 - No generated artifact edits.
 - No topology/model/runtime behavior changes.
 - No new ADR number; ADR0096 remains the governing decision.
-- No MCP export implementation in this pass.
-- No full ADR-to-rule coverage report in this pass.
+- No live MCP server registration or `.mcp.json` mutation in this pass.
