@@ -1,0 +1,59 @@
+# Copy-paste these commands directly into MikroTik SSH/Terminal session
+# Transmission Container Installation for RouterOS 7.x
+
+# Step 1: Create veth interface
+/interface/veth/add name=veth-transmission address=172.18.0.10/24 gateway=172.18.0.1
+/interface/bridge/port/add bridge=containers interface=veth-transmission
+
+# Step 2: Create directories (wait 2 seconds between commands)
+/file/add name=transmission
+:delay 2s
+/file/add name=transmission/downloads
+:delay 2s
+/file/add name=transmission/config
+
+# Step 3: Set up environment variables
+/container/envs/add name=transmission-env key=PUID value=1000
+/container/envs/add name=transmission-env key=PGID value=1000
+/container/envs/add name=transmission-env key=TZ value=Europe/Moscow
+/container/envs/add name=transmission-env key=USER value=admin
+/container/envs/add name=transmission-env key=PASS value=transmission
+/container/envs/add name=transmission-env key=PEERPORT value=51413
+
+# Step 4: Create mount points
+/container/mounts/add name=transmission-downloads src=transmission/downloads dst=/downloads
+/container/mounts/add name=transmission-config src=transmission/config dst=/config
+
+# Step 5: Add container (image pull will take 5-10 minutes)
+/container/add remote-image=linuxserver/transmission:latest interface=veth-transmission envlist=transmission-env root-dir=transmission mounts=transmission-downloads,transmission-config logging=yes comment="Transmission BitTorrent Client"
+
+# Step 6: Wait for image download (check status every 30 seconds)
+/container/print detail
+
+# When status shows "stopped", proceed to Step 7
+
+# Step 7: Start the container
+/container/start [find comment="Transmission BitTorrent Client"]
+
+# Step 8: Check status (wait ~10 seconds for startup)
+:delay 10s
+/container/print detail
+
+# Step 9: Check logs
+/log/print where topics~"container"
+
+# =====================================
+# Installation complete!
+#
+# Web UI: http://transmission.local:9091
+# Direct:  http://172.18.0.10:9091
+#
+# Username: admin
+# Password: transmission
+# =====================================
+
+# Useful commands:
+# /container/stop [find comment="Transmission BitTorrent Client"]      # Stop
+# /container/start [find comment="Transmission BitTorrent Client"]     # Start
+# /container/print detail                                                # Status
+# /log/print where topics~"container"                                   # Logs

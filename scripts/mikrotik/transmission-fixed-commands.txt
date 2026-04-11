@@ -1,0 +1,45 @@
+# FIXED: Transmission Container Installation for MikroTik RouterOS 7.x
+# Corrected syntax for RouterOS 7.15+
+
+# Step 1: Create veth interface
+/interface/veth/add name=veth-transmission address=172.18.0.10/24 gateway=172.18.0.1
+/interface/bridge/port/add bridge=containers interface=veth-transmission
+
+# Step 2: Add container with environment variables inline
+# Note: RouterOS 7.x uses 'envs' parameter directly in /container/add
+/container/add \
+  remote-image=linuxserver/transmission:latest \
+  interface=veth-transmission \
+  envs=PUID=1000,PGID=1000,TZ=Europe/Moscow,USER=admin,PASS=transmission,PEERPORT=51413 \
+  root-dir=disk1/transmission \
+  mounts=disk1/transmission/downloads:/downloads,disk1/transmission/config:/config \
+  logging=yes \
+  comment="Transmission BitTorrent Client"
+
+# Step 3: Wait for image download (this will take 5-10 minutes)
+# Check status - when it shows "stopped" or "running", image is ready
+/container/print detail
+
+# Step 4: Start the container (if not already started)
+/container/start [find comment="Transmission BitTorrent Client"]
+
+# Step 5: Verify it's running
+/container/print detail where comment="Transmission BitTorrent Client"
+
+# Step 6: Check logs
+/log/print where topics~"container"
+
+# =====================================
+# Access Transmission:
+# http://transmission.local:9091
+# http://172.18.0.10:9091
+#
+# Username: admin
+# Password: transmission
+# =====================================
+
+# Management commands:
+# /container/stop [find comment="Transmission BitTorrent Client"]
+# /container/start [find comment="Transmission BitTorrent Client"]
+# /container/shell [find comment="Transmission BitTorrent Client"]
+# /container/remove [find comment="Transmission BitTorrent Client"]

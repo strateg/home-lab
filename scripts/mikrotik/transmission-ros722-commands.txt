@@ -1,0 +1,31 @@
+# Transmission Container for RouterOS 7.22
+# Step-by-step installation
+
+# Step 1: Create veth interface
+/interface/veth add name=veth-transmission address=172.18.0.10/24 gateway=172.18.0.1
+/interface/bridge/port add bridge=containers interface=veth-transmission
+
+# Step 2: Create environment variables (NEW syntax for 7.22)
+/container/envs add name=transmission-env key=PUID value=1000
+/container/envs add name=transmission-env key=PGID value=1000
+/container/envs add name=transmission-env key=TZ value=Europe/Moscow
+/container/envs add name=transmission-env key=USER value=admin
+/container/envs add name=transmission-env key=PASS value=transmission
+/container/envs add name=transmission-env key=PEERPORT value=51413
+
+# Step 3: Create mount points
+/container/mounts add name=transmission-downloads src=disk1/transmission/downloads dst=/downloads
+/container/mounts add name=transmission-config src=disk1/transmission/config dst=/config
+
+# Step 4: Add container
+/container add remote-image=linuxserver/transmission:latest interface=veth-transmission envlist=transmission-env root-dir=disk1/transmission mounts=transmission-downloads,transmission-config logging=yes comment="Transmission BitTorrent Client"
+
+# Step 5: Wait for download, then check
+/container print detail
+
+# Step 6: Start when ready
+/container start [find comment="Transmission BitTorrent Client"]
+
+# Step 7: Check status
+/container print detail
+/log print where topics~"container"
