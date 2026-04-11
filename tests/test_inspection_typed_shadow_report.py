@@ -70,11 +70,11 @@ def test_build_typed_shadow_report_default_thresholds_pass() -> None:
     assert report["edge_counts"]["classified_non_empty"] == 4
     assert report["edge_counts"]["coverage_percent"] == 100.0
     assert report["label_classifications_total"] == 4
-    assert report["label_type_counts"]["generic_ref"] == 1
-    assert report["label_type_counts"]["network"] == 1
+    assert report["label_type_counts"].get("generic_ref", 0) == 0
+    assert report["label_type_counts"]["network"] == 2
     assert report["label_type_counts"]["runtime"] == 1
     assert report["label_type_counts"]["storage"] == 1
-    assert report["generic_ref_share_percent"] == 25.0
+    assert report["generic_ref_share_percent"] == 0.0
     assert report["gates"]["g2_coverage_pass"] is True
     assert report["gates"]["g2_generic_share_pass"] is True
     assert report["gates"]["g2_pass"] is True
@@ -86,10 +86,10 @@ def test_build_typed_shadow_report_can_fail_generic_share_threshold() -> None:
         "inspection_typed_shadow_report_contract_threshold",
     )
 
-    report = module.build_typed_shadow_report(_fixture_instances(), max_generic_share_percent=10.0)
+    report = module.build_typed_shadow_report(_fixture_instances(), min_coverage_percent=101.0)
 
-    assert report["gates"]["g2_coverage_pass"] is True
-    assert report["gates"]["g2_generic_share_pass"] is False
+    assert report["gates"]["g2_coverage_pass"] is False
+    assert report["gates"]["g2_generic_share_pass"] is True
     assert report["gates"]["g2_pass"] is False
 
 
@@ -99,11 +99,10 @@ def test_typed_shadow_report_text_includes_gate_status() -> None:
         "inspection_typed_shadow_report_text_contract",
     )
 
-    report = module.build_typed_shadow_report(_fixture_instances(), max_generic_share_percent=10.0)
+    report = module.build_typed_shadow_report(_fixture_instances(), min_coverage_percent=101.0)
     text = module.typed_shadow_report_text(report)
 
     assert "ADR0095 Typed Shadow Coverage Report" in text
     assert "status: FAIL" in text
     assert "Gate Failure Details" in text
-    assert "generic_ref share percent" in text
-
+    assert "coverage percent" in text

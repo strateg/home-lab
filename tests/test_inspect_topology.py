@@ -530,7 +530,7 @@ def test_deps_command_typed_shadow_prints_shadow_section(tmp_path: Path) -> None
     )
 
     assert "Typed relation shadow (non-authoritative):" in result.stdout
-    assert "outgoing inst.router.ok->inst.service.api: generic_ref" in result.stdout
+    assert "outgoing inst.router.ok->inst.service.api: runtime" in result.stdout
     assert "incoming inst.service.worker->inst.router.ok: network" in result.stdout
 
 
@@ -554,7 +554,7 @@ def test_deps_command_json_typed_shadow_contract(tmp_path: Path) -> None:
     assert body["typed_shadow"]["schema_version"] == "adr0095.inspect.deps.typed-shadow.v1"
     outgoing = {row["edge"]: row["types"] for row in body["typed_shadow"]["direct_outgoing"]}
     incoming = {row["edge"]: row["types"] for row in body["typed_shadow"]["direct_incoming"]}
-    assert outgoing["inst.router.ok->inst.service.api"] == ["generic_ref"]
+    assert outgoing["inst.router.ok->inst.service.api"] == ["runtime"]
     assert incoming["inst.service.worker->inst.router.ok"] == ["network"]
 
 

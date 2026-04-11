@@ -107,7 +107,13 @@ def test_infer_relation_type_classifies_common_domains() -> None:
     assert relations.infer_relation_type("storage.volume_ref") == "storage"
     assert relations.infer_relation_type("runtime.host_ref") == "runtime"
     assert relations.infer_relation_type("capability_pack_ref") == "capability"
-    assert relations.infer_relation_type("service_ref") == "generic_ref"
+    assert relations.infer_relation_type("service_ref") == "runtime"
+    assert relations.infer_relation_type("target_ref") == "binding"
+    assert relations.infer_relation_type("endpoint_a.device_ref") == "network"
+    assert relations.infer_relation_type("trust_zone_ref") == "network"
+    assert relations.infer_relation_type("os_refs") == "runtime"
+    assert relations.infer_relation_type("managed_by_ref") == "binding"
+    assert relations.infer_relation_type("unknown_relation_ref") == "generic_ref"
 
 
 def test_typed_relation_shadow_builds_edge_type_map() -> None:
@@ -119,5 +125,5 @@ def test_typed_relation_shadow_builds_edge_type_map() -> None:
 
     shadow = relations.typed_relation_shadow(labels)
 
-    assert shadow["inst.router->inst.api"] == ["generic_ref", "network"]
+    assert shadow["inst.router->inst.api"] == ["network", "runtime"]
     assert shadow["inst.api->inst.storage"] == ["storage"]

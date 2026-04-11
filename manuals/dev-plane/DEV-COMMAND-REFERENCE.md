@@ -92,6 +92,7 @@ task inspect:typed-shadow-report LAYER='L5' GROUP='services'
 ### Typed shadow interpretation
 
 - `deps-typed-shadow` and `deps-json-typed-shadow` are advisory/diagnostic only.
+- Current typed shadow categories: `network`, `storage`, `runtime`, `capability`, `binding`, `generic_ref`.
 - `generic_ref` means label semantics were not specific enough for domain typing and should be interpreted as unresolved semantic specificity, not as a dependency extraction error.
 - `typed-shadow-gate` is a readiness gate; failure means promotion criteria are not yet met, not that baseline `deps` extraction is broken.
 

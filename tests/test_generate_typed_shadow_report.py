@@ -116,8 +116,8 @@ def test_generate_typed_shadow_report_gate_fails_when_thresholds_do_not_pass(tmp
         str(json_output),
         "--text-output",
         str(text_output),
-        "--max-generic-share",
-        "10",
+        "--min-coverage",
+        "101",
         "--fail-on-threshold",
         check=False,
     )
@@ -126,7 +126,6 @@ def test_generate_typed_shadow_report_gate_fails_when_thresholds_do_not_pass(tmp
     assert "Typed-shadow thresholds failed" in result.stdout
 
     body = json.loads(json_output.read_text(encoding="utf-8"))
-    assert body["gates"]["g2_coverage_pass"] is True
-    assert body["gates"]["g2_generic_share_pass"] is False
+    assert body["gates"]["g2_coverage_pass"] is False
+    assert body["gates"]["g2_generic_share_pass"] is True
     assert body["gates"]["g2_pass"] is False
-

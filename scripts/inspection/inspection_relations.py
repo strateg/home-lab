@@ -17,6 +17,55 @@ from inspection_indexes import source_aliases
 
 
 REF_KEY_PATTERN = re.compile(r".*(_ref|_refs)$")
+PATH_INDEX_PATTERN = re.compile(r"\[\d+\]")
+
+CAPABILITY_TOKENS = {"capability", "capabilities", "pack", "packs"}
+
+STORAGE_TOKENS = {
+    "storage",
+    "disk",
+    "volume",
+    "pool",
+    "data",
+    "data_asset",
+    "backup",
+}
+
+BINDING_TOKENS = {"target", "member", "managed", "binding", "bind", "channel"}
+
+NETWORK_TOKENS = {
+    "network",
+    "vlan",
+    "gateway",
+    "router",
+    "firewall",
+    "ip",
+    "cidr",
+    "subnet",
+    "dns",
+    "bridge",
+    "trust",
+    "zone",
+    "endpoint",
+    "interface",
+    "peer",
+    "link",
+}
+
+RUNTIME_TOKENS = {
+    "host",
+    "runtime",
+    "node",
+    "hypervisor",
+    "docker",
+    "lxc",
+    "vm",
+    "os",
+    "firmware",
+    "healthcheck",
+    "service",
+    "power",
+}
 
 
 def iter_refs(data: Any, prefix: str = "") -> list[tuple[str, Any]]:
@@ -76,16 +125,30 @@ def resolve_instance_id(instances: list[dict[str, Any]], value: str) -> str | No
     return aliases.get(value)
 
 
+def _path_tokens(path: str) -> set[str]:
+    normalized = PATH_INDEX_PATTERN.sub("", path.lower())
+    tokens: set[str] = set()
+    for raw_token in re.split(r"[^a-z0-9_]+", normalized):
+        if not raw_token:
+            continue
+        tokens.add(raw_token)
+        tokens.update(segment for segment in raw_token.split("_") if segment)
+    return tokens
+
+
 def infer_relation_type(path: str) -> str:
-    lowered = path.lower()
-    if any(token in lowered for token in ("network", "vlan", "gateway", "router", "firewall", "ip", "cidr")):
-        return "network"
-    if any(token in lowered for token in ("storage", "disk", "volume", "pool", "data", "backup")):
-        return "storage"
-    if any(token in lowered for token in ("host", "runtime", "node", "hypervisor", "docker", "lxc", "vm")):
-        return "runtime"
-    if any(token in lowered for token in ("capability", "pack")):
+    tokens = _path_tokens(path)
+
+    if tokens & CAPABILITY_TOKENS:
         return "capability"
+    if tokens & STORAGE_TOKENS:
+        return "storage"
+    if tokens & BINDING_TOKENS:
+        return "binding"
+    if tokens & NETWORK_TOKENS:
+        return "network"
+    if tokens & RUNTIME_TOKENS:
+        return "runtime"
     return "generic_ref"
 
 

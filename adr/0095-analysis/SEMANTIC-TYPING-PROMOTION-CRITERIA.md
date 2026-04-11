@@ -17,6 +17,7 @@
   - `storage`
   - `runtime`
   - `capability`
+  - `binding`
   - `generic_ref`
 
 Promotion is blocked until criteria below are satisfied.
@@ -47,6 +48,11 @@ Evidence:
   - `build/diagnostics/typed-shadow-report.json`
   - `build/diagnostics/typed-shadow-report.txt`
   generated via `task inspect:typed-shadow-report`.
+
+Current snapshot (2026-04-11):
+- `coverage_percent=100.0`
+- `generic_ref_share_percent=0.72`
+- G2 threshold gate currently PASS on home-lab topology (`task inspect:typed-shadow-gate`).
 
 ### G3 — Error/Drift Safety
 
