@@ -169,6 +169,22 @@ def test_summary_command_is_default_and_prints_group_counts(tmp_path: Path) -> N
     assert "  - services: 2" in result.stdout
 
 
+def test_summary_command_json_output_contract(tmp_path: Path) -> None:
+    effective = _write_fixture_repo(tmp_path)
+
+    result = _run_inspect(tmp_path, "summary", "--json", "--effective", str(effective))
+    body = json.loads(result.stdout)
+
+    assert body["schema_version"] == "adr0095.inspect.summary.v1"
+    assert body["command"] == "summary"
+    assert body["counts"]["classes"] == 5
+    assert body["counts"]["objects"] == 5
+    assert body["counts"]["instances"] == 4
+    assert body["counts"]["instance_groups"] == 2
+    assert body["instance_group_counts"]["network"] == 2
+    assert body["instance_group_counts"]["services"] == 2
+
+
 def test_classes_command_prints_current_inheritance_tree(tmp_path: Path) -> None:
     effective = _write_fixture_repo(tmp_path)
 
@@ -327,6 +343,36 @@ def test_deps_command_prints_direct_incoming_outgoing_transitive_and_unresolved(
     assert "  - none" in result.stdout
 
 
+def test_deps_command_json_output_contract(tmp_path: Path) -> None:
+    effective = _write_fixture_repo(tmp_path)
+
+    result = _run_inspect(
+        tmp_path,
+        "deps",
+        "--effective",
+        str(effective),
+        "--instance",
+        "rtr-ok",
+        "--max-depth",
+        "3",
+        "--json",
+    )
+    body = json.loads(result.stdout)
+
+    assert body["schema_version"] == "adr0095.inspect.deps.v1"
+    assert body["command"] == "deps"
+    assert body["resolved_instance_id"] == "inst.router.ok"
+    assert body["instance_ref"] == "rtr-ok"
+    assert body["max_depth"] == 3
+    outgoing = {row["instance_id"]: row["labels"] for row in body["direct_outgoing"]}
+    assert outgoing["inst.service.api"] == ["service_ref"]
+    incoming = {row["instance_id"]: row["labels"] for row in body["direct_incoming"]}
+    assert incoming["inst.service.worker"] == ["router_ref"]
+    assert {"instance_id": "inst.service.api", "depth": 1} in body["transitive_outgoing"]
+    assert {"instance_id": "inst.gateway", "depth": 2} in body["transitive_outgoing"]
+    assert body["unresolved_refs"] == []
+
+
 def test_deps_command_returns_exit_code_2_for_unknown_instance(tmp_path: Path) -> None:
     effective = _write_fixture_repo(tmp_path)
 
@@ -342,6 +388,28 @@ def test_deps_command_returns_exit_code_2_for_unknown_instance(tmp_path: Path) -
 
     assert result.returncode == 2
     assert "Unknown instance reference: missing-instance" in result.stdout
+
+
+def test_deps_command_json_returns_error_payload_for_unknown_instance(tmp_path: Path) -> None:
+    effective = _write_fixture_repo(tmp_path)
+
+    result = _run_inspect(
+        tmp_path,
+        "deps",
+        "--effective",
+        str(effective),
+        "--instance",
+        "missing-instance",
+        "--json",
+        check=False,
+    )
+    body = json.loads(result.stdout)
+
+    assert result.returncode == 2
+    assert body["schema_version"] == "adr0095.inspect.deps.v1"
+    assert body["command"] == "deps"
+    assert body["error"]["code"] == "unknown_instance_reference"
+    assert body["error"]["instance_ref"] == "missing-instance"
 
 
 def test_deps_dot_writes_graph_with_edges_and_unresolved_nodes(tmp_path: Path) -> None:

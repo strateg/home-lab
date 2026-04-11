@@ -6,6 +6,11 @@ tasks:
     cmds:
       - "{{.PYTHON}} scripts/inspection/inspect_topology.py summary {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
 
+  summary-json:
+    desc: Topology inspection summary in machine-readable JSON
+    cmds:
+      - "{{.PYTHON}} scripts/inspection/inspect_topology.py summary --json {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
+
   classes:
     desc: Show class hierarchy tree
     cmds:
@@ -51,6 +56,14 @@ tasks:
         - INSTANCE
     cmds:
       - "{{.PYTHON}} scripts/inspection/inspect_topology.py deps --instance {{.INSTANCE}} {{if .MAX_DEPTH}}--max-depth {{.MAX_DEPTH}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
+
+  deps-json:
+    desc: Show dependencies for one instance in machine-readable JSON (INSTANCE=<id|source_id>)
+    requires:
+      vars:
+        - INSTANCE
+    cmds:
+      - "{{.PYTHON}} scripts/inspection/inspect_topology.py deps --instance {{.INSTANCE}} --json {{if .MAX_DEPTH}}--max-depth {{.MAX_DEPTH}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
 
   deps-dot:
     desc: Export instance dependency graph in DOT format
