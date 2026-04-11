@@ -81,6 +81,8 @@ After v1 implementation, the remaining problem is no longer toolkit absence, but
 - `task inspect:capabilities [CLASS=<class_ref>|OBJECT=<object_id>]` — unified capability relation inspection,
 - `task inspect:capabilities-json [CLASS=<class_ref>|OBJECT=<object_id>]` — machine-readable capability relation view.
 
+Instance-scoped commands (`summary`, `instances`, `search`, `deps`, `deps-dot` and their JSON/shadow variants) MAY be narrowed with optional `LAYER=<layer>` and/or `GROUP=<instance_group>` filters in task wrappers.
+
 Optimization direction after v1:
 - inspection surface SHOULD evolve around question-oriented domains rather than only entity dumps:
   - overview,
@@ -231,6 +233,7 @@ Execution note (2026-04-11):
 - `task inspect:deps INSTANCE='rtr-mikrotik-chateau'` возвращает direct/transitive зависимости.
 - `task inspect:deps-typed-shadow INSTANCE='rtr-mikrotik-chateau'` добавляет non-authoritative typed shadow без изменения baseline dependency extraction.
 - `task inspect:deps-dot` создает DOT-файл в `build/diagnostics/`.
+- `task inspect:default LAYER='L5' GROUP='services'` и `task inspect:deps-dot LAYER='L5' GROUP='services'` корректно ограничивают inspection scope.
 - `task inspect:capability-packs` показывает capability-pack зависимости от object classes.
 - `task inspect:capabilities` показывает unified class/object/pack capability traceability.
 - ADR register содержит запись ADR0095.

@@ -44,7 +44,7 @@
 | ---- | ----------- | ---------- |
 | 3.0 | Reconcile ADR0095 analysis/status with actual v1 baseline | ADR, gap analysis, plan, and SWOT reflect current implemented surface |
 | 3.1 | Add `--json` machine-readable output | Structured output contract stabilized (`summary`, `deps`, `inheritance`, `capabilities`) |
-| 3.2 | Add layer/group filters | Scoped inspection for large projects |
+| 3.2 | Add layer/group filters | Scoped inspection for large projects (`summary`, `instances`, `search`, `deps`, `deps-dot`) |
 | 3.3 | Add semantic edge typing | Shadow-mode typed relation classification for `deps` without replacing baseline extractor |
 | 3.4 | Add tests for dependency extractor | Stable behavior on known fixtures |
 | 3.5 | Add inheritance-focused inspection surface | Dedicated lineage/inheritance questions are inspectable without relying only on `classes` tree |
@@ -56,7 +56,7 @@
 
 - [x] ADR0095 docs reflect actual v1 baseline and v2 optimization direction
 - [x] JSON output contract documented
-- [ ] Layer/group filters validated on home-lab topology
+- [x] Layer/group filters validated on home-lab topology
 - [x] Semantic edge typing shadow-mode validated on home-lab topology
 - [x] Inheritance-focused inspection validated on home-lab topology
 - [x] Unified capability inspection validated on home-lab topology
@@ -78,5 +78,4 @@ Completed waves/PR-sized slices:
 - PR-9 semantic typed relation shadow for `deps` (`--typed-shadow`).
 
 Outstanding from Wave 3:
-- layer/group filter contract and implementation (`3.2`),
 - semantic typing promotion decision beyond shadow mode (keep as non-authoritative shadow until promotion criteria are approved).
