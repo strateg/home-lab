@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from enum import IntEnum
 import os
 import subprocess
 import sys
@@ -18,11 +19,19 @@ SUPPORTED_SECRETS_MODES = {"inject", "passthrough", "strict"}
 LEGACY_ROOT_DIRS = ("v4", "v5")
 
 
+class LaneExitCode(IntEnum):
+    OK = 0
+    VALIDATION_ERROR = 1
+    WARNING = 2
+    INFRA_ERROR = 3
+
+
 class LaneAggregateError(RuntimeError):
     """Raised when collect-all mode finishes with one or more failed steps."""
 
-    def __init__(self, failures: list[str]) -> None:
+    def __init__(self, failures: list[str], *, has_timeout: bool = False) -> None:
         self.failures = tuple(failures)
+        self.has_timeout = has_timeout
         super().__init__(f"{len(self.failures)} lane step(s) failed.")
 
 
@@ -58,6 +67,7 @@ def _run_steps(
     commands: list[list[str]], *, timeout: float | None = None, collect_all_errors: bool = False
 ) -> None:
     failures: list[str] = []
+    saw_timeout = False
     for cmd in commands:
         try:
             run(cmd, timeout=timeout)
@@ -65,8 +75,10 @@ def _run_steps(
             if not collect_all_errors:
                 raise
             failures.append(_record_failure(cmd, exc, timeout=timeout))
+            if isinstance(exc, subprocess.TimeoutExpired):
+                saw_timeout = True
     if failures:
-        raise LaneAggregateError(failures)
+        raise LaneAggregateError(failures, has_timeout=saw_timeout)
 
 
 def _validate_v5_commands(secrets_mode: str) -> list[list[str]]:
@@ -201,9 +213,34 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+def _classify_lane_failure(exc: Exception) -> LaneExitCode:
+    if isinstance(exc, LaneAggregateError):
+        return LaneExitCode.INFRA_ERROR if exc.has_timeout else LaneExitCode.VALIDATION_ERROR
+    if isinstance(exc, subprocess.TimeoutExpired):
+        return LaneExitCode.INFRA_ERROR
+    if isinstance(exc, subprocess.CalledProcessError):
+        return LaneExitCode.VALIDATION_ERROR
+    if isinstance(exc, RuntimeError) and "Legacy root directories detected:" in str(exc):
+        return LaneExitCode.VALIDATION_ERROR
+    return LaneExitCode.INFRA_ERROR
+
+
+def _emit_failure(exc: Exception) -> LaneExitCode:
+    exit_code = _classify_lane_failure(exc)
+    if isinstance(exc, LaneAggregateError):
+        print(f"[lane] FAIL: {exc}", file=sys.stderr, flush=True)
+        for failure in exc.failures:
+            print(f"[lane] FAIL: {failure}", file=sys.stderr, flush=True)
+        print(f"[lane] EXIT: {exit_code.name} ({int(exit_code)})", file=sys.stderr, flush=True)
+        return exit_code
+
+    print(f"[lane] FAIL: {exc}", file=sys.stderr, flush=True)
+    print(f"[lane] EXIT: {exit_code.name} ({int(exit_code)})", file=sys.stderr, flush=True)
+    return exit_code
+
+
 def main() -> int:
     args = parse_args()
-    _assert_workspace_layout()
     handlers = {
         "validate-v5": lambda: validate_v5(
             step_timeout=args.step_timeout,
@@ -222,13 +259,11 @@ def main() -> int:
         "export-v5-bindings": lambda: export_v5_bindings(step_timeout=args.step_timeout),
     }
     try:
+        _assert_workspace_layout()
         handlers[args.command]()
-    except LaneAggregateError as exc:
-        print(f"[lane] FAIL: {exc}", file=sys.stderr, flush=True)
-        for failure in exc.failures:
-            print(f"[lane] FAIL: {failure}", file=sys.stderr, flush=True)
-        return 1
-    return 0
+    except (LaneAggregateError, subprocess.CalledProcessError, subprocess.TimeoutExpired, RuntimeError) as exc:
+        return int(_emit_failure(exc))
+    return int(LaneExitCode.OK)
 
 
 if __name__ == "__main__":

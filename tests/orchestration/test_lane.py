@@ -30,6 +30,15 @@ def test_parse_args_accepts_timeout_and_collect_all() -> None:
     assert args.collect_all_errors is True
 
 
+def test_lane_exit_code_values_are_stable() -> None:
+    lane = _load_lane_module()
+
+    assert int(lane.LaneExitCode.OK) == 0
+    assert int(lane.LaneExitCode.VALIDATION_ERROR) == 1
+    assert int(lane.LaneExitCode.WARNING) == 2
+    assert int(lane.LaneExitCode.INFRA_ERROR) == 3
+
+
 def test_run_passes_timeout_to_subprocess(monkeypatch: pytest.MonkeyPatch) -> None:
     lane = _load_lane_module()
     captured: dict[str, object] = {}
@@ -70,6 +79,7 @@ def test_validate_v5_collect_all_errors_runs_all_steps(monkeypatch: pytest.Monke
 
     assert len(calls) == 5
     assert all(timeout == 45 for _, timeout in calls)
+    assert excinfo.value.has_timeout is True
     assert excinfo.value.failures == (
         f"{lane.PYTHON} scripts/validation/validate_v5_scaffold.py exited with code 2",
         f"{lane.PYTHON} scripts/validation/validate_adr0088_governance.py --diagnostics-json build/diagnostics/report.json --output-json {lane.ADR0088_GOVERNANCE_REPORT_JSON} --mode enforce timed out after 45s",
@@ -114,13 +124,73 @@ def test_main_returns_nonzero_for_collect_all_failures(monkeypatch: pytest.Monke
                 [
                     "python step-one exited with code 2",
                     "python step-two timed out after 20s",
-                ]
+                ],
+                has_timeout=True,
             )
         ),
     )
 
-    assert lane.main() == 1
+    assert lane.main() == lane.LaneExitCode.INFRA_ERROR
     captured = capsys.readouterr()
     assert "[lane] FAIL: 2 lane step(s) failed." in captured.err
     assert "[lane] FAIL: python step-one exited with code 2" in captured.err
     assert "[lane] FAIL: python step-two timed out after 20s" in captured.err
+    assert "[lane] EXIT: INFRA_ERROR (3)" in captured.err
+
+
+def test_main_returns_validation_exit_code_for_workspace_layout_error(
+    monkeypatch: pytest.MonkeyPatch, capsys
+) -> None:
+    lane = _load_lane_module()
+
+    monkeypatch.setattr(
+        lane,
+        "parse_args",
+        lambda argv=None: lane.argparse.Namespace(
+            command="validate-v5",
+            step_timeout=None,
+            collect_all_errors=False,
+        ),
+    )
+    monkeypatch.setattr(
+        lane,
+        "_assert_workspace_layout",
+        lambda: (_ for _ in ()).throw(RuntimeError("Legacy root directories detected: v4. Remove them.")),
+    )
+
+    assert lane.main() == lane.LaneExitCode.VALIDATION_ERROR
+    captured = capsys.readouterr()
+    assert "[lane] FAIL: Legacy root directories detected: v4. Remove them." in captured.err
+    assert "[lane] EXIT: VALIDATION_ERROR (1)" in captured.err
+
+
+def test_main_returns_validation_exit_code_for_subprocess_failure(
+    monkeypatch: pytest.MonkeyPatch, capsys
+) -> None:
+    lane = _load_lane_module()
+
+    monkeypatch.setattr(
+        lane,
+        "parse_args",
+        lambda argv=None: lane.argparse.Namespace(
+            command="validate-v5",
+            step_timeout=None,
+            collect_all_errors=False,
+        ),
+    )
+    monkeypatch.setattr(lane, "_assert_workspace_layout", lambda: None)
+    monkeypatch.setattr(
+        lane,
+        "validate_v5",
+        lambda **kwargs: (_ for _ in ()).throw(
+            subprocess.CalledProcessError(
+                returncode=7,
+                cmd=[lane.PYTHON, "scripts/validation/validate_v5_scaffold.py"],
+            )
+        ),
+    )
+
+    assert lane.main() == lane.LaneExitCode.VALIDATION_ERROR
+    captured = capsys.readouterr()
+    assert "returned non-zero exit status 7" in captured.err
+    assert "[lane] EXIT: VALIDATION_ERROR (1)" in captured.err
