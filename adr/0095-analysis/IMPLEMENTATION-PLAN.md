@@ -15,14 +15,14 @@
 
 ### Wave 1 Gate
 
-- [ ] `task inspect:default` works
-- [ ] `task inspect:classes` works
-- [ ] `task inspect:objects` works
-- [ ] `task inspect:instances` works
-- [ ] `task inspect:search QUERY='mikrotik'` works
-- [ ] `task inspect:deps INSTANCE='rtr-mikrotik-chateau'` works
-- [ ] `task inspect:deps-dot` generates DOT file
-- [ ] `task inspect:capability-packs` shows pack catalog + class/object dependency bindings
+- [x] `task inspect:default` works
+- [x] `task inspect:classes` works
+- [x] `task inspect:objects` works
+- [x] `task inspect:instances` works
+- [x] `task inspect:search QUERY='mikrotik'` works
+- [x] `task inspect:deps INSTANCE='rtr-mikrotik-chateau'` works
+- [x] `task inspect:deps-dot` generates DOT file
+- [x] `task inspect:capability-packs` shows pack catalog + class/object dependency bindings
 
 ## Wave 2 — Task UX and Docs
 
@@ -36,18 +36,47 @@
 ### Wave 2 Gate
 
 - [ ] Manual includes inspect command section
-- [ ] ADR register updated
+- [x] ADR register updated
 
-## Wave 3 — Hardening (Next Iteration)
+## Wave 3 — Hardening (Execution in progress)
 
 | Task | Description | Acceptance |
 | ---- | ----------- | ---------- |
-| 3.1 | Add `--json` machine-readable output | Structured output contract stabilized |
+| 3.0 | Reconcile ADR0095 analysis/status with actual v1 baseline | ADR, gap analysis, plan, and SWOT reflect current implemented surface |
+| 3.1 | Add `--json` machine-readable output | Structured output contract stabilized (`summary`, `deps`, `inheritance`, `capabilities`) |
 | 3.2 | Add layer/group filters | Scoped inspection for large projects |
-| 3.3 | Add semantic edge typing | Reduced false positives/negatives |
+| 3.3 | Add semantic edge typing | Shadow-mode typed relation classification for `deps` without replacing baseline extractor |
 | 3.4 | Add tests for dependency extractor | Stable behavior on known fixtures |
+| 3.5 | Add inheritance-focused inspection surface | Dedicated lineage/inheritance questions are inspectable without relying only on `classes` tree |
+| 3.6 | Add unified capability inspection surface | Class/object/pack capability relations become inspectable through one coherent domain surface |
+| 3.7 | Introduce compact-vs-detailed output contract | Default output remains compact while detailed and machine-readable paths stay explicit |
+| 3.8 | Refactor internal inspection code into reusable concerns | Canonical CLI remains stable while loaders/indexes/extractors/formatters are separated internally |
 
 ### Wave 3 Gate
 
-- [ ] JSON output contract documented
-- [ ] Filters and semantic edges validated on home-lab topology
+- [x] ADR0095 docs reflect actual v1 baseline and v2 optimization direction
+- [x] JSON output contract documented
+- [ ] Layer/group filters validated on home-lab topology
+- [x] Semantic edge typing shadow-mode validated on home-lab topology
+- [x] Inheritance-focused inspection validated on home-lab topology
+- [x] Unified capability inspection validated on home-lab topology
+- [x] Compact-vs-detailed output behavior documented and covered by tests
+- [x] Internal modularization preserves canonical CLI and `task inspect:*` contracts
+
+## Current Execution Snapshot (2026-04-11)
+
+Completed waves/PR-sized slices:
+- PR-0 baseline command contract lock + error paths.
+- PR-1 loader/index extraction.
+- PR-2 relation extraction.
+- PR-3 presenter/export extraction.
+- PR-4 inheritance-focused inspection surface.
+- PR-5 unified capability inspection surface.
+- PR-6 compact vs detailed output contract (`objects`, `instances`).
+- PR-7 JSON contracts for `summary` and `deps`.
+- PR-8 JSON contracts for `inheritance` and `capabilities`.
+- PR-9 semantic typed relation shadow for `deps` (`--typed-shadow`).
+
+Outstanding from Wave 3:
+- layer/group filter contract and implementation (`3.2`),
+- semantic typing promotion decision beyond shadow mode (keep as non-authoritative shadow until promotion criteria are approved).

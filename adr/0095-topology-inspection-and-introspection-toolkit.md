@@ -20,6 +20,13 @@ This slows down:
 - authoring of new instances/objects,
 - acceptance test evidence collection.
 
+After v1 implementation, the remaining problem is no longer toolkit absence, but toolkit optimization:
+- dependency traceability is present but heuristic,
+- class inheritance is visible but not isolated as a dedicated inspection question,
+- capability information is spread across class/object/pack structures,
+- some outputs are materially larger than compact first-screen summaries,
+- multiple concerns are concentrated in one CLI module.
+
 ---
 
 ## Problem Statement
@@ -56,13 +63,32 @@ This slows down:
 
 Вводится namespace `inspect` с командами:
 - `task inspect:default` — сводка (classes/objects/instances + группы),
+- `task inspect:summary-json` — machine-readable JSON summary,
 - `task inspect:classes` — дерево классов,
+- `task inspect:inheritance [CLASS=<class_ref>]` — summary/focused lineage inspection,
+- `task inspect:inheritance-json [CLASS=<class_ref>]` — machine-readable inheritance view,
 - `task inspect:objects` — объекты, сгруппированные по class,
+- `task inspect:objects-detailed` — расширенный детальный object view,
 - `task inspect:instances` — экземпляры по layer,
+- `task inspect:instances-detailed` — расширенный детальный instance view,
 - `task inspect:search QUERY='<regex>'` — поиск экземпляров,
 - `task inspect:deps INSTANCE='<id|source_id>' [MAX_DEPTH=N]` — локальный граф зависимостей,
+- `task inspect:deps-typed-shadow INSTANCE='<id|source_id>'` — dependency view + non-authoritative typed relation shadow,
+- `task inspect:deps-json INSTANCE='<id|source_id>'` — machine-readable dependency view,
+- `task inspect:deps-json-typed-shadow INSTANCE='<id|source_id>'` — dependency JSON + typed shadow block,
 - `task inspect:deps-dot [OUTPUT=path]` — экспорт полного instance dependency graph в DOT,
-- `task inspect:capability-packs` — инспекция capability packs и матрицы `class -> packs -> objects`.
+- `task inspect:capability-packs` — инспекция capability packs и матрицы `class -> packs -> objects`,
+- `task inspect:capabilities [CLASS=<class_ref>|OBJECT=<object_id>]` — unified capability relation inspection,
+- `task inspect:capabilities-json [CLASS=<class_ref>|OBJECT=<object_id>]` — machine-readable capability relation view.
+
+Optimization direction after v1:
+- inspection surface SHOULD evolve around question-oriented domains rather than only entity dumps:
+  - overview,
+  - inheritance / lineage,
+  - dependency traceability,
+  - capability traceability,
+  - export / machine-readable views;
+- public `task inspect:*` namespace remains the stable operator contract.
 
 ### D3. Контракт графа зависимостей
 
@@ -89,12 +115,71 @@ Capability-pack inspection contract:
     - object enabled packs отсутствуют в catalog,
     - object enabled pack не объявлен в class `capability_packs`.
 
-### D5. Fail-fast поведение
+Capability inspection after v1 SHOULD cover three descriptive layers:
+- class intent (`required_capabilities`, `optional_capabilities`, `capability_packs`);
+- object effective functionality (`enabled_capabilities`, `enabled_packs`);
+- pack aggregation (`capabilities`, `class_ref`, object usage).
+
+### D5. Optimization direction for implementation boundaries
+
+The canonical CLI entrypoint remains:
+
+`scripts/inspection/inspect_topology.py`
+
+but internal implementation SHOULD be decomposed into reusable concerns rather than one expanding procedural surface:
+- artifact loading,
+- normalized indexes / resolvers,
+- relation extractors,
+- output formatters / presenters,
+- CLI command wiring.
+
+This preserves one public entrypoint while allowing code minimization and internal reuse.
+
+### D6. Compact vs detailed output contract
+
+Human-facing inspection output SHOULD default to compact, high-signal summaries.
+
+Detailed output remains admissible, but SHOULD be explicit rather than implicit.
+
+Compact output goals:
+- show the highest-value relationships first;
+- prefer grouped summaries over raw full dumps by default;
+- separate overview questions from deep trace questions;
+- keep machine-readable output separate from human-readable compact output.
+
+### D7. Machine-readable output direction
+
+The next iteration SHOULD add structured machine-readable output for inspection commands where stable contracts are feasible.
+
+Initial machine-readable priority areas:
+- dependency traceability,
+- inheritance / lineage,
+- capability relations,
+- overview summaries.
+
+### D8. Semantic relation typing direction
+
+The next iteration SHOULD evolve from syntax-only relation discovery toward semantic relation typing where feasible.
+
+Target semantic domains include:
+- network relations,
+- storage relations,
+- runtime / host-placement relations,
+- capability relations,
+- inheritance / binding relations.
+
+Typed relations are intended to reduce ambiguity between “reference exists” and “runtime-significant dependency”.
+
+Execution note (2026-04-11):
+- semantic relation typing is currently delivered in shadow mode for `deps` (`--typed-shadow`) and corresponding JSON shadow block;
+- baseline dependency extraction remains authoritative until promotion criteria are accepted.
+
+### D9. Fail-fast поведение
 
 Если effective topology отсутствует, toolkit завершает выполнение с actionable ошибкой:
 - запускать после `task validate:default` (или другой команды, формирующей `build/effective-topology.json`).
 
-### D6. Scope ограничения (v1)
+### D10. Scope ограничения (v1)
 
 В v1 toolkit:
 - read-only;
@@ -112,12 +197,14 @@ Capability-pack inspection contract:
 - Быстрый доступ к деревьям и зависимостям без ad-hoc скриптов.
 - Улучшение DX для ADR0092-0094 миграционных проверок и TUC evidence.
 - Единый task UX (`inspect:*`) в стиле ADR0077.
+- После v1 дальнейшая оптимизация может происходить без смены канонического entrypoint.
 
 ### Negative / Trade-offs
 
 - Dependency graph в v1 зависит от naming-конвенций (`*_ref(s)`), возможны false negatives.
 - Для корректности требуется свежий effective artifact.
 - Без layer-aware semantic rules возможны ребра, которые логически допустимы, но не являются runtime-dependency.
+- Более компактные и question-oriented surfaces требуют дополнительной дисциплины в contract testing.
 
 ---
 
@@ -126,9 +213,12 @@ Capability-pack inspection contract:
 1. Ввести `inspect` namespace и базовые команды.
 2. Зафиксировать ADR и добавить в `adr/REGISTER.md`.
 3. Обновить manual command reference.
-4. Расширить toolkit (следующая итерация):
-   - semantic edge typing (network/storage/runtime),
+4. Оптимизировать toolkit (следующая итерация):
+   - internal modularization behind the canonical CLI,
+   - question-oriented inspection surface,
+   - compact-vs-detailed output discipline,
    - machine-readable JSON output mode,
+   - semantic edge typing (network/storage/runtime/capability/inheritance),
    - optional graph filters по layer/group/capability.
 
 ---
@@ -136,8 +226,24 @@ Capability-pack inspection contract:
 ## Acceptance Criteria
 
 - `task inspect:default` выполняется на актуальном effective topology.
-- Команды `classes|objects|instances|search|deps|deps-dot|capability-packs` доступны и документированы.
+- Команды `classes|inheritance|objects|instances|search|deps|deps-dot|capability-packs|capabilities` доступны и документированы.
+- Machine-readable JSON paths доступны для `summary|deps|inheritance|capabilities`.
 - `task inspect:deps INSTANCE='rtr-mikrotik-chateau'` возвращает direct/transitive зависимости.
+- `task inspect:deps-typed-shadow INSTANCE='rtr-mikrotik-chateau'` добавляет non-authoritative typed shadow без изменения baseline dependency extraction.
 - `task inspect:deps-dot` создает DOT-файл в `build/diagnostics/`.
 - `task inspect:capability-packs` показывает capability-pack зависимости от object classes.
+- `task inspect:capabilities` показывает unified class/object/pack capability traceability.
 - ADR register содержит запись ADR0095.
+
+---
+
+## References
+
+- `adr/0095-analysis/GAP-ANALYSIS.md`
+- `adr/0095-analysis/IMPLEMENTATION-PLAN.md`
+- `adr/0095-analysis/SWOT-ANALYSIS.md`
+- `adr/0095-analysis/REFACTORING-PLAN.md`
+- `adr/0095-analysis/OPTIMIZATION-IMPLEMENTATION-PLAN.md`
+- `scripts/inspection/inspect_topology.py`
+- `taskfiles/inspect.yml`
+- `tests/test_inspect_topology.py`
