@@ -35,7 +35,7 @@
 
 ### Wave 2 Gate
 
-- [ ] Manual includes inspect command section
+- [x] Manual includes inspect command section
 - [x] ADR register updated
 
 ## Wave 3 — Hardening (Execution in progress)
@@ -51,6 +51,7 @@
 | 3.6 | Add unified capability inspection surface | Class/object/pack capability relations become inspectable through one coherent domain surface |
 | 3.7 | Introduce compact-vs-detailed output contract | Default output remains compact while detailed and machine-readable paths stay explicit |
 | 3.8 | Refactor internal inspection code into reusable concerns | Canonical CLI remains stable while loaders/indexes/extractors/formatters are separated internally |
+| 3.9 | Add typed-shadow diagnostics artifacts and threshold gate | `typed-shadow-report.{json,txt}` artifacts are generated and gate mode can fail on threshold mismatch |
 
 ### Wave 3 Gate
 
@@ -62,6 +63,7 @@
 - [x] Unified capability inspection validated on home-lab topology
 - [x] Compact-vs-detailed output behavior documented and covered by tests
 - [x] Internal modularization preserves canonical CLI and `task inspect:*` contracts
+- [x] Typed-shadow diagnostics artifacts and threshold gate are wired (`task inspect:typed-shadow-report`, `task inspect:typed-shadow-gate`)
 
 ## Current Execution Snapshot (2026-04-11)
 
@@ -76,6 +78,7 @@ Completed waves/PR-sized slices:
 - PR-7 JSON contracts for `summary` and `deps`.
 - PR-8 JSON contracts for `inheritance` and `capabilities`.
 - PR-9 semantic typed relation shadow for `deps` (`--typed-shadow`).
+- PR-10 typed-shadow diagnostics artifacts + threshold gate (`task inspect:typed-shadow-report`, `task inspect:typed-shadow-gate`).
 
 Outstanding from Wave 3:
 - semantic typing promotion decision beyond shadow mode (keep as non-authoritative shadow until promotion criteria are approved).

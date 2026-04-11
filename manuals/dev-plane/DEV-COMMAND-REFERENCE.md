@@ -60,6 +60,8 @@ task inspect:deps INSTANCE='rtr-mikrotik-chateau'               # Direct/incomin
 task inspect:deps-typed-shadow INSTANCE='rtr-mikrotik-chateau'  # deps + non-authoritative typed relation shadow
 task inspect:deps-json INSTANCE='rtr-mikrotik-chateau'          # Dependency JSON
 task inspect:deps-json-typed-shadow INSTANCE='rtr-mikrotik-chateau' # Dependency JSON + typed shadow block
+task inspect:typed-shadow-report                                # Write typed-shadow diagnostics report (JSON + text)
+task inspect:typed-shadow-gate                                  # Same as report + fail when thresholds are not met
 task inspect:deps-dot                                           # Export DOT graph to build/diagnostics/
 task inspect:capability-packs                                   # class -> packs -> objects inspection
 task inspect:capabilities                                       # Unified class/object/pack capability summary
@@ -84,7 +86,14 @@ task inspect:default LAYER='L5' GROUP='services'
 task inspect:summary-json LAYER='L5' GROUP='services'
 task inspect:search QUERY='mikrotik' LAYER='L3' GROUP='network'
 task inspect:deps-dot LAYER='L5' GROUP='services' OUTPUT='build/diagnostics/topology-instance-deps-l5-services.dot'
+task inspect:typed-shadow-report LAYER='L5' GROUP='services'
 ```
+
+### Typed shadow interpretation
+
+- `deps-typed-shadow` and `deps-json-typed-shadow` are advisory/diagnostic only.
+- `generic_ref` means label semantics were not specific enough for domain typing and should be interpreted as unresolved semantic specificity, not as a dependency extraction error.
+- `typed-shadow-gate` is a readiness gate; failure means promotion criteria are not yet met, not that baseline `deps` extraction is broken.
 
 ---
 

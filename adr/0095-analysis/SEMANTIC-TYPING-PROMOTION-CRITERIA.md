@@ -43,7 +43,10 @@ Required:
 - `generic_ref` share does not exceed **40%** of classified labels (signals acceptable domain specificity).
 
 Evidence:
-- dedicated typed-shadow comparison report artifact in `build/diagnostics/` (to be added in next wave).
+- dedicated typed-shadow comparison report artifacts:
+  - `build/diagnostics/typed-shadow-report.json`
+  - `build/diagnostics/typed-shadow-report.txt`
+  generated via `task inspect:typed-shadow-report`.
 
 ### G3 — Error/Drift Safety
 
@@ -53,6 +56,7 @@ Required:
 
 Evidence:
 - parity tests comparing baseline `deps` vs `deps --typed-shadow` edge identity.
+- threshold gate execution path: `task inspect:typed-shadow-gate`.
 
 ### G4 — Operator Usability
 
@@ -62,7 +66,7 @@ Required:
 
 Evidence:
 - `manuals/dev-plane/DEV-COMMAND-REFERENCE.md`
-- follow-up update in troubleshooting/operator docs (if needed).
+- typed shadow interpretation note for `generic_ref` semantics in command reference.
 
 ### G5 — ADR/Analysis Synchronization
 
@@ -90,8 +94,8 @@ If any gate fails, keep shadow mode and treat typed output as advisory only.
 
 ## 4. Immediate Follow-up Work (implementation prep)
 
-1. Add typed-shadow comparison report utility (`build/diagnostics/typed-shadow-report.{json,txt}`).
-2. Add CI-friendly contract test for typed-shadow coverage thresholds.
-3. Add explicit troubleshooting note for interpreting `generic_ref`.
+1. [x] Add typed-shadow comparison report utility (`build/diagnostics/typed-shadow-report.{json,txt}`).
+2. [x] Add CI-friendly contract test for typed-shadow coverage thresholds.
+3. [x] Add explicit troubleshooting note for interpreting `generic_ref`.
 
 These items are implementation prep and do not alter authoritative dependency behavior by themselves.

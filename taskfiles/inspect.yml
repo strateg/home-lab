@@ -86,6 +86,16 @@ tasks:
     cmds:
       - "{{.PYTHON}} scripts/inspection/inspect_topology.py deps --instance {{.INSTANCE}} --json --typed-shadow {{if .MAX_DEPTH}}--max-depth {{.MAX_DEPTH}}{{end}} {{if .LAYER}}--layer {{.LAYER}}{{end}} {{if .GROUP}}--group {{.GROUP}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
 
+  typed-shadow-report:
+    desc: Generate ADR0095 typed-shadow coverage report artifacts (JSON + text)
+    cmds:
+      - "{{.PYTHON}} scripts/inspection/generate_typed_shadow_report.py {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}} {{if .LAYER}}--layer {{.LAYER}}{{end}} {{if .GROUP}}--group {{.GROUP}}{{end}} {{if .JSON_OUTPUT}}--json-output {{.JSON_OUTPUT}}{{end}} {{if .TEXT_OUTPUT}}--text-output {{.TEXT_OUTPUT}}{{end}} {{if .MIN_COVERAGE}}--min-coverage {{.MIN_COVERAGE}}{{end}} {{if .MAX_GENERIC_SHARE}}--max-generic-share {{.MAX_GENERIC_SHARE}}{{end}}"
+
+  typed-shadow-gate:
+    desc: Generate typed-shadow report and fail when G2 thresholds are not met
+    cmds:
+      - "{{.PYTHON}} scripts/inspection/generate_typed_shadow_report.py --fail-on-threshold {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}} {{if .LAYER}}--layer {{.LAYER}}{{end}} {{if .GROUP}}--group {{.GROUP}}{{end}} {{if .JSON_OUTPUT}}--json-output {{.JSON_OUTPUT}}{{end}} {{if .TEXT_OUTPUT}}--text-output {{.TEXT_OUTPUT}}{{end}} {{if .MIN_COVERAGE}}--min-coverage {{.MIN_COVERAGE}}{{end}} {{if .MAX_GENERIC_SHARE}}--max-generic-share {{.MAX_GENERIC_SHARE}}{{end}}"
+
   deps-dot:
     desc: Export instance dependency graph in DOT format
     cmds:

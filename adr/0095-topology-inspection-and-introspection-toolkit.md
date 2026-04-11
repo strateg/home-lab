@@ -174,6 +174,9 @@ Typed relations are intended to reduce ambiguity between “reference exists” 
 
 Execution note (2026-04-11):
 - semantic relation typing is currently delivered in shadow mode for `deps` (`--typed-shadow`) and corresponding JSON shadow block;
+- diagnostics artifacts for promotion-gate evidence are available via:
+  - `task inspect:typed-shadow-report` (`build/diagnostics/typed-shadow-report.{json,txt}`)
+  - `task inspect:typed-shadow-gate` (same artifacts + threshold exit-code gate);
 - baseline dependency extraction remains authoritative until promotion criteria are accepted (see `adr/0095-analysis/SEMANTIC-TYPING-PROMOTION-CRITERIA.md`).
 
 ### D9. Fail-fast поведение
