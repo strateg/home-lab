@@ -1,6 +1,6 @@
 # ADR 0095 IMPLEMENTATION PLAN
 
-**Last updated:** 2026-04-08
+**Last updated:** 2026-04-11
 
 ## Wave 1 — Baseline Toolkit
 
@@ -11,6 +11,7 @@
 | 1.3 | Implement search mode | Regex query returns matching instances |
 | 1.4 | Implement dependency extraction | `deps` shows direct/incoming/transitive refs |
 | 1.5 | Implement DOT export | `deps-dot` writes graph under `build/diagnostics/` |
+| 1.6 | Implement capability-pack inspection | `capability-packs` shows `class -> packs -> objects` matrix and contract warnings |
 
 ### Wave 1 Gate
 
@@ -21,6 +22,7 @@
 - [ ] `task inspect:search QUERY='mikrotik'` works
 - [ ] `task inspect:deps INSTANCE='rtr-mikrotik-chateau'` works
 - [ ] `task inspect:deps-dot` generates DOT file
+- [ ] `task inspect:capability-packs` shows pack catalog + class/object dependency bindings
 
 ## Wave 2 — Task UX and Docs
 

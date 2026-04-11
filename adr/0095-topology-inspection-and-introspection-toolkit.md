@@ -29,7 +29,8 @@ This slows down:
 2. Поиска экземпляров по паттернам.
 3. Быстрой интроспекции графа зависимостей экземпляров.
 4. Экспорта dependency graph для визуализации/дебага.
-5. Стандартизированного запуска через `task inspect:*`.
+5. Инспекции capability packs и их зависимостей от object classes.
+6. Стандартизированного запуска через `task inspect:*`.
 
 ---
 
@@ -60,7 +61,8 @@ This slows down:
 - `task inspect:instances` — экземпляры по layer,
 - `task inspect:search QUERY='<regex>'` — поиск экземпляров,
 - `task inspect:deps INSTANCE='<id|source_id>' [MAX_DEPTH=N]` — локальный граф зависимостей,
-- `task inspect:deps-dot [OUTPUT=path]` — экспорт полного instance dependency graph в DOT.
+- `task inspect:deps-dot [OUTPUT=path]` — экспорт полного instance dependency graph в DOT,
+- `task inspect:capability-packs` — инспекция capability packs и матрицы `class -> packs -> objects`.
 
 ### D3. Контракт графа зависимостей
 
@@ -73,12 +75,26 @@ Graph extraction contract:
   - short alias без префикса `inst.`;
 - unresolved refs сохраняются отдельно и показываются как отдельные узлы при `deps-dot`.
 
-### D4. Fail-fast поведение
+### D4. Контракт инспекции capability packs
+
+Capability-pack inspection contract:
+- source of truth для pack catalog: `framework.capability_packs` из topology manifest;
+- class dependencies: `classes.*.capability_packs` из effective topology;
+- object bindings: `objects.*.enabled_packs` + class binding (`materializes_class` / `class_ref` / `extends_class`);
+- toolkit показывает:
+  - snapshot pack catalog (`pack_id`, `class_ref`, capability count, object usage),
+  - matrix `class -> declared packs -> bound objects`,
+  - contract warnings:
+    - class pack refs отсутствуют в catalog,
+    - object enabled packs отсутствуют в catalog,
+    - object enabled pack не объявлен в class `capability_packs`.
+
+### D5. Fail-fast поведение
 
 Если effective topology отсутствует, toolkit завершает выполнение с actionable ошибкой:
 - запускать после `task validate:default` (или другой команды, формирующей `build/effective-topology.json`).
 
-### D5. Scope ограничения (v1)
+### D6. Scope ограничения (v1)
 
 В v1 toolkit:
 - read-only;
@@ -120,7 +136,8 @@ Graph extraction contract:
 ## Acceptance Criteria
 
 - `task inspect:default` выполняется на актуальном effective topology.
-- Команды `classes|objects|instances|search|deps|deps-dot` доступны и документированы.
+- Команды `classes|objects|instances|search|deps|deps-dot|capability-packs` доступны и документированы.
 - `task inspect:deps INSTANCE='rtr-mikrotik-chateau'` возвращает direct/transitive зависимости.
 - `task inspect:deps-dot` создает DOT-файл в `build/diagnostics/`.
+- `task inspect:capability-packs` показывает capability-pack зависимости от object classes.
 - ADR register содержит запись ADR0095.

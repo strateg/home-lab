@@ -11,6 +11,8 @@ from collections import defaultdict, deque
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 REF_KEY_PATTERN = re.compile(r".*(_ref|_refs)$")
 
 
@@ -37,6 +39,68 @@ def _flatten_instances(payload: dict[str, Any]) -> list[dict[str, Any]]:
                 item_copy["_group"] = group_name
                 items.append(item_copy)
     return items
+
+
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
+def _resolve_existing_path(path_raw: str, *, bases: list[Path]) -> Path:
+    candidate = Path(path_raw)
+    if candidate.is_absolute():
+        return candidate
+    for base in bases:
+        resolved = (base / candidate).resolve()
+        if resolved.exists():
+            return resolved
+    return (bases[0] / candidate).resolve()
+
+
+def _load_yaml(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        raise FileNotFoundError(f"YAML file not found: {path}")
+    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(f"invalid YAML payload type at {path}: {type(payload).__name__}")
+    return payload
+
+
+def _load_capability_pack_catalog(
+    payload: dict[str, Any],
+    *,
+    effective_path: Path,
+) -> tuple[dict[str, dict[str, Any]], Path]:
+    topology_manifest = payload.get("topology_manifest") or "topology/topology.yaml"
+    manifest_path = _resolve_existing_path(
+        str(topology_manifest),
+        bases=[Path.cwd(), _repo_root(), effective_path.parent, effective_path.parent.parent],
+    )
+    manifest = _load_yaml(manifest_path)
+    framework = manifest.get("framework", {})
+    if not isinstance(framework, dict):
+        raise ValueError(f"invalid framework section in topology manifest: {manifest_path}")
+    packs_rel = framework.get("capability_packs")
+    if not isinstance(packs_rel, str) or not packs_rel.strip():
+        raise ValueError(f"framework.capability_packs missing in topology manifest: {manifest_path}")
+
+    packs_path = _resolve_existing_path(
+        packs_rel,
+        bases=[manifest_path.parent, Path.cwd(), _repo_root()],
+    )
+    packs_payload = _load_yaml(packs_path)
+    packs_raw = packs_payload.get("packs", [])
+    if not isinstance(packs_raw, list):
+        raise ValueError(f"invalid packs list in capability catalog: {packs_path}")
+
+    packs: dict[str, dict[str, Any]] = {}
+    for row in packs_raw:
+        if not isinstance(row, dict):
+            continue
+        pack_id = row.get("id")
+        if not isinstance(pack_id, str) or not pack_id:
+            continue
+        packs[pack_id] = row
+    return packs, packs_path
 
 
 def _source_aliases(instances: list[dict[str, Any]]) -> dict[str, str]:
@@ -126,6 +190,131 @@ def _print_summary(payload: dict[str, Any], instances: list[dict[str, Any]]) -> 
         for group_name in sorted(groups):
             size = len(groups[group_name]) if isinstance(groups[group_name], list) else 0
             print(f"  - {group_name}: {size}")
+
+
+def _object_class_ref(object_payload: dict[str, Any]) -> str | None:
+    for key in ("materializes_class", "class_ref", "extends_class"):
+        value = object_payload.get(key)
+        if isinstance(value, str) and value:
+            return value
+    return None
+
+
+def _print_capability_packs(payload: dict[str, Any], *, effective_path: Path) -> None:
+    classes = payload.get("classes", {})
+    objects = payload.get("objects", {})
+    if not isinstance(classes, dict):
+        classes = {}
+    if not isinstance(objects, dict):
+        objects = {}
+
+    packs_catalog, packs_path = _load_capability_pack_catalog(payload, effective_path=effective_path)
+
+    class_pack_refs: dict[str, list[str]] = {}
+    for class_id, class_payload in classes.items():
+        if not isinstance(class_payload, dict):
+            continue
+        pack_refs = class_payload.get("capability_packs", []) or []
+        if not isinstance(pack_refs, list):
+            continue
+        normalized = [value for value in pack_refs if isinstance(value, str) and value]
+        if normalized:
+            class_pack_refs[class_id] = sorted(set(normalized))
+
+    class_objects: dict[str, list[str]] = defaultdict(list)
+    object_enabled_packs: dict[str, list[str]] = {}
+    for object_id, object_payload in objects.items():
+        if not isinstance(object_payload, dict):
+            continue
+        class_ref = _object_class_ref(object_payload)
+        if isinstance(class_ref, str):
+            class_objects[class_ref].append(object_id)
+        enabled_packs = object_payload.get("enabled_packs", []) or []
+        if isinstance(enabled_packs, list):
+            normalized = sorted({value for value in enabled_packs if isinstance(value, str) and value})
+            if normalized:
+                object_enabled_packs[object_id] = normalized
+
+    object_pack_usage: dict[str, list[str]] = defaultdict(list)
+    object_pack_usage_by_class: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
+    for object_id, packs in object_enabled_packs.items():
+        object_payload = objects.get(object_id, {})
+        class_ref = _object_class_ref(object_payload) if isinstance(object_payload, dict) else None
+        for pack_id in packs:
+            object_pack_usage[pack_id].append(object_id)
+            if isinstance(class_ref, str):
+                object_pack_usage_by_class[class_ref][pack_id].append(object_id)
+
+    missing_class_pack_refs = sorted(
+        {
+            pack_id
+            for refs in class_pack_refs.values()
+            for pack_id in refs
+            if pack_id not in packs_catalog
+        }
+    )
+    missing_object_pack_refs = sorted({pack_id for pack_id in object_pack_usage if pack_id not in packs_catalog})
+
+    print("Capability Packs Inspection")
+    print("===========================")
+    print(f"catalog path: {packs_path}")
+    print(f"catalog packs: {len(packs_catalog)}")
+    print(f"classes with capability_packs: {len(class_pack_refs)}")
+    print(f"objects with enabled_packs: {len(object_enabled_packs)}")
+
+    print("\nPack Catalog")
+    print("------------")
+    for pack_id in sorted(packs_catalog):
+        pack_payload = packs_catalog[pack_id]
+        class_ref = pack_payload.get("class_ref", "-")
+        capabilities = pack_payload.get("capabilities", [])
+        capability_count = len(capabilities) if isinstance(capabilities, list) else 0
+        used_by = sorted(object_pack_usage.get(pack_id, []))
+        print(f"- {pack_id} (class_ref={class_ref}, capabilities={capability_count}, used_by_objects={len(used_by)})")
+        if used_by:
+            print(f"  objects: {', '.join(used_by)}")
+
+    print("\nClass -> Pack Dependencies")
+    print("--------------------------")
+    for class_id in sorted(class_pack_refs):
+        packs = class_pack_refs[class_id]
+        bound_objects = sorted(class_objects.get(class_id, []))
+        print(f"- {class_id} (declared_packs={len(packs)}, objects={len(bound_objects)})")
+        if bound_objects:
+            print(f"  object_ids: {', '.join(bound_objects)}")
+        for pack_id in packs:
+            status = "ok" if pack_id in packs_catalog else "missing_catalog"
+            consumers = sorted(object_pack_usage_by_class.get(class_id, {}).get(pack_id, []))
+            print(f"  - {pack_id} [{status}] (enabled_by_objects={len(consumers)})")
+            if consumers:
+                print(f"    objects: {', '.join(consumers)}")
+
+    out_of_contract: list[str] = []
+    for object_id, packs in sorted(object_enabled_packs.items()):
+        object_payload = objects.get(object_id, {})
+        if not isinstance(object_payload, dict):
+            continue
+        class_ref = _object_class_ref(object_payload)
+        if not isinstance(class_ref, str):
+            continue
+        declared = set(class_pack_refs.get(class_ref, []))
+        for pack_id in packs:
+            if pack_id not in declared:
+                out_of_contract.append(f"{object_id}:{pack_id} (class={class_ref})")
+
+    print("\nContract Warnings")
+    print("-----------------")
+    if not missing_class_pack_refs and not missing_object_pack_refs and not out_of_contract:
+        print("none")
+        return
+    if missing_class_pack_refs:
+        print(f"- class capability_packs missing in catalog: {', '.join(missing_class_pack_refs)}")
+    if missing_object_pack_refs:
+        print(f"- object enabled_packs missing in catalog: {', '.join(missing_object_pack_refs)}")
+    if out_of_contract:
+        print("- object enabled_packs not declared by its class capability_packs:")
+        for row in out_of_contract:
+            print(f"  - {row}")
 
 
 def _print_classes_tree(payload: dict[str, Any]) -> None:
@@ -307,31 +496,42 @@ def _write_dot(instances: list[dict[str, Any]], output: Path) -> None:
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Inspect compiled topology artifacts.")
-    parser.add_argument(
-        "--effective",
-        default="build/effective-topology.json",
-        help="Path to effective topology JSON (default: build/effective-topology.json)",
-    )
+    def add_effective_arg(target: argparse.ArgumentParser) -> None:
+        target.add_argument(
+            "--effective",
+            default="build/effective-topology.json",
+            help="Path to effective topology JSON (default: build/effective-topology.json)",
+        )
+
+    add_effective_arg(parser)
 
     subparsers = parser.add_subparsers(dest="command")
-    subparsers.add_parser("summary", help="Print high-level topology summary.")
-    subparsers.add_parser("classes", help="Print class hierarchy tree.")
-    subparsers.add_parser("objects", help="Print objects grouped by class.")
-    subparsers.add_parser("instances", help="Print instances grouped by layer.")
+    add_effective_arg(subparsers.add_parser("summary", help="Print high-level topology summary."))
+    add_effective_arg(subparsers.add_parser("classes", help="Print class hierarchy tree."))
+    add_effective_arg(subparsers.add_parser("objects", help="Print objects grouped by class."))
+    add_effective_arg(subparsers.add_parser("instances", help="Print instances grouped by layer."))
 
     search_parser = subparsers.add_parser("search", help="Search instances by regex pattern.")
+    add_effective_arg(search_parser)
     search_parser.add_argument("--query", required=True, help="Regex query.")
 
     deps_parser = subparsers.add_parser("deps", help="Show dependency graph around one instance.")
+    add_effective_arg(deps_parser)
     deps_parser.add_argument("--instance", required=True, help="Instance reference (instance_id or source_id).")
     deps_parser.add_argument("--max-depth", type=int, default=3, help="Max transitive depth (default: 3).")
 
     dot_parser = subparsers.add_parser("deps-dot", help="Write full instance dependency graph to Graphviz DOT.")
+    add_effective_arg(dot_parser)
     dot_parser.add_argument(
         "--output",
         default="build/diagnostics/topology-instance-deps.dot",
         help="DOT output path (default: build/diagnostics/topology-instance-deps.dot)",
     )
+    capability_parser = subparsers.add_parser(
+        "capability-packs",
+        help="Inspect capability packs and class/object dependency bindings.",
+    )
+    add_effective_arg(capability_parser)
 
     return parser.parse_args()
 
@@ -361,6 +561,9 @@ def main() -> int:
         return _print_deps(instances, args.instance, max_depth=max(args.max_depth, 1))
     if command == "deps-dot":
         _write_dot(instances, Path(args.output))
+        return 0
+    if command == "capability-packs":
+        _print_capability_packs(payload, effective_path=Path(args.effective))
         return 0
 
     print(f"Unknown command: {command}")

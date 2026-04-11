@@ -1,6 +1,6 @@
 # ADR 0095 GAP ANALYSIS
 
-**Last updated:** 2026-04-08
+**Last updated:** 2026-04-11
 **Status:** Open (initial rollout in progress)
 
 ## AS-IS
@@ -17,6 +17,7 @@
 - Tree views: classes/objects/instances.
 - Search и dependency inspection по instance id/source id.
 - DOT export для графа зависимостей.
+- Capability-pack inspection (catalog + class/object dependency bindings).
 
 ## Primary Gaps
 
@@ -26,6 +27,7 @@
 | G2 | Нет стандартных task-команд интроспекции | High | `taskfiles/inspect.yml` + include в `Taskfile.yml` |
 | G3 | Нет ADR-формализации inspect contract | Medium | `adr/0095-*.md` |
 | G4 | Нет operator/dev reference по inspect-командам | Medium | Обновление manual command reference |
+| G5 | Нет inspect-режима для capability packs и связей class/object | Medium | `inspect_topology.py capability-packs` + `task inspect:capability-packs` |
 
 ## Risks
 

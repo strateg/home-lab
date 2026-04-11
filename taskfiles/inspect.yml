@@ -41,3 +41,8 @@ tasks:
     desc: Export instance dependency graph in DOT format
     cmds:
       - "{{.PYTHON}} scripts/inspection/inspect_topology.py deps-dot {{if .OUTPUT}}--output {{.OUTPUT}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
+
+  capability-packs:
+    desc: Inspect capability packs and class/object pack dependencies
+    cmds:
+      - "{{.PYTHON}} scripts/inspection/inspect_topology.py capability-packs {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
