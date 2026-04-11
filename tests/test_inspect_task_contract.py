@@ -31,6 +31,7 @@ def _first_cmd(tasks: dict[str, object], task_name: str) -> str:
 def test_inspect_taskfile_contains_compact_and_detailed_object_instance_tasks() -> None:
     tasks = _load_tasks()
     for name in (
+        "smoke-matrix",
         "objects",
         "objects-detailed",
         "instances",
@@ -85,3 +86,10 @@ def test_instance_filter_flags_are_wired_for_instance_scoped_tasks() -> None:
         cmd = _first_cmd(tasks, task_name)
         assert "--layer {{.LAYER}}" in cmd
         assert "--group {{.GROUP}}" in cmd
+
+
+def test_smoke_matrix_task_wires_smoke_runner() -> None:
+    tasks = _load_tasks()
+    cmd = _first_cmd(tasks, "smoke-matrix")
+    assert "scripts/inspection/run_inspect_smoke_matrix.py" in cmd
+    assert "--allow-failures" in cmd

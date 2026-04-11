@@ -64,6 +64,7 @@ After v1 implementation, the remaining problem is no longer toolkit absence, but
 Вводится namespace `inspect` с командами:
 - `task inspect:default` — сводка (classes/objects/instances + группы),
 - `task inspect:summary-json` — machine-readable JSON summary,
+- `task inspect:smoke-matrix` — автоматизированный smoke matrix по каноническим inspect-командам с артефактами в `build/diagnostics/`,
 - `task inspect:classes` — дерево классов,
 - `task inspect:inheritance [CLASS=<class_ref>]` — summary/focused lineage inspection,
 - `task inspect:inheritance-json [CLASS=<class_ref>]` — machine-readable inheritance view,

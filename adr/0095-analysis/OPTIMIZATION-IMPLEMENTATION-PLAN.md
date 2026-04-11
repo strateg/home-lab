@@ -296,12 +296,12 @@ Run repeatedly during the rollout:
 
 ## 6A. Readiness Checklist Before Coding
 
-- [ ] baseline smoke matrix recorded and repeatable
-- [ ] current unchecked plan items reconciled between docs and actual state
-- [ ] compatibility policy accepted for baseline command names
-- [ ] JSON versioning rule accepted before first machine-readable PR
-- [ ] semantic relation typing rollout accepted as shadow-first, not default-first
-- [ ] first PR scope limited to refactor-safe work
+- [x] baseline smoke matrix recorded and repeatable (`task inspect:smoke-matrix`, `task validate:inspect-smoke`)
+- [x] current unchecked plan items reconciled between docs and actual state
+- [x] compatibility policy accepted for baseline command names
+- [x] JSON versioning rule accepted before first machine-readable PR
+- [x] semantic relation typing rollout accepted as shadow-first, not default-first
+- [x] first PR scope limited to refactor-safe work
 
 ---
 

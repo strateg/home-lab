@@ -26,6 +26,7 @@ task validate:adr0047-trigger      # ADR0047 alerts/services trigger report
 task validate:adr0047-trigger-gate # Fail when alerts>50 or services>30
 task validate:typed-shadow-report # typed-shadow diagnostics report
 task validate:typed-shadow-gate # Fail when typed-shadow thresholds are not met
+task validate:inspect-smoke # Run inspect smoke matrix and fail on command regressions
 task validate:adr0083-reactivation # ADR0083 reactivation readiness snapshot
 task validate:adr0083-reactivation-gate # Fail when ADR0083 non-hardware readiness is not met
 task validate:adr0083-reactivation-evidence # Render ADR0083 readiness evidence markdown
@@ -49,6 +50,7 @@ task validate:quality              # Aggregate quality gate
 ```bash
 task inspect:default                                            # Summary (compact)
 task inspect:summary-json                                       # Summary JSON (schema_versioned)
+task inspect:smoke-matrix                                       # Run inspect smoke matrix and write diagnostics reports
 task inspect:classes                                            # Class hierarchy tree
 task inspect:inheritance                                        # Inheritance summary
 task inspect:inheritance CLASS='class.router'                   # Focused class lineage
@@ -89,6 +91,7 @@ task inspect:summary-json LAYER='L5' GROUP='services'
 task inspect:search QUERY='mikrotik' LAYER='L3' GROUP='network'
 task inspect:deps-dot LAYER='L5' GROUP='services' OUTPUT='build/diagnostics/topology-instance-deps-l5-services.dot'
 task inspect:typed-shadow-report LAYER='L5' GROUP='services'
+task inspect:smoke-matrix QUERY='router' INSTANCE='rtr-mikrotik-chateau'
 ```
 
 ### Typed shadow interpretation

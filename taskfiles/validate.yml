@@ -163,6 +163,11 @@ tasks:
     cmds:
       - "{{.PYTHON}} scripts/validation/render_adr0083_reactivation_evidence.py {{if .BUNDLE}}--bundle {{.BUNDLE}}{{end}} --output-md build/diagnostics/adr0083-reactivation-evidence.md"
 
+  inspect-smoke:
+    desc: Run inspection smoke matrix and fail on command regressions
+    cmds:
+      - "{{.PYTHON}} scripts/inspection/run_inspect_smoke_matrix.py {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}} {{if .QUERY}}--query '{{.QUERY}}'{{end}} {{if .INSTANCE}}--instance {{.INSTANCE}}{{end}} --json-output build/diagnostics/inspect-smoke-matrix.json --text-output build/diagnostics/inspect-smoke-matrix.txt {{if .DOT_OUTPUT}}--dot-output {{.DOT_OUTPUT}}{{end}}"
+
   typed-shadow-report:
     desc: Generate typed-shadow diagnostics report artifacts
     cmds:

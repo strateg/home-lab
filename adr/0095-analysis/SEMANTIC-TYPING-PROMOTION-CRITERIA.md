@@ -36,6 +36,9 @@ Evidence:
 - `tests/test_inspection_relations.py`
 - `tests/test_inspection_json.py`
 - `tests/test_inspect_topology.py`
+- repeatable smoke evidence:
+  - `task inspect:smoke-matrix`
+  - `task validate:inspect-smoke`
 
 ### G2 — Coverage of Meaningful Edges
 

@@ -11,6 +11,11 @@ tasks:
     cmds:
       - "{{.PYTHON}} scripts/inspection/inspect_topology.py summary --json {{if .LAYER}}--layer {{.LAYER}}{{end}} {{if .GROUP}}--group {{.GROUP}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
 
+  smoke-matrix:
+    desc: Run ADR0095 inspection smoke matrix and write diagnostics reports
+    cmds:
+      - "{{.PYTHON}} scripts/inspection/run_inspect_smoke_matrix.py {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}} {{if .QUERY}}--query '{{.QUERY}}'{{end}} {{if .INSTANCE}}--instance {{.INSTANCE}}{{end}} {{if .JSON_OUTPUT}}--json-output {{.JSON_OUTPUT}}{{end}} {{if .TEXT_OUTPUT}}--text-output {{.TEXT_OUTPUT}}{{end}} {{if .DOT_OUTPUT}}--dot-output {{.DOT_OUTPUT}}{{end}} {{if .ALLOW_FAILURES}}--allow-failures{{end}}"
+
   classes:
     desc: Show class hierarchy tree
     cmds:
