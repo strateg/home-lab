@@ -17,14 +17,24 @@ tasks:
       - "{{.PYTHON}} scripts/inspection/inspect_topology.py inheritance {{if .CLASS}}--class {{.CLASS}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
 
   objects:
-    desc: Show objects grouped by materialized class
+    desc: Show compact objects grouped by materialized class
     cmds:
       - "{{.PYTHON}} scripts/inspection/inspect_topology.py objects {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
 
+  objects-detailed:
+    desc: Show detailed objects grouped by materialized class
+    cmds:
+      - "{{.PYTHON}} scripts/inspection/inspect_topology.py objects --detailed {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
+
   instances:
-    desc: Show instances grouped by layer
+    desc: Show compact instances grouped by layer
     cmds:
       - "{{.PYTHON}} scripts/inspection/inspect_topology.py instances {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
+
+  instances-detailed:
+    desc: Show detailed instances grouped by layer
+    cmds:
+      - "{{.PYTHON}} scripts/inspection/inspect_topology.py instances --detailed {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
 
   search:
     desc: Search instances by regex (requires QUERY=<regex>)

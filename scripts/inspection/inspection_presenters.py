@@ -430,7 +430,7 @@ def print_inheritance(payload: dict[str, Any], class_ref: str | None = None) -> 
     return 0
 
 
-def print_objects_by_class(payload: dict[str, Any]) -> None:
+def print_objects_by_class(payload: dict[str, Any], *, detailed: bool = False) -> None:
     objects = payload.get("objects", {})
     if not isinstance(objects, dict):
         print("No objects found.")
@@ -445,14 +445,16 @@ def print_objects_by_class(payload: dict[str, Any]) -> None:
 
     print("Objects by Class")
     print("================")
+    print(f"total objects: {len(objects)}")
     for class_ref in sorted(grouped):
         values = sorted(grouped[class_ref])
         print(f"- {class_ref} ({len(values)})")
-        for object_id in values:
-            print(f"  - {object_id}")
+        if detailed:
+            for object_id in values:
+                print(f"  - {object_id}")
 
 
-def print_instances_tree(instances: list[dict[str, Any]]) -> None:
+def print_instances_tree(instances: list[dict[str, Any]], *, detailed: bool = False) -> None:
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for item in instances:
         layer = item.get("layer", "unknown")
@@ -460,19 +462,21 @@ def print_instances_tree(instances: list[dict[str, Any]]) -> None:
 
     print("Instances by Layer")
     print("==================")
+    print(f"total instances: {len(instances)}")
     for layer in sorted(grouped):
         rows = grouped[layer]
         print(f"- {layer} ({len(rows)})")
-        for item in sorted(rows, key=lambda row: str(row.get("instance_id", ""))):
-            instance_id = item.get("instance_id", "unknown")
-            source_id = item.get("source_id", "-")
-            meta = item.get("instance", {})
-            materializes_object = "-"
-            materializes_class = "-"
-            if isinstance(meta, dict):
-                materializes_object = meta.get("materializes_object", "-")
-                materializes_class = meta.get("materializes_class", "-")
-            print(f"  - {instance_id} (source={source_id}, object={materializes_object}, class={materializes_class})")
+        if detailed:
+            for item in sorted(rows, key=lambda row: str(row.get("instance_id", ""))):
+                instance_id = item.get("instance_id", "unknown")
+                source_id = item.get("source_id", "-")
+                meta = item.get("instance", {})
+                materializes_object = "-"
+                materializes_class = "-"
+                if isinstance(meta, dict):
+                    materializes_object = meta.get("materializes_object", "-")
+                    materializes_class = meta.get("materializes_class", "-")
+                print(f"  - {instance_id} (source={source_id}, object={materializes_object}, class={materializes_class})")
 
 
 def print_search(instances: list[dict[str, Any]], query: str) -> None:

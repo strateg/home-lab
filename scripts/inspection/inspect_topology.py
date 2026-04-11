@@ -45,8 +45,13 @@ def _parse_args() -> argparse.Namespace:
     inheritance_parser = subparsers.add_parser("inheritance", help="Inspect class inheritance and lineage.")
     add_effective_arg(inheritance_parser)
     inheritance_parser.add_argument("--class", dest="class_ref", help="Class reference for focused lineage.")
-    add_effective_arg(subparsers.add_parser("objects", help="Print objects grouped by class."))
-    add_effective_arg(subparsers.add_parser("instances", help="Print instances grouped by layer."))
+    objects_parser = subparsers.add_parser("objects", help="Print objects grouped by class.")
+    add_effective_arg(objects_parser)
+    objects_parser.add_argument("--detailed", action="store_true", help="Print detailed object rows.")
+
+    instances_parser = subparsers.add_parser("instances", help="Print instances grouped by layer.")
+    add_effective_arg(instances_parser)
+    instances_parser.add_argument("--detailed", action="store_true", help="Print detailed instance rows.")
 
     search_parser = subparsers.add_parser("search", help="Search instances by regex pattern.")
     add_effective_arg(search_parser)
@@ -96,10 +101,10 @@ def main() -> int:
     if command == "inheritance":
         return _print_inheritance(payload, args.class_ref)
     if command == "objects":
-        _print_objects_by_class(payload)
+        _print_objects_by_class(payload, detailed=bool(args.detailed))
         return 0
     if command == "instances":
-        _print_instances_tree(instances)
+        _print_instances_tree(instances, detailed=bool(args.detailed))
         return 0
     if command == "search":
         _print_search(instances, args.query)

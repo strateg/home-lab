@@ -241,14 +241,25 @@ def test_objects_command_groups_by_materialized_or_extended_class(tmp_path: Path
     result = _run_inspect(tmp_path, "objects", "--effective", str(effective))
 
     assert "Objects by Class" in result.stdout
+    assert "total objects: 5" in result.stdout
     assert "- class.router (2)" in result.stdout
+    assert "- class.router.edge (1)" in result.stdout
+    assert "- class.service (1)" in result.stdout
+    assert "- class.service.api (1)" in result.stdout
+    assert "  - obj.router.bad" not in result.stdout
+
+
+def test_objects_command_detailed_lists_object_rows(tmp_path: Path) -> None:
+    effective = _write_fixture_repo(tmp_path)
+
+    result = _run_inspect(tmp_path, "objects", "--detailed", "--effective", str(effective))
+
+    assert "Objects by Class" in result.stdout
+    assert "total objects: 5" in result.stdout
     assert "  - obj.router.bad" in result.stdout
     assert "  - obj.router.ok" in result.stdout
-    assert "- class.router.edge (1)" in result.stdout
     assert "  - obj.router.gateway" in result.stdout
-    assert "- class.service (1)" in result.stdout
     assert "  - obj.service.worker" in result.stdout
-    assert "- class.service.api (1)" in result.stdout
     assert "  - obj.service.api" in result.stdout
 
 
@@ -258,6 +269,19 @@ def test_instances_command_groups_by_layer_with_object_and_class_binding(tmp_pat
     result = _run_inspect(tmp_path, "instances", "--effective", str(effective))
 
     assert "Instances by Layer" in result.stdout
+    assert "total instances: 4" in result.stdout
+    assert "- L3 (2)" in result.stdout
+    assert "- L5 (2)" in result.stdout
+    assert "inst.router.ok (source=rtr-ok, object=obj.router.ok, class=class.router)" not in result.stdout
+
+
+def test_instances_command_detailed_lists_instance_rows(tmp_path: Path) -> None:
+    effective = _write_fixture_repo(tmp_path)
+
+    result = _run_inspect(tmp_path, "instances", "--detailed", "--effective", str(effective))
+
+    assert "Instances by Layer" in result.stdout
+    assert "total instances: 4" in result.stdout
     assert "- L3 (2)" in result.stdout
     assert "- L5 (2)" in result.stdout
     assert "inst.router.ok (source=rtr-ok, object=obj.router.ok, class=class.router)" in result.stdout
