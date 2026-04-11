@@ -116,6 +116,15 @@ def test_indexes_helpers_flatten_aliases_and_object_class_ref() -> None:
     assert aliases["router"] == "inst.router"
     assert aliases["svc-api"] == "inst.api"
 
+    filtered = indexes.filter_instances(flattened, layer="L3", group="network")
+    assert filtered == []
+
+    payload["instances"]["network"][0]["layer"] = "L3"
+    flattened2 = indexes.flatten_instances(payload)
+    filtered2 = indexes.filter_instances(flattened2, layer="L3", group="network")
+    assert len(filtered2) == 1
+    assert filtered2[0]["instance_id"] == "inst.router"
+
     assert indexes.object_class_ref({"materializes_class": "class.router"}) == "class.router"
     assert indexes.object_class_ref({"class_ref": "class.service"}) == "class.service"
     assert indexes.object_class_ref({"extends_class": "class.compute"}) == "class.compute"

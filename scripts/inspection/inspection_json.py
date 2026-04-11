@@ -26,12 +26,11 @@ CAPABILITIES_SCHEMA_VERSION = "adr0095.inspect.capabilities.v1"
 def summary_payload(payload: dict[str, Any], instances: list[dict[str, Any]]) -> dict[str, Any]:
     classes = payload.get("classes", {})
     objects = payload.get("objects", {})
-    groups = payload.get("instances", {})
     group_counts: dict[str, int] = {}
-    if isinstance(groups, dict):
-        for group_name in sorted(groups):
-            group_items = groups[group_name]
-            group_counts[group_name] = len(group_items) if isinstance(group_items, list) else 0
+    for item in instances:
+        group_name = item.get("_group")
+        if isinstance(group_name, str) and group_name:
+            group_counts[group_name] = group_counts.get(group_name, 0) + 1
 
     return {
         "schema_version": SUMMARY_SCHEMA_VERSION,
@@ -40,7 +39,7 @@ def summary_payload(payload: dict[str, Any], instances: list[dict[str, Any]]) ->
             "classes": len(classes) if isinstance(classes, dict) else 0,
             "objects": len(objects) if isinstance(objects, dict) else 0,
             "instances": len(instances),
-            "instance_groups": len(groups) if isinstance(groups, dict) else 0,
+            "instance_groups": len(group_counts),
         },
         "instance_group_counts": group_counts,
     }

@@ -52,7 +52,13 @@ def test_summary_payload_contract_shape() -> None:
         "objects": {"obj.router": {}, "obj.service": {}},
         "instances": {"network": [{"instance_id": "inst.router"}], "services": [{"instance_id": "inst.service"}]},
     }
-    body = module.summary_payload(payload, [{"instance_id": "inst.router"}, {"instance_id": "inst.service"}])
+    body = module.summary_payload(
+        payload,
+        [
+            {"instance_id": "inst.router", "_group": "network"},
+            {"instance_id": "inst.service", "_group": "services"},
+        ],
+    )
 
     assert body["schema_version"] == module.SUMMARY_SCHEMA_VERSION
     assert body["command"] == "summary"

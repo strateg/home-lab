@@ -63,3 +63,11 @@ def test_json_tasks_forward_json_flag_to_cli() -> None:
 def test_typed_shadow_task_forwards_flag_to_cli() -> None:
     tasks = _load_tasks()
     assert "deps --instance {{.INSTANCE}} --typed-shadow" in _first_cmd(tasks, "deps-typed-shadow")
+
+
+def test_instance_filter_flags_are_wired_for_instance_scoped_tasks() -> None:
+    tasks = _load_tasks()
+    for task_name in ("default", "summary-json", "instances", "instances-detailed", "search", "deps", "deps-dot"):
+        cmd = _first_cmd(tasks, task_name)
+        assert "--layer {{.LAYER}}" in cmd
+        assert "--group {{.GROUP}}" in cmd

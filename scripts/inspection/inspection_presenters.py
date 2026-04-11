@@ -22,17 +22,19 @@ from inspection_relations import build_dependency_graph, resolve_instance_id, ty
 def print_summary(payload: dict[str, Any], instances: list[dict[str, Any]]) -> None:
     classes = payload.get("classes", {})
     objects = payload.get("objects", {})
-    groups = payload.get("instances", {})
+    groups: dict[str, int] = defaultdict(int)
+    for item in instances:
+        group_name = item.get("_group")
+        if isinstance(group_name, str) and group_name:
+            groups[group_name] += 1
     print("Topology Inspection Summary")
     print("==========================")
     print(f"classes: {len(classes) if isinstance(classes, dict) else 0}")
     print(f"objects: {len(objects) if isinstance(objects, dict) else 0}")
     print(f"instances: {len(instances)}")
-    print(f"instance groups: {len(groups) if isinstance(groups, dict) else 0}")
-    if isinstance(groups, dict):
-        for group_name in sorted(groups):
-            size = len(groups[group_name]) if isinstance(groups[group_name], list) else 0
-            print(f"  - {group_name}: {size}")
+    print(f"instance groups: {len(groups)}")
+    for group_name in sorted(groups):
+        print(f"  - {group_name}: {groups[group_name]}")
 
 
 def print_capability_packs(payload: dict[str, Any], *, effective_path: Path) -> None:

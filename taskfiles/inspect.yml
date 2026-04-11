@@ -4,12 +4,12 @@ tasks:
   default:
     desc: Topology inspection summary (classes/objects/instances counts + groups)
     cmds:
-      - "{{.PYTHON}} scripts/inspection/inspect_topology.py summary {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
+      - "{{.PYTHON}} scripts/inspection/inspect_topology.py summary {{if .LAYER}}--layer {{.LAYER}}{{end}} {{if .GROUP}}--group {{.GROUP}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
 
   summary-json:
     desc: Topology inspection summary in machine-readable JSON
     cmds:
-      - "{{.PYTHON}} scripts/inspection/inspect_topology.py summary --json {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
+      - "{{.PYTHON}} scripts/inspection/inspect_topology.py summary --json {{if .LAYER}}--layer {{.LAYER}}{{end}} {{if .GROUP}}--group {{.GROUP}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
 
   classes:
     desc: Show class hierarchy tree
@@ -39,12 +39,12 @@ tasks:
   instances:
     desc: Show compact instances grouped by layer
     cmds:
-      - "{{.PYTHON}} scripts/inspection/inspect_topology.py instances {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
+      - "{{.PYTHON}} scripts/inspection/inspect_topology.py instances {{if .LAYER}}--layer {{.LAYER}}{{end}} {{if .GROUP}}--group {{.GROUP}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
 
   instances-detailed:
     desc: Show detailed instances grouped by layer
     cmds:
-      - "{{.PYTHON}} scripts/inspection/inspect_topology.py instances --detailed {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
+      - "{{.PYTHON}} scripts/inspection/inspect_topology.py instances --detailed {{if .LAYER}}--layer {{.LAYER}}{{end}} {{if .GROUP}}--group {{.GROUP}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
 
   search:
     desc: Search instances by regex (requires QUERY=<regex>)
@@ -52,7 +52,7 @@ tasks:
       vars:
         - QUERY
     cmds:
-      - "{{.PYTHON}} scripts/inspection/inspect_topology.py search --query '{{.QUERY}}' {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
+      - "{{.PYTHON}} scripts/inspection/inspect_topology.py search --query '{{.QUERY}}' {{if .LAYER}}--layer {{.LAYER}}{{end}} {{if .GROUP}}--group {{.GROUP}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
 
   deps:
     desc: Show direct/transitive dependencies for one instance (INSTANCE=<id|source_id>)
@@ -60,7 +60,7 @@ tasks:
       vars:
         - INSTANCE
     cmds:
-      - "{{.PYTHON}} scripts/inspection/inspect_topology.py deps --instance {{.INSTANCE}} {{if .MAX_DEPTH}}--max-depth {{.MAX_DEPTH}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
+      - "{{.PYTHON}} scripts/inspection/inspect_topology.py deps --instance {{.INSTANCE}} {{if .MAX_DEPTH}}--max-depth {{.MAX_DEPTH}}{{end}} {{if .LAYER}}--layer {{.LAYER}}{{end}} {{if .GROUP}}--group {{.GROUP}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
 
   deps-json:
     desc: Show dependencies for one instance in machine-readable JSON (INSTANCE=<id|source_id>)
@@ -68,7 +68,7 @@ tasks:
       vars:
         - INSTANCE
     cmds:
-      - "{{.PYTHON}} scripts/inspection/inspect_topology.py deps --instance {{.INSTANCE}} --json {{if .MAX_DEPTH}}--max-depth {{.MAX_DEPTH}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
+      - "{{.PYTHON}} scripts/inspection/inspect_topology.py deps --instance {{.INSTANCE}} --json {{if .MAX_DEPTH}}--max-depth {{.MAX_DEPTH}}{{end}} {{if .LAYER}}--layer {{.LAYER}}{{end}} {{if .GROUP}}--group {{.GROUP}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
 
   deps-typed-shadow:
     desc: Show dependencies with experimental typed relation shadow (INSTANCE=<id|source_id>)
@@ -76,7 +76,7 @@ tasks:
       vars:
         - INSTANCE
     cmds:
-      - "{{.PYTHON}} scripts/inspection/inspect_topology.py deps --instance {{.INSTANCE}} --typed-shadow {{if .MAX_DEPTH}}--max-depth {{.MAX_DEPTH}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
+      - "{{.PYTHON}} scripts/inspection/inspect_topology.py deps --instance {{.INSTANCE}} --typed-shadow {{if .MAX_DEPTH}}--max-depth {{.MAX_DEPTH}}{{end}} {{if .LAYER}}--layer {{.LAYER}}{{end}} {{if .GROUP}}--group {{.GROUP}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
 
   deps-json-typed-shadow:
     desc: Show dependencies in JSON with typed relation shadow (INSTANCE=<id|source_id>)
@@ -84,12 +84,12 @@ tasks:
       vars:
         - INSTANCE
     cmds:
-      - "{{.PYTHON}} scripts/inspection/inspect_topology.py deps --instance {{.INSTANCE}} --json --typed-shadow {{if .MAX_DEPTH}}--max-depth {{.MAX_DEPTH}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
+      - "{{.PYTHON}} scripts/inspection/inspect_topology.py deps --instance {{.INSTANCE}} --json --typed-shadow {{if .MAX_DEPTH}}--max-depth {{.MAX_DEPTH}}{{end}} {{if .LAYER}}--layer {{.LAYER}}{{end}} {{if .GROUP}}--group {{.GROUP}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
 
   deps-dot:
     desc: Export instance dependency graph in DOT format
     cmds:
-      - "{{.PYTHON}} scripts/inspection/inspect_topology.py deps-dot {{if .OUTPUT}}--output {{.OUTPUT}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
+      - "{{.PYTHON}} scripts/inspection/inspect_topology.py deps-dot {{if .OUTPUT}}--output {{.OUTPUT}}{{end}} {{if .LAYER}}--layer {{.LAYER}}{{end}} {{if .GROUP}}--group {{.GROUP}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
 
   capability-packs:
     desc: Inspect capability packs and class/object pack dependencies

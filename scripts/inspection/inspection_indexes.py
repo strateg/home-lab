@@ -37,6 +37,24 @@ def source_aliases(instances: list[dict[str, Any]]) -> dict[str, str]:
     return aliases
 
 
+def filter_instances(
+    instances: list[dict[str, Any]],
+    *,
+    layer: str | None = None,
+    group: str | None = None,
+) -> list[dict[str, Any]]:
+    if not layer and not group:
+        return list(instances)
+    filtered: list[dict[str, Any]] = []
+    for item in instances:
+        if layer and str(item.get("layer", "")) != layer:
+            continue
+        if group and str(item.get("_group", "")) != group:
+            continue
+        filtered.append(item)
+    return filtered
+
+
 def object_class_ref(object_payload: dict[str, Any]) -> str | None:
     for key in ("materializes_class", "class_ref", "extends_class"):
         value = object_payload.get(key)

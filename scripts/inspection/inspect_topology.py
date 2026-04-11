@@ -13,6 +13,7 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from inspection_export import write_dot as _write_dot  # noqa: E402
+from inspection_indexes import filter_instances as _filter_instances  # noqa: E402
 from inspection_indexes import flatten_instances as _flatten_instances  # noqa: E402
 from inspection_json import deps_payload as _deps_payload  # noqa: E402
 from inspection_json import capabilities_payload as _capabilities_payload  # noqa: E402
@@ -42,12 +43,17 @@ def _parse_args() -> argparse.Namespace:
             help="Path to effective topology JSON (default: build/effective-topology.json)",
         )
 
+    def add_instance_filters(target: argparse.ArgumentParser) -> None:
+        target.add_argument("--layer", help="Filter instances by layer.")
+        target.add_argument("--group", help="Filter instances by source instance group.")
+
     add_effective_arg(parser)
 
     subparsers = parser.add_subparsers(dest="command")
     summary_parser = subparsers.add_parser("summary", help="Print high-level topology summary.")
     add_effective_arg(summary_parser)
     summary_parser.add_argument("--json", action="store_true", dest="as_json", help="Print machine-readable JSON.")
+    add_instance_filters(summary_parser)
     add_effective_arg(subparsers.add_parser("classes", help="Print class hierarchy tree."))
     inheritance_parser = subparsers.add_parser("inheritance", help="Inspect class inheritance and lineage.")
     add_effective_arg(inheritance_parser)
@@ -60,10 +66,12 @@ def _parse_args() -> argparse.Namespace:
     instances_parser = subparsers.add_parser("instances", help="Print instances grouped by layer.")
     add_effective_arg(instances_parser)
     instances_parser.add_argument("--detailed", action="store_true", help="Print detailed instance rows.")
+    add_instance_filters(instances_parser)
 
     search_parser = subparsers.add_parser("search", help="Search instances by regex pattern.")
     add_effective_arg(search_parser)
     search_parser.add_argument("--query", required=True, help="Regex query.")
+    add_instance_filters(search_parser)
 
     deps_parser = subparsers.add_parser("deps", help="Show dependency graph around one instance.")
     add_effective_arg(deps_parser)
@@ -75,6 +83,7 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="Emit experimental semantic relation typing shadow alongside dependency output.",
     )
+    add_instance_filters(deps_parser)
 
     dot_parser = subparsers.add_parser("deps-dot", help="Write full instance dependency graph to Graphviz DOT.")
     add_effective_arg(dot_parser)
@@ -83,6 +92,7 @@ def _parse_args() -> argparse.Namespace:
         default="build/diagnostics/topology-instance-deps.dot",
         help="DOT output path (default: build/diagnostics/topology-instance-deps.dot)",
     )
+    add_instance_filters(dot_parser)
     capability_parser = subparsers.add_parser(
         "capability-packs",
         help="Inspect capability packs and class/object dependency bindings.",
@@ -105,7 +115,11 @@ def main() -> int:
     args = _parse_args()
     command = args.command or "summary"
     payload = _load_effective(Path(args.effective))
-    instances = _flatten_instances(payload)
+    instances = _filter_instances(
+        _flatten_instances(payload),
+        layer=getattr(args, "layer", None),
+        group=getattr(args, "group", None),
+    )
 
     if command == "summary":
         if bool(getattr(args, "as_json", False)):

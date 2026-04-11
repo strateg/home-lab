@@ -185,6 +185,48 @@ def test_summary_command_json_output_contract(tmp_path: Path) -> None:
     assert body["instance_group_counts"]["services"] == 2
 
 
+def test_summary_command_supports_layer_and_group_filters(tmp_path: Path) -> None:
+    effective = _write_fixture_repo(tmp_path)
+
+    result = _run_inspect(
+        tmp_path,
+        "summary",
+        "--effective",
+        str(effective),
+        "--layer",
+        "L5",
+        "--group",
+        "services",
+    )
+
+    assert "Topology Inspection Summary" in result.stdout
+    assert "instances: 2" in result.stdout
+    assert "instance groups: 1" in result.stdout
+    assert "  - services: 2" in result.stdout
+    assert "  - network: 2" not in result.stdout
+
+
+def test_summary_command_json_respects_layer_and_group_filters(tmp_path: Path) -> None:
+    effective = _write_fixture_repo(tmp_path)
+
+    result = _run_inspect(
+        tmp_path,
+        "summary",
+        "--json",
+        "--effective",
+        str(effective),
+        "--layer",
+        "L5",
+        "--group",
+        "services",
+    )
+    body = json.loads(result.stdout)
+
+    assert body["counts"]["instances"] == 2
+    assert body["counts"]["instance_groups"] == 1
+    assert body["instance_group_counts"] == {"services": 2}
+
+
 def test_classes_command_prints_current_inheritance_tree(tmp_path: Path) -> None:
     effective = _write_fixture_repo(tmp_path)
 
@@ -351,6 +393,26 @@ def test_instances_command_groups_by_layer_with_object_and_class_binding(tmp_pat
     assert "inst.router.ok (source=rtr-ok, object=obj.router.ok, class=class.router)" not in result.stdout
 
 
+def test_instances_command_supports_layer_and_group_filters(tmp_path: Path) -> None:
+    effective = _write_fixture_repo(tmp_path)
+
+    result = _run_inspect(
+        tmp_path,
+        "instances",
+        "--effective",
+        str(effective),
+        "--layer",
+        "L5",
+        "--group",
+        "services",
+    )
+
+    assert "Instances by Layer" in result.stdout
+    assert "total instances: 2" in result.stdout
+    assert "- L5 (2)" in result.stdout
+    assert "- L3 (2)" not in result.stdout
+
+
 def test_instances_command_detailed_lists_instance_rows(tmp_path: Path) -> None:
     effective = _write_fixture_repo(tmp_path)
 
@@ -375,6 +437,27 @@ def test_search_command_matches_instance_fields_and_instance_data(tmp_path: Path
     assert "- inst.router.ok (source=rtr-ok, layer=L3)" in result.stdout
     assert "- inst.service.api (source=svc-api, layer=L5)" in result.stdout
     assert "- inst.service.worker (source=svc-worker, layer=L5)" in result.stdout
+
+
+def test_search_command_supports_layer_and_group_filters(tmp_path: Path) -> None:
+    effective = _write_fixture_repo(tmp_path)
+
+    result = _run_inspect(
+        tmp_path,
+        "search",
+        "--effective",
+        str(effective),
+        "--query",
+        "svc",
+        "--group",
+        "network",
+        "--layer",
+        "L3",
+    )
+
+    assert "Search matches for pattern: svc" in result.stdout
+    assert "- inst.router.ok (source=rtr-ok, layer=L3)" in result.stdout
+    assert "- inst.service.api (source=svc-api, layer=L5)" not in result.stdout
 
 
 def test_deps_command_prints_direct_incoming_outgoing_transitive_and_unresolved(tmp_path: Path) -> None:
