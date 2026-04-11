@@ -11,112 +11,21 @@ from collections import defaultdict, deque
 from pathlib import Path
 from typing import Any
 
-import yaml
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from inspection_indexes import (  # noqa: E402
+    flatten_instances as _flatten_instances,
+    object_class_ref as _object_class_ref,
+    source_aliases as _source_aliases,
+)
+from inspection_loader import (  # noqa: E402
+    load_capability_pack_catalog as _load_capability_pack_catalog,
+    load_effective as _load_effective,
+)
 
 REF_KEY_PATTERN = re.compile(r".*(_ref|_refs)$")
-
-
-def _load_effective(path: Path) -> dict[str, Any]:
-    if not path.exists():
-        raise FileNotFoundError(f"effective topology not found: {path}. Run `task validate:default` first.")
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(payload, dict):
-        raise ValueError(f"invalid effective topology payload type: {type(payload).__name__}")
-    return payload
-
-
-def _flatten_instances(payload: dict[str, Any]) -> list[dict[str, Any]]:
-    grouped = payload.get("instances", {})
-    if not isinstance(grouped, dict):
-        return []
-    items: list[dict[str, Any]] = []
-    for group_name, group_items in grouped.items():
-        if not isinstance(group_items, list):
-            continue
-        for item in group_items:
-            if isinstance(item, dict):
-                item_copy = dict(item)
-                item_copy["_group"] = group_name
-                items.append(item_copy)
-    return items
-
-
-def _repo_root() -> Path:
-    return Path(__file__).resolve().parents[2]
-
-
-def _resolve_existing_path(path_raw: str, *, bases: list[Path]) -> Path:
-    candidate = Path(path_raw)
-    if candidate.is_absolute():
-        return candidate
-    for base in bases:
-        resolved = (base / candidate).resolve()
-        if resolved.exists():
-            return resolved
-    return (bases[0] / candidate).resolve()
-
-
-def _load_yaml(path: Path) -> dict[str, Any]:
-    if not path.exists():
-        raise FileNotFoundError(f"YAML file not found: {path}")
-    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
-    if not isinstance(payload, dict):
-        raise ValueError(f"invalid YAML payload type at {path}: {type(payload).__name__}")
-    return payload
-
-
-def _load_capability_pack_catalog(
-    payload: dict[str, Any],
-    *,
-    effective_path: Path,
-) -> tuple[dict[str, dict[str, Any]], Path]:
-    topology_manifest = payload.get("topology_manifest") or "topology/topology.yaml"
-    manifest_path = _resolve_existing_path(
-        str(topology_manifest),
-        bases=[Path.cwd(), _repo_root(), effective_path.parent, effective_path.parent.parent],
-    )
-    manifest = _load_yaml(manifest_path)
-    framework = manifest.get("framework", {})
-    if not isinstance(framework, dict):
-        raise ValueError(f"invalid framework section in topology manifest: {manifest_path}")
-    packs_rel = framework.get("capability_packs")
-    if not isinstance(packs_rel, str) or not packs_rel.strip():
-        raise ValueError(f"framework.capability_packs missing in topology manifest: {manifest_path}")
-
-    packs_path = _resolve_existing_path(
-        packs_rel,
-        bases=[manifest_path.parent, Path.cwd(), _repo_root()],
-    )
-    packs_payload = _load_yaml(packs_path)
-    packs_raw = packs_payload.get("packs", [])
-    if not isinstance(packs_raw, list):
-        raise ValueError(f"invalid packs list in capability catalog: {packs_path}")
-
-    packs: dict[str, dict[str, Any]] = {}
-    for row in packs_raw:
-        if not isinstance(row, dict):
-            continue
-        pack_id = row.get("id")
-        if not isinstance(pack_id, str) or not pack_id:
-            continue
-        packs[pack_id] = row
-    return packs, packs_path
-
-
-def _source_aliases(instances: list[dict[str, Any]]) -> dict[str, str]:
-    aliases: dict[str, str] = {}
-    for item in instances:
-        instance_id = item.get("instance_id")
-        if not isinstance(instance_id, str):
-            continue
-        aliases[instance_id] = instance_id
-        source_id = item.get("source_id")
-        if isinstance(source_id, str) and source_id:
-            aliases[source_id] = instance_id
-        if instance_id.startswith("inst.") and len(instance_id) > len("inst."):
-            aliases[instance_id[len("inst.") :]] = instance_id
-    return aliases
-
 
 def _iter_refs(data: Any, prefix: str = "") -> list[tuple[str, Any]]:
     matches: list[tuple[str, Any]] = []
@@ -190,14 +99,6 @@ def _print_summary(payload: dict[str, Any], instances: list[dict[str, Any]]) -> 
         for group_name in sorted(groups):
             size = len(groups[group_name]) if isinstance(groups[group_name], list) else 0
             print(f"  - {group_name}: {size}")
-
-
-def _object_class_ref(object_payload: dict[str, Any]) -> str | None:
-    for key in ("materializes_class", "class_ref", "extends_class"):
-        value = object_payload.get(key)
-        if isinstance(value, str) and value:
-            return value
-    return None
 
 
 def _print_capability_packs(payload: dict[str, Any], *, effective_path: Path) -> None:
