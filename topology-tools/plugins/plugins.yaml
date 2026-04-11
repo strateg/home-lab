@@ -3,7 +3,7 @@ plugins:
   # Discover plugins (run in discover stage)
   - id: base.discover.manifest_loader
     kind: discoverer
-    entry: discoverers/discover_compiler.py:DiscoverManifestLoaderCompiler
+    entry: discoverers/discover_manifest_loader.py:DiscoverManifestLoaderCompiler
     api_version: "1.x"
     stages: [discover]
     phase: init
@@ -22,7 +22,7 @@ plugins:
 
   - id: base.discover.inventory
     kind: discoverer
-    entry: discoverers/discover_compiler.py:DiscoverInventoryCompiler
+    entry: discoverers/discover_inventory.py:DiscoverInventoryCompiler
     api_version: "1.x"
     stages: [discover]
     phase: run
@@ -45,7 +45,7 @@ plugins:
 
   - id: base.discover.boundary
     kind: discoverer
-    entry: discoverers/discover_compiler.py:DiscoverBoundaryCompiler
+    entry: discoverers/discover_boundary.py:DiscoverBoundaryCompiler
     api_version: "1.x"
     stages: [discover]
     phase: pre
@@ -68,7 +68,7 @@ plugins:
 
   - id: base.discover.capability_preflight
     kind: discoverer
-    entry: discoverers/discover_compiler.py:DiscoverCapabilityPreflightCompiler
+    entry: discoverers/discover_capability_preflight.py:DiscoverCapabilityPreflightCompiler
     api_version: "1.x"
     stages: [discover]
     phase: verify
