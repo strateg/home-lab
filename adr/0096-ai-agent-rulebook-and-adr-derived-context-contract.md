@@ -102,6 +102,7 @@ The validation tasks are:
 
 - `task validate:agent-rules`
 - `task validate:agent-rules-strict`
+- `task validate:agent-rule-coverage` (diagnostic reverse coverage report; non-gating)
 
 ### D6. Non-Goals
 

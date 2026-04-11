@@ -10,7 +10,7 @@
 
 **Status: IMPLEMENTATION COMPLETE ✅**
 
-All three implementation waves (Wave 1-3) from the ADR 0096 implementation plan have been successfully completed. The universal AI agent rulebook is operational, validation gates are passing, and adapter alignment is confirmed across all active agent entrypoints.
+All three implementation waves (Wave 1-3) from the ADR 0096 implementation plan have been successfully completed. The universal AI agent rulebook is operational, validation gates are passing, adapter alignment is confirmed across all active agent entrypoints, and reverse ADR-to-rule coverage reporting is available.
 
 ---
 
@@ -60,6 +60,7 @@ grep -i "4-level\|visibility" .codex/rules/tech-lead-architect.md
 | Block stale plugin boundary text | ✅ Complete | Validator and tests fail on old strict 4-level plugin-boundary text |
 | Strengthen adapter sync tests | ✅ Complete | Tests cover universal rulebook references and stale-token exclusion |
 | Move adapter registry into rule map schema | ✅ Complete | `docs/ai/ADR-RULE-MAP.yaml` now declares adapter files and required refs; validator/tests consume that registry |
+| Add ADR-to-rule reverse coverage reporting | ✅ Complete | `scripts/validation/report_adr_rule_coverage.py` and `task validate:agent-rule-coverage` generate diagnostics from `source_adr` |
 
 **Validator Checks:**
 1. ✅ ADR-RULE-MAP.yaml conforms to JSON schema
@@ -71,6 +72,7 @@ grep -i "4-level\|visibility" .codex/rules/tech-lead-architect.md
 7. ✅ Adapter files do not preserve stale plugin-boundary text
 
 **Test Coverage:**
+- `test_agent_rule_map_declares_adapter_registry()` - ✅ PASS
 - `test_agent_adapters_reference_universal_rulebook()` - ✅ PASS
 - `test_agent_instruction_files_include_adr0078_adr0080_contracts()` - ✅ PASS
 - `test_root_layout_instruction_files_use_current_directory_contracts()` - ✅ PASS
@@ -88,6 +90,11 @@ task validate:agent-rules-strict
 # Result: errors=0 warnings=0 rules=16 packs=8
 # Status: ✅ PASS
 
+# ADR-to-rule reverse coverage diagnostics
+task validate:agent-rule-coverage
+# Result: JSON report emitted with covered/uncovered ADR breakdown
+# Status: ✅ PASS
+
 # ADR consistency
 task validate:adr-consistency
 # Result: errors=0 warnings=0 strict_titles=on
@@ -95,7 +102,7 @@ task validate:adr-consistency
 
 # Adapter sync regression tests
 pytest tests/test_agent_instruction_sync.py -q
-# Result: 4 passed in 0.04s
+# Result: 5 passed
 # Status: ✅ PASS
 ```
 
@@ -138,9 +145,13 @@ All adapter files route to universal rulebook and exclude stale tokens:
 | Component | Status |
 |-----------|--------|
 | `scripts/validation/validate_agent_rules.py` | ✅ Operational |
-| `tests/test_agent_instruction_sync.py` | ✅ 4 tests passing |
+| `scripts/validation/report_adr_rule_coverage.py` | ✅ Operational |
+| `tests/test_agent_instruction_sync.py` | ✅ 5 tests passing |
+| `tests/test_validate_agent_rules.py` | ✅ 2 tests passing |
+| `tests/test_report_adr_rule_coverage.py` | ✅ 3 tests passing |
 | `task validate:agent-rules` | ✅ Wired and passing |
 | `task validate:agent-rules-strict` | ✅ Wired and passing (fail-on-warnings mode) |
+| `task validate:agent-rule-coverage` | ✅ Wired and passing |
 
 ---
 
@@ -157,6 +168,7 @@ All adapter files route to universal rulebook and exclude stale tokens:
 | Adapter registry in rule map | Yes | Yes | ✅ PASS |
 | Validation task implemented | Yes | Yes | ✅ PASS |
 | Strict validation task implemented | Yes | Yes | ✅ PASS |
+| ADR-to-rule coverage report | Yes | Yes | ✅ PASS |
 | Adapter drift coverage | All active adapters | 5/5 adapters covered | ✅ PASS |
 | Stale token exclusion | 0 instances | 0 instances | ✅ PASS |
 | Validation errors | 0 | 0 | ✅ PASS |
@@ -180,9 +192,8 @@ ADR 0067, 0068, 0069, 0070, 0071, 0078, 0079, 0083, 0084, 0085, 0087, 0089, 0090
 
 The following items are identified as future work and **not required** for ADR 0096 implementation completion:
 
-1. **ADR-to-rule coverage reporting** - Generate reverse coverage views from `source_adr` fields
-2. **Schema changelog/evolution policy** - Document schema version migration expectations
-3. **MCP resource export** - Expose rulebook/rule map as MCP resources for agent integration
+1. **Schema changelog/evolution policy** - Document schema version migration expectations
+2. **MCP resource export** - Expose rulebook/rule map as MCP resources for agent integration
 
 These are documented as opportunities in `adr/0096-analysis/SWOT-ANALYSIS.md` but do not block the acceptance criteria.
 
@@ -200,7 +211,7 @@ All acceptance criteria from ADR 0096 and the implementation plan are met:
 - [x] All adapter files route to universal rulebook
 - [x] No stale plugin ACL semantics remain in adapters
 - [x] Validation script operational: `scripts/validation/validate_agent_rules.py`
-- [x] Task gates wired: `task validate:agent-rules` and `task validate:agent-rules-strict`
+- [x] Task gates wired: `task validate:agent-rules`, `task validate:agent-rules-strict`, and `task validate:agent-rule-coverage`
 - [x] Adapter sync tests pass: `tests/test_agent_instruction_sync.py`
 - [x] All validation gates pass with 0 errors and 0 warnings
 - [x] SWOT analysis updated with implementation evidence
@@ -211,7 +222,7 @@ All acceptance criteria from ADR 0096 and the implementation plan are met:
 
 ## Conclusion
 
-ADR 0096 implementation is **complete and operational**. The universal AI agent rulebook successfully compresses ADR-derived repository rules into a compact (2.83% of ADR corpus), source-linked, machine-readable contract with full validation coverage.
+ADR 0096 implementation is **complete and operational**. The universal AI agent rulebook successfully compresses ADR-derived repository rules into a compact (2.83% of ADR corpus), source-linked, machine-readable contract with full validation coverage and reverse ADR-to-rule diagnostics.
 
 All three implementation waves have been executed, all validation gates pass, and all active agent adapters correctly route to the universal rulebook without preserving stale architectural semantics.
 
@@ -229,6 +240,9 @@ task validate:agent-rules
 
 # Agent rules validation (strict mode, fail on warnings)
 task validate:agent-rules-strict
+
+# ADR-to-rule reverse coverage diagnostics
+task validate:agent-rule-coverage
 
 # ADR consistency validation
 task validate:adr-consistency

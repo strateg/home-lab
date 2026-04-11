@@ -24,6 +24,7 @@ Load when changing:
 - `task validate:adr-consistency`
 - `task validate:agent-rules`
 - `task validate:agent-rules-strict` when adapter/rulebook drift must fail on warnings
+- `task validate:agent-rule-coverage` for reverse ADR-to-rule coverage diagnostics
 
 ## Rulebook Maintenance Review
 
