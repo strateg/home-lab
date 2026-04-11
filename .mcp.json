@@ -1,13 +1,19 @@
 {
   "mcpServers": {
+    "home-lab-ai-rulebook": {
+      "type": "stdio",
+      "command": "/home/dmpr/workspaces/projects/home-lab/.venv/bin/python",
+      "args": [
+        "/home/dmpr/workspaces/projects/home-lab/scripts/orchestration/mcp/agent_rulebook_mcp_server.py"
+      ],
+      "env": {}
+    },
     "mikrotik-chateau": {
       "type": "stdio",
-      "command": "wsl",
+      "command": "bash",
       "args": [
-        "-e",
-        "bash",
         "-lc",
-        "cd /mnt/d/Workspaces/PycharmProjects/home-lab && scripts/orchestration/mcp/run-mikrotik-mcp.sh"
+        "cd /home/dmpr/workspaces/projects/home-lab && scripts/orchestration/mcp/run-mikrotik-mcp.sh"
       ],
       "env": {}
     }
