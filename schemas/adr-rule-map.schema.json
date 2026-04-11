@@ -17,7 +17,7 @@
     "schema_version": {
       "type": "integer",
       "minimum": 1,
-      "description": "Schema version for evolution tracking"
+      "description": "Compatibility epoch for ADR0096 rule map consumers; current baseline is 1"
     },
     "generated_from_adr": {
       "type": "string",

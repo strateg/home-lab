@@ -58,7 +58,7 @@ The main residual risk is no longer the absence of validation tooling. The activ
 |---|---|---|---|
 | W1 | Adapter drift surface is broader than primary adapters | High | Primary adapters are covered; Codex-local adapters require explicit validator/test coverage |
 | W2 | Rule coverage is structural, not semantic | Medium | Validator checks schema, IDs, files, references, and adapter routing; it does not prove every ADR nuance is captured |
-| W3 | Schema evolution policy is minimal | Medium | `schema_version` exists, but no changelog or migration policy is defined |
+| W3 | Schema evolution remains governance-heavy | Medium | `adr/0096-analysis/SCHEMA-VERSION-POLICY.md` defines the epoch contract, but disciplined same-change-set updates are still required |
 | W4 | Rule coverage reporting is diagnostic-only, not gating | Medium | `task validate:agent-rule-coverage` emits reverse coverage views, but no closure gate depends on them |
 | W5 | Scoped loading still depends on agent behavior | Medium | Registry maps `files_glob`, but agents must still load packs correctly unless tooling enforces it |
 | W6 | Dependency graph is broad | Low | ADR0096 references 29 ADRs total: 13 direct and 16 transitive |
@@ -100,7 +100,7 @@ The main residual risk is no longer the absence of validation tooling. The activ
 | WO | Operationalize ADR coverage reporting | Track reverse coverage diagnostics across revisions and use them to detect drift |
 | ST | Preserve ADR authority under compression | Keep ADR deep-read tier and conflict rule in governance pack |
 | ST | Detect stale plugin boundary language | Guard adapters against old strict 4-level plugin boundary text superseded by ADR0086 |
-| WT | Define schema evolution | Add changelog/migration expectations before expanding schema fields further |
+| WT | Enforce schema evolution discipline | Keep policy, schema, validator, and canonical rule map updated in the same change set |
 
 ---
 
@@ -112,8 +112,7 @@ The main residual risk is no longer the absence of validation tooling. The activ
 | 2 | Remove stale strict 4-level plugin-boundary wording from Codex-local adapters | W1, T1 | Low | Targeted for this hardening pass |
 | 3 | Update adapter sync tests to require universal rulebook routing and block stale plugin ACL text | W1, T1 | Low | Targeted for this hardening pass |
 | 4 | Refresh ADR0096 wording from future validation direction to current implemented validation gate | W2 | Low | Targeted for this hardening pass |
-| 5 | Define schema changelog/evolution policy | W3, T2 | Low | Future work |
-| 6 | Add MCP resource export | O1, O3 | Medium | Future work |
+| 5 | Add MCP resource export | O1 | Medium | Future work |
 
 ---
 
@@ -138,4 +137,4 @@ The main residual risk is no longer the absence of validation tooling. The activ
 
 ADR 0096 is structurally sound and now has implemented validation/schema support plus reverse ADR-to-rule coverage diagnostics. Adapter drift hardening is complete for the active adapter set.
 
-The next strategic improvements after this hardening pass are schema evolution documentation and optional MCP resource export, with coverage diagnostics available for ongoing drift review.
+The next strategic improvement after this hardening pass is optional MCP resource export, with coverage diagnostics and schema policy now available for ongoing drift review.

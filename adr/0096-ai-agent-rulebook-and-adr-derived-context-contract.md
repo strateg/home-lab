@@ -65,6 +65,7 @@ Each rule SHOULD have:
 
 The machine-readable registry is the authoritative compact contract for automated checks and future generation.
 It also owns the active adapter registry and required boot references used by validation, so adapter inventory does not drift into validator-local constants.
+Schema evolution for this registry is governed by `adr/0096-analysis/SCHEMA-VERSION-POLICY.md`.
 
 ### D3. Context Loading Tiers
 

@@ -61,6 +61,7 @@ grep -i "4-level\|visibility" .codex/rules/tech-lead-architect.md
 | Strengthen adapter sync tests | ✅ Complete | Tests cover universal rulebook references and stale-token exclusion |
 | Move adapter registry into rule map schema | ✅ Complete | `docs/ai/ADR-RULE-MAP.yaml` now declares adapter files and required refs; validator/tests consume that registry |
 | Add ADR-to-rule reverse coverage reporting | ✅ Complete | `scripts/validation/report_adr_rule_coverage.py` and `task validate:agent-rule-coverage` generate diagnostics from `source_adr` |
+| Document schema version / evolution policy | ✅ Complete | `adr/0096-analysis/SCHEMA-VERSION-POLICY.md` defines epoch semantics, breaking-change threshold, and update process |
 
 **Validator Checks:**
 1. ✅ ADR-RULE-MAP.yaml conforms to JSON schema
@@ -147,6 +148,7 @@ All adapter files route to universal rulebook and exclude stale tokens:
 | `scripts/validation/validate_agent_rules.py` | ✅ Operational |
 | `scripts/validation/report_adr_rule_coverage.py` | ✅ Operational |
 | `tests/test_agent_instruction_sync.py` | ✅ 5 tests passing |
+| `tests/test_agent_rule_map_schema_policy.py` | ✅ 2 tests passing |
 | `tests/test_validate_agent_rules.py` | ✅ 2 tests passing |
 | `tests/test_report_adr_rule_coverage.py` | ✅ 3 tests passing |
 | `task validate:agent-rules` | ✅ Wired and passing |
@@ -190,10 +192,9 @@ ADR 0067, 0068, 0069, 0070, 0071, 0078, 0079, 0083, 0084, 0085, 0087, 0089, 0090
 
 ## Remaining Work (Future Enhancements)
 
-The following items are identified as future work and **not required** for ADR 0096 implementation completion:
+The following item is identified as future work and **not required** for ADR 0096 implementation completion:
 
-1. **Schema changelog/evolution policy** - Document schema version migration expectations
-2. **MCP resource export** - Expose rulebook/rule map as MCP resources for agent integration
+1. **MCP resource export** - Expose rulebook/rule map as MCP resources for agent integration
 
 These are documented as opportunities in `adr/0096-analysis/SWOT-ANALYSIS.md` but do not block the acceptance criteria.
 

@@ -18,6 +18,7 @@ Load when changing:
 5. Do not create divergent architectural truth in `AGENTS.md`, `CLAUDE.md`, or `.github/copilot-instructions.md`.
 6. When compressing ADRs into rules, preserve source ADR references.
 7. If a compact rule conflicts with an ADR, the ADR wins.
+8. If `docs/ai/ADR-RULE-MAP.yaml` schema semantics change, update `adr/0096-analysis/SCHEMA-VERSION-POLICY.md` in the same change set.
 
 ## Validation
 
