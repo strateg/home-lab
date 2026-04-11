@@ -69,7 +69,7 @@ The main residual risk is no longer the absence of validation tooling. The activ
 
 | # | Opportunity | Potential Impact | Feasibility |
 |---|---|---|---|
-| O1 | Agent-specific MCP registration automation | High | The stdio server exists; Codex/Claude setup wrappers can register it without manual commands |
+| O1 | Extend MCP registration automation beyond Codex | Medium | The stdio server exists and Codex already has a setup helper; remaining wrappers can target Claude/Cursor/Copilot flows |
 | O2 | Coverage-driven drift telemetry | High | Reverse coverage reports can be trended or compared across revisions |
 | O3 | IDE/Copilot/Cursor context integration | Medium | Scoped rule packs can be loaded by path/domain match |
 | O4 | Agent compliance telemetry | Medium | Validation outputs can become diagnostics for recurring adapter/rule drift |
@@ -112,7 +112,7 @@ The main residual risk is no longer the absence of validation tooling. The activ
 | 2 | Remove stale strict 4-level plugin-boundary wording from Codex-local adapters | W1, T1 | Low | Targeted for this hardening pass |
 | 3 | Update adapter sync tests to require universal rulebook routing and block stale plugin ACL text | W1, T1 | Low | Targeted for this hardening pass |
 | 4 | Refresh ADR0096 wording from future validation direction to current implemented validation gate | W2 | Low | Targeted for this hardening pass |
-| 5 | Add agent-specific registration automation for the stdio server | O1 | Medium | Future work |
+| 5 | Extend registration automation beyond the Codex helper | O1 | Medium | Future work |
 
 ---
 
@@ -137,4 +137,4 @@ The main residual risk is no longer the absence of validation tooling. The activ
 
 ADR 0096 is structurally sound and now has implemented validation/schema support plus reverse ADR-to-rule coverage diagnostics. Adapter drift hardening is complete for the active adapter set.
 
-The next strategic improvement after this hardening pass is optional agent-specific registration automation for the stdio MCP server, with coverage diagnostics and schema policy available for ongoing drift review.
+The next strategic improvement after this hardening pass is optional expansion of MCP registration helpers beyond Codex, with coverage diagnostics and schema policy available for ongoing drift review.

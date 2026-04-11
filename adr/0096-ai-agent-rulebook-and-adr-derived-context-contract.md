@@ -157,6 +157,7 @@ This ADR does not:
 4. Add validation task and schema for rulebook drift detection.
 5. Align Codex-local adapters with the universal rulebook contract.
 6. Optionally add an MCP resource/export later for agent-native retrieval.
+7. Optionally add agent-specific setup helpers for MCP registration without creating new architectural truth.
 
 ---
 

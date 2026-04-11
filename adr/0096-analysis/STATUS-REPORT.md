@@ -64,6 +64,7 @@ grep -i "4-level\|visibility" .codex/rules/tech-lead-architect.md
 | Document schema version / evolution policy | ✅ Complete | `adr/0096-analysis/SCHEMA-VERSION-POLICY.md` defines epoch semantics, breaking-change threshold, and update process |
 | Export MCP-style resource catalog | ✅ Complete | `scripts/validation/export_agent_rulebook_mcp_resources.py` and `task validate:agent-rule-mcp-export` emit resource metadata for rulebook, rule map, packs, and ADR0096 governance artifacts |
 | Add MCP stdio resource server | ✅ Complete | `scripts/orchestration/mcp/agent_rulebook_mcp_server.py` serves the exported rulebook catalog as live MCP resources and `task validate:agent-rule-mcp-server` smoke-checks it |
+| Add Codex MCP setup helper | ✅ Complete | `scripts/orchestration/mcp/setup-agent-rulebook-mcp-codex.py` prints a project-scoped `.mcp.json` snippet and registers the stdio server via `codex mcp` when explicitly invoked |
 
 **Validator Checks:**
 1. ✅ ADR-RULE-MAP.yaml conforms to JSON schema
@@ -161,12 +162,14 @@ All adapter files route to universal rulebook and exclude stale tokens:
 | `scripts/validation/report_adr_rule_coverage.py` | ✅ Operational |
 | `scripts/validation/export_agent_rulebook_mcp_resources.py` | ✅ Operational |
 | `scripts/orchestration/mcp/agent_rulebook_mcp_server.py` | ✅ Operational |
+| `scripts/orchestration/mcp/setup-agent-rulebook-mcp-codex.py` | ✅ Operational |
 | `tests/test_agent_instruction_sync.py` | ✅ 5 tests passing |
 | `tests/test_agent_rule_map_schema_policy.py` | ✅ 2 tests passing |
 | `tests/test_validate_agent_rules.py` | ✅ 2 tests passing |
 | `tests/test_report_adr_rule_coverage.py` | ✅ 3 tests passing |
 | `tests/test_export_agent_rulebook_mcp_resources.py` | ✅ 3 tests passing |
 | `tests/test_agent_rulebook_mcp_server.py` | ✅ 3 tests passing |
+| `tests/test_setup_agent_rulebook_mcp_codex.py` | ✅ 4 tests passing |
 | `task validate:agent-rules` | ✅ Wired and passing |
 | `task validate:agent-rules-strict` | ✅ Wired and passing (fail-on-warnings mode) |
 | `task validate:agent-rule-coverage` | ✅ Wired and passing |
@@ -212,7 +215,7 @@ ADR 0067, 0068, 0069, 0070, 0071, 0078, 0079, 0083, 0084, 0085, 0087, 0089, 0090
 
 ## Remaining Work (Future Enhancements)
 
-No remaining follow-up is required for ADR0096 implementation completion. Any future agent-specific auto-registration would be an integration convenience rather than a contract gap.
+No remaining follow-up is required for ADR0096 implementation completion. Codex now has an explicit registration helper; any future setup wrappers for other agents would be integration convenience rather than a contract gap.
 
 ---
 
@@ -239,7 +242,7 @@ All acceptance criteria from ADR 0096 and the implementation plan are met:
 
 ## Conclusion
 
-ADR 0096 implementation is **complete and operational**. The universal AI agent rulebook successfully compresses ADR-derived repository rules into a compact (2.83% of ADR corpus), source-linked, machine-readable contract with full validation coverage, reverse ADR-to-rule diagnostics, an MCP-style export catalog, and a live stdio MCP resource server.
+ADR 0096 implementation is **complete and operational**. The universal AI agent rulebook successfully compresses ADR-derived repository rules into a compact (2.83% of ADR corpus), source-linked, machine-readable contract with full validation coverage, reverse ADR-to-rule diagnostics, an MCP-style export catalog, a live stdio MCP resource server, and a Codex registration helper that avoids creating divergent architecture instructions.
 
 All three implementation waves have been executed, all validation gates pass, and all active agent adapters correctly route to the universal rulebook without preserving stale architectural semantics.
 
