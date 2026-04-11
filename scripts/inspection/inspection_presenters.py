@@ -186,6 +186,87 @@ def print_classes_tree(payload: dict[str, Any]) -> None:
         walk(root, 0)
 
 
+def print_inheritance(payload: dict[str, Any], class_ref: str | None = None) -> int:
+    classes = payload.get("classes", {})
+    if not isinstance(classes, dict):
+        print("No classes found.")
+        return 0
+
+    children: dict[str, list[str]] = defaultdict(list)
+    parents: dict[str, str] = {}
+    roots: list[str] = []
+    for class_id, class_payload in classes.items():
+        if not isinstance(class_payload, dict):
+            roots.append(class_id)
+            continue
+        parent = class_payload.get("parent_class")
+        if isinstance(parent, str) and parent:
+            children[parent].append(class_id)
+            parents[class_id] = parent
+        else:
+            roots.append(class_id)
+
+    for parent_id in children:
+        children[parent_id].sort()
+    roots.sort()
+
+    if class_ref is None:
+        print("Class Inheritance Summary")
+        print("=========================")
+        print(f"classes total: {len(classes)}")
+        print(f"root classes: {len(roots)}")
+        print(f"derived classes: {len(parents)}")
+        if roots:
+            print("Roots:")
+            for row in roots:
+                print(f"  - {row}")
+        return 0
+
+    if class_ref not in classes:
+        print(f"Unknown class reference: {class_ref}")
+        return 2
+
+    ancestors: list[str] = []
+    cursor = class_ref
+    while cursor in parents:
+        parent = parents[cursor]
+        ancestors.append(parent)
+        cursor = parent
+
+    descendants: list[str] = []
+    queue: deque[str] = deque(children.get(class_ref, []))
+    while queue:
+        node = queue.popleft()
+        descendants.append(node)
+        queue.extend(children.get(node, []))
+
+    print(f"Class inheritance for: {class_ref}")
+    print("====================================")
+    print("Ancestors:")
+    if not ancestors:
+        print("  - none")
+    else:
+        for row in ancestors:
+            print(f"  - {row}")
+
+    direct_children = children.get(class_ref, [])
+    print("Direct children:")
+    if not direct_children:
+        print("  - none")
+    else:
+        for row in direct_children:
+            print(f"  - {row}")
+
+    print("All descendants:")
+    if not descendants:
+        print("  - none")
+    else:
+        for row in descendants:
+            print(f"  - {row}")
+
+    return 0
+
+
 def print_objects_by_class(payload: dict[str, Any]) -> None:
     objects = payload.get("objects", {})
     if not isinstance(objects, dict):

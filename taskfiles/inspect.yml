@@ -11,6 +11,11 @@ tasks:
     cmds:
       - "{{.PYTHON}} scripts/inspection/inspect_topology.py classes {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
 
+  inheritance:
+    desc: Inspect class inheritance summary or focused lineage (optional CLASS=<class_ref>)
+    cmds:
+      - "{{.PYTHON}} scripts/inspection/inspect_topology.py inheritance {{if .CLASS}}--class {{.CLASS}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
+
   objects:
     desc: Show objects grouped by materialized class
     cmds:

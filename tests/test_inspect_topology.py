@@ -176,6 +176,59 @@ def test_classes_command_prints_current_inheritance_tree(tmp_path: Path) -> None
     assert "  - class.service.api" in result.stdout
 
 
+def test_inheritance_command_prints_summary_when_class_not_provided(tmp_path: Path) -> None:
+    effective = _write_fixture_repo(tmp_path)
+
+    result = _run_inspect(tmp_path, "inheritance", "--effective", str(effective))
+
+    assert "Class Inheritance Summary" in result.stdout
+    assert "classes total: 5" in result.stdout
+    assert "root classes: 3" in result.stdout
+    assert "derived classes: 2" in result.stdout
+    assert "Roots:" in result.stdout
+    assert "  - class.infrastructure" in result.stdout
+    assert "  - class.router" in result.stdout
+    assert "  - class.service" in result.stdout
+
+
+def test_inheritance_command_prints_focused_lineage_for_class(tmp_path: Path) -> None:
+    effective = _write_fixture_repo(tmp_path)
+
+    result = _run_inspect(
+        tmp_path,
+        "inheritance",
+        "--effective",
+        str(effective),
+        "--class",
+        "class.router",
+    )
+
+    assert "Class inheritance for: class.router" in result.stdout
+    assert "Ancestors:" in result.stdout
+    assert "  - none" in result.stdout
+    assert "Direct children:" in result.stdout
+    assert "  - class.router.edge" in result.stdout
+    assert "All descendants:" in result.stdout
+    assert "  - class.router.edge" in result.stdout
+
+
+def test_inheritance_command_returns_exit_code_2_for_unknown_class(tmp_path: Path) -> None:
+    effective = _write_fixture_repo(tmp_path)
+
+    result = _run_inspect(
+        tmp_path,
+        "inheritance",
+        "--effective",
+        str(effective),
+        "--class",
+        "class.unknown",
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert "Unknown class reference: class.unknown" in result.stdout
+
+
 def test_objects_command_groups_by_materialized_or_extended_class(tmp_path: Path) -> None:
     effective = _write_fixture_repo(tmp_path)
 

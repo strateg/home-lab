@@ -18,6 +18,7 @@ from inspection_presenters import (  # noqa: E402
     print_capability_packs as _print_capability_packs,
     print_classes_tree as _print_classes_tree,
     print_deps as _print_deps,
+    print_inheritance as _print_inheritance,
     print_instances_tree as _print_instances_tree,
     print_objects_by_class as _print_objects_by_class,
     print_search as _print_search,
@@ -40,6 +41,9 @@ def _parse_args() -> argparse.Namespace:
     subparsers = parser.add_subparsers(dest="command")
     add_effective_arg(subparsers.add_parser("summary", help="Print high-level topology summary."))
     add_effective_arg(subparsers.add_parser("classes", help="Print class hierarchy tree."))
+    inheritance_parser = subparsers.add_parser("inheritance", help="Inspect class inheritance and lineage.")
+    add_effective_arg(inheritance_parser)
+    inheritance_parser.add_argument("--class", dest="class_ref", help="Class reference for focused lineage.")
     add_effective_arg(subparsers.add_parser("objects", help="Print objects grouped by class."))
     add_effective_arg(subparsers.add_parser("instances", help="Print instances grouped by layer."))
 
@@ -80,6 +84,8 @@ def main() -> int:
     if command == "classes":
         _print_classes_tree(payload)
         return 0
+    if command == "inheritance":
+        return _print_inheritance(payload, args.class_ref)
     if command == "objects":
         _print_objects_by_class(payload)
         return 0
