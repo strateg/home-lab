@@ -51,7 +51,7 @@
 | G7 | Closed — unified capability surface (`capabilities`) implemented and validated |
 | G8 | Closed — compact defaults + explicit detailed modes for high-volume views, plus layer/group filters for instance-scoped diagnostics |
 | G9 | Closed — machine-readable JSON contracts added for overview/dependency/inheritance/capability domains |
-| G10 | Partial — semantic typing delivered as shadow mode for `deps`; promotion to authoritative semantic model is pending |
+| G10 | Partial — semantic typing delivered as shadow mode for `deps`; promotion to authoritative semantic model is gated by `SEMANTIC-TYPING-PROMOTION-CRITERIA.md` |
 | G11 | Closed — loader/index/relation/presenter/export concerns extracted behind canonical CLI |
 
 ## Risks

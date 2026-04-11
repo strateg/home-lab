@@ -45,13 +45,45 @@ task validate:quality              # Aggregate quality gate
 ## Topology Inspection Commands
 
 ```bash
-task inspect:default                              # Summary (classes/objects/instances + groups)
-task inspect:classes                              # Class hierarchy tree
-task inspect:objects                              # Objects grouped by class
-task inspect:instances                            # Instances grouped by layer
-task inspect:search QUERY='mikrotik'              # Regex search across instance payloads
-task inspect:deps INSTANCE='rtr-mikrotik-chateau' # Direct/incoming/transitive dependency view
-task inspect:deps-dot                             # Export DOT graph to build/diagnostics/
+task inspect:default                                            # Summary (compact)
+task inspect:summary-json                                       # Summary JSON (schema_versioned)
+task inspect:classes                                            # Class hierarchy tree
+task inspect:inheritance                                        # Inheritance summary
+task inspect:inheritance CLASS='class.router'                   # Focused class lineage
+task inspect:inheritance-json [CLASS='class.router']            # Inheritance JSON
+task inspect:objects                                            # Objects grouped by class (compact)
+task inspect:objects-detailed                                   # Objects grouped by class (detailed rows)
+task inspect:instances                                          # Instances grouped by layer (compact)
+task inspect:instances-detailed                                 # Instances grouped by layer (detailed rows)
+task inspect:search QUERY='mikrotik'                            # Regex search across instance payloads
+task inspect:deps INSTANCE='rtr-mikrotik-chateau'               # Direct/incoming/transitive dependency view
+task inspect:deps-typed-shadow INSTANCE='rtr-mikrotik-chateau'  # deps + non-authoritative typed relation shadow
+task inspect:deps-json INSTANCE='rtr-mikrotik-chateau'          # Dependency JSON
+task inspect:deps-json-typed-shadow INSTANCE='rtr-mikrotik-chateau' # Dependency JSON + typed shadow block
+task inspect:deps-dot                                           # Export DOT graph to build/diagnostics/
+task inspect:capability-packs                                   # class -> packs -> objects inspection
+task inspect:capabilities                                       # Unified class/object/pack capability summary
+task inspect:capabilities CLASS='class.router'                  # Focused class capability view
+task inspect:capabilities OBJECT='obj.mikrotik.chateau_lte7_ax' # Focused object capability view
+task inspect:capabilities-json [CLASS|OBJECT]                   # Capability JSON
+```
+
+### Optional Filters (instance-scoped commands)
+
+The following commands support `LAYER` and `GROUP` filters:
+- `inspect:default`, `inspect:summary-json`
+- `inspect:instances`, `inspect:instances-detailed`
+- `inspect:search`
+- `inspect:deps`, `inspect:deps-typed-shadow`, `inspect:deps-json`, `inspect:deps-json-typed-shadow`
+- `inspect:deps-dot`
+
+Examples:
+
+```bash
+task inspect:default LAYER='L5' GROUP='services'
+task inspect:summary-json LAYER='L5' GROUP='services'
+task inspect:search QUERY='mikrotik' LAYER='L3' GROUP='network'
+task inspect:deps-dot LAYER='L5' GROUP='services' OUTPUT='build/diagnostics/topology-instance-deps-l5-services.dot'
 ```
 
 ---

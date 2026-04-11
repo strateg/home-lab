@@ -174,7 +174,7 @@ Typed relations are intended to reduce ambiguity between “reference exists” 
 
 Execution note (2026-04-11):
 - semantic relation typing is currently delivered in shadow mode for `deps` (`--typed-shadow`) and corresponding JSON shadow block;
-- baseline dependency extraction remains authoritative until promotion criteria are accepted.
+- baseline dependency extraction remains authoritative until promotion criteria are accepted (see `adr/0095-analysis/SEMANTIC-TYPING-PROMOTION-CRITERIA.md`).
 
 ### D9. Fail-fast поведение
 
@@ -247,6 +247,7 @@ Execution note (2026-04-11):
 - `adr/0095-analysis/SWOT-ANALYSIS.md`
 - `adr/0095-analysis/REFACTORING-PLAN.md`
 - `adr/0095-analysis/OPTIMIZATION-IMPLEMENTATION-PLAN.md`
+- `adr/0095-analysis/SEMANTIC-TYPING-PROMOTION-CRITERIA.md`
 - `scripts/inspection/inspect_topology.py`
 - `taskfiles/inspect.yml`
 - `tests/test_inspect_topology.py`

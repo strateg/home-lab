@@ -79,3 +79,6 @@ Completed waves/PR-sized slices:
 
 Outstanding from Wave 3:
 - semantic typing promotion decision beyond shadow mode (keep as non-authoritative shadow until promotion criteria are approved).
+
+Promotion criteria artifact:
+- `adr/0095-analysis/SEMANTIC-TYPING-PROMOTION-CRITERIA.md`
