@@ -9,6 +9,7 @@
     "schema_version",
     "generated_from_adr",
     "purpose",
+    "adapters",
     "rule_packs",
     "rules"
   ],
@@ -28,6 +29,10 @@
       "minLength": 10,
       "description": "Human-readable purpose statement"
     },
+    "adapters": {
+      "$ref": "#/$defs/adapters",
+      "description": "Active agent adapter registry and required boot references"
+    },
     "rule_packs": {
       "type": "object",
       "additionalProperties": {
@@ -45,6 +50,36 @@
     }
   },
   "$defs": {
+    "adapters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "files",
+        "required_refs"
+      ],
+      "properties": {
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "Adapter files that must route to the universal rulebook"
+        },
+        "required_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 3
+          },
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "References that each adapter file must contain"
+        }
+      }
+    },
     "rule_pack": {
       "type": "object",
       "additionalProperties": false,

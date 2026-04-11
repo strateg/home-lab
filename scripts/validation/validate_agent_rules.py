@@ -6,8 +6,9 @@ Checks:
 2. All source_adr IDs exist in adr/REGISTER.md
 3. All rule pack files exist
 4. Rule IDs are unique
-5. Adapter files reference the universal rulebook and rule map
-6. Adapter files do not preserve stale plugin-boundary text superseded by ADR0086
+5. Adapter registry is declared in ADR-RULE-MAP.yaml
+6. Adapter files reference the universal rulebook and rule map
+7. Adapter files do not preserve stale plugin-boundary text superseded by ADR0086
 """
 
 from __future__ import annotations
@@ -29,19 +30,6 @@ try:
 except ImportError:
     HAS_JSONSCHEMA = False
 
-
-ADAPTER_FILES = (
-    "AGENTS.md",
-    "CLAUDE.md",
-    ".github/copilot-instructions.md",
-    ".codex/AGENTS.md",
-    ".codex/rules/tech-lead-architect.md",
-)
-
-ADAPTER_REQUIRED_REFS = (
-    "docs/ai/AGENT-RULEBOOK.md",
-    "docs/ai/ADR-RULE-MAP.yaml",
-)
 
 STALE_ADAPTER_TOKENS = (
     "All AI agents must enforce a 4-level plugin boundary model",
@@ -165,19 +153,44 @@ def validate_unique_rule_ids(rule_map: dict, result: ValidationResult) -> None:
             seen[rule_id] = idx
 
 
+def _load_adapter_registry(rule_map: dict) -> tuple[list[str], list[str]]:
+    adapters = rule_map.get("adapters", {})
+    if not isinstance(adapters, dict):
+        return [], []
+    files = [item.strip() for item in adapters.get("files", []) if isinstance(item, str) and item.strip()]
+    required_refs = [
+        item.strip() for item in adapters.get("required_refs", []) if isinstance(item, str) and item.strip()
+    ]
+    return files, required_refs
+
+
+def validate_adapter_registry(rule_map: dict, result: ValidationResult) -> None:
+    """Check that adapter registry is present even without schema validation."""
+    adapter_files, required_refs = _load_adapter_registry(rule_map)
+    if not adapter_files:
+        result.add_error("adapters.files: missing or empty")
+    if not required_refs:
+        result.add_error("adapters.required_refs: missing or empty")
+
+
 def validate_adapters_reference_rulebook(
+    rule_map: dict,
     repo_root: Path,
     result: ValidationResult,
 ) -> None:
     """Check that adapter files route to the universal rulebook contract."""
-    for adapter_rel in ADAPTER_FILES:
+    adapter_files, required_refs = _load_adapter_registry(rule_map)
+    if not adapter_files or not required_refs:
+        return
+
+    for adapter_rel in adapter_files:
         adapter_path = repo_root / adapter_rel
         if not adapter_path.exists():
             result.add_warning(f"Adapter not found: {adapter_rel}")
             continue
 
         content = adapter_path.read_text(encoding="utf-8")
-        for expected_ref in ADAPTER_REQUIRED_REFS:
+        for expected_ref in required_refs:
             if expected_ref not in content:
                 result.add_error(f"Adapter {adapter_rel} does not reference {expected_ref}")
 
@@ -225,7 +238,8 @@ def validate_agent_rules(
     validate_source_adr_exists(rule_map, register_adrs, result)
     validate_rule_pack_files_exist(rule_map, repo_root, result)
     validate_unique_rule_ids(rule_map, result)
-    validate_adapters_reference_rulebook(repo_root, result)
+    validate_adapter_registry(rule_map, result)
+    validate_adapters_reference_rulebook(rule_map, repo_root, result)
     validate_rule_triggers_and_validators(rule_map, result)
 
     return result

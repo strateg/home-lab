@@ -2,6 +2,17 @@ schema_version: 1
 generated_from_adr: "0096"
 purpose: "Compact ADR-derived rule registry for universal AI coding agents."
 
+adapters:
+  files:
+    - "AGENTS.md"
+    - "CLAUDE.md"
+    - ".github/copilot-instructions.md"
+    - ".codex/AGENTS.md"
+    - ".codex/rules/tech-lead-architect.md"
+  required_refs:
+    - "docs/ai/AGENT-RULEBOOK.md"
+    - "docs/ai/ADR-RULE-MAP.yaml"
+
 rule_packs:
   plugin-runtime:
     path: docs/ai/rules/plugin-runtime.md

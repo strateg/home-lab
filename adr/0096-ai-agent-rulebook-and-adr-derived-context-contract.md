@@ -1,7 +1,8 @@
 # ADR 0096: AI Agent Rulebook and ADR-Derived Context Contract
 
-**Status:** Accepted
+**Status:** Implemented (Waves 1-3 complete, see `adr/0096-analysis/STATUS-REPORT.md`)
 **Date:** 2026-04-10
+**Implementation Completion:** 2026-04-10
 **Depends on (direct):** ADR 0062, ADR 0063, ADR 0065, ADR 0066, ADR 0075, ADR 0076, ADR 0077, ADR 0080, ADR 0081, ADR 0086, ADR 0088, ADR 0094, ADR 0095
 **Depends on (transitive via rule packs):** ADR 0067, ADR 0068, ADR 0069, ADR 0070, ADR 0071, ADR 0078, ADR 0079, ADR 0083, ADR 0084, ADR 0085, ADR 0087, ADR 0089, ADR 0090, ADR 0091, ADR 0092, ADR 0093
 
@@ -63,6 +64,7 @@ Each rule SHOULD have:
 - optional `rule_pack`.
 
 The machine-readable registry is the authoritative compact contract for automated checks and future generation.
+It also owns the active adapter registry and required boot references used by validation, so adapter inventory does not drift into validator-local constants.
 
 ### D3. Context Loading Tiers
 
@@ -92,6 +94,7 @@ Initial rollout was documentation-first. The validation gate is now implemented 
 - all referenced rule pack files exist;
 - rule IDs are unique;
 - each rule has at least one trigger and one validation mechanism;
+- adapter inventory is declared in `docs/ai/ADR-RULE-MAP.yaml`;
 - active adapter files route to the universal rulebook and rule map;
 - adapter files do not preserve stale plugin-boundary semantics superseded by ADR0086.
 
