@@ -70,6 +70,11 @@ def _parse_args() -> argparse.Namespace:
     deps_parser.add_argument("--instance", required=True, help="Instance reference (instance_id or source_id).")
     deps_parser.add_argument("--max-depth", type=int, default=3, help="Max transitive depth (default: 3).")
     deps_parser.add_argument("--json", action="store_true", dest="as_json", help="Print machine-readable JSON.")
+    deps_parser.add_argument(
+        "--typed-shadow",
+        action="store_true",
+        help="Emit experimental semantic relation typing shadow alongside dependency output.",
+    )
 
     dot_parser = subparsers.add_parser("deps-dot", help="Write full instance dependency graph to Graphviz DOT.")
     add_effective_arg(dot_parser)
@@ -128,10 +133,20 @@ def main() -> int:
         return 0
     if command == "deps":
         if bool(getattr(args, "as_json", False)):
-            code, body = _deps_payload(instances, instance_ref=args.instance, max_depth=max(args.max_depth, 1))
+            code, body = _deps_payload(
+                instances,
+                instance_ref=args.instance,
+                max_depth=max(args.max_depth, 1),
+                include_typed_shadow=bool(args.typed_shadow),
+            )
             print(json.dumps(body, ensure_ascii=False, indent=2, sort_keys=True))
             return code
-        return _print_deps(instances, args.instance, max_depth=max(args.max_depth, 1))
+        return _print_deps(
+            instances,
+            args.instance,
+            max_depth=max(args.max_depth, 1),
+            typed_shadow=bool(args.typed_shadow),
+        )
     if command == "deps-dot":
         _write_dot(instances, Path(args.output))
         return 0

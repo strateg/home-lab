@@ -98,3 +98,26 @@ def test_resolve_instance_id_supports_instance_source_and_short_alias() -> None:
     assert relations.resolve_instance_id(instances, "rtr-main") == "inst.router"
     assert relations.resolve_instance_id(instances, "router") == "inst.router"
     assert relations.resolve_instance_id(instances, "unknown") is None
+
+
+def test_infer_relation_type_classifies_common_domains() -> None:
+    relations = _load_module(INSPECTION_DIR / "inspection_relations.py", "inspection_relations_infer_type")
+
+    assert relations.infer_relation_type("network.gateway_ref") == "network"
+    assert relations.infer_relation_type("storage.volume_ref") == "storage"
+    assert relations.infer_relation_type("runtime.host_ref") == "runtime"
+    assert relations.infer_relation_type("capability_pack_ref") == "capability"
+    assert relations.infer_relation_type("service_ref") == "generic_ref"
+
+
+def test_typed_relation_shadow_builds_edge_type_map() -> None:
+    relations = _load_module(INSPECTION_DIR / "inspection_relations.py", "inspection_relations_shadow")
+    labels = {
+        "inst.router->inst.api": ["network.gateway_ref", "service_ref"],
+        "inst.api->inst.storage": ["storage.volume_ref"],
+    }
+
+    shadow = relations.typed_relation_shadow(labels)
+
+    assert shadow["inst.router->inst.api"] == ["generic_ref", "network"]
+    assert shadow["inst.api->inst.storage"] == ["storage"]

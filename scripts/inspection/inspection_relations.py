@@ -74,3 +74,24 @@ def build_dependency_graph(
 def resolve_instance_id(instances: list[dict[str, Any]], value: str) -> str | None:
     aliases = source_aliases(instances)
     return aliases.get(value)
+
+
+def infer_relation_type(path: str) -> str:
+    lowered = path.lower()
+    if any(token in lowered for token in ("network", "vlan", "gateway", "router", "firewall", "ip", "cidr")):
+        return "network"
+    if any(token in lowered for token in ("storage", "disk", "volume", "pool", "data", "backup")):
+        return "storage"
+    if any(token in lowered for token in ("host", "runtime", "node", "hypervisor", "docker", "lxc", "vm")):
+        return "runtime"
+    if any(token in lowered for token in ("capability", "pack")):
+        return "capability"
+    return "generic_ref"
+
+
+def typed_relation_shadow(edge_labels: dict[str, list[str]]) -> dict[str, list[str]]:
+    shadow: dict[str, list[str]] = {}
+    for edge_key, labels in edge_labels.items():
+        relation_types = sorted({infer_relation_type(path) for path in labels})
+        shadow[edge_key] = relation_types
+    return shadow

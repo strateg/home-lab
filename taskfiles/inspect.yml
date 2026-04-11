@@ -70,6 +70,22 @@ tasks:
     cmds:
       - "{{.PYTHON}} scripts/inspection/inspect_topology.py deps --instance {{.INSTANCE}} --json {{if .MAX_DEPTH}}--max-depth {{.MAX_DEPTH}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
 
+  deps-typed-shadow:
+    desc: Show dependencies with experimental typed relation shadow (INSTANCE=<id|source_id>)
+    requires:
+      vars:
+        - INSTANCE
+    cmds:
+      - "{{.PYTHON}} scripts/inspection/inspect_topology.py deps --instance {{.INSTANCE}} --typed-shadow {{if .MAX_DEPTH}}--max-depth {{.MAX_DEPTH}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
+
+  deps-json-typed-shadow:
+    desc: Show dependencies in JSON with typed relation shadow (INSTANCE=<id|source_id>)
+    requires:
+      vars:
+        - INSTANCE
+    cmds:
+      - "{{.PYTHON}} scripts/inspection/inspect_topology.py deps --instance {{.INSTANCE}} --json --typed-shadow {{if .MAX_DEPTH}}--max-depth {{.MAX_DEPTH}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
+
   deps-dot:
     desc: Export instance dependency graph in DOT format
     cmds:

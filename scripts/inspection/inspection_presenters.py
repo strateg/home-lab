@@ -16,7 +16,7 @@ if str(SCRIPT_DIR) not in sys.path:
 
 from inspection_indexes import object_class_ref
 from inspection_loader import load_capability_pack_catalog
-from inspection_relations import build_dependency_graph, resolve_instance_id
+from inspection_relations import build_dependency_graph, resolve_instance_id, typed_relation_shadow
 
 
 def print_summary(payload: dict[str, Any], instances: list[dict[str, Any]]) -> None:
@@ -504,7 +504,13 @@ def print_search(instances: list[dict[str, Any]], query: str) -> None:
         print(f"- {item.get('instance_id')} (source={item.get('source_id')}, layer={item.get('layer')})")
 
 
-def print_deps(instances: list[dict[str, Any]], instance_ref: str, max_depth: int) -> int:
+def print_deps(
+    instances: list[dict[str, Any]],
+    instance_ref: str,
+    max_depth: int,
+    *,
+    typed_shadow: bool = False,
+) -> int:
     resolved = resolve_instance_id(instances, instance_ref)
     if resolved is None:
         print(f"Unknown instance reference: {instance_ref}")
@@ -553,5 +559,24 @@ def print_deps(instances: list[dict[str, Any]], instance_ref: str, max_depth: in
         print("  - none")
     for ref in missing:
         print(f"  - {ref}")
+
+    if typed_shadow:
+        shadow = typed_relation_shadow(edge_labels)
+        print("Typed relation shadow (non-authoritative):")
+        has_rows = False
+        for target in direct_outgoing:
+            edge_key = f"{resolved}->{target}"
+            types = shadow.get(edge_key, [])
+            if types:
+                has_rows = True
+                print(f"  - outgoing {edge_key}: {', '.join(types)}")
+        for source in direct_incoming:
+            edge_key = f"{source}->{resolved}"
+            types = shadow.get(edge_key, [])
+            if types:
+                has_rows = True
+                print(f"  - incoming {edge_key}: {', '.join(types)}")
+        if not has_rows:
+            print("  - none")
 
     return 0

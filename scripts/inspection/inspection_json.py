@@ -14,7 +14,7 @@ if str(SCRIPT_DIR) not in sys.path:
 
 from inspection_indexes import object_class_ref
 from inspection_loader import load_capability_pack_catalog
-from inspection_relations import build_dependency_graph, resolve_instance_id
+from inspection_relations import build_dependency_graph, resolve_instance_id, typed_relation_shadow
 
 
 SUMMARY_SCHEMA_VERSION = "adr0095.inspect.summary.v1"
@@ -51,6 +51,7 @@ def deps_payload(
     *,
     instance_ref: str,
     max_depth: int,
+    include_typed_shadow: bool = False,
 ) -> tuple[int, dict[str, Any]]:
     resolved = resolve_instance_id(instances, instance_ref)
     if resolved is None:
@@ -88,32 +89,51 @@ def deps_payload(
         for nxt in sorted(edges.get(node, set())):
             queue.append((nxt, depth + 1))
 
-    return (
-        0,
-        {
-            "schema_version": DEPS_SCHEMA_VERSION,
-            "command": "deps",
-            "resolved_instance_id": resolved,
-            "instance_ref": instance_ref,
-            "max_depth": max_depth,
+    body: dict[str, Any] = {
+        "schema_version": DEPS_SCHEMA_VERSION,
+        "command": "deps",
+        "resolved_instance_id": resolved,
+        "instance_ref": instance_ref,
+        "max_depth": max_depth,
+        "direct_outgoing": [
+            {
+                "instance_id": target,
+                "labels": sorted(set(edge_labels.get(f"{resolved}->{target}", []))),
+            }
+            for target in direct_outgoing
+        ],
+        "direct_incoming": [
+            {
+                "instance_id": source,
+                "labels": sorted(set(edge_labels.get(f"{source}->{resolved}", []))),
+            }
+            for source in direct_incoming
+        ],
+        "transitive_outgoing": transitive_outgoing,
+        "unresolved_refs": sorted(set(unresolved.get(resolved, []))),
+    }
+
+    if include_typed_shadow:
+        shadow = typed_relation_shadow(edge_labels)
+        body["typed_shadow"] = {
+            "schema_version": "adr0095.inspect.deps.typed-shadow.v1",
             "direct_outgoing": [
                 {
-                    "instance_id": target,
-                    "labels": sorted(set(edge_labels.get(f"{resolved}->{target}", []))),
+                    "edge": f"{resolved}->{target}",
+                    "types": shadow.get(f"{resolved}->{target}", []),
                 }
                 for target in direct_outgoing
             ],
             "direct_incoming": [
                 {
-                    "instance_id": source,
-                    "labels": sorted(set(edge_labels.get(f"{source}->{resolved}", []))),
+                    "edge": f"{source}->{resolved}",
+                    "types": shadow.get(f"{source}->{resolved}", []),
                 }
                 for source in direct_incoming
             ],
-            "transitive_outgoing": transitive_outgoing,
-            "unresolved_refs": sorted(set(unresolved.get(resolved, []))),
-        },
-    )
+        }
+
+    return (0, body)
 
 
 def inheritance_payload(payload: dict[str, Any], *, class_ref: str | None = None) -> tuple[int, dict[str, Any]]:

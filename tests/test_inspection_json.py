@@ -66,7 +66,7 @@ def test_summary_payload_contract_shape() -> None:
 
 def test_deps_payload_returns_resolved_dependency_view() -> None:
     module = _load_module(INSPECTION_DIR / "inspection_json.py", "inspection_json_deps_contract")
-    code, body = module.deps_payload(_instances_fixture(), instance_ref="rtr-main", max_depth=3)
+    code, body = module.deps_payload(_instances_fixture(), instance_ref="rtr-main", max_depth=3, include_typed_shadow=True)
 
     assert code == 0
     assert body["schema_version"] == module.DEPS_SCHEMA_VERSION
@@ -76,6 +76,8 @@ def test_deps_payload_returns_resolved_dependency_view() -> None:
     assert body["direct_outgoing"][0]["instance_id"] == "inst.service.api"
     assert body["transitive_outgoing"][0]["instance_id"] == "inst.service.api"
     assert body["transitive_outgoing"][1]["instance_id"] == "inst.gateway"
+    assert body["typed_shadow"]["schema_version"] == "adr0095.inspect.deps.typed-shadow.v1"
+    assert body["typed_shadow"]["direct_outgoing"][0]["edge"] == "inst.router->inst.service.api"
 
 
 def test_deps_payload_returns_structured_error_for_unknown_instance() -> None:

@@ -37,6 +37,8 @@ def test_inspect_taskfile_contains_compact_and_detailed_object_instance_tasks() 
         "instances-detailed",
         "summary-json",
         "deps-json",
+        "deps-typed-shadow",
+        "deps-json-typed-shadow",
         "inheritance-json",
         "capabilities-json",
     ):
@@ -53,5 +55,11 @@ def test_json_tasks_forward_json_flag_to_cli() -> None:
     tasks = _load_tasks()
     assert "summary --json" in _first_cmd(tasks, "summary-json")
     assert "deps --instance {{.INSTANCE}} --json" in _first_cmd(tasks, "deps-json")
+    assert "deps --instance {{.INSTANCE}} --json --typed-shadow" in _first_cmd(tasks, "deps-json-typed-shadow")
     assert "inheritance --json" in _first_cmd(tasks, "inheritance-json")
     assert "capabilities --json" in _first_cmd(tasks, "capabilities-json")
+
+
+def test_typed_shadow_task_forwards_flag_to_cli() -> None:
+    tasks = _load_tasks()
+    assert "deps --instance {{.INSTANCE}} --typed-shadow" in _first_cmd(tasks, "deps-typed-shadow")
