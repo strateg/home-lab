@@ -187,3 +187,8 @@ tasks:
     desc: Export ADR0096 rulebook assets as an MCP-style resource catalog
     cmds:
       - "{{.PYTHON}} scripts/validation/export_agent_rulebook_mcp_resources.py --output-json build/diagnostics/agent-rule-mcp-resources.json"
+
+  agent-rule-mcp-server:
+    desc: Smoke-check ADR0096 MCP stdio resource server
+    cmds:
+      - "{{.PYTHON}} scripts/orchestration/mcp/agent_rulebook_mcp_server.py --check"

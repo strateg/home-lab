@@ -63,6 +63,7 @@ grep -i "4-level\|visibility" .codex/rules/tech-lead-architect.md
 | Add ADR-to-rule reverse coverage reporting | ✅ Complete | `scripts/validation/report_adr_rule_coverage.py` and `task validate:agent-rule-coverage` generate diagnostics from `source_adr` |
 | Document schema version / evolution policy | ✅ Complete | `adr/0096-analysis/SCHEMA-VERSION-POLICY.md` defines epoch semantics, breaking-change threshold, and update process |
 | Export MCP-style resource catalog | ✅ Complete | `scripts/validation/export_agent_rulebook_mcp_resources.py` and `task validate:agent-rule-mcp-export` emit resource metadata for rulebook, rule map, packs, and ADR0096 governance artifacts |
+| Add MCP stdio resource server | ✅ Complete | `scripts/orchestration/mcp/agent_rulebook_mcp_server.py` serves the exported rulebook catalog as live MCP resources and `task validate:agent-rule-mcp-server` smoke-checks it |
 
 **Validator Checks:**
 1. ✅ ADR-RULE-MAP.yaml conforms to JSON schema
@@ -100,6 +101,11 @@ task validate:agent-rule-coverage
 # MCP-style resource catalog export
 task validate:agent-rule-mcp-export
 # Result: JSON catalog emitted with stable resource URIs and repository paths
+# Status: ✅ PASS
+
+# MCP stdio resource server smoke-check
+task validate:agent-rule-mcp-server
+# Result: server summary emitted with stable resource prefix and resource count
 # Status: ✅ PASS
 
 # ADR consistency
@@ -154,15 +160,18 @@ All adapter files route to universal rulebook and exclude stale tokens:
 | `scripts/validation/validate_agent_rules.py` | ✅ Operational |
 | `scripts/validation/report_adr_rule_coverage.py` | ✅ Operational |
 | `scripts/validation/export_agent_rulebook_mcp_resources.py` | ✅ Operational |
+| `scripts/orchestration/mcp/agent_rulebook_mcp_server.py` | ✅ Operational |
 | `tests/test_agent_instruction_sync.py` | ✅ 5 tests passing |
 | `tests/test_agent_rule_map_schema_policy.py` | ✅ 2 tests passing |
 | `tests/test_validate_agent_rules.py` | ✅ 2 tests passing |
 | `tests/test_report_adr_rule_coverage.py` | ✅ 3 tests passing |
 | `tests/test_export_agent_rulebook_mcp_resources.py` | ✅ 3 tests passing |
+| `tests/test_agent_rulebook_mcp_server.py` | ✅ 3 tests passing |
 | `task validate:agent-rules` | ✅ Wired and passing |
 | `task validate:agent-rules-strict` | ✅ Wired and passing (fail-on-warnings mode) |
 | `task validate:agent-rule-coverage` | ✅ Wired and passing |
 | `task validate:agent-rule-mcp-export` | ✅ Wired and passing |
+| `task validate:agent-rule-mcp-server` | ✅ Wired and passing |
 
 ---
 
@@ -181,6 +190,7 @@ All adapter files route to universal rulebook and exclude stale tokens:
 | Strict validation task implemented | Yes | Yes | ✅ PASS |
 | ADR-to-rule coverage report | Yes | Yes | ✅ PASS |
 | MCP-style resource export | Yes | Yes | ✅ PASS |
+| MCP stdio resource server | Yes | Yes | ✅ PASS |
 | Adapter drift coverage | All active adapters | 5/5 adapters covered | ✅ PASS |
 | Stale token exclusion | 0 instances | 0 instances | ✅ PASS |
 | Validation errors | 0 | 0 | ✅ PASS |
@@ -202,7 +212,7 @@ ADR 0067, 0068, 0069, 0070, 0071, 0078, 0079, 0083, 0084, 0085, 0087, 0089, 0090
 
 ## Remaining Work (Future Enhancements)
 
-No remaining follow-up is required for ADR0096 implementation completion. Any future live MCP server wiring would be an integration convenience rather than a contract gap.
+No remaining follow-up is required for ADR0096 implementation completion. Any future agent-specific auto-registration would be an integration convenience rather than a contract gap.
 
 ---
 
@@ -218,7 +228,7 @@ All acceptance criteria from ADR 0096 and the implementation plan are met:
 - [x] All adapter files route to universal rulebook
 - [x] No stale plugin ACL semantics remain in adapters
 - [x] Validation script operational: `scripts/validation/validate_agent_rules.py`
-- [x] Task gates wired: `task validate:agent-rules`, `task validate:agent-rules-strict`, `task validate:agent-rule-coverage`, and `task validate:agent-rule-mcp-export`
+- [x] Task gates wired: `task validate:agent-rules`, `task validate:agent-rules-strict`, `task validate:agent-rule-coverage`, `task validate:agent-rule-mcp-export`, and `task validate:agent-rule-mcp-server`
 - [x] Adapter sync tests pass: `tests/test_agent_instruction_sync.py`
 - [x] All validation gates pass with 0 errors and 0 warnings
 - [x] SWOT analysis updated with implementation evidence
@@ -229,7 +239,7 @@ All acceptance criteria from ADR 0096 and the implementation plan are met:
 
 ## Conclusion
 
-ADR 0096 implementation is **complete and operational**. The universal AI agent rulebook successfully compresses ADR-derived repository rules into a compact (2.83% of ADR corpus), source-linked, machine-readable contract with full validation coverage, reverse ADR-to-rule diagnostics, and an MCP-style export catalog.
+ADR 0096 implementation is **complete and operational**. The universal AI agent rulebook successfully compresses ADR-derived repository rules into a compact (2.83% of ADR corpus), source-linked, machine-readable contract with full validation coverage, reverse ADR-to-rule diagnostics, an MCP-style export catalog, and a live stdio MCP resource server.
 
 All three implementation waves have been executed, all validation gates pass, and all active agent adapters correctly route to the universal rulebook without preserving stale architectural semantics.
 
@@ -253,6 +263,9 @@ task validate:agent-rule-coverage
 
 # MCP-style resource catalog export
 task validate:agent-rule-mcp-export
+
+# MCP stdio resource server smoke-check
+task validate:agent-rule-mcp-server
 
 # ADR consistency validation
 task validate:adr-consistency

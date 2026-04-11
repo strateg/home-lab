@@ -105,6 +105,7 @@ The validation tasks are:
 - `task validate:agent-rules-strict`
 - `task validate:agent-rule-coverage` (diagnostic reverse coverage report; non-gating)
 - `task validate:agent-rule-mcp-export` (diagnostic MCP-style resource catalog export; non-gating)
+- `task validate:agent-rule-mcp-server` (diagnostic stdio server smoke-check; non-gating)
 
 ### D6. Non-Goals
 
