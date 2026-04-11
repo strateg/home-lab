@@ -558,6 +558,53 @@ def test_deps_command_json_typed_shadow_contract(tmp_path: Path) -> None:
     assert incoming["inst.service.worker->inst.router.ok"] == ["network"]
 
 
+def test_deps_command_json_typed_shadow_preserves_baseline_edges(tmp_path: Path) -> None:
+    effective = _write_fixture_repo(tmp_path)
+
+    base_result = _run_inspect(
+        tmp_path,
+        "deps",
+        "--effective",
+        str(effective),
+        "--instance",
+        "rtr-ok",
+        "--max-depth",
+        "3",
+        "--json",
+    )
+    shadow_result = _run_inspect(
+        tmp_path,
+        "deps",
+        "--effective",
+        str(effective),
+        "--instance",
+        "rtr-ok",
+        "--max-depth",
+        "3",
+        "--json",
+        "--typed-shadow",
+    )
+
+    base_body = json.loads(base_result.stdout)
+    shadow_body = json.loads(shadow_result.stdout)
+
+    assert "typed_shadow" not in base_body
+    assert "typed_shadow" in shadow_body
+
+    for key in (
+        "schema_version",
+        "command",
+        "resolved_instance_id",
+        "instance_ref",
+        "max_depth",
+        "direct_outgoing",
+        "direct_incoming",
+        "transitive_outgoing",
+        "unresolved_refs",
+    ):
+        assert shadow_body[key] == base_body[key]
+
+
 def test_deps_command_returns_exit_code_2_for_unknown_instance(tmp_path: Path) -> None:
     effective = _write_fixture_repo(tmp_path)
 

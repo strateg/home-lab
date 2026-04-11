@@ -63,6 +63,9 @@ Required:
 Evidence:
 - parity tests comparing baseline `deps` vs `deps --typed-shadow` edge identity.
 - threshold gate execution path: `task inspect:typed-shadow-gate`.
+- explicit parity contracts:
+  - `tests/test_inspection_json.py::test_deps_payload_typed_shadow_preserves_baseline_edge_contract`
+  - `tests/test_inspect_topology.py::test_deps_command_json_typed_shadow_preserves_baseline_edges`
 
 ### G4 — Operator Usability
 

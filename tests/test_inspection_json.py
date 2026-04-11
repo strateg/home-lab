@@ -86,6 +86,41 @@ def test_deps_payload_returns_resolved_dependency_view() -> None:
     assert body["typed_shadow"]["direct_outgoing"][0]["edge"] == "inst.router->inst.service.api"
 
 
+def test_deps_payload_typed_shadow_preserves_baseline_edge_contract() -> None:
+    module = _load_module(INSPECTION_DIR / "inspection_json.py", "inspection_json_deps_shadow_parity")
+
+    base_code, base_body = module.deps_payload(
+        _instances_fixture(),
+        instance_ref="rtr-main",
+        max_depth=3,
+        include_typed_shadow=False,
+    )
+    shadow_code, shadow_body = module.deps_payload(
+        _instances_fixture(),
+        instance_ref="rtr-main",
+        max_depth=3,
+        include_typed_shadow=True,
+    )
+
+    assert base_code == 0
+    assert shadow_code == 0
+    assert "typed_shadow" not in base_body
+    assert "typed_shadow" in shadow_body
+
+    for key in (
+        "schema_version",
+        "command",
+        "resolved_instance_id",
+        "instance_ref",
+        "max_depth",
+        "direct_outgoing",
+        "direct_incoming",
+        "transitive_outgoing",
+        "unresolved_refs",
+    ):
+        assert shadow_body[key] == base_body[key]
+
+
 def test_deps_payload_returns_structured_error_for_unknown_instance() -> None:
     module = _load_module(INSPECTION_DIR / "inspection_json.py", "inspection_json_deps_error")
     code, body = module.deps_payload(_instances_fixture(), instance_ref="unknown", max_depth=3)
