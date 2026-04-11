@@ -59,14 +59,11 @@
 | Wave 3A: Kernel Ordering And Manifest Contracts | Complete | `a41e04eb`, `8f320c0d` |
 | Wave 3B: Standalone Compiler Module Coverage | Complete | `c145f1a5`, `4b5805fa` |
 | Wave 4: Diagnostics Compatibility | Complete | `cb5b358d`, `4e5c4a37` |
-| Wave 5: Observability And Orchestration UX | Substantially complete | `b87a6e0b`, `fb6ec831` |
-| Wave 6: Low-Priority Hygiene | Substantially complete | `b10260ee`, `0fa166f6` |
+| Wave 5: Observability And Orchestration UX | Complete | `b87a6e0b`, `fb6ec831`, `8c447832` |
+| Wave 6: Low-Priority Hygiene | Complete | `b10260ee`, `0fa166f6`, `da88e1fa`, current branch AI helper relocation |
 
 ### Deferred Follow-Ups
 
-- Structured exit-code mapping for `scripts/orchestration/lane.py`
-- Physical relocation of AI helper modules out of `topology-tools/plugins/generators/`
-- Split of `topology-tools/plugins/discoverers/discover_compiler.py`
 - Any future re-layout of `adr/analysis/`
 
 ---

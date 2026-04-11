@@ -56,7 +56,7 @@ python3 - <<'PY'
 from pathlib import Path
 import sys
 sys.path.insert(0, "topology-tools")
-from plugins.generators.ai_audit import verify_ai_audit_log_integrity
+from ai_runtime.ai_audit import verify_ai_audit_log_integrity
 for p in sorted(Path(".work/ai-audit").rglob("ai-advisory-audit.jsonl")):
     ok, reason = verify_ai_audit_log_integrity(p)
     print(f"{'OK' if ok else 'FAIL'} {p} {reason}")

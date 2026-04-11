@@ -11,10 +11,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from plugins.generators.ai_advisory_contract import build_ai_input_payload
-from plugins.generators.ai_ansible import build_ansible_input_adapter
-from plugins.generators.ai_audit import AiAuditLogger, cleanup_ai_audit_logs
-from plugins.generators.ai_sandbox import (
+from ai_runtime.ai_advisory_contract import build_ai_input_payload
+from ai_runtime.ai_ansible import build_ansible_input_adapter
+from ai_runtime.ai_audit import AiAuditLogger, cleanup_ai_audit_logs
+from ai_runtime.ai_sandbox import (
     cleanup_ai_sandbox_sessions,
     create_ai_sandbox_session,
     enforce_sandbox_resource_limits,

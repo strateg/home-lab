@@ -14,7 +14,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 V5_TOOLS = REPO_ROOT / "topology-tools"
 sys.path.insert(0, str(V5_TOOLS))
 
-from plugins.generators.ai_sandbox import (  # noqa: E402
+from ai_runtime.ai_sandbox import (  # noqa: E402
     cleanup_ai_sandbox_sessions,
     create_ai_sandbox_session,
     enforce_sandbox_resource_limits,

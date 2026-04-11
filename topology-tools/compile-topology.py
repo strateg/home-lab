@@ -47,15 +47,15 @@ from kernel import (
     Stage,
 )
 from plugin_manifest_discovery import discover_plugin_manifest_paths, validate_module_index_consistency
-from plugins.generators.ai_advisory_contract import parse_ai_output_payload, validate_ai_contract_payloads
-from plugins.generators.ai_ansible import (
+from ai_runtime.ai_advisory_contract import parse_ai_output_payload, validate_ai_contract_payloads
+from ai_runtime.ai_ansible import (
     parse_ansible_output_candidates,
     validate_ansible_candidates_with_lint,
 )
-from plugins.generators.ai_assisted import build_candidate_diff, materialize_candidate_artifacts
-from plugins.generators.ai_promotion import promote_approved_candidates, resolve_approvals
-from plugins.generators.ai_rollback import list_ai_promoted_artifacts, rollback_ai_promoted_artifacts
-from plugins.generators.ai_sandbox import enforce_sandbox_resource_limits
+from ai_runtime.ai_assisted import build_candidate_diff, materialize_candidate_artifacts
+from ai_runtime.ai_promotion import promote_approved_candidates, resolve_approvals
+from ai_runtime.ai_rollback import list_ai_promoted_artifacts, rollback_ai_promoted_artifacts
+from ai_runtime.ai_sandbox import enforce_sandbox_resource_limits
 from yaml_loader import load_yaml_file
 
 REPO_ROOT = Path(__file__).resolve().parents[1]

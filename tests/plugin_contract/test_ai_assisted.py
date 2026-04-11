@@ -10,7 +10,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 V5_TOOLS = REPO_ROOT / "topology-tools"
 sys.path.insert(0, str(V5_TOOLS))
 
-from plugins.generators.ai_assisted import (  # noqa: E402
+from ai_runtime.ai_assisted import (  # noqa: E402
     build_candidate_diff,
     materialize_candidate_artifacts,
     validate_candidate_path,

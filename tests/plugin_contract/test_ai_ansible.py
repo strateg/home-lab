@@ -10,7 +10,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 V5_TOOLS = REPO_ROOT / "topology-tools"
 sys.path.insert(0, str(V5_TOOLS))
 
-from plugins.generators.ai_ansible import (  # noqa: E402
+from ai_runtime.ai_ansible import (  # noqa: E402
     build_ansible_input_adapter,
     parse_ansible_output_candidates,
     validate_ansible_candidates_with_lint,

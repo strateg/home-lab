@@ -9,17 +9,17 @@
 
 ## Executive Summary
 
-**Status: HIGH/MEDIUM-RISK SCOPE COMPLETE; LOW-PRIORITY DEFERRED ITEMS EXPLICITLY TRACKED**
+**Status: HIGH/MEDIUM-RISK SCOPE COMPLETE; ONLY LAYOUT-LEVEL FOLLOW-UP REMAINS DEFERRED**
 
 The implementation plan has been executed through all planned PR-sized waves for the high- and medium-priority work:
 
 - AI sandbox env hardening is implemented.
 - Kernel API coverage and compiler decomposition are implemented.
 - Diagnostic model convergence is implemented with compatibility preserved.
-- AI logging migration and `lane.py` timeout / collect-all support are implemented.
-- Manifest linting and plugin-family audit artifacts are implemented.
+- AI logging migration, `lane.py` timeout / collect-all support, and structured exit-code mapping are implemented.
+- Manifest linting, plugin-family audit artifacts, discoverer split, and AI helper relocation are implemented.
 
-Remaining work is low-priority and already documented as deferred rather than silently incomplete.
+Remaining work is limited to optional future `adr/analysis/` layout reorganization.
 
 ---
 
@@ -34,8 +34,8 @@ Remaining work is low-priority and already documented as deferred rather than si
 | Wave 3A: Kernel Ordering And Manifest Contracts | Complete | `a41e04eb`, `8f320c0d` | execution-order coverage added; compiler now imports canonical `STAGE_ORDER` |
 | Wave 3B: Standalone Compiler Module Coverage | Complete | `c145f1a5`, `4b5805fa` | compiler runtime/support module unit coverage added |
 | Wave 4: Diagnostics Compatibility | Complete | `cb5b358d`, `4e5c4a37` | shared diagnostic projection model landed; compiler/reporting now use canonical `CompilerDiagnostic` path |
-| Wave 5: Observability And Orchestration UX | Substantially complete | `b87a6e0b`, `fb6ec831` | AI logs moved to `stderr`; `lane.py` has timeout and collect-all support; structured exit-code mapping remains deferred |
-| Wave 6: Low-Priority Hygiene | Substantially complete | `b10260ee`, `0fa166f6` | manifest lint and plugin-family audit landed; docs/naming goals already satisfied by current repo state; layout-move item remains deferred by policy |
+| Wave 5: Observability And Orchestration UX | Complete | `b87a6e0b`, `fb6ec831`, `8c447832` | AI logs moved to `stderr`; `lane.py` has timeout, collect-all support, and classified exit codes |
+| Wave 6: Low-Priority Hygiene | Complete | `b10260ee`, `0fa166f6`, `da88e1fa`, current branch AI helper relocation | manifest lint, plugin-family audit, discoverer split, and AI helper relocation landed; docs/naming goals already satisfied by current repo state |
 
 ---
 
@@ -60,6 +60,9 @@ Remaining work is low-priority and already documented as deferred rather than si
 | PR 15: manifest schema lint | Complete | `b10260ee` |
 | PR 16: plugin family audit report only | Complete | `0fa166f6` |
 | PR 17: documentation/naming cleanup | Satisfied without new implementation delta | `AGENTS.md`, `scripts/orchestration/deploy/init-node.py` already match the planned target state |
+| Follow-up: lane exit-code classification | Complete | `8c447832` |
+| Follow-up: discoverer module split | Complete | `da88e1fa` |
+| Follow-up: AI helper relocation out of generator package | Complete | current branch AI helper relocation |
 
 ---
 
@@ -70,9 +73,11 @@ Remaining work is low-priority and already documented as deferred rather than si
 - `topology-tools/compiler_ai_sessions.py`
 - `topology-tools/compiler_cli.py`
 - `topology-tools/compiler_diagnostics.py`
+- `topology-tools/ai_runtime/`
 - `tests/plugin_api/test_parallel_execution.py`
 - `tests/plugin_contract/test_compiler_diagnostics.py`
 - `tests/plugin_contract/test_compiler_output_streams.py`
+- `tests/plugin_contract/test_ai_module_relocation.py`
 - `tests/orchestration/test_lane.py`
 
 ### Validation / Hygiene
@@ -85,18 +90,9 @@ Remaining work is low-priority and already documented as deferred rather than si
 
 ## Deferred Items
 
-The following items remain intentionally deferred:
+The following item remains intentionally deferred:
 
-1. Structured exit-code mapping for `scripts/orchestration/lane.py`
-Reason: identified in analysis as lower priority; not required to close PR13/PR14 compatibility goals.
-
-2. Physical relocation of AI helper modules out of `topology-tools/plugins/generators/`
-Reason: audit completed in `adr/analysis/IMPLEMENTATION-IMPROVEMENT-PLUGIN-FAMILY-AUDIT.md`; package-boundary move should happen only as a dedicated decision.
-
-3. Split `topology-tools/plugins/discoverers/discover_compiler.py` into one class per file
-Reason: audit found limited payoff versus structural churn at current code size.
-
-4. Reorganize `adr/analysis/` layout
+1. Reorganize `adr/analysis/` layout
 Reason: explicitly deferred by canonical artifact policy in the implementation plan.
 
 ---
@@ -110,7 +106,7 @@ Representative validation already executed across this workstream:
 - `task framework:strict`
 - `task validate:adr-consistency`
 - `python3 scripts/validation/validate_plugin_manifests.py --fail-on-warnings`
-- targeted `pytest` runs for kernel, compiler, diagnostics, manifest-lint, and orchestration changes
+- targeted `pytest` runs for kernel, compiler, diagnostics, manifest-lint, AI runtime relocation, and orchestration changes
 - targeted `python3 -m py_compile` checks for touched modules
 
 No validation evidence in this status report supersedes the per-commit evidence already recorded in commit messages.
@@ -123,6 +119,6 @@ The implementation plan should now be read as:
 
 - executed for all high- and medium-priority work
 - executed for the planned low-priority lint/audit work
-- carrying only explicit deferred follow-ups, not hidden unfinished critical scope
+- carrying only one explicit layout follow-up, not hidden unfinished critical scope
 
 This status report is the canonical execution snapshot for the current branch state unless a later follow-up report supersedes it.

@@ -11,7 +11,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 V5_TOOLS = REPO_ROOT / "topology-tools"
 sys.path.insert(0, str(V5_TOOLS))
 
-from plugins.generators.ai_advisory_contract import (  # noqa: E402
+from ai_runtime.ai_advisory_contract import (  # noqa: E402
     build_ai_input_payload,
     parse_ai_output_payload,
     redact_sensitive_fields,
