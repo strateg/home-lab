@@ -2,7 +2,7 @@
 
 **Дата:** 2026-04-10
 **Основание:** `adr/analysis/IMPLEMENTATION-IMPROVEMENT-ANALYSIS.md`
-**Статус:** Draft implementation plan
+**Статус:** Executed plan with status snapshot; use together with `adr/analysis/IMPLEMENTATION-IMPROVEMENT-STATUS-REPORT.md`
 
 ---
 
@@ -38,6 +38,36 @@
 3. Декомпозировать `V5Compiler` только после появления страховочных тестов.
 4. Убирать DRY-дубли и диагностические модели после покрытия edge-cases.
 5. Переносить observability и orchestration UX в отдельные PR после стабилизации core behavior.
+
+---
+
+## Current Execution Status
+
+Этот документ сохраняется как planning + traceability artifact.
+
+- Исходные `Scope`, `Entry Criteria`, `Exit Criteria` и `Suggested PR Split` ниже оставлены как исторический план исполнения.
+- Актуальное состояние исполнения фиксируется в `adr/analysis/IMPLEMENTATION-IMPROVEMENT-STATUS-REPORT.md`.
+
+### Wave Summary
+
+| Wave | Current Status | Evidence |
+|---|---|---|
+| Wave 0: Plan Hygiene | Complete | `966a40ba` |
+| Wave 1A: AI Sandbox Env Security | Complete | `f369c61f` |
+| Wave 1B: Kernel API Test Foundation | Complete | `9ced9980` |
+| Wave 2: V5Compiler Decomposition | Complete | `1604dd15`, `567a8c0e` |
+| Wave 3A: Kernel Ordering And Manifest Contracts | Complete | `a41e04eb`, `8f320c0d` |
+| Wave 3B: Standalone Compiler Module Coverage | Complete | `c145f1a5`, `4b5805fa` |
+| Wave 4: Diagnostics Compatibility | Complete | `cb5b358d`, `4e5c4a37` |
+| Wave 5: Observability And Orchestration UX | Substantially complete | `b87a6e0b`, `fb6ec831` |
+| Wave 6: Low-Priority Hygiene | Substantially complete | `b10260ee`, `0fa166f6` |
+
+### Deferred Follow-Ups
+
+- Structured exit-code mapping for `scripts/orchestration/lane.py`
+- Physical relocation of AI helper modules out of `topology-tools/plugins/generators/`
+- Split of `topology-tools/plugins/discoverers/discover_compiler.py`
+- Any future re-layout of `adr/analysis/`
 
 ---
 
