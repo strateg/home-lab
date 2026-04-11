@@ -35,7 +35,7 @@ Remaining work is limited to optional future `adr/analysis/` layout reorganizati
 | Wave 3B: Standalone Compiler Module Coverage | Complete | `c145f1a5`, `4b5805fa` | compiler runtime/support module unit coverage added |
 | Wave 4: Diagnostics Compatibility | Complete | `cb5b358d`, `4e5c4a37` | shared diagnostic projection model landed; compiler/reporting now use canonical `CompilerDiagnostic` path |
 | Wave 5: Observability And Orchestration UX | Complete | `b87a6e0b`, `fb6ec831`, `8c447832` | AI logs moved to `stderr`; `lane.py` has timeout, collect-all support, and classified exit codes |
-| Wave 6: Low-Priority Hygiene | Complete | `b10260ee`, `0fa166f6`, `da88e1fa`, current branch AI helper relocation | manifest lint, plugin-family audit, discoverer split, and AI helper relocation landed; docs/naming goals already satisfied by current repo state |
+| Wave 6: Low-Priority Hygiene | Complete | `b10260ee`, `0fa166f6`, `da88e1fa`, `f5b25e42` | manifest lint, plugin-family audit, discoverer split, and AI helper relocation landed; docs/naming goals already satisfied by current repo state |
 
 ---
 
@@ -62,7 +62,7 @@ Remaining work is limited to optional future `adr/analysis/` layout reorganizati
 | PR 17: documentation/naming cleanup | Satisfied without new implementation delta | `AGENTS.md`, `scripts/orchestration/deploy/init-node.py` already match the planned target state |
 | Follow-up: lane exit-code classification | Complete | `8c447832` |
 | Follow-up: discoverer module split | Complete | `da88e1fa` |
-| Follow-up: AI helper relocation out of generator package | Complete | current branch AI helper relocation |
+| Follow-up: AI helper relocation out of generator package | Complete | `f5b25e42` |
 
 ---
 

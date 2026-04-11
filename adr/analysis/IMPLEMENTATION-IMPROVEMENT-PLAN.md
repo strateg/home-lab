@@ -60,7 +60,7 @@
 | Wave 3B: Standalone Compiler Module Coverage | Complete | `c145f1a5`, `4b5805fa` |
 | Wave 4: Diagnostics Compatibility | Complete | `cb5b358d`, `4e5c4a37` |
 | Wave 5: Observability And Orchestration UX | Complete | `b87a6e0b`, `fb6ec831`, `8c447832` |
-| Wave 6: Low-Priority Hygiene | Complete | `b10260ee`, `0fa166f6`, `da88e1fa`, current branch AI helper relocation |
+| Wave 6: Low-Priority Hygiene | Complete | `b10260ee`, `0fa166f6`, `da88e1fa`, `f5b25e42` |
 
 ### Deferred Follow-Ups
 
