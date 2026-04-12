@@ -92,6 +92,11 @@ Evidence:
 - `adr/0095-topology-inspection-and-introspection-toolkit.md`
 - `adr/0095-analysis/IMPLEMENTATION-PLAN.md`
 - this file
+- promotion-readiness artifacts and validate aliases:
+  - `task inspect:typed-shadow-readiness`
+  - `task inspect:typed-shadow-readiness-gate`
+  - `task validate:typed-shadow-readiness`
+  - `task validate:typed-shadow-readiness-gate`
 
 ---
 
@@ -112,5 +117,6 @@ If any gate fails, keep shadow mode and treat typed output as advisory only.
 1. [x] Add typed-shadow comparison report utility (`build/diagnostics/typed-shadow-report.{json,txt}`).
 2. [x] Add CI-friendly contract test for typed-shadow coverage thresholds.
 3. [x] Add explicit troubleshooting note for interpreting `generic_ref`.
+4. [x] Add typed-shadow promotion readiness report utility (`build/diagnostics/typed-shadow-promotion-readiness.{json,txt}`) with optional fail-fast mode.
 
 These items are implementation prep and do not alter authoritative dependency behavior by themselves.

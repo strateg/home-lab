@@ -7,7 +7,6 @@ from pathlib import Path
 
 import yaml
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 INSPECT_TASKFILE = REPO_ROOT / "taskfiles" / "inspect.yml"
 
@@ -42,6 +41,8 @@ def test_inspect_taskfile_contains_compact_and_detailed_object_instance_tasks() 
         "deps-json-typed-shadow",
         "typed-shadow-report",
         "typed-shadow-gate",
+        "typed-shadow-readiness",
+        "typed-shadow-readiness-gate",
         "inheritance-json",
         "capabilities-json",
     ):
@@ -68,6 +69,8 @@ def test_typed_shadow_task_forwards_flag_to_cli() -> None:
     assert "deps --instance {{.INSTANCE}} --typed-shadow" in _first_cmd(tasks, "deps-typed-shadow")
     assert "generate_typed_shadow_report.py" in _first_cmd(tasks, "typed-shadow-report")
     assert "--fail-on-threshold" in _first_cmd(tasks, "typed-shadow-gate")
+    assert "report_typed_shadow_promotion_readiness.py" in _first_cmd(tasks, "typed-shadow-readiness")
+    assert "--fail-on-not-ready" in _first_cmd(tasks, "typed-shadow-readiness-gate")
 
 
 def test_instance_filter_flags_are_wired_for_instance_scoped_tasks() -> None:
@@ -82,6 +85,8 @@ def test_instance_filter_flags_are_wired_for_instance_scoped_tasks() -> None:
         "deps-dot",
         "typed-shadow-report",
         "typed-shadow-gate",
+        "typed-shadow-readiness",
+        "typed-shadow-readiness-gate",
     ):
         cmd = _first_cmd(tasks, task_name)
         assert "--layer {{.LAYER}}" in cmd

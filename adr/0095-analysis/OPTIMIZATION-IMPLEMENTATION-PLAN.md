@@ -247,6 +247,9 @@ Acceptance:
 | PR-8 | Add JSON output for inheritance/capability domains with versioned schema | JSON contract tests + smoke matrix |
 | PR-9 | Add semantic relation typing in shadow mode | typed-relation tests + comparison validation on home-lab |
 | PR-10 | Reconcile ADR0095 docs, status checklists, and command reference | `task validate:adr-consistency` |
+| PR-11 | Add typed-shadow promotion readiness diagnostics + fail-fast gate wiring | targeted pytest + `task validate:typed-shadow-readiness` + `task validate:typed-shadow-readiness-gate` |
+| PR-12 | Expand inspect smoke matrix to cover typed-shadow dependency command path | targeted pytest + `task inspect:smoke-matrix` + `task validate:inspect-smoke` |
+| PR-13 | Add inspect-namespace readiness fail-fast alias and extend smoke matrix with typed-shadow JSON path | targeted pytest + `task inspect:typed-shadow-readiness-gate` + `task validate:inspect-smoke` |
 
 ---
 

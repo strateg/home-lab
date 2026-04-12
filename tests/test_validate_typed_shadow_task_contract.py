@@ -8,7 +8,6 @@ from typing import Any
 
 import yaml
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TASKFILE_PATH = REPO_ROOT / "taskfiles" / "validate.yml"
 
@@ -32,7 +31,12 @@ def test_validate_taskfile_includes_typed_shadow_tasks() -> None:
     payload = _load_yaml(TASKFILE_PATH)
     tasks = payload.get("tasks", {})
     assert isinstance(tasks, dict)
-    for name in ("typed-shadow-report", "typed-shadow-gate"):
+    for name in (
+        "typed-shadow-report",
+        "typed-shadow-gate",
+        "typed-shadow-readiness",
+        "typed-shadow-readiness-gate",
+    ):
         assert name in tasks
 
 
@@ -51,3 +55,20 @@ def test_typed_shadow_task_wiring_uses_generator_and_diagnostics_artifacts() -> 
 
     assert "--fail-on-threshold" not in report_cmd
     assert "--fail-on-threshold" in gate_cmd
+
+
+def test_typed_shadow_readiness_task_wiring_uses_reporter_and_diagnostics_artifacts() -> None:
+    payload = _load_yaml(TASKFILE_PATH)
+    tasks = payload.get("tasks", {})
+    assert isinstance(tasks, dict)
+
+    report_cmd = _first_cmd(tasks, "typed-shadow-readiness")
+    gate_cmd = _first_cmd(tasks, "typed-shadow-readiness-gate")
+
+    for cmd in (report_cmd, gate_cmd):
+        assert "scripts/inspection/report_typed_shadow_promotion_readiness.py" in cmd
+        assert "--output-json build/diagnostics/typed-shadow-promotion-readiness.json" in cmd
+        assert "--output-text build/diagnostics/typed-shadow-promotion-readiness.txt" in cmd
+
+    assert "--fail-on-not-ready" not in report_cmd
+    assert "--fail-on-not-ready" in gate_cmd

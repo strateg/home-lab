@@ -178,6 +178,16 @@ tasks:
     cmds:
       - "{{.PYTHON}} scripts/inspection/generate_typed_shadow_report.py --fail-on-threshold {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}} {{if .LAYER}}--layer {{.LAYER}}{{end}} {{if .GROUP}}--group {{.GROUP}}{{end}} --json-output build/diagnostics/typed-shadow-report.json --text-output build/diagnostics/typed-shadow-report.txt {{if .MIN_COVERAGE}}--min-coverage {{.MIN_COVERAGE}}{{end}} {{if .MAX_GENERIC_SHARE}}--max-generic-share {{.MAX_GENERIC_SHARE}}{{end}}"
 
+  typed-shadow-readiness:
+    desc: Report typed-shadow promotion readiness gates (G1..G5)
+    cmds:
+      - "{{.PYTHON}} scripts/inspection/report_typed_shadow_promotion_readiness.py {{if .TYPED_SHADOW_REPORT}}--typed-shadow-report {{.TYPED_SHADOW_REPORT}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}} {{if .LAYER}}--layer {{.LAYER}}{{end}} {{if .GROUP}}--group {{.GROUP}}{{end}} --output-json build/diagnostics/typed-shadow-promotion-readiness.json --output-text build/diagnostics/typed-shadow-promotion-readiness.txt"
+
+  typed-shadow-readiness-gate:
+    desc: Enforce typed-shadow promotion readiness gate (fail when any G1..G5 gate is not ready)
+    cmds:
+      - "{{.PYTHON}} scripts/inspection/report_typed_shadow_promotion_readiness.py --fail-on-not-ready {{if .TYPED_SHADOW_REPORT}}--typed-shadow-report {{.TYPED_SHADOW_REPORT}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}} {{if .LAYER}}--layer {{.LAYER}}{{end}} {{if .GROUP}}--group {{.GROUP}}{{end}} --output-json build/diagnostics/typed-shadow-promotion-readiness.json --output-text build/diagnostics/typed-shadow-promotion-readiness.txt"
+
   ai-usage-metrics:
     desc: Generate opt-in ADR0094 AI usage metrics from local audit logs
     cmds:

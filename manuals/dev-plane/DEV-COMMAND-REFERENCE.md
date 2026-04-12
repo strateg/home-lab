@@ -26,6 +26,8 @@ task validate:adr0047-trigger      # ADR0047 alerts/services trigger report
 task validate:adr0047-trigger-gate # Fail when alerts>50 or services>30
 task validate:typed-shadow-report # typed-shadow diagnostics report
 task validate:typed-shadow-gate # Fail when typed-shadow thresholds are not met
+task validate:typed-shadow-readiness # typed-shadow promotion readiness diagnostics (G1..G5)
+task validate:typed-shadow-readiness-gate # Fail when promotion readiness gates are not all PASS
 task validate:inspect-smoke # Run inspect smoke matrix and fail on command regressions
 task validate:adr0083-reactivation # ADR0083 reactivation readiness snapshot
 task validate:adr0083-reactivation-gate # Fail when ADR0083 non-hardware readiness is not met
@@ -50,7 +52,7 @@ task validate:quality              # Aggregate quality gate
 ```bash
 task inspect:default                                            # Summary (compact)
 task inspect:summary-json                                       # Summary JSON (schema_versioned)
-task inspect:smoke-matrix                                       # Run inspect smoke matrix and write diagnostics reports
+task inspect:smoke-matrix                                       # Run inspect smoke matrix (incl. deps typed-shadow human+JSON paths) and write diagnostics reports
 task inspect:classes                                            # Class hierarchy tree
 task inspect:inheritance                                        # Inheritance summary
 task inspect:inheritance CLASS='class.router'                   # Focused class lineage
@@ -66,6 +68,8 @@ task inspect:deps-json INSTANCE='rtr-mikrotik-chateau'          # Dependency JSO
 task inspect:deps-json-typed-shadow INSTANCE='rtr-mikrotik-chateau' # Dependency JSON + typed shadow block
 task inspect:typed-shadow-report                                # Write typed-shadow diagnostics report (JSON + text)
 task inspect:typed-shadow-gate                                  # Same as report + fail when thresholds are not met
+task inspect:typed-shadow-readiness                             # Write typed-shadow promotion readiness report (G1..G5)
+task inspect:typed-shadow-readiness-gate                        # Same as readiness + fail when any G1..G5 gate is not ready
 task inspect:deps-dot                                           # Export DOT graph to build/diagnostics/
 task inspect:capability-packs                                   # class -> packs -> objects inspection
 task inspect:capabilities                                       # Unified class/object/pack capability summary
@@ -81,6 +85,7 @@ The following commands support `LAYER` and `GROUP` filters:
 - `inspect:instances`, `inspect:instances-detailed`
 - `inspect:search`
 - `inspect:deps`, `inspect:deps-typed-shadow`, `inspect:deps-json`, `inspect:deps-json-typed-shadow`
+- `inspect:typed-shadow-report`, `inspect:typed-shadow-gate`, `inspect:typed-shadow-readiness`, `inspect:typed-shadow-readiness-gate`
 - `inspect:deps-dot`
 
 Examples:
@@ -100,6 +105,8 @@ task inspect:smoke-matrix QUERY='router' INSTANCE='rtr-mikrotik-chateau'
 - Current typed shadow categories: `network`, `storage`, `runtime`, `capability`, `binding`, `generic_ref`.
 - `generic_ref` means label semantics were not specific enough for domain typing and should be interpreted as unresolved semantic specificity, not as a dependency extraction error.
 - `typed-shadow-gate` is a readiness gate; failure means promotion criteria are not yet met, not that baseline `deps` extraction is broken.
+- `typed-shadow-readiness` summarizes G1..G5 promotion gates and should be reviewed before any authoritative semantic-typing switch.
+- `typed-shadow-readiness-gate` is a fail-fast readiness gate for CI/validation lanes.
 
 ---
 

@@ -101,6 +101,16 @@ tasks:
     cmds:
       - "{{.PYTHON}} scripts/inspection/generate_typed_shadow_report.py --fail-on-threshold {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}} {{if .LAYER}}--layer {{.LAYER}}{{end}} {{if .GROUP}}--group {{.GROUP}}{{end}} {{if .JSON_OUTPUT}}--json-output {{.JSON_OUTPUT}}{{end}} {{if .TEXT_OUTPUT}}--text-output {{.TEXT_OUTPUT}}{{end}} {{if .MIN_COVERAGE}}--min-coverage {{.MIN_COVERAGE}}{{end}} {{if .MAX_GENERIC_SHARE}}--max-generic-share {{.MAX_GENERIC_SHARE}}{{end}}"
 
+  typed-shadow-readiness:
+    desc: Generate typed-shadow promotion readiness report (G1..G5)
+    cmds:
+      - "{{.PYTHON}} scripts/inspection/report_typed_shadow_promotion_readiness.py {{if .TYPED_SHADOW_REPORT}}--typed-shadow-report {{.TYPED_SHADOW_REPORT}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}} {{if .LAYER}}--layer {{.LAYER}}{{end}} {{if .GROUP}}--group {{.GROUP}}{{end}} {{if .JSON_OUTPUT}}--output-json {{.JSON_OUTPUT}}{{end}} {{if .TEXT_OUTPUT}}--output-text {{.TEXT_OUTPUT}}{{end}}"
+
+  typed-shadow-readiness-gate:
+    desc: Generate typed-shadow promotion readiness report and fail when any G1..G5 gate is not ready
+    cmds:
+      - "{{.PYTHON}} scripts/inspection/report_typed_shadow_promotion_readiness.py --fail-on-not-ready {{if .TYPED_SHADOW_REPORT}}--typed-shadow-report {{.TYPED_SHADOW_REPORT}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}} {{if .LAYER}}--layer {{.LAYER}}{{end}} {{if .GROUP}}--group {{.GROUP}}{{end}} {{if .JSON_OUTPUT}}--output-json {{.JSON_OUTPUT}}{{end}} {{if .TEXT_OUTPUT}}--output-text {{.TEXT_OUTPUT}}{{end}}"
+
   deps-dot:
     desc: Export instance dependency graph in DOT format
     cmds:

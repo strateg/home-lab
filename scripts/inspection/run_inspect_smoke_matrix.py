@@ -12,7 +12,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-
 SCRIPT_DIR = Path(__file__).resolve().parent
 INSPECT_SCRIPT = SCRIPT_DIR / "inspect_topology.py"
 
@@ -85,6 +84,31 @@ def _command_matrix(*, effective: Path, query: str, instance_ref: str, dot_outpu
         {
             "name": "deps",
             "args": [str(INSPECT_SCRIPT), "deps", "--instance", instance_ref, "--effective", str(effective)],
+        },
+        {
+            "name": "deps-typed-shadow",
+            "args": [
+                str(INSPECT_SCRIPT),
+                "deps",
+                "--instance",
+                instance_ref,
+                "--typed-shadow",
+                "--effective",
+                str(effective),
+            ],
+        },
+        {
+            "name": "deps-json-typed-shadow",
+            "args": [
+                str(INSPECT_SCRIPT),
+                "deps",
+                "--instance",
+                instance_ref,
+                "--json",
+                "--typed-shadow",
+                "--effective",
+                str(effective),
+            ],
         },
         {
             "name": "deps-dot",
@@ -236,4 +260,3 @@ if __name__ == "__main__":
     except (FileNotFoundError, ValueError) as error:
         print(f"[inspect][error] {error}", file=sys.stderr)
         raise SystemExit(2) from error
-

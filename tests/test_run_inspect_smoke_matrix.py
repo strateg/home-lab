@@ -8,7 +8,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "inspection" / "run_inspect_smoke_matrix.py"
 
 
@@ -113,10 +112,12 @@ def test_smoke_matrix_runner_writes_reports_and_passes_when_all_commands_succeed
     body = json.loads(json_output.read_text(encoding="utf-8"))
     assert body["schema_version"] == "adr0095.inspect.smoke-matrix.v1"
     assert body["summary"]["failed"] == 0
-    assert body["summary"]["passed"] == body["summary"]["total"] == 8
+    assert body["summary"]["passed"] == body["summary"]["total"] == 10
+    assert any(row["name"] == "deps-typed-shadow" and row["status"] == "PASS" for row in body["commands"])
+    assert any(row["name"] == "deps-json-typed-shadow" and row["status"] == "PASS" for row in body["commands"])
     assert any(row["name"] == "deps-dot" and row["status"] == "PASS" for row in body["commands"])
     assert dot_output.exists()
-    assert "Smoke summary: passed=8 failed=0 total=8" in result.stdout
+    assert "Smoke summary: passed=10 failed=0 total=10" in result.stdout
 
 
 def test_smoke_matrix_runner_fails_when_command_fails_unless_allow_failures(tmp_path: Path) -> None:
@@ -159,4 +160,3 @@ def test_smoke_matrix_runner_fails_when_command_fails_unless_allow_failures(tmp_
         "--allow-failures",
     )
     assert allow_result.returncode == 0
-

@@ -181,6 +181,11 @@ Execution note (2026-04-11):
 - validate-lane aliases expose the same diagnostics in validation workflows:
   - `task validate:typed-shadow-report`
   - `task validate:typed-shadow-gate`;
+- promotion-readiness diagnostics for G1..G5 decision prep are available via:
+  - `task inspect:typed-shadow-readiness` (`build/diagnostics/typed-shadow-promotion-readiness.{json,txt}`)
+  - `task inspect:typed-shadow-readiness-gate` (same artifacts + fail-fast gate)
+  - `task validate:typed-shadow-readiness`
+  - `task validate:typed-shadow-readiness-gate` (fail-fast when readiness gates are not all PASS);
 - current home-lab snapshot reaches G2 threshold gate (`coverage=100.0`, `generic_ref_share=0.72`), while semantic typing remains non-authoritative pending full promotion decision;
 - parity guards verify that enabling typed shadow does not change authoritative baseline dependency edge sets (`deps --json` vs `deps --json --typed-shadow`);
 - baseline dependency extraction remains authoritative until promotion criteria are accepted (see `adr/0095-analysis/SEMANTIC-TYPING-PROMOTION-CRITERIA.md`).
@@ -245,6 +250,7 @@ Execution note (2026-04-11):
 - `task inspect:default LAYER='L5' GROUP='services'` и `task inspect:deps-dot LAYER='L5' GROUP='services'` корректно ограничивают inspection scope.
 - `task inspect:capability-packs` показывает capability-pack зависимости от object classes.
 - `task inspect:capabilities` показывает unified class/object/pack capability traceability.
+- `task inspect:typed-shadow-readiness` генерирует G1..G5 readiness snapshot для решения о semantic-typing promotion.
 - ADR register содержит запись ADR0095.
 
 ---

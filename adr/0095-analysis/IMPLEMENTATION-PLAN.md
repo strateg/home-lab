@@ -52,6 +52,7 @@
 | 3.7 | Introduce compact-vs-detailed output contract | Default output remains compact while detailed and machine-readable paths stay explicit |
 | 3.8 | Refactor internal inspection code into reusable concerns | Canonical CLI remains stable while loaders/indexes/extractors/formatters are separated internally |
 | 3.9 | Add typed-shadow diagnostics artifacts and threshold gate | `typed-shadow-report.{json,txt}` artifacts are generated and gate mode can fail on threshold mismatch |
+| 3.10 | Add typed-shadow promotion-readiness diagnostics | `typed-shadow-promotion-readiness.{json,txt}` artifacts summarize G1..G5 readiness and optional fail-fast gate |
 
 ### Wave 3 Gate
 
@@ -64,6 +65,7 @@
 - [x] Compact-vs-detailed output behavior documented and covered by tests
 - [x] Internal modularization preserves canonical CLI and `task inspect:*` contracts
 - [x] Typed-shadow diagnostics artifacts and threshold gate are wired (`task inspect:typed-shadow-report`, `task inspect:typed-shadow-gate`)
+- [x] Typed-shadow promotion readiness diagnostics are wired (`task inspect:typed-shadow-readiness`, `task validate:typed-shadow-readiness-gate`)
 
 ## Current Execution Snapshot (2026-04-11)
 
@@ -83,6 +85,9 @@ Completed waves/PR-sized slices:
 - PR-12 typed-shadow parity guard tests ensuring baseline `deps` edge sets remain unchanged when typed shadow is enabled.
 - PR-13 validate-lane wiring for typed-shadow diagnostics (`validate:typed-shadow-report`, `validate:typed-shadow-gate`).
 - PR-14 automated inspection smoke matrix runner + validation alias (`inspect:smoke-matrix`, `validate:inspect-smoke`) with diagnostics artifacts.
+- PR-15 typed-shadow promotion readiness reporter + validation gate aliases (`inspect:typed-shadow-readiness`, `validate:typed-shadow-readiness`, `validate:typed-shadow-readiness-gate`).
+- PR-16 smoke-matrix expansion to include `deps --typed-shadow` command coverage, guarding advisory semantic-shadow CLI path.
+- PR-17 inspect namespace parity for readiness fail-fast gate (`inspect:typed-shadow-readiness-gate`) and smoke-matrix coverage for `deps --json --typed-shadow`.
 
 Outstanding from Wave 3:
 - semantic typing promotion decision beyond shadow mode (keep as non-authoritative shadow until promotion criteria are approved).
