@@ -111,8 +111,8 @@ def _gate_g4_operator_usability(repo_root: Path) -> dict[str, Any]:
     checks = [
         {
             "id": "g4-001",
-            "desc": "manual documents non-authoritative shadow semantics",
-            "ok": _file_contains(manual_path, "non-authoritative"),
+            "desc": "manual documents authoritative semantic relation mode",
+            "ok": _file_contains(manual_path, "authoritative semantic relation typing"),
         },
         {
             "id": "g4-002",
@@ -130,18 +130,18 @@ def _gate_g5_adr_sync(repo_root: Path) -> dict[str, Any]:
     checks = [
         {
             "id": "g5-001",
-            "desc": "ADR0095 records non-authoritative shadow status",
-            "ok": _file_contains(adr_path, "non-authoritative"),
+            "desc": "ADR0095 records authoritative semantic typing status",
+            "ok": _file_contains(adr_path, "authoritative semantic relation typing"),
         },
         {
             "id": "g5-002",
-            "desc": "implementation plan tracks promotion decision outstanding",
-            "ok": _file_contains(plan_path, "promotion decision"),
+            "desc": "implementation plan records promotion decision",
+            "ok": _file_contains(plan_path, "promotion decision recorded"),
         },
         {
             "id": "g5-003",
-            "desc": "promotion criteria contains explicit decision rule",
-            "ok": _file_contains(criteria_path, "Promotion Decision Rule"),
+            "desc": "promotion criteria records authoritative promotion",
+            "ok": _file_contains(criteria_path, "Promotion Record"),
         },
     ]
     return {"ok": all(item["ok"] for item in checks), "checks": checks}
@@ -202,9 +202,9 @@ def build_report(
         "ready_for_promotion": ready_for_promotion,
         "blocking_gates": blockers,
         "recommended_next_step": (
-            "Record promotion decision in ADR0095 artifacts."
+            "Authoritative semantic typing is recorded; keep compatibility aliases until deprecation is approved."
             if ready_for_promotion
-            else "Keep typed shadow non-authoritative and resolve blocking gates."
+            else "Complete authoritative promotion recording and resolve blocking gates."
         ),
     }
 

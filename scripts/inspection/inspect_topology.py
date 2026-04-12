@@ -15,22 +15,20 @@ if str(SCRIPT_DIR) not in sys.path:
 from inspection_export import write_dot as _write_dot  # noqa: E402
 from inspection_indexes import filter_instances as _filter_instances  # noqa: E402
 from inspection_indexes import flatten_instances as _flatten_instances  # noqa: E402
-from inspection_json import deps_payload as _deps_payload  # noqa: E402
 from inspection_json import capabilities_payload as _capabilities_payload  # noqa: E402
+from inspection_json import deps_payload as _deps_payload  # noqa: E402
 from inspection_json import inheritance_payload as _inheritance_payload  # noqa: E402
 from inspection_json import summary_payload as _summary_payload  # noqa: E402
 from inspection_loader import load_effective as _load_effective  # noqa: E402
-from inspection_presenters import (  # noqa: E402
-    print_capabilities as _print_capabilities,
-    print_capability_packs as _print_capability_packs,
-    print_classes_tree as _print_classes_tree,
-    print_deps as _print_deps,
-    print_inheritance as _print_inheritance,
-    print_instances_tree as _print_instances_tree,
-    print_objects_by_class as _print_objects_by_class,
-    print_search as _print_search,
-    print_summary as _print_summary,
-)
+from inspection_presenters import print_capabilities as _print_capabilities  # noqa: E402
+from inspection_presenters import print_capability_packs as _print_capability_packs
+from inspection_presenters import print_classes_tree as _print_classes_tree
+from inspection_presenters import print_deps as _print_deps
+from inspection_presenters import print_inheritance as _print_inheritance
+from inspection_presenters import print_instances_tree as _print_instances_tree
+from inspection_presenters import print_objects_by_class as _print_objects_by_class
+from inspection_presenters import print_search as _print_search
+from inspection_presenters import print_summary as _print_summary
 
 
 def _parse_args() -> argparse.Namespace:
@@ -81,7 +79,7 @@ def _parse_args() -> argparse.Namespace:
     deps_parser.add_argument(
         "--typed-shadow",
         action="store_true",
-        help="Emit experimental semantic relation typing shadow alongside dependency output.",
+        help="Compatibility alias: include legacy typed-shadow block in JSON and compatibility note in text output.",
     )
     add_instance_filters(deps_parser)
 

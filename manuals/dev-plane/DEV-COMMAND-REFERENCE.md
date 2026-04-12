@@ -62,10 +62,10 @@ task inspect:objects-detailed                                   # Objects groupe
 task inspect:instances                                          # Instances grouped by layer (compact)
 task inspect:instances-detailed                                 # Instances grouped by layer (detailed rows)
 task inspect:search QUERY='mikrotik'                            # Regex search across instance payloads
-task inspect:deps INSTANCE='rtr-mikrotik-chateau'               # Direct/incoming/transitive dependency view
-task inspect:deps-typed-shadow INSTANCE='rtr-mikrotik-chateau'  # deps + non-authoritative typed relation shadow
-task inspect:deps-json INSTANCE='rtr-mikrotik-chateau'          # Dependency JSON
-task inspect:deps-json-typed-shadow INSTANCE='rtr-mikrotik-chateau' # Dependency JSON + typed shadow block
+task inspect:deps INSTANCE='rtr-mikrotik-chateau'               # Direct/incoming/transitive dependency view with authoritative semantic relation types
+task inspect:deps-typed-shadow INSTANCE='rtr-mikrotik-chateau'  # Compatibility alias for deps (kept for transition)
+task inspect:deps-json INSTANCE='rtr-mikrotik-chateau'          # Dependency JSON with authoritative semantic relation types
+task inspect:deps-json-typed-shadow INSTANCE='rtr-mikrotik-chateau' # Compatibility alias + legacy typed_shadow JSON block
 task inspect:typed-shadow-report                                # Write typed-shadow diagnostics report (JSON + text)
 task inspect:typed-shadow-gate                                  # Same as report + fail when thresholds are not met
 task inspect:typed-shadow-readiness                             # Write typed-shadow promotion readiness report (G1..G5)
@@ -99,14 +99,14 @@ task inspect:typed-shadow-report LAYER='L5' GROUP='services'
 task inspect:smoke-matrix QUERY='router' INSTANCE='rtr-mikrotik-chateau'
 ```
 
-### Typed shadow interpretation
+### Semantic relation typing interpretation
 
-- `deps-typed-shadow` and `deps-json-typed-shadow` are advisory/diagnostic only.
-- Current typed shadow categories: `network`, `storage`, `runtime`, `capability`, `binding`, `generic_ref`.
+- ADR0095 now uses authoritative semantic relation typing in `deps` and `deps-json`.
+- `deps-typed-shadow` and `deps-json-typed-shadow` are compatibility aliases for migration stability.
+- Current relation categories: `network`, `storage`, `runtime`, `capability`, `binding`, `generic_ref`.
 - `generic_ref` means label semantics were not specific enough for domain typing and should be interpreted as unresolved semantic specificity, not as a dependency extraction error.
-- `typed-shadow-gate` is a readiness gate; failure means promotion criteria are not yet met, not that baseline `deps` extraction is broken.
-- `typed-shadow-readiness` summarizes G1..G5 promotion gates and should be reviewed before any authoritative semantic-typing switch.
-- `typed-shadow-readiness-gate` is a fail-fast readiness gate for CI/validation lanes.
+- `typed-shadow-gate` enforces G2 semantic coverage/quality thresholds on current topology.
+- `typed-shadow-readiness` and `typed-shadow-readiness-gate` provide ADR0095 promotion/compliance evidence snapshots for CI and governance lanes.
 
 ---
 

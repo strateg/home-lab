@@ -16,9 +16,9 @@ from inspection_indexes import object_class_ref
 from inspection_loader import load_capability_pack_catalog
 from inspection_relations import build_dependency_graph, resolve_instance_id, typed_relation_shadow
 
-
 SUMMARY_SCHEMA_VERSION = "adr0095.inspect.summary.v1"
-DEPS_SCHEMA_VERSION = "adr0095.inspect.deps.v1"
+DEPS_SCHEMA_VERSION = "adr0095.inspect.deps.v2"
+DEPS_SEMANTIC_RELATIONS_SCHEMA_VERSION = "adr0095.inspect.deps.semantic-relations.v1"
 INHERITANCE_SCHEMA_VERSION = "adr0095.inspect.inheritance.v1"
 CAPABILITIES_SCHEMA_VERSION = "adr0095.inspect.capabilities.v1"
 
@@ -88,16 +88,23 @@ def deps_payload(
         for nxt in sorted(edges.get(node, set())):
             queue.append((nxt, depth + 1))
 
+    shadow = typed_relation_shadow(edge_labels)
+
     body: dict[str, Any] = {
         "schema_version": DEPS_SCHEMA_VERSION,
         "command": "deps",
         "resolved_instance_id": resolved,
         "instance_ref": instance_ref,
         "max_depth": max_depth,
+        "semantic_relations": {
+            "schema_version": DEPS_SEMANTIC_RELATIONS_SCHEMA_VERSION,
+            "mode": "authoritative",
+        },
         "direct_outgoing": [
             {
                 "instance_id": target,
                 "labels": sorted(set(edge_labels.get(f"{resolved}->{target}", []))),
+                "relation_types": shadow.get(f"{resolved}->{target}", []),
             }
             for target in direct_outgoing
         ],
@@ -105,6 +112,7 @@ def deps_payload(
             {
                 "instance_id": source,
                 "labels": sorted(set(edge_labels.get(f"{source}->{resolved}", []))),
+                "relation_types": shadow.get(f"{source}->{resolved}", []),
             }
             for source in direct_incoming
         ],
@@ -113,9 +121,10 @@ def deps_payload(
     }
 
     if include_typed_shadow:
-        shadow = typed_relation_shadow(edge_labels)
+        # Compatibility shadow block for legacy consumers and migration checks.
         body["typed_shadow"] = {
             "schema_version": "adr0095.inspect.deps.typed-shadow.v1",
+            "mode": "compat_alias",
             "direct_outgoing": [
                 {
                     "edge": f"{resolved}->{target}",
@@ -249,7 +258,9 @@ def capabilities_payload(
         optional = sorted(
             {item for item in (class_payload.get("optional_capabilities") or []) if isinstance(item, str) and item}
         )
-        packs = sorted({item for item in (class_payload.get("capability_packs") or []) if isinstance(item, str) and item})
+        packs = sorted(
+            {item for item in (class_payload.get("capability_packs") or []) if isinstance(item, str) and item}
+        )
         if required:
             class_required[cls_id] = required
         if optional:
@@ -266,7 +277,9 @@ def capabilities_payload(
         enabled_caps = sorted(
             {item for item in (object_payload.get("enabled_capabilities") or []) if isinstance(item, str) and item}
         )
-        enabled_packs = sorted({item for item in (object_payload.get("enabled_packs") or []) if isinstance(item, str) and item})
+        enabled_packs = sorted(
+            {item for item in (object_payload.get("enabled_packs") or []) if isinstance(item, str) and item}
+        )
         if enabled_caps:
             object_caps[obj_id] = enabled_caps
         if enabled_packs:
@@ -369,9 +382,9 @@ def capabilities_payload(
             "object_capability_activations": [
                 {
                     "object_id": obj_id,
-                    "class_ref": object_class_ref(objects.get(obj_id, {}))
-                    if isinstance(objects.get(obj_id), dict)
-                    else None,
+                    "class_ref": (
+                        object_class_ref(objects.get(obj_id, {})) if isinstance(objects.get(obj_id), dict) else None
+                    ),
                     "enabled_capabilities": len(object_caps.get(obj_id, [])),
                     "enabled_packs": len(object_packs.get(obj_id, [])),
                 }
@@ -381,9 +394,11 @@ def capabilities_payload(
                 {
                     "pack_id": pack_id,
                     "class_ref": packs_catalog[pack_id].get("class_ref"),
-                    "capabilities": len(packs_catalog[pack_id].get("capabilities", []))
-                    if isinstance(packs_catalog[pack_id].get("capabilities"), list)
-                    else 0,
+                    "capabilities": (
+                        len(packs_catalog[pack_id].get("capabilities", []))
+                        if isinstance(packs_catalog[pack_id].get("capabilities"), list)
+                        else 0
+                    ),
                 }
                 for pack_id in sorted(packs_catalog)
             ],

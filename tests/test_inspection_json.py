@@ -7,7 +7,6 @@ import importlib.util
 import sys
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 INSPECTION_DIR = REPO_ROOT / "scripts" / "inspection"
 
@@ -72,7 +71,9 @@ def test_summary_payload_contract_shape() -> None:
 
 def test_deps_payload_returns_resolved_dependency_view() -> None:
     module = _load_module(INSPECTION_DIR / "inspection_json.py", "inspection_json_deps_contract")
-    code, body = module.deps_payload(_instances_fixture(), instance_ref="rtr-main", max_depth=3, include_typed_shadow=True)
+    code, body = module.deps_payload(
+        _instances_fixture(), instance_ref="rtr-main", max_depth=3, include_typed_shadow=True
+    )
 
     assert code == 0
     assert body["schema_version"] == module.DEPS_SCHEMA_VERSION
@@ -80,9 +81,13 @@ def test_deps_payload_returns_resolved_dependency_view() -> None:
     assert body["instance_ref"] == "rtr-main"
     assert body["max_depth"] == 3
     assert body["direct_outgoing"][0]["instance_id"] == "inst.service.api"
+    assert body["direct_outgoing"][0]["relation_types"] == ["runtime"]
     assert body["transitive_outgoing"][0]["instance_id"] == "inst.service.api"
     assert body["transitive_outgoing"][1]["instance_id"] == "inst.gateway"
+    assert body["semantic_relations"]["schema_version"] == "adr0095.inspect.deps.semantic-relations.v1"
+    assert body["semantic_relations"]["mode"] == "authoritative"
     assert body["typed_shadow"]["schema_version"] == "adr0095.inspect.deps.typed-shadow.v1"
+    assert body["typed_shadow"]["mode"] == "compat_alias"
     assert body["typed_shadow"]["direct_outgoing"][0]["edge"] == "inst.router->inst.service.api"
 
 
@@ -113,6 +118,7 @@ def test_deps_payload_typed_shadow_preserves_baseline_edge_contract() -> None:
         "resolved_instance_id",
         "instance_ref",
         "max_depth",
+        "semantic_relations",
         "direct_outgoing",
         "direct_incoming",
         "transitive_outgoing",

@@ -95,5 +95,5 @@
 | [0092](0092-smart-artifact-generation-and-hybrid-rendering.md) | Smart Artifact Generation and Hybrid Rendering | Implemented (Waves 1-4 complete; AI extracted to ADR0094) | 2026-04-05 | - | - |
 | [0093](0093-artifact-plan-schema-and-generator-runtime-integration.md) | ArtifactPlan Schema and Generator Runtime Integration | Implemented (Waves 1-5 complete; compatibility mode closed) | 2026-04-05 | - | - |
 | [0094](0094-ai-advisory-mode-for-artifact-generation.md) | AI Advisory Mode for Artifact Generation | Implemented (Waves 1-4 complete; checklist closed) | 2026-04-06 | ADR 0092 D10 | - |
-| [0095](0095-topology-inspection-and-introspection-toolkit.md) | Topology Inspection and Introspection Toolkit | Implemented (v1) | 2026-04-08 | - | - |
+| [0095](0095-topology-inspection-and-introspection-toolkit.md) | Topology Inspection and Introspection Toolkit | Implemented (v1, authoritative semantic typing enabled) | 2026-04-12 | - | - |
 | [0096](0096-ai-agent-rulebook-and-adr-derived-context-contract.md) | AI Agent Rulebook and ADR-Derived Context Contract | Implemented (Waves 1-3 complete) | 2026-04-10 | - | - |

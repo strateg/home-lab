@@ -423,9 +423,7 @@ def test_instances_command_detailed_lists_instance_rows(tmp_path: Path) -> None:
     assert "- L3 (2)" in result.stdout
     assert "- L5 (2)" in result.stdout
     assert "inst.router.ok (source=rtr-ok, object=obj.router.ok, class=class.router)" in result.stdout
-    assert (
-        "inst.service.worker (source=svc-worker, object=obj.service.worker, class=class.service)" in result.stdout
-    )
+    assert "inst.service.worker (source=svc-worker, object=obj.service.worker, class=class.service)" in result.stdout
 
 
 def test_search_command_matches_instance_fields_and_instance_data(tmp_path: Path) -> None:
@@ -476,9 +474,9 @@ def test_deps_command_prints_direct_incoming_outgoing_transitive_and_unresolved(
 
     assert "Dependencies for: inst.router.ok" in result.stdout
     assert "Outgoing (direct):" in result.stdout
-    assert "  - inst.service.api [service_ref]" in result.stdout
+    assert "  - inst.service.api [service_ref] (types=runtime)" in result.stdout
     assert "Incoming (direct):" in result.stdout
-    assert "  - inst.service.worker [router_ref]" in result.stdout
+    assert "  - inst.service.worker [router_ref] (types=network)" in result.stdout
     assert "Transitive outgoing (depth <= 3):" in result.stdout
     assert "  - depth=1 inst.service.api" in result.stdout
     assert "  - depth=2 inst.gateway" in result.stdout
@@ -502,21 +500,27 @@ def test_deps_command_json_output_contract(tmp_path: Path) -> None:
     )
     body = json.loads(result.stdout)
 
-    assert body["schema_version"] == "adr0095.inspect.deps.v1"
+    assert body["schema_version"] == "adr0095.inspect.deps.v2"
     assert body["command"] == "deps"
     assert body["resolved_instance_id"] == "inst.router.ok"
     assert body["instance_ref"] == "rtr-ok"
     assert body["max_depth"] == 3
+    assert body["semantic_relations"]["schema_version"] == "adr0095.inspect.deps.semantic-relations.v1"
+    assert body["semantic_relations"]["mode"] == "authoritative"
     outgoing = {row["instance_id"]: row["labels"] for row in body["direct_outgoing"]}
     assert outgoing["inst.service.api"] == ["service_ref"]
+    outgoing_types = {row["instance_id"]: row["relation_types"] for row in body["direct_outgoing"]}
+    assert outgoing_types["inst.service.api"] == ["runtime"]
     incoming = {row["instance_id"]: row["labels"] for row in body["direct_incoming"]}
     assert incoming["inst.service.worker"] == ["router_ref"]
+    incoming_types = {row["instance_id"]: row["relation_types"] for row in body["direct_incoming"]}
+    assert incoming_types["inst.service.worker"] == ["network"]
     assert {"instance_id": "inst.service.api", "depth": 1} in body["transitive_outgoing"]
     assert {"instance_id": "inst.gateway", "depth": 2} in body["transitive_outgoing"]
     assert body["unresolved_refs"] == []
 
 
-def test_deps_command_typed_shadow_prints_shadow_section(tmp_path: Path) -> None:
+def test_deps_command_typed_shadow_flag_prints_compatibility_note(tmp_path: Path) -> None:
     effective = _write_fixture_repo(tmp_path)
 
     result = _run_inspect(
@@ -529,9 +533,11 @@ def test_deps_command_typed_shadow_prints_shadow_section(tmp_path: Path) -> None
         "--typed-shadow",
     )
 
-    assert "Typed relation shadow (non-authoritative):" in result.stdout
-    assert "outgoing inst.router.ok->inst.service.api: runtime" in result.stdout
-    assert "incoming inst.service.worker->inst.router.ok: network" in result.stdout
+    assert "Outgoing (direct):" in result.stdout
+    assert "  - inst.service.api [service_ref] (types=runtime)" in result.stdout
+    assert "Incoming (direct):" in result.stdout
+    assert "  - inst.service.worker [router_ref] (types=network)" in result.stdout
+    assert "compatibility alias; semantic relation types are authoritative" in result.stdout
 
 
 def test_deps_command_json_typed_shadow_contract(tmp_path: Path) -> None:
@@ -552,6 +558,7 @@ def test_deps_command_json_typed_shadow_contract(tmp_path: Path) -> None:
     body = json.loads(result.stdout)
 
     assert body["typed_shadow"]["schema_version"] == "adr0095.inspect.deps.typed-shadow.v1"
+    assert body["typed_shadow"]["mode"] == "compat_alias"
     outgoing = {row["edge"]: row["types"] for row in body["typed_shadow"]["direct_outgoing"]}
     incoming = {row["edge"]: row["types"] for row in body["typed_shadow"]["direct_incoming"]}
     assert outgoing["inst.router.ok->inst.service.api"] == ["runtime"]
@@ -597,6 +604,7 @@ def test_deps_command_json_typed_shadow_preserves_baseline_edges(tmp_path: Path)
         "resolved_instance_id",
         "instance_ref",
         "max_depth",
+        "semantic_relations",
         "direct_outgoing",
         "direct_incoming",
         "transitive_outgoing",
@@ -638,7 +646,7 @@ def test_deps_command_json_returns_error_payload_for_unknown_instance(tmp_path: 
     body = json.loads(result.stdout)
 
     assert result.returncode == 2
-    assert body["schema_version"] == "adr0095.inspect.deps.v1"
+    assert body["schema_version"] == "adr0095.inspect.deps.v2"
     assert body["command"] == "deps"
     assert body["error"]["code"] == "unknown_instance_reference"
     assert body["error"]["instance_ref"] == "missing-instance"

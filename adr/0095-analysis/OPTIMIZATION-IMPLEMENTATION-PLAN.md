@@ -1,7 +1,7 @@
 # ADR 0095 Optimization Implementation Plan
 
-**Status:** Proposed planning artifact  
-**Date:** 2026-04-11  
+**Status:** Executed baseline (authoritative promotion recorded)  
+**Date:** 2026-04-12  
 **Scope:** Implement the approved ADR0095 optimization directions:
 - internal modularization,
 - question-oriented inspection surface,
@@ -250,6 +250,7 @@ Acceptance:
 | PR-11 | Add typed-shadow promotion readiness diagnostics + fail-fast gate wiring | targeted pytest + `task validate:typed-shadow-readiness` + `task validate:typed-shadow-readiness-gate` |
 | PR-12 | Expand inspect smoke matrix to cover typed-shadow dependency command path | targeted pytest + `task inspect:smoke-matrix` + `task validate:inspect-smoke` |
 | PR-13 | Add inspect-namespace readiness fail-fast alias and extend smoke matrix with typed-shadow JSON path | targeted pytest + `task inspect:typed-shadow-readiness-gate` + `task validate:inspect-smoke` |
+| PR-14 | Promote semantic relation typing to authoritative deps contract (keep compatibility aliases) | targeted pytest + smoke matrix + readiness/ADR consistency gates |
 
 ---
 

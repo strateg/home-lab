@@ -46,19 +46,19 @@ def _seed_gate_files(repo_root: Path) -> None:
         encoding="utf-8",
     )
     (repo_root / "manuals" / "dev-plane" / "DEV-COMMAND-REFERENCE.md").write_text(
-        "typed shadow is non-authoritative and reports generic_ref semantics.\n",
+        "authoritative semantic relation typing is enabled and generic_ref semantics are documented.\n",
         encoding="utf-8",
     )
     (repo_root / "adr" / "0095-topology-inspection-and-introspection-toolkit.md").write_text(
-        "Semantic typing remains non-authoritative.\n",
+        "ADR0095 confirms authoritative semantic relation typing.\n",
         encoding="utf-8",
     )
     (repo_root / "adr" / "0095-analysis" / "IMPLEMENTATION-PLAN.md").write_text(
-        "promotion decision remains pending\n",
+        "promotion decision recorded\n",
         encoding="utf-8",
     )
     (repo_root / "adr" / "0095-analysis" / "SEMANTIC-TYPING-PROMOTION-CRITERIA.md").write_text(
-        "## Promotion Decision Rule\n",
+        "## Promotion Record\n",
         encoding="utf-8",
     )
 
@@ -84,7 +84,7 @@ def test_build_report_marks_ready_when_all_promotion_gates_pass(tmp_path: Path) 
     assert report["typed_shadow_report_snapshot"]["coverage_percent"] == 100.0
     assert report["typed_shadow_report_snapshot"]["generic_ref_share_percent"] == 0.5
     assert report["typed_shadow_report_snapshot"]["g2_pass"] is True
-    assert "Record promotion decision" in report["recommended_next_step"]
+    assert "Authoritative semantic typing is recorded" in report["recommended_next_step"]
 
 
 def test_build_report_surfaces_blocking_gates_when_prerequisites_are_missing(tmp_path: Path) -> None:
@@ -109,7 +109,7 @@ def test_build_report_surfaces_blocking_gates_when_prerequisites_are_missing(tmp
         "g4_operator_usability",
         "g5_adr_sync",
     }
-    assert "Keep typed shadow non-authoritative" in report["recommended_next_step"]
+    assert "Complete authoritative promotion recording" in report["recommended_next_step"]
 
 
 def test_typed_shadow_report_source_prefers_existing_artifact(tmp_path: Path) -> None:

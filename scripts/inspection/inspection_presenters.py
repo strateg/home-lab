@@ -83,12 +83,7 @@ def print_capability_packs(payload: dict[str, Any], *, effective_path: Path) -> 
                 object_pack_usage_by_class[class_ref][pack_id].append(object_id)
 
     missing_class_pack_refs = sorted(
-        {
-            pack_id
-            for refs in class_pack_refs.values()
-            for pack_id in refs
-            if pack_id not in packs_catalog
-        }
+        {pack_id for refs in class_pack_refs.values() for pack_id in refs if pack_id not in packs_catalog}
     )
     missing_object_pack_refs = sorted({pack_id for pack_id in object_pack_usage if pack_id not in packs_catalog})
 
@@ -182,7 +177,9 @@ def print_capabilities(
         optional = sorted(
             {item for item in (class_payload.get("optional_capabilities") or []) if isinstance(item, str) and item}
         )
-        packs = sorted({item for item in (class_payload.get("capability_packs") or []) if isinstance(item, str) and item})
+        packs = sorted(
+            {item for item in (class_payload.get("capability_packs") or []) if isinstance(item, str) and item}
+        )
         if required:
             class_required[cls_id] = required
         if optional:
@@ -202,7 +199,9 @@ def print_capabilities(
         enabled_caps = sorted(
             {item for item in (object_payload.get("enabled_capabilities") or []) if isinstance(item, str) and item}
         )
-        enabled_packs = sorted({item for item in (object_payload.get("enabled_packs") or []) if isinstance(item, str) and item})
+        enabled_packs = sorted(
+            {item for item in (object_payload.get("enabled_packs") or []) if isinstance(item, str) and item}
+        )
         if enabled_caps:
             object_caps[obj_id] = enabled_caps
         if enabled_packs:
@@ -478,7 +477,9 @@ def print_instances_tree(instances: list[dict[str, Any]], *, detailed: bool = Fa
                 if isinstance(meta, dict):
                     materializes_object = meta.get("materializes_object", "-")
                     materializes_class = meta.get("materializes_class", "-")
-                print(f"  - {instance_id} (source={source_id}, object={materializes_object}, class={materializes_class})")
+                print(
+                    f"  - {instance_id} (source={source_id}, object={materializes_object}, class={materializes_class})"
+                )
 
 
 def print_search(instances: list[dict[str, Any]], query: str) -> None:
@@ -519,6 +520,7 @@ def print_deps(
         return 2
 
     edges, unresolved, edge_labels = build_dependency_graph(instances)
+    relation_types = typed_relation_shadow(edge_labels)
     incoming: dict[str, set[str]] = defaultdict(set)
     for source, targets in edges.items():
         for target in targets:
@@ -534,14 +536,16 @@ def print_deps(
         print("  - none")
     for target in direct_outgoing:
         labels = ", ".join(sorted(set(edge_labels.get(f"{resolved}->{target}", []))))
-        print(f"  - {target} [{labels}]")
+        types = ", ".join(relation_types.get(f"{resolved}->{target}", [])) or "-"
+        print(f"  - {target} [{labels}] (types={types})")
 
     print("Incoming (direct):")
     if not direct_incoming:
         print("  - none")
     for source in direct_incoming:
         labels = ", ".join(sorted(set(edge_labels.get(f"{source}->{resolved}", []))))
-        print(f"  - {source} [{labels}]")
+        types = ", ".join(relation_types.get(f"{source}->{resolved}", [])) or "-"
+        print(f"  - {source} [{labels}] (types={types})")
 
     print(f"Transitive outgoing (depth <= {max_depth}):")
     visited: set[str] = {resolved}
@@ -563,22 +567,8 @@ def print_deps(
         print(f"  - {ref}")
 
     if typed_shadow:
-        shadow = typed_relation_shadow(edge_labels)
-        print("Typed relation shadow (non-authoritative):")
-        has_rows = False
-        for target in direct_outgoing:
-            edge_key = f"{resolved}->{target}"
-            types = shadow.get(edge_key, [])
-            if types:
-                has_rows = True
-                print(f"  - outgoing {edge_key}: {', '.join(types)}")
-        for source in direct_incoming:
-            edge_key = f"{source}->{resolved}"
-            types = shadow.get(edge_key, [])
-            if types:
-                has_rows = True
-                print(f"  - incoming {edge_key}: {', '.join(types)}")
-        if not has_rows:
-            print("  - none")
+        print(
+            "Note: --typed-shadow is a compatibility alias; semantic relation types are authoritative and shown inline."
+        )
 
     return 0

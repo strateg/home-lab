@@ -76,7 +76,7 @@ tasks:
       - "{{.PYTHON}} scripts/inspection/inspect_topology.py deps --instance {{.INSTANCE}} --json {{if .MAX_DEPTH}}--max-depth {{.MAX_DEPTH}}{{end}} {{if .LAYER}}--layer {{.LAYER}}{{end}} {{if .GROUP}}--group {{.GROUP}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
 
   deps-typed-shadow:
-    desc: Show dependencies with experimental typed relation shadow (INSTANCE=<id|source_id>)
+    desc: Compatibility alias for deps with semantic relation typing (INSTANCE=<id|source_id>)
     requires:
       vars:
         - INSTANCE
@@ -84,7 +84,7 @@ tasks:
       - "{{.PYTHON}} scripts/inspection/inspect_topology.py deps --instance {{.INSTANCE}} --typed-shadow {{if .MAX_DEPTH}}--max-depth {{.MAX_DEPTH}}{{end}} {{if .LAYER}}--layer {{.LAYER}}{{end}} {{if .GROUP}}--group {{.GROUP}}{{end}} {{if .EFFECTIVE}}--effective {{.EFFECTIVE}}{{end}}"
 
   deps-json-typed-shadow:
-    desc: Show dependencies in JSON with typed relation shadow (INSTANCE=<id|source_id>)
+    desc: Compatibility alias for deps JSON + legacy typed_shadow block (INSTANCE=<id|source_id>)
     requires:
       vars:
         - INSTANCE

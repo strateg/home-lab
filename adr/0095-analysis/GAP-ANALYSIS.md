@@ -1,7 +1,7 @@
 # ADR 0095 GAP ANALYSIS
 
-**Last updated:** 2026-04-11
-**Status:** In progress (Wave 3 execution active)
+**Last updated:** 2026-04-12
+**Status:** Closed (Wave 3 complete)
 
 ## AS-IS
 
@@ -38,20 +38,20 @@
 | G10 | Нет semantic relation typing | High | typed relation extraction for dependency/capability/inheritance domains |
 | G11 | Внутренние concerns inspection CLI сконцентрированы в одном модуле | High | internal modularization behind canonical CLI |
 
-## Closure Snapshot (2026-04-11)
+## Closure Snapshot (2026-04-12)
 
 | Gap | Current state |
 | --- | ------------- |
 | G1 | Closed — canonical inspect CLI implemented and stabilized by contract tests |
 | G2 | Closed — `task inspect:*` namespace wired and used in smoke matrix |
 | G3 | Closed — ADR0095 formalized and synchronized with analysis artifacts |
-| G4 | Open — broader manual command reference still needs explicit operator section refresh |
+| G4 | Closed — manual command reference includes operator contract for authoritative semantic typing and compatibility aliases |
 | G5 | Closed — capability-pack inspection implemented and validated |
 | G6 | Closed — inheritance-oriented inspection (`inheritance`) implemented and validated |
 | G7 | Closed — unified capability surface (`capabilities`) implemented and validated |
 | G8 | Closed — compact defaults + explicit detailed modes for high-volume views, plus layer/group filters for instance-scoped diagnostics |
 | G9 | Closed — machine-readable JSON contracts added for overview/dependency/inheritance/capability domains |
-| G10 | Partial — semantic typing delivered as shadow mode for `deps`; promotion to authoritative semantic model is gated by `SEMANTIC-TYPING-PROMOTION-CRITERIA.md` |
+| G10 | Closed — semantic typing promoted to authoritative `deps`/`deps-json` contract; compatibility aliases retained during transition |
 | G11 | Closed — loader/index/relation/presenter/export concerns extracted behind canonical CLI |
 
 ## Risks

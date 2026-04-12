@@ -1,6 +1,6 @@
 # ADR 0095 IMPLEMENTATION PLAN
 
-**Last updated:** 2026-04-11
+**Last updated:** 2026-04-12
 
 ## Wave 1 — Baseline Toolkit
 
@@ -45,7 +45,7 @@
 | 3.0 | Reconcile ADR0095 analysis/status with actual v1 baseline | ADR, gap analysis, plan, and SWOT reflect current implemented surface |
 | 3.1 | Add `--json` machine-readable output | Structured output contract stabilized (`summary`, `deps`, `inheritance`, `capabilities`) |
 | 3.2 | Add layer/group filters | Scoped inspection for large projects (`summary`, `instances`, `search`, `deps`, `deps-dot`) |
-| 3.3 | Add semantic edge typing | Shadow-mode typed relation classification for `deps` without replacing baseline extractor |
+| 3.3 | Add semantic edge typing | Initial shadow-mode typed relation classification for `deps` |
 | 3.4 | Add tests for dependency extractor | Stable behavior on known fixtures |
 | 3.5 | Add inheritance-focused inspection surface | Dedicated lineage/inheritance questions are inspectable without relying only on `classes` tree |
 | 3.6 | Add unified capability inspection surface | Class/object/pack capability relations become inspectable through one coherent domain surface |
@@ -53,6 +53,7 @@
 | 3.8 | Refactor internal inspection code into reusable concerns | Canonical CLI remains stable while loaders/indexes/extractors/formatters are separated internally |
 | 3.9 | Add typed-shadow diagnostics artifacts and threshold gate | `typed-shadow-report.{json,txt}` artifacts are generated and gate mode can fail on threshold mismatch |
 | 3.10 | Add typed-shadow promotion-readiness diagnostics | `typed-shadow-promotion-readiness.{json,txt}` artifacts summarize G1..G5 readiness and optional fail-fast gate |
+| 3.11 | Promote semantic typing to authoritative mode | `deps`/`deps-json` include semantic relation types by default; compatibility aliases remain documented |
 
 ### Wave 3 Gate
 
@@ -66,8 +67,9 @@
 - [x] Internal modularization preserves canonical CLI and `task inspect:*` contracts
 - [x] Typed-shadow diagnostics artifacts and threshold gate are wired (`task inspect:typed-shadow-report`, `task inspect:typed-shadow-gate`)
 - [x] Typed-shadow promotion readiness diagnostics are wired (`task inspect:typed-shadow-readiness`, `task validate:typed-shadow-readiness-gate`)
+- [x] Semantic typing promotion decision is recorded and implemented as authoritative contract
 
-## Current Execution Snapshot (2026-04-11)
+## Current Execution Snapshot (2026-04-12)
 
 Completed waves/PR-sized slices:
 - PR-0 baseline command contract lock + error paths.
@@ -88,9 +90,11 @@ Completed waves/PR-sized slices:
 - PR-15 typed-shadow promotion readiness reporter + validation gate aliases (`inspect:typed-shadow-readiness`, `validate:typed-shadow-readiness`, `validate:typed-shadow-readiness-gate`).
 - PR-16 smoke-matrix expansion to include `deps --typed-shadow` command coverage, guarding advisory semantic-shadow CLI path.
 - PR-17 inspect namespace parity for readiness fail-fast gate (`inspect:typed-shadow-readiness-gate`) and smoke-matrix coverage for `deps --json --typed-shadow`.
+- PR-18 authoritative semantic typing promotion for `deps`/`deps-json` with compatibility aliases retained for transition stability.
 
 Outstanding from Wave 3:
-- semantic typing promotion decision beyond shadow mode (keep as non-authoritative shadow until promotion criteria are approved).
+- none.
+- promotion decision recorded in ADR0095 artifacts (authoritative semantic typing enabled).
 
 Promotion criteria artifact:
 - `adr/0095-analysis/SEMANTIC-TYPING-PROMOTION-CRITERIA.md`

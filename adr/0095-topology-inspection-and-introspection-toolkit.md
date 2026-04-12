@@ -1,7 +1,7 @@
 # ADR 0095: Topology Inspection and Introspection Toolkit
 
-**Status:** Implemented (v1)  
-**Date:** 2026-04-08  
+**Status:** Implemented (v1, authoritative semantic typing enabled)  
+**Date:** 2026-04-12  
 **Depends on:** ADR 0062, ADR 0077, ADR 0080, ADR 0092, ADR 0093
 
 ---
@@ -74,9 +74,9 @@ After v1 implementation, the remaining problem is no longer toolkit absence, but
 - `task inspect:instances-detailed` — расширенный детальный instance view,
 - `task inspect:search QUERY='<regex>'` — поиск экземпляров,
 - `task inspect:deps INSTANCE='<id|source_id>' [MAX_DEPTH=N]` — локальный граф зависимостей,
-- `task inspect:deps-typed-shadow INSTANCE='<id|source_id>'` — dependency view + non-authoritative typed relation shadow,
+- `task inspect:deps-typed-shadow INSTANCE='<id|source_id>'` — compatibility alias для `deps` (semantic relation types authoritative by default),
 - `task inspect:deps-json INSTANCE='<id|source_id>'` — machine-readable dependency view,
-- `task inspect:deps-json-typed-shadow INSTANCE='<id|source_id>'` — dependency JSON + typed shadow block,
+- `task inspect:deps-json-typed-shadow INSTANCE='<id|source_id>'` — compatibility alias + legacy `typed_shadow` JSON block,
 - `task inspect:deps-dot [OUTPUT=path]` — экспорт полного instance dependency graph в DOT,
 - `task inspect:capability-packs` — инспекция capability packs и матрицы `class -> packs -> objects`,
 - `task inspect:capabilities [CLASS=<class_ref>|OBJECT=<object_id>]` — unified capability relation inspection,
@@ -173,8 +173,9 @@ Target semantic domains include:
 
 Typed relations are intended to reduce ambiguity between “reference exists” and “runtime-significant dependency”.
 
-Execution note (2026-04-11):
-- semantic relation typing is currently delivered in shadow mode for `deps` (`--typed-shadow`) and corresponding JSON shadow block;
+Execution note (2026-04-12):
+- semantic relation typing is promoted to authoritative mode for `deps` and `deps-json`;
+- `--typed-shadow` and `deps-typed-shadow`/`deps-json-typed-shadow` remain compatibility aliases during transition;
 - diagnostics artifacts for promotion-gate evidence are available via:
   - `task inspect:typed-shadow-report` (`build/diagnostics/typed-shadow-report.{json,txt}`)
   - `task inspect:typed-shadow-gate` (same artifacts + threshold exit-code gate);
@@ -186,9 +187,9 @@ Execution note (2026-04-11):
   - `task inspect:typed-shadow-readiness-gate` (same artifacts + fail-fast gate)
   - `task validate:typed-shadow-readiness`
   - `task validate:typed-shadow-readiness-gate` (fail-fast when readiness gates are not all PASS);
-- current home-lab snapshot reaches G2 threshold gate (`coverage=100.0`, `generic_ref_share=0.72`), while semantic typing remains non-authoritative pending full promotion decision;
-- parity guards verify that enabling typed shadow does not change authoritative baseline dependency edge sets (`deps --json` vs `deps --json --typed-shadow`);
-- baseline dependency extraction remains authoritative until promotion criteria are accepted (see `adr/0095-analysis/SEMANTIC-TYPING-PROMOTION-CRITERIA.md`).
+- current home-lab snapshot reaches G2 threshold gate (`coverage=100.0`, `generic_ref_share=0.72`);
+- compatibility parity guards verify that legacy typed-shadow alias paths do not alter authoritative edge identity (`deps --json` vs `deps --json --typed-shadow`);
+- promotion record is captured in `adr/0095-analysis/SEMANTIC-TYPING-PROMOTION-CRITERIA.md`.
 
 ### D9. Fail-fast поведение
 
@@ -245,12 +246,13 @@ Execution note (2026-04-11):
 - Команды `classes|inheritance|objects|instances|search|deps|deps-dot|capability-packs|capabilities` доступны и документированы.
 - Machine-readable JSON paths доступны для `summary|deps|inheritance|capabilities`.
 - `task inspect:deps INSTANCE='rtr-mikrotik-chateau'` возвращает direct/transitive зависимости.
-- `task inspect:deps-typed-shadow INSTANCE='rtr-mikrotik-chateau'` добавляет non-authoritative typed shadow без изменения baseline dependency extraction.
+- `task inspect:deps` и `task inspect:deps-json` включают authoritative semantic relation typing в основном контракте.
+- `task inspect:deps-typed-shadow INSTANCE='rtr-mikrotik-chateau'` и `task inspect:deps-json-typed-shadow` остаются compatibility aliases.
 - `task inspect:deps-dot` создает DOT-файл в `build/diagnostics/`.
 - `task inspect:default LAYER='L5' GROUP='services'` и `task inspect:deps-dot LAYER='L5' GROUP='services'` корректно ограничивают inspection scope.
 - `task inspect:capability-packs` показывает capability-pack зависимости от object classes.
 - `task inspect:capabilities` показывает unified class/object/pack capability traceability.
-- `task inspect:typed-shadow-readiness` генерирует G1..G5 readiness snapshot для решения о semantic-typing promotion.
+- `task inspect:typed-shadow-readiness` генерирует G1..G5 compliance snapshot после authoritative promotion.
 - ADR register содержит запись ADR0095.
 
 ---
