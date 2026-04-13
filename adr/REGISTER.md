@@ -97,3 +97,5 @@
 | [0094](0094-ai-advisory-mode-for-artifact-generation.md) | AI Advisory Mode for Artifact Generation | Implemented (Waves 1-4 complete; checklist closed) | 2026-04-06 | ADR 0092 D10 | - |
 | [0095](0095-topology-inspection-and-introspection-toolkit.md) | Topology Inspection and Introspection Toolkit | Implemented (Waves 0-E complete, see `adr/0095-analysis/COMPLETION-REPORT.md`) | 2026-04-12 | - | - |
 | [0096](0096-ai-agent-rulebook-and-adr-derived-context-contract.md) | AI Agent Rulebook and ADR-Derived Context Contract | Implemented (Waves 1-3 complete) | 2026-04-10 | - | - |
+| [0097](0097-subinterpreter-parallel-plugin-execution.md) | Subinterpreter-Based Parallel Plugin Execution | Proposed (Python 3.14+) | 2026-04-13 | - | - |
+| [0098](0098-python-3-14-platform-migration.md) | Python 3.14 Platform Migration | Draft (pending SWOT analysis) | 2026-04-13 | - | - |
