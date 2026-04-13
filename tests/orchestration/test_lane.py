@@ -138,9 +138,7 @@ def test_main_returns_nonzero_for_collect_all_failures(monkeypatch: pytest.Monke
     assert "[lane] EXIT: INFRA_ERROR (3)" in captured.err
 
 
-def test_main_returns_validation_exit_code_for_workspace_layout_error(
-    monkeypatch: pytest.MonkeyPatch, capsys
-) -> None:
+def test_main_returns_validation_exit_code_for_workspace_layout_error(monkeypatch: pytest.MonkeyPatch, capsys) -> None:
     lane = _load_lane_module()
 
     monkeypatch.setattr(
@@ -164,9 +162,7 @@ def test_main_returns_validation_exit_code_for_workspace_layout_error(
     assert "[lane] EXIT: VALIDATION_ERROR (1)" in captured.err
 
 
-def test_main_returns_validation_exit_code_for_subprocess_failure(
-    monkeypatch: pytest.MonkeyPatch, capsys
-) -> None:
+def test_main_returns_validation_exit_code_for_subprocess_failure(monkeypatch: pytest.MonkeyPatch, capsys) -> None:
     lane = _load_lane_module()
 
     monkeypatch.setattr(

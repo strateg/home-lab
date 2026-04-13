@@ -8,7 +8,6 @@ from typing import Any
 
 import yaml
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TASKFILE_PATH = REPO_ROOT / "taskfiles" / "validate.yml"
 
@@ -45,4 +44,3 @@ def test_inspect_smoke_task_wires_runner_and_diagnostics_paths() -> None:
     assert "--json-output build/diagnostics/inspect-smoke-matrix.json" in cmd
     assert "--text-output build/diagnostics/inspect-smoke-matrix.txt" in cmd
     assert "--allow-failures" not in cmd
-

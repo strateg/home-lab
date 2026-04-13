@@ -175,10 +175,7 @@ def _config_schema_warning(plugin: dict, manifest_dir: Path) -> str | None:
         return None
 
     plugin_id = plugin.get("id", "<unknown>")
-    return (
-        f"{plugin_id}: entry consumes ctx.config keys without config_schema coverage: "
-        + ", ".join(missing_keys)
-    )
+    return f"{plugin_id}: entry consumes ctx.config keys without config_schema coverage: " + ", ".join(missing_keys)
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:

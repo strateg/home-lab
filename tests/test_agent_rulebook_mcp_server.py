@@ -44,7 +44,7 @@ def test_agent_rulebook_mcp_server_reads_rulebook_and_rule_map() -> None:
     rule_map = asyncio.run(server.read_resource("home-lab://ai/rule-map"))
 
     assert rulebook[0].content.startswith("# Universal AI Agent Rulebook")
-    assert "generated_from_adr: \"0096\"" in rule_map[0].content
+    assert 'generated_from_adr: "0096"' in rule_map[0].content
 
 
 def test_agent_rulebook_mcp_server_check_mode_reports_summary() -> None:

@@ -79,7 +79,11 @@ def test_execution_order_resolves_diamond_dependencies_before_numeric_order(tmp_
     _write_manifest(
         manifest,
         [
-            _plugin("diamond.validator_json.join", order=91, depends_on=["diamond.validator_json.left", "diamond.validator_json.right"]),
+            _plugin(
+                "diamond.validator_json.join",
+                order=91,
+                depends_on=["diamond.validator_json.left", "diamond.validator_json.right"],
+            ),
             _plugin("diamond.validator_json.right", order=93, depends_on=["diamond.validator_json.base"]),
             _plugin("diamond.validator_json.left", order=92, depends_on=["diamond.validator_json.base"]),
             _plugin("diamond.validator_json.base", order=188),
@@ -120,7 +124,14 @@ def test_execution_order_allows_backward_stage_and_phase_dependencies(tmp_path: 
         manifest,
         [
             _plugin("phase.compiler.pre", kind="compiler", stages=["compile"], phase="pre", order=31),
-            _plugin("phase.compiler.run", kind="compiler", stages=["compile"], phase="run", order=32, depends_on=["phase.compiler.pre"]),
+            _plugin(
+                "phase.compiler.run",
+                kind="compiler",
+                stages=["compile"],
+                phase="run",
+                order=32,
+                depends_on=["phase.compiler.pre"],
+            ),
             _plugin("phase.validator_json.run", order=91, depends_on=["phase.compiler.run"]),
         ],
     )
@@ -141,7 +152,13 @@ def test_execution_order_rejects_forward_stage_and_phase_dependencies(tmp_path: 
     _write_manifest(
         forward_stage_manifest,
         [
-            _plugin("forward.compiler.run", kind="compiler", stages=["compile"], order=31, depends_on=["forward.validator_json.run"]),
+            _plugin(
+                "forward.compiler.run",
+                kind="compiler",
+                stages=["compile"],
+                order=31,
+                depends_on=["forward.validator_json.run"],
+            ),
             _plugin("forward.validator_json.run", order=91),
         ],
     )

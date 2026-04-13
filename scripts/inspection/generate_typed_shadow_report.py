@@ -15,12 +15,8 @@ if str(SCRIPT_DIR) not in sys.path:
 from inspection_indexes import filter_instances as _filter_instances  # noqa: E402
 from inspection_indexes import flatten_instances as _flatten_instances  # noqa: E402
 from inspection_loader import load_effective as _load_effective  # noqa: E402
-from inspection_typed_shadow_report import (  # noqa: E402
-    build_typed_shadow_report as _build_typed_shadow_report,
-)
-from inspection_typed_shadow_report import (  # noqa: E402
-    typed_shadow_report_text as _typed_shadow_report_text,
-)
+from inspection_typed_shadow_report import build_typed_shadow_report as _build_typed_shadow_report  # noqa: E402
+from inspection_typed_shadow_report import typed_shadow_report_text as _typed_shadow_report_text  # noqa: E402
 
 
 def _parse_args() -> argparse.Namespace:
@@ -110,4 +106,3 @@ if __name__ == "__main__":
     except (FileNotFoundError, ValueError) as error:
         print(f"[inspect][error] {error}", file=sys.stderr)
         raise SystemExit(2) from error
-

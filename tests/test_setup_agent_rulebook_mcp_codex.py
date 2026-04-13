@@ -26,7 +26,9 @@ def test_build_server_spec_prefers_repo_venv_python() -> None:
 
     expected_python = str(Path(__file__).resolve().parents[1] / ".venv" / "bin" / "python")
     assert spec["command"] == expected_python
-    assert spec["args"] == [str(Path(__file__).resolve().parents[1] / "scripts" / "orchestration" / "mcp" / "agent_rulebook_mcp_server.py")]
+    assert spec["args"] == [
+        str(Path(__file__).resolve().parents[1] / "scripts" / "orchestration" / "mcp" / "agent_rulebook_mcp_server.py")
+    ]
 
 
 def test_main_print_config_emits_mcp_json_snippet(capsys) -> None:

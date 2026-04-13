@@ -91,10 +91,8 @@ def test_validator_uses_adapter_registry_from_rule_map(tmp_path: Path) -> None:
     )
 
     assert any(
-        error == "Adapter CUSTOM-AGENT.md does not reference docs/ai/AGENT-RULEBOOK.md"
-        for error in result.errors
+        error == "Adapter CUSTOM-AGENT.md does not reference docs/ai/AGENT-RULEBOOK.md" for error in result.errors
     )
     assert any(
-        error == "Adapter CUSTOM-AGENT.md does not reference docs/ai/ADR-RULE-MAP.yaml"
-        for error in result.errors
+        error == "Adapter CUSTOM-AGENT.md does not reference docs/ai/ADR-RULE-MAP.yaml" for error in result.errors
     )

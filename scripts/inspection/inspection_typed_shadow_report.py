@@ -3,8 +3,8 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
 import sys
+from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
@@ -13,7 +13,6 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from inspection_relations import build_dependency_graph, infer_relation_type, typed_relation_shadow
-
 
 TYPED_SHADOW_REPORT_SCHEMA_VERSION = "adr0095.inspect.deps.typed-shadow-report.v1"
 
@@ -62,9 +61,7 @@ def build_typed_shadow_report(
     total_label_classifications = sum(label_type_counts.values())
     generic_ref_count = label_type_counts.get("generic_ref", 0)
     generic_ref_share_percent = (
-        0.0
-        if total_label_classifications == 0
-        else round((generic_ref_count / total_label_classifications) * 100.0, 2)
+        0.0 if total_label_classifications == 0 else round((generic_ref_count / total_label_classifications) * 100.0, 2)
     )
 
     g2_coverage_pass = coverage_percent >= min_coverage_percent

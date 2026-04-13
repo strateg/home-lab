@@ -80,8 +80,7 @@ class RuntimeOnlyAssembler:
             ctx.config.get("repo_root"),
             ctx.config.get("validation_owner_runtime_only"),
         )
-""".strip()
-        + "\n",
+""".strip() + "\n",
     )
 
     warning = mod._config_schema_warning(plugin, repo_root / "topology-tools" / "plugins")
@@ -98,8 +97,7 @@ def test_config_schema_warning_reports_missing_plugin_specific_key(tmp_path: Pat
 class DeployBundleAssembler:
     def run(self, ctx):
         return ctx.config.get("deploy_bundles_root")
-""".strip()
-        + "\n",
+""".strip() + "\n",
     )
 
     warning = mod._config_schema_warning(plugin, repo_root / "topology-tools" / "plugins")
@@ -118,8 +116,7 @@ def test_main_can_fail_on_warnings(tmp_path: Path, monkeypatch, capsys) -> None:
 class DeployBundleAssembler:
     def run(self, ctx):
         return ctx.config.get("deploy_bundles_root")
-""".strip()
-        + "\n",
+""".strip() + "\n",
     )
 
     monkeypatch.setattr(mod, "_repo_root", lambda: repo_root)

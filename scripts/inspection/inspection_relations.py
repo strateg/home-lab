@@ -15,7 +15,6 @@ if str(SCRIPT_DIR) not in sys.path:
 
 from inspection_indexes import source_aliases
 
-
 REF_KEY_PATTERN = re.compile(r".*(_ref|_refs)$")
 PATH_INDEX_PATTERN = re.compile(r"\[\d+\]")
 

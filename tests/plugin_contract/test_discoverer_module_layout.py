@@ -9,7 +9,6 @@ from pathlib import Path
 
 import yaml
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 V5_TOOLS = REPO_ROOT / "topology-tools"
 DISCOVERERS = V5_TOOLS / "plugins" / "discoverers"

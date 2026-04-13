@@ -4,10 +4,10 @@
 from __future__ import annotations
 
 import argparse
-from enum import IntEnum
 import os
 import subprocess
 import sys
+from enum import IntEnum
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -63,9 +63,7 @@ def _record_failure(cmd: list[str], exc: Exception, *, timeout: float | None) ->
     return f"{rendered} failed: {exc}"
 
 
-def _run_steps(
-    commands: list[list[str]], *, timeout: float | None = None, collect_all_errors: bool = False
-) -> None:
+def _run_steps(commands: list[list[str]], *, timeout: float | None = None, collect_all_errors: bool = False) -> None:
     failures: list[str] = []
     saw_timeout = False
     for cmd in commands:
@@ -172,12 +170,18 @@ def build_v5(*, step_timeout: float | None = None, collect_all_errors: bool = Fa
 
 def phase1_gate(*, step_timeout: float | None = None) -> None:
     # NOTE: phase1 gate validates archived legacy migration assets only.
-    run([PYTHON, "scripts/validation/validate_phase1_gate.py", "--report-json", PHASE1_REPORT_JSON], timeout=step_timeout)
+    run(
+        [PYTHON, "scripts/validation/validate_phase1_gate.py", "--report-json", PHASE1_REPORT_JSON],
+        timeout=step_timeout,
+    )
 
 
 def validate_v5_layers(*, step_timeout: float | None = None) -> None:
     # NOTE: export helper remains legacy-only and is not part of ADR0071 runtime.
-    run([PYTHON, "scripts/validation/validate_v5_layer_contract.py", "--report-json", LAYER_REPORT_JSON], timeout=step_timeout)
+    run(
+        [PYTHON, "scripts/validation/validate_v5_layer_contract.py", "--report-json", LAYER_REPORT_JSON],
+        timeout=step_timeout,
+    )
 
 
 def export_v5_bindings(*, step_timeout: float | None = None) -> None:

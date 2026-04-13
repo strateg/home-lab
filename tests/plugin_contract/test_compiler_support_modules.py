@@ -212,7 +212,7 @@ def test_compiler_contract_rejects_non_object_payload() -> None:
     ]
 
 
-@pytest.mark.parametrize("char", ['<', '>', ':', '"', "/", "\\", "|", "?", "*"])
+@pytest.mark.parametrize("char", ["<", ">", ":", '"', "/", "\\", "|", "?", "*"])
 def test_identifier_policy_detects_cross_platform_unsafe_chars(char: str) -> None:
     assert contains_unsafe_identifier_chars(f"router{char}wan")
 
