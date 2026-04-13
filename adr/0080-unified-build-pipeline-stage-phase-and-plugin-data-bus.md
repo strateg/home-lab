@@ -729,6 +729,38 @@ Gate:
 13. Risk: GIL limits parallelism benefit for CPU-bound plugins.
     - Mitigation: most plugins are I/O-bound (YAML parse, file write); `ThreadPoolExecutor` is sufficient. If CPU-bound bottleneck emerges, migrate to `ProcessPoolExecutor` with serializable scope (future ADR).
 
+## Future Optimization
+
+**Note (2026-04-13)**: ADR 0080 is fully implemented with all 6 stages, 6 phases, and parallel execution operational. Thread-safety is achieved through:
+
+- `PluginExecutionScope` + `contextvars.ContextVar` for per-invocation isolation
+- `_published_data_lock` protecting data bus operations (9 acquisition points)
+- `_instances_lock` protecting plugin instance cache
+- Frozen `compiled_json` snapshots at stage boundaries
+
+**Strategic Evolution**: ADR 0097 (Subinterpreter-Based Parallel Plugin Execution) represents a future optimization that eliminates manual thread-safety primitives by design.
+
+| Aspect | Current (ADR 0080) | Future (ADR 0097 + Python 3.14) |
+|--------|-------------------|----------------------------------|
+| Parallel executor | `ThreadPoolExecutor` + locks | `InterpreterPoolExecutor` (PEP 734) |
+| GIL contention | Shared GIL across threads | Per-interpreter GIL (PEP 684) |
+| Race prevention | Manual locks, `ContextVar` | Isolated memory (impossible to share) |
+| Code complexity | 11 lock points, careful review | Serialization boundary, no locks needed |
+| Plugin safety model | Developer discipline + review | Architecturally enforced isolation |
+
+**Migration Path**: When Python 3.14+ becomes minimum supported version (ADR 0098), runtime can:
+1. Replace `ThreadPoolExecutor` → `InterpreterPoolExecutor`
+2. Remove `_published_data_lock`, `_instances_lock`
+3. Simplify `PluginExecutionScope` (natural isolation vs thread-local)
+4. Eliminate `contextvars.copy_context()` (serialize instead)
+5. Reduce code complexity while maintaining performance
+
+**Status**: Current implementation is production-ready. ADR 0097 is a strategic improvement, not a bug fix.
+
+See: `adr/0097-subinterpreter-parallel-plugin-execution.md`, `adr/0098-python-3-14-platform-migration.md`
+
+---
+
 ## References
 
 - `adr/0005-diagram-generation-determinism-and-binding-visibility.md`
@@ -751,4 +783,6 @@ Gate:
 - `adr/0079-v5-documentation-and-diagram-generation-migration.md`
 - `adr/0080-analysis/GAP-ANALYSIS.md`
 - `adr/0080-analysis/IMPLEMENTATION-PLAN.md`
+- `adr/0097-subinterpreter-parallel-plugin-execution.md`
+- `adr/0098-python-3-14-platform-migration.md`
 - `adr/0080-analysis/CUTOVER-CHECKLIST.md`
