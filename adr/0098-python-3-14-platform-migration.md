@@ -1,9 +1,10 @@
 # ADR 0098: Python 3.14 Platform Migration
 
-- Status: Draft (pending SWOT analysis)
+- Status: Proposed (pending Phase A verification)
 - Date: 2026-04-13
 - Depends on: ADR 0097
 - Target: Python 3.14+ as minimum supported version
+- Profile: Aggressive (gate-driven, hard cutover)
 
 ## Context
 
@@ -166,7 +167,7 @@ def supports_free_threading() -> bool:
 #!/usr/bin/env bash
 set -euo pipefail
 
-PYTHON_VERSION="3.14.0"
+PYTHON_VERSION="3.14.4"
 
 echo "Installing Python ${PYTHON_VERSION} via pyenv..."
 
@@ -234,101 +235,184 @@ python --version
 | Free-threading | Experimental | True thread parallelism |
 | JIT compiler | Monitor | Performance |
 
-## Migration Plan
+## Migration Plan (Gate-Driven)
 
-### Wave 1: Preparation (Before Python 3.14 Release)
+**Full implementation plan**: See `adr/0098-analysis/IMPLEMENTATION-PLAN.md`
 
-**Timeline**: August-September 2025
+**Strategy**: 5 gate-driven phases (not calendar-based) with mandatory go/no-go decisions
 
-1. Audit all dependencies for 3.14 compatibility
-2. Update CI to test against 3.14 beta/RC
-3. Remove remaining 3.13-era assumptions found by 3.14 test runs
-4. Prepare version gate code
-5. Draft documentation updates
+| Phase | Purpose | Duration Est. | Rollback Risk |
+|-------|---------|---------------|---------------|
+| **A** | Verification Burst | 3-5 days | None |
+| **B** | Dual-Path Parity | 5-7 days | Low |
+| **C** | Contract Flip | 2-3 days | Medium |
+| **D** | Integrated Validation | 4-6 days | Medium |
+| **E** | Production Cutover | 7-10 days | HIGH |
 
-**Gate**: All tests pass on Python 3.14 RC
+---
 
-### Wave 2: Development Environment (Python 3.14 Release + 1 month)
+### Phase A: Verification Burst
 
-**Timeline**: November 2025
+**Entry Criteria**:
+- Python 3.14 officially released (stable)
+- ADR 0098 status changed to "Accepted"
 
-1. Update `.python-version` to 3.14
-2. Update `pyproject.toml` requires-python
-3. Update development documentation
-4. Update team development environments
-5. CI matrix: 3.14 only (no secondary 3.13 lane)
+**Scope**:
+1. Verify all core dependencies on Python 3.14 (evidence-based)
+2. Check C-extension compatibility (orjson, ruamel.yaml)
+3. Confirm Python 3.14 availability on target platforms (Proxmox x86_64, Orange Pi ARM64)
+4. Run CI preflight on Python 3.14
 
-**Gate**: All developers on Python 3.14
+**Exit Criteria** (ALL must pass):
+- ✅ All core dependencies: PASS or alternative identified (evidence matrix complete)
+- ✅ C-extensions: PASS or pure-Python fallback available
+- ✅ Platform availability confirmed (apt/pyenv) for all node types
+- ✅ CI green on Python 3.14 (full test suite)
 
-### Wave 3: Runtime Migration (Wave 2 + 1 month)
+**Rollback**: N/A (no production changes)
 
-**Timeline**: December 2025
+---
 
-1. Enable version gate in `compile-topology.py`
-2. Integrate ADR 0097 subinterpreters
-3. Update orchestration scripts
-4. Test full pipeline on 3.14
+### Phase B: Dual-Path Parity
 
-**Gate**: Production pipeline runs on 3.14
+**Entry Criteria**:
+- Phase A exit criteria passed
+- ADR 0097 InterpreterPoolExecutor implemented
 
-### Wave 4: Node Bootstrap (Wave 3 + 1 month)
+**Scope**:
+1. Implement parity test suite (`tests/parity/`)
+2. Run ThreadPool vs InterpreterPool comparison (byte-identical outputs required)
+3. Collect performance metrics (execution time, memory, determinism)
+4. Regression testing (vs Python 3.13 baseline)
 
-**Timeline**: January 2026
+**Exit Criteria** (ALL must pass):
+- ✅ Parity test passes: ThreadPool == InterpreterPool (stdout, stderr, generated files)
+- ✅ Performance variance <5%
+- ✅ No regressions vs 3.13 baseline
 
-1. Update Ansible Python installation roles
-2. Update LXC/VM base images
-3. Update bootstrap scripts
-4. Deploy to test nodes
+**Rollback Criteria**:
+- ❌ Parity test fails after 3 attempts → Decouple migrations (3.14 only, defer ADR 0097)
+- ❌ Performance regression >20%
+- ❌ Non-deterministic output detected
 
-**Gate**: Test nodes running Python 3.14
+**Go/No-Go Decision**: If parity fails, proceed with Python 3.14 only (Option 1) or abort (Option 3)
 
-### Wave 5: Production Cutover (Wave 4 + 1 month)
+---
 
-**Timeline**: February 2026
+### Phase C: Contract Flip
 
-1. Deploy to production nodes
-2. Enforce Python 3.14 hard gate at runtime entrypoints
-3. Set `requires-python = ">=3.14"` across all package/tooling metadata
-4. Remove all Python 3.13 compatibility paths from runtime, CI, and docs
+**Entry Criteria**:
+- Phase B exit criteria passed (parity validated)
+- Team communication sent (upgrade notice)
 
-**Gate**: All nodes on Python 3.14
+**Scope**:
+1. Update `.python-version`, `pyproject.toml`, lockfiles to 3.14
+2. CI matrix: Dual-lane (3.14 primary + 3.13 rollback lane, temporary)
+3. Developer environment migration (team coordination)
+4. Remove 3.13 CI lane after all contributors upgraded
 
-### Wave 6: Feature Adoption (Wave 5 + ongoing)
+**Exit Criteria** (ALL must pass):
+- ✅ Version files updated (`requires-python = ">=3.14"`)
+- ✅ Dual-lane CI green (3.14 primary)
+- ✅ 100% of contributors confirmed on Python 3.14
 
-**Timeline**: March 2026+
+**Rollback Criteria**:
+- ❌ >30% of contributors unable to upgrade → Extend Phase C
+- ❌ Unexpected CI failures on 3.14
 
-1. Adopt PEP 649 annotations
-2. Evaluate t-strings for templates
-3. Monitor free-threading stability
-4. Performance benchmarking
+**Rollback Procedure**: Revert version files, restore 3.13 primary CI lane
 
-**Gate**: Continuous improvement
+**Rollback Deadline**: 3 days after contract flip
 
-## SWOT Analysis Placeholders
+---
+
+### Phase D: Integrated Validation
+
+**Entry Criteria**:
+- Phase C exit criteria passed (contract flipped)
+- Test nodes allocated (Proxmox LXC + Orange Pi container)
+
+**Scope**:
+1. Run full pipeline validation (`validate-v5 → build-v5`)
+2. Bootstrap rehearsal on test nodes (Python 3.14 installation)
+3. Deployment bundle test (create + apply)
+
+**Exit Criteria** (ALL must pass):
+- ✅ Full pipeline passes on Python 3.14
+- ✅ Test nodes bootstrapped successfully (both architectures)
+- ✅ Deployment bundle applies cleanly
+
+**Rollback Criteria**:
+- ❌ Bootstrap fails on >50% of test nodes
+- ❌ Pipeline outputs differ from Phase B baseline
+
+**Rollback Procedure**: Halt production rollout, fix issues, retry validation
+
+---
+
+### Phase E: Production Cutover
+
+**Entry Criteria**:
+- Phase D exit criteria passed (test nodes validated)
+- Change control approved (maintenance window scheduled)
+- Rollback artifacts preserved (3.13 venvs, lockfiles)
+
+**Scope**:
+1. Migrate production nodes to Python 3.14 (staged: Proxmox → LXC → Orange Pi)
+2. Enforce runtime hard gate (`sys.version_info < (3, 14)` raises error)
+3. Remove all Python 3.13 compatibility code
+4. Archive 3.13 rollback lane from CI
+
+**Exit Criteria** (ALL must pass):
+- ✅ All production nodes running Python 3.14
+- ✅ Runtime hard gate enforced (3.13 rejected)
+- ✅ No 3.13 compatibility remnants
+
+**Rollback Criteria** (CRITICAL):
+- ❌ >5% of nodes fail migration
+- ❌ Production service outages
+- ❌ Performance regression >20%
+
+**Rollback Procedure**:
+1. FREEZE: Stop new deployments
+2. REVERT NODES: Restore 3.13 venv backups
+3. REVERT CI: Re-enable 3.13 lane
+4. POST-MORTEM: Document failure, update plan
+
+**Rollback Deadline**: **48 hours** after Phase E start (after this, forward fix only)
+
+**Monitoring Window**: 14 days post-cutover
+
+## SWOT Analysis
+
+**Full analysis**: See `adr/0098-analysis/SWOT-ANALYSIS.md`
 
 ### Strengths (Internal Positive)
 
-- [ ] _To be analyzed_
-- [ ] _To be analyzed_
-- [ ] _To be analyzed_
+- ✅ **Comprehensive migration scope**: Covers runtime, scripts, bootstrap, CI, documentation (5 domains)
+- ✅ **Strong ADR 0097 integration**: Unified platform + runtime executor migration reduces coordination overhead
+- ✅ **Risk register with mitigations**: 4 documented risks (R1-R4) with concrete mitigation strategies
+- ✅ **Operational context awareness**: Production node constraints (Proxmox, Orange Pi), architecture-specific testing, bootstrap/Ansible integration
 
 ### Weaknesses (Internal Negative)
 
-- [ ] _To be analyzed_
-- [ ] _To be analyzed_
-- [ ] _To be analyzed_
+- ⚠️ **Compatibility matrix lacks evidence**: 6/7 core dependencies marked "Expected compatible" without verification → Phase A gate addresses
+- ⚠️ **Mixed initiatives in single ADR**: Platform (3.14) + Runtime executor (ADR 0097) + Feature adoption (PEP 649/750) → Phase B parity gate separates concerns
+- ⚠️ **No rollback procedures**: Originally absent → Now defined for Phases C, D, E
 
 ### Opportunities (External Positive)
 
-- [ ] _To be analyzed_
-- [ ] _To be analyzed_
-- [ ] _To be analyzed_
+- 📈 **Unified 3.14 + subinterpreters program**: Single migration reduces coordination overhead vs two separate efforts
+- 📈 **Technical debt reduction**: D1.1 hard cutover eliminates version conditionals, simplifies codebase
+- 📈 **CI quality gate enhancement**: Parity tests (ThreadPool vs InterpreterPool) as blocking gate, evidence-based dependency verification
+- 📈 **Bootstrap contract unification**: Single Python version across all node types (Ansible, LXC/VM, bootstrap scripts)
 
 ### Threats (External Negative)
 
-- [ ] _To be analyzed_
-- [ ] _To be analyzed_
-- [ ] _To be analyzed_
+- ⚠️ **C-extension compatibility risk**: orjson, ruamel.yaml may lag 3.14 support → Phase A verification burst addresses
+- ⚠️ **High blast radius coupled cutover**: Platform + executor + features change simultaneously → Phase B parity gate as go/no-go
+- ⚠️ **Heterogeneous node infrastructure**: Different package availability (Proxmox x86_64, Orange Pi ARM64) → Phase A/D multi-platform testing
+- ⚠️ **Development velocity slowdown**: Early CI flip removes 3.13 safety net → Staged CI transition with temporary rollback lane
 
 ## Risks and Mitigations
 
@@ -373,19 +457,42 @@ python --version
 
 ## Acceptance Criteria
 
-1. All components run on Python 3.14+
-2. `requires-python = ">=3.14"` in pyproject.toml
-3. CI tests pass on Python 3.14
-4. All nodes (dev, test, prod) running Python 3.14
-5. Documentation updated with 3.14 requirements
-6. ADR 0097 subinterpreters functional
-7. No Python 3.13 compatibility contracts remain in runtime, CI, or developer tooling
-8. SWOT analysis completed and risks addressed
+### Phase-Based Acceptance
+
+1. ✅ **Phase A passed**: All core dependencies verified compatible (evidence matrix complete)
+2. ✅ **Phase B passed**: ThreadPool vs InterpreterPool parity test passes (byte-identical outputs)
+3. ✅ **Phase C passed**: Contract flipped (`.python-version`, `pyproject.toml` = 3.14, CI primary lane)
+4. ✅ **Phase D passed**: Test nodes operational on Python 3.14 (bootstrap + deployment validated)
+5. ✅ **Phase E passed**: Production cutover complete (all nodes migrated, 3.13 removed)
+
+### Artifact Acceptance
+
+1. ✅ `requires-python = ">=3.14"` in all `pyproject.toml` files
+2. ✅ CI tests green on Python 3.14 only (no 3.13 lane)
+3. ✅ Documentation updated (CLAUDE.md, README.md, operator guides)
+4. ✅ ADR 0097 subinterpreters functional (parity validated)
+5. ✅ No Python 3.13 compatibility code remains (version conditionals removed)
+6. ✅ SWOT analysis completed (`adr/0098-analysis/SWOT-ANALYSIS.md`)
+7. ✅ All rollback artifacts archived (`archive/python-3.13/`)
 
 ## References
+
+### External Documentation
 
 - [Python 3.14 What's New](https://docs.python.org/3/whatsnew/3.14.html)
 - [PEP 649 – Deferred Evaluation of Annotations](https://peps.python.org/pep-0649/)
 - [PEP 750 – Template Strings](https://peps.python.org/pep-0750/)
 - [PEP 779 – Free-threaded CPython](https://peps.python.org/pep-0779/)
+- [PEP 734 – Multiple Interpreters in the Stdlib](https://peps.python.org/pep-0734/)
+
+### Internal ADRs
+
 - ADR 0097: Subinterpreter-Based Parallel Plugin Execution
+- ADR 0080: Unified Build Pipeline (thread-safety baseline)
+
+### Analysis Artifacts
+
+- `adr/0098-analysis/SWOT-ANALYSIS.md` — SWOT analysis with risk priority matrix
+- `adr/0098-analysis/CRITIQUE.md` — Architectural review and gap identification
+- `adr/0098-analysis/IMPROVEMENTS.md` — Proposed improvements (7 items)
+- `adr/0098-analysis/IMPLEMENTATION-PLAN.md` — Gate-driven phases A-E (aggressive profile)
