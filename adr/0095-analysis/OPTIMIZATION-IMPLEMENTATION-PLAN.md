@@ -1,7 +1,8 @@
 # ADR 0095 Optimization Implementation Plan
 
-**Status:** Executed baseline (authoritative promotion recorded)  
-**Date:** 2026-04-12  
+**Status:** Completed (all waves 0-E delivered)
+**Date:** 2026-04-12
+**Completion Date:** 2026-04-13
 **Scope:** Implement the approved ADR0095 optimization directions:
 - internal modularization,
 - question-oriented inspection surface,

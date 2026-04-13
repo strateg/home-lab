@@ -1,7 +1,8 @@
 # ADR 0095: Topology Inspection and Introspection Toolkit
 
-**Status:** Implemented (v1, authoritative semantic typing enabled)  
-**Date:** 2026-04-12  
+**Status:** Implemented (Waves 0-E complete, see `adr/0095-analysis/COMPLETION-REPORT.md`)
+**Date:** 2026-04-12
+**Implementation Completion:** 2026-04-13
 **Depends on:** ADR 0062, ADR 0077, ADR 0080, ADR 0092, ADR 0093
 
 ---
