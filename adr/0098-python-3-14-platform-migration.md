@@ -46,6 +46,11 @@ Key features relevant to this project:
 
 Set `python_requires = ">=3.14"` across all project components after migration completion.
 
+### D1.1. No Backward Compatibility with Python 3.13
+
+The migration is a **hard cutover**. Transitional runtime, CI, or developer-environment
+compatibility with Python 3.13 is not retained after cutover.
+
 **Rationale**:
 - Enables ADR 0097 (subinterpreters)
 - Simplifies codebase (no version conditionals)
@@ -237,7 +242,7 @@ python --version
 
 1. Audit all dependencies for 3.14 compatibility
 2. Update CI to test against 3.14 beta/RC
-3. Fix deprecation warnings from 3.13
+3. Remove remaining 3.13-era assumptions found by 3.14 test runs
 4. Prepare version gate code
 5. Draft documentation updates
 
@@ -251,7 +256,7 @@ python --version
 2. Update `pyproject.toml` requires-python
 3. Update development documentation
 4. Update team development environments
-5. CI matrix: 3.14 primary, 3.13 secondary
+5. CI matrix: 3.14 only (no secondary 3.13 lane)
 
 **Gate**: All developers on Python 3.14
 
@@ -282,9 +287,9 @@ python --version
 **Timeline**: February 2026
 
 1. Deploy to production nodes
-2. Drop Python 3.13 support
-3. Set `requires-python = ">=3.14"`
-4. Archive compatibility code
+2. Enforce Python 3.14 hard gate at runtime entrypoints
+3. Set `requires-python = ">=3.14"` across all package/tooling metadata
+4. Remove all Python 3.13 compatibility paths from runtime, CI, and docs
 
 **Gate**: All nodes on Python 3.14
 
@@ -344,7 +349,7 @@ python --version
 **Mitigation**:
 - Use pyenv for isolated installation
 - Build from source if needed
-- Maintain Python 3.13 fallback temporarily
+- Maintain pre-cutover rollback artifacts while keeping runtime contract on 3.14
 - Test on target architectures early
 
 ### R3: Team Skill Gap
@@ -364,7 +369,7 @@ python --version
 **Mitigation**:
 - Plan based on stable release, not beta
 - Buffer time in schedule
-- Rollback plan to 3.13
+- Rollback plan within 3.14 cutover scope (feature flags / staged rollout)
 
 ## Acceptance Criteria
 
@@ -374,7 +379,7 @@ python --version
 4. All nodes (dev, test, prod) running Python 3.14
 5. Documentation updated with 3.14 requirements
 6. ADR 0097 subinterpreters functional
-7. No Python 3.13 compatibility code remaining
+7. No Python 3.13 compatibility contracts remain in runtime, CI, or developer tooling
 8. SWOT analysis completed and risks addressed
 
 ## References
