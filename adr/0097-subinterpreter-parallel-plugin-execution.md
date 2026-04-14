@@ -1,8 +1,8 @@
 # ADR 0097: Subinterpreter-Based Parallel Plugin Execution
 
-- Status: In Progress (Wave 1 Complete)
+- Status: In Progress (Wave 2 Complete)
 - Date: 2026-04-13
-- Implemented: 2026-04-14 (Wave 1)
+- Implemented: 2026-04-14 (Wave 1), 2026-04-14 (Wave 2)
 - Depends on: ADR 0063, ADR 0080, ADR 0086, ADR 0098 ✅
 - Target Python: 3.14+
 

@@ -312,6 +312,7 @@ plugins:
     order: 90
     depends_on: []
     timeout: 30
+    subinterpreter_compatible: false  # Uses YAML source parsing (ADR 0097 Wave 2)
     config: {}
     config_schema:
       type: object
@@ -328,6 +329,7 @@ plugins:
     order: 95
     depends_on: [base.validator.governance_contract]
     timeout: 30
+    subinterpreter_compatible: false  # Uses YAML source parsing (ADR 0097 Wave 2)
     config: {}
     config_schema:
       type: object
@@ -344,6 +346,7 @@ plugins:
     order: 96
     depends_on: [base.validator.foundation_layout]
     timeout: 30
+    subinterpreter_compatible: false  # Imports yaml directly (ADR 0097 Wave 2)
     config: {}
     config_schema:
       type: object
@@ -360,6 +363,7 @@ plugins:
     order: 96
     depends_on: [base.validator.foundation_include_contract]
     timeout: 30
+    subinterpreter_compatible: false  # Imports yaml directly (ADR 0097 Wave 2)
     config: {}
     config_schema:
       type: object
@@ -376,6 +380,7 @@ plugins:
     order: 97
     depends_on: [base.compiler.instance_rows]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config: {}
     config_schema:
       type: object
@@ -396,6 +401,7 @@ plugins:
     order: 100
     depends_on: [base.compiler.instance_rows, base.compiler.capability_contract_loader]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config:
       strict_mode: false
     config_schema:
@@ -424,6 +430,7 @@ plugins:
     order: 101
     depends_on: []
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config: {}
     config_schema:
       type: object
@@ -440,6 +447,7 @@ plugins:
     order: 110
     depends_on: [base.validator.references, base.compiler.model_lock_loader, base.compiler.instance_rows]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config:
       strict_mode: false
     config_schema:
@@ -471,6 +479,7 @@ plugins:
     order: 115
     depends_on: [base.compiler.instance_rows]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config:
       enabled_rules: [power_source]
       missing_rows_code: E6901
@@ -505,6 +514,7 @@ plugins:
     order: 116
     depends_on: [base.compiler.instance_rows]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config: {}
     config_schema:
       type: object
@@ -525,6 +535,7 @@ plugins:
     order: 117
     depends_on: [base.compiler.instance_rows]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config: {}
     config_schema:
       type: object
@@ -545,6 +556,7 @@ plugins:
     order: 118
     depends_on: [base.compiler.instance_rows]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config: {}
     config_schema:
       type: object
@@ -565,6 +577,7 @@ plugins:
     order: 119
     depends_on: [base.compiler.instance_rows]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config: {}
     config_schema:
       type: object
@@ -585,6 +598,7 @@ plugins:
     order: 121
     depends_on: [base.compiler.instance_rows]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config: {}
     config_schema:
       type: object
@@ -605,6 +619,7 @@ plugins:
     order: 122
     depends_on: [base.compiler.instance_rows]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config: {}
     config_schema:
       type: object
@@ -625,6 +640,7 @@ plugins:
     order: 124
     depends_on: [base.compiler.instance_rows]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config: {}
     config_schema:
       type: object
@@ -645,6 +661,7 @@ plugins:
     order: 125
     depends_on: [base.compiler.instance_rows]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config: {}
     config_schema:
       type: object
@@ -665,6 +682,7 @@ plugins:
     order: 126
     depends_on: [base.compiler.instance_rows]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config:
       enabled_rules: [network_core]
       missing_rows_code: E7837
@@ -696,6 +714,7 @@ plugins:
     order: 127
     depends_on: [base.compiler.instance_rows]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config: {}
     config_schema:
       type: object
@@ -716,6 +735,7 @@ plugins:
     order: 128
     depends_on: [base.compiler.instance_rows]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config: {}
     config_schema:
       type: object
@@ -736,6 +756,7 @@ plugins:
     order: 129
     depends_on: [base.compiler.instance_rows]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config: {}
     config_schema:
       type: object
@@ -756,6 +777,7 @@ plugins:
     order: 130
     depends_on: [base.compiler.instance_rows]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config: {}
     config_schema:
       type: object
@@ -776,6 +798,7 @@ plugins:
     order: 132
     depends_on: [base.compiler.instance_rows]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config:
       enabled_rules: [service_dependency]
       missing_rows_code: E7848
@@ -807,6 +830,7 @@ plugins:
     order: 133
     depends_on: [base.compiler.instance_rows]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config: {}
     config_schema:
       type: object
@@ -827,6 +851,7 @@ plugins:
     order: 134
     depends_on: [base.compiler.instance_rows]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config: {}
     config_schema:
       type: object
@@ -847,6 +872,7 @@ plugins:
     order: 135
     depends_on: [base.compiler.instance_rows]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config:
       enabled_rules: [dns]
       missing_rows_code: E7856
@@ -878,6 +904,7 @@ plugins:
     order: 136
     depends_on: [base.compiler.instance_rows]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config:
       enabled_rules: [certificate]
       missing_rows_code: E7857
@@ -909,6 +936,7 @@ plugins:
     order: 137
     depends_on: [base.compiler.instance_rows]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config:
       enabled_rules: [backup]
       missing_rows_code: E7858
@@ -940,6 +968,7 @@ plugins:
     order: 138
     depends_on: [base.compiler.instance_rows]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config: {}
     config_schema:
       type: object
@@ -960,6 +989,7 @@ plugins:
     order: 139
     depends_on: [base.compiler.instance_rows]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config: {}
     config_schema:
       type: object
@@ -980,6 +1010,7 @@ plugins:
     order: 140
     depends_on: [base.compiler.instance_rows]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config:
       resource_profiles:
         rp.lxc.micro:
@@ -1033,6 +1064,7 @@ plugins:
     order: 141
     depends_on: [base.compiler.instance_rows]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config: {}
     config_schema:
       type: object
@@ -1053,6 +1085,7 @@ plugins:
     order: 143
     depends_on: [base.compiler.instance_rows]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config: {}
     config_schema:
       type: object
@@ -1073,6 +1106,7 @@ plugins:
     order: 144
     depends_on: [base.compiler.instance_rows]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config: {}
     config_schema:
       type: object
@@ -1093,6 +1127,7 @@ plugins:
     order: 145
     depends_on: [base.compiler.instance_rows]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config: {}
     config_schema:
       type: object
@@ -1113,6 +1148,7 @@ plugins:
     order: 146
     depends_on: [base.compiler.instance_rows]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config: {}
     config_schema:
       type: object
@@ -1133,6 +1169,7 @@ plugins:
     order: 147
     depends_on: [base.compiler.instance_rows]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config: {}
     config_schema:
       type: object
@@ -1153,6 +1190,7 @@ plugins:
     order: 148
     depends_on: [base.compiler.instance_rows]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config: {}
     config_schema:
       type: object
@@ -1173,6 +1211,7 @@ plugins:
     order: 123
     depends_on: [base.compiler.instance_rows]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config: {}
     config_schema:
       type: object
@@ -1193,6 +1232,7 @@ plugins:
     order: 120
     depends_on: [base.validator.references, base.compiler.instance_rows]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config: {}
     config_schema:
       type: object
@@ -1213,6 +1253,7 @@ plugins:
     order: 125
     depends_on: [base.validator.references]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config: {}
     config_schema:
       type: object
@@ -1232,6 +1273,7 @@ plugins:
     order: 142
     depends_on: [base.validator.references]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config: {}
     config_schema:
       type: object
@@ -1248,6 +1290,7 @@ plugins:
     order: 130
     depends_on: [base.compiler.module_loader, base.compiler.capability_contract_loader]
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config: {}
     config_schema:
       type: object
@@ -1277,6 +1320,7 @@ plugins:
     order: 140
     depends_on: []
     timeout: 30
+    subinterpreter_compatible: false  # Imports yaml for format registry (ADR 0097 Wave 2)
     config:
       format_registry_path: ../data/instance-field-formats.yaml
       enforcement_mode: enforce
@@ -1310,6 +1354,7 @@ plugins:
     order: 188
     depends_on: []
     timeout: 30
+    subinterpreter_compatible: true  # Pure Python (ADR 0097 Wave 2)
     config: {}
     config_schema:
       type: object
@@ -1329,6 +1374,7 @@ plugins:
     order: 187
     depends_on: [base.compiler.soho_profile_resolver]
     timeout: 30
+    subinterpreter_compatible: false  # Imports yaml for policy file (ADR 0097 Wave 2)
     config:
       soho_migration_policy_path: topology-tools/data/soho-migration-state-policy.yaml
     config_schema:
@@ -1366,6 +1412,7 @@ plugins:
     order: 189
     depends_on: [base.validator.generator_migration_status]
     timeout: 30
+    subinterpreter_compatible: false  # Imports yaml for policy file (ADR 0097 Wave 2)
     config:
       sunset_policy_path: topology-tools/data/generator-sunset-policy.yaml
     config_schema:
@@ -1408,6 +1455,7 @@ plugins:
     order: 189
     depends_on: [base.validator.generator_migration_status]
     timeout: 30
+    subinterpreter_compatible: false  # Imports yaml for policy file (ADR 0097 Wave 2)
     config:
       rollback_policy_path: topology-tools/data/generator-rollback-policy.yaml
     config_schema:
