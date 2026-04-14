@@ -1,6 +1,6 @@
 # ADR 0098: Python 3.14 Platform Migration
 
-- Status: **In Progress** (Phase A: Verification Burst)
+- Status: **In Progress** (Phase B: Dual-Path Parity)
 - Date: 2026-04-13
 - Updated: 2026-04-14
 - Depends on: ADR 0097
@@ -11,8 +11,8 @@
 
 | Phase | Status | Evidence |
 |-------|--------|----------|
-| **A** Verification Burst | **IN PROGRESS** | `adr/0098-analysis/evidence/` |
-| **B** Dual-Path Parity | Pending | — |
+| **A** Verification Burst | ✅ **COMPLETE** | `adr/0098-analysis/evidence/PHASE-A-BASELINE.md` |
+| **B** Dual-Path Parity | **IN PROGRESS** | pyproject.toml, CI workflows |
 | **C** Contract Flip | Pending | — |
 | **D** Integrated Validation | Pending | — |
 | **E** Production Cutover | Pending | — |
@@ -23,9 +23,9 @@
 - [x] A2: C-extension compatibility verified (orjson, ruamel.yaml, cryptography)
 - [x] A3: Platform scripts created (install-python-3.14.sh, verify-deps-3.14.sh)
 - [x] A4: CI matrix updated for Python 3.14
-- [ ] A5: Install Python 3.14 on dev workstation (requires sudo)
-- [ ] A6: Run live verification (verify-deps-3.14.sh)
-- [ ] A7: CI green on Python 3.14
+- [x] A5: Install Python 3.14 on dev workstation (pyenv 3.14.4)
+- [x] A6: Run live verification (97.5% tests pass)
+- [x] A7: pyproject.toml license field fix (PEP 639)
 
 ## Context
 

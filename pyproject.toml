@@ -7,7 +7,7 @@ name = "home-lab-topology-tools"
 version = "4.0.0"
 description = "Infrastructure-as-Data topology generator for Proxmox home lab"
 readme = "README.md"
-requires-python = ">=3.13,<4"
+requires-python = ">=3.14,<4"
 license = {text = "Proprietary"}
 authors = [
     {name = "Dmitri"}
@@ -44,7 +44,7 @@ profile = "black"
 line_length = 120
 
 [tool.mypy]
-python_version = "3.13"
+python_version = "3.14"
 warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true
