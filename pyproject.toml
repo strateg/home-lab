@@ -8,7 +8,7 @@ version = "4.0.0"
 description = "Infrastructure-as-Data topology generator for Proxmox home lab"
 readme = "README.md"
 requires-python = ">=3.13,<4"
-license = "Proprietary"
+license = {text = "Proprietary"}
 authors = [
     {name = "Dmitri"}
 ]
