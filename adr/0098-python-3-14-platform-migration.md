@@ -1,10 +1,31 @@
 # ADR 0098: Python 3.14 Platform Migration
 
-- Status: Proposed (pending Phase A verification)
+- Status: **In Progress** (Phase A: Verification Burst)
 - Date: 2026-04-13
+- Updated: 2026-04-14
 - Depends on: ADR 0097
 - Target: Python 3.14+ as minimum supported version
 - Profile: Aggressive (gate-driven, hard cutover)
+
+## Implementation Progress
+
+| Phase | Status | Evidence |
+|-------|--------|----------|
+| **A** Verification Burst | **IN PROGRESS** | `adr/0098-analysis/evidence/` |
+| **B** Dual-Path Parity | Pending | — |
+| **C** Contract Flip | Pending | — |
+| **D** Integrated Validation | Pending | — |
+| **E** Production Cutover | Pending | — |
+
+### Phase A Checklist
+
+- [x] A1: Pre-installation dependency analysis (EV-A1-preinstall-20260414)
+- [x] A2: C-extension compatibility verified (orjson, ruamel.yaml, cryptography)
+- [x] A3: Platform scripts created (install-python-3.14.sh, verify-deps-3.14.sh)
+- [x] A4: CI matrix updated for Python 3.14
+- [ ] A5: Install Python 3.14 on dev workstation (requires sudo)
+- [ ] A6: Run live verification (verify-deps-3.14.sh)
+- [ ] A7: CI green on Python 3.14
 
 ## Context
 

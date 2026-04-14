@@ -86,6 +86,26 @@ pyproject.toml:
 
 ---
 
-**Current**: Pre-installation analysis complete. Ready for Python 3.14 installation.
+**Current**: Pre-installation analysis complete. CI matrix updated. Ready for Python 3.14 installation.
 
-**Next**: Install Python 3.14 via `./scripts/setup/install-python-3.14.sh`
+**Blocked**: Installation requires sudo access.
+
+**Next**: Run manually with sudo:
+```bash
+# Option 1: deadsnakes PPA (recommended)
+./scripts/setup/install-python-3.14.sh --method=apt
+
+# Option 2: pyenv (builds from source, ~15 min)
+./scripts/setup/install-python-3.14.sh --method=pyenv
+
+# Option 3: manual steps
+sudo add-apt-repository -y ppa:deadsnakes/ppa
+sudo apt update
+sudo apt install python3.14 python3.14-venv python3.14-dev
+```
+
+After installation:
+```bash
+python3.14 -m venv .venv-3.14
+./scripts/setup/verify-deps-3.14.sh
+```
