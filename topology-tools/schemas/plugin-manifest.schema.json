@@ -170,6 +170,11 @@
           "type": "string",
           "enum": ["legacy", "migrating", "migrated", "rollback"],
           "description": "Optional generator migration lifecycle mode for ADR0093 cutover."
+        },
+        "subinterpreter_compatible": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this plugin supports execution in Python 3.14+ subinterpreters (ADR 0097). Default false for backward compatibility."
         }
       },
       "additionalProperties": false

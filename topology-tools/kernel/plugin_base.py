@@ -632,6 +632,86 @@ class PluginContext:
         self._clear_execution_scope(token)
 
 
+@dataclass
+class SerializablePluginContext:
+    """Minimal context for cross-interpreter plugin execution (ADR 0097 Wave 1).
+
+    This class provides a serializable subset of PluginContext fields needed for
+    executing plugins in isolated subinterpreters (Python 3.14+ with PEP 734).
+
+    Serialization boundary:
+    - Input: compiled_json (bytes), plugin_config (bytes), paths (str)
+    - Output: PluginResult with diagnostics and published data
+    - NOT serialized: locks, file handles, mutable runtime state
+
+    The serialization uses JSON encoding to avoid pickle dependency and ensure
+    cross-interpreter compatibility.
+    """
+
+    # Core execution data
+    topology_path: str
+    profile: str
+    model_lock: dict[str, Any]
+
+    # Serialized payloads (JSON-encoded as bytes for efficient transfer)
+    compiled_json_bytes: bytes
+    plugin_config_bytes: bytes
+
+    # Paths and directories
+    output_dir: str
+
+    # Optional runtime data
+    capability_catalog: dict[str, Any] | None = None
+    changed_input_scopes: list[str] | None = None
+
+    @classmethod
+    def from_plugin_context(cls, ctx: PluginContext) -> SerializablePluginContext:
+        """Serialize PluginContext for cross-interpreter transfer.
+
+        Args:
+            ctx: Source PluginContext from main interpreter
+
+        Returns:
+            SerializablePluginContext with JSON-encoded payloads
+        """
+        import json
+
+        return cls(
+            topology_path=ctx.topology_path,
+            profile=ctx.profile,
+            model_lock=ctx.model_lock.copy(),
+            compiled_json_bytes=json.dumps(ctx.compiled_json).encode("utf-8"),
+            plugin_config_bytes=json.dumps(ctx.config.copy() if isinstance(ctx.config, ContextAwareConfig) else ctx.config).encode("utf-8"),
+            output_dir=ctx.output_dir,
+            capability_catalog=ctx.capability_catalog.copy() if ctx.capability_catalog else None,
+            changed_input_scopes=ctx.changed_input_scopes.copy() if ctx.changed_input_scopes else None,
+        )
+
+    def to_plugin_context(self) -> PluginContext:
+        """Deserialize to PluginContext in target interpreter.
+
+        Returns:
+            PluginContext reconstructed from serialized data
+
+        Note:
+            This creates a new PluginContext with minimal fields. Runtime state
+            like _published_data and locks are initialized fresh in the target
+            interpreter.
+        """
+        import json
+
+        return PluginContext(
+            topology_path=self.topology_path,
+            profile=self.profile,
+            model_lock=self.model_lock.copy(),
+            compiled_json=json.loads(self.compiled_json_bytes.decode("utf-8")),
+            config=json.loads(self.plugin_config_bytes.decode("utf-8")),
+            output_dir=self.output_dir,
+            capability_catalog=self.capability_catalog.copy() if self.capability_catalog else {},
+            changed_input_scopes=self.changed_input_scopes.copy() if self.changed_input_scopes else None,
+        )
+
+
 class PluginBase(ABC):
     """Base class for all v5 plugins.
 

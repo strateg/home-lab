@@ -37,6 +37,17 @@ try:
 except ImportError:
     HAS_JSONSCHEMA = False
 
+# ADR 0097 Wave 1: Conditional subinterpreter support (Python 3.14+)
+if sys.version_info >= (3, 14):
+    try:
+        from concurrent.futures import InterpreterPoolExecutor
+
+        HAS_INTERPRETER_POOL = True
+    except ImportError:
+        HAS_INTERPRETER_POOL = False
+else:
+    HAS_INTERPRETER_POOL = False
+
 from .plugin_base import (
     Phase,
     PluginBase,
@@ -103,6 +114,98 @@ KIND_ENTRY_FAMILY: dict[PluginKind, str] = {
 ENTRY_FAMILIES: set[str] = set(KIND_ENTRY_FAMILY.values())
 
 
+def _execute_plugin_isolated(
+    serialized_ctx_dict: dict[str, Any],
+    plugin_id: str,
+    stage_value: str,
+    phase_value: str,
+    base_path_str: str,
+    spec_dict: dict[str, Any],
+) -> PluginResult:
+    """Execute plugin in isolated subinterpreter (ADR 0097 Wave 1).
+
+    This function is submitted to InterpreterPoolExecutor for execution in a separate
+    Python subinterpreter. It reconstructs the minimal runtime environment needed for
+    plugin execution.
+
+    Args:
+        serialized_ctx_dict: SerializablePluginContext as dict (for pickling)
+        plugin_id: Plugin identifier
+        stage_value: Stage enum value (as string)
+        phase_value: Phase enum value (as string)
+        base_path_str: Base path for plugin loading (as string)
+        spec_dict: PluginSpec as dict (for reconstruction)
+
+    Returns:
+        PluginResult from plugin execution
+
+    Note:
+        This function runs in an isolated interpreter with no shared state from the
+        main interpreter. All data is passed via serialized arguments.
+    """
+    import sys
+    from pathlib import Path
+
+    # Add base_path to sys.path for imports
+    base_path = Path(base_path_str)
+    if str(base_path.resolve()) not in sys.path:
+        sys.path.insert(0, str(base_path.resolve()))
+
+    # Import kernel modules in isolated interpreter
+    from kernel.plugin_base import (
+        Phase,
+        PluginResult,
+        SerializablePluginContext,
+        Stage,
+    )
+    from kernel.plugin_registry import PluginRegistry, PluginSpec
+
+    # Reconstruct SerializablePluginContext from dict
+    serialized_ctx = SerializablePluginContext(**serialized_ctx_dict)
+
+    # Deserialize to PluginContext
+    ctx = serialized_ctx.to_plugin_context()
+
+    # Reconstruct PluginSpec
+    spec = PluginSpec.from_dict(spec_dict, spec_dict.get("manifest_path", ""))
+
+    # Create minimal registry in this interpreter
+    registry = PluginRegistry(base_path)
+    registry.specs[plugin_id] = spec
+
+    # Load and execute plugin
+    try:
+        plugin = registry.load_plugin(plugin_id)
+        stage = Stage(stage_value)
+        phase = Phase(phase_value)
+        result = plugin.execute_phase(ctx, stage, phase)
+        return result
+    except Exception as e:
+        # Return failed result with traceback
+        import traceback
+
+        from kernel.plugin_base import PluginDiagnostic, PluginStatus
+
+        tb = traceback.format_exc()
+        return PluginResult(
+            plugin_id=plugin_id,
+            api_version=spec.api_version,
+            status=PluginStatus.FAILED,
+            diagnostics=[
+                PluginDiagnostic(
+                    code="E4102",
+                    severity="error",
+                    stage=stage_value,
+                    phase=phase_value,
+                    message=f"Plugin crashed in isolated interpreter: {e}",
+                    path="kernel.subinterpreter",
+                    plugin_id="kernel",
+                )
+            ],
+            error_traceback=tb,
+        )
+
+
 @dataclass
 class PluginSpec:
     """Specification for a single plugin from manifest."""
@@ -128,6 +231,7 @@ class PluginSpec:
     migration_mode: str = "legacy"
     manifest_path: str = ""
     timeout: float = DEFAULT_PLUGIN_TIMEOUT
+    subinterpreter_compatible: bool = False  # ADR 0097 Wave 1
 
     @classmethod
     def from_dict(cls, data: dict[str, Any], manifest_path: str = "") -> PluginSpec:
@@ -154,6 +258,7 @@ class PluginSpec:
             migration_mode=str(data.get("migration_mode", "legacy")),
             manifest_path=manifest_path,
             timeout=data.get("timeout", DEFAULT_PLUGIN_TIMEOUT),
+            subinterpreter_compatible=bool(data.get("subinterpreter_compatible", False)),
         )
 
 
@@ -227,6 +332,68 @@ class PluginRegistry:
         self._payload_schema_cache: dict[str, dict[str, Any]] = {}
         self._execution_trace: list[dict[str, Any]] = []
         self._trace_lock = threading.Lock()
+        self._use_subinterpreters: bool = False  # ADR 0097 Wave 1: opt-in mode
+
+    def enable_subinterpreters(self, enabled: bool = True) -> None:
+        """Enable or disable subinterpreter-based parallel execution (ADR 0097).
+
+        When enabled, plugins marked with subinterpreter_compatible=true will execute
+        in isolated Python 3.14+ subinterpreters instead of threads. This provides:
+        - True parallelism (per-interpreter GIL)
+        - Memory isolation (no shared mutable state)
+        - Simpler concurrency model (no locks needed)
+
+        Args:
+            enabled: True to enable subinterpreters, False to use ThreadPoolExecutor
+
+        Note:
+            Requires Python 3.14+ and all plugins in wavefront to be subinterpreter-compatible.
+            Falls back to ThreadPoolExecutor if conditions not met.
+        """
+        self._use_subinterpreters = enabled
+
+    def _get_parallel_executor(
+        self,
+        max_workers: int,
+        *,
+        plugin_ids: list[str],
+    ) -> concurrent.futures.Executor:
+        """Select executor based on Python version and plugin compatibility (ADR 0097).
+
+        Returns InterpreterPoolExecutor if ALL of these conditions are met:
+        1. User enabled subinterpreters via enable_subinterpreters(True)
+        2. Python >= 3.14
+        3. InterpreterPoolExecutor is available (import succeeded)
+        4. All plugins in wavefront are subinterpreter_compatible
+
+        Otherwise returns ThreadPoolExecutor (safe fallback).
+
+        Args:
+            max_workers: Maximum number of parallel workers
+            plugin_ids: Plugin IDs in current wavefront
+
+        Returns:
+            InterpreterPoolExecutor or ThreadPoolExecutor instance
+        """
+        # Gate 1: User must opt-in
+        if not self._use_subinterpreters:
+            return concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
+
+        # Gate 2: Python 3.14+ with InterpreterPoolExecutor
+        if not HAS_INTERPRETER_POOL:
+            return concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
+
+        # Gate 3: All plugins in wavefront must be subinterpreter-compatible
+        for plugin_id in plugin_ids:
+            spec = self.specs.get(plugin_id)
+            if spec is None:
+                continue
+            if not spec.subinterpreter_compatible:
+                # Mixed compatibility: use ThreadPoolExecutor for safety
+                return concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
+
+        # All gates passed: use subinterpreter executor
+        return InterpreterPoolExecutor(max_workers=max_workers)
 
     def _trace_event(
         self,
@@ -1119,7 +1286,11 @@ class PluginRegistry:
         results_by_plugin: dict[str, PluginResult] = {}
         max_workers = min(8, max(1, len(plugin_ids)))
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
+        # ADR 0097: Select executor based on Python version and plugin compatibility
+        executor = self._get_parallel_executor(max_workers, plugin_ids=plugin_ids)
+        use_subinterpreters = HAS_INTERPRETER_POOL and isinstance(executor, InterpreterPoolExecutor)
+
+        with executor:
             while ready:
                 wavefront: list[str] = []
                 while ready:
@@ -1130,17 +1301,47 @@ class PluginRegistry:
                 for plugin_id in wavefront:
                     if trace_execution:
                         self._trace_event(event="plugin_start", stage=stage, phase=phase, plugin_id=plugin_id)
-                    future = pool.submit(
-                        self.execute_plugin,
-                        plugin_id,
-                        ctx,
-                        stage,
-                        phase,
-                        None,
-                        record_result=False,
-                        contract_warnings=contract_warnings,
-                        contract_errors=contract_errors,
-                    )
+
+                    # ADR 0097: Use subinterpreter execution if enabled
+                    if use_subinterpreters:
+                        spec = self.specs[plugin_id]
+                        # Serialize context for cross-interpreter transfer
+                        from kernel.plugin_base import SerializablePluginContext
+
+                        serialized_ctx = SerializablePluginContext.from_plugin_context(ctx)
+                        # Convert to dict for pickling (InterpreterPoolExecutor requirement)
+                        serialized_ctx_dict = {
+                            "topology_path": serialized_ctx.topology_path,
+                            "profile": serialized_ctx.profile,
+                            "model_lock": serialized_ctx.model_lock,
+                            "compiled_json_bytes": serialized_ctx.compiled_json_bytes,
+                            "plugin_config_bytes": serialized_ctx.plugin_config_bytes,
+                            "output_dir": serialized_ctx.output_dir,
+                            "capability_catalog": serialized_ctx.capability_catalog,
+                            "changed_input_scopes": serialized_ctx.changed_input_scopes,
+                        }
+                        future = executor.submit(
+                            _execute_plugin_isolated,
+                            serialized_ctx_dict,
+                            plugin_id,
+                            stage.value,
+                            phase.value,
+                            str(self.base_path),
+                            spec.__dict__.copy(),
+                        )
+                    else:
+                        # ThreadPoolExecutor: existing code path
+                        future = executor.submit(
+                            self.execute_plugin,
+                            plugin_id,
+                            ctx,
+                            stage,
+                            phase,
+                            None,
+                            record_result=False,
+                            contract_warnings=contract_warnings,
+                            contract_errors=contract_errors,
+                        )
                     futures[future] = plugin_id
 
                 for future in concurrent.futures.as_completed(futures):
