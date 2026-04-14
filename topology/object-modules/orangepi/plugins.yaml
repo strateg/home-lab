@@ -10,6 +10,7 @@ plugins:
     migration_mode: migrating
     depends_on: []
     timeout: 30
+    subinterpreter_compatible: true  # Jinja2 templates (ADR 0097 Wave 3)
     config:
       artifact_obsolete_action: warn
       # Bootstrap file mappings (ADR0078)

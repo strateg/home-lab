@@ -1512,6 +1512,7 @@ plugins:
     order: 190
     depends_on: []
     timeout: 30
+    subinterpreter_compatible: true  # Pure JSON, no templates (ADR 0097 Wave 3)
     config: {}
     config_schema:
       type: object
@@ -1533,6 +1534,7 @@ plugins:
     order: 200
     depends_on: []
     timeout: 30
+    subinterpreter_compatible: false  # Uses yaml.dump (ADR 0097 Wave 3)
     config:
       output_filename: effective-topology.yaml
     config_schema:
@@ -1558,6 +1560,7 @@ plugins:
     order: 220
     depends_on: []
     timeout: 30
+    subinterpreter_compatible: true  # Jinja2 templates (ADR 0097 Wave 3)
     config: {}
     config_schema:
       type: object
@@ -1583,6 +1586,7 @@ plugins:
     order: 225
     depends_on: []
     timeout: 60
+    subinterpreter_compatible: true  # Jinja2 templates (ADR 0097 Wave 3)
     config:
       # icon mode: icon-nodes | compat | none  (ADR 0027)
       mermaid_icon_mode: none
@@ -1629,6 +1633,7 @@ plugins:
     migration_mode: migrating
     depends_on: []
     timeout: 30
+    subinterpreter_compatible: true  # Jinja2 templates (ADR 0097 Wave 3)
     config:
       inventory_profile: production
       topology_lane: v5
@@ -1673,6 +1678,7 @@ plugins:
     depends_on:
       - base.compiler.instance_rows
     timeout: 30
+    subinterpreter_compatible: false  # Uses yaml.dump (ADR 0097 Wave 3)
     config: {}
     config_schema:
       type: object
@@ -1706,6 +1712,7 @@ plugins:
       - base.generator.diagrams
       - base.generator.docker_compose
     timeout: 30
+    subinterpreter_compatible: true  # JSON aggregation (ADR 0097 Wave 3)
     config:
       artifact_manifest_producers:
         - base.generator.effective_json
