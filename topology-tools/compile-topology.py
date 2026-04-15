@@ -195,7 +195,6 @@ class V5Compiler:
         enable_plugins: bool = True,
         plugins_manifest_path: Path | None = None,
         parallel_plugins: bool = True,
-        use_subinterpreters: bool = False,
         trace_execution: bool = False,
         plugin_contract_warnings: bool = False,
         plugin_contract_errors: bool = True,
@@ -244,7 +243,6 @@ class V5Compiler:
         self.enable_plugins = enable_plugins
         self.plugins_manifest_path = plugins_manifest_path or DEFAULT_PLUGINS_MANIFEST
         self.parallel_plugins = parallel_plugins
-        self.use_subinterpreters = use_subinterpreters
         self.trace_execution = trace_execution
         self.plugin_contract_warnings = plugin_contract_warnings
         self.plugin_contract_errors = plugin_contract_errors
@@ -345,9 +343,6 @@ class V5Compiler:
         """Initialize empty plugin registry (manifests load in run())."""
         try:
             self._plugin_registry = PluginRegistry(TOPOLOGY_TOOLS)
-            # ADR 0097 Wave 1: Enable subinterpreters if requested
-            if self.use_subinterpreters:
-                self._plugin_registry.enable_subinterpreters(True)
         except Exception as exc:
             self.add_diag(
                 code="E4001",

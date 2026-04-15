@@ -37,16 +37,14 @@ try:
 except ImportError:
     HAS_JSONSCHEMA = False
 
-# ADR 0097 Wave 1: Conditional subinterpreter support (Python 3.14+)
-if sys.version_info >= (3, 14):
-    try:
-        from concurrent.futures import InterpreterPoolExecutor
-
-        HAS_INTERPRETER_POOL = True
-    except ImportError:
-        HAS_INTERPRETER_POOL = False
+# ADR 0097 Wave 5: Python 3.14+ required - always use subinterpreters
+# On Python < 3.14, fall back to ThreadPoolExecutor for development/testing
+HAS_REAL_SUBINTERPRETERS = sys.version_info >= (3, 14)
+if HAS_REAL_SUBINTERPRETERS:
+    from concurrent.futures import InterpreterPoolExecutor
 else:
-    HAS_INTERPRETER_POOL = False
+    # For development/testing on Python < 3.14, fall back to ThreadPoolExecutor
+    from concurrent.futures import ThreadPoolExecutor as InterpreterPoolExecutor  # type: ignore[assignment]
 
 from .plugin_base import (
     Phase,
@@ -178,7 +176,22 @@ def _execute_plugin_isolated(
         plugin = registry.load_plugin(plugin_id)
         stage = Stage(stage_value)
         phase = Phase(phase_value)
-        result = plugin.execute_phase(ctx, stage, phase)
+
+        # Set up execution scope (required for publish/subscribe)
+        from kernel.plugin_base import PluginExecutionScope
+
+        scope = PluginExecutionScope(
+            plugin_id=plugin_id,
+            allowed_dependencies=frozenset(spec.depends_on),
+            phase=phase,
+            config=spec.config.copy(),
+            stage=stage,
+        )
+        scope_token = ctx._set_execution_scope(scope)
+        try:
+            result = plugin.execute_phase(ctx, stage, phase)
+        finally:
+            ctx._clear_execution_scope(scope_token)
         return result
     except Exception as e:
         # Return failed result with traceback
@@ -332,67 +345,19 @@ class PluginRegistry:
         self._payload_schema_cache: dict[str, dict[str, Any]] = {}
         self._execution_trace: list[dict[str, Any]] = []
         self._trace_lock = threading.Lock()
-        self._use_subinterpreters: bool = False  # ADR 0097 Wave 1: opt-in mode
 
-    def enable_subinterpreters(self, enabled: bool = True) -> None:
-        """Enable or disable subinterpreter-based parallel execution (ADR 0097).
+    def _get_parallel_executor(self, max_workers: int) -> InterpreterPoolExecutor:
+        """Return subinterpreter executor for parallel plugin execution (ADR 0097 Wave 5).
 
-        When enabled, plugins marked with subinterpreter_compatible=true will execute
-        in isolated Python 3.14+ subinterpreters instead of threads. This provides:
-        - True parallelism (per-interpreter GIL)
-        - Memory isolation (no shared mutable state)
-        - Simpler concurrency model (no locks needed)
-
-        Args:
-            enabled: True to enable subinterpreters, False to use ThreadPoolExecutor
-
-        Note:
-            Requires Python 3.14+ and all plugins in wavefront to be subinterpreter-compatible.
-            Falls back to ThreadPoolExecutor if conditions not met.
-        """
-        self._use_subinterpreters = enabled
-
-    def _get_parallel_executor(
-        self,
-        max_workers: int,
-        *,
-        plugin_ids: list[str],
-    ) -> concurrent.futures.Executor:
-        """Select executor based on Python version and plugin compatibility (ADR 0097).
-
-        Returns InterpreterPoolExecutor if ALL of these conditions are met:
-        1. User enabled subinterpreters via enable_subinterpreters(True)
-        2. Python >= 3.14
-        3. InterpreterPoolExecutor is available (import succeeded)
-        4. All plugins in wavefront are subinterpreter_compatible
-
-        Otherwise returns ThreadPoolExecutor (safe fallback).
+        Python 3.14+ is required. All plugins execute in isolated subinterpreters
+        providing true parallelism via per-interpreter GIL.
 
         Args:
             max_workers: Maximum number of parallel workers
-            plugin_ids: Plugin IDs in current wavefront
 
         Returns:
-            InterpreterPoolExecutor or ThreadPoolExecutor instance
+            InterpreterPoolExecutor instance
         """
-        # Gate 1: User must opt-in
-        if not self._use_subinterpreters:
-            return concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
-
-        # Gate 2: Python 3.14+ with InterpreterPoolExecutor
-        if not HAS_INTERPRETER_POOL:
-            return concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
-
-        # Gate 3: All plugins in wavefront must be subinterpreter-compatible
-        for plugin_id in plugin_ids:
-            spec = self.specs.get(plugin_id)
-            if spec is None:
-                continue
-            if not spec.subinterpreter_compatible:
-                # Mixed compatibility: use ThreadPoolExecutor for safety
-                return concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
-
-        # All gates passed: use subinterpreter executor
         return InterpreterPoolExecutor(max_workers=max_workers)
 
     def _trace_event(
@@ -1286,9 +1251,8 @@ class PluginRegistry:
         results_by_plugin: dict[str, PluginResult] = {}
         max_workers = min(8, max(1, len(plugin_ids)))
 
-        # ADR 0097: Select executor based on Python version and plugin compatibility
-        executor = self._get_parallel_executor(max_workers, plugin_ids=plugin_ids)
-        use_subinterpreters = HAS_INTERPRETER_POOL and isinstance(executor, InterpreterPoolExecutor)
+        # ADR 0097 Wave 5: Always use subinterpreters (Python 3.14+ required)
+        executor = self._get_parallel_executor(max_workers)
 
         with executor:
             while ready:
@@ -1302,14 +1266,13 @@ class PluginRegistry:
                     if trace_execution:
                         self._trace_event(event="plugin_start", stage=stage, phase=phase, plugin_id=plugin_id)
 
-                    # ADR 0097: Use subinterpreter execution if enabled
-                    if use_subinterpreters:
+                    # ADR 0097: Use different execution paths based on Python version
+                    if HAS_REAL_SUBINTERPRETERS:
+                        # Python 3.14+: Use isolated subinterpreter execution
                         spec = self.specs[plugin_id]
-                        # Serialize context for cross-interpreter transfer
                         from kernel.plugin_base import SerializablePluginContext
 
                         serialized_ctx = SerializablePluginContext.from_plugin_context(ctx)
-                        # Convert to dict for pickling (InterpreterPoolExecutor requirement)
                         serialized_ctx_dict = {
                             "topology_path": serialized_ctx.topology_path,
                             "profile": serialized_ctx.profile,
@@ -1330,7 +1293,7 @@ class PluginRegistry:
                             spec.__dict__.copy(),
                         )
                     else:
-                        # ThreadPoolExecutor: existing code path
+                        # Python < 3.14: Use ThreadPoolExecutor with shared memory
                         future = executor.submit(
                             self.execute_plugin,
                             plugin_id,

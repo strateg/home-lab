@@ -168,12 +168,6 @@ def build_parser(config: CompilerCliDependencies) -> argparse.ArgumentParser:
         help="Disable parallel plugin execution and force sequential stage-phase execution.",
     )
     parser.add_argument(
-        "--use-subinterpreters",
-        dest="use_subinterpreters",
-        action="store_true",
-        help="Enable subinterpreter-based parallel execution for compatible plugins (Python 3.14+, ADR 0097). Falls back to threads if unavailable.",
-    )
-    parser.add_argument(
         "--trace-execution",
         action="store_true",
         help="Write stage/phase/plugin execution trace to diagnostics directory.",
@@ -330,7 +324,6 @@ def run_cli(config: CompilerCliDependencies, argv: Sequence[str] | None = None) 
         parity_gate=False,
         plugins_manifest_path=config.resolve_repo_path(args.plugins_manifest),
         parallel_plugins=args.parallel_plugins,
-        use_subinterpreters=args.use_subinterpreters,
         trace_execution=args.trace_execution,
         plugin_contract_warnings=args.plugin_contract_warnings,
         plugin_contract_errors=args.plugin_contract_errors,

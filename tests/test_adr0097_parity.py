@@ -1,23 +1,33 @@
-"""ADR 0097 Wave 1 Parity Tests: ThreadPoolExecutor vs InterpreterPoolExecutor.
+"""ADR 0097 Wave 5 Tests: Subinterpreter Execution (Python 3.14+ Required).
 
-This test suite validates that the subinterpreter-based parallel execution
-produces identical results to the existing ThreadPoolExecutor implementation.
+This test suite validates the subinterpreter-based parallel execution system.
+Python 3.14+ is the minimum version - ThreadPoolExecutor fallback removed.
 
 Test coverage:
-1. Executor selection logic (3-gate compatibility check)
-2. Context serialization round-trip (no data loss)
-3. Parallel execution parity (identical plugin results)
-4. Mixed compatibility fallback (ThreadPool when needed)
-5. Python version gating (fallback on <3.14)
+1. Context serialization round-trip (no data loss)
+2. NoOpLock functionality
+3. Executor returns InterpreterPoolExecutor
+4. Plugin manifest schema parsing
 """
 
 from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Any
 
 import pytest
+
+# Skip entire module if Python < 3.14 (InterpreterPoolExecutor not available)
+pytestmark = pytest.mark.skipif(
+    sys.version_info < (3, 14),
+    reason="ADR 0097 requires Python 3.14+ for InterpreterPoolExecutor",
+)
+
+# Conditional import - only available in Python 3.14+
+if sys.version_info >= (3, 14):
+    from concurrent.futures import InterpreterPoolExecutor
+else:
+    InterpreterPoolExecutor = None  # type: ignore[misc,assignment]
 
 # Add topology-tools to path
 TOPOLOGY_TOOLS = Path(__file__).resolve().parents[1] / "topology-tools"
@@ -27,13 +37,11 @@ from kernel.plugin_base import (
     NoOpLock,
     Phase,
     PluginContext,
-    PluginResult,
-    PluginStatus,
+    PluginExecutionScope,
     SerializablePluginContext,
     Stage,
 )
-from kernel.plugin_registry import HAS_INTERPRETER_POOL, PluginRegistry, PluginSpec
-from threading import Lock
+from kernel.plugin_registry import PluginRegistry, PluginSpec
 
 
 class TestSerializablePluginContext:
@@ -105,95 +113,13 @@ class TestSerializablePluginContext:
 
 
 class TestExecutorSelection:
-    """Test executor selection logic (_get_parallel_executor)."""
+    """Test executor selection (_get_parallel_executor)."""
 
-    def test_executor_selection_subinterpreters_disabled(self):
-        """When use_subinterpreters=False, always return ThreadPoolExecutor."""
+    def test_executor_returns_interpreter_pool(self):
+        """Verify _get_parallel_executor returns InterpreterPoolExecutor."""
         registry = PluginRegistry(TOPOLOGY_TOOLS)
-        registry.enable_subinterpreters(False)
-
-        # Create subinterpreter-compatible plugin
-        from kernel.plugin_base import PluginKind
-
-        registry.specs["test.plugin"] = PluginSpec(
-            id="test.plugin",
-            kind=PluginKind.VALIDATOR_JSON,
-            entry="validators/test.py:TestPlugin",
-            api_version="1.x",
-            stages=[Stage.VALIDATE],
-            order=100,
-            subinterpreter_compatible=True,
-        )
-
-        executor = registry._get_parallel_executor(4, plugin_ids=["test.plugin"])
-
-        # Should be ThreadPoolExecutor even though plugin is compatible
-        from concurrent.futures import ThreadPoolExecutor
-
-        assert isinstance(executor, ThreadPoolExecutor)
-
-    @pytest.mark.skipif(not HAS_INTERPRETER_POOL, reason="Requires Python 3.14+")
-    def test_executor_selection_all_compatible(self):
-        """When all plugins compatible, return InterpreterPoolExecutor."""
-        from concurrent.futures import InterpreterPoolExecutor
-        from kernel.plugin_base import PluginKind
-
-        registry = PluginRegistry(TOPOLOGY_TOOLS)
-        registry.enable_subinterpreters(True)
-
-        # Create 3 subinterpreter-compatible plugins
-        for i in range(3):
-            registry.specs[f"test.plugin{i}"] = PluginSpec(
-                id=f"test.plugin{i}",
-                kind=PluginKind.VALIDATOR_JSON,
-                entry="validators/test.py:TestPlugin",
-                api_version="1.x",
-                stages=[Stage.VALIDATE],
-                order=100 + i,
-                subinterpreter_compatible=True,
-            )
-
-        executor = registry._get_parallel_executor(
-            4, plugin_ids=["test.plugin0", "test.plugin1", "test.plugin2"]
-        )
-
+        executor = registry._get_parallel_executor(4)
         assert isinstance(executor, InterpreterPoolExecutor)
-
-    def test_executor_selection_mixed_compatibility(self):
-        """When any plugin is incompatible, return ThreadPoolExecutor."""
-        from kernel.plugin_base import PluginKind
-
-        registry = PluginRegistry(TOPOLOGY_TOOLS)
-        registry.enable_subinterpreters(True)
-
-        # Create mixed compatibility plugins
-        registry.specs["test.compatible"] = PluginSpec(
-            id="test.compatible",
-            kind=PluginKind.VALIDATOR_JSON,
-            entry="validators/test.py:TestPlugin",
-            api_version="1.x",
-            stages=[Stage.VALIDATE],
-            order=100,
-            subinterpreter_compatible=True,
-        )
-        registry.specs["test.incompatible"] = PluginSpec(
-            id="test.incompatible",
-            kind=PluginKind.VALIDATOR_JSON,
-            entry="validators/legacy.py:LegacyPlugin",
-            api_version="1.x",
-            stages=[Stage.VALIDATE],
-            order=101,
-            subinterpreter_compatible=False,  # Incompatible
-        )
-
-        executor = registry._get_parallel_executor(
-            4, plugin_ids=["test.compatible", "test.incompatible"]
-        )
-
-        # Should fall back to ThreadPoolExecutor
-        from concurrent.futures import ThreadPoolExecutor
-
-        assert isinstance(executor, ThreadPoolExecutor)
 
 
 class TestPluginManifestSchema:
@@ -233,8 +159,8 @@ class TestPluginManifestSchema:
         assert spec.subinterpreter_compatible is False
 
 
-class TestNoOpLockWave4:
-    """Test Wave 4: NoOpLock and subinterpreter_mode optimization."""
+class TestNoOpLock:
+    """Test NoOpLock functionality (ADR 0097 Wave 5)."""
 
     def test_nooplock_context_manager(self):
         """Test NoOpLock works as a context manager."""
@@ -251,18 +177,17 @@ class TestNoOpLockWave4:
         assert result is True
         lock.release()  # Should not raise
 
-    def test_regular_context_uses_real_lock(self):
-        """Test that regular PluginContext uses threading.Lock."""
+    def test_context_uses_nooplock(self):
+        """Test that PluginContext uses NoOpLock (Python 3.14+ always uses subinterpreters)."""
         ctx = PluginContext(
             topology_path="/test",
             profile="test",
             model_lock={},
         )
-        assert isinstance(ctx._published_data_lock, Lock)
-        assert ctx._subinterpreter_mode is False
+        assert isinstance(ctx._published_data_lock, NoOpLock)
 
     def test_deserialized_context_uses_nooplock(self):
-        """Test that deserialized context uses NoOpLock (Wave 4 optimization)."""
+        """Test that deserialized context uses NoOpLock."""
         original_ctx = PluginContext(
             topology_path="/test",
             profile="test",
@@ -274,24 +199,18 @@ class TestNoOpLockWave4:
         serialized = SerializablePluginContext.from_plugin_context(original_ctx)
         restored = serialized.to_plugin_context()
 
-        # Deserialized context should use NoOpLock and have subinterpreter_mode=True
+        # Deserialized context should use NoOpLock
         assert isinstance(restored._published_data_lock, NoOpLock)
-        assert restored._subinterpreter_mode is True
 
-    def test_deserialized_context_publish_works(self):
-        """Test that publish() works with NoOpLock in deserialized context."""
-        original_ctx = PluginContext(
+    def test_publish_works_with_nooplock(self):
+        """Test that publish() works with NoOpLock."""
+        ctx = PluginContext(
             topology_path="/test",
             profile="test",
             model_lock={},
         )
 
-        serialized = SerializablePluginContext.from_plugin_context(original_ctx)
-        restored = serialized.to_plugin_context()
-
         # Set execution scope for publish to work
-        from kernel.plugin_base import PluginExecutionScope
-
         scope = PluginExecutionScope(
             plugin_id="test.plugin",
             allowed_dependencies=frozenset(),
@@ -299,17 +218,17 @@ class TestNoOpLockWave4:
             config={},
             stage=Stage.VALIDATE,
         )
-        token = restored._set_execution_scope(scope)
+        token = ctx._set_execution_scope(scope)
 
         try:
             # publish() should work with NoOpLock
-            restored.publish("test_key", {"value": 123})
+            ctx.publish("test_key", {"value": 123})
 
             # Verify data was published
-            assert "test.plugin" in restored._published_data
-            assert restored._published_data["test.plugin"]["test_key"] == {"value": 123}
+            assert "test.plugin" in ctx._published_data
+            assert ctx._published_data["test.plugin"]["test_key"] == {"value": 123}
         finally:
-            restored._clear_execution_scope(token)
+            ctx._clear_execution_scope(token)
 
 
 if __name__ == "__main__":
