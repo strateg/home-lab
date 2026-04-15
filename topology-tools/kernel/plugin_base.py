@@ -688,6 +688,9 @@ class SerializablePluginContext:
     capability_catalog: dict[str, Any] | None = None
     changed_input_scopes: list[str] | None = None
 
+    # ADR 0097 Wave 5: Published data for cross-interpreter transfer
+    published_data_bytes: bytes | None = None
+
     @classmethod
     def from_plugin_context(cls, ctx: PluginContext) -> SerializablePluginContext:
         """Serialize PluginContext for cross-interpreter transfer.
@@ -700,6 +703,11 @@ class SerializablePluginContext:
         """
         import json
 
+        # ADR 0097 Wave 5: Include published data for cross-interpreter transfer
+        published_data_bytes = None
+        if ctx._published_data:
+            published_data_bytes = json.dumps(ctx._published_data).encode("utf-8")
+
         return cls(
             topology_path=ctx.topology_path,
             profile=ctx.profile,
@@ -709,6 +717,7 @@ class SerializablePluginContext:
             output_dir=ctx.output_dir,
             capability_catalog=ctx.capability_catalog.copy() if ctx.capability_catalog else None,
             changed_input_scopes=ctx.changed_input_scopes.copy() if ctx.changed_input_scopes else None,
+            published_data_bytes=published_data_bytes,
         )
 
     def to_plugin_context(self) -> PluginContext:
@@ -718,13 +727,13 @@ class SerializablePluginContext:
             PluginContext reconstructed from serialized data
 
         Note:
-            This creates a new PluginContext with minimal fields. Runtime state
-            like _published_data is initialized fresh in the target interpreter.
+            This creates a new PluginContext with minimal fields. Published data
+            from previous wavefronts is restored if provided.
             ADR 0097 Wave 5: Python 3.14+ required, always uses subinterpreters.
         """
         import json
 
-        return PluginContext(
+        ctx = PluginContext(
             topology_path=self.topology_path,
             profile=self.profile,
             model_lock=self.model_lock.copy(),
@@ -734,6 +743,12 @@ class SerializablePluginContext:
             capability_catalog=self.capability_catalog.copy() if self.capability_catalog else {},
             changed_input_scopes=self.changed_input_scopes.copy() if self.changed_input_scopes else None,
         )
+
+        # ADR 0097 Wave 5: Restore published data from previous wavefronts
+        if self.published_data_bytes:
+            ctx._published_data = json.loads(self.published_data_bytes.decode("utf-8"))
+
+        return ctx
 
 
 class PluginBase(ABC):

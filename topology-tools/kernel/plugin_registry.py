@@ -119,7 +119,7 @@ def _execute_plugin_isolated(
     phase_value: str,
     base_path_str: str,
     spec_dict: dict[str, Any],
-) -> PluginResult:
+) -> tuple[PluginResult, dict[str, dict[str, Any]]]:
     """Execute plugin in isolated subinterpreter (ADR 0097 Wave 1).
 
     This function is submitted to InterpreterPoolExecutor for execution in a separate
@@ -135,7 +135,8 @@ def _execute_plugin_isolated(
         spec_dict: PluginSpec as dict (for reconstruction)
 
     Returns:
-        PluginResult from plugin execution
+        Tuple of (PluginResult, published_data dict) from plugin execution.
+        The published_data dict contains data published by this plugin.
 
     Note:
         This function runs in an isolated interpreter with no shared state from the
@@ -192,7 +193,10 @@ def _execute_plugin_isolated(
             result = plugin.execute_phase(ctx, stage, phase)
         finally:
             ctx._clear_execution_scope(scope_token)
-        return result
+
+        # ADR 0097 Wave 5: Return published data for cross-interpreter transfer
+        published_data = ctx._published_data.copy()
+        return (result, published_data)
     except Exception as e:
         # Return failed result with traceback
         import traceback
@@ -200,22 +204,25 @@ def _execute_plugin_isolated(
         from kernel.plugin_base import PluginDiagnostic, PluginStatus
 
         tb = traceback.format_exc()
-        return PluginResult(
-            plugin_id=plugin_id,
-            api_version=spec.api_version,
-            status=PluginStatus.FAILED,
-            diagnostics=[
-                PluginDiagnostic(
-                    code="E4102",
-                    severity="error",
-                    stage=stage_value,
-                    phase=phase_value,
-                    message=f"Plugin crashed in isolated interpreter: {e}",
-                    path="kernel.subinterpreter",
-                    plugin_id="kernel",
-                )
-            ],
-            error_traceback=tb,
+        return (
+            PluginResult(
+                plugin_id=plugin_id,
+                api_version=spec.api_version,
+                status=PluginStatus.FAILED,
+                diagnostics=[
+                    PluginDiagnostic(
+                        code="E4102",
+                        severity="error",
+                        stage=stage_value,
+                        phase=phase_value,
+                        message=f"Plugin crashed in isolated interpreter: {e}",
+                        path="kernel.subinterpreter",
+                        plugin_id="kernel",
+                    )
+                ],
+                error_traceback=tb,
+            ),
+            {},  # Empty published data on error
         )
 
 
@@ -1282,6 +1289,7 @@ class PluginRegistry:
                             "output_dir": serialized_ctx.output_dir,
                             "capability_catalog": serialized_ctx.capability_catalog,
                             "changed_input_scopes": serialized_ctx.changed_input_scopes,
+                            "published_data_bytes": serialized_ctx.published_data_bytes,
                         }
                         future = executor.submit(
                             _execute_plugin_isolated,
@@ -1307,13 +1315,23 @@ class PluginRegistry:
                         )
                     futures[future] = plugin_id
 
+                # ADR 0097 Wave 5: Collect results and merge published data
+                wavefront_published_data: dict[str, dict[str, Any]] = {}
                 for future in concurrent.futures.as_completed(futures):
                     plugin_id = futures[future]
                     spec = self.specs.get(plugin_id)
                     if spec is None:
                         continue
                     try:
-                        result = future.result()
+                        future_result = future.result()
+                        # Handle tuple return from subinterpreter execution
+                        if HAS_REAL_SUBINTERPRETERS and isinstance(future_result, tuple):
+                            result, published_data = future_result
+                            # Merge published data from this plugin
+                            for pub_plugin_id, pub_data in published_data.items():
+                                wavefront_published_data[pub_plugin_id] = pub_data
+                        else:
+                            result = future_result
                         results_by_plugin[plugin_id] = result
                         if trace_execution:
                             self._trace_event(
@@ -1350,6 +1368,11 @@ class PluginRegistry:
                                 status=failed.status,
                                 message=str(exc),
                             )
+
+                # ADR 0097 Wave 5: Merge wavefront published data into main context
+                if HAS_REAL_SUBINTERPRETERS and wavefront_published_data:
+                    for pub_plugin_id, pub_data in wavefront_published_data.items():
+                        ctx._published_data[pub_plugin_id] = pub_data
 
                 for plugin_id in sorted(wavefront, key=self._plugin_sort_key):
                     if plugin_id not in results_by_plugin:
