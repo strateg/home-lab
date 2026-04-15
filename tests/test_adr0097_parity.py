@@ -41,7 +41,8 @@ from kernel.plugin_base import (
     SerializablePluginContext,
     Stage,
 )
-from kernel.plugin_registry import PluginRegistry, PluginSpec
+from kernel.plugin_base import PluginKind
+from kernel.plugin_registry import PluginRegistry, PluginSpec, SerializablePluginSpec
 
 
 class TestSerializablePluginContext:
@@ -229,6 +230,131 @@ class TestNoOpLock:
             assert ctx._published_data["test.plugin"]["test_key"] == {"value": 123}
         finally:
             ctx._clear_execution_scope(token)
+
+
+class TestSerializablePluginSpec:
+    """Test SerializablePluginSpec serialization/deserialization (ADR 0097)."""
+
+    def test_roundtrip_serialization(self):
+        """Test that PluginSpec survives serialization via SerializablePluginSpec."""
+        # Create a realistic PluginSpec
+        original_spec = PluginSpec(
+            id="test.validator_json.roundtrip",
+            kind=PluginKind.VALIDATOR_JSON,
+            entry="validators/test_roundtrip.py:TestPlugin",
+            api_version="1.x",
+            stages=[Stage.VALIDATE],
+            order=100,
+            phase=Phase.RUN,
+            depends_on=["test.compiler.base", "test.compiler.secondary"],
+            config={"timeout": 30, "strict_mode": True, "patterns": ["*.yaml", "*.json"]},
+            produces=[
+                {"topic": "validation_results", "schema_ref": "validation-schema.json"},
+                {"topic": "warnings", "schema_ref": "warnings-schema.json"},
+            ],
+            consumes=[
+                {"from_plugin": "test.compiler.base", "topic": "compiled_data"},
+            ],
+            manifest_path="/path/to/manifest.yaml",
+        )
+
+        # Convert to SerializablePluginSpec
+        serialized = SerializablePluginSpec.from_plugin_spec(original_spec)
+
+        # Verify serialized fields
+        assert serialized.id == original_spec.id
+        assert serialized.kind == original_spec.kind.value
+        assert serialized.entry == original_spec.entry
+        assert serialized.api_version == original_spec.api_version
+        assert serialized.depends_on == original_spec.depends_on
+        assert serialized.config == original_spec.config
+        assert serialized.produces == original_spec.produces
+        assert serialized.consumes == original_spec.consumes
+        assert serialized.manifest_path == str(original_spec.manifest_path)
+
+        # Convert to dict and back (simulates pickle serialization across interpreters)
+        serialized_dict = serialized.to_dict()
+        restored = SerializablePluginSpec.from_dict(serialized_dict)
+
+        # Verify round-trip preserves all fields
+        assert restored.id == original_spec.id
+        assert restored.kind == original_spec.kind.value
+        assert restored.entry == original_spec.entry
+        assert restored.api_version == original_spec.api_version
+        assert restored.depends_on == original_spec.depends_on
+        assert restored.config == original_spec.config
+        assert restored.produces == original_spec.produces
+        assert restored.consumes == original_spec.consumes
+        assert restored.manifest_path == str(original_spec.manifest_path)
+
+    def test_minimal_spec_serialization(self):
+        """Test serialization with minimal required fields."""
+        minimal_spec = PluginSpec(
+            id="test.minimal",
+            kind=PluginKind.VALIDATOR_JSON,
+            entry="validators/minimal.py:MinimalPlugin",
+            api_version="1.x",
+            stages=[Stage.VALIDATE],
+            order=100,
+            manifest_path="/manifest.yaml",
+        )
+
+        serialized = SerializablePluginSpec.from_plugin_spec(minimal_spec)
+        serialized_dict = serialized.to_dict()
+        restored = SerializablePluginSpec.from_dict(serialized_dict)
+
+        assert restored.id == minimal_spec.id
+        assert restored.kind == minimal_spec.kind.value
+        assert restored.depends_on == []
+        assert restored.config == {}
+        assert restored.produces == []
+        assert restored.consumes == []
+
+    def test_config_deep_copy(self):
+        """Test that config is deep copied, not referenced."""
+        config = {"nested": {"value": 123}, "list": [1, 2, 3]}
+        original_spec = PluginSpec(
+            id="test.deepcopy",
+            kind=PluginKind.VALIDATOR_JSON,
+            entry="validators/test.py:Plugin",
+            api_version="1.x",
+            stages=[Stage.VALIDATE],
+            order=100,
+            config=config,
+            manifest_path="/manifest.yaml",
+        )
+
+        serialized = SerializablePluginSpec.from_plugin_spec(original_spec)
+
+        # Modify original config
+        config["nested"]["value"] = 999
+        config["list"].append(4)
+
+        # Serialized config should be unchanged (deep copy)
+        assert serialized.config["nested"]["value"] == 123
+        assert serialized.config["list"] == [1, 2, 3]
+
+    def test_depends_on_deep_copy(self):
+        """Test that depends_on is deep copied."""
+        depends_on = ["plugin.a", "plugin.b"]
+        original_spec = PluginSpec(
+            id="test.depends",
+            kind=PluginKind.VALIDATOR_JSON,
+            entry="validators/test.py:Plugin",
+            api_version="1.x",
+            stages=[Stage.VALIDATE],
+            order=100,
+            depends_on=depends_on,
+            manifest_path="/manifest.yaml",
+        )
+
+        serialized = SerializablePluginSpec.from_plugin_spec(original_spec)
+
+        # Modify original list
+        depends_on.append("plugin.c")
+
+        # Serialized depends_on should be unchanged
+        assert serialized.depends_on == ["plugin.a", "plugin.b"]
 
 
 if __name__ == "__main__":
