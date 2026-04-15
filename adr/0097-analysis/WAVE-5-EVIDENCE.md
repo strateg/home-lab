@@ -140,6 +140,24 @@ Benefits:
 - Reduces wasted work from failed interpreter initialization
 - Error diagnostics with code `E4001` for config validation failures
 
+### Event Plane API
+
+Added event plane for loose-coupled plugin communication:
+
+```python
+# PluginContext event plane methods
+ctx.emit("topic", payload)           # Emit event to topic
+ctx.subscribe_topic("topic")         # Subscribe (no depends_on required)
+events = ctx.poll_events("topic")    # Poll and consume events
+history = ctx.get_event_history()    # Debug: view all events
+```
+
+Key differences from data plane (publish/subscribe):
+- **Loose coupling**: No `depends_on` enforcement required
+- **Transient delivery**: Events consumed once via `poll_events()`
+- **Topic-based routing**: Multiple subscribers per topic
+- **Cross-wavefront communication**: Works across parallel execution wavefronts
+
 ---
 
 ## Verification
@@ -148,11 +166,13 @@ Benefits:
 |------|--------|
 | ADR 0097 tests skip on Python 3.13 | PASS |
 | Plugin registry tests (51 total) | PASS |
-| ADR 0097 tests on Python 3.14 (14 total) | PASS |
+| ADR 0097 tests on Python 3.14 (19 total) | PASS |
 | Parallel execution with dependencies | PASS |
 | NoOpLock used in all contexts | PASS |
 | SerializablePluginSpec round-trip | PASS |
 | Config deep copy verification | PASS |
+| Event plane emit/subscribe/poll | PASS |
+| Event serialization round-trip | PASS |
 | No import errors | PASS |
 
 ---
