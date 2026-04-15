@@ -110,6 +110,24 @@ class SubscribeEvent:
 
 
 @dataclass(frozen=True)
+class EventMessage:
+    """Event message for event plane pub/sub (ADR 0097).
+
+    Unlike data plane (publish/subscribe), event plane provides:
+    - Loose coupling: no depends_on enforcement
+    - Transient delivery: events are consumed once
+    - Topic-based routing: multiple subscribers per topic
+    """
+
+    topic: str
+    payload: Any
+    source_plugin: str
+    stage: Stage
+    phase: Phase
+    timestamp_ns: int  # monotonic nanoseconds for ordering
+
+
+@dataclass(frozen=True)
 class PluginExecutionScope:
     """Per-invocation immutable execution scope."""
 
@@ -437,13 +455,18 @@ class PluginContext:
     # Compiled file path (for validator_json plugins)
     compiled_file: str = ""
 
-    # Inter-plugin data exchange (ADR 0065)
+    # Inter-plugin data exchange (ADR 0065) - Data Plane
     _published_data: dict[str, dict[str, Any]] = field(default_factory=dict, repr=False)
     _published_meta: dict[tuple[str, str], PublishedDataMeta] = field(default_factory=dict, repr=False)
     _publish_events: list[PublishEvent] = field(default_factory=list, repr=False)
     _subscribe_events: list[SubscribeEvent] = field(default_factory=list, repr=False)
     _published_data_lock: NoOpLock = field(default_factory=NoOpLock, repr=False)  # ADR 0097 Wave 5
     _legacy_execution_tokens: list[Token[PluginExecutionScope | None]] = field(default_factory=list, repr=False)
+
+    # Event plane pub/sub (ADR 0097) - loose coupling, transient events
+    _event_subscriptions: dict[str, set[str]] = field(default_factory=dict, repr=False)  # topic -> subscriber plugin_ids
+    _event_queues: dict[str, list[EventMessage]] = field(default_factory=dict, repr=False)  # plugin_id -> pending events
+    _event_history: list[EventMessage] = field(default_factory=list, repr=False)  # all emitted events for debugging
 
     def __post_init__(self) -> None:
         if isinstance(self.config, ContextAwareConfig):
@@ -565,6 +588,124 @@ class PluginContext:
         """Return published data map for orchestrator/runtime consumers."""
         with self._published_data_lock:
             return {plugin_id: payload.copy() for plugin_id, payload in self._published_data.items()}
+
+    # =========================================================================
+    # Event Plane API (ADR 0097)
+    # =========================================================================
+    # Unlike data plane (publish/subscribe), event plane provides:
+    # - Loose coupling: no depends_on enforcement required
+    # - Transient delivery: events are consumed once via poll_events()
+    # - Topic-based routing: multiple subscribers per topic
+    # - Cross-wavefront communication in parallel execution
+
+    def emit(self, topic: str, payload: Any) -> None:
+        """Emit an event to a topic (Event Plane - ADR 0097).
+
+        Events are delivered to all plugins subscribed to the topic. Unlike
+        data plane publish(), events are transient and don't require depends_on.
+
+        Args:
+            topic: Event topic name (e.g., "validation.warning", "compile.complete")
+            payload: Event payload (must be JSON-serializable)
+
+        Raises:
+            PluginDataExchangeError: If no current plugin context is set
+        """
+        import time
+
+        scope = self._require_execution_scope()
+        event = EventMessage(
+            topic=topic,
+            payload=payload,
+            source_plugin=scope.plugin_id,
+            stage=scope.stage,
+            phase=scope.phase,
+            timestamp_ns=time.monotonic_ns(),
+        )
+
+        # Record event in history
+        self._event_history.append(event)
+
+        # Deliver to all subscribers
+        subscribers = self._event_subscriptions.get(topic, set())
+        for subscriber_id in subscribers:
+            if subscriber_id not in self._event_queues:
+                self._event_queues[subscriber_id] = []
+            self._event_queues[subscriber_id].append(event)
+
+    def subscribe_topic(self, topic: str) -> None:
+        """Subscribe to an event topic (Event Plane - ADR 0097).
+
+        Subscribe to receive events emitted to the specified topic. Events
+        emitted after subscription can be retrieved via poll_events().
+
+        Unlike data plane subscribe(), this doesn't require depends_on
+        declaration - events provide loose coupling between plugins.
+
+        Args:
+            topic: Event topic name to subscribe to
+
+        Raises:
+            PluginDataExchangeError: If no current plugin context is set
+        """
+        scope = self._require_execution_scope()
+
+        if topic not in self._event_subscriptions:
+            self._event_subscriptions[topic] = set()
+        self._event_subscriptions[topic].add(scope.plugin_id)
+
+        # Initialize event queue for this plugin if needed
+        if scope.plugin_id not in self._event_queues:
+            self._event_queues[scope.plugin_id] = []
+
+    def poll_events(self, topic: str | None = None) -> list[EventMessage]:
+        """Poll and consume pending events (Event Plane - ADR 0097).
+
+        Retrieves all pending events for the current plugin, optionally
+        filtered by topic. Events are consumed (removed from queue) after polling.
+
+        Args:
+            topic: Optional topic filter. If None, returns all pending events.
+
+        Returns:
+            List of EventMessage objects, sorted by timestamp.
+
+        Raises:
+            PluginDataExchangeError: If no current plugin context is set
+        """
+        scope = self._require_execution_scope()
+
+        if scope.plugin_id not in self._event_queues:
+            return []
+
+        queue = self._event_queues[scope.plugin_id]
+        if topic is None:
+            # Return and clear all events
+            events = sorted(queue, key=lambda e: e.timestamp_ns)
+            self._event_queues[scope.plugin_id] = []
+            return events
+        else:
+            # Filter by topic
+            matching = [e for e in queue if e.topic == topic]
+            remaining = [e for e in queue if e.topic != topic]
+            self._event_queues[scope.plugin_id] = remaining
+            return sorted(matching, key=lambda e: e.timestamp_ns)
+
+    def get_event_history(self, topic: str | None = None) -> list[EventMessage]:
+        """Get event history for debugging (Event Plane - ADR 0097).
+
+        Returns all emitted events, optionally filtered by topic. Unlike
+        poll_events(), this doesn't consume events - for debugging only.
+
+        Args:
+            topic: Optional topic filter. If None, returns all events.
+
+        Returns:
+            List of EventMessage objects, sorted by timestamp.
+        """
+        if topic is None:
+            return sorted(self._event_history, key=lambda e: e.timestamp_ns)
+        return sorted([e for e in self._event_history if e.topic == topic], key=lambda e: e.timestamp_ns)
 
     def _get_publish_event_count(self) -> int:
         with self._published_data_lock:
@@ -691,6 +832,10 @@ class SerializablePluginContext:
     # ADR 0097 Wave 5: Published data for cross-interpreter transfer
     published_data_bytes: bytes | None = None
 
+    # ADR 0097: Event plane data for cross-interpreter transfer
+    event_subscriptions_bytes: bytes | None = None
+    event_queues_bytes: bytes | None = None
+
     @classmethod
     def from_plugin_context(cls, ctx: PluginContext) -> SerializablePluginContext:
         """Serialize PluginContext for cross-interpreter transfer.
@@ -708,6 +853,31 @@ class SerializablePluginContext:
         if ctx._published_data:
             published_data_bytes = json.dumps(ctx._published_data).encode("utf-8")
 
+        # ADR 0097: Include event plane data for cross-interpreter transfer
+        event_subscriptions_bytes = None
+        if ctx._event_subscriptions:
+            # Convert sets to lists for JSON serialization
+            subs_dict = {topic: list(subscribers) for topic, subscribers in ctx._event_subscriptions.items()}
+            event_subscriptions_bytes = json.dumps(subs_dict).encode("utf-8")
+
+        event_queues_bytes = None
+        if ctx._event_queues:
+            # Convert EventMessage dataclasses to dicts for JSON
+            queues_dict = {}
+            for plugin_id, events in ctx._event_queues.items():
+                queues_dict[plugin_id] = [
+                    {
+                        "topic": e.topic,
+                        "payload": e.payload,
+                        "source_plugin": e.source_plugin,
+                        "stage": e.stage.value,
+                        "phase": e.phase.value,
+                        "timestamp_ns": e.timestamp_ns,
+                    }
+                    for e in events
+                ]
+            event_queues_bytes = json.dumps(queues_dict).encode("utf-8")
+
         return cls(
             topology_path=ctx.topology_path,
             profile=ctx.profile,
@@ -718,6 +888,8 @@ class SerializablePluginContext:
             capability_catalog=ctx.capability_catalog.copy() if ctx.capability_catalog else None,
             changed_input_scopes=ctx.changed_input_scopes.copy() if ctx.changed_input_scopes else None,
             published_data_bytes=published_data_bytes,
+            event_subscriptions_bytes=event_subscriptions_bytes,
+            event_queues_bytes=event_queues_bytes,
         )
 
     def to_plugin_context(self) -> PluginContext:
@@ -747,6 +919,26 @@ class SerializablePluginContext:
         # ADR 0097 Wave 5: Restore published data from previous wavefronts
         if self.published_data_bytes:
             ctx._published_data = json.loads(self.published_data_bytes.decode("utf-8"))
+
+        # ADR 0097: Restore event plane data
+        if self.event_subscriptions_bytes:
+            subs_dict = json.loads(self.event_subscriptions_bytes.decode("utf-8"))
+            ctx._event_subscriptions = {topic: set(subscribers) for topic, subscribers in subs_dict.items()}
+
+        if self.event_queues_bytes:
+            queues_dict = json.loads(self.event_queues_bytes.decode("utf-8"))
+            for plugin_id, events_data in queues_dict.items():
+                ctx._event_queues[plugin_id] = [
+                    EventMessage(
+                        topic=e["topic"],
+                        payload=e["payload"],
+                        source_plugin=e["source_plugin"],
+                        stage=Stage(e["stage"]),
+                        phase=Phase(e["phase"]),
+                        timestamp_ns=e["timestamp_ns"],
+                    )
+                    for e in events_data
+                ]
 
         return ctx
 
