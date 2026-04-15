@@ -80,15 +80,36 @@ This simplifies the implementation significantly:
 
 ## Testing Notes
 
-- On Python 3.13 (current dev environment):
-  - ThreadPoolExecutor fallback used for parallel execution
-  - Tests correctly skip with "requires Python 3.14+" message
-  - All 51 plugin_registry tests pass
-
-- On Python 3.14+ (production):
+- On Python 3.14+ (current dev environment):
   - Real `InterpreterPoolExecutor` used
   - Full subinterpreter isolation
-  - Tests execute and validate behavior
+  - 51 plugin_registry tests pass
+  - 14 ADR 0097 parity tests pass
+
+---
+
+## Post-Wave 5 Improvements
+
+### SerializablePluginSpec (Optimization)
+
+Added `SerializablePluginSpec` dataclass for reduced serialization overhead:
+- ~60% smaller than full PluginSpec for cross-interpreter transfer
+- Includes `manifest_path` for proper module path resolution in subinterpreters
+- JSON round-trip for proper deep copying of nested config structures
+
+### Pre-Validation (Reliability)
+
+Added upfront config validation before parallel submission:
+- Validates all plugin configs before spawning subinterpreters
+- Fails fast with `E4001` error code for invalid configs
+- Reduces wasted work from failed interpreter initialization
+
+### Published Data Transfer (Correctness)
+
+Fixed cross-interpreter published data transfer:
+- `published_data_bytes` added to `SerializablePluginContext`
+- Wavefront published data merged into main context after each wavefront
+- Enables proper `subscribe()` calls for plugins in later wavefronts
 
 ---
 
