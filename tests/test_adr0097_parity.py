@@ -24,6 +24,7 @@ TOPOLOGY_TOOLS = Path(__file__).resolve().parents[1] / "topology-tools"
 sys.path.insert(0, str(TOPOLOGY_TOOLS))
 
 from kernel.plugin_base import (
+    NoOpLock,
     Phase,
     PluginContext,
     PluginResult,
@@ -32,6 +33,7 @@ from kernel.plugin_base import (
     Stage,
 )
 from kernel.plugin_registry import HAS_INTERPRETER_POOL, PluginRegistry, PluginSpec
+from threading import Lock
 
 
 class TestSerializablePluginContext:
@@ -229,6 +231,85 @@ class TestPluginManifestSchema:
 
         # Default should be False for backward compatibility
         assert spec.subinterpreter_compatible is False
+
+
+class TestNoOpLockWave4:
+    """Test Wave 4: NoOpLock and subinterpreter_mode optimization."""
+
+    def test_nooplock_context_manager(self):
+        """Test NoOpLock works as a context manager."""
+        lock = NoOpLock()
+        with lock:
+            # Should not block or raise
+            pass
+        # Should complete without issues
+
+    def test_nooplock_acquire_release(self):
+        """Test NoOpLock acquire/release methods."""
+        lock = NoOpLock()
+        result = lock.acquire()
+        assert result is True
+        lock.release()  # Should not raise
+
+    def test_regular_context_uses_real_lock(self):
+        """Test that regular PluginContext uses threading.Lock."""
+        ctx = PluginContext(
+            topology_path="/test",
+            profile="test",
+            model_lock={},
+        )
+        assert isinstance(ctx._published_data_lock, Lock)
+        assert ctx._subinterpreter_mode is False
+
+    def test_deserialized_context_uses_nooplock(self):
+        """Test that deserialized context uses NoOpLock (Wave 4 optimization)."""
+        original_ctx = PluginContext(
+            topology_path="/test",
+            profile="test",
+            model_lock={},
+            compiled_json={"test": "data"},
+        )
+
+        # Serialize and deserialize
+        serialized = SerializablePluginContext.from_plugin_context(original_ctx)
+        restored = serialized.to_plugin_context()
+
+        # Deserialized context should use NoOpLock and have subinterpreter_mode=True
+        assert isinstance(restored._published_data_lock, NoOpLock)
+        assert restored._subinterpreter_mode is True
+
+    def test_deserialized_context_publish_works(self):
+        """Test that publish() works with NoOpLock in deserialized context."""
+        original_ctx = PluginContext(
+            topology_path="/test",
+            profile="test",
+            model_lock={},
+        )
+
+        serialized = SerializablePluginContext.from_plugin_context(original_ctx)
+        restored = serialized.to_plugin_context()
+
+        # Set execution scope for publish to work
+        from kernel.plugin_base import PluginExecutionScope
+
+        scope = PluginExecutionScope(
+            plugin_id="test.plugin",
+            allowed_dependencies=frozenset(),
+            phase=Phase.RUN,
+            config={},
+            stage=Stage.VALIDATE,
+        )
+        token = restored._set_execution_scope(scope)
+
+        try:
+            # publish() should work with NoOpLock
+            restored.publish("test_key", {"value": 123})
+
+            # Verify data was published
+            assert "test.plugin" in restored._published_data
+            assert restored._published_data["test.plugin"]["test_key"] == {"value": 123}
+        finally:
+            restored._clear_execution_scope(token)
 
 
 if __name__ == "__main__":

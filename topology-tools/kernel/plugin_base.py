@@ -18,7 +18,38 @@ from dataclasses import dataclass, field
 from enum import Enum
 from threading import Lock
 from types import MappingProxyType
-from typing import Any, Callable, Optional, cast
+from typing import Any, Callable, Optional, Union, cast
+
+
+class NoOpLock:
+    """No-operation lock for single-threaded subinterpreter contexts (ADR 0097 Wave 4).
+
+    This class provides the same interface as threading.Lock but performs no
+    actual synchronization. It's used in subinterpreter mode where each plugin
+    runs in isolation with its own PluginContext - no shared state means no
+    need for locks.
+
+    Using NoOpLock instead of threading.Lock in subinterpreter mode:
+    - Eliminates unnecessary lock object overhead
+    - Makes the isolation guarantee explicit in the code
+    - Preserves API compatibility with ThreadPoolExecutor fallback
+    """
+
+    def acquire(self, blocking: bool = True, timeout: float = -1) -> bool:
+        """No-op acquire, always returns True."""
+        return True
+
+    def release(self) -> None:
+        """No-op release."""
+        pass
+
+    def __enter__(self) -> bool:
+        """Context manager entry, returns True."""
+        return True
+
+    def __exit__(self, *args: Any) -> None:
+        """Context manager exit, does nothing."""
+        pass
 
 
 class PluginKind(str, Enum):
@@ -418,8 +449,13 @@ class PluginContext:
     _published_meta: dict[tuple[str, str], PublishedDataMeta] = field(default_factory=dict, repr=False)
     _publish_events: list[PublishEvent] = field(default_factory=list, repr=False)
     _subscribe_events: list[SubscribeEvent] = field(default_factory=list, repr=False)
-    _published_data_lock: Lock = field(default_factory=Lock, repr=False)
+    _published_data_lock: Union[Lock, NoOpLock] = field(default_factory=Lock, repr=False)
     _legacy_execution_tokens: list[Token[PluginExecutionScope | None]] = field(default_factory=list, repr=False)
+
+    # Subinterpreter mode flag (ADR 0097 Wave 4)
+    # When True, this context runs in an isolated subinterpreter with no shared state.
+    # The _published_data_lock is replaced with NoOpLock for performance.
+    _subinterpreter_mode: bool = field(default=False, repr=False)
 
     def __post_init__(self) -> None:
         if isinstance(self.config, ContextAwareConfig):
@@ -697,10 +733,14 @@ class SerializablePluginContext:
             This creates a new PluginContext with minimal fields. Runtime state
             like _published_data and locks are initialized fresh in the target
             interpreter.
+
+            ADR 0097 Wave 4: Uses NoOpLock instead of threading.Lock since
+            subinterpreter contexts have no shared state and don't need
+            synchronization.
         """
         import json
 
-        return PluginContext(
+        ctx = PluginContext(
             topology_path=self.topology_path,
             profile=self.profile,
             model_lock=self.model_lock.copy(),
@@ -709,7 +749,10 @@ class SerializablePluginContext:
             output_dir=self.output_dir,
             capability_catalog=self.capability_catalog.copy() if self.capability_catalog else {},
             changed_input_scopes=self.changed_input_scopes.copy() if self.changed_input_scopes else None,
+            _subinterpreter_mode=True,
+            _published_data_lock=NoOpLock(),
         )
+        return ctx
 
 
 class PluginBase(ABC):
