@@ -1,6 +1,6 @@
 # ADR 0098: Python 3.14 Platform Migration
 
-- Status: **Implemented** (Phase A+B Complete, Phase C Deferred)
+- Status: Implemented
 - Date: 2026-04-13
 - Updated: 2026-04-14
 - Implemented: 2026-04-14

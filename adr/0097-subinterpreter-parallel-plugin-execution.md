@@ -1,275 +1,228 @@
-# ADR 0097: Subinterpreter-Based Parallel Plugin Execution
+# ADR 0097: Actor-Style Dataflow Execution for Plugins on Python 3.14 Subinterpreters
 
-- Status: In Progress (Wave 4 Complete)
-- Date: 2026-04-13
-- Implemented: 2026-04-14 (Wave 1), 2026-04-14 (Wave 2), 2026-04-14 (Wave 3), 2026-04-15 (Wave 4)
-- Depends on: ADR 0063, ADR 0080, ADR 0086, ADR 0098 ✅
-- Target Python: 3.14+
+- Status: Proposed
+- Date: 2026-04-15
+- Revised: 2026-04-17
+- Depends on: ADR 0063, ADR 0080, ADR 0086, ADR 0098
+- Follow-up: ADR 0099 (runtime + test architecture migration for snapshot/envelope/pipeline-state model)
 
 ## Context
 
-### Current State
+The project uses a plugin-based microkernel pipeline with staged execution:
+`discover -> compile -> validate -> generate -> assemble -> build`.
 
-The plugin runtime (ADR 0080) implements parallel execution using `ThreadPoolExecutor` with
-extensive thread-safety measures:
+The runtime is migrating to Python 3.14 subinterpreters for isolated parallel execution. This surfaced a deeper mismatch:
 
-1. `PluginExecutionScope` + `contextvars.ContextVar` for thread-local state
-2. `threading.Lock` for `_published_data` and `_instances_lock`
-3. `compiled_json_owner` validation for mutation safety
-4. Deterministic result ordering post-execution
+- subinterpreters assume isolation and message passing;
+- current plugin semantics are still centered around a mutable shared `PluginContext`.
 
-This architecture works correctly but has inherent complexity:
-- 9 lock acquisition points in `plugin_base.py`
-- Race condition prevention requires careful code review
-- Future plugins must understand threading constraints
-- Debugging concurrent issues is challenging
+Current context usage mixes responsibilities that should be separated:
 
-### Python 3.14 Opportunity
+- plugin execution input;
+- runtime-local helper API;
+- pipeline-visible publish/subscribe state;
+- event-plane state;
+- partial orchestration concerns.
 
-Python 3.14 (expected October 2025) introduces official subinterpreter support:
-
-- **PEP 734**: `concurrent.interpreters` module for subinterpreter management
-- **PEP 684**: Per-interpreter GIL (implemented in Python 3.12+)
-- **`InterpreterPoolExecutor`**: Drop-in replacement for `ThreadPoolExecutor`
-
-Key insight: Subinterpreters provide **isolation by design** — shared mutable state
-is impossible, eliminating race conditions architecturally rather than through locks.
-
-### Growth Trajectory
-
-Current plugin inventory: 57 plugins across 7 manifests.
-Expected growth: 100+ plugins as generator/validator coverage expands.
-
-Early migration is cheaper than retrofitting after ecosystem expansion.
+This weakens ownership boundaries, increases reasoning complexity, and complicates deterministic behavior under isolation.
 
 ## Decision
 
-### D1. Adopt `InterpreterPoolExecutor` as Primary Parallel Executor
+The runtime standard is changed to an **actor-style dataflow model**.
 
-Replace `ThreadPoolExecutor` with `InterpreterPoolExecutor` for plugin wavefront execution
-when running on Python 3.14+.
+### D1. Ownership model
 
-```python
-# Current implementation (ThreadPoolExecutor)
-from concurrent.futures import ThreadPoolExecutor
+**Main interpreter is the sole owner of pipeline-global state**, including:
 
-with ThreadPoolExecutor(max_workers=8) as pool:
-    futures = [pool.submit(self.execute_plugin, plugin_id, ctx, ...) for plugin_id in wavefront]
+- plugin scheduling;
+- dependency resolution;
+- stage/phase orchestration;
+- consume resolution;
+- schema validation of produced payloads;
+- commit of produced messages;
+- stage-local invalidation;
+- execution tracing, retries, metrics, and failure handling.
 
-# Target implementation (InterpreterPoolExecutor)
-from concurrent.futures import InterpreterPoolExecutor
+**Worker interpreters own only per-invocation local execution**, including:
 
-with InterpreterPoolExecutor(max_workers=8) as pool:
-    futures = [pool.submit(execute_plugin_isolated, plugin_id, serialized_ctx) for plugin_id in wavefront]
-```
+- plugin code execution;
+- local plugin state;
+- local diagnostics accumulation;
+- local outbox construction.
 
-### D2. Implement Context Serialization Protocol
+Workers must not directly mutate pipeline-global state.
 
-Since subinterpreters have isolated memory, `PluginContext` must be serialized for transfer:
+### D2. Invocation runtime model
 
-```python
-@dataclass
-class SerializablePluginContext:
-    """Minimal context for cross-interpreter plugin execution."""
-    topology_path: str
-    profile: str
-    compiled_json: bytes  # JSON-serialized
-    plugin_config: bytes  # JSON-serialized
-    output_dir: str
-    # ... minimal required fields
-```
+Each plugin invocation follows:
 
-Serialization boundary:
-- **Input**: `compiled_json`, `plugin_config`, paths
-- **Output**: `PluginResult` with diagnostics and published data
-- **NOT serialized**: File handles, locks, mutable state (not needed)
+`input snapshot -> local execution -> execution envelope -> scheduler validation -> commit`
 
-### D3. Retain ThreadPoolExecutor Fallback
+### D3. Input contract
 
-Maintain dual-executor architecture for:
-- Python < 3.14 compatibility
-- Extension modules without subinterpreter support
-- Debugging/development mode
+Plugins receive an immutable `PluginInputSnapshot` containing only:
 
-```python
-def _get_parallel_executor(self, max_workers: int) -> Executor:
-    if sys.version_info >= (3, 14) and self._subinterpreters_enabled:
-        return InterpreterPoolExecutor(max_workers=max_workers)
-    return ThreadPoolExecutor(max_workers=max_workers)
-```
+- plugin-visible input data;
+- resolved consumes payloads;
+- stage and phase identity;
+- plugin config;
+- required execution metadata.
 
-### D4. Simplify Lock Architecture (Post-Migration)
+Snapshot does not include mutable pipeline-owned publish/subscribe stores.
 
-After subinterpreter adoption, the following become unnecessary for parallel execution:
+### D4. Output contract
 
-| Component | Current Purpose | Post-Migration |
-|-----------|----------------|----------------|
-| `_published_data_lock` | Thread-safe publish/subscribe | Remove (isolated memory) |
-| `PluginExecutionScope` | Thread-local state | Simplify (natural isolation) |
-| `contextvars.copy_context()` | Context propagation | Remove (serialize instead) |
-| `compiled_json_owner` validation | Mutation prevention | Retain (compile-stage safety) |
+Plugins return `PluginExecutionEnvelope` containing:
 
-### D5. Extension Compatibility Gate
+- `PluginResult`;
+- local published messages;
+- local emitted events;
+- optional execution metadata.
 
-Before enabling subinterpreters for a plugin, validate its dependencies:
+Envelope is a **proposal**, not a commit.
 
-```yaml
-# plugins.yaml extension
-- id: base.validator.json_schema
-  kind: validator_json
-  subinterpreter_compatible: true  # Explicit opt-in after testing
+### D5. Publish/subscribe semantics
 
-- id: vendor.generator.legacy
-  kind: generator
-  subinterpreter_compatible: false  # Requires ThreadPoolExecutor
-```
+- `subscribe` is resolved by the scheduler before dispatch.
+- plugin reads only snapshot-resolved inputs.
+- `publish` appends to worker-local outbox.
+- published data becomes pipeline-visible only after scheduler validation and commit.
 
-## Architecture Comparison
+### D6. Event semantics
 
-### Race Condition Elimination
+Event plane is retained only as envelope-level emitted events.
 
-| Scenario | ThreadPoolExecutor | InterpreterPoolExecutor |
-|----------|-------------------|------------------------|
-| Shared `_published_data` | Lock required | Impossible (isolated) |
-| `ctx.compiled_json` mutation | Owner validation | Impossible (copied) |
-| Config bleed | `PluginExecutionScope` | Impossible (isolated) |
-| Instance cache race | Lock required | Impossible (per-interpreter) |
+Worker-side event queues/subscriptions/runtime buses are not part of the stable execution model.
+Routing/buffering/fan-out/logging of events is main-interpreter-owned.
 
-### Performance Characteristics
+### D7. Execution modes
 
-| Aspect | ThreadPoolExecutor | InterpreterPoolExecutor |
-|--------|-------------------|------------------------|
-| Startup overhead | ~1ms per thread | ~10-50ms per interpreter |
-| Memory per worker | ~1MB (stack) | ~10-20MB (interpreter state) |
-| GIL contention | Shared GIL | Per-interpreter GIL |
-| Serialization | None (shared memory) | JSON encode/decode |
-| True parallelism | I/O-bound only | CPU + I/O |
+Plugins must declare execution mode explicitly:
 
-### Break-Even Analysis
+- `subinterpreter`
+- `main_interpreter`
+- `thread_legacy`
 
-For I/O-bound plugins (current workload):
-- Serialization overhead: ~1-5ms per plugin invocation
-- Interpreter startup: ~50ms (amortized across wavefront)
-- Lock contention saved: ~0.5-2ms per lock acquisition
+`thread_legacy` is migration-only and must not be treated as long-term default.
+Scheduler routing is mode + policy driven.
 
-**Recommendation**: Enable for wavefronts with ≥4 plugins where parallelism benefit exceeds overhead.
+### D8. PluginContext semantics
 
-## Migration Plan
+`PluginContext` remains author-facing API surface, but only as a local facade over:
 
-### Wave 1: Infrastructure (Python 3.14 Release + 2 months)
+- immutable input snapshot;
+- local publish outbox;
+- local event outbox.
 
-1. Add `InterpreterPoolExecutor` conditional import
-2. Implement `SerializablePluginContext` protocol
-3. Add `--use-subinterpreters` CLI flag (opt-in)
-4. Add `subinterpreter_compatible` manifest field
-5. Create compatibility test suite
+`PluginContext` is no longer owner of pipeline-global mutable state.
 
-**Gate**: Parity tests pass for both executors
+### D9. Serialization boundary
 
-### Wave 2: Validator Migration (Wave 1 + 1 month)
+Cross-interpreter transport is defined by:
 
-1. Audit validator dependencies for subinterpreter compatibility
-2. Mark compatible validators with `subinterpreter_compatible: true`
-3. Enable subinterpreters for validate stage by default
-4. Monitor performance metrics
+- serializable `PluginInputSnapshot`;
+- serializable `PluginExecutionEnvelope`.
 
-**Gate**: All validators pass with subinterpreters; no regressions
+Runtime must not serialize/restore mutable pipeline bus state into worker interpreters.
 
-### Wave 3: Generator Migration (Wave 2 + 1 month)
+## Consequences
 
-1. Audit generator dependencies (Jinja2, YAML)
-2. Mark compatible generators
-3. Enable for generate stage
-4. Benchmark file I/O parallelism improvement
+### Positive
 
-**Gate**: Generators produce identical output; I/O parallelism measurable
+- execution model aligns with Python 3.14 subinterpreter isolation;
+- publish/subscribe ownership is explicit;
+- deterministic reasoning improves;
+- worker failure cannot partially mutate pipeline-visible state;
+- serial and subinterpreter execution are easier to parity-test;
+- future replay/caching become easier.
 
-### Wave 4: Lock Removal (Wave 3 + 1 month)
+### Negative
 
-1. Remove `_published_data_lock` (subinterpreter mode)
-2. Simplify `PluginExecutionScope` to minimal form
-3. Remove `contextvars` complexity
-4. Update documentation
+- plugin runtime contracts require refactoring;
+- `PluginContext` semantics change even if API surface remains similar;
+- tests assuming shared mutable context need migration;
+- some plugins may temporarily remain outside subinterpreters.
 
-**Gate**: Codebase simplified; ThreadPoolExecutor fallback still works
+## Alternatives Considered
 
-### Wave 5: Default Promotion (Wave 4 + 1 month)
+### A1. Keep shared mutable context and only switch executor
 
-1. Make `--use-subinterpreters` default on Python 3.14+
-2. Add `--no-subinterpreters` for fallback
-3. Deprecate ThreadPoolExecutor for new plugins
-4. Performance benchmarks published
+Rejected. Preserves incorrect ownership model and ambiguous runtime semantics.
 
-**Gate**: Subinterpreters are production default
+### A2. Keep current `PluginContext` and merge worker state back after execution
 
-## Dependency Compatibility Matrix
+Rejected. Keeps hidden shared-state mental model and requires state reconstruction post-isolation.
 
-| Dependency | Subinterpreter Ready | Notes |
-|------------|---------------------|-------|
-| `json` (stdlib) | Yes | Pure Python |
-| `pathlib` (stdlib) | Yes | Pure Python |
-| `yaml` (PyYAML) | Testing Required | C extension, needs verification |
-| `jinja2` | Likely Yes | Pure Python core |
-| `jsonschema` | Yes | Pure Python |
-| Internal `kernel.*` | Yes | Pure Python |
+### A3. Use multiprocessing as primary runtime
 
-## Risks and Mitigations
+Not selected. Provides isolation but does not solve ownership/pub-sub semantics by itself and is heavier for current architecture.
 
-### R1: PyYAML Subinterpreter Compatibility
+### A4. Introduce queue-based streaming immediately
 
-**Risk**: PyYAML uses C extension that may not support subinterpreters.
+Deferred. May be useful later for selected workloads, but not required for first stable actor-style runtime.
 
-**Mitigation**:
-- Test with `yaml.CSafeLoader` vs `yaml.SafeLoader`
-- Fall back to pure Python loader if needed
-- Monitor PyYAML project for subinterpreter updates
+## Implementation Notes
 
-### R2: Serialization Overhead
+### Phase 1: Runtime contracts
 
-**Risk**: JSON serialization of `compiled_json` (~500KB-2MB) adds latency.
+Introduce:
 
-**Mitigation**:
-- Serialize once per wavefront, not per plugin
-- Use `orjson` for faster serialization
-- Consider `memoryview` for large payloads (Python 3.14 supports this)
+- `PluginInputSnapshot`
+- `SubscriptionValue`
+- `PublishedMessage`
+- `EmittedEvent`
+- `PluginExecutionEnvelope`
 
-### R3: Interpreter Startup Cost
+### Phase 2: Local context facade
 
-**Risk**: Creating interpreters is slower than threads.
+Refactor `PluginContext` to snapshot + local outboxes.
 
-**Mitigation**:
-- Pool interpreters across wavefronts (persistent pool)
-- Only use for wavefronts with ≥4 plugins
-- Pre-warm interpreters during discovery stage
+- `publish()` no longer commits.
+- `subscribe()` no longer reads pipeline-global mutable state.
 
-### R4: Debugging Complexity
+### Phase 3: Pipeline state ownership
 
-**Risk**: Errors in subinterpreters harder to trace.
+Introduce scheduler-owned `PipelineState` responsible for:
 
-**Mitigation**:
-- Capture full traceback in serialized result
-- Add interpreter ID to diagnostics
-- Provide `--no-subinterpreters` escape hatch
+- committed published data;
+- consume resolution;
+- schema validation;
+- stage-local invalidation;
+- envelope commit.
+
+### Phase 4: Runner split
+
+Separate:
+
+- registry/manifest loading;
+- worker plugin runner;
+- pipeline runtime and state commit.
+
+### Phase 5: Plugin migration
+
+Migrate core plugins to snapshot/envelope execution, prioritizing plugins that currently mix publication with context mutation.
 
 ## Acceptance Criteria
 
-1. `InterpreterPoolExecutor` works on Python 3.14+ for plugin execution
-2. `SerializablePluginContext` protocol implemented and tested
-3. All current plugins pass with subinterpreter execution
-4. Parity tests verify identical output (ThreadPool vs InterpreterPool)
-5. `subinterpreter_compatible` manifest field enforced
-6. Lock removal demonstrated in subinterpreter mode
-7. Performance benchmarks show improvement for ≥4 plugin wavefronts
-8. ThreadPoolExecutor fallback works on Python < 3.14
-9. Documentation updated for plugin authors
+This ADR is implemented when all conditions are true:
 
-## References
+1. plugins execute against immutable input snapshots;
+2. workers cannot directly mutate pipeline-global publish/subscribe state;
+3. `publish()` appends only to local outbox;
+4. `subscribe()` resolves only against scheduler-provided inputs;
+5. scheduler validates and commits published messages;
+6. stage-local data is invalidated by main-interpreter-owned pipeline state;
+7. compatible plugins run in parallel via subinterpreters on Python 3.14;
+8. serial and subinterpreter execution are parity-tested for supported plugins;
+9. worker failure does not leak partial published state.
 
-- [PEP 554 – Multiple Interpreters in the Stdlib](https://peps.python.org/pep-0554/)
-- [PEP 684 – A Per-Interpreter GIL](https://peps.python.org/pep-0684/)
-- [Python 3.14 What's New](https://docs.python.org/3/whatsnew/3.14.html)
-- [Real Python: Python 3.12 Subinterpreters](https://realpython.com/python312-subinterpreters/)
-- [Running Python Parallel Applications with Sub Interpreters](https://tonybaloney.github.io/posts/sub-interpreter-web-workers.html)
-- ADR 0063: Plugin Microkernel Architecture
-- ADR 0080: Unified Build Pipeline (Section 9: Parallel Execution)
-- ADR 0086: Flatten Plugin Hierarchy
+## Summary
+
+The project standardizes plugin runtime on actor-style dataflow ownership.
+
+**Architectural rule:**
+
+- workers compute and propose outputs;
+- only the main interpreter validates and commits them.
+
+This replaces shared mutable context semantics with explicit snapshot/envelope ownership aligned with Python 3.14 subinterpreters.
