@@ -4,7 +4,7 @@
 - Date: 2026-04-15
 - Revised: 2026-04-17
 - Depends on: ADR 0063, ADR 0080, ADR 0086, ADR 0098
-- Follow-up: ADR 0099 (runtime + test architecture migration for snapshot/envelope/pipeline-state model)
+- Follow-up: ADR 0099 (test architecture migration for snapshot/envelope/pipeline-state runtime)
 
 ## Context
 
@@ -125,6 +125,37 @@ Cross-interpreter transport is defined by:
 
 Runtime must not serialize/restore mutable pipeline bus state into worker interpreters.
 
+### D10. Runtime module decomposition
+
+Runtime implementation is decomposed into three responsibilities:
+
+1. `plugin_registry.py` — manifest loading, spec validation, dependency graph, plugin entry loading.
+2. `pipeline_runtime.py` — `PipelineState`, snapshot builder, consume resolution, envelope commit, stage-local invalidation.
+3. `plugin_runner.py` — `run_plugin_once(snapshot, plugin_spec) -> envelope`, with serial and subinterpreter runners.
+
+### D11. Plugin implementation style contract
+
+New and migrated plugins must follow:
+
+- one explicit snapshot input;
+- local computation and local indexes only;
+- no direct mutation of shared runtime state;
+- output via `PluginResult` + outbox-driven envelope.
+
+The following patterns are disallowed in the target model:
+
+- direct mutation of `ctx.classes`, `ctx.objects`, `ctx.compiled_json`;
+- event-plane polling logic inside worker execution;
+- reliance on `ctx.get_published_data()` as live pipeline registry.
+
+### D12. Manifest/runtime contract evolution
+
+Manifest execution routing contract is normalized around `execution_mode` (`subinterpreter`, `main_interpreter`, `thread_legacy`).
+
+`consumes` and `produces` remain first-class runtime contracts.
+
+An optional `input_view` contract may be introduced to reduce snapshot payload size for plugins requiring partial views.
+
 ## Consequences
 
 ### Positive
@@ -165,7 +196,7 @@ Deferred. May be useful later for selected workloads, but not required for first
 
 ### Phase 1: Runtime contracts
 
-Introduce:
+In `plugin_base.py`, introduce transport/value objects:
 
 - `PluginInputSnapshot`
 - `SubscriptionValue`
@@ -173,14 +204,19 @@ Introduce:
 - `EmittedEvent`
 - `PluginExecutionEnvelope`
 
+`PluginResult` remains semantic plugin result, but not transport envelope.
+
 ### Phase 2: Local context facade
 
 Refactor `PluginContext` to snapshot + local outboxes.
 
 - `publish()` no longer commits.
 - `subscribe()` no longer reads pipeline-global mutable state.
+- `emit()` appends only to local event outbox.
 
-### Phase 3: Pipeline state ownership
+Context-owned pipeline bus internals are removed from the architecture core.
+
+### Phase 3: Main-interpreter `PipelineState`
 
 Introduce scheduler-owned `PipelineState` responsible for:
 
@@ -188,19 +224,35 @@ Introduce scheduler-owned `PipelineState` responsible for:
 - consume resolution;
 - schema validation;
 - stage-local invalidation;
-- envelope commit.
+- `commit_envelope()`.
 
-### Phase 4: Runner split
+### Phase 4: Runner split and scheduler flow
 
-Separate:
+Scheduler flow becomes:
 
-- registry/manifest loading;
-- worker plugin runner;
-- pipeline runtime and state commit.
+1. resolve consumes;
+2. build `PluginInputSnapshot`;
+3. dispatch worker runner;
+4. collect `PluginExecutionEnvelope`;
+5. validate produced payloads/contracts;
+6. commit to `PipelineState`.
 
-### Phase 5: Plugin migration
+No worker-side merge-back of mutable pipeline bus state.
 
-Migrate core plugins to snapshot/envelope execution, prioritizing plugins that currently mix publication with context mutation.
+### Phase 5: Plugin migration priorities
+
+1. Keep declarative validators that already behave as deterministic, resolved-input processors as migration references (for style and SDK usage).
+2. Refactor `EffectiveModelCompiler` so it publishes candidate model payloads; authoritative `compiled_json` assignment is performed by scheduler commit logic.
+3. Decompose `InstanceRowsCompiler` at minimum into:
+   - annotation/secret resolution;
+   - row normalization;
+   - semantic/shape validation.
+
+### Phase 6: Manifest contract cutover
+
+- promote `execution_mode` as primary execution routing field;
+- treat `thread_legacy` as temporary migration mode;
+- optionally introduce `input_view` for snapshot minimization where justified.
 
 ## Acceptance Criteria
 
@@ -214,7 +266,9 @@ This ADR is implemented when all conditions are true:
 6. stage-local data is invalidated by main-interpreter-owned pipeline state;
 7. compatible plugins run in parallel via subinterpreters on Python 3.14;
 8. serial and subinterpreter execution are parity-tested for supported plugins;
-9. worker failure does not leak partial published state.
+9. worker failure does not leak partial published state;
+10. `execution_mode` governs runtime routing;
+11. authoritative compiled model state is committed in main interpreter, not mutated inside worker plugins.
 
 ## Summary
 
