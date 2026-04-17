@@ -84,13 +84,66 @@ def test_instance_rows_execute_stage_commits_normalized_rows_authoritatively(tmp
         "schema_version": 1,
         "plugins": [
             {
+                "id": "base.compiler.instance_rows_resolve",
+                "kind": "compiler",
+                "entry": f"{(V5_TOOLS / 'plugins/compilers/instance_rows_resolve_compiler.py').as_posix()}:InstanceRowsResolveCompiler",
+                "api_version": "1.x",
+                "stages": ["compile"],
+                "phase": "run",
+                "order": 39,
+                "subinterpreter_compatible": True,
+                "config": {
+                    "secrets_mode": "passthrough",
+                    "secrets_root": "projects/home-lab/secrets",
+                    "require_unlock": True,
+                },
+                "produces": [{"key": "resolved_rows", "scope": "stage_local"}],
+            },
+            {
+                "id": "base.compiler.instance_rows_prepare",
+                "kind": "compiler",
+                "entry": f"{(V5_TOOLS / 'plugins/compilers/instance_rows_prepare_compiler.py').as_posix()}:InstanceRowsPrepareCompiler",
+                "api_version": "1.x",
+                "stages": ["compile"],
+                "phase": "run",
+                "order": 40,
+                "depends_on": ["base.compiler.instance_rows_resolve"],
+                "subinterpreter_compatible": True,
+                "config": {
+                    "secrets_mode": "passthrough",
+                    "secrets_root": "projects/home-lab/secrets",
+                    "require_unlock": True,
+                },
+                "produces": [{"key": "prepared_rows", "scope": "stage_local"}],
+                "consumes": [{"from_plugin": "base.compiler.instance_rows_resolve", "key": "resolved_rows", "required": False}],
+            },
+            {
+                "id": "base.compiler.instance_rows_validate",
+                "kind": "compiler",
+                "entry": f"{(V5_TOOLS / 'plugins/compilers/instance_rows_validate_compiler.py').as_posix()}:InstanceRowsValidateCompiler",
+                "api_version": "1.x",
+                "stages": ["compile"],
+                "phase": "run",
+                "order": 41,
+                "depends_on": ["base.compiler.instance_rows_prepare"],
+                "subinterpreter_compatible": True,
+                "config": {
+                    "secrets_mode": "passthrough",
+                    "secrets_root": "projects/home-lab/secrets",
+                    "require_unlock": True,
+                },
+                "produces": [{"key": "validated_rows", "scope": "stage_local"}],
+                "consumes": [{"from_plugin": "base.compiler.instance_rows_prepare", "key": "prepared_rows", "required": False}],
+            },
+            {
                 "id": PLUGIN_ID,
                 "kind": "compiler",
                 "entry": f"{(V5_TOOLS / 'plugins/compilers/instance_rows_compiler.py').as_posix()}:InstanceRowsCompiler",
                 "api_version": "1.x",
                 "stages": ["compile"],
                 "phase": "run",
-                "order": 40,
+                "order": 42,
+                "depends_on": ["base.compiler.instance_rows_validate", "base.compiler.instance_rows_prepare", "base.compiler.instance_rows_resolve"],
                 "subinterpreter_compatible": True,
                 "config": {
                     "secrets_mode": "passthrough",
@@ -98,6 +151,7 @@ def test_instance_rows_execute_stage_commits_normalized_rows_authoritatively(tmp
                     "require_unlock": True,
                 },
                 "produces": [{"key": "normalized_rows", "scope": "pipeline_shared"}],
+                "consumes": [{"from_plugin": "base.compiler.instance_rows_validate", "key": "validated_rows", "required": False}],
             }
         ],
     }
@@ -129,8 +183,13 @@ def test_instance_rows_execute_stage_commits_normalized_rows_authoritatively(tmp
 
     results = registry.execute_stage(Stage.COMPILE, ctx, parallel_plugins=False)
 
-    assert len(results) == 1
-    assert results[0].status in {PluginStatus.SUCCESS, PluginStatus.PARTIAL}
+    assert [result.plugin_id for result in results] == [
+        "base.compiler.instance_rows_resolve",
+        "base.compiler.instance_rows_prepare",
+        "base.compiler.instance_rows_validate",
+        PLUGIN_ID,
+    ]
+    assert all(result.status in {PluginStatus.SUCCESS, PluginStatus.PARTIAL} for result in results)
     published = ctx.get_published_data()[PLUGIN_ID]["normalized_rows"]
     assert isinstance(published, list)
     assert published[0]["instance"] == "dev-stage"

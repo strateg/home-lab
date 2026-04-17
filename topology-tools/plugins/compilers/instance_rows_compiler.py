@@ -30,6 +30,9 @@ class InstanceRowsCompiler(CompilerPlugin):
     """Normalize instance_bindings rows and emit row-shape diagnostics."""
 
     _ANNOTATION_PLUGIN_ID = "base.compiler.annotation_resolver"
+    _RESOLVED_ROWS_PLUGIN_ID = "base.compiler.instance_rows_resolve"
+    _PREPARED_ROWS_PLUGIN_ID = "base.compiler.instance_rows_prepare"
+    _VALIDATED_ROWS_PLUGIN_ID = "base.compiler.instance_rows_validate"
     _RESERVED_ROW_KEYS = {
         "instance",
         "group",
@@ -919,7 +922,7 @@ class InstanceRowsCompiler(CompilerPlugin):
 
         return class_ref, object_ref
 
-    def _process_binding_row(
+    def _resolve_binding_row(
         self,
         *,
         row: dict[str, Any],
@@ -1048,14 +1051,100 @@ class InstanceRowsCompiler(CompilerPlugin):
                     )
                 )
 
-        layer = row.get("layer")
+        return {
+            "group": group_name,
+            "instance": instance_id,
+            "row": row,
+        }
+
+    def _prepare_resolved_row(
+        self,
+        *,
+        resolved_row: dict[str, Any],
+        ctx: PluginContext,
+        stage: Stage,
+        diagnostics: list[PluginDiagnostic],
+    ) -> dict[str, Any] | None:
+        row = resolved_row.get("row")
+        group_name = resolved_row.get("group")
+        instance_id = resolved_row.get("instance")
+        if not isinstance(row, dict) or not isinstance(group_name, str) or not isinstance(instance_id, str):
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E3201",
+                    severity="error",
+                    stage=stage,
+                    message="Resolved row payload is malformed.",
+                    path="pipeline:instance_rows_resolve",
+                )
+            )
+            return None
+
         class_ref, object_ref = self._resolve_class_and_object_refs(
             row=row,
             ctx=ctx,
             stage=stage,
             diagnostics=diagnostics,
-            row_path=row_path,
+            row_path=f"instance_bindings.{group_name}[{instance_id}]",
         )
+        source_id = row.get("source_id", instance_id)
+        if not isinstance(source_id, str) or not source_id:
+            source_id = instance_id
+
+        return {
+            "group": group_name,
+            "instance": instance_id,
+            "row_path": f"instance_bindings.{group_name}[{instance_id}]",
+            "row": row,
+            "source_id": source_id,
+            "class_ref": class_ref,
+            "object_ref": object_ref,
+        }
+
+    def _validate_prepared_row_shape(
+        self,
+        *,
+        prepared_row: dict[str, Any],
+        stage: Stage,
+        diagnostics: list[PluginDiagnostic],
+    ) -> dict[str, Any] | None:
+        row = prepared_row.get("row")
+        group_name = prepared_row.get("group")
+        instance_id = prepared_row.get("instance")
+        row_path = prepared_row.get("row_path")
+        class_ref = prepared_row.get("class_ref")
+        object_ref = prepared_row.get("object_ref")
+        source_id = prepared_row.get("source_id")
+
+        if (
+            not isinstance(row, dict)
+            or not isinstance(group_name, str)
+            or not isinstance(instance_id, str)
+            or not isinstance(row_path, str)
+        ):
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E3201",
+                    severity="error",
+                    stage=stage,
+                    message="Prepared row payload is malformed.",
+                    path="pipeline:instance_rows_prepare",
+                )
+            )
+            return None
+
+        layer = row.get("layer")
+        if not isinstance(layer, str) or not layer:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E3201",
+                    severity="error",
+                    stage=stage,
+                    message="Instance row must define non-empty 'layer'.",
+                    path=f"{row_path}.layer",
+                )
+            )
+
         firmware_ref = row.get("firmware_ref")
         if firmware_ref is not None and (not isinstance(firmware_ref, str) or not firmware_ref):
             diagnostics.append(
@@ -1065,17 +1154,6 @@ class InstanceRowsCompiler(CompilerPlugin):
                     stage=stage,
                     message="firmware_ref must be non-empty string when set.",
                     path=f"{row_path}.firmware_ref",
-                )
-            )
-
-        if not isinstance(layer, str) or not layer:
-            diagnostics.append(
-                self.emit_diagnostic(
-                    code="E3201",
-                    severity="error",
-                    stage=stage,
-                    message="Instance row must define non-empty 'layer'.",
-                    path=f"{row_path}.layer",
                 )
             )
 
@@ -1099,15 +1177,11 @@ class InstanceRowsCompiler(CompilerPlugin):
             path_prefix=f"{row_path}.os_refs",
         )
 
-        source_id = row.get("source_id", instance_id)
-        if not isinstance(source_id, str) or not source_id:
-            source_id = instance_id
-
         return {
             "group": group_name,
             "instance": instance_id,
             "layer": layer,
-            "source_id": source_id,
+            "source_id": source_id if isinstance(source_id, str) and source_id else instance_id,
             "class_ref": class_ref,
             "object_ref": object_ref,
             "status": row.get("status", "pending"),
@@ -1119,13 +1193,13 @@ class InstanceRowsCompiler(CompilerPlugin):
             "extensions": self._extract_extensions(row),
         }
 
-    def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
-        diagnostics: list[PluginDiagnostic] = []
-
-        owner = ctx.config.get("compilation_owner_instance_rows")
-        if owner is not None and owner != "plugin":
-            return self.make_result(diagnostics, output_data={"normalized_rows": []})
-
+    def _build_resolved_rows(
+        self,
+        *,
+        ctx: PluginContext,
+        stage: Stage,
+        diagnostics: list[PluginDiagnostic],
+    ) -> list[dict[str, Any]]:
         bindings_root = ctx.instance_bindings.get("instance_bindings")
         if not isinstance(bindings_root, dict):
             diagnostics.append(
@@ -1137,11 +1211,9 @@ class InstanceRowsCompiler(CompilerPlugin):
                     path="instance_bindings",
                 )
             )
-            rows: list[dict[str, Any]] = []
-            ctx.publish("normalized_rows", rows)
-            return self.make_result(diagnostics, output_data={"normalized_rows": rows})
+            return []
 
-        rows = []
+        rows: list[dict[str, Any]] = []
         seen_instances: set[str] = set()
         mode = self._resolve_secrets_mode(ctx)
         require_unlock = self._resolve_require_unlock(ctx)
@@ -1181,7 +1253,7 @@ class InstanceRowsCompiler(CompilerPlugin):
                     )
                     continue
 
-                normalized_row = self._process_binding_row(
+                normalized_row = self._resolve_binding_row(
                     row=row,
                     group_name=group_name,
                     row_index=idx,
@@ -1200,6 +1272,86 @@ class InstanceRowsCompiler(CompilerPlugin):
                 if normalized_row is None:
                     continue
                 rows.append(normalized_row)
+
+        return rows
+
+    def _build_prepared_rows(
+        self,
+        *,
+        ctx: PluginContext,
+        stage: Stage,
+        diagnostics: list[PluginDiagnostic],
+        resolved_rows: list[dict[str, Any]] | None = None,
+    ) -> list[dict[str, Any]]:
+        source_rows = resolved_rows if resolved_rows is not None else self._build_resolved_rows(
+            ctx=ctx,
+            stage=stage,
+            diagnostics=diagnostics,
+        )
+
+        prepared_rows: list[dict[str, Any]] = []
+        for resolved_row in source_rows:
+            if not isinstance(resolved_row, dict):
+                continue
+            prepared_row = self._prepare_resolved_row(
+                resolved_row=resolved_row,
+                ctx=ctx,
+                stage=stage,
+                diagnostics=diagnostics,
+            )
+            if prepared_row is None:
+                continue
+            prepared_rows.append(prepared_row)
+        return prepared_rows
+
+    def _build_validated_rows(
+        self,
+        *,
+        ctx: PluginContext,
+        stage: Stage,
+        diagnostics: list[PluginDiagnostic],
+        prepared_rows: list[dict[str, Any]] | None = None,
+    ) -> list[dict[str, Any]]:
+        source_rows = prepared_rows if prepared_rows is not None else self._build_prepared_rows(
+            ctx=ctx,
+            stage=stage,
+            diagnostics=diagnostics,
+        )
+
+        validated_rows: list[dict[str, Any]] = []
+        for prepared_row in source_rows:
+            if not isinstance(prepared_row, dict):
+                continue
+            validated_row = self._validate_prepared_row_shape(
+                prepared_row=prepared_row,
+                stage=stage,
+                diagnostics=diagnostics,
+            )
+            if validated_row is None:
+                continue
+            validated_rows.append(validated_row)
+        return validated_rows
+
+    def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        diagnostics: list[PluginDiagnostic] = []
+
+        owner = ctx.config.get("compilation_owner_instance_rows")
+        if owner is not None and owner != "plugin":
+            return self.make_result(diagnostics, output_data={"normalized_rows": []})
+
+        validated_rows: list[dict[str, Any]] | None = None
+        try:
+            subscribed_validated_rows = ctx.subscribe(self._VALIDATED_ROWS_PLUGIN_ID, "validated_rows")
+            if isinstance(subscribed_validated_rows, list):
+                validated_rows = [row for row in subscribed_validated_rows if isinstance(row, dict)]
+        except PluginDataExchangeError:
+            validated_rows = None
+
+        rows = validated_rows if validated_rows is not None else self._build_validated_rows(
+            ctx=ctx,
+            stage=stage,
+            diagnostics=diagnostics,
+        )
 
         ctx.publish("normalized_rows", rows)
         return self.make_result(diagnostics, output_data={"normalized_rows": rows})
