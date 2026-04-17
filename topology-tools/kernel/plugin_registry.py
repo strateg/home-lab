@@ -50,7 +50,9 @@ from .plugin_base import (
     Phase,
     PluginBase,
     PluginContext,
+    PluginDataExchangeError,
     PluginDiagnostic,
+    PluginExecutionEnvelope,
     PluginInputSnapshot,
     PluginExecutionScope,
     PluginKind,
@@ -59,6 +61,7 @@ from .plugin_base import (
     Stage,
 )
 from .pipeline_runtime import PipelineState
+from .plugin_runner import run_plugin_once
 
 # Kernel version and compatibility matrix
 KERNEL_VERSION = "0.5.0"
@@ -115,30 +118,24 @@ ENTRY_FAMILIES: set[str] = set(KIND_ENTRY_FAMILY.values())
 
 
 def _execute_plugin_isolated(
-    serialized_ctx_dict: dict[str, Any],
-    plugin_id: str,
-    stage_value: str,
-    phase_value: str,
+    snapshot_dict: dict[str, Any],
     base_path_str: str,
     serialized_spec_dict: dict[str, Any],
-) -> tuple[PluginResult, dict[str, dict[str, Any]]]:
+) -> PluginExecutionEnvelope:
     """Execute plugin in isolated subinterpreter (ADR 0097).
 
     This function is submitted to InterpreterPoolExecutor for execution in a separate
     Python subinterpreter. It reconstructs the minimal runtime environment needed for
-    plugin execution.
+    snapshot-backed plugin execution and returns a proposal envelope to the main
+    interpreter for validation and commit.
 
     Args:
-        serialized_ctx_dict: SerializablePluginContext as dict (for pickling)
-        plugin_id: Plugin identifier
-        stage_value: Stage enum value (as string)
-        phase_value: Phase enum value (as string)
+        snapshot_dict: PluginInputSnapshot as dict (for pickling)
         base_path_str: Base path for plugin loading (as string)
         serialized_spec_dict: SerializablePluginSpec as dict (minimal fields only)
 
     Returns:
-        Tuple of (PluginResult, published_data dict) from plugin execution.
-        The published_data dict contains data published by this plugin.
+        PluginExecutionEnvelope from isolated worker execution.
 
     Note:
         This function runs in an isolated interpreter with no shared state from the
@@ -154,21 +151,16 @@ def _execute_plugin_isolated(
 
     # Import kernel modules in isolated interpreter
     from kernel.plugin_base import (
-        Phase,
-        PluginResult,
-        SerializablePluginContext,
-        Stage,
+        PluginExecutionEnvelope,
+        PluginInputSnapshot,
     )
     from kernel.plugin_registry import PluginRegistry, SerializablePluginSpec
-
-    # Reconstruct SerializablePluginContext from dict
-    serialized_ctx = SerializablePluginContext(**serialized_ctx_dict)
-
-    # Deserialize to PluginContext
-    ctx = serialized_ctx.to_plugin_context()
+    from kernel.plugin_runner import run_plugin_once
 
     # Reconstruct minimal PluginSpec from SerializablePluginSpec
     serialized_spec = SerializablePluginSpec.from_dict(serialized_spec_dict)
+    snapshot = PluginInputSnapshot(**snapshot_dict)
+    plugin_id = snapshot.plugin_id
 
     # Create minimal registry in this interpreter with stub PluginSpec
     registry = PluginRegistry(base_path)
@@ -180,7 +172,7 @@ def _execute_plugin_isolated(
         kind=PluginKind(serialized_spec.kind),
         entry=serialized_spec.entry,
         api_version=serialized_spec.api_version,
-        stages=[Stage(stage_value)],  # Only current stage needed
+        stages=[snapshot.stage],  # Only current stage needed
         order=0,  # Not used in execution
         depends_on=serialized_spec.depends_on,
         config=serialized_spec.config,
@@ -193,37 +185,16 @@ def _execute_plugin_isolated(
     # Load and execute plugin
     try:
         plugin = registry.load_plugin(plugin_id)
-        stage = Stage(stage_value)
-        phase = Phase(phase_value)
-
-        # Set up execution scope (required for publish/subscribe)
-        from kernel.plugin_base import PluginExecutionScope
-
-        scope = PluginExecutionScope(
-            plugin_id=plugin_id,
-            allowed_dependencies=frozenset(serialized_spec.depends_on),
-            phase=phase,
-            config=serialized_spec.config.copy(),
-            stage=stage,
-        )
-        scope_token = ctx._set_execution_scope(scope)
-        try:
-            result = plugin.execute_phase(ctx, stage, phase)
-        finally:
-            ctx._clear_execution_scope(scope_token)
-
-        # ADR 0097: Return published data for cross-interpreter transfer
-        published_data = ctx._published_data.copy()
-        return (result, published_data)
+        return run_plugin_once(snapshot=snapshot, plugin=plugin)
     except Exception as e:
         # Return failed result with traceback
         import traceback
 
-        from kernel.plugin_base import PluginDiagnostic, PluginStatus
+        from kernel.plugin_base import PluginDiagnostic, PluginResult, PluginStatus
 
         tb = traceback.format_exc()
-        return (
-            PluginResult(
+        return PluginExecutionEnvelope(
+            result=PluginResult(
                 plugin_id=plugin_id,
                 api_version=serialized_spec.api_version,
                 status=PluginStatus.FAILED,
@@ -231,16 +202,15 @@ def _execute_plugin_isolated(
                     PluginDiagnostic(
                         code="E4102",
                         severity="error",
-                        stage=stage_value,
-                        phase=phase_value,
+                        stage=snapshot.stage.value,
+                        phase=snapshot.phase.value,
                         message=f"Plugin crashed in isolated interpreter: {e}",
                         path="kernel.subinterpreter",
                         plugin_id="kernel",
                     )
                 ],
                 error_traceback=tb,
-            ),
-            {},  # Empty published data on error
+            )
         )
 
 
@@ -815,6 +785,279 @@ class PluginRegistry:
             allowed_dependencies=frozenset(spec.depends_on),
             produced_key_scopes=produced_key_scopes,
         )
+
+    def _ensure_pipeline_state(self, ctx: PluginContext) -> PipelineState:
+        """Return main-interpreter pipeline state for the current execution context."""
+        pipeline_state = getattr(ctx, "_pipeline_state", None)
+        if isinstance(pipeline_state, PipelineState):
+            return pipeline_state
+
+        pipeline_state = PipelineState(
+            committed_data=ctx.get_published_data(),
+            published_meta=ctx._published_meta.copy(),
+        )
+        setattr(ctx, "_pipeline_state", pipeline_state)
+        return pipeline_state
+
+    def _mirror_context_into_pipeline_state(self, ctx: PluginContext, pipeline_state: PipelineState) -> None:
+        """Refresh scheduler-owned state from legacy context mutations."""
+        pipeline_state.committed_data = ctx.get_published_data()
+        pipeline_state.published_meta = ctx._published_meta.copy()
+
+    def _sync_pipeline_state_to_context(self, ctx: PluginContext, pipeline_state: PipelineState) -> None:
+        """Expose committed pipeline state through legacy context accessors."""
+        ctx._published_data = {
+            plugin_id: payload.copy() for plugin_id, payload in pipeline_state.committed_data.items()
+        }
+        ctx._published_meta = pipeline_state.published_meta.copy()
+        setattr(ctx, "_pipeline_state", pipeline_state)
+
+    def _validate_required_consumes_snapshot(
+        self,
+        *,
+        spec: PluginSpec,
+        snapshot: PluginInputSnapshot,
+        stage: Stage,
+        phase: Phase,
+    ) -> list[PluginDiagnostic]:
+        diagnostics: list[PluginDiagnostic] = []
+        consume_schema_refs = self._schema_ref_by_consumed_key(spec)
+
+        for consume_entry in spec.consumes:
+            if not isinstance(consume_entry, dict):
+                continue
+            from_plugin = consume_entry.get("from_plugin")
+            key = consume_entry.get("key")
+            required = consume_entry.get("required", True)
+            if not isinstance(from_plugin, str) or not from_plugin or not isinstance(key, str) or not key:
+                continue
+
+            subscription = snapshot.subscriptions.get((from_plugin, key))
+            if subscription is None:
+                if required is False:
+                    continue
+                diagnostics.append(
+                    PluginDiagnostic(
+                        code="E8003",
+                        severity="error",
+                        stage=stage.value,
+                        phase=phase.value,
+                        message=(
+                            f"Plugin '{spec.id}' requires payload '{from_plugin}.{key}', "
+                            "but it is not available in committed pipeline state."
+                        ),
+                        path=f"plugin:{spec.id}:consumes.{from_plugin}.{key}",
+                        plugin_id="kernel",
+                    )
+                )
+                continue
+
+            schema_ref = consume_schema_refs.get((from_plugin, key))
+            if schema_ref is None:
+                continue
+
+            probe_result = PluginResult.success(spec.id, spec.api_version)
+            self._validate_schema_ref_payload(
+                result=probe_result,
+                stage=stage,
+                phase=phase,
+                spec=spec,
+                payload=subscription.value,
+                schema_ref=schema_ref,
+                path_suffix=f"consumes.{from_plugin}.{key}",
+            )
+            diagnostics.extend(probe_result.diagnostics)
+
+        return diagnostics
+
+    def _validate_envelope_for_commit(
+        self,
+        *,
+        spec: PluginSpec,
+        stage: Stage,
+        phase: Phase,
+        envelope: PluginExecutionEnvelope,
+        emit_warnings: bool,
+        undeclared_as_errors: bool,
+    ) -> list[PluginDiagnostic]:
+        diagnostics: list[PluginDiagnostic] = []
+        declared_produces = {key for key in self._declared_produced_scopes(spec)}
+        published_keys = sorted({message.key for message in envelope.published_messages})
+        warning_severity = "error" if undeclared_as_errors else "warning"
+        warning_code = "E8004" if undeclared_as_errors else "W8001"
+        warning_code_undeclared = "E8005" if undeclared_as_errors else "W8002"
+
+        if published_keys and (emit_warnings or undeclared_as_errors):
+            if not declared_produces:
+                diagnostics.append(
+                    PluginDiagnostic(
+                        code=warning_code,
+                        severity=warning_severity,
+                        stage=stage.value,
+                        phase=phase.value,
+                        message=(
+                            f"Plugin '{spec.id}' published keys {published_keys} "
+                            "without manifest produces declaration."
+                        ),
+                        path=f"plugin:{spec.id}",
+                        plugin_id="kernel",
+                    )
+                )
+            else:
+                undeclared_publish = sorted(key for key in published_keys if key not in declared_produces)
+                if undeclared_publish:
+                    diagnostics.append(
+                        PluginDiagnostic(
+                            code=warning_code_undeclared,
+                            severity=warning_severity,
+                            stage=stage.value,
+                            phase=phase.value,
+                            message=(
+                                f"Plugin '{spec.id}' published undeclared keys {undeclared_publish}. "
+                                "Declare them under produces[]."
+                            ),
+                            path=f"plugin:{spec.id}",
+                            plugin_id="kernel",
+                        )
+                    )
+
+        produce_schema_refs = self._schema_ref_by_produced_key(spec)
+        for message in envelope.published_messages:
+            schema_ref = produce_schema_refs.get(message.key)
+            if schema_ref is None:
+                continue
+            probe_result = PluginResult.success(spec.id, spec.api_version)
+            self._validate_schema_ref_payload(
+                result=probe_result,
+                stage=stage,
+                phase=phase,
+                spec=spec,
+                payload=message.value,
+                schema_ref=schema_ref,
+                path_suffix=f"produces.{message.key}",
+            )
+            diagnostics.extend(probe_result.diagnostics)
+
+        return diagnostics
+
+    def _failed_result_with_diagnostics(
+        self,
+        *,
+        spec: PluginSpec,
+        stage: Stage,
+        phase: Phase,
+        diagnostics: list[PluginDiagnostic],
+    ) -> PluginResult:
+        return PluginResult.failed(
+            plugin_id=spec.id,
+            api_version=spec.api_version,
+            diagnostics=diagnostics,
+        )
+
+    def _execute_plugin_envelope_local(
+        self,
+        *,
+        plugin_id: str,
+        spec: PluginSpec,
+        stage: Stage,
+        phase: Phase,
+        snapshot: PluginInputSnapshot,
+        timeout: float,
+    ) -> PluginExecutionEnvelope:
+        """Run one snapshot-compatible plugin in-process with timeout handling."""
+        plugin = self.load_plugin(plugin_id)
+        start_time = time.perf_counter()
+        timed_out = False
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        try:
+            future = executor.submit(run_plugin_once, snapshot=snapshot, plugin=plugin)
+            try:
+                envelope = future.result(timeout=timeout)
+                envelope.result.duration_ms = (time.perf_counter() - start_time) * 1000
+                return envelope
+            except concurrent.futures.TimeoutError:
+                timed_out = True
+                future.cancel()
+                duration_ms = (time.perf_counter() - start_time) * 1000
+                result = PluginResult.timeout(
+                    plugin_id=plugin_id,
+                    api_version=spec.api_version,
+                    duration_ms=duration_ms,
+                )
+                result.diagnostics.append(
+                    PluginDiagnostic(
+                        code="E4102",
+                        severity="error",
+                        stage=stage.value,
+                        phase=phase.value,
+                        message=f"Plugin exceeded timeout of {timeout}s",
+                        path="kernel",
+                        plugin_id="kernel",
+                    )
+                )
+                return PluginExecutionEnvelope(result=result)
+        finally:
+            executor.shutdown(wait=not timed_out, cancel_futures=True)
+
+    @staticmethod
+    def _is_cross_interpreter_shareability_error(exc: Exception) -> bool:
+        message = str(exc)
+        return "NotShareableError" in message or "does not support cross-interpreter data" in message
+
+    def _commit_envelope_result(
+        self,
+        *,
+        ctx: PluginContext,
+        pipeline_state: PipelineState,
+        spec: PluginSpec,
+        stage: Stage,
+        phase: Phase,
+        envelope: PluginExecutionEnvelope,
+        contract_warnings: bool,
+        contract_errors: bool,
+    ) -> PluginResult:
+        """Validate and commit an execution envelope through main-interpreter state."""
+        result = envelope.result
+        validation_diags = self._validate_envelope_for_commit(
+            spec=spec,
+            stage=stage,
+            phase=phase,
+            envelope=envelope,
+            emit_warnings=contract_warnings,
+            undeclared_as_errors=contract_errors,
+        )
+        if validation_diags:
+            result.diagnostics.extend(validation_diags)
+            self._apply_result_status_from_diagnostics(result)
+
+        if result.status not in {PluginStatus.SUCCESS, PluginStatus.PARTIAL}:
+            return result
+
+        try:
+            pipeline_state.commit_envelope(
+                plugin_id=spec.id,
+                stage=stage,
+                phase=phase,
+                produces=spec.produces,
+                envelope=envelope,
+            )
+        except PluginDataExchangeError as exc:
+            result.diagnostics.append(
+                PluginDiagnostic(
+                    code="E8005",
+                    severity="error",
+                    stage=stage.value,
+                    phase=phase.value,
+                    message=str(exc),
+                    path=f"plugin:{spec.id}",
+                    plugin_id="kernel",
+                )
+            )
+            self._apply_result_status_from_diagnostics(result)
+            return result
+
+        self._sync_pipeline_state_to_context(ctx, pipeline_state)
+        return result
 
     @staticmethod
     def _apply_result_status_from_diagnostics(result: PluginResult) -> None:
@@ -1391,6 +1634,7 @@ class PluginRegistry:
         if not plugin_ids:
             return []
 
+        pipeline_state = self._ensure_pipeline_state(ctx)
         plugin_set = set(plugin_ids)
         indegree: dict[str, int] = {plugin_id: 0 for plugin_id in plugin_ids}
         dependents: dict[str, list[str]] = {plugin_id: [] for plugin_id in plugin_ids}
@@ -1460,44 +1704,15 @@ class PluginRegistry:
                 if not wavefront:
                     break  # No more valid plugins to execute
 
-                futures: dict[concurrent.futures.Future[PluginResult], str] = {}
+                futures: dict[concurrent.futures.Future[PluginExecutionEnvelope], str] = {}
+                snapshots_by_plugin: dict[str, PluginInputSnapshot] = {}
                 for plugin_id in wavefront:
                     if trace_execution:
                         self._trace_event(event="plugin_start", stage=stage, phase=phase, plugin_id=plugin_id)
 
-                    # ADR 0097: Use different execution paths based on Python version
-                    if HAS_REAL_SUBINTERPRETERS:
-                        # Python 3.14+: Use isolated subinterpreter execution
-                        spec = self.specs[plugin_id]
-                        from kernel.plugin_base import SerializablePluginContext
-
-                        serialized_ctx = SerializablePluginContext.from_plugin_context(ctx)
-                        serialized_ctx_dict = {
-                            "topology_path": serialized_ctx.topology_path,
-                            "profile": serialized_ctx.profile,
-                            "model_lock": serialized_ctx.model_lock,
-                            "compiled_json_bytes": serialized_ctx.compiled_json_bytes,
-                            "plugin_config_bytes": serialized_ctx.plugin_config_bytes,
-                            "output_dir": serialized_ctx.output_dir,
-                            "capability_catalog": serialized_ctx.capability_catalog,
-                            "changed_input_scopes": serialized_ctx.changed_input_scopes,
-                            "published_data_bytes": serialized_ctx.published_data_bytes,
-                        }
-                        # ADR 0097: Use minimal SerializablePluginSpec (~60% smaller)
-                        serialized_spec = SerializablePluginSpec.from_plugin_spec(spec)
-                        future = executor.submit(
-                            _execute_plugin_isolated,
-                            serialized_ctx_dict,
-                            plugin_id,
-                            stage.value,
-                            phase.value,
-                            str(self.base_path),
-                            serialized_spec.to_dict(),
-                        )
-                    else:
-                        # Python < 3.14: Use ThreadPoolExecutor with shared memory
-                        future = executor.submit(
-                            self.execute_plugin,
+                    spec = self.specs[plugin_id]
+                    if not spec.subinterpreter_compatible:
+                        result = self.execute_plugin(
                             plugin_id,
                             ctx,
                             stage,
@@ -1507,25 +1722,118 @@ class PluginRegistry:
                             contract_warnings=contract_warnings,
                             contract_errors=contract_errors,
                         )
+                        results_by_plugin[plugin_id] = result
+                        self._mirror_context_into_pipeline_state(ctx, pipeline_state)
+                        if trace_execution:
+                            self._trace_event(
+                                event="plugin_result",
+                                stage=stage,
+                                phase=phase,
+                                plugin_id=plugin_id,
+                                status=result.status,
+                                message="legacy compatibility path",
+                            )
+                        continue
+
+                    try:
+                        snapshot = self._build_input_snapshot(
+                            plugin_id=plugin_id,
+                            stage=stage,
+                            phase=phase,
+                            ctx=ctx,
+                            pipeline_state=pipeline_state,
+                        )
+                    except PluginDataExchangeError as exc:
+                        failed = PluginResult.failed(
+                            plugin_id=plugin_id,
+                            api_version=spec.api_version,
+                            diagnostics=[
+                                PluginDiagnostic(
+                                    code="E8003",
+                                    severity="error",
+                                    stage=stage.value,
+                                    phase=phase.value,
+                                    message=str(exc),
+                                    path=f"plugin:{plugin_id}:snapshot",
+                                    plugin_id="kernel",
+                                )
+                            ],
+                        )
+                        results_by_plugin[plugin_id] = failed
+                        if trace_execution:
+                            self._trace_event(
+                                event="plugin_result",
+                                stage=stage,
+                                phase=phase,
+                                plugin_id=plugin_id,
+                                status=failed.status,
+                                message="snapshot-build failed",
+                            )
+                        continue
+
+                    required_consume_diags = self._validate_required_consumes_snapshot(
+                        spec=spec,
+                        snapshot=snapshot,
+                        stage=stage,
+                        phase=phase,
+                    )
+                    if required_consume_diags:
+                        failed = self._failed_result_with_diagnostics(
+                            spec=spec,
+                            stage=stage,
+                            phase=phase,
+                            diagnostics=required_consume_diags,
+                        )
+                        results_by_plugin[plugin_id] = failed
+                        if trace_execution:
+                            self._trace_event(
+                                event="plugin_result",
+                                stage=stage,
+                                phase=phase,
+                                plugin_id=plugin_id,
+                                status=failed.status,
+                                message="snapshot preflight failed",
+                            )
+                        continue
+
+                    if HAS_REAL_SUBINTERPRETERS:
+                        snapshots_by_plugin[plugin_id] = snapshot
+                        serialized_spec = SerializablePluginSpec.from_plugin_spec(spec)
+                        future = executor.submit(
+                            _execute_plugin_isolated,
+                            snapshot.__dict__,
+                            str(self.base_path),
+                            serialized_spec.to_dict(),
+                        )
+                    else:
+                        future = executor.submit(
+                            self._execute_plugin_envelope_local,
+                            plugin_id=plugin_id,
+                            spec=spec,
+                            stage=stage,
+                            phase=phase,
+                            snapshot=snapshot,
+                            timeout=spec.timeout,
+                        )
                     futures[future] = plugin_id
 
-                # ADR 0097 Wave 5: Collect results and merge published data
-                wavefront_published_data: dict[str, dict[str, Any]] = {}
                 for future in concurrent.futures.as_completed(futures):
                     plugin_id = futures[future]
                     spec = self.specs.get(plugin_id)
                     if spec is None:
                         continue
                     try:
-                        future_result = future.result()
-                        # Handle tuple return from subinterpreter execution
-                        if HAS_REAL_SUBINTERPRETERS and isinstance(future_result, tuple):
-                            result, published_data = future_result
-                            # Merge published data from this plugin
-                            for pub_plugin_id, pub_data in published_data.items():
-                                wavefront_published_data[pub_plugin_id] = pub_data
-                        else:
-                            result = future_result
+                        envelope = future.result(timeout=spec.timeout if HAS_REAL_SUBINTERPRETERS else None)
+                        result = self._commit_envelope_result(
+                            ctx=ctx,
+                            pipeline_state=pipeline_state,
+                            spec=spec,
+                            stage=stage,
+                            phase=phase,
+                            envelope=envelope,
+                            contract_warnings=contract_warnings,
+                            contract_errors=contract_errors,
+                        )
                         results_by_plugin[plugin_id] = result
                         if trace_execution:
                             self._trace_event(
@@ -1536,6 +1844,37 @@ class PluginRegistry:
                                 status=result.status,
                             )
                     except Exception as exc:
+                        snapshot = snapshots_by_plugin.get(plugin_id)
+                        if snapshot is not None and self._is_cross_interpreter_shareability_error(exc):
+                            envelope = self._execute_plugin_envelope_local(
+                                plugin_id=plugin_id,
+                                spec=spec,
+                                stage=stage,
+                                phase=phase,
+                                snapshot=snapshot,
+                                timeout=spec.timeout,
+                            )
+                            result = self._commit_envelope_result(
+                                ctx=ctx,
+                                pipeline_state=pipeline_state,
+                                spec=spec,
+                                stage=stage,
+                                phase=phase,
+                                envelope=envelope,
+                                contract_warnings=contract_warnings,
+                                contract_errors=contract_errors,
+                            )
+                            results_by_plugin[plugin_id] = result
+                            if trace_execution:
+                                self._trace_event(
+                                    event="plugin_result",
+                                    stage=stage,
+                                    phase=phase,
+                                    plugin_id=plugin_id,
+                                    status=result.status,
+                                    message="fallback to local envelope path",
+                                )
+                            continue
                         failed = PluginResult.failed(
                             plugin_id=plugin_id,
                             api_version=spec.api_version,
@@ -1562,11 +1901,6 @@ class PluginRegistry:
                                 status=failed.status,
                                 message=str(exc),
                             )
-
-                # ADR 0097 Wave 5: Merge wavefront published data into main context
-                if HAS_REAL_SUBINTERPRETERS and wavefront_published_data:
-                    for pub_plugin_id, pub_data in wavefront_published_data.items():
-                        ctx._published_data[pub_plugin_id] = pub_data
 
                 for plugin_id in sorted(wavefront, key=self._plugin_sort_key):
                     if plugin_id not in results_by_plugin:
@@ -1901,6 +2235,7 @@ class PluginRegistry:
 
         invalidated_stage_local: list[str] = []
         try:
+            pipeline_state = self._ensure_pipeline_state(ctx)
             stage_failure_context: list[dict[str, Any]] = []
             ctx.config["stage_failure_context"] = stage_failure_context
 
@@ -2137,14 +2472,75 @@ class PluginRegistry:
                 for plugin_id in phase_active_plugin_ids:
                     if trace_execution:
                         self._trace_event(event="plugin_start", stage=stage, phase=phase, plugin_id=plugin_id)
-                    result = self.execute_plugin(
-                        plugin_id,
-                        ctx,
-                        stage,
-                        phase=phase,
-                        contract_warnings=contract_warnings,
-                        contract_errors=contract_errors,
-                    )
+                    spec = self.specs[plugin_id]
+                    if spec.subinterpreter_compatible:
+                        try:
+                            snapshot = self._build_input_snapshot(
+                                plugin_id=plugin_id,
+                                stage=stage,
+                                phase=phase,
+                                ctx=ctx,
+                                pipeline_state=pipeline_state,
+                            )
+                        except PluginDataExchangeError as exc:
+                            result = PluginResult.failed(
+                                plugin_id=plugin_id,
+                                api_version=spec.api_version,
+                                diagnostics=[
+                                    PluginDiagnostic(
+                                        code="E8003",
+                                        severity="error",
+                                        stage=stage.value,
+                                        phase=phase.value,
+                                        message=str(exc),
+                                        path=f"plugin:{plugin_id}:snapshot",
+                                        plugin_id="kernel",
+                                    )
+                                ],
+                            )
+                        else:
+                            required_consume_diags = self._validate_required_consumes_snapshot(
+                                spec=spec,
+                                snapshot=snapshot,
+                                stage=stage,
+                                phase=phase,
+                            )
+                            if required_consume_diags:
+                                result = self._failed_result_with_diagnostics(
+                                    spec=spec,
+                                    stage=stage,
+                                    phase=phase,
+                                    diagnostics=required_consume_diags,
+                                )
+                            else:
+                                envelope = self._execute_plugin_envelope_local(
+                                    plugin_id=plugin_id,
+                                    spec=spec,
+                                    stage=stage,
+                                    phase=phase,
+                                    snapshot=snapshot,
+                                    timeout=spec.timeout,
+                                )
+                                result = self._commit_envelope_result(
+                                    ctx=ctx,
+                                    pipeline_state=pipeline_state,
+                                    spec=spec,
+                                    stage=stage,
+                                    phase=phase,
+                                    envelope=envelope,
+                                    contract_warnings=contract_warnings,
+                                    contract_errors=contract_errors,
+                                )
+                    else:
+                        result = self.execute_plugin(
+                            plugin_id,
+                            ctx,
+                            stage,
+                            phase=phase,
+                            contract_warnings=contract_warnings,
+                            contract_errors=contract_errors,
+                        )
+                        self._mirror_context_into_pipeline_state(ctx, pipeline_state)
                     results.append(result)
                     _record_stage_failure(result, phase=phase)
                     if trace_execution:
@@ -2166,7 +2562,12 @@ class PluginRegistry:
 
             return results
         finally:
-            invalidated_stage_local = ctx.invalidate_stage_local_data(stage)
+            pipeline_state = getattr(ctx, "_pipeline_state", None)
+            if isinstance(pipeline_state, PipelineState):
+                invalidated_stage_local = pipeline_state.invalidate_stage_local_data(stage)
+                self._sync_pipeline_state_to_context(ctx, pipeline_state)
+            else:
+                invalidated_stage_local = ctx.invalidate_stage_local_data(stage)
             if trace_execution:
                 suffix = f"invalidated_stage_local={len(invalidated_stage_local)}"
                 self._trace_event(event="stage_end", stage=stage, message=suffix)

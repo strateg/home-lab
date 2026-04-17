@@ -1334,6 +1334,156 @@ def test_execute_stage_parallel_respects_depends_on(tmp_path: Path):
     assert all(result.status == PluginStatus.SUCCESS for result in results)
 
 
+def test_execute_stage_serial_compatible_plugins_commit_via_pipeline_state(tmp_path: Path):
+    """Compatible plugins should execute via snapshot/envelope path even without parallel mode."""
+    _write_module(
+        tmp_path / "envelope_plugins.py",
+        "\n".join(
+            [
+                "from kernel import PluginResult, ValidatorJsonPlugin",
+                "",
+                "class ProducerPlugin(ValidatorJsonPlugin):",
+                "    def execute(self, ctx, stage):",
+                "        ctx.publish('ready', {'value': 'ok'})",
+                "        return PluginResult.success(self.plugin_id, self.api_version)",
+                "",
+                "class ConsumerPlugin(ValidatorJsonPlugin):",
+                "    def execute(self, ctx, stage):",
+                "        payload = ctx.subscribe('envelope.validator_json.producer', 'ready')",
+                "        assert payload['value'] == 'ok'",
+                "        ctx.publish('seen', {'source': payload['value']})",
+                "        return PluginResult.success(self.plugin_id, self.api_version)",
+            ]
+        ),
+    )
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "envelope.validator_json.producer",
+                "kind": "validator_json",
+                "entry": "envelope_plugins.py:ProducerPlugin",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "phase": "run",
+                "order": 100,
+                "subinterpreter_compatible": True,
+                "produces": [{"key": "ready", "scope": "pipeline_shared"}],
+            },
+            {
+                "id": "envelope.validator_json.consumer",
+                "kind": "validator_json",
+                "entry": "envelope_plugins.py:ConsumerPlugin",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "phase": "run",
+                "order": 120,
+                "depends_on": ["envelope.validator_json.producer"],
+                "subinterpreter_compatible": True,
+                "consumes": [{"from_plugin": "envelope.validator_json.producer", "key": "ready"}],
+                "produces": [{"key": "seen", "scope": "pipeline_shared"}],
+            },
+        ],
+    }
+    _write_manifest(manifest, payload)
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = PluginContext(
+        topology_path="test",
+        profile="test",
+        model_lock={},
+        classes={},
+        objects={},
+        instance_bindings={"instance_bindings": {}},
+    )
+
+    results = registry.execute_stage(Stage.VALIDATE, ctx, parallel_plugins=False)
+
+    assert [result.plugin_id for result in results] == [
+        "envelope.validator_json.producer",
+        "envelope.validator_json.consumer",
+    ]
+    assert all(result.status == PluginStatus.SUCCESS for result in results)
+    published = ctx.get_published_data()
+    assert published["envelope.validator_json.producer"]["ready"] == {"value": "ok"}
+    assert published["envelope.validator_json.consumer"]["seen"] == {"source": "ok"}
+
+
+def test_execute_stage_parallel_compatible_plugin_crash_does_not_commit_partial_publish(tmp_path: Path):
+    """Failed compatible worker must not leak local outbox content into committed state."""
+    _write_module(
+        tmp_path / "envelope_crash_plugins.py",
+        "\n".join(
+            [
+                "from kernel import PluginResult, ValidatorJsonPlugin",
+                "",
+                "class CrashAfterPublishPlugin(ValidatorJsonPlugin):",
+                "    def execute(self, ctx, stage):",
+                "        ctx.publish('ready', {'value': 'leak'})",
+                "        raise RuntimeError('boom')",
+                "",
+                "class ConsumerPlugin(ValidatorJsonPlugin):",
+                "    def execute(self, ctx, stage):",
+                "        ctx.subscribe('envelope.validator_json.crash', 'ready')",
+                "        return PluginResult.success(self.plugin_id, self.api_version)",
+            ]
+        ),
+    )
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "envelope.validator_json.crash",
+                "kind": "validator_json",
+                "entry": "envelope_crash_plugins.py:CrashAfterPublishPlugin",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "phase": "run",
+                "order": 100,
+                "subinterpreter_compatible": True,
+                "produces": [{"key": "ready", "scope": "pipeline_shared"}],
+            },
+            {
+                "id": "envelope.validator_json.consumer",
+                "kind": "validator_json",
+                "entry": "envelope_crash_plugins.py:ConsumerPlugin",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "phase": "run",
+                "order": 120,
+                "depends_on": ["envelope.validator_json.crash"],
+                "subinterpreter_compatible": True,
+                "consumes": [{"from_plugin": "envelope.validator_json.crash", "key": "ready"}],
+            },
+        ],
+    }
+    _write_manifest(manifest, payload)
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = PluginContext(
+        topology_path="test",
+        profile="test",
+        model_lock={},
+        classes={},
+        objects={},
+        instance_bindings={"instance_bindings": {}},
+    )
+
+    results = registry.execute_stage(Stage.VALIDATE, ctx, parallel_plugins=True)
+
+    assert [result.plugin_id for result in results] == [
+        "envelope.validator_json.crash",
+        "envelope.validator_json.consumer",
+    ]
+    by_plugin = {result.plugin_id: result for result in results}
+    assert by_plugin["envelope.validator_json.crash"].status == PluginStatus.FAILED
+    assert by_plugin["envelope.validator_json.consumer"].status == PluginStatus.FAILED
+    assert ctx.get_published_keys("envelope.validator_json.crash") == []
+
 def test_execute_stage_invalidates_stage_local_outputs(tmp_path: Path):
     """stage_local published keys must be dropped after stage completion."""
     _write_module(
