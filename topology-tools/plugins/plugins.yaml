@@ -790,7 +790,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
     description: Warns when docker/baremetal service runtime targets lack os_refs bindings.
 
   - id: base.validator.network_ip_allocation_host_os_refs
@@ -811,7 +811,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
     description: Validates network ip_allocations host_os_ref/device_ref consistency.
 
   - id: base.validator.network_vlan_zone_consistency
@@ -927,7 +927,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
     description: Validates service runtime target_ref/network_binding_ref contracts.
 
   - id: base.validator.network_runtime_reachability
@@ -1160,7 +1160,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
     description: Validates VM row refs (device/trust-zone/host-os/networks/storage).
 
   - id: base.validator.lxc_refs
@@ -1214,7 +1214,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
     description: Validates LXC row refs (device/trust-zone/host-os/networks/storage).
 
   - id: base.validator.host_os_refs
@@ -1235,7 +1235,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
     description: Validates runtime targets have active host OS bindings when OS inventory exists.
 
   - id: base.validator.host_ref_dag
@@ -1256,7 +1256,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
     description: Validates workload host_ref forms DAG with max depth 2 (ADR 0087 AC-6).
 
   - id: base.validator.docker_refs
@@ -1277,7 +1277,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
     description: Validates Docker container refs and host capabilities (ADR 0087 Phase 1).
 
   - id: base.validator.hypervisor_execution_model
@@ -1298,7 +1298,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
     description: Validates hypervisor execution_model linkage (ADR 0087 Phase 2).
 
   - id: base.validator.vm_hypervisor_compat
@@ -1319,7 +1319,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
     description: Validates VM disk/bus/format compatibility with hypervisor (ADR 0087 Phase 3).
 
   - id: base.validator.volume_format_compat
