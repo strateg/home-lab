@@ -2295,6 +2295,9 @@ def test_runtime_config_takes_precedence():
     ctx._set_execution_context("base.compiler.model_lock_loader", set())
     ctx.publish("model_lock_loaded", False)
     ctx._clear_execution_context()
+    ctx._set_execution_context("base.compiler.instance_rows", set())
+    ctx.publish("normalized_rows", [])
+    ctx._clear_execution_context()
 
     result = registry.execute_plugin("base.validator.model_lock", ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED

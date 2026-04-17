@@ -577,7 +577,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
       - from_plugin: base.compiler.capability_contract_loader
         key: catalog_ids
         required: false
@@ -623,7 +623,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
       - from_plugin: base.compiler.model_lock_loader
         key: lock_payload
         required: false
@@ -685,7 +685,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
     description: Detects duplicate IP reuse across normalized instance rows.
 
   - id: base.validator.single_active_os
@@ -706,7 +706,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
     description: Enforces at most one active OS ref per device row.
 
   - id: base.validator.network_reserved_ranges
@@ -727,7 +727,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
     description: Validates VLAN reserved_ranges ranges, bounds, and overlaps.
 
   - id: base.validator.network_trust_zone_firewall_refs
@@ -748,7 +748,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
     description: Validates trust-zone default firewall policy references.
 
   - id: base.validator.network_firewall_addressability
@@ -769,7 +769,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
     description: Warns when firewall policy refs cannot resolve to static address sets.
 
   - id: base.validator.runtime_target_os_binding

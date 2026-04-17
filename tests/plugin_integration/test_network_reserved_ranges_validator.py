@@ -7,6 +7,8 @@ import copy
 import sys
 from pathlib import Path
 
+import yaml
+
 V5_TOOLS = Path(__file__).resolve().parents[2] / "topology-tools"
 sys.path.insert(0, str(V5_TOOLS))
 
@@ -20,6 +22,17 @@ def _registry() -> PluginRegistry:
     registry = PluginRegistry(V5_TOOLS)
     registry.load_manifest(V5_TOOLS / "plugins" / "plugins.yaml")
     return registry
+
+
+def _write_manifest(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+
+def test_network_reserved_ranges_manifest_requires_normalized_rows() -> None:
+    registry = _registry()
+    normalized_rows = registry.specs[PLUGIN_ID].consumes[0]
+    assert normalized_rows["required"] is True
 
 
 def _objects() -> dict:
@@ -108,7 +121,7 @@ def test_network_reserved_ranges_validator_requires_compiler_rows():
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
-    assert any(diag.code == "E7819" for diag in result.diagnostics)
+    assert any(diag.code == "E8003" for diag in result.diagnostics)
 
 
 def test_network_reserved_ranges_validator_supports_extensions_payload():
@@ -196,3 +209,44 @@ def test_network_reserved_ranges_validator_rejects_non_vlan_legacy_overlap():
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E7820" for diag in result.diagnostics)
+
+
+def test_network_reserved_ranges_execute_stage_requires_committed_normalized_rows(tmp_path: Path) -> None:
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "base.compiler.instance_rows",
+                "kind": "compiler",
+                "entry": f"{(V5_TOOLS / 'plugins/compilers/instance_rows_compiler.py').as_posix()}:InstanceRowsCompiler",
+                "api_version": "1.x",
+                "stages": ["compile"],
+                "phase": "run",
+                "order": 43,
+            },
+            {
+                "id": PLUGIN_ID,
+                "kind": "validator_json",
+                "entry": f"{(V5_TOOLS / 'plugins/validators/network_reserved_ranges_validator.py').as_posix()}:NetworkReservedRangesValidator",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "phase": "run",
+                "order": 118,
+                "depends_on": ["base.compiler.instance_rows"],
+                "consumes": [
+                    {"from_plugin": "base.compiler.instance_rows", "key": "normalized_rows", "required": True}
+                ],
+            },
+        ],
+    }
+    _write_manifest(manifest, payload)
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = _context()
+
+    results = registry.execute_stage(Stage.VALIDATE, ctx, parallel_plugins=False)
+
+    assert len(results) == 1
+    assert results[0].status == PluginStatus.FAILED
+    assert any(diag.code == "E8003" for diag in results[0].diagnostics)
