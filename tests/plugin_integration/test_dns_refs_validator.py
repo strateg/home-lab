@@ -129,7 +129,7 @@ def test_dns_refs_validator_requires_compiler_rows():
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
-    assert any(diag.code == "E7856" for diag in result.diagnostics)
+    assert any(diag.code == "E8003" for diag in result.diagnostics)
 
 
 def test_dns_refs_execute_stage_consumes_committed_rows(tmp_path):
@@ -162,7 +162,7 @@ def test_dns_refs_execute_stage_consumes_committed_rows(tmp_path):
                     "missing_rows_code": "E7856",
                     "missing_rows_message_prefix": "dns_refs",
                 },
-                "consumes": [{"from_plugin": "base.compiler.instance_rows", "key": "normalized_rows", "required": False}],
+                "consumes": [{"from_plugin": "base.compiler.instance_rows", "key": "normalized_rows", "required": True}],
             }
         ],
     }
@@ -178,3 +178,50 @@ def test_dns_refs_execute_stage_consumes_committed_rows(tmp_path):
     assert len(results) == 1
     assert results[0].status == PluginStatus.SUCCESS
     assert results[0].diagnostics == []
+
+
+def test_dns_refs_execute_stage_requires_committed_rows(tmp_path):
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "base.compiler.instance_rows",
+                "kind": "compiler",
+                "entry": f"{(V5_TOOLS / 'plugins/compilers/instance_rows_compiler.py').as_posix()}:InstanceRowsCompiler",
+                "api_version": "1.x",
+                "stages": ["compile"],
+                "phase": "run",
+                "order": 40,
+                "produces": [{"key": "normalized_rows", "scope": "pipeline_shared"}],
+            },
+            {
+                "id": PLUGIN_ID,
+                "kind": "validator_json",
+                "entry": f"{(V5_TOOLS / 'plugins/validators/declarative_reference_validator.py').as_posix()}:DeclarativeReferenceValidator",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "phase": "run",
+                "order": 135,
+                "depends_on": ["base.compiler.instance_rows"],
+                "subinterpreter_compatible": True,
+                "config": {
+                    "enabled_rules": ["dns"],
+                    "missing_rows_code": "E7856",
+                    "missing_rows_message_prefix": "dns_refs",
+                },
+                "consumes": [{"from_plugin": "base.compiler.instance_rows", "key": "normalized_rows", "required": True}],
+            }
+        ],
+    }
+    _write_manifest(manifest, payload)
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = _context()
+
+    results = registry.execute_stage(Stage.VALIDATE, ctx, parallel_plugins=False)
+
+    assert len(results) == 1
+    assert results[0].status == PluginStatus.FAILED
+    assert any(diag.code == "E8003" for diag in results[0].diagnostics)

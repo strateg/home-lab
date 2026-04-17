@@ -1054,7 +1054,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
     description: Validates DNS record refs (device/lxc/service) in service DNS rows.
 
   - id: base.validator.certificate_refs

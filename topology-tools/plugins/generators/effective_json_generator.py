@@ -8,7 +8,6 @@ from pathlib import Path
 from kernel.plugin_base import (
     GeneratorPlugin,
     PluginContext,
-    PluginDataExchangeError,
     PluginDiagnostic,
     PluginResult,
     Stage,
@@ -49,11 +48,8 @@ class EffectiveJsonGenerator(GeneratorPlugin):
             json.dumps(payload, ensure_ascii=True, indent=2, default=str),
             encoding="utf-8",
         )
-        try:
-            ctx.publish("generated_files", [str(output_path)])
-            ctx.publish("effective_json_path", str(output_path))
-        except PluginDataExchangeError:
-            pass
+        ctx.publish("generated_files", [str(output_path)])
+        ctx.publish("effective_json_path", str(output_path))
 
         return self.make_result(
             diagnostics=diagnostics,

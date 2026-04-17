@@ -115,7 +115,7 @@ def test_instance_rows_execute_stage_commits_normalized_rows_authoritatively(tmp
                     "require_unlock": True,
                 },
                 "produces": [{"key": "resolved_rows", "scope": "stage_local"}],
-                "consumes": [{"from_plugin": "base.compiler.instance_rows_secret_resolve", "key": "secret_resolved_rows", "required": False}],
+                "consumes": [{"from_plugin": "base.compiler.instance_rows_secret_resolve", "key": "secret_resolved_rows", "required": True}],
             },
             {
                 "id": "base.compiler.instance_rows_prepare",
@@ -133,7 +133,7 @@ def test_instance_rows_execute_stage_commits_normalized_rows_authoritatively(tmp
                     "require_unlock": True,
                 },
                 "produces": [{"key": "prepared_rows", "scope": "stage_local"}],
-                "consumes": [{"from_plugin": "base.compiler.instance_rows_resolve", "key": "resolved_rows", "required": False}],
+                "consumes": [{"from_plugin": "base.compiler.instance_rows_resolve", "key": "resolved_rows", "required": True}],
             },
             {
                 "id": "base.compiler.instance_rows_validate",
@@ -151,7 +151,7 @@ def test_instance_rows_execute_stage_commits_normalized_rows_authoritatively(tmp
                     "require_unlock": True,
                 },
                 "produces": [{"key": "validated_rows", "scope": "stage_local"}],
-                "consumes": [{"from_plugin": "base.compiler.instance_rows_prepare", "key": "prepared_rows", "required": False}],
+                "consumes": [{"from_plugin": "base.compiler.instance_rows_prepare", "key": "prepared_rows", "required": True}],
             },
             {
                 "id": PLUGIN_ID,
@@ -161,7 +161,7 @@ def test_instance_rows_execute_stage_commits_normalized_rows_authoritatively(tmp
                 "stages": ["compile"],
                 "phase": "run",
                 "order": 43,
-                "depends_on": ["base.compiler.instance_rows_validate", "base.compiler.instance_rows_prepare", "base.compiler.instance_rows_resolve", "base.compiler.instance_rows_secret_resolve"],
+                "depends_on": ["base.compiler.instance_rows_validate"],
                 "subinterpreter_compatible": True,
                 "config": {
                     "secrets_mode": "passthrough",
@@ -169,7 +169,7 @@ def test_instance_rows_execute_stage_commits_normalized_rows_authoritatively(tmp
                     "require_unlock": True,
                 },
                 "produces": [{"key": "normalized_rows", "scope": "pipeline_shared"}],
-                "consumes": [{"from_plugin": "base.compiler.instance_rows_validate", "key": "validated_rows", "required": False}],
+                "consumes": [{"from_plugin": "base.compiler.instance_rows_validate", "key": "validated_rows", "required": True}],
             }
         ],
     }
@@ -249,7 +249,7 @@ def test_instance_rows_execute_stage_requires_validated_rows_in_snapshot_path(tm
                     "require_unlock": True,
                 },
                 "produces": [{"key": "normalized_rows", "scope": "pipeline_shared"}],
-                "consumes": [{"from_plugin": "base.compiler.instance_rows_validate", "key": "validated_rows", "required": False}],
+                "consumes": [{"from_plugin": "base.compiler.instance_rows_validate", "key": "validated_rows", "required": True}],
             }
         ],
     }

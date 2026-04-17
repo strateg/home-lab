@@ -260,7 +260,7 @@ def test_effective_model_execute_stage_commits_compiled_json_authoritatively(tmp
                 "subinterpreter_compatible": True,
                 "depends_on": ["base.compiler.instance_rows"],
                 "produces": [{"key": "effective_model_candidate", "scope": "pipeline_shared"}],
-                "consumes": [{"from_plugin": "base.compiler.instance_rows", "key": "normalized_rows", "required": False}],
+                "consumes": [{"from_plugin": "base.compiler.instance_rows", "key": "normalized_rows", "required": True}],
             }
         ],
     }
@@ -309,6 +309,74 @@ def test_effective_model_execute_stage_commits_compiled_json_authoritatively(tmp
     assert ctx.compiled_json["instances"]["devices"][0]["instance_id"] == "node-stage"
     assert ctx.compiled_json["instances"]["devices"][0]["instance_data"]["rack"] == "R1"
     assert ctx.get_published_data()[PLUGIN_ID]["effective_model_candidate"] == ctx.compiled_json
+
+
+def test_effective_model_execute_stage_requires_committed_rows(tmp_path):
+    (tmp_path / "stubs.py").write_text(
+        "\n".join(
+            [
+                "from kernel import CompilerPlugin, PluginResult, Stage",
+                "",
+                "class NoopRowsCompiler(CompilerPlugin):",
+                "    def execute(self, ctx, stage: Stage):",
+                "        return PluginResult.success(self.plugin_id, self.api_version)",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "base.compiler.instance_rows",
+                "kind": "compiler",
+                "entry": "stubs.py:NoopRowsCompiler",
+                "api_version": "1.x",
+                "stages": ["compile"],
+                "phase": "run",
+                "order": 40,
+                "produces": [{"key": "normalized_rows", "scope": "pipeline_shared"}],
+            },
+            {
+                "id": PLUGIN_ID,
+                "kind": "compiler",
+                "entry": f"{(V5_TOOLS / 'plugins/compilers/effective_model_compiler.py').as_posix()}:EffectiveModelCompiler",
+                "api_version": "1.x",
+                "stages": ["compile"],
+                "phase": "finalize",
+                "order": 60,
+                "compiled_json_owner": True,
+                "subinterpreter_compatible": True,
+                "depends_on": ["base.compiler.instance_rows"],
+                "produces": [{"key": "effective_model_candidate", "scope": "pipeline_shared"}],
+                "consumes": [{"from_plugin": "base.compiler.instance_rows", "key": "normalized_rows", "required": True}],
+            },
+        ],
+    }
+    _write_manifest(manifest, payload)
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        raw_yaml={"version": "5.0.0", "model": "class-object-instance"},
+        classes={"class.router": {"class": "class.router", "version": "1.0.0"}},
+        objects={"obj.router.test": {"object": "obj.router.test", "version": "1.0.0", "class_ref": "class.router"}},
+        config={},
+        instance_bindings={"instance_bindings": {"devices": []}},
+    )
+
+    results = registry.execute_stage(Stage.COMPILE, ctx, parallel_plugins=False)
+
+    assert [result.plugin_id for result in results] == ["base.compiler.instance_rows", PLUGIN_ID]
+    assert results[0].status == PluginStatus.SUCCESS
+    assert results[1].status == PluginStatus.FAILED
+    assert any(diag.code == "E8003" for diag in results[1].diagnostics)
+    assert ctx.compiled_json == {}
+    assert PLUGIN_ID not in ctx.get_published_data()
 
 
 def test_effective_model_compiler_includes_inherited_lineage_fields():
