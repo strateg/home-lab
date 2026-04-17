@@ -24,6 +24,17 @@ def _registry() -> PluginRegistry:
     return registry
 
 
+def _write_manifest(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+
+def test_docker_compose_manifest_requires_normalized_rows() -> None:
+    registry = _registry()
+    normalized_rows = registry.specs[PLUGIN_ID].consumes[0]
+    assert normalized_rows["required"] is True
+
+
 def _rows_to_compiled(rows: list[dict[str, Any]]) -> dict[str, Any]:
     """Group rows by group key into compiled_json instances format."""
     groups: dict[str, list[dict[str, Any]]] = {}
@@ -34,7 +45,7 @@ def _rows_to_compiled(rows: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def _context(tmp_path: Path, rows: list[dict[str, Any]]) -> PluginContext:
-    return PluginContext(
+    ctx = PluginContext(
         topology_path="topology/topology.yaml",
         profile="test",
         model_lock={},
@@ -45,6 +56,10 @@ def _context(tmp_path: Path, rows: list[dict[str, Any]]) -> PluginContext:
         output_dir=str(tmp_path / "build"),
         config={"generator_artifacts_root": str(tmp_path / "generated")},
     )
+    ctx._set_execution_context("base.compiler.instance_rows", set())
+    ctx.publish("normalized_rows", rows)
+    ctx._clear_execution_context()
+    return ctx
 
 
 def _stack_rows() -> list[dict[str, Any]]:
@@ -271,3 +286,56 @@ def test_docker_compose_generator_output_is_deterministic(tmp_path: Path) -> Non
     path1 = tmp_path / "run1" / "generated" / "docker-compose" / "srv-orangepi5" / "monitoring" / "docker-compose.yaml"
     path2 = tmp_path / "run2" / "generated" / "docker-compose" / "srv-orangepi5" / "monitoring" / "docker-compose.yaml"
     assert path1.read_text() == path2.read_text()
+
+def test_docker_compose_execute_stage_requires_committed_normalized_rows(tmp_path: Path) -> None:
+    manifest = tmp_path / "plugins.yaml"
+    spec = _registry().specs[PLUGIN_ID]
+    rel_entry, class_name = spec.entry.split(":", 1)
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "base.compiler.instance_rows",
+                "kind": "compiler",
+                "entry": f"{(V5_TOOLS / "plugins/compilers/instance_rows_compiler.py").as_posix()}:InstanceRowsCompiler",
+                "api_version": "1.x",
+                "stages": ["compile"],
+                "phase": "run",
+                "order": 43,
+            },
+            {
+                "id": PLUGIN_ID,
+                "kind": spec.kind.value,
+                "entry": f"{(V5_TOOLS / "plugins" / rel_entry).as_posix()}:{class_name}",
+                "api_version": "1.x",
+                "stages": ["generate"],
+                "phase": spec.phase.value,
+                "order": spec.order,
+                "depends_on": list(spec.depends_on),
+                "consumes": [
+                    {"from_plugin": "base.compiler.instance_rows", "key": "normalized_rows", "required": True}
+                ],
+            },
+        ],
+    }
+    _write_manifest(manifest, payload)
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        classes={},
+        objects={},
+        instance_bindings={"instance_bindings": {}},
+        compiled_json=_rows_to_compiled([]),
+        output_dir=str(tmp_path / "build"),
+        config={"generator_artifacts_root": str(tmp_path / "generated")},
+    )
+
+    results = registry.execute_stage(Stage.GENERATE, ctx, parallel_plugins=False)
+    assert len(results) == 1
+    assert results[0].status == PluginStatus.FAILED
+    assert any(diag.code == "E8003" for diag in results[0].diagnostics)
+    assert PLUGIN_ID not in ctx.get_published_data()
+

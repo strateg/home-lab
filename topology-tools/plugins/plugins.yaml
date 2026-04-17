@@ -551,7 +551,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
     description: Validates L1 group/class taxonomy conventions.
 
   - id: base.validator.references
@@ -832,7 +832,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
     description: Warns when VLAN id is outside trust-zone vlan_ids contract.
 
   - id: base.validator.network_core_refs
@@ -885,7 +885,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
     description: Validates workload vlan_tag consistency against VLAN network contracts.
 
   - id: base.validator.network_mtu_consistency
@@ -906,7 +906,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
     description: Validates jumbo_frames and mtu consistency in VLAN networks.
 
   - id: base.validator.service_runtime_refs
@@ -948,7 +948,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
     description: Warns when runtime target cannot reach runtime.network_binding_ref.
 
   - id: base.validator.service_dependency_refs
@@ -1001,7 +1001,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
     description: Validates L1 storage slot/media taxonomy on device rows.
 
   - id: base.validator.storage_media_inventory
@@ -1022,7 +1022,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
     description: Validates L1 media registry and attachment consistency contracts.
 
   - id: base.validator.dns_refs
@@ -1139,7 +1139,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
     description: Validates security_policy_ref links against security policy rows.
 
   - id: base.validator.vm_refs
@@ -1340,7 +1340,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
     description: Validates volume format compatibility with pool and hypervisor (ADR 0087 Phase 4).
 
   - id: base.validator.nested_topology_scope
@@ -1361,7 +1361,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
     description: Validates nested topology scope declarations and references (ADR 0087 Phase 5).
 
   - id: base.validator.storage_l3_refs
@@ -1382,7 +1382,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
     description: Validates L3 storage references (volume->pool, data_asset->volume).
 
   - id: base.validator.embedded_in
@@ -1403,7 +1403,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
     description: Validates embedded_in references for OS instances (ADR 0064)
 
   - id: base.validator.ethernet_port_inventory
@@ -1849,7 +1849,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
     produces:
       - key: generated_files
         scope: pipeline_shared
