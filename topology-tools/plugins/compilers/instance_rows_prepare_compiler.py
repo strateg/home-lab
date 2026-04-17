@@ -17,12 +17,17 @@ class InstanceRowsPrepareCompiler(InstanceRowsCompiler):
             return self.make_result(diagnostics, output_data={"prepared_rows": []})
 
         resolved_rows = None
-        try:
+        if ctx.is_snapshot_backed:
             subscribed_resolved_rows = ctx.subscribe(self._RESOLVED_ROWS_PLUGIN_ID, "resolved_rows")
             if isinstance(subscribed_resolved_rows, list):
                 resolved_rows = [row for row in subscribed_resolved_rows if isinstance(row, dict)]
-        except PluginDataExchangeError:
-            resolved_rows = None
+        else:
+            try:
+                subscribed_resolved_rows = ctx.subscribe(self._RESOLVED_ROWS_PLUGIN_ID, "resolved_rows")
+                if isinstance(subscribed_resolved_rows, list):
+                    resolved_rows = [row for row in subscribed_resolved_rows if isinstance(row, dict)]
+            except PluginDataExchangeError:
+                resolved_rows = None
 
         rows = self._build_prepared_rows(
             ctx=ctx,

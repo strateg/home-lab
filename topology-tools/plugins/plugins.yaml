@@ -189,14 +189,60 @@ plugins:
       - key: annotation_formats
         scope: pipeline_shared
     description: Parses field annotations once and publishes normalized annotation indexes.
+  - id: base.compiler.instance_rows_secret_resolve
+    kind: compiler
+    entry: compilers/instance_rows_secret_resolve_compiler.py:InstanceRowsSecretResolveCompiler
+    api_version: "1.x"
+    stages: [compile]
+    phase: run
+    order: 39
+    depends_on: [base.compiler.annotation_resolver]
+    timeout: 30
+    subinterpreter_compatible: true  # ADR 0097 Wave 3B annotation/secret-resolution cutover
+    config:
+      secrets_mode: passthrough
+      secrets_root: projects/home-lab/secrets
+      require_unlock: true
+    config_schema:
+      type: object
+      properties:
+        secrets_mode:
+          type: string
+          enum: [inject, passthrough, strict]
+          default: passthrough
+          description: Side-car secrets merge mode (ADR 0072).
+        secrets_root:
+          type: string
+          default: projects/home-lab/secrets
+          description: Root directory for side-car secret files (relative to repo root).
+        require_unlock:
+          type: boolean
+          default: true
+          description: Emit error when decryption fails due to missing unlocked age key.
+      required: []
+    produces:
+      - key: secret_resolved_rows
+        scope: stage_local
+    consumes:
+      - from_plugin: base.compiler.annotation_resolver
+        key: annotation_formats
+        required: false
+      - from_plugin: base.compiler.annotation_resolver
+        key: object_secret_annotations
+        required: false
+      - from_plugin: base.compiler.annotation_resolver
+        key: row_annotations_by_instance
+        required: false
+    description: Resolves semantic row keys, annotations, and side-car secrets into stage-local rows.
+
   - id: base.compiler.instance_rows_resolve
     kind: compiler
     entry: compilers/instance_rows_resolve_compiler.py:InstanceRowsResolveCompiler
     api_version: "1.x"
     stages: [compile]
     phase: run
-    order: 39
-    depends_on: [base.compiler.annotation_resolver]
+    order: 40
+    depends_on: [base.compiler.instance_rows_secret_resolve, base.compiler.annotation_resolver]
     timeout: 30
     subinterpreter_compatible: true  # ADR 0097 Wave 3B raw-row resolution cutover
     config:
@@ -224,6 +270,9 @@ plugins:
       - key: resolved_rows
         scope: stage_local
     consumes:
+      - from_plugin: base.compiler.instance_rows_secret_resolve
+        key: secret_resolved_rows
+        required: false
       - from_plugin: base.compiler.annotation_resolver
         key: annotation_formats
         required: false
@@ -233,7 +282,7 @@ plugins:
       - from_plugin: base.compiler.annotation_resolver
         key: row_annotations_by_instance
         required: false
-    description: Resolves semantic row keys and side-car secrets into stage-local rows before shape normalization.
+    description: Applies duplicate and identifier validation to secret-resolved rows before shape preparation.
 
   - id: base.compiler.instance_rows_prepare
     kind: compiler
@@ -241,7 +290,7 @@ plugins:
     api_version: "1.x"
     stages: [compile]
     phase: run
-    order: 40
+    order: 41
     depends_on: [base.compiler.instance_rows_resolve, base.compiler.annotation_resolver]
     timeout: 30
     subinterpreter_compatible: true  # ADR 0097 Wave 3B pre-normalization cutover
@@ -290,8 +339,8 @@ plugins:
     api_version: "1.x"
     stages: [compile]
     phase: run
-    order: 41
-    depends_on: [base.compiler.instance_rows_prepare, base.compiler.instance_rows_resolve]
+    order: 42
+    depends_on: [base.compiler.instance_rows_prepare, base.compiler.instance_rows_resolve, base.compiler.instance_rows_secret_resolve]
     timeout: 30
     subinterpreter_compatible: true  # ADR 0097 Wave 3B row-shape validation cutover
     config:
@@ -330,8 +379,8 @@ plugins:
     api_version: "1.x"
     stages: [compile]
     phase: run
-    order: 42
-    depends_on: [base.compiler.instance_rows_validate, base.compiler.instance_rows_prepare, base.compiler.instance_rows_resolve, base.compiler.annotation_resolver]
+    order: 43
+    depends_on: [base.compiler.instance_rows_validate, base.compiler.instance_rows_prepare, base.compiler.instance_rows_resolve, base.compiler.instance_rows_secret_resolve, base.compiler.annotation_resolver]
     timeout: 30
     subinterpreter_compatible: true  # ADR 0097 Wave 3B envelope-model cutover
     config:

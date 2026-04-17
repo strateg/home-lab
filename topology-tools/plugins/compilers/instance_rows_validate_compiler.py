@@ -17,12 +17,17 @@ class InstanceRowsValidateCompiler(InstanceRowsCompiler):
             return self.make_result(diagnostics, output_data={"validated_rows": []})
 
         prepared_rows = None
-        try:
+        if ctx.is_snapshot_backed:
             subscribed_prepared_rows = ctx.subscribe(self._PREPARED_ROWS_PLUGIN_ID, "prepared_rows")
             if isinstance(subscribed_prepared_rows, list):
                 prepared_rows = [row for row in subscribed_prepared_rows if isinstance(row, dict)]
-        except PluginDataExchangeError:
-            prepared_rows = None
+        else:
+            try:
+                subscribed_prepared_rows = ctx.subscribe(self._PREPARED_ROWS_PLUGIN_ID, "prepared_rows")
+                if isinstance(subscribed_prepared_rows, list):
+                    prepared_rows = [row for row in subscribed_prepared_rows if isinstance(row, dict)]
+            except PluginDataExchangeError:
+                prepared_rows = None
 
         rows = self._build_validated_rows(
             ctx=ctx,

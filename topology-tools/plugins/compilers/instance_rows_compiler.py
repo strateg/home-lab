@@ -30,6 +30,7 @@ class InstanceRowsCompiler(CompilerPlugin):
     """Normalize instance_bindings rows and emit row-shape diagnostics."""
 
     _ANNOTATION_PLUGIN_ID = "base.compiler.annotation_resolver"
+    _SECRET_RESOLVED_ROWS_PLUGIN_ID = "base.compiler.instance_rows_secret_resolve"
     _RESOLVED_ROWS_PLUGIN_ID = "base.compiler.instance_rows_resolve"
     _PREPARED_ROWS_PLUGIN_ID = "base.compiler.instance_rows_prepare"
     _VALIDATED_ROWS_PLUGIN_ID = "base.compiler.instance_rows_validate"
@@ -922,7 +923,7 @@ class InstanceRowsCompiler(CompilerPlugin):
 
         return class_ref, object_ref
 
-    def _resolve_binding_row(
+    def _secret_resolve_binding_row(
         self,
         *,
         row: dict[str, Any],
@@ -931,7 +932,6 @@ class InstanceRowsCompiler(CompilerPlugin):
         ctx: PluginContext,
         stage: Stage,
         diagnostics: list[PluginDiagnostic],
-        seen_instances: set[str],
         semantic_registry: SemanticKeywordRegistry,
         row_annotations_by_instance: dict[str, dict[str, dict[str, Any]]],
         object_secret_annotations_by_object: dict[str, dict[str, dict[str, Any]]],
@@ -964,34 +964,6 @@ class InstanceRowsCompiler(CompilerPlugin):
                 )
             )
             return None
-        if contains_unsafe_identifier_chars(instance_id):
-            diagnostics.append(
-                self.emit_diagnostic(
-                    code="E3201",
-                    severity="error",
-                    stage=stage,
-                    message=(
-                        f"instance id '{instance_id}' contains filename-unsafe characters; "
-                        "use only cross-platform filename-safe symbols."
-                    ),
-                    path=f"{row_path}.instance",
-                )
-            )
-            return None
-        if instance_id in seen_instances:
-            diagnostics.append(
-                PluginDiagnostic(
-                    code="E2102",
-                    severity="error",
-                    stage="resolve",
-                    message=f"Duplicate instance '{instance_id}'.",
-                    path=row_path,
-                    plugin_id=self.plugin_id,
-                )
-            )
-            return None
-        seen_instances.add(instance_id)
-
         if "hardware_identity_secret_ref" in row:
             diagnostics.append(
                 self.emit_diagnostic(
@@ -1053,9 +1025,155 @@ class InstanceRowsCompiler(CompilerPlugin):
 
         return {
             "group": group_name,
+            "row_index": row_index,
             "instance": instance_id,
             "row": row,
         }
+
+    def _resolve_binding_row(
+        self,
+        *,
+        secret_resolved_row: dict[str, Any],
+        stage: Stage,
+        diagnostics: list[PluginDiagnostic],
+        seen_instances: set[str],
+    ) -> dict[str, Any] | None:
+        row = secret_resolved_row.get("row")
+        group_name = secret_resolved_row.get("group")
+        instance_id = secret_resolved_row.get("instance")
+        row_index = secret_resolved_row.get("row_index")
+
+        if (
+            not isinstance(row, dict)
+            or not isinstance(group_name, str)
+            or not isinstance(instance_id, str)
+            or not isinstance(row_index, int)
+        ):
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E3201",
+                    severity="error",
+                    stage=stage,
+                    message="Secret-resolved row payload is malformed.",
+                    path="pipeline:instance_rows_secret_resolve",
+                )
+            )
+            return None
+
+        row_path = f"instance_bindings.{group_name}[{row_index}]"
+        if contains_unsafe_identifier_chars(instance_id):
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E3201",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        f"instance id '{instance_id}' contains filename-unsafe characters; "
+                        "use only cross-platform filename-safe symbols."
+                    ),
+                    path=f"{row_path}.instance",
+                )
+            )
+            return None
+        if instance_id in seen_instances:
+            diagnostics.append(
+                PluginDiagnostic(
+                    code="E2102",
+                    severity="error",
+                    stage="resolve",
+                    message=f"Duplicate instance '{instance_id}'.",
+                    path=row_path,
+                    plugin_id=self.plugin_id,
+                )
+            )
+            return None
+        seen_instances.add(instance_id)
+
+        return {
+            "group": group_name,
+            "instance": instance_id,
+            "row": row,
+        }
+
+    def _build_secret_resolved_rows(
+        self,
+        *,
+        ctx: PluginContext,
+        stage: Stage,
+        diagnostics: list[PluginDiagnostic],
+    ) -> list[dict[str, Any]]:
+        bindings_root = ctx.instance_bindings.get("instance_bindings")
+        if not isinstance(bindings_root, dict):
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E3201",
+                    severity="error",
+                    stage=stage,
+                    message="instance-bindings root must contain mapping 'instance_bindings'.",
+                    path="instance_bindings",
+                )
+            )
+            return []
+
+        rows: list[dict[str, Any]] = []
+        mode = self._resolve_secrets_mode(ctx)
+        require_unlock = self._resolve_require_unlock(ctx)
+        semantic_keywords_raw = ctx.config.get("semantic_keywords_path")
+        semantic_keywords_path = (
+            Path(semantic_keywords_raw) if isinstance(semantic_keywords_raw, str) and semantic_keywords_raw else None
+        )
+        semantic_registry = load_semantic_keyword_registry(semantic_keywords_path)
+        row_annotations_by_instance, object_secret_annotations_by_object, annotation_formats = (
+            self._load_annotation_inputs(ctx)
+        )
+        secrets_root = self._resolve_secrets_root_path(ctx)
+
+        for group_name, group_rows in bindings_root.items():
+            if not isinstance(group_rows, list):
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E3201",
+                        severity="error",
+                        stage=stage,
+                        message=f"instance_bindings.{group_name} must be a list.",
+                        path=f"instance_bindings.{group_name}",
+                    )
+                )
+                continue
+
+            for idx, row in enumerate(group_rows):
+                if not isinstance(row, dict):
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E3201",
+                            severity="error",
+                            stage=stage,
+                            message="Instance row must be an object.",
+                            path=f"instance_bindings.{group_name}[{idx}]",
+                        )
+                    )
+                    continue
+
+                secret_resolved_row = self._secret_resolve_binding_row(
+                    row=row,
+                    group_name=group_name,
+                    row_index=idx,
+                    ctx=ctx,
+                    stage=stage,
+                    diagnostics=diagnostics,
+                    semantic_registry=semantic_registry,
+                    row_annotations_by_instance=row_annotations_by_instance,
+                    object_secret_annotations_by_object=object_secret_annotations_by_object,
+                    annotation_formats=annotation_formats,
+                    secrets_root=secrets_root,
+                    mode=mode,
+                    require_unlock=require_unlock,
+                )
+                if secret_resolved_row is None:
+                    continue
+                rows.append(secret_resolved_row)
+
+        return rows
 
     def _prepare_resolved_row(
         self,
@@ -1199,79 +1317,28 @@ class InstanceRowsCompiler(CompilerPlugin):
         ctx: PluginContext,
         stage: Stage,
         diagnostics: list[PluginDiagnostic],
+        secret_resolved_rows: list[dict[str, Any]] | None = None,
     ) -> list[dict[str, Any]]:
-        bindings_root = ctx.instance_bindings.get("instance_bindings")
-        if not isinstance(bindings_root, dict):
-            diagnostics.append(
-                self.emit_diagnostic(
-                    code="E3201",
-                    severity="error",
-                    stage=stage,
-                    message="instance-bindings root must contain mapping 'instance_bindings'.",
-                    path="instance_bindings",
-                )
-            )
-            return []
-
         rows: list[dict[str, Any]] = []
         seen_instances: set[str] = set()
-        mode = self._resolve_secrets_mode(ctx)
-        require_unlock = self._resolve_require_unlock(ctx)
-        semantic_keywords_raw = ctx.config.get("semantic_keywords_path")
-        semantic_keywords_path = (
-            Path(semantic_keywords_raw) if isinstance(semantic_keywords_raw, str) and semantic_keywords_raw else None
-        )
-        semantic_registry = load_semantic_keyword_registry(semantic_keywords_path)
-        row_annotations_by_instance, object_secret_annotations_by_object, annotation_formats = (
-            self._load_annotation_inputs(ctx)
-        )
-        secrets_root = self._resolve_secrets_root_path(ctx)
 
-        for group_name, group_rows in bindings_root.items():
-            if not isinstance(group_rows, list):
-                diagnostics.append(
-                    self.emit_diagnostic(
-                        code="E3201",
-                        severity="error",
-                        stage=stage,
-                        message=f"instance_bindings.{group_name} must be a list.",
-                        path=f"instance_bindings.{group_name}",
-                    )
-                )
+        source_rows = secret_resolved_rows if secret_resolved_rows is not None else self._build_secret_resolved_rows(
+            ctx=ctx,
+            stage=stage,
+            diagnostics=diagnostics,
+        )
+        for secret_resolved_row in source_rows:
+            if not isinstance(secret_resolved_row, dict):
                 continue
-
-            for idx, row in enumerate(group_rows):
-                if not isinstance(row, dict):
-                    diagnostics.append(
-                        self.emit_diagnostic(
-                            code="E3201",
-                            severity="error",
-                            stage=stage,
-                            message="Instance row must be an object.",
-                            path=f"instance_bindings.{group_name}[{idx}]",
-                        )
-                    )
-                    continue
-
-                normalized_row = self._resolve_binding_row(
-                    row=row,
-                    group_name=group_name,
-                    row_index=idx,
-                    ctx=ctx,
-                    stage=stage,
-                    diagnostics=diagnostics,
-                    seen_instances=seen_instances,
-                    semantic_registry=semantic_registry,
-                    row_annotations_by_instance=row_annotations_by_instance,
-                    object_secret_annotations_by_object=object_secret_annotations_by_object,
-                    annotation_formats=annotation_formats,
-                    secrets_root=secrets_root,
-                    mode=mode,
-                    require_unlock=require_unlock,
-                )
-                if normalized_row is None:
-                    continue
-                rows.append(normalized_row)
+            normalized_row = self._resolve_binding_row(
+                secret_resolved_row=secret_resolved_row,
+                stage=stage,
+                diagnostics=diagnostics,
+                seen_instances=seen_instances,
+            )
+            if normalized_row is None:
+                continue
+            rows.append(normalized_row)
 
         return rows
 
@@ -1340,12 +1407,17 @@ class InstanceRowsCompiler(CompilerPlugin):
             return self.make_result(diagnostics, output_data={"normalized_rows": []})
 
         validated_rows: list[dict[str, Any]] | None = None
-        try:
+        if ctx.is_snapshot_backed:
             subscribed_validated_rows = ctx.subscribe(self._VALIDATED_ROWS_PLUGIN_ID, "validated_rows")
             if isinstance(subscribed_validated_rows, list):
                 validated_rows = [row for row in subscribed_validated_rows if isinstance(row, dict)]
-        except PluginDataExchangeError:
-            validated_rows = None
+        else:
+            try:
+                subscribed_validated_rows = ctx.subscribe(self._VALIDATED_ROWS_PLUGIN_ID, "validated_rows")
+                if isinstance(subscribed_validated_rows, list):
+                    validated_rows = [row for row in subscribed_validated_rows if isinstance(row, dict)]
+            except PluginDataExchangeError:
+                validated_rows = None
 
         rows = validated_rows if validated_rows is not None else self._build_validated_rows(
             ctx=ctx,

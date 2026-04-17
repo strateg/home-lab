@@ -594,6 +594,11 @@ class PluginContext:
         return _EXECUTION_SCOPE.get()
 
     @property
+    def is_snapshot_backed(self) -> bool:
+        """Return True when context is executing on ADR-0097 snapshot/envelope path."""
+        return self._snapshot is not None
+
+    @property
     def active_config(self) -> Mapping[str, Any]:
         scope = self._get_execution_scope()
         if scope is not None:
