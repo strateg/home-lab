@@ -29,6 +29,12 @@ def _write_manifest(path: Path, payload: dict) -> None:
     path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
 
 
+def test_effective_json_manifest_depends_on_effective_model():
+    registry = _registry()
+
+    assert registry.specs[PLUGIN_ID].depends_on == ["base.compiler.effective_model"]
+
+
 def test_effective_json_generator_writes_compiled_file(tmp_path):
     registry = _registry()
     output_path = tmp_path / "artifacts" / "effective-topology.json"

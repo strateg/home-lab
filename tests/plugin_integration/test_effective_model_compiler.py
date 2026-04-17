@@ -28,6 +28,15 @@ def _write_manifest(path: Path, payload: dict) -> None:
     path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
 
 
+def test_effective_model_manifest_requires_normalized_rows():
+    registry = _registry()
+
+    consumes = registry.specs[PLUGIN_ID].consumes
+    assert consumes == [
+        {"from_plugin": "base.compiler.instance_rows", "key": "normalized_rows", "required": True}
+    ]
+
+
 def test_effective_model_compiler_publishes_candidate():
     registry = _registry()
     ctx = PluginContext(
@@ -156,7 +165,7 @@ def test_effective_model_compiler_requires_subscribed_normalized_rows():
 
     assert result.status == PluginStatus.FAILED
     assert result.has_errors
-    assert any(diag.code == "E6901" for diag in result.diagnostics)
+    assert any(diag.code == "E8003" for diag in result.diagnostics)
 
 
 def test_effective_model_compiler_reads_normalized_rows_via_subscribe():

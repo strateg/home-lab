@@ -71,6 +71,15 @@ def _base_rows() -> list[dict]:
     ]
 
 
+def test_dns_refs_manifest_requires_normalized_rows():
+    registry = _registry()
+
+    consumes = registry.specs[PLUGIN_ID].consumes
+    assert consumes == [
+        {"from_plugin": "base.compiler.instance_rows", "key": "normalized_rows", "required": True}
+    ]
+
+
 def test_dns_refs_validator_accepts_valid_dns_refs():
     registry = _registry()
     ctx = _context()
