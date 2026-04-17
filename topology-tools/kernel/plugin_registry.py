@@ -51,12 +51,14 @@ from .plugin_base import (
     PluginBase,
     PluginContext,
     PluginDiagnostic,
+    PluginInputSnapshot,
     PluginExecutionScope,
     PluginKind,
     PluginResult,
     PluginStatus,
     Stage,
 )
+from .pipeline_runtime import PipelineState
 
 # Kernel version and compatibility matrix
 KERNEL_VERSION = "0.5.0"
@@ -746,6 +748,73 @@ class PluginRegistry:
                 continue
             declared.add((from_plugin, key))
         return declared
+
+    def _build_input_snapshot(
+        self,
+        *,
+        plugin_id: str,
+        stage: Stage,
+        phase: Phase,
+        ctx: PluginContext,
+        pipeline_state: PipelineState | None = None,
+    ) -> PluginInputSnapshot:
+        """Build immutable plugin input for the envelope-model execution path."""
+        spec = self.specs[plugin_id]
+        base_config = ctx.config.copy()
+        scoped_config = {**spec.config, **base_config}
+        produced_key_scopes = self._declared_produced_scopes(spec)
+
+        subscriptions: dict[tuple[str, str], Any] = {}
+        if pipeline_state is not None:
+            for consume in spec.consumes:
+                if not isinstance(consume, dict):
+                    continue
+                from_plugin = consume.get("from_plugin")
+                key = consume.get("key")
+                if not isinstance(from_plugin, str) or not from_plugin or not isinstance(key, str) or not key:
+                    continue
+                try:
+                    subscriptions[(from_plugin, key)] = pipeline_state.resolve_subscription(
+                        from_plugin=from_plugin,
+                        key=key,
+                        stage=stage,
+                    )
+                except PluginDataExchangeError:
+                    if consume.get("required", True) is False:
+                        continue
+                    raise
+
+        return PluginInputSnapshot(
+            plugin_id=plugin_id,
+            stage=stage,
+            phase=phase,
+            topology_path=ctx.topology_path,
+            profile=ctx.profile,
+            config=scoped_config,
+            model_lock=dict(ctx.model_lock),
+            raw_yaml=dict(ctx.raw_yaml),
+            instance_bindings=dict(ctx.instance_bindings),
+            compiled_json=dict(ctx.compiled_json),
+            classes=dict(ctx.classes),
+            objects=dict(ctx.objects),
+            capability_catalog=dict(ctx.capability_catalog),
+            effective_capabilities=dict(ctx.effective_capabilities),
+            effective_software=dict(ctx.effective_software),
+            output_dir=ctx.output_dir,
+            workspace_root=ctx.workspace_root,
+            dist_root=ctx.dist_root,
+            assembly_manifest=dict(ctx.assembly_manifest),
+            changed_input_scopes=list(ctx.changed_input_scopes) if ctx.changed_input_scopes else None,
+            signing_backend=ctx.signing_backend,
+            release_tag=ctx.release_tag,
+            sbom_output_dir=ctx.sbom_output_dir,
+            error_catalog=dict(ctx.error_catalog),
+            source_file=ctx.source_file,
+            compiled_file=ctx.compiled_file,
+            subscriptions=subscriptions,
+            allowed_dependencies=frozenset(spec.depends_on),
+            produced_key_scopes=produced_key_scopes,
+        )
 
     @staticmethod
     def _apply_result_status_from_diagnostics(result: PluginResult) -> None:

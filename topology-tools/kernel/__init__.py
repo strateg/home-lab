@@ -16,20 +16,27 @@ from .plugin_base import (  # Legacy alias
     CompilerPlugin,
     Diagnostic,
     DiscovererPlugin,
+    EmittedEvent,
     GeneratorPlugin,
     Phase,
     PluginBase,
     PluginContext,
     PluginDataExchangeError,
     PluginDiagnostic,
+    PluginExecutionEnvelope,
     PluginExecutionScope,
+    PluginInputSnapshot,
     PluginKind,
     PluginResult,
     PluginStatus,
+    PublishedMessage,
     Stage,
+    SubscriptionValue,
     ValidatorJsonPlugin,
     ValidatorYamlPlugin,
 )
+from .pipeline_runtime import PipelineState
+from .plugin_runner import run_plugin_once
 from .plugin_registry import (
     DEFAULT_PLUGIN_TIMEOUT,
     KERNEL_API_VERSION,
@@ -57,6 +64,11 @@ __all__ = [
     "PluginResult",
     "PluginDiagnostic",
     "PluginDataExchangeError",
+    "PluginInputSnapshot",
+    "SubscriptionValue",
+    "PublishedMessage",
+    "EmittedEvent",
+    "PluginExecutionEnvelope",
     "Stage",
     "Phase",
     # Plugin type classes
@@ -71,6 +83,8 @@ __all__ = [
     "PluginRegistry",
     "PluginManifest",
     "PluginSpec",
+    "PipelineState",
+    "run_plugin_once",
     # Exceptions
     "PluginLoadError",
     "PluginCycleError",

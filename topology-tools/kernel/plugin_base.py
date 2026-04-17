@@ -128,6 +128,41 @@ class EventMessage:
 
 
 @dataclass(frozen=True)
+class SubscriptionValue:
+    """Resolved consume payload included in a plugin input snapshot."""
+
+    from_plugin: str
+    key: str
+    value: Any
+    scope: str = "pipeline_shared"
+    stage: Stage | None = None
+    phase: Phase | None = None
+
+
+@dataclass(frozen=True)
+class PublishedMessage:
+    """Worker-local published message proposed for pipeline commit."""
+
+    plugin_id: str
+    key: str
+    value: Any
+    scope: str
+    stage: Stage
+    phase: Phase
+
+
+@dataclass(frozen=True)
+class EmittedEvent:
+    """Worker-local emitted event proposed for main-interpreter handling."""
+
+    plugin_id: str
+    topic: str
+    payload: Any
+    stage: Stage
+    phase: Phase
+
+
+@dataclass(frozen=True)
 class PluginExecutionScope:
     """Per-invocation immutable execution scope."""
 
@@ -332,6 +367,51 @@ class PluginResult:
         return any(d.severity == "warning" for d in self.diagnostics)
 
 
+@dataclass(frozen=True)
+class PluginInputSnapshot:
+    """Immutable plugin-visible input for the envelope-model execution path."""
+
+    plugin_id: str
+    stage: Stage
+    phase: Phase
+    topology_path: str
+    profile: str
+    config: dict[str, Any] = field(default_factory=dict)
+    model_lock: dict[str, Any] = field(default_factory=dict)
+    raw_yaml: dict[str, Any] = field(default_factory=dict)
+    instance_bindings: dict[str, Any] = field(default_factory=dict)
+    compiled_json: dict[str, Any] = field(default_factory=dict)
+    classes: dict[str, Any] = field(default_factory=dict)
+    objects: dict[str, Any] = field(default_factory=dict)
+    capability_catalog: dict[str, Any] = field(default_factory=dict)
+    effective_capabilities: dict[str, list[str]] = field(default_factory=dict)
+    effective_software: dict[str, dict[str, Any]] = field(default_factory=dict)
+    output_dir: str = ""
+    workspace_root: str = ""
+    dist_root: str = ""
+    assembly_manifest: dict[str, Any] = field(default_factory=dict)
+    changed_input_scopes: list[str] | None = None
+    signing_backend: str = ""
+    release_tag: str = ""
+    sbom_output_dir: str = ""
+    error_catalog: dict[str, Any] = field(default_factory=dict)
+    source_file: str = ""
+    compiled_file: str = ""
+    subscriptions: dict[tuple[str, str], SubscriptionValue] = field(default_factory=dict)
+    allowed_dependencies: frozenset[str] = field(default_factory=frozenset)
+    produced_key_scopes: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class PluginExecutionEnvelope:
+    """Worker output envelope proposed to the main interpreter for commit."""
+
+    result: PluginResult
+    published_messages: list[PublishedMessage] = field(default_factory=list)
+    emitted_events: list[EmittedEvent] = field(default_factory=list)
+    execution_metadata: dict[str, Any] | None = None
+
+
 class PluginDataExchangeError(Exception):
     """Raised when plugin data exchange fails."""
 
@@ -455,6 +535,11 @@ class PluginContext:
     # Compiled file path (for validator_json plugins)
     compiled_file: str = ""
 
+    # ADR 0097 envelope-model primary path (compatibility with legacy path retained)
+    _snapshot: PluginInputSnapshot | None = field(default=None, repr=False)
+    _outbox: list[PublishedMessage] = field(default_factory=list, repr=False)
+    _event_outbox: list[EmittedEvent] = field(default_factory=list, repr=False)
+
     # Inter-plugin data exchange (ADR 0065) - Data Plane
     _published_data: dict[str, dict[str, Any]] = field(default_factory=dict, repr=False)
     _published_meta: dict[tuple[str, str], PublishedDataMeta] = field(default_factory=dict, repr=False)
@@ -473,6 +558,37 @@ class PluginContext:
             self.config.bind_scope_provider(self._get_execution_scope)
         else:
             self.config = ContextAwareConfig(dict(self.config), self._get_execution_scope)
+
+    @classmethod
+    def from_snapshot(cls, snapshot: PluginInputSnapshot) -> PluginContext:
+        """Build a snapshot-backed local facade context for the new runtime path."""
+        ctx = cls(
+            topology_path=snapshot.topology_path,
+            profile=snapshot.profile,
+            model_lock=dict(snapshot.model_lock),
+            raw_yaml=dict(snapshot.raw_yaml),
+            instance_bindings=dict(snapshot.instance_bindings),
+            compiled_json=dict(snapshot.compiled_json),
+            classes=dict(snapshot.classes),
+            objects=dict(snapshot.objects),
+            capability_catalog=dict(snapshot.capability_catalog),
+            effective_capabilities=dict(snapshot.effective_capabilities),
+            effective_software=dict(snapshot.effective_software),
+            config=dict(snapshot.config),
+            output_dir=snapshot.output_dir,
+            workspace_root=snapshot.workspace_root,
+            dist_root=snapshot.dist_root,
+            assembly_manifest=dict(snapshot.assembly_manifest),
+            changed_input_scopes=list(snapshot.changed_input_scopes) if snapshot.changed_input_scopes else None,
+            signing_backend=snapshot.signing_backend,
+            release_tag=snapshot.release_tag,
+            sbom_output_dir=snapshot.sbom_output_dir,
+            error_catalog=dict(snapshot.error_catalog),
+            source_file=snapshot.source_file,
+            compiled_file=snapshot.compiled_file,
+        )
+        ctx._snapshot = snapshot
+        return ctx
 
     def _get_execution_scope(self) -> PluginExecutionScope | None:
         return _EXECUTION_SCOPE.get()
@@ -504,6 +620,21 @@ class PluginContext:
             PluginDataExchangeError: If no current plugin context is set
         """
         scope = self._require_execution_scope()
+        if self._snapshot is not None:
+            declared_scope = scope.produced_key_scopes.get(key, "pipeline_shared")
+            if declared_scope not in {"stage_local", "pipeline_shared"}:
+                declared_scope = "pipeline_shared"
+            self._outbox.append(
+                PublishedMessage(
+                    plugin_id=scope.plugin_id,
+                    key=key,
+                    value=value,
+                    scope=declared_scope,
+                    stage=scope.stage,
+                    phase=scope.phase,
+                )
+            )
+            return
         with self._published_data_lock:
             if scope.plugin_id not in self._published_data:
                 self._published_data[scope.plugin_id] = {}
@@ -544,6 +675,23 @@ class PluginContext:
                 f"Plugin '{scope.plugin_id}' cannot subscribe to '{plugin_id}': "
                 f"not in depends_on list. Allowed: {sorted(scope.allowed_dependencies)}"
             )
+        if self._snapshot is not None:
+            subscription = self._snapshot.subscriptions.get((plugin_id, key))
+            if subscription is None:
+                raise PluginDataExchangeError(
+                    f"Plugin '{plugin_id}' has not published key '{key}'. "
+                    "Ensure consumes were resolved before dispatch."
+                )
+            if (
+                subscription.scope == "stage_local"
+                and subscription.stage is not None
+                and subscription.stage != scope.stage
+            ):
+                raise PluginDataExchangeError(
+                    f"Plugin '{scope.plugin_id}' cannot subscribe to stage_local key '{plugin_id}.{key}' "
+                    f"from stage '{subscription.stage.value}' while executing stage '{scope.stage.value}'."
+                )
+            return subscription.value
         with self._published_data_lock:
             if plugin_id not in self._published_data:
                 raise PluginDataExchangeError(
@@ -614,6 +762,17 @@ class PluginContext:
         import time
 
         scope = self._require_execution_scope()
+        if self._snapshot is not None:
+            self._event_outbox.append(
+                EmittedEvent(
+                    plugin_id=scope.plugin_id,
+                    topic=topic,
+                    payload=payload,
+                    stage=scope.stage,
+                    phase=scope.phase,
+                )
+            )
+            return
         event = EventMessage(
             topic=topic,
             payload=payload,
@@ -795,6 +954,18 @@ class PluginContext:
             return
         token = self._legacy_execution_tokens.pop()
         self._clear_execution_scope(token)
+
+    def drain_outbox(self) -> list[PublishedMessage]:
+        """Return and clear worker-local published messages for the envelope path."""
+        drained = list(self._outbox)
+        self._outbox.clear()
+        return drained
+
+    def drain_event_outbox(self) -> list[EmittedEvent]:
+        """Return and clear worker-local emitted events for the envelope path."""
+        drained = list(self._event_outbox)
+        self._event_outbox.clear()
+        return drained
 
 
 @dataclass
