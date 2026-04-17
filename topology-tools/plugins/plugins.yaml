@@ -199,6 +199,7 @@ plugins:
     order: 40
     depends_on: [base.compiler.annotation_resolver]
     timeout: 30
+    subinterpreter_compatible: true  # ADR 0097 Wave 3B envelope-model cutover
     config:
       secrets_mode: passthrough
       secrets_root: projects/home-lab/secrets

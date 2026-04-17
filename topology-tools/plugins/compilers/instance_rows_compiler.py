@@ -722,6 +722,403 @@ class InstanceRowsCompiler(CompilerPlugin):
 
         return merged_row
 
+    def _load_annotation_inputs(
+        self,
+        ctx: PluginContext,
+    ) -> tuple[dict[str, dict[str, dict[str, Any]]], dict[str, dict[str, dict[str, Any]]], dict[str, dict[str, Any]]]:
+        row_annotations_by_instance: dict[str, dict[str, dict[str, Any]]] = {}
+        object_secret_annotations_by_object: dict[str, dict[str, dict[str, Any]]] = {}
+        annotation_formats: dict[str, dict[str, Any]] = {}
+
+        try:
+            subscribed_rows = ctx.subscribe(self._ANNOTATION_PLUGIN_ID, "row_annotations_by_instance")
+            if isinstance(subscribed_rows, dict):
+                row_annotations_by_instance = subscribed_rows
+        except PluginDataExchangeError:
+            row_annotations_by_instance = {}
+
+        try:
+            subscribed_objects = ctx.subscribe(self._ANNOTATION_PLUGIN_ID, "object_secret_annotations")
+            if isinstance(subscribed_objects, dict):
+                object_secret_annotations_by_object = subscribed_objects
+        except PluginDataExchangeError:
+            object_secret_annotations_by_object = {}
+
+        try:
+            subscribed_formats = ctx.subscribe(self._ANNOTATION_PLUGIN_ID, "annotation_formats")
+            if isinstance(subscribed_formats, dict):
+                annotation_formats = subscribed_formats
+        except PluginDataExchangeError:
+            annotation_formats = {}
+
+        return row_annotations_by_instance, object_secret_annotations_by_object, annotation_formats
+
+    @staticmethod
+    def _resolve_secrets_root_path(ctx: PluginContext) -> Path:
+        secrets_root_str = ctx.config.get("secrets_root", "projects/home-lab/secrets")
+        repo_root = ctx.config.get("repo_root")
+        if isinstance(repo_root, str) and repo_root:
+            return Path(repo_root) / secrets_root_str
+        return Path(__file__).resolve().parents[4] / secrets_root_str
+
+    @staticmethod
+    def _merge_secret_annotations(
+        *,
+        row_annotations: dict[str, dict[str, Any]],
+        object_secret_annotations: dict[str, dict[str, Any]],
+    ) -> dict[str, dict[str, Any]]:
+        merged_secret_annotations: dict[str, dict[str, Any]] = {}
+        for path, spec in object_secret_annotations.items():
+            if isinstance(path, str) and isinstance(spec, dict):
+                merged_secret_annotations[path] = spec
+        for path, spec in row_annotations.items():
+            if isinstance(path, str) and isinstance(spec, dict):
+                merged_secret_annotations[path] = spec
+        return merged_secret_annotations
+
+    def _normalize_os_refs(
+        self,
+        *,
+        os_refs: Any,
+        stage: Stage,
+        diagnostics: list[PluginDiagnostic],
+        path_prefix: str,
+    ) -> list[str]:
+        if os_refs is not None and not isinstance(os_refs, list):
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E3201",
+                    severity="error",
+                    stage=stage,
+                    message="os_refs must be a list when set.",
+                    path=path_prefix,
+                )
+            )
+            return []
+
+        normalized_os_refs: list[str] = []
+        if not isinstance(os_refs, list):
+            return normalized_os_refs
+
+        for os_idx, os_ref in enumerate(os_refs):
+            if not isinstance(os_ref, str) or not os_ref:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E3201",
+                        severity="error",
+                        stage=stage,
+                        message="os_refs entries must be non-empty strings.",
+                        path=f"{path_prefix}[{os_idx}]",
+                    )
+                )
+                continue
+            normalized_os_refs.append(os_ref)
+        return normalized_os_refs
+
+    def _resolve_class_and_object_refs(
+        self,
+        *,
+        row: dict[str, Any],
+        ctx: PluginContext,
+        stage: Stage,
+        diagnostics: list[PluginDiagnostic],
+        row_path: str,
+    ) -> tuple[Any, Any]:
+        class_ref = row.get("class_ref")
+        object_ref = row.get("object_ref")
+        derived_class_ref: str | None = None
+
+        if isinstance(class_ref, str) and class_ref and contains_unsafe_identifier_chars(class_ref):
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E3201",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        f"class_ref '{class_ref}' contains filename-unsafe characters; "
+                        "use only cross-platform filename-safe symbols."
+                    ),
+                    path=f"{row_path}.class_ref",
+                )
+            )
+            class_ref = None
+
+        if not isinstance(object_ref, str) or not object_ref:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E3201",
+                    severity="error",
+                    stage=stage,
+                    message="Instance row must define non-empty 'object_ref'.",
+                    path=f"{row_path}.object_ref",
+                )
+            )
+        else:
+            if contains_unsafe_identifier_chars(object_ref):
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E3201",
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            f"object_ref '{object_ref}' contains filename-unsafe characters; "
+                            "use only cross-platform filename-safe symbols."
+                        ),
+                        path=f"{row_path}.object_ref",
+                    )
+                )
+            else:
+                if object_ref in ctx.classes and object_ref not in ctx.objects:
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E8804",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"Instance row '@extends/object_ref' target '{object_ref}' is class id; "
+                                "instance inheritance requires object id."
+                            ),
+                            path=f"{row_path}.object_ref",
+                        )
+                    )
+                object_payload = ctx.objects.get(object_ref)
+                if isinstance(object_payload, dict):
+                    candidate_class_ref = object_payload.get("class_ref")
+                    if isinstance(candidate_class_ref, str) and candidate_class_ref:
+                        derived_class_ref = candidate_class_ref
+
+        if not isinstance(class_ref, str) or not class_ref:
+            class_ref = derived_class_ref
+        elif isinstance(derived_class_ref, str) and derived_class_ref and class_ref != derived_class_ref:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E2403",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        f"Instance class_ref '{class_ref}' does not match object_ref '{object_ref}' "
+                        f"class_ref '{derived_class_ref}'."
+                    ),
+                    path=f"{row_path}.class_ref",
+                )
+            )
+
+        if not isinstance(class_ref, str) or not class_ref:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E3201",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        "Instance row must define non-empty 'class_ref' or provide "
+                        "object_ref with resolvable class_ref."
+                    ),
+                    path=f"{row_path}.class_ref",
+                )
+            )
+
+        return class_ref, object_ref
+
+    def _process_binding_row(
+        self,
+        *,
+        row: dict[str, Any],
+        group_name: str,
+        row_index: int,
+        ctx: PluginContext,
+        stage: Stage,
+        diagnostics: list[PluginDiagnostic],
+        seen_instances: set[str],
+        semantic_registry: SemanticKeywordRegistry,
+        row_annotations_by_instance: dict[str, dict[str, dict[str, Any]]],
+        object_secret_annotations_by_object: dict[str, dict[str, dict[str, Any]]],
+        annotation_formats: dict[str, dict[str, Any]],
+        secrets_root: Path,
+        mode: str,
+        require_unlock: bool,
+    ) -> dict[str, Any] | None:
+        row_path = f"instance_bindings.{group_name}[{row_index}]"
+        normalized_row = self._normalize_semantic_row(
+            row=row,
+            semantic_registry=semantic_registry,
+            stage=stage,
+            diagnostics=diagnostics,
+            row_path=row_path,
+        )
+        if normalized_row is None:
+            return None
+        row = normalized_row
+        instance_id = row.get("instance")
+
+        if not isinstance(instance_id, str) or not instance_id:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E3201",
+                    severity="error",
+                    stage=stage,
+                    message="Instance row must define non-empty 'instance'.",
+                    path=f"{row_path}.instance",
+                )
+            )
+            return None
+        if contains_unsafe_identifier_chars(instance_id):
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E3201",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        f"instance id '{instance_id}' contains filename-unsafe characters; "
+                        "use only cross-platform filename-safe symbols."
+                    ),
+                    path=f"{row_path}.instance",
+                )
+            )
+            return None
+        if instance_id in seen_instances:
+            diagnostics.append(
+                PluginDiagnostic(
+                    code="E2102",
+                    severity="error",
+                    stage="resolve",
+                    message=f"Duplicate instance '{instance_id}'.",
+                    path=row_path,
+                    plugin_id=self.plugin_id,
+                )
+            )
+            return None
+        seen_instances.add(instance_id)
+
+        if "hardware_identity_secret_ref" in row:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E3201",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        "Field 'hardware_identity_secret_ref' is deprecated and forbidden. "
+                        "Store encrypted secret data adjacent to target fields."
+                    ),
+                    path=f"{row_path}.hardware_identity_secret_ref",
+                )
+            )
+
+        row_annotations = row_annotations_by_instance.get(instance_id)
+        if not isinstance(row_annotations, dict):
+            row_annotations = self._collect_row_annotations(row)
+
+        object_secret_annotations: dict[str, dict[str, Any]] = {}
+        object_ref_for_annotations = row.get("object_ref")
+        if isinstance(object_ref_for_annotations, str):
+            candidate_object_annotations = object_secret_annotations_by_object.get(object_ref_for_annotations)
+            if isinstance(candidate_object_annotations, dict):
+                object_secret_annotations = candidate_object_annotations
+
+        merged_secret_annotations = self._merge_secret_annotations(
+            row_annotations=row_annotations,
+            object_secret_annotations=object_secret_annotations,
+        )
+
+        row = self._resolve_sidecar_secrets(
+            row=row,
+            instance_id=instance_id,
+            secrets_root=secrets_root,
+            stage=stage,
+            diagnostics=diagnostics,
+            row_path=row_path,
+            mode=mode,
+            require_unlock=require_unlock,
+            row_annotations=merged_secret_annotations,
+            annotation_formats=annotation_formats,
+        )
+
+        if mode == "strict":
+            unresolved_paths = self._collect_all_placeholder_paths(row, row_annotations=merged_secret_annotations)
+            for unresolved_path in unresolved_paths:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E7208",
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            f"Strict secrets mode requires resolved placeholder: "
+                            f"'{unresolved_path}' in instance '{instance_id}'."
+                        ),
+                        path=row_path,
+                    )
+                )
+
+        layer = row.get("layer")
+        class_ref, object_ref = self._resolve_class_and_object_refs(
+            row=row,
+            ctx=ctx,
+            stage=stage,
+            diagnostics=diagnostics,
+            row_path=row_path,
+        )
+        firmware_ref = row.get("firmware_ref")
+        if firmware_ref is not None and (not isinstance(firmware_ref, str) or not firmware_ref):
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E3201",
+                    severity="error",
+                    stage=stage,
+                    message="firmware_ref must be non-empty string when set.",
+                    path=f"{row_path}.firmware_ref",
+                )
+            )
+
+        if not isinstance(layer, str) or not layer:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E3201",
+                    severity="error",
+                    stage=stage,
+                    message="Instance row must define non-empty 'layer'.",
+                    path=f"{row_path}.layer",
+                )
+            )
+
+        embedded_in = row.get("embedded_in")
+        if embedded_in is not None and (not isinstance(embedded_in, str) or not embedded_in):
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E3201",
+                    severity="error",
+                    stage=stage,
+                    message="embedded_in must be non-empty string when set.",
+                    path=f"{row_path}.embedded_in",
+                )
+            )
+            embedded_in = None
+
+        normalized_os_refs = self._normalize_os_refs(
+            os_refs=row.get("os_refs"),
+            stage=stage,
+            diagnostics=diagnostics,
+            path_prefix=f"{row_path}.os_refs",
+        )
+
+        source_id = row.get("source_id", instance_id)
+        if not isinstance(source_id, str) or not source_id:
+            source_id = instance_id
+
+        return {
+            "group": group_name,
+            "instance": instance_id,
+            "layer": layer,
+            "source_id": source_id,
+            "class_ref": class_ref,
+            "object_ref": object_ref,
+            "status": row.get("status", "pending"),
+            "notes": row.get("notes", ""),
+            "runtime": row.get("runtime"),
+            "firmware_ref": firmware_ref if isinstance(firmware_ref, str) and firmware_ref else None,
+            "os_refs": normalized_os_refs,
+            "embedded_in": embedded_in if isinstance(embedded_in, str) and embedded_in else None,
+            "extensions": self._extract_extensions(row),
+        }
+
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
 
@@ -753,39 +1150,10 @@ class InstanceRowsCompiler(CompilerPlugin):
             Path(semantic_keywords_raw) if isinstance(semantic_keywords_raw, str) and semantic_keywords_raw else None
         )
         semantic_registry = load_semantic_keyword_registry(semantic_keywords_path)
-        row_annotations_by_instance: dict[str, dict[str, dict[str, Any]]] = {}
-        object_secret_annotations_by_object: dict[str, dict[str, dict[str, Any]]] = {}
-        annotation_formats: dict[str, dict[str, Any]] = {}
-
-        try:
-            subscribed_rows = ctx.subscribe(self._ANNOTATION_PLUGIN_ID, "row_annotations_by_instance")
-            if isinstance(subscribed_rows, dict):
-                row_annotations_by_instance = subscribed_rows
-        except PluginDataExchangeError:
-            row_annotations_by_instance = {}
-
-        try:
-            subscribed_objects = ctx.subscribe(self._ANNOTATION_PLUGIN_ID, "object_secret_annotations")
-            if isinstance(subscribed_objects, dict):
-                object_secret_annotations_by_object = subscribed_objects
-        except PluginDataExchangeError:
-            object_secret_annotations_by_object = {}
-
-        try:
-            subscribed_formats = ctx.subscribe(self._ANNOTATION_PLUGIN_ID, "annotation_formats")
-            if isinstance(subscribed_formats, dict):
-                annotation_formats = subscribed_formats
-        except PluginDataExchangeError:
-            annotation_formats = {}
-
-        # Resolve secrets_root path (relative to repo_root)
-        secrets_root_str = ctx.config.get("secrets_root", "projects/home-lab/secrets")
-        repo_root = ctx.config.get("repo_root")
-        if isinstance(repo_root, str) and repo_root:
-            secrets_root = Path(repo_root) / secrets_root_str
-        else:
-            # Fallback: resolve relative to topology-tools parent
-            secrets_root = Path(__file__).resolve().parents[4] / secrets_root_str
+        row_annotations_by_instance, object_secret_annotations_by_object, annotation_formats = (
+            self._load_annotation_inputs(ctx)
+        )
+        secrets_root = self._resolve_secrets_root_path(ctx)
 
         for group_name, group_rows in bindings_root.items():
             if not isinstance(group_rows, list):
@@ -813,298 +1181,25 @@ class InstanceRowsCompiler(CompilerPlugin):
                     )
                     continue
 
-                row_path = f"instance_bindings.{group_name}[{idx}]"
-                normalized_row = self._normalize_semantic_row(
+                normalized_row = self._process_binding_row(
                     row=row,
-                    semantic_registry=semantic_registry,
+                    group_name=group_name,
+                    row_index=idx,
+                    ctx=ctx,
                     stage=stage,
                     diagnostics=diagnostics,
-                    row_path=row_path,
+                    seen_instances=seen_instances,
+                    semantic_registry=semantic_registry,
+                    row_annotations_by_instance=row_annotations_by_instance,
+                    object_secret_annotations_by_object=object_secret_annotations_by_object,
+                    annotation_formats=annotation_formats,
+                    secrets_root=secrets_root,
+                    mode=mode,
+                    require_unlock=require_unlock,
                 )
                 if normalized_row is None:
                     continue
-                row = normalized_row
-                instance_id = row.get("instance")
-
-                if not isinstance(instance_id, str) or not instance_id:
-                    diagnostics.append(
-                        self.emit_diagnostic(
-                            code="E3201",
-                            severity="error",
-                            stage=stage,
-                            message="Instance row must define non-empty 'instance'.",
-                            path=f"instance_bindings.{group_name}[{idx}].instance",
-                        )
-                    )
-                    continue
-                if contains_unsafe_identifier_chars(instance_id):
-                    diagnostics.append(
-                        self.emit_diagnostic(
-                            code="E3201",
-                            severity="error",
-                            stage=stage,
-                            message=(
-                                f"instance id '{instance_id}' contains filename-unsafe characters; "
-                                "use only cross-platform filename-safe symbols."
-                            ),
-                            path=f"instance_bindings.{group_name}[{idx}].instance",
-                        )
-                    )
-                    continue
-                if instance_id in seen_instances:
-                    diagnostics.append(
-                        PluginDiagnostic(
-                            code="E2102",
-                            severity="error",
-                            stage="resolve",
-                            message=f"Duplicate instance '{instance_id}'.",
-                            path=f"instance_bindings.{group_name}[{idx}]",
-                            plugin_id=self.plugin_id,
-                        )
-                    )
-                    continue
-                seen_instances.add(instance_id)
-
-                if "hardware_identity_secret_ref" in row:
-                    diagnostics.append(
-                        self.emit_diagnostic(
-                            code="E3201",
-                            severity="error",
-                            stage=stage,
-                            message=(
-                                "Field 'hardware_identity_secret_ref' is deprecated and forbidden. "
-                                "Store encrypted secret data adjacent to target fields."
-                            ),
-                            path=f"instance_bindings.{group_name}[{idx}].hardware_identity_secret_ref",
-                        )
-                    )
-
-                row_annotations = row_annotations_by_instance.get(instance_id)
-                if not isinstance(row_annotations, dict):
-                    row_annotations = self._collect_row_annotations(row)
-                object_secret_annotations: dict[str, dict[str, Any]] = {}
-                object_ref_for_annotations = row.get("object_ref")
-                if isinstance(object_ref_for_annotations, str):
-                    candidate_object_annotations = object_secret_annotations_by_object.get(object_ref_for_annotations)
-                    if isinstance(candidate_object_annotations, dict):
-                        object_secret_annotations = candidate_object_annotations
-                merged_secret_annotations: dict[str, dict[str, Any]] = {}
-                for path, spec in object_secret_annotations.items():
-                    if isinstance(path, str) and isinstance(spec, dict):
-                        merged_secret_annotations[path] = spec
-                for path, spec in row_annotations.items():
-                    if isinstance(path, str) and isinstance(spec, dict):
-                        merged_secret_annotations[path] = spec
-
-                row = self._resolve_sidecar_secrets(
-                    row=row,
-                    instance_id=instance_id,
-                    secrets_root=secrets_root,
-                    stage=stage,
-                    diagnostics=diagnostics,
-                    row_path=row_path,
-                    mode=mode,
-                    require_unlock=require_unlock,
-                    row_annotations=merged_secret_annotations,
-                    annotation_formats=annotation_formats,
-                )
-
-                if mode == "strict":
-                    unresolved_paths = self._collect_all_placeholder_paths(
-                        row, row_annotations=merged_secret_annotations
-                    )
-                    for unresolved_path in unresolved_paths:
-                        diagnostics.append(
-                            self.emit_diagnostic(
-                                code="E7208",
-                                severity="error",
-                                stage=stage,
-                                message=(
-                                    f"Strict secrets mode requires resolved placeholder: "
-                                    f"'{unresolved_path}' in instance '{instance_id}'."
-                                ),
-                                path=row_path,
-                            )
-                        )
-
-                layer = row.get("layer")
-                class_ref = row.get("class_ref")
-                object_ref = row.get("object_ref")
-                firmware_ref = row.get("firmware_ref")
-                os_refs = row.get("os_refs")
-                derived_class_ref: str | None = None
-
-                if isinstance(class_ref, str) and class_ref and contains_unsafe_identifier_chars(class_ref):
-                    diagnostics.append(
-                        self.emit_diagnostic(
-                            code="E3201",
-                            severity="error",
-                            stage=stage,
-                            message=(
-                                f"class_ref '{class_ref}' contains filename-unsafe characters; "
-                                "use only cross-platform filename-safe symbols."
-                            ),
-                            path=f"instance_bindings.{group_name}[{idx}].class_ref",
-                        )
-                    )
-                    class_ref = None
-
-                if not isinstance(object_ref, str) or not object_ref:
-                    diagnostics.append(
-                        self.emit_diagnostic(
-                            code="E3201",
-                            severity="error",
-                            stage=stage,
-                            message="Instance row must define non-empty 'object_ref'.",
-                            path=f"instance_bindings.{group_name}[{idx}].object_ref",
-                        )
-                    )
-                else:
-                    if contains_unsafe_identifier_chars(object_ref):
-                        diagnostics.append(
-                            self.emit_diagnostic(
-                                code="E3201",
-                                severity="error",
-                                stage=stage,
-                                message=(
-                                    f"object_ref '{object_ref}' contains filename-unsafe characters; "
-                                    "use only cross-platform filename-safe symbols."
-                                ),
-                                path=f"instance_bindings.{group_name}[{idx}].object_ref",
-                            )
-                        )
-                    else:
-                        if object_ref in ctx.classes and object_ref not in ctx.objects:
-                            diagnostics.append(
-                                self.emit_diagnostic(
-                                    code="E8804",
-                                    severity="error",
-                                    stage=stage,
-                                    message=(
-                                        f"Instance row '@extends/object_ref' target '{object_ref}' is class id; "
-                                        "instance inheritance requires object id."
-                                    ),
-                                    path=f"instance_bindings.{group_name}[{idx}].object_ref",
-                                )
-                            )
-                        object_payload = ctx.objects.get(object_ref)
-                        if isinstance(object_payload, dict):
-                            candidate_class_ref = object_payload.get("class_ref")
-                            if isinstance(candidate_class_ref, str) and candidate_class_ref:
-                                derived_class_ref = candidate_class_ref
-
-                if not isinstance(class_ref, str) or not class_ref:
-                    class_ref = derived_class_ref
-                elif isinstance(derived_class_ref, str) and derived_class_ref and class_ref != derived_class_ref:
-                    diagnostics.append(
-                        self.emit_diagnostic(
-                            code="E2403",
-                            severity="error",
-                            stage=stage,
-                            message=(
-                                f"Instance class_ref '{class_ref}' does not match object_ref '{object_ref}' "
-                                f"class_ref '{derived_class_ref}'."
-                            ),
-                            path=f"instance_bindings.{group_name}[{idx}].class_ref",
-                        )
-                    )
-
-                if not isinstance(class_ref, str) or not class_ref:
-                    diagnostics.append(
-                        self.emit_diagnostic(
-                            code="E3201",
-                            severity="error",
-                            stage=stage,
-                            message=(
-                                "Instance row must define non-empty 'class_ref' or provide "
-                                "object_ref with resolvable class_ref."
-                            ),
-                            path=f"instance_bindings.{group_name}[{idx}].class_ref",
-                        )
-                    )
-                if not isinstance(layer, str) or not layer:
-                    diagnostics.append(
-                        self.emit_diagnostic(
-                            code="E3201",
-                            severity="error",
-                            stage=stage,
-                            message="Instance row must define non-empty 'layer'.",
-                            path=f"instance_bindings.{group_name}[{idx}].layer",
-                        )
-                    )
-                if firmware_ref is not None and (not isinstance(firmware_ref, str) or not firmware_ref):
-                    diagnostics.append(
-                        self.emit_diagnostic(
-                            code="E3201",
-                            severity="error",
-                            stage=stage,
-                            message="firmware_ref must be non-empty string when set.",
-                            path=f"instance_bindings.{group_name}[{idx}].firmware_ref",
-                        )
-                    )
-                if os_refs is not None and not isinstance(os_refs, list):
-                    diagnostics.append(
-                        self.emit_diagnostic(
-                            code="E3201",
-                            severity="error",
-                            stage=stage,
-                            message="os_refs must be a list when set.",
-                            path=f"instance_bindings.{group_name}[{idx}].os_refs",
-                        )
-                    )
-                    os_refs = []
-
-                embedded_in = row.get("embedded_in")
-                if embedded_in is not None and (not isinstance(embedded_in, str) or not embedded_in):
-                    diagnostics.append(
-                        self.emit_diagnostic(
-                            code="E3201",
-                            severity="error",
-                            stage=stage,
-                            message="embedded_in must be non-empty string when set.",
-                            path=f"instance_bindings.{group_name}[{idx}].embedded_in",
-                        )
-                    )
-                    embedded_in = None
-
-                normalized_os_refs: list[str] = []
-                if isinstance(os_refs, list):
-                    for os_idx, os_ref in enumerate(os_refs):
-                        if not isinstance(os_ref, str) or not os_ref:
-                            diagnostics.append(
-                                self.emit_diagnostic(
-                                    code="E3201",
-                                    severity="error",
-                                    stage=stage,
-                                    message="os_refs entries must be non-empty strings.",
-                                    path=f"instance_bindings.{group_name}[{idx}].os_refs[{os_idx}]",
-                                )
-                            )
-                            continue
-                        normalized_os_refs.append(os_ref)
-
-                source_id = row.get("source_id", instance_id)
-                if not isinstance(source_id, str) or not source_id:
-                    source_id = instance_id
-                extensions = self._extract_extensions(row)
-
-                rows.append(
-                    {
-                        "group": group_name,
-                        "instance": instance_id,
-                        "layer": layer,
-                        "source_id": source_id,
-                        "class_ref": class_ref,
-                        "object_ref": object_ref,
-                        "status": row.get("status", "pending"),
-                        "notes": row.get("notes", ""),
-                        "runtime": row.get("runtime"),
-                        "firmware_ref": firmware_ref if isinstance(firmware_ref, str) and firmware_ref else None,
-                        "os_refs": normalized_os_refs,
-                        "embedded_in": embedded_in if isinstance(embedded_in, str) and embedded_in else None,
-                        "extensions": extensions,
-                    }
-                )
+                rows.append(normalized_row)
 
         ctx.publish("normalized_rows", rows)
         return self.make_result(diagnostics, output_data={"normalized_rows": rows})

@@ -6,6 +6,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import yaml
+
 V5_TOOLS = Path(__file__).resolve().parents[2] / "topology-tools"
 sys.path.insert(0, str(V5_TOOLS))
 
@@ -20,6 +22,11 @@ def _registry() -> PluginRegistry:
     registry = PluginRegistry(V5_TOOLS)
     registry.load_manifest(V5_TOOLS / "plugins" / "plugins.yaml")
     return registry
+
+
+def _write_manifest(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
 
 
 def test_instance_rows_compiler_skips_when_core_owner():
@@ -69,6 +76,65 @@ def test_instance_rows_compiler_plugin_owner_normalizes_rows():
     assert rows[0]["extensions"]["custom_flag"] is True
     assert rows[0]["extensions"]["endpoint_a"]["port"] == "eth0"
     assert "normalized_rows" in ctx.get_published_keys(PLUGIN_ID)
+
+
+def test_instance_rows_execute_stage_commits_normalized_rows_authoritatively(tmp_path):
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": PLUGIN_ID,
+                "kind": "compiler",
+                "entry": f"{(V5_TOOLS / 'plugins/compilers/instance_rows_compiler.py').as_posix()}:InstanceRowsCompiler",
+                "api_version": "1.x",
+                "stages": ["compile"],
+                "phase": "run",
+                "order": 40,
+                "subinterpreter_compatible": True,
+                "config": {
+                    "secrets_mode": "passthrough",
+                    "secrets_root": "projects/home-lab/secrets",
+                    "require_unlock": True,
+                },
+                "produces": [{"key": "normalized_rows", "scope": "pipeline_shared"}],
+            }
+        ],
+    }
+    _write_manifest(manifest, payload)
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        classes={"class.router": {"class": "class.router"}},
+        objects={"obj.router": {"object": "obj.router", "class_ref": "class.router"}},
+        config={"compilation_owner_instance_rows": "plugin"},
+        instance_bindings={
+            "instance_bindings": {
+                "devices": [
+                    {
+                        "instance": "dev-stage",
+                        "layer": "L1",
+                        "class_ref": "class.router",
+                        "object_ref": "obj.router",
+                        "custom_flag": True,
+                    }
+                ]
+            }
+        },
+    )
+
+    results = registry.execute_stage(Stage.COMPILE, ctx, parallel_plugins=False)
+
+    assert len(results) == 1
+    assert results[0].status in {PluginStatus.SUCCESS, PluginStatus.PARTIAL}
+    published = ctx.get_published_data()[PLUGIN_ID]["normalized_rows"]
+    assert isinstance(published, list)
+    assert published[0]["instance"] == "dev-stage"
+    assert published[0]["extensions"]["custom_flag"] is True
 
 
 def test_instance_rows_compiler_accepts_semantic_instance_keys():
