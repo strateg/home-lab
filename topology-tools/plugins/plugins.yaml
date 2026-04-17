@@ -461,7 +461,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
     description: Assembles candidate effective model in compile stage (ADR 0069 WS2).
 
   # Validator plugins (run in validate stage)
@@ -664,7 +664,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
     description: Validates ADR0062 L1 lateral relation power.source_ref and outlet occupancy constraints.
 
   - id: base.validator.network_ip_overlap
@@ -864,7 +864,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
     description: Validates VLAN/bridge core refs (bridge/trust-zone/manager/host).
 
   - id: base.validator.network_vlan_tags
@@ -980,7 +980,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
     description: Validates service data_asset_refs and dependency service_ref links.
 
   - id: base.validator.storage_device_taxonomy
@@ -1086,7 +1086,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
     description: Validates certificate service refs and used_by service links.
 
   - id: base.validator.backup_refs
@@ -1118,7 +1118,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: false
+        required: true
     description: Validates backup targets and destination pool references.
 
   - id: base.validator.security_policy_refs
@@ -1672,7 +1672,7 @@ plugins:
     stages: [generate]
     phase: run
     order: 190
-    depends_on: []
+    depends_on: [base.compiler.effective_model]
     timeout: 30
     subinterpreter_compatible: true  # Pure JSON, no templates (ADR 0097 Wave 3)
     config: {}
@@ -1685,7 +1685,7 @@ plugins:
         scope: pipeline_shared
       - key: effective_json_path
         scope: pipeline_shared
-    description: Emits effective topology JSON from compiled model (ADR 0069 WS4).
+    description: Emits effective topology JSON from main-interpreter-committed compiled model (ADR 0069 WS4).
 
   - id: base.generator.effective_yaml
     kind: generator
@@ -1694,7 +1694,7 @@ plugins:
     stages: [generate]
     phase: run
     order: 200
-    depends_on: []
+    depends_on: [base.compiler.effective_model]
     timeout: 30
     subinterpreter_compatible: false  # Uses yaml.dump (ADR 0097 Wave 3)
     config:
@@ -1711,7 +1711,7 @@ plugins:
         scope: pipeline_shared
       - key: effective_yaml_path
         scope: pipeline_shared
-    description: Emits effective topology YAML from compiled model (ADR 0069 WS4 seed).
+    description: Emits effective topology YAML from main-interpreter-committed compiled model (ADR 0069 WS4 seed).
 
   - id: base.generator.docs
     kind: generator
@@ -1720,7 +1720,7 @@ plugins:
     stages: [generate]
     phase: post
     order: 220
-    depends_on: []
+    depends_on: [base.compiler.effective_model]
     timeout: 30
     subinterpreter_compatible: true  # Jinja2 templates (ADR 0097 Wave 3)
     config: {}
@@ -1737,7 +1737,7 @@ plugins:
         scope: pipeline_shared
       - key: docs_projection
         scope: pipeline_shared
-    description: Emits baseline markdown docs artifacts from v5 compiled model projection.
+    description: Emits baseline markdown docs artifacts from main-interpreter-committed compiled model projection.
 
   - id: base.generator.diagrams
     kind: generator
@@ -1746,7 +1746,7 @@ plugins:
     stages: [generate]
     phase: post
     order: 225
-    depends_on: []
+    depends_on: [base.compiler.effective_model]
     timeout: 60
     subinterpreter_compatible: true  # Jinja2 templates (ADR 0097 Wave 3)
     config:
@@ -1777,7 +1777,7 @@ plugins:
       - key: diagram_files
         scope: pipeline_shared
     description: >
-      Emits Mermaid topology diagram pages (physical + network) from v5 compiled model.
+      Emits Mermaid topology diagram pages (physical + network) from main-interpreter-committed compiled model.
       Supports icon-nodes, compat, and plain modes (ADR 0005, ADR 0027).
 
   # Object-scoped generators are registered in module manifests:
@@ -1793,7 +1793,7 @@ plugins:
     phase: run
     order: 230
     migration_mode: migrating
-    depends_on: []
+    depends_on: [base.compiler.effective_model]
     timeout: 30
     subinterpreter_compatible: true  # Jinja2 templates (ADR 0097 Wave 3)
     config:

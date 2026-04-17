@@ -10,10 +10,13 @@ import os
 import sys
 from pathlib import Path
 
+import yaml
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TOOLS_ROOT = REPO_ROOT / "topology-tools"
 sys.path.insert(0, str(TOOLS_ROOT))
 
+from kernel import PluginRegistry
 from kernel.plugin_base import PluginContext, PluginStatus, Stage
 
 
@@ -27,6 +30,18 @@ def _load_generator_class():
 
 
 DiagramGenerator = _load_generator_class()
+PLUGIN_ID = "base.generator.diagrams"
+
+
+def _registry() -> PluginRegistry:
+    registry = PluginRegistry(TOOLS_ROOT)
+    registry.load_manifest(TOOLS_ROOT / "plugins" / "plugins.yaml")
+    return registry
+
+
+def _write_manifest(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
 
 
 def _ctx(tmp_path: Path, compiled_json: dict) -> PluginContext:
@@ -258,3 +273,105 @@ def test_diagram_generator_uses_embedded_fallback_icons_when_packs_missing(tmp_p
     assert manifest["icons_total"] > 0
     assert manifest["icons_resolved_via_fallback"] > 0
     assert manifest["icons_unresolved"] == 0
+
+
+def test_diagram_manifest_depends_on_effective_model() -> None:
+    registry = _registry()
+
+    assert registry.specs[PLUGIN_ID].depends_on == ["base.compiler.effective_model"]
+
+
+def test_diagram_execute_stage_commits_generated_payloads(tmp_path: Path) -> None:
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "base.compiler.effective_model",
+                "kind": "compiler",
+                "entry": f"{(TOOLS_ROOT / 'plugins/compilers/effective_model_compiler.py').as_posix()}:EffectiveModelCompiler",
+                "api_version": "1.x",
+                "stages": ["compile"],
+                "phase": "finalize",
+                "order": 60,
+            },
+            {
+                "id": PLUGIN_ID,
+                "kind": "generator",
+                "entry": f"{(TOOLS_ROOT / 'plugins/generators/diagram_generator.py').as_posix()}:DiagramGenerator",
+                "api_version": "1.x",
+                "stages": ["generate"],
+                "phase": "post",
+                "order": 225,
+                "depends_on": ["base.compiler.effective_model"],
+                "subinterpreter_compatible": True,
+                "config": {"mermaid_icon_mode": "none"},
+                "produces": [
+                    {"key": "diagram_dir", "scope": "pipeline_shared"},
+                    {"key": "generated_files", "scope": "pipeline_shared"},
+                    {"key": "diagram_files", "scope": "pipeline_shared"},
+                ],
+            },
+        ],
+    }
+    _write_manifest(manifest, payload)
+
+    registry = PluginRegistry(TOOLS_ROOT)
+    registry.load_manifest(manifest)
+    ctx = _ctx(tmp_path, _compiled_fixture())
+
+    results = registry.execute_stage(Stage.GENERATE, ctx, parallel_plugins=False)
+
+    assert len(results) == 1
+    assert results[0].status == PluginStatus.SUCCESS
+    published = ctx.get_published_data()[PLUGIN_ID]
+    assert published["diagram_dir"].endswith("generated/docs/diagrams")
+    assert any(path.endswith("physical-topology.md") for path in published["generated_files"])
+    assert any(path.endswith("index.md") for path in published["diagram_files"])
+
+
+def test_diagram_execute_stage_requires_compiled_json(tmp_path: Path) -> None:
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "base.compiler.effective_model",
+                "kind": "compiler",
+                "entry": f"{(TOOLS_ROOT / 'plugins/compilers/effective_model_compiler.py').as_posix()}:EffectiveModelCompiler",
+                "api_version": "1.x",
+                "stages": ["compile"],
+                "phase": "finalize",
+                "order": 60,
+            },
+            {
+                "id": PLUGIN_ID,
+                "kind": "generator",
+                "entry": f"{(TOOLS_ROOT / 'plugins/generators/diagram_generator.py').as_posix()}:DiagramGenerator",
+                "api_version": "1.x",
+                "stages": ["generate"],
+                "phase": "post",
+                "order": 225,
+                "depends_on": ["base.compiler.effective_model"],
+                "subinterpreter_compatible": True,
+                "config": {"mermaid_icon_mode": "none"},
+                "produces": [
+                    {"key": "diagram_dir", "scope": "pipeline_shared"},
+                    {"key": "generated_files", "scope": "pipeline_shared"},
+                    {"key": "diagram_files", "scope": "pipeline_shared"},
+                ],
+            },
+        ],
+    }
+    _write_manifest(manifest, payload)
+
+    registry = PluginRegistry(TOOLS_ROOT)
+    registry.load_manifest(manifest)
+    ctx = _ctx(tmp_path, {})
+
+    results = registry.execute_stage(Stage.GENERATE, ctx, parallel_plugins=False)
+
+    assert len(results) == 1
+    assert results[0].status == PluginStatus.FAILED
+    assert any(diag.code == "E3001" for diag in results[0].diagnostics)
+    assert PLUGIN_ID not in ctx.get_published_data()

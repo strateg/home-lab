@@ -7,6 +7,8 @@ import copy
 import sys
 from pathlib import Path
 
+import yaml
+
 V5_TOOLS = Path(__file__).resolve().parents[2] / "topology-tools"
 sys.path.insert(0, str(V5_TOOLS))
 
@@ -20,6 +22,11 @@ def _registry() -> PluginRegistry:
     registry = PluginRegistry(V5_TOOLS)
     registry.load_manifest(V5_TOOLS / "plugins" / "plugins.yaml")
     return registry
+
+
+def _write_manifest(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
 
 
 def _context(tmp_path: Path, compiled_json: dict) -> PluginContext:
@@ -135,3 +142,105 @@ def test_docs_generator_reports_projection_error(tmp_path: Path) -> None:
 
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E9701" for diag in result.diagnostics)
+
+
+def test_docs_manifest_depends_on_effective_model() -> None:
+    registry = _registry()
+
+    assert registry.specs[PLUGIN_ID].depends_on == ["base.compiler.effective_model"]
+
+
+def test_docs_execute_stage_commits_generated_payloads(tmp_path: Path) -> None:
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "base.compiler.effective_model",
+                "kind": "compiler",
+                "entry": f"{(V5_TOOLS / 'plugins/compilers/effective_model_compiler.py').as_posix()}:EffectiveModelCompiler",
+                "api_version": "1.x",
+                "stages": ["compile"],
+                "phase": "finalize",
+                "order": 60,
+            },
+            {
+                "id": PLUGIN_ID,
+                "kind": "generator",
+                "entry": f"{(V5_TOOLS / 'plugins/generators/docs_generator.py').as_posix()}:DocsGenerator",
+                "api_version": "1.x",
+                "stages": ["generate"],
+                "phase": "post",
+                "order": 220,
+                "depends_on": ["base.compiler.effective_model"],
+                "subinterpreter_compatible": True,
+                "produces": [
+                    {"key": "generated_dir", "scope": "pipeline_shared"},
+                    {"key": "generated_files", "scope": "pipeline_shared"},
+                    {"key": "docs_files", "scope": "pipeline_shared"},
+                    {"key": "docs_projection", "scope": "pipeline_shared"},
+                ],
+            },
+        ],
+    }
+    _write_manifest(manifest, payload)
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = _context(tmp_path, _compiled_fixture())
+
+    results = registry.execute_stage(Stage.GENERATE, ctx, parallel_plugins=False)
+
+    assert len(results) == 1
+    assert results[0].status == PluginStatus.SUCCESS
+    published = ctx.get_published_data()[PLUGIN_ID]
+    assert published["generated_dir"].endswith("generated/docs")
+    assert any(path.endswith("overview.md") for path in published["generated_files"])
+    assert any(path.endswith("services.md") for path in published["docs_files"])
+
+
+def test_docs_execute_stage_requires_compiled_json(tmp_path: Path) -> None:
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "base.compiler.effective_model",
+                "kind": "compiler",
+                "entry": f"{(V5_TOOLS / 'plugins/compilers/effective_model_compiler.py').as_posix()}:EffectiveModelCompiler",
+                "api_version": "1.x",
+                "stages": ["compile"],
+                "phase": "finalize",
+                "order": 60,
+            },
+            {
+                "id": PLUGIN_ID,
+                "kind": "generator",
+                "entry": f"{(V5_TOOLS / 'plugins/generators/docs_generator.py').as_posix()}:DocsGenerator",
+                "api_version": "1.x",
+                "stages": ["generate"],
+                "phase": "post",
+                "order": 220,
+                "depends_on": ["base.compiler.effective_model"],
+                "subinterpreter_compatible": True,
+                "produces": [
+                    {"key": "generated_dir", "scope": "pipeline_shared"},
+                    {"key": "generated_files", "scope": "pipeline_shared"},
+                    {"key": "docs_files", "scope": "pipeline_shared"},
+                    {"key": "docs_projection", "scope": "pipeline_shared"},
+                ],
+            },
+        ],
+    }
+    _write_manifest(manifest, payload)
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = _context(tmp_path, {})
+
+    results = registry.execute_stage(Stage.GENERATE, ctx, parallel_plugins=False)
+
+    assert len(results) == 1
+    assert results[0].status == PluginStatus.FAILED
+    assert any(diag.code == "E3001" for diag in results[0].diagnostics)
+    assert PLUGIN_ID not in ctx.get_published_data()
