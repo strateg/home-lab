@@ -449,6 +449,7 @@ class ModuleLoaderCompiler(CompilerPlugin):
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
+        envelope_mode = getattr(ctx, "_snapshot", None) is not None
 
         owner = ctx.config.get("compilation_owner_module_maps")
         if owner is not None and owner != "plugin":
@@ -499,16 +500,17 @@ class ModuleLoaderCompiler(CompilerPlugin):
         )
         self._validate_typed_extends(class_map=class_map, object_map=object_map, diagnostics=diagnostics)
 
-        ctx.classes = {
-            class_id: item["payload"]
-            for class_id, item in class_map.items()
-            if isinstance(item, dict) and isinstance(item.get("payload"), dict)
-        }
-        ctx.objects = {
-            object_id: item["payload"]
-            for object_id, item in object_map.items()
-            if isinstance(item, dict) and isinstance(item.get("payload"), dict)
-        }
+        if not envelope_mode:
+            ctx.classes = {
+                class_id: item["payload"]
+                for class_id, item in class_map.items()
+                if isinstance(item, dict) and isinstance(item.get("payload"), dict)
+            }
+            ctx.objects = {
+                object_id: item["payload"]
+                for object_id, item in object_map.items()
+                if isinstance(item, dict) and isinstance(item.get("payload"), dict)
+            }
         ctx.publish("class_map", class_map)
         ctx.publish("object_map", object_map)
         ctx.publish("class_module_paths", class_paths)

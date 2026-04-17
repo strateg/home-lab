@@ -6,6 +6,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import yaml
+
 V5_TOOLS = Path(__file__).resolve().parents[2] / "topology-tools"
 sys.path.insert(0, str(V5_TOOLS))
 
@@ -19,6 +21,11 @@ def _registry() -> PluginRegistry:
     registry = PluginRegistry(V5_TOOLS)
     registry.load_manifest(V5_TOOLS / "plugins" / "plugins.yaml")
     return registry
+
+
+def _write_manifest(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
 
 
 def test_module_loader_skips_when_core_owner():
@@ -66,6 +73,65 @@ def test_module_loader_plugin_owner_loads_modules(tmp_path):
     assert result.status == PluginStatus.SUCCESS
     assert "class.router" in ctx.classes
     assert "obj.router" in ctx.objects
+
+
+def test_module_loader_execute_stage_commits_authoritative_maps(tmp_path):
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+                {
+                    "id": PLUGIN_ID,
+                    "kind": "compiler",
+                    "entry": f"{(V5_TOOLS / 'plugins/compilers/module_loader_compiler.py').as_posix()}:ModuleLoaderCompiler",
+                    "api_version": "1.x",
+                    "stages": ["compile"],
+                    "phase": "init",
+                "order": 30,
+                "subinterpreter_compatible": True,
+                "produces": [
+                    {"key": "class_map", "scope": "pipeline_shared"},
+                    {"key": "object_map", "scope": "pipeline_shared"},
+                    {"key": "class_module_paths", "scope": "pipeline_shared"},
+                    {"key": "object_module_paths", "scope": "pipeline_shared"},
+                ],
+            }
+        ],
+    }
+    _write_manifest(manifest, payload)
+
+    class_dir = tmp_path / "class-modules"
+    object_dir = tmp_path / "object-modules"
+    class_dir.mkdir()
+    object_dir.mkdir()
+    (class_dir / "class.router.yaml").write_text("@class: class.router\n@version: 1.0.0\n", encoding="utf-8")
+    (object_dir / "obj.router.yaml").write_text(
+        "@object: obj.router\n@extends: class.router\n@version: 1.0.0\n",
+        encoding="utf-8",
+    )
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={
+            "compilation_owner_module_maps": "plugin",
+            "class_modules_root": str(class_dir),
+            "object_modules_root": str(object_dir),
+        },
+    )
+
+    results = registry.execute_stage(Stage.COMPILE, ctx, parallel_plugins=False)
+
+    assert len(results) == 1
+    assert results[0].status == PluginStatus.SUCCESS
+    assert ctx.classes["class.router"]["class"] == "class.router"
+    assert ctx.objects["obj.router"]["class_ref"] == "class.router"
+    published = ctx.get_published_data()[PLUGIN_ID]
+    assert "class_map" in published
+    assert "object_map" in published
 
 
 def test_module_loader_rejects_unsafe_class_and_object_ids(tmp_path):

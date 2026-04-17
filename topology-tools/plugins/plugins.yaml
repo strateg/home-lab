@@ -123,6 +123,7 @@ plugins:
     order: 30
     depends_on: []
     timeout: 30
+    subinterpreter_compatible: true  # ADR 0097 Wave 3A envelope-model cutover
     config: {}
     config_schema:
       type: object
@@ -288,6 +289,7 @@ plugins:
     order: 60
     depends_on: [base.compiler.module_loader, base.compiler.capabilities, base.compiler.instance_rows]
     timeout: 30
+    subinterpreter_compatible: true  # ADR 0097 Wave 3A envelope-model cutover
     config: {}
     config_schema:
       type: object

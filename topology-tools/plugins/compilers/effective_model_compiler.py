@@ -195,6 +195,7 @@ class EffectiveModelCompiler(CompilerPlugin):
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
+        envelope_mode = getattr(ctx, "_snapshot", None) is not None
 
         plugin_rows: Any = None
         try:
@@ -373,7 +374,8 @@ class EffectiveModelCompiler(CompilerPlugin):
 
         # Publish for dependent plugins and place into compiled_json candidate.
         ctx.publish("effective_model_candidate", candidate)
-        ctx.compiled_json = candidate
+        if not envelope_mode:
+            ctx.compiled_json = candidate
 
         return self.make_result(
             diagnostics=diagnostics,

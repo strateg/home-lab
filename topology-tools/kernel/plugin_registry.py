@@ -812,6 +812,42 @@ class PluginRegistry:
         ctx._published_meta = pipeline_state.published_meta.copy()
         setattr(ctx, "_pipeline_state", pipeline_state)
 
+    def _apply_authoritative_commit_side_effects(
+        self,
+        *,
+        ctx: PluginContext,
+        pipeline_state: PipelineState,
+        spec: PluginSpec,
+    ) -> None:
+        """Apply main-interpreter-owned authoritative state derived from committed outputs."""
+        plugin_payload = pipeline_state.committed_data.get(spec.id, {})
+        if not isinstance(plugin_payload, dict):
+            return
+
+        class_map = plugin_payload.get("class_map")
+        object_map = plugin_payload.get("object_map")
+        if isinstance(class_map, dict):
+            ctx.classes = {
+                class_id: item["payload"]
+                for class_id, item in class_map.items()
+                if isinstance(class_id, str)
+                and isinstance(item, dict)
+                and isinstance(item.get("payload"), dict)
+            }
+        if isinstance(object_map, dict):
+            ctx.objects = {
+                object_id: item["payload"]
+                for object_id, item in object_map.items()
+                if isinstance(object_id, str)
+                and isinstance(item, dict)
+                and isinstance(item.get("payload"), dict)
+            }
+
+        if spec.compiled_json_owner:
+            candidate = plugin_payload.get("effective_model_candidate")
+            if isinstance(candidate, dict):
+                ctx.compiled_json = candidate
+
     def _validate_required_consumes_snapshot(
         self,
         *,
@@ -1057,6 +1093,7 @@ class PluginRegistry:
             return result
 
         self._sync_pipeline_state_to_context(ctx, pipeline_state)
+        self._apply_authoritative_commit_side_effects(ctx=ctx, pipeline_state=pipeline_state, spec=spec)
         return result
 
     @staticmethod
