@@ -39,6 +39,14 @@ Primary testing layers:
 
 Legacy context-internal tests may remain temporarily, but are transitional and not the source of truth for runtime behavior.
 
+## Terminology Alignment
+
+For this ADR:
+
+- **runtime wave/phase** terminology comes from ADR 0097 implementation rollout;
+- **test migration step** terminology describes test-suite migration tasks;
+- both describe the same rollout timeline and must stay synchronized through gates.
+
 ## Test Architecture
 
 ### 1) Plugin unit tests
@@ -138,6 +146,18 @@ Verifies:
 - **Visibility invariant**: `stage_local` visibility and cleanup are enforced by pipeline state, not worker-side context mutation.
 - **Contract invariant**: consumed payloads are resolved before dispatch and validated against manifest/runtime contract rules.
 
+## ADR 0097 Traceability Matrix
+
+| ADR 0099 test concern | ADR 0097 decision mapping |
+|---|---|
+| Ownership and commit semantics | D1, D2, D4, D5, D10 |
+| Snapshot-only plugin input | D2, D3, D8, D9 |
+| Worker-local outbox/event behavior | D4, D5, D6, D8 |
+| Execution mode routing | D7, D12 |
+| Pipeline-state validation/invalidation | D1, D5, D10 |
+| Plugin migration anti-pattern checks | D11 |
+| Snapshot minimization policy (`input_view`) | D12 |
+
 ## Migration Strategy
 
 ### Step 1: Introduce canonical test helpers
@@ -168,6 +188,15 @@ Mark tests depending on `_set_execution_context()` and direct context-owned bus 
 ### Step 5: Remove obsolete tests
 
 Delete tests that validate removed ownership semantics once runtime migration stabilizes.
+
+## Runtime Wave ↔ Test Gate Mapping
+
+| ADR 0097 runtime wave | Mandatory ADR 0099 test gates |
+|---|---|
+| Wave 1 — contracts + local facade + commit API | snapshot/envelope contract tests; plugin unit envelope assertions; initial pipeline commit tests |
+| Wave 2 — runtime cutover to envelope commit flow | worker failure isolation tests; scheduler integration tests; stage-local visibility/cleanup tests |
+| Wave 3 — key plugin migrations | serial vs subinterpreter parity on committed outputs/statuses/diagnostics; contract coverage for consumes/produces |
+| Post-wave contract evolution (`execution_mode`, optional `input_view`) | execution-mode routing tests; focused `input_view` contract + parity tests when `input_view` is enabled |
 
 ## Test Directory Guidance
 
@@ -235,7 +264,9 @@ This ADR is implemented when all are true:
 4. worker failure isolation is explicitly tested;
 5. stage-local visibility and invalidation are explicitly tested in pipeline-state tests;
 6. legacy context-internal tests are moved to transitional compatibility coverage or removed;
-7. new primary runtime validation no longer requires direct `_set_execution_context()` usage.
+7. new primary runtime validation no longer requires direct `_set_execution_context()` usage;
+8. execution-mode routing (`subinterpreter`, `main_interpreter`, `thread_legacy`) is explicitly covered by scheduler/runtime tests;
+9. when `input_view` is introduced for a plugin class, focused contract + parity tests exist for that view.
 
 ## Summary
 

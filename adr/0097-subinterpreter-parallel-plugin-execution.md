@@ -26,6 +26,16 @@ Current context usage mixes responsibilities that should be separated:
 
 This weakens ownership boundaries, increases reasoning complexity, and complicates deterministic behavior under isolation.
 
+At the time of this revision, the codebase still materially reflects the legacy model:
+
+- `PluginContext` still owns pipeline-visible data-plane and event-plane structures;
+- `SerializablePluginContext` still transports context-shaped runtime state into isolated execution;
+- parallel execution still merges worker-published payloads back into a shared main-interpreter context;
+- manifest routing is still primarily expressed through `subinterpreter_compatible` rather than `execution_mode`;
+- the test suite is still dominated by legacy context-oriented runtime assertions.
+
+ADR 0097 therefore defines both the target architecture and the migration boundary that existing compatibility code must converge toward.
+
 ## Decision
 
 The runtime standard is changed to an **actor-style dataflow model**.
@@ -156,6 +166,28 @@ Manifest execution routing contract is normalized around `execution_mode` (`subi
 
 An optional `input_view` contract may be introduced to reduce snapshot payload size for plugins requiring partial views.
 
+### D13. Compatibility boundary for legacy runtime APIs
+
+Legacy context-owned data-plane and event-plane mechanics may remain temporarily as migration shims, but they are **compatibility-only**.
+
+They must not be extended as the architectural source of truth for the new runtime model. In particular:
+
+- new primary execution paths must not depend on shared mutable context bus semantics;
+- worker-side event routing must remain envelope-level until main-interpreter ownership is fully established;
+- merge-back of worker-owned mutable bus state is transitional technical debt, not accepted target design.
+
+### D14. Migration anchors and representative cutovers
+
+Migration success is not measured only by runtime scaffolding. It also requires representative plugin cutovers that prove the model on critical paths.
+
+The following plugin categories are migration anchors:
+
+- one representative module-loading/compiler path;
+- `EffectiveModelCompiler` as the authoritative compiled-model boundary case;
+- `InstanceRowsCompiler` as the central high-complexity compiler path;
+- at least one representative validator;
+- at least one representative generator.
+
 ## Consequences
 
 ### Positive
@@ -254,6 +286,13 @@ No worker-side merge-back of mutable pipeline bus state.
 - treat `thread_legacy` as temporary migration mode;
 - optionally introduce `input_view` for snapshot minimization where justified.
 
+### Phase 7: Legacy-runtime decommissioning gates
+
+- stop extending `SerializablePluginContext` as primary transport;
+- remove worker merge-back of `_published_data` from the primary execution path;
+- demote context-owned event bus features to compatibility-only support unless explicitly re-adopted by a future ADR.
+- ensure primary runtime tests validate `PipelineState`/envelope semantics rather than legacy context internals.
+
 ## Acceptance Criteria
 
 This ADR is implemented when all conditions are true:
@@ -268,7 +307,10 @@ This ADR is implemented when all conditions are true:
 8. serial and subinterpreter execution are parity-tested for supported plugins;
 9. worker failure does not leak partial published state;
 10. `execution_mode` governs runtime routing;
-11. authoritative compiled model state is committed in main interpreter, not mutated inside worker plugins.
+11. authoritative compiled model state is committed in main interpreter, not mutated inside worker plugins;
+12. the primary execution path no longer depends on worker merge-back into shared `PluginContext._published_data`;
+13. legacy context-owned data/event bus APIs are compatibility-only and are not extended as primary runtime architecture;
+14. representative compiler, validator, and generator paths execute through snapshot/envelope/commit flow without ambient shared-state mutation.
 
 ## Summary
 
