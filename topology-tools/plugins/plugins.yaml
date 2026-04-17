@@ -242,7 +242,7 @@ plugins:
     stages: [compile]
     phase: run
     order: 40
-    depends_on: [base.compiler.instance_rows_secret_resolve, base.compiler.annotation_resolver]
+    depends_on: [base.compiler.instance_rows_secret_resolve]
     timeout: 30
     subinterpreter_compatible: true  # ADR 0097 Wave 3B raw-row resolution cutover
     config:
@@ -273,15 +273,6 @@ plugins:
       - from_plugin: base.compiler.instance_rows_secret_resolve
         key: secret_resolved_rows
         required: false
-      - from_plugin: base.compiler.annotation_resolver
-        key: annotation_formats
-        required: false
-      - from_plugin: base.compiler.annotation_resolver
-        key: object_secret_annotations
-        required: false
-      - from_plugin: base.compiler.annotation_resolver
-        key: row_annotations_by_instance
-        required: false
     description: Applies duplicate and identifier validation to secret-resolved rows before shape preparation.
 
   - id: base.compiler.instance_rows_prepare
@@ -291,7 +282,7 @@ plugins:
     stages: [compile]
     phase: run
     order: 41
-    depends_on: [base.compiler.instance_rows_resolve, base.compiler.annotation_resolver]
+    depends_on: [base.compiler.instance_rows_resolve]
     timeout: 30
     subinterpreter_compatible: true  # ADR 0097 Wave 3B pre-normalization cutover
     config:
@@ -322,15 +313,6 @@ plugins:
       - from_plugin: base.compiler.instance_rows_resolve
         key: resolved_rows
         required: false
-      - from_plugin: base.compiler.annotation_resolver
-        key: annotation_formats
-        required: false
-      - from_plugin: base.compiler.annotation_resolver
-        key: object_secret_annotations
-        required: false
-      - from_plugin: base.compiler.annotation_resolver
-        key: row_annotations_by_instance
-        required: false
     description: Resolves class/object refs and builds prepared instance rows before shape validation.
 
   - id: base.compiler.instance_rows_validate
@@ -340,7 +322,7 @@ plugins:
     stages: [compile]
     phase: run
     order: 42
-    depends_on: [base.compiler.instance_rows_prepare, base.compiler.instance_rows_resolve, base.compiler.instance_rows_secret_resolve]
+    depends_on: [base.compiler.instance_rows_prepare]
     timeout: 30
     subinterpreter_compatible: true  # ADR 0097 Wave 3B row-shape validation cutover
     config:
@@ -380,7 +362,7 @@ plugins:
     stages: [compile]
     phase: run
     order: 43
-    depends_on: [base.compiler.instance_rows_validate, base.compiler.instance_rows_prepare, base.compiler.instance_rows_resolve, base.compiler.instance_rows_secret_resolve, base.compiler.annotation_resolver]
+    depends_on: [base.compiler.instance_rows_validate]
     timeout: 30
     subinterpreter_compatible: true  # ADR 0097 Wave 3B envelope-model cutover
     config:
@@ -410,15 +392,6 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows_validate
         key: validated_rows
-        required: false
-      - from_plugin: base.compiler.annotation_resolver
-        key: annotation_formats
-        required: false
-      - from_plugin: base.compiler.annotation_resolver
-        key: object_secret_annotations
-        required: false
-      - from_plugin: base.compiler.annotation_resolver
-        key: row_annotations_by_instance
         required: false
     description: Publishes authoritative normalized instance rows after staged resolve/prepare/validate cutover.
 
