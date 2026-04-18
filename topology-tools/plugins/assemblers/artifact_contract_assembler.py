@@ -25,6 +25,20 @@ class ArtifactContractAssembler(AssemblerPlugin):
     def _resolve_registry(ctx: PluginContext) -> Any:
         return ctx.config.get("plugin_registry")
 
+
+    @staticmethod
+    def _payload_from_declared_consumes(ctx: PluginContext, plugin_id: str) -> dict[str, Any] | None:
+        payload: dict[str, Any] = {}
+        missing = 0
+        for key in ArtifactContractAssembler._REQUIRED_KEYS + ("generated_dir",):
+            try:
+                payload[key] = ctx.subscribe(plugin_id, key)
+            except PluginDataExchangeError:
+                missing += 1
+        if missing == len(ArtifactContractAssembler._REQUIRED_KEYS) + 1:
+            return None
+        return payload
+
     @staticmethod
     def _is_valid_contract_files(value: Any) -> bool:
         if not isinstance(value, list) or not value:
@@ -90,7 +104,24 @@ class ArtifactContractAssembler(AssemblerPlugin):
                 continue
 
             summary["checked"] += 1
-            payload = published_data.get(plugin_id, {})
+            payload = self._payload_from_declared_consumes(ctx, plugin_id)
+            used_legacy_fallback = False
+            if payload is None:
+                payload = published_data.get(plugin_id, {})
+                used_legacy_fallback = True
+            if used_legacy_fallback:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="I9397",
+                        severity="info",
+                        stage=stage,
+                        message=(
+                            f"artifact contract guard used compatibility publish-registry fallback for '{plugin_id}'; "
+                            "declare consumes/depends_on to migrate to snapshot input contracts."
+                        ),
+                        path=f"plugin:{plugin_id}",
+                    )
+                )
             missing = [key for key in self._REQUIRED_KEYS if key not in payload]
             if "artifact_contract_files" not in missing and not self._is_valid_contract_files(
                 payload["artifact_contract_files"]

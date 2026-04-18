@@ -32,8 +32,9 @@ def _ctx(registry: PluginRegistry) -> PluginContext:
     )
 
 
-def _run_guard(plugin: ArtifactContractAssembler, ctx: PluginContext):
-    ctx._set_execution_context("base.assembler.artifact_contract_guard", set())  # noqa: SLF001 - direct plugin execution helper
+def _run_guard(plugin: ArtifactContractAssembler, ctx: PluginContext, registry: PluginRegistry):
+    allowed = set(registry.specs[plugin.plugin_id].depends_on)
+    ctx._set_execution_context("base.assembler.artifact_contract_guard", allowed)  # noqa: SLF001 - direct plugin execution helper
     try:
         return plugin.execute(ctx, Stage.ASSEMBLE)
     finally:
@@ -79,7 +80,7 @@ def test_artifact_contract_assembler_passes_when_migrating_generators_publish_co
         )
 
     plugin = ArtifactContractAssembler("base.assembler.artifact_contract_guard")
-    result = _run_guard(plugin, ctx)
+    result = _run_guard(plugin, ctx, registry)
 
     assert result.status == PluginStatus.SUCCESS
     assert result.output_data is not None
@@ -105,7 +106,7 @@ def test_artifact_contract_assembler_errors_for_missing_migrating_contracts() ->
         )
 
     plugin = ArtifactContractAssembler("base.assembler.artifact_contract_guard")
-    result = _run_guard(plugin, ctx)
+    result = _run_guard(plugin, ctx, registry)
 
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E9394" for diag in result.diagnostics)
@@ -119,7 +120,7 @@ def test_artifact_contract_assembler_errors_for_missing_migrated_contracts() -> 
     ctx = _ctx(registry)
 
     plugin = ArtifactContractAssembler("base.assembler.artifact_contract_guard")
-    result = _run_guard(plugin, ctx)
+    result = _run_guard(plugin, ctx, registry)
 
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E9394" for diag in result.diagnostics)
@@ -141,7 +142,7 @@ def test_artifact_contract_assembler_detects_overlapping_generated_dir_prefixes(
         )
 
     plugin = ArtifactContractAssembler("base.assembler.artifact_contract_guard")
-    result = _run_guard(plugin, ctx)
+    result = _run_guard(plugin, ctx, registry)
 
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E9391" for diag in result.diagnostics)

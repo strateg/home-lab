@@ -2013,13 +2013,27 @@ plugins:
     stages: [assemble]
     phase: verify
     order: 418
-    depends_on: []
+    depends_on:
+      - base.generator.ansible_inventory
     timeout: 30
     config: {}
     config_schema:
       type: object
       properties: {}
       required: []
+    consumes:
+      - from_plugin: base.generator.ansible_inventory
+        key: artifact_plan
+        required: false
+      - from_plugin: base.generator.ansible_inventory
+        key: artifact_generation_report
+        required: false
+      - from_plugin: base.generator.ansible_inventory
+        key: artifact_contract_files
+        required: false
+      - from_plugin: base.generator.ansible_inventory
+        key: generated_dir
+        required: false
     produces:
       - key: artifact_contract_guard
         scope: pipeline_shared
