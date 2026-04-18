@@ -215,6 +215,115 @@ def test_instance_rows_execute_stage_commits_normalized_rows_authoritatively(tmp
     assert published[0]["extensions"]["custom_flag"] is True
 
 
+def _instance_rows_stage_manifest(*, plugin_id: str, entry_rel: str, class_name: str, order: int, depends_on: list[str], consume_key: str | None = None, consume_from: str | None = None) -> dict:
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "base.compiler.instance_rows_secret_resolve",
+                "kind": "compiler",
+                "entry": f"{(V5_TOOLS / 'plugins/compilers/instance_rows_secret_resolve_compiler.py').as_posix()}:InstanceRowsSecretResolveCompiler",
+                "api_version": "1.x",
+                "stages": ["compile"],
+                "phase": "run",
+                "order": 39,
+                "subinterpreter_compatible": True,
+                "config": {
+                    "secrets_mode": "passthrough",
+                    "secrets_root": "projects/home-lab/secrets",
+                    "require_unlock": True,
+                },
+                "produces": [{"key": "secret_resolved_rows", "scope": "stage_local"}],
+            },
+            {
+                "id": "base.compiler.instance_rows_resolve",
+                "kind": "compiler",
+                "entry": f"{(V5_TOOLS / 'plugins/compilers/instance_rows_resolve_compiler.py').as_posix()}:InstanceRowsResolveCompiler",
+                "api_version": "1.x",
+                "stages": ["compile"],
+                "phase": "run",
+                "order": 40,
+                "depends_on": ["base.compiler.instance_rows_secret_resolve"],
+                "subinterpreter_compatible": True,
+                "config": {
+                    "secrets_mode": "passthrough",
+                    "secrets_root": "projects/home-lab/secrets",
+                    "require_unlock": True,
+                },
+                "produces": [{"key": "resolved_rows", "scope": "stage_local"}],
+                "consumes": [{"from_plugin": "base.compiler.instance_rows_secret_resolve", "key": "secret_resolved_rows", "required": True}],
+            },
+            {
+                "id": "base.compiler.instance_rows_prepare",
+                "kind": "compiler",
+                "entry": f"{(V5_TOOLS / 'plugins/compilers/instance_rows_prepare_compiler.py').as_posix()}:InstanceRowsPrepareCompiler",
+                "api_version": "1.x",
+                "stages": ["compile"],
+                "phase": "run",
+                "order": 41,
+                "depends_on": ["base.compiler.instance_rows_resolve"],
+                "subinterpreter_compatible": True,
+                "config": {
+                    "secrets_mode": "passthrough",
+                    "secrets_root": "projects/home-lab/secrets",
+                    "require_unlock": True,
+                },
+                "produces": [{"key": "prepared_rows", "scope": "stage_local"}],
+                "consumes": [{"from_plugin": "base.compiler.instance_rows_resolve", "key": "resolved_rows", "required": True}],
+            },
+            {
+                "id": "base.compiler.instance_rows_validate",
+                "kind": "compiler",
+                "entry": f"{(V5_TOOLS / 'plugins/compilers/instance_rows_validate_compiler.py').as_posix()}:InstanceRowsValidateCompiler",
+                "api_version": "1.x",
+                "stages": ["compile"],
+                "phase": "run",
+                "order": 42,
+                "depends_on": ["base.compiler.instance_rows_prepare"],
+                "subinterpreter_compatible": True,
+                "config": {
+                    "secrets_mode": "passthrough",
+                    "secrets_root": "projects/home-lab/secrets",
+                    "require_unlock": True,
+                },
+                "produces": [{"key": "validated_rows", "scope": "stage_local"}],
+                "consumes": [{"from_plugin": "base.compiler.instance_rows_prepare", "key": "prepared_rows", "required": True}],
+            },
+        ],
+    }
+    payload["plugins"] = [plugin for plugin in payload["plugins"] if plugin["id"] in {plugin_id, *depends_on}]
+    plugin_spec = {
+        "id": plugin_id,
+        "kind": "compiler",
+        "entry": f"{(V5_TOOLS / entry_rel).as_posix()}:{class_name}",
+        "api_version": "1.x",
+        "stages": ["compile"],
+        "phase": "run",
+        "order": order,
+        "depends_on": depends_on,
+        "subinterpreter_compatible": True,
+        "config": {
+            "compilation_owner_instance_rows": "plugin",
+            "secrets_mode": "passthrough",
+            "secrets_root": "projects/home-lab/secrets",
+            "require_unlock": True,
+        },
+        "produces": [],
+    }
+    if plugin_id == PLUGIN_ID:
+        plugin_spec["produces"] = [{"key": "normalized_rows", "scope": "pipeline_shared"}]
+    elif plugin_id == "base.compiler.instance_rows_validate":
+        plugin_spec["produces"] = [{"key": "validated_rows", "scope": "stage_local"}]
+    elif plugin_id == "base.compiler.instance_rows_prepare":
+        plugin_spec["produces"] = [{"key": "prepared_rows", "scope": "stage_local"}]
+    elif plugin_id == "base.compiler.instance_rows_resolve":
+        plugin_spec["produces"] = [{"key": "resolved_rows", "scope": "stage_local"}]
+    if consume_key and consume_from:
+        plugin_spec["consumes"] = [{"from_plugin": consume_from, "key": consume_key, "required": True}]
+    payload["plugins"].append(plugin_spec)
+    return payload
+
+
 def test_instance_rows_execute_stage_requires_validated_rows_in_snapshot_path(tmp_path):
     manifest = tmp_path / "plugins.yaml"
     payload = {
@@ -1232,3 +1341,166 @@ def test_object_level_typed_secret_annotation_rejects_invalid_scalar(monkeypatch
     assert any(d.code == "E7213" for d in result.diagnostics)
     rows = result.output_data.get("normalized_rows", [])
     assert "serial_number" not in rows[0]["extensions"]["hardware_identity"]
+
+def test_instance_rows_resolve_execute_stage_requires_secret_resolved_rows(tmp_path):
+    manifest = tmp_path / "plugins.yaml"
+    payload = _instance_rows_stage_manifest(
+        plugin_id="base.compiler.instance_rows_resolve",
+        entry_rel="plugins/compilers/instance_rows_resolve_compiler.py",
+        class_name="InstanceRowsResolveCompiler",
+        order=40,
+        depends_on=["base.compiler.instance_rows_secret_resolve"],
+        consume_key="secret_resolved_rows",
+        consume_from="base.compiler.instance_rows_secret_resolve",
+    )
+    for plugin in payload["plugins"]:
+        if plugin["id"] == "base.compiler.instance_rows_secret_resolve":
+            plugin["config"] = {"compilation_owner_instance_rows": "core"}
+            plugin["produces"] = []
+    _write_manifest(manifest, payload)
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        classes={"class.router": {"class": "class.router"}},
+        objects={"obj.router": {"object": "obj.router", "class_ref": "class.router"}},
+        config={},
+        instance_bindings={"instance_bindings": {"devices": [{"instance": "dev-stage", "layer": "L1", "class_ref": "class.router", "object_ref": "obj.router"}]}} ,
+    )
+
+    results = registry.execute_stage(Stage.COMPILE, ctx, parallel_plugins=False)
+    assert [result.plugin_id for result in results] == [
+        "base.compiler.instance_rows_secret_resolve",
+        "base.compiler.instance_rows_resolve",
+    ]
+    assert results[0].status == PluginStatus.SUCCESS
+    assert results[1].status == PluginStatus.FAILED
+    assert any(diag.code == "E8003" for diag in results[1].diagnostics)
+
+
+def test_instance_rows_prepare_execute_stage_requires_resolved_rows(tmp_path):
+    manifest = tmp_path / "plugins.yaml"
+    payload = _instance_rows_stage_manifest(
+        plugin_id="base.compiler.instance_rows_prepare",
+        entry_rel="plugins/compilers/instance_rows_prepare_compiler.py",
+        class_name="InstanceRowsPrepareCompiler",
+        order=41,
+        depends_on=["base.compiler.instance_rows_resolve"],
+        consume_key="resolved_rows",
+        consume_from="base.compiler.instance_rows_resolve",
+    )
+    for plugin in payload["plugins"]:
+        if plugin["id"] == "base.compiler.instance_rows_resolve":
+            plugin["config"] = {"compilation_owner_instance_rows": "core"}
+            plugin["produces"] = []
+            plugin["consumes"] = []
+    payload["plugins"].insert(0, {
+        "id": "base.compiler.instance_rows_secret_resolve",
+        "kind": "compiler",
+        "entry": f"{(V5_TOOLS / 'plugins/compilers/instance_rows_secret_resolve_compiler.py').as_posix()}:InstanceRowsSecretResolveCompiler",
+        "api_version": "1.x",
+        "stages": ["compile"],
+        "phase": "run",
+        "order": 39,
+        "subinterpreter_compatible": True,
+        "config": {"compilation_owner_instance_rows": "core"},
+        "produces": [],
+    })
+    _write_manifest(manifest, payload)
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        classes={"class.router": {"class": "class.router"}},
+        objects={"obj.router": {"object": "obj.router", "class_ref": "class.router"}},
+        config={},
+        instance_bindings={"instance_bindings": {"devices": [{"instance": "dev-stage", "layer": "L1", "class_ref": "class.router", "object_ref": "obj.router"}]}} ,
+    )
+
+    results = registry.execute_stage(Stage.COMPILE, ctx, parallel_plugins=False)
+    assert [result.plugin_id for result in results] == [
+        "base.compiler.instance_rows_secret_resolve",
+        "base.compiler.instance_rows_resolve",
+        "base.compiler.instance_rows_prepare",
+    ]
+    assert results[0].status == PluginStatus.SUCCESS
+    assert results[1].status == PluginStatus.SUCCESS
+    assert results[2].status == PluginStatus.FAILED
+    assert any(diag.code == "E8003" for diag in results[2].diagnostics)
+
+
+def test_instance_rows_validate_execute_stage_requires_prepared_rows(tmp_path):
+    manifest = tmp_path / "plugins.yaml"
+    payload = _instance_rows_stage_manifest(
+        plugin_id="base.compiler.instance_rows_validate",
+        entry_rel="plugins/compilers/instance_rows_validate_compiler.py",
+        class_name="InstanceRowsValidateCompiler",
+        order=42,
+        depends_on=["base.compiler.instance_rows_prepare"],
+        consume_key="prepared_rows",
+        consume_from="base.compiler.instance_rows_prepare",
+    )
+    for plugin in payload["plugins"]:
+        if plugin["id"] == "base.compiler.instance_rows_prepare":
+            plugin["config"] = {"compilation_owner_instance_rows": "core"}
+            plugin["produces"] = []
+            plugin["consumes"] = []
+    payload["plugins"].insert(0, {
+        "id": "base.compiler.instance_rows_secret_resolve",
+        "kind": "compiler",
+        "entry": f"{(V5_TOOLS / 'plugins/compilers/instance_rows_secret_resolve_compiler.py').as_posix()}:InstanceRowsSecretResolveCompiler",
+        "api_version": "1.x",
+        "stages": ["compile"],
+        "phase": "run",
+        "order": 39,
+        "subinterpreter_compatible": True,
+        "config": {"compilation_owner_instance_rows": "core"},
+        "produces": [],
+    })
+    payload["plugins"].insert(1, {
+        "id": "base.compiler.instance_rows_resolve",
+        "kind": "compiler",
+        "entry": f"{(V5_TOOLS / 'plugins/compilers/instance_rows_resolve_compiler.py').as_posix()}:InstanceRowsResolveCompiler",
+        "api_version": "1.x",
+        "stages": ["compile"],
+        "phase": "run",
+        "order": 40,
+        "depends_on": ["base.compiler.instance_rows_secret_resolve"],
+        "subinterpreter_compatible": True,
+        "config": {"compilation_owner_instance_rows": "core"},
+        "produces": [],
+        "consumes": [],
+    })
+    _write_manifest(manifest, payload)
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        classes={"class.router": {"class": "class.router"}},
+        objects={"obj.router": {"object": "obj.router", "class_ref": "class.router"}},
+        config={},
+        instance_bindings={"instance_bindings": {"devices": [{"instance": "dev-stage", "layer": "L1", "class_ref": "class.router", "object_ref": "obj.router"}]}} ,
+    )
+
+    results = registry.execute_stage(Stage.COMPILE, ctx, parallel_plugins=False)
+    assert [result.plugin_id for result in results] == [
+        "base.compiler.instance_rows_secret_resolve",
+        "base.compiler.instance_rows_resolve",
+        "base.compiler.instance_rows_prepare",
+        "base.compiler.instance_rows_validate",
+    ]
+    assert results[0].status == PluginStatus.SUCCESS
+    assert results[1].status == PluginStatus.SUCCESS
+    assert results[2].status == PluginStatus.SUCCESS
+    assert results[3].status == PluginStatus.FAILED
+    assert any(diag.code == "E8003" for diag in results[3].diagnostics)
+
