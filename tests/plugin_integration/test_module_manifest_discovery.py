@@ -67,6 +67,43 @@ def _create_compiler(mod, tmp_path: Path):
     )
 
 
+def _seed_manifest_loader_summary(ctx) -> None:
+    ctx._set_execution_context("base.discover.manifest_loader", set())
+    try:
+        ctx.publish(
+            "manifest_loader_summary",
+            {
+                "status": "ok",
+                "discovered_manifests": list(ctx.config.get("discovered_plugin_manifests", [])),
+                "plugin_count": int(ctx.config.get("discovered_plugin_count", 0)),
+            },
+        )
+    finally:
+        ctx._clear_execution_context()
+
+
+def _seed_discover_preflight_inputs(ctx) -> None:
+    _seed_manifest_loader_summary(ctx)
+    ctx._set_execution_context("base.discover.inventory", set())
+    try:
+        ctx.publish(
+            "manifest_inventory",
+            {
+                "manifest_paths": list(ctx.config.get("discovered_plugin_manifests", [])),
+                "manifest_count": len(ctx.config.get("discovered_plugin_manifests", [])),
+                "plugin_count": int(ctx.config.get("discovered_plugin_count", 0)),
+            },
+        )
+    finally:
+        ctx._clear_execution_context()
+
+    ctx._set_execution_context("base.discover.boundary", set())
+    try:
+        ctx.publish("boundary_ok", True)
+    finally:
+        ctx._clear_execution_context()
+
+
 def test_module_level_manifests_are_loaded(tmp_path: Path) -> None:
     mod = _load_compiler_module()
     compiler = _create_compiler(mod, tmp_path)
@@ -235,6 +272,7 @@ def test_discover_boundary_allows_project_plugins_and_rejects_instances(tmp_path
             "discovered_plugin_count": 0,
         },
     )
+    _seed_manifest_loader_summary(ctx)
 
     result = compiler._plugin_registry.execute_plugin(
         "base.discover.boundary",
@@ -267,6 +305,7 @@ def test_discover_boundary_rejects_project_manifests_outside_project_plugins_roo
             "discovered_plugin_count": 0,
         },
     )
+    _seed_manifest_loader_summary(ctx)
 
     result = compiler._plugin_registry.execute_plugin(
         "base.discover.boundary",
@@ -277,6 +316,106 @@ def test_discover_boundary_rejects_project_manifests_outside_project_plugins_roo
 
     assert result.status == mod.PluginStatus.FAILED
     assert any(d.path.endswith("projects/home-lab/plugins-extra/plugins.yaml") for d in result.diagnostics)
+
+
+def test_discover_stage_plugins_require_committed_upstream_payloads() -> None:
+    plugins = yaml.safe_load((Path(__file__).resolve().parents[2] / "topology-tools" / "plugins" / "plugins.yaml").read_text())
+    by_id = {plugin["id"]: plugin for plugin in plugins["plugins"]}
+
+    inventory_consume = next(
+        item
+        for item in by_id["base.discover.inventory"]["consumes"]
+        if item["from_plugin"] == "base.discover.manifest_loader" and item["key"] == "manifest_loader_summary"
+    )
+    boundary_consume = next(
+        item
+        for item in by_id["base.discover.boundary"]["consumes"]
+        if item["from_plugin"] == "base.discover.manifest_loader" and item["key"] == "manifest_loader_summary"
+    )
+    preflight_required = {
+        (item["from_plugin"], item["key"])
+        for item in by_id["base.discover.capability_preflight"]["consumes"]
+        if item.get("required") is True
+    }
+
+    assert inventory_consume["required"] is True
+    assert boundary_consume["required"] is True
+    assert preflight_required >= {
+        ("base.discover.inventory", "manifest_inventory"),
+        ("base.discover.boundary", "boundary_ok"),
+    }
+
+
+def test_discover_inventory_requires_committed_manifest_loader_summary(tmp_path: Path) -> None:
+    mod = _load_compiler_module()
+    compiler = _create_compiler(mod, tmp_path)
+    assert compiler._plugin_registry is not None
+    compiler._load_base_plugin_manifest()
+
+    ctx = mod.PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="production",
+        model_lock={},
+        config={"discovered_plugin_manifests": [], "discovered_plugin_count": 0},
+    )
+
+    result = compiler._plugin_registry.execute_plugin("base.discover.inventory", ctx, mod.Stage.DISCOVER, phase=mod.Phase.RUN)
+
+    assert result.status == mod.PluginStatus.FAILED
+    assert any(diag.code == "E8003" for diag in result.diagnostics)
+
+
+def test_discover_capability_preflight_requires_committed_inventory_and_boundary(tmp_path: Path) -> None:
+    mod = _load_compiler_module()
+    compiler = _create_compiler(mod, tmp_path)
+    assert compiler._plugin_registry is not None
+    compiler._load_base_plugin_manifest()
+
+    ctx = mod.PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="production",
+        model_lock={},
+        config={
+            "discovered_plugin_manifests": ["projects/home-lab/plugins/plugins.yaml"],
+            "discovered_plugin_count": 1,
+            "capability_catalog_path": str(tmp_path / "missing-catalog.json"),
+            "capability_packs_path": str(tmp_path / "missing-packs"),
+        },
+    )
+    _seed_manifest_loader_summary(ctx)
+
+    result = compiler._plugin_registry.execute_plugin(
+        "base.discover.capability_preflight",
+        ctx,
+        mod.Stage.DISCOVER,
+        phase=mod.Phase.VERIFY,
+    )
+
+    assert result.status == mod.PluginStatus.FAILED
+    assert any(diag.code == "E8003" for diag in result.diagnostics)
+
+    ctx_with_upstreams = mod.PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="production",
+        model_lock={},
+        config={
+            "discovered_plugin_manifests": ["projects/home-lab/plugins/plugins.yaml"],
+            "discovered_plugin_count": 1,
+            "capability_catalog_path": str(tmp_path / "missing-catalog.json"),
+            "capability_packs_path": str(tmp_path / "missing-packs"),
+        },
+    )
+    _seed_discover_preflight_inputs(ctx_with_upstreams)
+
+    result = compiler._plugin_registry.execute_plugin(
+        "base.discover.capability_preflight",
+        ctx_with_upstreams,
+        mod.Stage.DISCOVER,
+        phase=mod.Phase.VERIFY,
+    )
+
+    assert result.status == mod.PluginStatus.FAILED
+    assert any(diag.code == "E7107" for diag in result.diagnostics)
 
 
 def test_project_manifest_duplicate_plugin_id_with_object_manifest_is_reported(tmp_path: Path) -> None:

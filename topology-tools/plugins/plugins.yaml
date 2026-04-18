@@ -37,7 +37,7 @@ plugins:
     consumes:
       - from_plugin: base.discover.manifest_loader
         key: manifest_loader_summary
-        required: false
+        required: true
     produces:
       - key: manifest_inventory
         scope: pipeline_shared
@@ -60,7 +60,7 @@ plugins:
     consumes:
       - from_plugin: base.discover.manifest_loader
         key: manifest_loader_summary
-        required: false
+        required: true
     produces:
       - key: boundary_ok
         scope: pipeline_shared
@@ -83,10 +83,10 @@ plugins:
     consumes:
       - from_plugin: base.discover.inventory
         key: manifest_inventory
-        required: false
+        required: true
       - from_plugin: base.discover.boundary
         key: boundary_ok
-        required: false
+        required: true
     produces:
       - key: capability_preflight_ok
         scope: pipeline_shared
