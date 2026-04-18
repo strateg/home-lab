@@ -2293,6 +2293,7 @@ def test_runtime_config_takes_precedence():
         config={"strict_mode": True},
     )
     ctx._set_execution_context("base.compiler.model_lock_loader", set())
+    ctx.publish("lock_payload", {})
     ctx.publish("model_lock_loaded", False)
     ctx._clear_execution_context()
     ctx._set_execution_context("base.compiler.instance_rows", set())

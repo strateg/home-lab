@@ -37,6 +37,18 @@ def test_model_lock_validator_manifest_requires_normalized_rows() -> None:
         if consume["from_plugin"] == "base.compiler.instance_rows" and consume["key"] == "normalized_rows"
     )
     assert normalized_rows["required"] is True
+    lock_payload = next(
+        consume
+        for consume in registry.specs[PLUGIN_ID].consumes
+        if consume["from_plugin"] == "base.compiler.model_lock_loader" and consume["key"] == "lock_payload"
+    )
+    model_lock_loaded = next(
+        consume
+        for consume in registry.specs[PLUGIN_ID].consumes
+        if consume["from_plugin"] == "base.compiler.model_lock_loader" and consume["key"] == "model_lock_loaded"
+    )
+    assert lock_payload["required"] is True
+    assert model_lock_loaded["required"] is True
 
 
 def test_model_lock_validator_skips_when_core_is_owner():
@@ -59,6 +71,10 @@ def test_model_lock_validator_skips_when_core_is_owner():
     ctx._set_execution_context("base.compiler.instance_rows", set())
     ctx.publish("normalized_rows", [])
     ctx._clear_execution_context()
+    ctx._set_execution_context("base.compiler.model_lock_loader", set())
+    ctx.publish("lock_payload", {})
+    ctx.publish("model_lock_loaded", True)
+    ctx._clear_execution_context()
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.SUCCESS
@@ -80,6 +96,7 @@ def test_model_lock_validator_plugin_owner_missing_lock_strict_mode():
         instance_bindings={"instance_bindings": {}},
     )
     ctx._set_execution_context("base.compiler.model_lock_loader", set())
+    ctx.publish("lock_payload", {})
     ctx.publish("model_lock_loaded", False)
     ctx._clear_execution_context()
     ctx._set_execution_context("base.compiler.instance_rows", set())
@@ -246,8 +263,8 @@ def test_model_lock_execute_stage_requires_committed_normalized_rows(tmp_path: P
                 ],
                 "consumes": [
                     {"from_plugin": "base.compiler.instance_rows", "key": "normalized_rows", "required": True},
-                    {"from_plugin": "base.compiler.model_lock_loader", "key": "lock_payload", "required": False},
-                    {"from_plugin": "base.compiler.model_lock_loader", "key": "model_lock_loaded", "required": False},
+                    {"from_plugin": "base.compiler.model_lock_loader", "key": "lock_payload", "required": True},
+                    {"from_plugin": "base.compiler.model_lock_loader", "key": "model_lock_loaded", "required": True},
                 ],
             },
         ],

@@ -37,6 +37,12 @@ def test_reference_validator_manifest_requires_normalized_rows() -> None:
         if consume["from_plugin"] == "base.compiler.instance_rows" and consume["key"] == "normalized_rows"
     )
     assert normalized_rows["required"] is True
+    catalog_ids = next(
+        consume
+        for consume in registry.specs[PLUGIN_ID].consumes
+        if consume["from_plugin"] == "base.compiler.capability_contract_loader" and consume["key"] == "catalog_ids"
+    )
+    assert catalog_ids["required"] is True
 
 
 def test_reference_validator_skips_when_core_is_owner():
@@ -1101,7 +1107,7 @@ def test_reference_validator_execute_stage_requires_committed_normalized_rows(tm
                 "depends_on": ["base.compiler.instance_rows", "base.compiler.capability_contract_loader"],
                 "consumes": [
                     {"from_plugin": "base.compiler.instance_rows", "key": "normalized_rows", "required": True},
-                    {"from_plugin": "base.compiler.capability_contract_loader", "key": "catalog_ids", "required": False},
+                    {"from_plugin": "base.compiler.capability_contract_loader", "key": "catalog_ids", "required": True},
                 ],
             },
         ],

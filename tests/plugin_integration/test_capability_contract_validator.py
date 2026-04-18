@@ -23,6 +23,18 @@ def _registry() -> PluginRegistry:
 
 def test_capability_contract_validator_skips_when_core_is_owner():
     registry = _registry()
+    spec = registry.specs[PLUGIN_ID]
+    required_inputs = {
+        ("base.compiler.capability_contract_loader", "catalog_ids"),
+        ("base.compiler.capability_contract_loader", "packs_map"),
+        ("base.compiler.module_loader", "class_module_paths"),
+        ("base.compiler.module_loader", "object_module_paths"),
+    }
+    assert {
+        (item["from_plugin"], item["key"])
+        for item in spec.consumes
+        if item.get("required") is True
+    } >= required_inputs
     ctx = PluginContext(
         topology_path="topology/topology.yaml",
         profile="test",
@@ -32,6 +44,14 @@ def test_capability_contract_validator_skips_when_core_is_owner():
         objects={},
         instance_bindings={"instance_bindings": {}},
     )
+    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
+    ctx.publish("catalog_ids", [])
+    ctx.publish("packs_map", {})
+    ctx._clear_execution_context()
+    ctx._set_execution_context("base.compiler.module_loader", set())
+    ctx.publish("class_module_paths", {})
+    ctx.publish("object_module_paths", {})
+    ctx._clear_execution_context()
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.SUCCESS
@@ -128,3 +148,29 @@ def test_capability_contract_validator_reads_contract_data_via_subscribe():
     assert result.status == PluginStatus.FAILED
     codes = [d.code for d in result.diagnostics]
     assert "E3201" in codes
+
+
+def test_capability_contract_validator_execute_stage_requires_committed_loader_inputs(tmp_path: Path) -> None:
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={
+            "validation_owner_capability_contract": "plugin",
+            "require_new_model": False,
+        },
+        classes={},
+        objects={},
+        instance_bindings={"instance_bindings": {}},
+    )
+    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
+    try:
+        ctx.publish("catalog_ids", [])
+    finally:
+        ctx._clear_execution_context()
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E8003" for diag in result.diagnostics)
