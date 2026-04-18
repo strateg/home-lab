@@ -2039,7 +2039,7 @@ plugins:
         required: true
       - from_plugin: base.generator.artifact_manifest
         key: artifact_manifest_path
-        required: false
+        required: true
     produces:
       - key: generated_files
         scope: pipeline_shared
@@ -2068,7 +2068,7 @@ plugins:
     consumes:
       - from_plugin: base.assembler.manifest
         key: assembly_manifest_path
-        required: false
+        required: true
       - from_plugin: base.assembler.verify
         key: assemble_verified
         required: true
@@ -2310,22 +2310,22 @@ plugins:
         required: true
       - from_plugin: base.builder.artifact_family_summary
         key: artifact_family_summary_path
-        required: false
+        required: true
       - from_plugin: base.builder.generator_readiness_evidence
         key: generator_readiness_evidence_path
-        required: false
+        required: true
       - from_plugin: base.builder.readiness_reports
         key: restore_readiness_report_path
-        required: false
+        required: true
       - from_plugin: base.builder.readiness_reports
         key: rollback_events_report_path
-        required: false
+        required: true
       - from_plugin: base.builder.soho_readiness_package
         key: operator_readiness_report_path
-        required: false
+        required: true
       - from_plugin: base.builder.soho_readiness_package
         key: support_bundle_manifest_path
-        required: false
+        required: true
     produces:
       - key: generated_files
         scope: pipeline_shared

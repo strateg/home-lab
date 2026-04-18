@@ -67,6 +67,21 @@ def _seed_migrating_contract_publications(ctx: PluginContext, registry: PluginRe
 
 def test_assemble_and_build_stage_plugins_produce_release_artifacts(tmp_path: Path):
     registry = _registry()
+    release_manifest_spec = registry.specs["base.builder.release_manifest"]
+    required_release_inputs = {
+        ("base.builder.artifact_family_summary", "artifact_family_summary_path"),
+        ("base.builder.generator_readiness_evidence", "generator_readiness_evidence_path"),
+        ("base.builder.readiness_reports", "restore_readiness_report_path"),
+        ("base.builder.readiness_reports", "rollback_events_report_path"),
+        ("base.builder.soho_readiness_package", "operator_readiness_report_path"),
+        ("base.builder.soho_readiness_package", "support_bundle_manifest_path"),
+    }
+    assert {
+        (item["from_plugin"], item["key"])
+        for item in release_manifest_spec.consumes
+        if item.get("required") is True
+    } >= required_release_inputs
+
     repo_root = tmp_path
     generated_root = repo_root / "generated" / "home-lab"
     workspace_root = repo_root / ".work" / "native" / "home-lab"
@@ -364,3 +379,138 @@ def test_changed_input_scopes_are_empty_on_second_identical_run(tmp_path: Path):
     assert first_bundle_result.output_data.get("deploy_bundle_id") == second_bundle_result.output_data.get(
         "deploy_bundle_id"
     )
+
+
+def test_assembly_manifest_requires_committed_artifact_manifest_path(tmp_path: Path) -> None:
+    registry = _registry()
+    spec = registry.specs["base.assembler.manifest"]
+    consume = next(
+        item
+        for item in spec.consumes
+        if item["from_plugin"] == "base.generator.artifact_manifest" and item["key"] == "artifact_manifest_path"
+    )
+    assert consume["required"] is True
+
+    workspace_root = tmp_path / ".work" / "native" / "home-lab"
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={
+            "repo_root": str(tmp_path),
+            "project_id": "home-lab",
+            "workspace_root": str(workspace_root),
+            "plugin_registry": registry,
+        },
+        workspace_root=str(workspace_root),
+    )
+
+    ctx._set_execution_context("base.assembler.workspace", set())
+    try:
+        ctx.publish("assembled_files", [])
+    finally:
+        ctx._clear_execution_context()
+
+    result = registry.execute_plugin("base.assembler.manifest", ctx, Stage.ASSEMBLE)
+
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E8003" for diag in result.diagnostics)
+
+
+def test_deploy_bundle_requires_committed_assembly_manifest_path(tmp_path: Path) -> None:
+    registry = _registry()
+    spec = registry.specs["base.assembler.deploy_bundle"]
+    consume = next(
+        item
+        for item in spec.consumes
+        if item["from_plugin"] == "base.assembler.manifest" and item["key"] == "assembly_manifest_path"
+    )
+    assert consume["required"] is True
+
+    workspace_root = tmp_path / ".work" / "native" / "home-lab"
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={
+            "repo_root": str(tmp_path),
+            "project_id": "home-lab",
+            "workspace_root": str(workspace_root),
+            "plugin_registry": registry,
+        },
+        workspace_root=str(workspace_root),
+    )
+
+    ctx._set_execution_context("base.assembler.verify", set())
+    try:
+        ctx.publish("assemble_verified", True)
+    finally:
+        ctx._clear_execution_context()
+
+    result = registry.execute_plugin("base.assembler.deploy_bundle", ctx, Stage.ASSEMBLE)
+
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E8003" for diag in result.diagnostics)
+
+
+def test_release_manifest_requires_committed_build_artifacts(tmp_path: Path) -> None:
+    registry = _registry()
+    workspace_root = tmp_path / ".work" / "native" / "home-lab"
+    dist_root = tmp_path / "dist" / "home-lab"
+    dist_root.mkdir(parents=True, exist_ok=True)
+
+    bundle_path = dist_root / "home-lab-snapshot.zip"
+    bundle_path.write_bytes(b"bundle")
+    sbom_path = dist_root / "sbom.json"
+    sbom_path.write_text("{}", encoding="utf-8")
+    assembly_manifest_path = workspace_root / "assembly-manifest.json"
+    assembly_manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    assembly_manifest_path.write_text("{}", encoding="utf-8")
+
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={
+            "repo_root": str(tmp_path),
+            "project_id": "home-lab",
+            "workspace_root": str(workspace_root),
+            "dist_root": str(dist_root),
+            "plugin_registry": registry,
+        },
+        workspace_root=str(workspace_root),
+        dist_root=str(dist_root),
+        release_tag="snapshot",
+        signing_backend="none",
+    )
+
+    for plugin_id, payload in {
+        "base.builder.bundle": {
+            "release_bundle_path": str(bundle_path),
+            "release_bundle_sha256": "stub",
+        },
+        "base.builder.sbom": {"sbom_path": str(sbom_path)},
+        "base.assembler.manifest": {"assembly_manifest_path": str(assembly_manifest_path)},
+        "base.builder.generator_readiness_evidence": {
+            "generator_readiness_evidence_path": str(dist_root / "generator-readiness-evidence.json")
+        },
+        "base.builder.readiness_reports": {
+            "restore_readiness_report_path": str(dist_root / "reports" / "restore-readiness.json"),
+            "rollback_events_report_path": str(dist_root / "reports" / "rollback-events.json"),
+        },
+        "base.builder.soho_readiness_package": {
+            "operator_readiness_report_path": str(tmp_path / "generated" / "home-lab" / "product" / "reports" / "operator-readiness.json"),
+            "support_bundle_manifest_path": str(tmp_path / "generated" / "home-lab" / "product" / "reports" / "support-bundle-manifest.json"),
+        },
+    }.items():
+        ctx._set_execution_context(plugin_id, set())
+        try:
+            for key, value in payload.items():
+                ctx.publish(key, value)
+        finally:
+            ctx._clear_execution_context()
+
+    result = registry.execute_plugin("base.builder.release_manifest", ctx, Stage.BUILD)
+
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E8003" for diag in result.diagnostics)
