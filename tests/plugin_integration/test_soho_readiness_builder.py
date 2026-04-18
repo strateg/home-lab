@@ -34,6 +34,14 @@ def _publish(ctx: PluginContext, plugin_id: str, payload: dict) -> None:
         ctx._clear_execution_context()
 
 
+def _run_builder(builder: SohoReadinessBuilder, ctx: PluginContext):
+    ctx._set_execution_context("base.builder.soho_readiness_package", set())  # noqa: SLF001 - direct plugin execution helper
+    try:
+        return builder.execute(ctx, Stage.BUILD)
+    finally:
+        ctx._clear_execution_context()  # noqa: SLF001 - direct plugin execution helper
+
+
 def test_soho_readiness_builder_emits_product_package_and_reports(tmp_path: Path) -> None:
     repo_root = Path(__file__).resolve().parents[2]
     generated_root = tmp_path / "generated"
@@ -72,7 +80,7 @@ def test_soho_readiness_builder_emits_product_package_and_reports(tmp_path: Path
     )
 
     builder = SohoReadinessBuilder("base.builder.soho_readiness_package")
-    result = builder.execute(ctx, Stage.BUILD)
+    result = _run_builder(builder, ctx)
 
     assert result.status == PluginStatus.SUCCESS
     reports_dir = generated_root / "home-lab" / "product" / "reports"
@@ -109,7 +117,7 @@ def test_soho_readiness_builder_blocks_when_restore_evidence_missing(tmp_path: P
     )
 
     builder = SohoReadinessBuilder("base.builder.soho_readiness_package")
-    result = builder.execute(ctx, Stage.BUILD)
+    result = _run_builder(builder, ctx)
 
     assert result.status == PluginStatus.FAILED
     codes = {diag.code for diag in result.diagnostics}
@@ -143,7 +151,7 @@ def test_soho_readiness_builder_handover_templates_are_sanitized(tmp_path: Path)
     )
 
     builder = SohoReadinessBuilder("base.builder.soho_readiness_package")
-    result = builder.execute(ctx, Stage.BUILD)
+    result = _run_builder(builder, ctx)
 
     assert result.status in {PluginStatus.SUCCESS, PluginStatus.PARTIAL}
     handover_dir = generated_root / "home-lab" / "product" / "handover"

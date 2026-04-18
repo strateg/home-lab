@@ -368,15 +368,12 @@ class SohoReadinessBuilder(BuilderPlugin):
         )
         generated_files.append(str(support_manifest_path))
 
-        try:
-            ctx.publish("generated_files", generated_files)
-            ctx.publish("product_handover_dir", str(handover_root))
-            ctx.publish("product_reports_dir", str(reports_root))
-            ctx.publish("operator_readiness_report_path", str(operator_path))
-            ctx.publish("support_bundle_manifest_path", str(support_manifest_path))
-            ctx.publish("operator_readiness", operator_readiness)
-        except PluginDataExchangeError:
-            pass
+        ctx.publish("generated_files", generated_files)
+        ctx.publish("product_handover_dir", str(handover_root))
+        ctx.publish("product_reports_dir", str(reports_root))
+        ctx.publish("operator_readiness_report_path", str(operator_path))
+        ctx.publish("support_bundle_manifest_path", str(support_manifest_path))
+        ctx.publish("operator_readiness", operator_readiness)
 
         diagnostics.append(
             self.emit_diagnostic(

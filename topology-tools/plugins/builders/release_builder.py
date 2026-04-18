@@ -140,12 +140,9 @@ class ReleaseBundleBuilder(BuilderPlugin):
 
         bundle_sha256 = _sha256(bundle_path)
         generated_files = [str(bundle_path)]
-        try:
-            ctx.publish("generated_files", generated_files)
-            ctx.publish("release_bundle_path", str(bundle_path))
-            ctx.publish("release_bundle_sha256", bundle_sha256)
-        except PluginDataExchangeError:
-            pass
+        ctx.publish("generated_files", generated_files)
+        ctx.publish("release_bundle_path", str(bundle_path))
+        ctx.publish("release_bundle_sha256", bundle_sha256)
 
         diagnostics.append(
             self.emit_diagnostic(
@@ -220,11 +217,8 @@ class SbomBuilder(BuilderPlugin):
         sbom_path.write_text(json.dumps(sbom_payload, ensure_ascii=True, indent=2), encoding="utf-8")
 
         generated_files = [str(sbom_path)]
-        try:
-            ctx.publish("generated_files", generated_files)
-            ctx.publish("sbom_path", str(sbom_path))
-        except PluginDataExchangeError:
-            pass
+        ctx.publish("generated_files", generated_files)
+        ctx.publish("sbom_path", str(sbom_path))
 
         diagnostics.append(
             self.emit_diagnostic(
@@ -383,12 +377,9 @@ class ArtifactFamilySummaryBuilder(BuilderPlugin):
         summary_path.write_text(json.dumps(payload, ensure_ascii=True, indent=2), encoding="utf-8")
 
         generated_files = [str(summary_path)]
-        try:
-            ctx.publish("generated_files", generated_files)
-            ctx.publish("artifact_family_summary_path", str(summary_path))
-            ctx.publish("artifact_family_summary", payload)
-        except PluginDataExchangeError:
-            pass
+        ctx.publish("generated_files", generated_files)
+        ctx.publish("artifact_family_summary_path", str(summary_path))
+        ctx.publish("artifact_family_summary", payload)
 
         diagnostics.append(
             self.emit_diagnostic(
@@ -557,12 +548,9 @@ class GeneratorReadinessEvidenceBuilder(BuilderPlugin):
         evidence_path.write_text(json.dumps(evidence, ensure_ascii=True, indent=2), encoding="utf-8")
 
         generated_files = [str(evidence_path)]
-        try:
-            ctx.publish("generated_files", generated_files)
-            ctx.publish("generator_readiness_evidence_path", str(evidence_path))
-            ctx.publish("generator_readiness_evidence", evidence)
-        except PluginDataExchangeError:
-            pass
+        ctx.publish("generated_files", generated_files)
+        ctx.publish("generator_readiness_evidence_path", str(evidence_path))
+        ctx.publish("generator_readiness_evidence", evidence)
 
         diagnostics.append(
             self.emit_diagnostic(
@@ -781,14 +769,11 @@ class ReadinessReportsBuilder(BuilderPlugin):
         )
 
         generated_files = [str(report_path), str(rollback_events_path)]
-        try:
-            ctx.publish("generated_files", generated_files)
-            ctx.publish("restore_readiness_report_path", str(report_path))
-            ctx.publish("restore_readiness_report", report_payload)
-            ctx.publish("rollback_events_report_path", str(rollback_events_path))
-            ctx.publish("rollback_events_report", rollback_events_payload)
-        except PluginDataExchangeError:
-            pass
+        ctx.publish("generated_files", generated_files)
+        ctx.publish("restore_readiness_report_path", str(report_path))
+        ctx.publish("restore_readiness_report", report_payload)
+        ctx.publish("rollback_events_report_path", str(rollback_events_path))
+        ctx.publish("rollback_events_report", rollback_events_payload)
 
         diagnostics.append(
             self.emit_diagnostic(
@@ -898,11 +883,8 @@ class ReleaseManifestBuilder(BuilderPlugin):
         manifest_path.write_text(json.dumps(payload, ensure_ascii=True, indent=2), encoding="utf-8")
 
         generated_files = [str(manifest_path)]
-        try:
-            ctx.publish("generated_files", generated_files)
-            ctx.publish("release_manifest_path", str(manifest_path))
-        except PluginDataExchangeError:
-            pass
+        ctx.publish("generated_files", generated_files)
+        ctx.publish("release_manifest_path", str(manifest_path))
 
         diagnostics.append(
             self.emit_diagnostic(
