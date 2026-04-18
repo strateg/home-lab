@@ -67,6 +67,20 @@ def _seed_migrating_contract_publications(ctx: PluginContext, registry: PluginRe
 
 def test_assemble_and_build_stage_plugins_produce_release_artifacts(tmp_path: Path):
     registry = _registry()
+    sbom_spec = registry.specs["base.builder.sbom"]
+    sbom_release_bundle_consume = next(
+        item for item in sbom_spec.consumes if item["from_plugin"] == "base.builder.bundle" and item["key"] == "release_bundle_path"
+    )
+    assert sbom_release_bundle_consume["required"] is True
+
+    artifact_family_summary_spec = registry.specs["base.builder.artifact_family_summary"]
+    artifact_contract_guard_consume = next(
+        item
+        for item in artifact_family_summary_spec.consumes
+        if item["from_plugin"] == "base.assembler.artifact_contract_guard" and item["key"] == "artifact_contract_guard"
+    )
+    assert artifact_contract_guard_consume["required"] is True
+
     release_manifest_spec = registry.specs["base.builder.release_manifest"]
     required_release_inputs = {
         ("base.builder.artifact_family_summary", "artifact_family_summary_path"),
@@ -511,6 +525,56 @@ def test_release_manifest_requires_committed_build_artifacts(tmp_path: Path) -> 
             ctx._clear_execution_context()
 
     result = registry.execute_plugin("base.builder.release_manifest", ctx, Stage.BUILD)
+
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E8003" for diag in result.diagnostics)
+
+
+def test_sbom_requires_committed_release_bundle_path(tmp_path: Path) -> None:
+    registry = _registry()
+    workspace_root = tmp_path / ".work" / "native" / "home-lab"
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={
+            "repo_root": str(tmp_path),
+            "project_id": "home-lab",
+            "workspace_root": str(workspace_root),
+            "plugin_registry": registry,
+        },
+        workspace_root=str(workspace_root),
+    )
+
+    ctx._set_execution_context("base.assembler.manifest", set())
+    try:
+        ctx.publish("assembly_manifest", {"files": []})
+    finally:
+        ctx._clear_execution_context()
+
+    result = registry.execute_plugin("base.builder.sbom", ctx, Stage.BUILD)
+
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E8003" for diag in result.diagnostics)
+
+
+def test_artifact_family_summary_requires_artifact_contract_guard(tmp_path: Path) -> None:
+    registry = _registry()
+    workspace_root = tmp_path / ".work" / "native" / "home-lab"
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={
+            "repo_root": str(tmp_path),
+            "project_id": "home-lab",
+            "workspace_root": str(workspace_root),
+            "plugin_registry": registry,
+        },
+        workspace_root=str(workspace_root),
+    )
+
+    result = registry.execute_plugin("base.builder.artifact_family_summary", ctx, Stage.BUILD)
 
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E8003" for diag in result.diagnostics)

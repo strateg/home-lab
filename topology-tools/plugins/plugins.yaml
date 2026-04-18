@@ -2129,7 +2129,7 @@ plugins:
         required: true
       - from_plugin: base.builder.bundle
         key: release_bundle_path
-        required: false
+        required: true
     produces:
       - key: generated_files
         scope: pipeline_shared
@@ -2154,7 +2154,7 @@ plugins:
     consumes:
       - from_plugin: base.assembler.artifact_contract_guard
         key: artifact_contract_guard
-        required: false
+        required: true
     produces:
       - key: generated_files
         scope: pipeline_shared
