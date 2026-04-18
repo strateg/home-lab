@@ -130,10 +130,6 @@ class SohoReadinessBuilder(BuilderPlugin):
         try:
             return ctx.subscribe(plugin_id, key)
         except PluginDataExchangeError:
-            published = ctx.get_published_data()
-            payload = published.get(plugin_id)
-            if isinstance(payload, dict):
-                return payload.get(key)
             return None
 
     @staticmethod

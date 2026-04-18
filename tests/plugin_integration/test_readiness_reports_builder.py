@@ -14,6 +14,26 @@ from kernel.plugin_base import PluginContext, PluginStatus, Stage
 from plugins.builders.release_builder import ReadinessReportsBuilder
 
 
+def _publish(ctx: PluginContext, plugin_id: str, payload: dict) -> None:
+    ctx._set_execution_context(plugin_id, set())  # noqa: SLF001 - test fixture setup
+    try:
+        for key, value in payload.items():
+            ctx.publish(key, value)
+    finally:
+        ctx._clear_execution_context()
+
+
+def _run_builder(builder: ReadinessReportsBuilder, ctx: PluginContext):
+    ctx._set_execution_context(  # noqa: SLF001 - direct plugin execution helper
+        builder.plugin_id,
+        {"base.builder.generator_readiness_evidence"},
+    )
+    try:
+        return builder.execute(ctx, Stage.BUILD)
+    finally:
+        ctx._clear_execution_context()  # noqa: SLF001 - direct plugin execution helper
+
+
 def _readiness_evidence(*, status: str = "green") -> dict[str, object]:
     return {
         "schema_version": 1,
@@ -52,14 +72,14 @@ def test_readiness_reports_builder_emits_restore_readiness_report(tmp_path: Path
         config={"project_id": "home-lab"},
         dist_root=str(dist_root),
     )
-    ctx._set_execution_context("base.builder.generator_readiness_evidence", set())  # noqa: SLF001 - test fixture setup
-    try:
-        ctx.publish("generator_readiness_evidence", _readiness_evidence(status="green"))
-    finally:
-        ctx._clear_execution_context()
+    _publish(
+        ctx,
+        "base.builder.generator_readiness_evidence",
+        {"generator_readiness_evidence": _readiness_evidence(status="green")},
+    )
 
     builder = ReadinessReportsBuilder("base.builder.readiness_reports")
-    result = builder.execute(ctx, Stage.BUILD)
+    result = _run_builder(builder, ctx)
 
     assert result.status == PluginStatus.SUCCESS
     report_path = Path(result.output_data["restore_readiness_report_path"])
@@ -102,14 +122,10 @@ def test_readiness_reports_builder_blocks_sunset_hard_error_phase_check(tmp_path
         "grace_window_legacy_targets": 0,
         "hard_error_legacy_targets": 2,
     }
-    ctx._set_execution_context("base.builder.generator_readiness_evidence", set())  # noqa: SLF001 - test fixture setup
-    try:
-        ctx.publish("generator_readiness_evidence", evidence)
-    finally:
-        ctx._clear_execution_context()
+    _publish(ctx, "base.builder.generator_readiness_evidence", {"generator_readiness_evidence": evidence})
 
     builder = ReadinessReportsBuilder("base.builder.readiness_reports")
-    result = builder.execute(ctx, Stage.BUILD)
+    result = _run_builder(builder, ctx)
 
     assert result.status == PluginStatus.SUCCESS
     report_path = Path(result.output_data["restore_readiness_report_path"])
@@ -134,7 +150,7 @@ def test_readiness_reports_builder_fails_without_input_evidence(tmp_path: Path) 
     )
     builder = ReadinessReportsBuilder("base.builder.readiness_reports")
 
-    result = builder.execute(ctx, Stage.BUILD)
+    result = _run_builder(builder, ctx)
 
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E8206" for diag in result.diagnostics)

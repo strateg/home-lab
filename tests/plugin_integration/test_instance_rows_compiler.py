@@ -340,7 +340,7 @@ def test_instance_rows_execute_stage_commits_normalized_rows_authoritatively(tmp
         PLUGIN_ID,
     ]
     assert all(result.status in {PluginStatus.SUCCESS, PluginStatus.PARTIAL} for result in results)
-    published = ctx.get_published_data()[PLUGIN_ID]["normalized_rows"]
+    published = results[-1].output_data["normalized_rows"]
     assert isinstance(published, list)
     assert published[0]["instance"] == "dev-stage"
     assert published[0]["extensions"]["custom_flag"] is True
@@ -526,7 +526,7 @@ def test_instance_rows_execute_stage_requires_validated_rows_in_snapshot_path(tm
     ]
     assert results[0].status in {PluginStatus.SUCCESS, PluginStatus.PARTIAL}
     assert results[1].status == PluginStatus.FAILED
-    assert PLUGIN_ID not in ctx.get_published_data()
+    assert not ctx.get_published_keys(PLUGIN_ID)
 
 
 def test_instance_rows_compiler_accepts_semantic_instance_keys():

@@ -264,7 +264,43 @@ class ArtifactFamilySummaryBuilder(BuilderPlugin):
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
-        published = ctx.get_published_data()
+        try:
+            contract_guard = ctx.subscribe("base.assembler.artifact_contract_guard", "artifact_contract_guard")
+        except PluginDataExchangeError as exc:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E8205",
+                    severity="error",
+                    stage=stage,
+                    message=str(exc),
+                    path="plugin:base.assembler.artifact_contract_guard",
+                )
+            )
+            return self.make_result(diagnostics=diagnostics)
+        if not isinstance(contract_guard, dict):
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E8205",
+                    severity="error",
+                    stage=stage,
+                    message="artifact contract guard payload must be an object",
+                    path="plugin:base.assembler.artifact_contract_guard",
+                )
+            )
+            return self.make_result(diagnostics=diagnostics)
+        checked_plugins = contract_guard.get("checked_plugins", [])
+        if not isinstance(checked_plugins, list):
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E8205",
+                    severity="error",
+                    stage=stage,
+                    message="artifact contract guard checked_plugins payload must be a list",
+                    path="plugin:base.assembler.artifact_contract_guard",
+                )
+            )
+            return self.make_result(diagnostics=diagnostics)
+
         families: list[dict[str, Any]] = []
         totals = {
             "plugins": 0,
@@ -275,12 +311,14 @@ class ArtifactFamilySummaryBuilder(BuilderPlugin):
             "warnings": 0,
         }
 
-        for plugin_id in sorted(published.keys()):
-            payload = published.get(plugin_id)
-            if not isinstance(payload, dict):
+        for entry in sorted(checked_plugins, key=lambda item: str(item.get("plugin_id", ""))):
+            if not isinstance(entry, dict):
                 continue
-            artifact_plan = payload.get("artifact_plan")
-            generation_report = payload.get("artifact_generation_report")
+            plugin_id = entry.get("plugin_id")
+            if not isinstance(plugin_id, str) or not plugin_id.strip():
+                continue
+            artifact_plan = entry.get("artifact_plan")
+            generation_report = entry.get("artifact_generation_report")
             if not isinstance(artifact_plan, dict) and not isinstance(generation_report, dict):
                 continue
 
@@ -407,10 +445,11 @@ class GeneratorReadinessEvidenceBuilder(BuilderPlugin):
     """Emit consolidated ADR0093 generator migration evidence for operators."""
 
     @staticmethod
-    def _summary(payload: Any, key: str) -> dict[str, Any]:
-        if not isinstance(payload, dict):
+    def _summary(ctx: PluginContext, plugin_id: str, key: str) -> dict[str, Any]:
+        try:
+            value = ctx.subscribe(plugin_id, key)
+        except PluginDataExchangeError:
             return {}
-        value = payload.get(key)
         return value if isinstance(value, dict) else {}
 
     @staticmethod
@@ -454,22 +493,24 @@ class GeneratorReadinessEvidenceBuilder(BuilderPlugin):
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
-        published = ctx.get_published_data()
-
         migration_summary = self._summary(
-            published.get("base.validator.generator_migration_status"),
+            ctx,
+            "base.validator.generator_migration_status",
             "generator_migration_summary",
         )
         sunset_summary = self._summary(
-            published.get("base.validator.generator_sunset"),
+            ctx,
+            "base.validator.generator_sunset",
             "generator_sunset_summary",
         )
         rollback_summary = self._summary(
-            published.get("base.validator.generator_rollback_escalation"),
+            ctx,
+            "base.validator.generator_rollback_escalation",
             "generator_rollback_summary",
         )
         artifact_family_summary = self._summary(
-            published.get("base.builder.artifact_family_summary"),
+            ctx,
+            "base.builder.artifact_family_summary",
             "artifact_family_summary",
         )
 
@@ -597,22 +638,16 @@ class ReadinessReportsBuilder(BuilderPlugin):
                 "base.builder.generator_readiness_evidence", "generator_readiness_evidence"
             )
         except PluginDataExchangeError as exc:
-            published = ctx.get_published_data()
-            source_payload = published.get("base.builder.generator_readiness_evidence", {})
-            readiness_evidence = (
-                source_payload.get("generator_readiness_evidence") if isinstance(source_payload, dict) else None
-            )
-            if not isinstance(readiness_evidence, dict):
-                diagnostics.append(
-                    self.emit_diagnostic(
-                        code="E8206",
-                        severity="error",
-                        stage=stage,
-                        message=f"readiness reports require generator_readiness_evidence payload: {exc}",
-                        path="plugin:base.builder.generator_readiness_evidence:generator_readiness_evidence",
-                    )
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E8206",
+                    severity="error",
+                    stage=stage,
+                    message=f"readiness reports require generator_readiness_evidence payload: {exc}",
+                    path="plugin:base.builder.generator_readiness_evidence:generator_readiness_evidence",
                 )
-                return self.make_result(diagnostics=diagnostics)
+            )
+            return self.make_result(diagnostics=diagnostics)
         if not isinstance(readiness_evidence, dict):
             diagnostics.append(
                 self.emit_diagnostic(
@@ -823,38 +858,32 @@ class ReleaseManifestBuilder(BuilderPlugin):
             artifact_family_summary_path = str(
                 ctx.subscribe("base.builder.artifact_family_summary", "artifact_family_summary_path")
             )
-        except PluginDataExchangeError:
-            artifact_family_summary_path = ""
-        try:
             generator_readiness_evidence_path = str(
                 ctx.subscribe("base.builder.generator_readiness_evidence", "generator_readiness_evidence_path")
             )
-        except PluginDataExchangeError:
-            generator_readiness_evidence_path = ""
-        try:
             restore_readiness_report_path = str(
                 ctx.subscribe("base.builder.readiness_reports", "restore_readiness_report_path")
             )
-        except PluginDataExchangeError:
-            restore_readiness_report_path = ""
-        try:
             rollback_events_report_path = str(
                 ctx.subscribe("base.builder.readiness_reports", "rollback_events_report_path")
             )
-        except PluginDataExchangeError:
-            rollback_events_report_path = ""
-        try:
             operator_readiness_report_path = str(
                 ctx.subscribe("base.builder.soho_readiness_package", "operator_readiness_report_path")
             )
-        except PluginDataExchangeError:
-            operator_readiness_report_path = ""
-        try:
             support_bundle_manifest_path = str(
                 ctx.subscribe("base.builder.soho_readiness_package", "support_bundle_manifest_path")
             )
-        except PluginDataExchangeError:
-            support_bundle_manifest_path = ""
+        except PluginDataExchangeError as exc:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E8203",
+                    severity="error",
+                    stage=stage,
+                    message=f"release manifest requires build evidence inputs: {exc}",
+                    path="build:release-manifest",
+                )
+            )
+            return self.make_result(diagnostics)
 
         dist_root = ReleaseBundleBuilder._dist_root(ctx)
         dist_root.mkdir(parents=True, exist_ok=True)

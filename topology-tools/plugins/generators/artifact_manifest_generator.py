@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage
+from kernel.plugin_base import PluginContext, PluginDataExchangeError, PluginDiagnostic, PluginResult, Stage
 from plugins.generators.base_generator import BaseGenerator
 
 
@@ -38,15 +38,17 @@ class ArtifactManifestGenerator(BaseGenerator):
         artifacts_root = self.artifacts_root(ctx)
         artifacts_root.mkdir(parents=True, exist_ok=True)
 
-        published = ctx.get_published_data()
         rows: list[dict[str, Any]] = []
         seen: set[tuple[str, str]] = set()
 
-        for plugin_id in self._producer_ids(ctx, published):
-            payload = published.get(plugin_id)
-            if not isinstance(payload, dict):
-                continue
-            generated_files = payload.get("generated_files")
+        for plugin_id in self._producer_ids(ctx):
+            generated_files = self._generated_files_for_producer(
+                ctx,
+                plugin_id,
+                diagnostics=diagnostics,
+                stage=stage,
+                allow_legacy_fallback=not ctx.is_snapshot_backed,
+            )
             if not isinstance(generated_files, list):
                 continue
             for item in generated_files:
@@ -125,9 +127,46 @@ class ArtifactManifestGenerator(BaseGenerator):
     def on_finalize(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         return self.execute(ctx, stage)
 
+    def _generated_files_for_producer(
+        self,
+        ctx: PluginContext,
+        plugin_id: str,
+        *,
+        diagnostics: list[PluginDiagnostic],
+        stage: Stage,
+        allow_legacy_fallback: bool,
+    ) -> list[str] | None:
+        try:
+            value = ctx.subscribe(plugin_id, "generated_files")
+            return value if isinstance(value, list) else None
+        except PluginDataExchangeError as exc:
+            if allow_legacy_fallback:
+                payload = ctx.get_published_data().get(plugin_id)
+                generated_files = payload.get("generated_files") if isinstance(payload, dict) else None
+                return generated_files if isinstance(generated_files, list) else None
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="I3902",
+                    severity="info",
+                    stage=stage,
+                    message=(
+                        f"artifact manifest skipped producer '{plugin_id}' because it is not available through "
+                        "declared snapshot consumes; compatibility-only producers require legacy direct execution."
+                    ),
+                    path=f"plugin:{plugin_id}:generated_files",
+                )
+            )
+            return None
+
     @staticmethod
-    def _producer_ids(ctx: PluginContext, published: dict[str, dict[str, Any]]) -> list[str]:
-        raw = ctx.config.get("artifact_manifest_producers")
-        if not isinstance(raw, list):
-            return sorted(published.keys())
-        return sorted({item.strip() for item in raw if isinstance(item, str) and item.strip()})
+    def _producer_ids(ctx: PluginContext) -> list[str]:
+        primary = ctx.config.get("artifact_manifest_producers")
+        compatibility = ctx.config.get("artifact_manifest_compatibility_producers")
+        tokens: set[str] = set()
+        for raw in (primary, compatibility):
+            if not isinstance(raw, list):
+                continue
+            for item in raw:
+                if isinstance(item, str) and item.strip():
+                    tokens.add(item.strip())
+        return sorted(tokens)

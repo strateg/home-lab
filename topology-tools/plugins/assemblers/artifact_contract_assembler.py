@@ -73,6 +73,7 @@ class ArtifactContractAssembler(AssemblerPlugin):
             "migrated": 0,
             "rollback": 0,
             "checked": 0,
+            "checked_plugins": [],
             "missing_contracts": [],
             "prefix_conflicts": [],
         }
@@ -98,6 +99,16 @@ class ArtifactContractAssembler(AssemblerPlugin):
 
             if not missing:
                 generated_dir = self._normalize_generated_dir(payload.get("generated_dir"))
+                summary["checked_plugins"].append(
+                    {
+                        "plugin_id": plugin_id,
+                        "mode": mode,
+                        "artifact_plan": payload.get("artifact_plan"),
+                        "artifact_generation_report": payload.get("artifact_generation_report"),
+                        "artifact_contract_files": payload.get("artifact_contract_files"),
+                        "generated_dir": str(generated_dir) if generated_dir is not None else None,
+                    }
+                )
                 if generated_dir is not None:
                     generator_output_roots.append((plugin_id, mode, generated_dir))
             else:

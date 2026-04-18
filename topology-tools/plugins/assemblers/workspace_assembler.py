@@ -557,8 +557,17 @@ class AssemblyManifestAssembler(AssemblerPlugin):
 
         try:
             artifact_manifest_path = str(ctx.subscribe("base.generator.artifact_manifest", "artifact_manifest_path"))
-        except PluginDataExchangeError:
-            artifact_manifest_path = ""
+        except PluginDataExchangeError as exc:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E8104",
+                    severity="error",
+                    stage=stage,
+                    message=f"assembly manifest requires artifact_manifest_path: {exc}",
+                    path="plugin:base.generator.artifact_manifest:artifact_manifest_path",
+                )
+            )
+            return self.make_result(diagnostics)
 
         rows: list[dict[str, Any]] = []
         for item in assembled_files if isinstance(assembled_files, list) else []:

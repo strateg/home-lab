@@ -59,7 +59,7 @@ def test_effective_json_generator_writes_compiled_file(tmp_path):
     published = set(ctx.get_published_keys(PLUGIN_ID))
     assert "generated_files" in published
     assert "effective_json_path" in published
-    generated_files = ctx.get_published_data()[PLUGIN_ID]["generated_files"]
+    generated_files = result.output_data["generated_files"]
     assert isinstance(generated_files, list)
     assert str(output_path) in generated_files
 
@@ -173,4 +173,4 @@ def test_effective_json_execute_stage_requires_compiled_json(tmp_path):
     assert results[0].status == PluginStatus.FAILED
     assert any(diag.code == "E3001" for diag in results[0].diagnostics)
     assert not output_path.exists()
-    assert PLUGIN_ID not in ctx.get_published_data()
+    assert not ctx.get_published_keys(PLUGIN_ID)

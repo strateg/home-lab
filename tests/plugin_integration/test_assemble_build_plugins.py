@@ -29,40 +29,48 @@ def _seed_migrating_contract_publications(ctx: PluginContext, registry: PluginRe
         if getattr(spec, "migration_mode", "legacy") != "migrating":
             continue
         planned_path = f"generated/home-lab/contracts/{plugin_id}.json"
-        ctx._published_data[plugin_id] = {  # noqa: SLF001 - test fixture setup
-            "artifact_plan": {
-                "schema_version": "1.0",
-                "plugin_id": plugin_id,
-                "artifact_family": f"test.{plugin_id}",
-                "planned_outputs": [
-                    {
-                        "path": planned_path,
-                        "renderer": "jinja2",
-                        "required": True,
-                        "reason": "base-family",
-                    }
-                ],
-                "obsolete_candidates": [],
-                "capabilities": [],
-                "validation_profiles": [],
-            },
-            "artifact_generation_report": {
-                "schema_version": "1.0",
-                "plugin_id": plugin_id,
-                "artifact_family": f"test.{plugin_id}",
-                "generated": [planned_path],
-                "skipped": [],
-                "obsolete": [],
-                "summary": {
-                    "planned_count": 1,
-                    "generated_count": 1,
-                    "skipped_count": 0,
-                    "obsolete_count": 0,
+        ctx._set_execution_context(plugin_id, set())  # noqa: SLF001 - test fixture setup
+        try:
+            ctx.publish(
+                "artifact_plan",
+                {
+                    "schema_version": "1.0",
+                    "plugin_id": plugin_id,
+                    "artifact_family": f"test.{plugin_id}",
+                    "planned_outputs": [
+                        {
+                            "path": planned_path,
+                            "renderer": "jinja2",
+                            "required": True,
+                            "reason": "base-family",
+                        }
+                    ],
+                    "obsolete_candidates": [],
+                    "capabilities": [],
+                    "validation_profiles": [],
                 },
-            },
-            "artifact_contract_files": [f"/tmp/{plugin_id}.artifact-plan.json"],
-            "generated_dir": f"/tmp/generated/{plugin_id.replace('.', '_')}",
-        }
+            )
+            ctx.publish(
+                "artifact_generation_report",
+                {
+                    "schema_version": "1.0",
+                    "plugin_id": plugin_id,
+                    "artifact_family": f"test.{plugin_id}",
+                    "generated": [planned_path],
+                    "skipped": [],
+                    "obsolete": [],
+                    "summary": {
+                        "planned_count": 1,
+                        "generated_count": 1,
+                        "skipped_count": 0,
+                        "obsolete_count": 0,
+                    },
+                },
+            )
+            ctx.publish("artifact_contract_files", [f"/tmp/{plugin_id}.artifact-plan.json"])
+            ctx.publish("generated_dir", f"/tmp/generated/{plugin_id.replace('.', '_')}")
+        finally:
+            ctx._clear_execution_context()
 
 
 def _seed_build_readiness_inputs(ctx: PluginContext) -> None:
@@ -660,6 +668,68 @@ def test_artifact_family_summary_requires_artifact_contract_guard(tmp_path: Path
 
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E8003" for diag in result.diagnostics)
+
+
+def test_artifact_family_summary_uses_contract_guard_checked_plugins(tmp_path: Path) -> None:
+    registry = _registry()
+    workspace_root = tmp_path / ".work" / "native" / "home-lab"
+    dist_root = tmp_path / "dist" / "home-lab"
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={
+            "repo_root": str(tmp_path),
+            "project_id": "home-lab",
+            "workspace_root": str(workspace_root),
+            "dist_root": str(dist_root),
+            "plugin_registry": registry,
+        },
+        workspace_root=str(workspace_root),
+        dist_root=str(dist_root),
+    )
+
+    contract_guard = {
+        "legacy": 0,
+        "migrating": 1,
+        "migrated": 0,
+        "rollback": 0,
+        "checked": 1,
+        "checked_plugins": [
+            {
+                "plugin_id": "base.generator.effective_json",
+                "mode": "migrating",
+                "artifact_plan": {
+                    "artifact_family": "effective-json",
+                    "planned_outputs": [{"path": "generated/home-lab/effective/effective-model.json"}],
+                },
+                "artifact_generation_report": {
+                    "artifact_family": "effective-json",
+                    "generated": ["generated/home-lab/effective/effective-model.json"],
+                    "skipped": [],
+                    "summary": {"obsolete_count": 0},
+                },
+                "artifact_contract_files": ["generated/home-lab/effective/artifact-plan.json"],
+                "generated_dir": "generated/home-lab/effective",
+            }
+        ],
+        "missing_contracts": [],
+        "prefix_conflicts": [],
+    }
+
+    ctx._set_execution_context("base.assembler.artifact_contract_guard", set())
+    try:
+        ctx.publish("artifact_contract_guard", contract_guard)
+    finally:
+        ctx._clear_execution_context()
+
+    result = registry.execute_plugin("base.builder.artifact_family_summary", ctx, Stage.BUILD)
+
+    assert result.status == PluginStatus.SUCCESS
+    payload = ctx.get_published_data()["base.builder.artifact_family_summary"]["artifact_family_summary"]
+    assert payload["totals"]["plugins"] == 1
+    assert payload["families"][0]["plugin_id"] == "base.generator.effective_json"
+    assert payload["families"][0]["artifact_family"] == "effective-json"
 
 
 def test_generator_readiness_evidence_requires_committed_readiness_inputs(tmp_path: Path) -> None:

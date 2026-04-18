@@ -16,6 +16,8 @@ from kernel import PluginRegistry, PluginStatus
 from kernel.plugin_base import PluginContext, Stage
 from plugins.validators.soho_product_profile_validator import SohoProductProfileValidator
 
+_SOHO_RESOLVER_PLUGIN_ID = "base.compiler.soho_profile_resolver"
+
 
 def _ctx(
     tmp_path: Path,
@@ -69,12 +71,43 @@ def _registry() -> PluginRegistry:
     return registry
 
 
+def _publish(ctx: PluginContext, plugin_id: str, payload: dict[str, Any]) -> None:
+    ctx._set_execution_context(plugin_id, set())  # noqa: SLF001 - test fixture setup
+    try:
+        for key, value in payload.items():
+            ctx.publish(key, value)
+    finally:
+        ctx._clear_execution_context()
+
+
 def _run_validator(validator: SohoProductProfileValidator, ctx: PluginContext):
-    ctx._set_execution_context(validator.plugin_id, set())  # noqa: SLF001 - direct plugin execution helper
+    ctx._set_execution_context(validator.plugin_id, {_SOHO_RESOLVER_PLUGIN_ID})  # noqa: SLF001 - direct plugin execution helper
     try:
         return validator.execute(ctx, Stage.VALIDATE)
     finally:
         ctx._clear_execution_context()  # noqa: SLF001 - direct plugin execution helper
+
+
+def _seed_resolver_payloads(
+    ctx: PluginContext,
+    *,
+    required_bundles: list[str],
+    available_bundles: list[str] | None = None,
+    missing_bundle_definitions: list[str] | None = None,
+) -> None:
+    _publish(
+        ctx,
+        _SOHO_RESOLVER_PLUGIN_ID,
+        {
+            "soho_profile_resolution": {
+                "required_bundles": required_bundles,
+                "available_bundles": available_bundles or required_bundles,
+                "missing_bundle_definitions": missing_bundle_definitions or [],
+            },
+            "effective_product_bundles": required_bundles,
+            "available_product_bundles": available_bundles or required_bundles,
+        },
+    )
 
 
 def _write_manifest(path: Path, payload: dict[str, Any]) -> None:
@@ -127,6 +160,19 @@ def test_soho_validator_fails_for_migrated_hard_missing_bundles(tmp_path: Path) 
             "product_bundles": ["bundle.edge-routing", "bundle.network-segmentation"],
         },
     )
+    _seed_resolver_payloads(
+        ctx,
+        required_bundles=[
+            "bundle.edge-routing",
+            "bundle.network-segmentation",
+            "bundle.secrets-governance",
+            "bundle.remote-access",
+            "bundle.operator-workflows",
+            "bundle.backup-restore",
+            "bundle.observability",
+            "bundle.update-management",
+        ],
+    )
 
     result = _run_validator(validator, ctx)
 
@@ -158,6 +204,16 @@ def test_soho_validator_fails_on_invalid_state_transition(tmp_path: Path) -> Non
                 "bundle.operator-workflows",
             ],
         },
+    )
+    _seed_resolver_payloads(
+        ctx,
+        required_bundles=[
+            "bundle.edge-routing",
+            "bundle.network-segmentation",
+            "bundle.secrets-governance",
+            "bundle.remote-access",
+            "bundle.operator-workflows",
+        ],
     )
 
     result = _run_validator(validator, ctx)
@@ -204,6 +260,16 @@ def test_soho_validator_treats_legacy_profile_as_hard_after_sunset(tmp_path: Pat
         },
         legacy_end_date="2026-04-01",
         today="2026-04-09",
+    )
+    _seed_resolver_payloads(
+        ctx,
+        required_bundles=[
+            "bundle.edge-routing",
+            "bundle.network-segmentation",
+            "bundle.secrets-governance",
+            "bundle.remote-access",
+            "bundle.operator-workflows",
+        ],
     )
 
     result = _run_validator(validator, ctx)

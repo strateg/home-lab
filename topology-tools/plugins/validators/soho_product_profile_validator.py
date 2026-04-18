@@ -10,7 +10,6 @@ from typing import Any
 import yaml
 from kernel.plugin_base import (
     PluginContext,
-    PluginDataExchangeError,
     PluginDiagnostic,
     PluginResult,
     Stage,
@@ -316,14 +315,9 @@ class SohoProductProfileValidator(ValidatorJsonPlugin):
         profile_id: str,
         deployment_class: str,
     ) -> tuple[set[str], set[str], set[str]]:
-        try:
-            required_payload = ctx.subscribe(_SOHO_PROFILE_RESOLVER_PLUGIN, "effective_product_bundles")
-            available_payload = ctx.subscribe(_SOHO_PROFILE_RESOLVER_PLUGIN, "available_product_bundles")
-            resolution_payload = ctx.subscribe(_SOHO_PROFILE_RESOLVER_PLUGIN, "soho_profile_resolution")
-        except PluginDataExchangeError:
-            required_payload = None
-            available_payload = None
-            resolution_payload = None
+        required_payload = ctx.subscribe(_SOHO_PROFILE_RESOLVER_PLUGIN, "effective_product_bundles")
+        available_payload = ctx.subscribe(_SOHO_PROFILE_RESOLVER_PLUGIN, "available_product_bundles")
+        resolution_payload = ctx.subscribe(_SOHO_PROFILE_RESOLVER_PLUGIN, "soho_profile_resolution")
 
         required: set[str] = set()
         available: set[str] = set()
@@ -338,13 +332,6 @@ class SohoProductProfileValidator(ValidatorJsonPlugin):
                 missing_catalog = {
                     str(item).strip() for item in missing_raw if isinstance(item, str) and str(item).strip()
                 }
-
-        if required:
-            return required, available, missing_catalog
-
-        # Fallback for direct/integration execution without registry bus.
-        required = set(_CORE_BUNDLES)
-        required.update(_CLASS_OVERLAYS.get(deployment_class, set()))
         return required, available, missing_catalog
 
     @staticmethod

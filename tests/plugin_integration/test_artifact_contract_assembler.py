@@ -49,6 +49,15 @@ def _required_keys_payload(*, generated_dir: str | None = None) -> dict[str, obj
     }
 
 
+def _publish(ctx: PluginContext, plugin_id: str, payload: dict[str, object]) -> None:
+    ctx._set_execution_context(plugin_id, set())  # noqa: SLF001 - test fixture setup
+    try:
+        for key, value in payload.items():
+            ctx.publish(key, value)
+    finally:
+        ctx._clear_execution_context()
+
+
 def _migrating_generators(registry: PluginRegistry) -> list[str]:
     return sorted(
         plugin_id
@@ -61,8 +70,12 @@ def test_artifact_contract_assembler_passes_when_migrating_generators_publish_co
     registry = _registry()
     ctx = _ctx(registry)
     for idx, plugin_id in enumerate(_migrating_generators(registry)):
-        ctx._published_data[plugin_id] = _required_keys_payload(  # noqa: SLF001 - test fixture setup
-            generated_dir=f"/tmp/generated/{plugin_id.replace('.', '_')}_{idx}"
+        _publish(
+            ctx,
+            plugin_id,
+            _required_keys_payload(
+                generated_dir=f"/tmp/generated/{plugin_id.replace('.', '_')}_{idx}"
+            ),
         )
 
     plugin = ArtifactContractAssembler("base.assembler.artifact_contract_guard")
@@ -73,6 +86,9 @@ def test_artifact_contract_assembler_passes_when_migrating_generators_publish_co
     summary = result.output_data["artifact_contract_guard"]
     assert summary["migrating"] >= 3
     assert summary["checked"] >= 3
+    assert len(summary["checked_plugins"]) == summary["checked"]
+    assert all(isinstance(item.get("artifact_plan"), dict) for item in summary["checked_plugins"])
+    assert all(isinstance(item.get("artifact_generation_report"), dict) for item in summary["checked_plugins"])
     assert summary["missing_contracts"] == []
 
 
@@ -82,8 +98,10 @@ def test_artifact_contract_assembler_errors_for_missing_migrating_contracts() ->
     migrating = _migrating_generators(registry)
     assert migrating
     for plugin_id in migrating[1:]:
-        ctx._published_data[plugin_id] = _required_keys_payload(  # noqa: SLF001 - test fixture setup
-            generated_dir=f"/tmp/generated/{plugin_id.replace('.', '_')}"
+        _publish(
+            ctx,
+            plugin_id,
+            _required_keys_payload(generated_dir=f"/tmp/generated/{plugin_id.replace('.', '_')}"),
         )
 
     plugin = ArtifactContractAssembler("base.assembler.artifact_contract_guard")
@@ -113,15 +131,13 @@ def test_artifact_contract_assembler_detects_overlapping_generated_dir_prefixes(
     migrating = _migrating_generators(registry)
     assert len(migrating) >= 2
 
-    ctx._published_data[migrating[0]] = _required_keys_payload(  # noqa: SLF001 - test fixture setup
-        generated_dir="/tmp/generated/shared"
-    )
-    ctx._published_data[migrating[1]] = _required_keys_payload(  # noqa: SLF001 - test fixture setup
-        generated_dir="/tmp/generated/shared/nested"
-    )
+    _publish(ctx, migrating[0], _required_keys_payload(generated_dir="/tmp/generated/shared"))
+    _publish(ctx, migrating[1], _required_keys_payload(generated_dir="/tmp/generated/shared/nested"))
     for plugin_id in migrating[2:]:
-        ctx._published_data[plugin_id] = _required_keys_payload(  # noqa: SLF001 - test fixture setup
-            generated_dir=f"/tmp/generated/{plugin_id.replace('.', '_')}"
+        _publish(
+            ctx,
+            plugin_id,
+            _required_keys_payload(generated_dir=f"/tmp/generated/{plugin_id.replace('.', '_')}"),
         )
 
     plugin = ArtifactContractAssembler("base.assembler.artifact_contract_guard")

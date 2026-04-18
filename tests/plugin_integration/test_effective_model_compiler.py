@@ -385,7 +385,7 @@ def test_effective_model_execute_stage_requires_committed_rows(tmp_path):
     assert results[1].status == PluginStatus.FAILED
     assert any(diag.code == "E8003" for diag in results[1].diagnostics)
     assert ctx.compiled_json == {}
-    assert PLUGIN_ID not in ctx.get_published_data()
+    assert not ctx.get_published_keys(PLUGIN_ID)
 
 
 def test_effective_model_compiler_includes_inherited_lineage_fields():

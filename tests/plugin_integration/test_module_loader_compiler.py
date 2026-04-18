@@ -129,9 +129,8 @@ def test_module_loader_execute_stage_commits_authoritative_maps(tmp_path):
     assert results[0].status == PluginStatus.SUCCESS
     assert ctx.classes["class.router"]["class"] == "class.router"
     assert ctx.objects["obj.router"]["class_ref"] == "class.router"
-    published = ctx.get_published_data()[PLUGIN_ID]
-    assert "class_map" in published
-    assert "object_map" in published
+    assert "class_map" in results[0].output_data
+    assert "object_map" in results[0].output_data
 
 
 def test_module_loader_rejects_unsafe_class_and_object_ids(tmp_path):

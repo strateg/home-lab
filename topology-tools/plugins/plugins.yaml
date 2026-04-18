@@ -1879,21 +1879,27 @@ plugins:
       artifact_manifest_producers:
         - base.generator.effective_json
         - base.generator.effective_yaml
-        - object.proxmox.generator.terraform
-        - object.mikrotik.generator.terraform
         - base.generator.ansible_inventory
-        - object.proxmox.generator.bootstrap
-        - object.mikrotik.generator.bootstrap
-        - object.orangepi.generator.bootstrap
         - base.generator.docs
         - base.generator.diagrams
         - base.generator.docker_compose
+      artifact_manifest_compatibility_producers:
+        - object.proxmox.generator.terraform
+        - object.mikrotik.generator.terraform
+        - object.proxmox.generator.bootstrap
+        - object.mikrotik.generator.bootstrap
+        - object.orangepi.generator.bootstrap
     config_schema:
       type: object
       properties:
         artifact_manifest_producers:
           type: array
-          description: Explicit producer plugin IDs whose generated_files are included in the artifact manifest.
+          description: Declared producer plugin IDs consumed through snapshot/runtime contracts.
+          items:
+            type: string
+        artifact_manifest_compatibility_producers:
+          type: array
+          description: Compatibility-only producer plugin IDs included only for legacy direct execution fallback.
           items:
             type: string
       required: []

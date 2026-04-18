@@ -35,7 +35,10 @@ def _publish(ctx: PluginContext, plugin_id: str, payload: dict) -> None:
 
 
 def _run_builder(builder: SohoReadinessBuilder, ctx: PluginContext):
-    ctx._set_execution_context("base.builder.soho_readiness_package", set())  # noqa: SLF001 - direct plugin execution helper
+    ctx._set_execution_context(  # noqa: SLF001 - direct plugin execution helper
+        "base.builder.soho_readiness_package",
+        {"base.builder.readiness_reports", "base.validator.soho_product_profile"},
+    )
     try:
         return builder.execute(ctx, Stage.BUILD)
     finally:

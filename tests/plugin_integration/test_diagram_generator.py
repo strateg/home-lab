@@ -382,4 +382,4 @@ def test_diagram_execute_stage_requires_compiled_json(tmp_path: Path) -> None:
     assert len(results) == 1
     assert results[0].status == PluginStatus.FAILED
     assert any(diag.code == "E3001" for diag in results[0].diagnostics)
-    assert PLUGIN_ID not in ctx.get_published_data()
+    assert not ctx.get_published_keys(PLUGIN_ID)
