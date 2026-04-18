@@ -44,6 +44,26 @@ def test_instance_rows_secret_resolve_manifest_requires_annotation_publications(
         ("base.compiler.annotation_resolver", "row_annotations_by_instance"),
     }
 
+    resolve_required = {
+        (item["from_plugin"], item["key"])
+        for item in registry.specs["base.compiler.instance_rows_resolve"].consumes
+        if item.get("required") is True
+    }
+    prepare_required = {
+        (item["from_plugin"], item["key"])
+        for item in registry.specs["base.compiler.instance_rows_prepare"].consumes
+        if item.get("required") is True
+    }
+    validate_required = {
+        (item["from_plugin"], item["key"])
+        for item in registry.specs["base.compiler.instance_rows_validate"].consumes
+        if item.get("required") is True
+    }
+
+    assert ("base.compiler.instance_rows_secret_resolve", "secret_resolved_rows") in resolve_required
+    assert ("base.compiler.instance_rows_resolve", "resolved_rows") in prepare_required
+    assert ("base.compiler.instance_rows_prepare", "prepared_rows") in validate_required
+
 
 def test_instance_rows_compiler_skips_when_core_owner():
     registry = _registry()
@@ -105,6 +125,54 @@ def test_instance_rows_secret_resolve_requires_annotation_payloads() -> None:
     )
 
     result = registry.execute_plugin("base.compiler.instance_rows_secret_resolve", ctx, Stage.COMPILE)
+
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E8003" for diag in result.diagnostics)
+
+
+def test_instance_rows_resolve_requires_secret_resolved_rows() -> None:
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={"compilation_owner_instance_rows": "plugin"},
+        instance_bindings={"instance_bindings": {"devices": []}},
+    )
+
+    result = registry.execute_plugin("base.compiler.instance_rows_resolve", ctx, Stage.COMPILE)
+
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E8003" for diag in result.diagnostics)
+
+
+def test_instance_rows_prepare_requires_resolved_rows() -> None:
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={"compilation_owner_instance_rows": "plugin"},
+        instance_bindings={"instance_bindings": {"devices": []}},
+    )
+
+    result = registry.execute_plugin("base.compiler.instance_rows_prepare", ctx, Stage.COMPILE)
+
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E8003" for diag in result.diagnostics)
+
+
+def test_instance_rows_validate_requires_prepared_rows() -> None:
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={"compilation_owner_instance_rows": "plugin"},
+        instance_bindings={"instance_bindings": {"devices": []}},
+    )
+
+    result = registry.execute_plugin("base.compiler.instance_rows_validate", ctx, Stage.COMPILE)
 
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E8003" for diag in result.diagnostics)

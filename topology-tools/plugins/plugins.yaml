@@ -272,7 +272,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows_secret_resolve
         key: secret_resolved_rows
-        required: false
+        required: true
     description: Applies duplicate and identifier validation to secret-resolved rows before shape preparation.
 
   - id: base.compiler.instance_rows_prepare
@@ -312,7 +312,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows_resolve
         key: resolved_rows
-        required: false
+        required: true
     description: Resolves class/object refs and builds prepared instance rows before shape validation.
 
   - id: base.compiler.instance_rows_validate
@@ -352,7 +352,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows_prepare
         key: prepared_rows
-        required: false
+        required: true
     description: Validates prepared instance-row shape and builds stage-local normalized row payloads.
 
   - id: base.compiler.instance_rows
