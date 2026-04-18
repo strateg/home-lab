@@ -69,6 +69,14 @@ def _ctx(tmp_path: Path, compiled_json: dict, *, artifacts_root: Path | None = N
     )
 
 
+def _run_generator(generator: AnsibleInventoryGenerator, ctx: PluginContext):
+    ctx._set_execution_context(PLUGIN_ID, set())  # noqa: SLF001 - direct plugin execution helper
+    try:
+        return generator.execute(ctx, Stage.GENERATE)
+    finally:
+        ctx._clear_execution_context()  # noqa: SLF001 - direct plugin execution helper
+
+
 def _compiled_fixture() -> dict:
     return {
         "instances": {
@@ -93,7 +101,7 @@ def test_ansible_inventory_generator_writes_expected_files(tmp_path: Path) -> No
     generator = AnsibleInventoryGenerator("base.generator.ansible_inventory")
     ctx = _ctx(tmp_path, _compiled_fixture())
 
-    result = generator.execute(ctx, Stage.GENERATE)
+    result = _run_generator(generator, ctx)
 
     assert result.status == PluginStatus.SUCCESS
     root = tmp_path / "generated" / "ansible" / "inventory" / "production"
@@ -128,7 +136,7 @@ def test_ansible_inventory_artifact_plan_includes_group_vars_output(tmp_path: Pa
     generator = AnsibleInventoryGenerator("base.generator.ansible_inventory")
     ctx = _ctx(tmp_path, _compiled_fixture())
 
-    result = generator.execute(ctx, Stage.GENERATE)
+    result = _run_generator(generator, ctx)
 
     assert result.status == PluginStatus.SUCCESS
     artifact_plan = result.output_data["artifact_plan"]
@@ -142,7 +150,7 @@ def test_ansible_inventory_artifact_plan_is_logical_when_artifacts_root_is_custo
     custom_root = tmp_path / "build" / "cutover" / "split-rehearsal" / "generated-artifacts"
     ctx = _ctx(tmp_path, _compiled_fixture(), artifacts_root=custom_root)
 
-    result = generator.execute(ctx, Stage.GENERATE)
+    result = _run_generator(generator, ctx)
 
     assert result.status == PluginStatus.SUCCESS
     planned_paths = [str(item.get("path", "")) for item in result.output_data["artifact_plan"]["planned_outputs"]]
@@ -161,7 +169,7 @@ def test_ansible_inventory_obsolete_delete_uses_ownership_proof(tmp_path: Path) 
     stale_path.parent.mkdir(parents=True, exist_ok=True)
     stale_path.write_text("# stale\n", encoding="utf-8")
 
-    result = generator.execute(ctx, Stage.GENERATE)
+    result = _run_generator(generator, ctx)
 
     assert result.status == PluginStatus.SUCCESS
     obsolete = result.output_data["artifact_generation_report"]["obsolete"]
@@ -179,7 +187,7 @@ def test_ansible_inventory_records_stale_host_vars_without_unlink(tmp_path: Path
     stale_path.parent.mkdir(parents=True, exist_ok=True)
     stale_path.write_text("# stale\n", encoding="utf-8")
 
-    result = generator.execute(ctx, Stage.GENERATE)
+    result = _run_generator(generator, ctx)
 
     assert result.status == PluginStatus.SUCCESS
     assert stale_path.exists()
@@ -194,7 +202,7 @@ def test_ansible_inventory_generator_reports_projection_error(tmp_path: Path) ->
     generator = AnsibleInventoryGenerator("base.generator.ansible_inventory")
     ctx = _ctx(tmp_path, {"instances": {"devices": [{}]}})
 
-    result = generator.execute(ctx, Stage.GENERATE)
+    result = _run_generator(generator, ctx)
 
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E9301" for diag in result.diagnostics)

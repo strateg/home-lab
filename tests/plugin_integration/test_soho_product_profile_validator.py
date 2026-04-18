@@ -69,6 +69,14 @@ def _registry() -> PluginRegistry:
     return registry
 
 
+def _run_validator(validator: SohoProductProfileValidator, ctx: PluginContext):
+    ctx._set_execution_context(validator.plugin_id, set())  # noqa: SLF001 - direct plugin execution helper
+    try:
+        return validator.execute(ctx, Stage.VALIDATE)
+    finally:
+        ctx._clear_execution_context()  # noqa: SLF001 - direct plugin execution helper
+
+
 def _write_manifest(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
@@ -93,7 +101,7 @@ def test_soho_validator_warns_when_product_profile_is_missing(tmp_path: Path) ->
     validator = SohoProductProfileValidator("base.validator.soho_product_profile")
     ctx = _ctx(tmp_path, {"project": "home-lab"})
 
-    result = validator.execute(ctx, Stage.VALIDATE)
+    result = _run_validator(validator, ctx)
 
     assert result.status == PluginStatus.PARTIAL
     assert any(diag.code == "W7941" for diag in result.diagnostics)
@@ -120,7 +128,7 @@ def test_soho_validator_fails_for_migrated_hard_missing_bundles(tmp_path: Path) 
         },
     )
 
-    result = validator.execute(ctx, Stage.VALIDATE)
+    result = _run_validator(validator, ctx)
 
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E7942" for diag in result.diagnostics)
@@ -152,7 +160,7 @@ def test_soho_validator_fails_on_invalid_state_transition(tmp_path: Path) -> Non
         },
     )
 
-    result = validator.execute(ctx, Stage.VALIDATE)
+    result = _run_validator(validator, ctx)
 
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E7947" for diag in result.diagnostics)
@@ -167,7 +175,7 @@ def test_soho_validator_blocks_legacy_when_sunset_is_reached(tmp_path: Path) -> 
         today="2026-04-09",
     )
 
-    result = validator.execute(ctx, Stage.VALIDATE)
+    result = _run_validator(validator, ctx)
 
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E7948" for diag in result.diagnostics)
@@ -198,7 +206,7 @@ def test_soho_validator_treats_legacy_profile_as_hard_after_sunset(tmp_path: Pat
         today="2026-04-09",
     )
 
-    result = validator.execute(ctx, Stage.VALIDATE)
+    result = _run_validator(validator, ctx)
 
     assert result.status == PluginStatus.FAILED
     codes = {diag.code for diag in result.diagnostics}

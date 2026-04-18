@@ -252,10 +252,7 @@ class ChangedInputScopesAssembler(AssemblerPlugin):
         dirty_scopes, changed_files = self._derive_dirty_scopes(previous_entries, current_entries)
         ctx.changed_input_scopes = dirty_scopes
         ctx.config["changed_input_scopes"] = dirty_scopes
-        try:
-            ctx.publish("changed_input_scopes", dirty_scopes)
-        except PluginDataExchangeError:
-            pass
+        ctx.publish("changed_input_scopes", dirty_scopes)
 
         snapshot_payload = {
             "schema_version": 1,
@@ -412,11 +409,8 @@ class WorkspaceAssembler(AssemblerPlugin):
 
         assembled_files.sort()
         ctx.workspace_root = str(workspace_root)
-        try:
-            ctx.publish("assembly_dir", str(workspace_root))
-            ctx.publish("assembled_files", assembled_files)
-        except PluginDataExchangeError:
-            pass
+        ctx.publish("assembly_dir", str(workspace_root))
+        ctx.publish("assembled_files", assembled_files)
 
         diagnostics.append(
             self.emit_diagnostic(
@@ -519,10 +513,7 @@ class AssemblyVerifyAssembler(AssemblerPlugin):
                     )
                 )
 
-        try:
-            ctx.publish("assemble_verified", len([d for d in diagnostics if d.severity == "error"]) == 0)
-        except PluginDataExchangeError:
-            pass
+        ctx.publish("assemble_verified", len([d for d in diagnostics if d.severity == "error"]) == 0)
         diagnostics.append(
             self.emit_diagnostic(
                 code="I8102",
@@ -601,12 +592,9 @@ class AssemblyManifestAssembler(AssemblerPlugin):
         manifest_path.write_text(json.dumps(manifest, ensure_ascii=True, indent=2), encoding="utf-8")
 
         ctx.assembly_manifest = manifest
-        try:
-            ctx.publish("generated_files", [str(manifest_path)])
-            ctx.publish("assembly_manifest_path", str(manifest_path))
-            ctx.publish("assembly_manifest", manifest)
-        except PluginDataExchangeError:
-            pass
+        ctx.publish("generated_files", [str(manifest_path)])
+        ctx.publish("assembly_manifest_path", str(manifest_path))
+        ctx.publish("assembly_manifest", manifest)
         diagnostics.append(
             self.emit_diagnostic(
                 code="I8103",
@@ -752,12 +740,9 @@ class DeployBundleAssembler(AssemblerPlugin):
                 bundle_path = Path(info.bundle_path).resolve()
                 reused = False
 
-            try:
-                ctx.publish("deploy_bundle_id", bundle_id)
-                ctx.publish("deploy_bundle_path", str(bundle_path))
-                ctx.publish("deploy_bundle_reused", reused)
-            except PluginDataExchangeError:
-                pass
+            ctx.publish("deploy_bundle_id", bundle_id)
+            ctx.publish("deploy_bundle_path", str(bundle_path))
+            ctx.publish("deploy_bundle_reused", reused)
 
             action = "reused" if reused else "created"
             diagnostics.append(

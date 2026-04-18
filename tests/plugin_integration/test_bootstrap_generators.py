@@ -70,6 +70,14 @@ def _ctx(tmp_path: Path, compiled_json: dict, plugin_config: dict | None = None)
     )
 
 
+def _run_generator(generator, ctx: PluginContext):
+    ctx._set_execution_context(generator.plugin_id, set())  # noqa: SLF001 - direct plugin execution helper
+    try:
+        return generator.execute(ctx, Stage.GENERATE)
+    finally:
+        ctx._clear_execution_context()  # noqa: SLF001 - direct plugin execution helper
+
+
 def _semanticize(compiled_json: dict) -> dict:
     payload = copy.deepcopy(compiled_json)
     instances = payload.get("instances")
@@ -196,7 +204,7 @@ def _assert_artifact_contract_output(result, expected_family: str) -> None:
 def test_bootstrap_proxmox_generator_writes_expected_files(tmp_path: Path) -> None:
     plugin_config = _load_plugin_config(PROXMOX_MANIFEST, "object.proxmox.generator.bootstrap")
     generator = BootstrapProxmoxGenerator("object.proxmox.generator.bootstrap")
-    result = generator.execute(_ctx(tmp_path, _compiled_fixture(), plugin_config), Stage.GENERATE)
+    result = _run_generator(generator, _ctx(tmp_path, _compiled_fixture(), plugin_config))
 
     assert result.status == PluginStatus.SUCCESS
     root = tmp_path / "generated" / "bootstrap" / "srv-gamayun"
@@ -210,10 +218,7 @@ def test_bootstrap_proxmox_generator_writes_expected_files(tmp_path: Path) -> No
 def test_bootstrap_proxmox_generator_uses_initialization_contract_mechanism(tmp_path: Path) -> None:
     plugin_config = _load_plugin_config(PROXMOX_MANIFEST, "object.proxmox.generator.bootstrap")
     generator = BootstrapProxmoxGenerator("object.proxmox.generator.bootstrap")
-    result = generator.execute(
-        _ctx(tmp_path, _compiled_fixture_with_proxmox_contract_mechanism(), plugin_config),
-        Stage.GENERATE,
-    )
+    result = _run_generator(generator, _ctx(tmp_path, _compiled_fixture_with_proxmox_contract_mechanism(), plugin_config))
 
     assert result.status == PluginStatus.SUCCESS
     root = tmp_path / "generated" / "bootstrap" / "srv-contract"
@@ -230,7 +235,7 @@ def test_bootstrap_proxmox_generator_fails_when_contract_template_is_invalid(tmp
         "bootstrap/does-not-exist.toml.j2"
     )
 
-    result = generator.execute(_ctx(tmp_path, compiled, plugin_config), Stage.GENERATE)
+    result = _run_generator(generator, _ctx(tmp_path, compiled, plugin_config))
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E9402" for diag in result.diagnostics)
 
@@ -238,7 +243,7 @@ def test_bootstrap_proxmox_generator_fails_when_contract_template_is_invalid(tmp
 def test_bootstrap_mikrotik_generator_writes_expected_files(tmp_path: Path) -> None:
     plugin_config = _load_plugin_config(MIKROTIK_MANIFEST, "object.mikrotik.generator.bootstrap")
     generator = BootstrapMikroTikGenerator("object.mikrotik.generator.bootstrap")
-    result = generator.execute(_ctx(tmp_path, _compiled_fixture(), plugin_config), Stage.GENERATE)
+    result = _run_generator(generator, _ctx(tmp_path, _compiled_fixture(), plugin_config))
 
     assert result.status == PluginStatus.SUCCESS
     root = tmp_path / "generated" / "bootstrap" / "rtr-mk"
@@ -251,9 +256,7 @@ def test_bootstrap_mikrotik_generator_writes_expected_files(tmp_path: Path) -> N
 def test_bootstrap_mikrotik_generator_uses_initialization_contract_mechanism(tmp_path: Path) -> None:
     plugin_config = _load_plugin_config(MIKROTIK_MANIFEST, "object.mikrotik.generator.bootstrap")
     generator = BootstrapMikroTikGenerator("object.mikrotik.generator.bootstrap")
-    result = generator.execute(
-        _ctx(tmp_path, _compiled_fixture_with_contract_mechanism(), plugin_config), Stage.GENERATE
-    )
+    result = _run_generator(generator, _ctx(tmp_path, _compiled_fixture_with_contract_mechanism(), plugin_config))
 
     assert result.status == PluginStatus.SUCCESS
     root = tmp_path / "generated" / "bootstrap" / "rtr-contract"
@@ -268,7 +271,7 @@ def test_bootstrap_mikrotik_generator_fails_when_contract_template_is_invalid(tm
         "bootstrap/does-not-exist.rsc.j2"
     )
 
-    result = generator.execute(_ctx(tmp_path, compiled, plugin_config), Stage.GENERATE)
+    result = _run_generator(generator, _ctx(tmp_path, compiled, plugin_config))
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E9502" for diag in result.diagnostics)
 
@@ -276,7 +279,7 @@ def test_bootstrap_mikrotik_generator_fails_when_contract_template_is_invalid(tm
 def test_bootstrap_orangepi_generator_writes_expected_files(tmp_path: Path) -> None:
     plugin_config = _load_plugin_config(ORANGEPI_MANIFEST, "object.orangepi.generator.bootstrap")
     generator = BootstrapOrangePiGenerator("object.orangepi.generator.bootstrap")
-    result = generator.execute(_ctx(tmp_path, _compiled_fixture(), plugin_config), Stage.GENERATE)
+    result = _run_generator(generator, _ctx(tmp_path, _compiled_fixture(), plugin_config))
 
     assert result.status == PluginStatus.SUCCESS
     root = tmp_path / "generated" / "bootstrap" / "srv-orangepi5" / "cloud-init"
@@ -289,10 +292,7 @@ def test_bootstrap_orangepi_generator_writes_expected_files(tmp_path: Path) -> N
 def test_bootstrap_orangepi_generator_uses_initialization_contract_mechanism(tmp_path: Path) -> None:
     plugin_config = _load_plugin_config(ORANGEPI_MANIFEST, "object.orangepi.generator.bootstrap")
     generator = BootstrapOrangePiGenerator("object.orangepi.generator.bootstrap")
-    result = generator.execute(
-        _ctx(tmp_path, _compiled_fixture_with_orangepi_contract_mechanism(), plugin_config),
-        Stage.GENERATE,
-    )
+    result = _run_generator(generator, _ctx(tmp_path, _compiled_fixture_with_orangepi_contract_mechanism(), plugin_config))
 
     assert result.status == PluginStatus.SUCCESS
     root = tmp_path / "generated" / "bootstrap" / "opi-contract" / "cloud-init"
@@ -308,7 +308,7 @@ def test_bootstrap_generators_report_projection_error(tmp_path: Path) -> None:
         (BootstrapOrangePiGenerator("object.orangepi.generator.bootstrap"), "E9601"),
     ]
     for generator, code in generators:
-        result = generator.execute(ctx, Stage.GENERATE)
+        result = _run_generator(generator, ctx)
         assert result.status == PluginStatus.FAILED
         assert any(diag.code == code for diag in result.diagnostics)
 
@@ -354,7 +354,7 @@ def test_bootstrap_generators_obsolete_delete_uses_output_prefix_ownership(
     stale_path.write_text("# stale\n", encoding="utf-8")
 
     generator = generator_cls(plugin_id)
-    result = generator.execute(_ctx(tmp_path, _compiled_fixture(), plugin_config), Stage.GENERATE)
+    result = _run_generator(generator, _ctx(tmp_path, _compiled_fixture(), plugin_config))
 
     assert result.status == PluginStatus.SUCCESS
     report = result.output_data["artifact_generation_report"]

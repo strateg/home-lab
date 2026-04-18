@@ -62,6 +62,14 @@ def _ctx(tmp_path: Path, compiled_json: dict) -> PluginContext:
     )
 
 
+def _run_generator(generator, ctx: PluginContext):
+    ctx._set_execution_context(generator.plugin_id, set())  # noqa: SLF001 - direct plugin execution helper
+    try:
+        return generator.execute(ctx, Stage.GENERATE)
+    finally:
+        ctx._clear_execution_context()  # noqa: SLF001 - direct plugin execution helper
+
+
 def _compiled_fixture() -> dict:
     return _semanticize(
         {
@@ -117,7 +125,7 @@ def test_terraform_proxmox_generator_writes_expected_files(tmp_path: Path) -> No
     generator = TerraformProxmoxGenerator("object.proxmox.generator.terraform")
     ctx = _ctx(tmp_path, _compiled_fixture())
 
-    result = generator.execute(ctx, Stage.GENERATE)
+    result = _run_generator(generator, ctx)
 
     assert result.status == PluginStatus.SUCCESS
     target_dir = tmp_path / "generated" / "terraform" / "proxmox"
@@ -153,7 +161,7 @@ def test_terraform_proxmox_generator_reports_projection_error(tmp_path: Path) ->
     generator = TerraformProxmoxGenerator("object.proxmox.generator.terraform")
     ctx = _ctx(tmp_path, {"instances": {"devices": [{}]}})
 
-    result = generator.execute(ctx, Stage.GENERATE)
+    result = _run_generator(generator, ctx)
 
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E9101" for diag in result.diagnostics)
@@ -163,7 +171,7 @@ def test_terraform_proxmox_generator_derives_api_url_from_projection(tmp_path: P
     generator = TerraformProxmoxGenerator("object.proxmox.generator.terraform")
     ctx = _ctx(tmp_path, _compiled_fixture())
 
-    result = generator.execute(ctx, Stage.GENERATE)
+    result = _run_generator(generator, ctx)
 
     assert result.status == PluginStatus.SUCCESS
     tfvars = (tmp_path / "generated" / "terraform" / "proxmox" / "terraform.tfvars.example").read_text(encoding="utf-8")
@@ -175,7 +183,7 @@ def test_terraform_proxmox_generator_prefers_configured_api_url(tmp_path: Path) 
     ctx = _ctx(tmp_path, _compiled_fixture())
     ctx.config["proxmox_api_url"] = "https://pve-api.example.invalid:8443/api2/json"
 
-    result = generator.execute(ctx, Stage.GENERATE)
+    result = _run_generator(generator, ctx)
 
     assert result.status == PluginStatus.SUCCESS
     tfvars = (tmp_path / "generated" / "terraform" / "proxmox" / "terraform.tfvars.example").read_text(encoding="utf-8")
@@ -262,7 +270,7 @@ def test_terraform_proxmox_generator_emits_backend_tf_when_remote_state_enabled(
         },
     }
 
-    result = generator.execute(ctx, Stage.GENERATE)
+    result = _run_generator(generator, ctx)
 
     assert result.status == PluginStatus.SUCCESS
     backend_tf = (tmp_path / "generated" / "terraform" / "proxmox" / "backend.tf").read_text(encoding="utf-8")

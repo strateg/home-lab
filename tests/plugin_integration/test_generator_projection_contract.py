@@ -69,6 +69,14 @@ def _ctx(tmp_path: Path, compiled_json: dict, plugin_config: dict | None = None)
     )
 
 
+def _run_generator(generator, ctx: PluginContext):
+    ctx._set_execution_context(generator.plugin_id, set())  # noqa: SLF001 - direct plugin execution helper
+    try:
+        return generator.execute(ctx, Stage.GENERATE)
+    finally:
+        ctx._clear_execution_context()  # noqa: SLF001 - direct plugin execution helper
+
+
 @pytest.mark.parametrize(
     (
         "module",
@@ -173,7 +181,7 @@ def test_generator_uses_projection_contract_only(
     plugin_config = _load_plugin_config(PROXMOX_MANIFEST, plugin_id) if plugin_id else None
     ctx = _ctx(tmp_path, {"not_instances": "raw internals should not be used"}, plugin_config)
 
-    result = generator_factory().execute(ctx, Stage.GENERATE)
+    result = _run_generator(generator_factory(), ctx)
 
     assert result.status == PluginStatus.SUCCESS
     rendered = (tmp_path / "generated" / probe_file).read_text(encoding="utf-8")

@@ -58,6 +58,10 @@ _SOHO_PROFILE_RESOLVER_PLUGIN = "base.compiler.soho_profile_resolver"
 class SohoProductProfileValidator(ValidatorJsonPlugin):
     """Validate project-level SOHO profile contract and emit migration state artifact."""
 
+    @staticmethod
+    def _emit_state_report(ctx: PluginContext, report: dict[str, Any]) -> None:
+        ctx.publish("product_profile_state", report)
+
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
         project_manifest = self._load_project_manifest(ctx)
@@ -113,6 +117,7 @@ class SohoProductProfileValidator(ValidatorJsonPlugin):
                 diagnostics=diagnostics,
             )
             self._write_state_report(ctx=ctx, report=report)
+            self._emit_state_report(ctx, report)
             return self.make_result(diagnostics=diagnostics, output_data={"product_profile_state": report})
 
         schema_errors = self._validate_schema(product_profile, ctx=ctx)
@@ -140,6 +145,7 @@ class SohoProductProfileValidator(ValidatorJsonPlugin):
                 diagnostics=diagnostics,
             )
             self._write_state_report(ctx=ctx, report=report)
+            self._emit_state_report(ctx, report)
             return self.make_result(diagnostics=diagnostics, output_data={"product_profile_state": report})
 
         profile_id = str(product_profile.get("profile_id", "")).strip()
@@ -253,6 +259,7 @@ class SohoProductProfileValidator(ValidatorJsonPlugin):
             diagnostics=diagnostics,
         )
         self._write_state_report(ctx=ctx, report=report)
+        self._emit_state_report(ctx, report)
         return self.make_result(diagnostics=diagnostics, output_data={"product_profile_state": report})
 
     def on_verify(self, ctx: PluginContext, stage: Stage) -> PluginResult:

@@ -158,10 +158,7 @@ class ArtifactContractAssembler(AssemblerPlugin):
                 path="pipeline:assemble",
             )
         )
-        try:
-            ctx.publish("artifact_contract_guard", summary)
-        except PluginDataExchangeError:
-            pass
+        ctx.publish("artifact_contract_guard", summary)
         return self.make_result(diagnostics=diagnostics, output_data={"artifact_contract_guard": summary})
 
     def on_verify(self, ctx: PluginContext, stage: Stage) -> PluginResult:

@@ -191,12 +191,12 @@ class BootstrapMikroTikGenerator(BaseGenerator):
             if ownership_roots
             else str((out_root / self.plugin_id.replace(".", "__")).resolve())
         )
-        self.publish_if_possible(ctx, "generated_dir", generated_dir)
-        self.publish_if_possible(ctx, "generated_files", written)
-        self.publish_if_possible(ctx, "bootstrap_mikrotik_files", written)
-        self.publish_if_possible(ctx, "artifact_plan", artifact_plan)
-        self.publish_if_possible(ctx, "artifact_generation_report", artifact_generation_report)
-        self.publish_if_possible(ctx, "artifact_contract_files", sorted(contract_paths.values()))
+        ctx.publish("generated_dir", generated_dir)
+        ctx.publish("generated_files", written)
+        ctx.publish("bootstrap_mikrotik_files", written)
+        ctx.publish("artifact_plan", artifact_plan)
+        ctx.publish("artifact_generation_report", artifact_generation_report)
+        ctx.publish("artifact_contract_files", sorted(contract_paths.values()))
         return self.make_result(
             diagnostics=diagnostics,
             output_data={

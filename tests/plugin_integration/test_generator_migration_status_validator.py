@@ -14,6 +14,14 @@ from kernel.plugin_registry import PluginRegistry
 from plugins.validators.generator_migration_status_validator import GeneratorMigrationStatusValidator
 
 
+def _run_validator(validator: GeneratorMigrationStatusValidator, ctx: PluginContext):
+    ctx._set_execution_context(validator.plugin_id, set())  # noqa: SLF001 - direct plugin execution helper
+    try:
+        return validator.execute(ctx, Stage.VALIDATE)
+    finally:
+        ctx._clear_execution_context()  # noqa: SLF001 - direct plugin execution helper
+
+
 def test_generator_migration_status_validator_reports_summary() -> None:
     registry = PluginRegistry(V5_TOOLS)
     registry.load_manifest(V5_TOOLS / "plugins" / "plugins.yaml")
@@ -29,7 +37,7 @@ def test_generator_migration_status_validator_reports_summary() -> None:
         config={"plugin_registry": registry},
     )
 
-    result = validator.execute(ctx, Stage.VALIDATE)
+    result = _run_validator(validator, ctx)
 
     assert result.status == PluginStatus.SUCCESS
     assert result.output_data is not None

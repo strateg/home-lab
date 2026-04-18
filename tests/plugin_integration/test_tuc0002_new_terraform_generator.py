@@ -97,6 +97,19 @@ def _plugin_ctx(tmp_path: Path, compiled_json: dict, extra_config: dict) -> obje
     )
 
 
+def _run_generator(generator, ctx) -> object:
+    import sys
+
+    sys.path.insert(0, str(V5_TOOLS))
+    from kernel.plugin_base import Stage  # noqa: WPS433
+
+    ctx._set_execution_context(generator.plugin_id, set())  # noqa: SLF001 - direct plugin execution helper
+    try:
+        return generator.execute(ctx, Stage.GENERATE)
+    finally:
+        ctx._clear_execution_context()  # noqa: SLF001 - direct plugin execution helper
+
+
 def _list_plugin_ids(manifest_path: Path) -> set[str]:
     payload = yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
     plugins = payload.get("plugins", [])
@@ -264,7 +277,7 @@ def test_tuc0002_mikrotik_remote_state_backend_uses_programmatic_renderer(tmp_pa
         },
     )
     generator = generator_class("object.mikrotik.generator.terraform")
-    result = generator.execute(ctx, Stage.GENERATE)
+    result = _run_generator(generator, ctx)
     assert result.status == PluginStatus.SUCCESS
     assert result.output_data is not None
     plan_rows = result.output_data["artifact_plan"]["planned_outputs"]
@@ -303,7 +316,7 @@ def test_tuc0002_proxmox_remote_state_backend_uses_programmatic_renderer(tmp_pat
         },
     )
     generator = generator_class("object.proxmox.generator.terraform")
-    result = generator.execute(ctx, Stage.GENERATE)
+    result = _run_generator(generator, ctx)
     assert result.status == PluginStatus.SUCCESS
     assert result.output_data is not None
     plan_rows = result.output_data["artifact_plan"]["planned_outputs"]

@@ -98,10 +98,10 @@ class DocsGenerator(BaseGenerator):
                 path=str(docs_root),
             )
         )
-        self.publish_if_possible(ctx, "generated_dir", str(docs_root))
-        self.publish_if_possible(ctx, "generated_files", generated_files)
-        self.publish_if_possible(ctx, "docs_files", generated_files)
-        self.publish_if_possible(ctx, "docs_projection", projection)
+        ctx.publish("generated_dir", str(docs_root))
+        ctx.publish("generated_files", generated_files)
+        ctx.publish("docs_files", generated_files)
+        ctx.publish("docs_projection", projection)
 
         return self.make_result(
             diagnostics=diagnostics,

@@ -52,12 +52,20 @@ def _ctx(registry: PluginRegistry, *, today: str, sunset: str, hard_error: str) 
     )
 
 
+def _run_validator(validator: GeneratorSunsetValidator, ctx: PluginContext):
+    ctx._set_execution_context(validator.plugin_id, set())  # noqa: SLF001 - direct plugin execution helper
+    try:
+        return validator.execute(ctx, Stage.VALIDATE)
+    finally:
+        ctx._clear_execution_context()  # noqa: SLF001 - direct plugin execution helper
+
+
 def test_generator_sunset_validator_succeeds_for_non_legacy_targets() -> None:
     registry = _registry()
     validator = GeneratorSunsetValidator("base.validator.generator_sunset")
     ctx = _ctx(registry, today="2026-04-07", sunset="2026-05-01", hard_error="2026-05-15")
 
-    result = validator.execute(ctx, Stage.VALIDATE)
+    result = _run_validator(validator, ctx)
 
     assert result.status == PluginStatus.SUCCESS
     summary = result.output_data["generator_sunset_summary"]
@@ -76,7 +84,7 @@ def test_generator_sunset_validator_warns_for_legacy_target_before_sunset() -> N
     validator = GeneratorSunsetValidator("base.validator.generator_sunset")
     ctx = _ctx(registry, today="2026-04-10", sunset="2026-05-01", hard_error="2026-05-15")
 
-    result = validator.execute(ctx, Stage.VALIDATE)
+    result = _run_validator(validator, ctx)
 
     assert result.status == PluginStatus.PARTIAL
     summary = result.output_data["generator_sunset_summary"]
@@ -97,7 +105,7 @@ def test_generator_sunset_validator_warns_for_legacy_target_in_grace_window() ->
     validator = GeneratorSunsetValidator("base.validator.generator_sunset")
     ctx = _ctx(registry, today="2026-05-10", sunset="2026-05-01", hard_error="2026-05-15")
 
-    result = validator.execute(ctx, Stage.VALIDATE)
+    result = _run_validator(validator, ctx)
 
     assert result.status == PluginStatus.PARTIAL
     summary = result.output_data["generator_sunset_summary"]
@@ -118,7 +126,7 @@ def test_generator_sunset_validator_fails_for_legacy_target_after_hard_error() -
     validator = GeneratorSunsetValidator("base.validator.generator_sunset")
     ctx = _ctx(registry, today="2026-05-16", sunset="2026-05-01", hard_error="2026-05-15")
 
-    result = validator.execute(ctx, Stage.VALIDATE)
+    result = _run_validator(validator, ctx)
 
     assert result.status == PluginStatus.FAILED
     summary = result.output_data["generator_sunset_summary"]
@@ -159,7 +167,7 @@ sunset_schedule:
         },
     )
 
-    result = validator.execute(ctx, Stage.VALIDATE)
+    result = _run_validator(validator, ctx)
 
     assert result.status == PluginStatus.SUCCESS
     summary = result.output_data["generator_sunset_summary"]
@@ -186,7 +194,7 @@ def test_generator_sunset_validator_fails_when_policy_file_is_missing(tmp_path: 
         },
     )
 
-    result = validator.execute(ctx, Stage.VALIDATE)
+    result = _run_validator(validator, ctx)
 
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E9396" for diag in result.diagnostics)
@@ -209,7 +217,7 @@ def test_generator_sunset_validator_default_policy_includes_secondary_families()
         },
     )
 
-    result = validator.execute(ctx, Stage.VALIDATE)
+    result = _run_validator(validator, ctx)
 
     assert result.status == PluginStatus.SUCCESS
     summary = result.output_data["generator_sunset_summary"]

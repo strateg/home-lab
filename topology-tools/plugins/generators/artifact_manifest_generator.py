@@ -100,9 +100,9 @@ class ArtifactManifestGenerator(BaseGenerator):
         )
 
         generated_files = [str(manifest_path)]
-        self.publish_if_possible(ctx, "generated_files", generated_files)
-        self.publish_if_possible(ctx, "artifact_manifest_path", str(manifest_path))
-        self.publish_if_possible(ctx, "artifact_manifest", manifest)
+        ctx.publish("generated_files", generated_files)
+        ctx.publish("artifact_manifest_path", str(manifest_path))
+        ctx.publish("artifact_manifest", manifest)
 
         diagnostics.append(
             self.emit_diagnostic(

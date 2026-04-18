@@ -9,7 +9,6 @@ from typing import Any
 import yaml
 from kernel.plugin_base import (
     PluginContext,
-    PluginDataExchangeError,
     PluginDiagnostic,
     PluginKind,
     PluginResult,
@@ -326,10 +325,7 @@ class GeneratorSunsetValidator(ValidatorJsonPlugin):
             )
         )
 
-        try:
-            ctx.publish("generator_sunset_summary", summary)
-        except PluginDataExchangeError:
-            pass
+        ctx.publish("generator_sunset_summary", summary)
         return self.make_result(diagnostics=diagnostics, output_data={"generator_sunset_summary": summary})
 
     def on_verify(self, ctx: PluginContext, stage: Stage) -> PluginResult:

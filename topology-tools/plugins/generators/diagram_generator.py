@@ -200,9 +200,9 @@ class DiagramGenerator(BaseGenerator):
                 path=str(diagrams_root),
             )
         )
-        self.publish_if_possible(ctx, "diagram_dir", str(diagrams_root))
-        self.publish_if_possible(ctx, "generated_files", generated_files)
-        self.publish_if_possible(ctx, "diagram_files", generated_files)
+        ctx.publish("diagram_dir", str(diagrams_root))
+        ctx.publish("generated_files", generated_files)
+        ctx.publish("diagram_files", generated_files)
 
         return self.make_result(
             diagnostics=diagnostics,

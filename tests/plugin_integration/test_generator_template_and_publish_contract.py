@@ -95,6 +95,14 @@ def _ctx(tmp_path: Path, compiled_json: dict, plugin_config: dict | None = None)
     )
 
 
+def _run_generator(generator, ctx: PluginContext):
+    ctx._set_execution_context(generator.plugin_id, set())  # noqa: SLF001 - direct plugin execution helper
+    try:
+        return generator.execute(ctx, Stage.GENERATE)
+    finally:
+        ctx._clear_execution_context()  # noqa: SLF001 - direct plugin execution helper
+
+
 def _semanticize(compiled_json: dict) -> dict:
     payload = copy.deepcopy(compiled_json)
     instances = payload.get("instances")
@@ -209,7 +217,7 @@ def test_generator_outputs_are_template_rendered(
     monkeypatch.setattr(generator, "write_text_atomic", _write_text_atomic)
 
     plugin_config = _load_plugin_config(manifest_path, plugin_id) if manifest_path and plugin_id else None
-    result = generator.execute(_ctx(tmp_path, compiled_json, plugin_config), Stage.GENERATE)
+    result = _run_generator(generator, _ctx(tmp_path, compiled_json, plugin_config))
 
     assert result.status == PluginStatus.SUCCESS
     assert len(writes) == expected_writes
@@ -291,11 +299,7 @@ def test_generator_publishes_metadata_in_registry_context(
 ) -> None:
     plugin_config = _load_plugin_config(manifest_path, plugin_id) if manifest_path and plugin_id else None
     ctx = _ctx(tmp_path, compiled_json, plugin_config)
-    ctx._set_execution_context(generator.plugin_id, set())
-    try:
-        result = generator.execute(ctx, Stage.GENERATE)
-    finally:
-        ctx._clear_execution_context()
+    result = _run_generator(generator, ctx)
 
     assert result.status == PluginStatus.SUCCESS
     published = set(ctx.get_published_keys(generator.plugin_id))

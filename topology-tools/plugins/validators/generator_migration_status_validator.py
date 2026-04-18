@@ -7,7 +7,6 @@ from typing import Any
 
 from kernel.plugin_base import (
     PluginContext,
-    PluginDataExchangeError,
     PluginDiagnostic,
     PluginKind,
     PluginResult,
@@ -85,11 +84,7 @@ class GeneratorMigrationStatusValidator(ValidatorJsonPlugin):
             "rollback": migration_counter.get("rollback", 0),
             "total_generators": sum(migration_counter.values()),
         }
-        try:
-            ctx.publish("generator_migration_summary", summary)
-        except PluginDataExchangeError:
-            # Standalone tests can execute without registry execution scope.
-            pass
+        ctx.publish("generator_migration_summary", summary)
         return self.make_result(diagnostics=diagnostics, output_data={"generator_migration_summary": summary})
 
     def on_verify(self, ctx: PluginContext, stage: Stage) -> PluginResult:

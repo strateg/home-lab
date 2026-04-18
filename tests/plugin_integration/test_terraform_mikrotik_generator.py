@@ -62,6 +62,14 @@ def _ctx(tmp_path: Path, compiled_json: dict) -> PluginContext:
     )
 
 
+def _run_generator(generator, ctx: PluginContext):
+    ctx._set_execution_context(generator.plugin_id, set())  # noqa: SLF001 - direct plugin execution helper
+    try:
+        return generator.execute(ctx, Stage.GENERATE)
+    finally:
+        ctx._clear_execution_context()  # noqa: SLF001 - direct plugin execution helper
+
+
 def _compiled_fixture() -> dict:
     return _semanticize(
         {
@@ -121,7 +129,7 @@ def test_terraform_mikrotik_generator_writes_expected_files(tmp_path: Path) -> N
     generator = TerraformMikroTikGenerator("object.mikrotik.generator.terraform")
     ctx = _ctx(tmp_path, _compiled_fixture())
 
-    result = generator.execute(ctx, Stage.GENERATE)
+    result = _run_generator(generator, ctx)
 
     assert result.status == PluginStatus.SUCCESS
     target_dir = tmp_path / "generated" / "terraform" / "mikrotik"
@@ -161,7 +169,7 @@ def test_terraform_mikrotik_generator_reports_projection_error(tmp_path: Path) -
     generator = TerraformMikroTikGenerator("object.mikrotik.generator.terraform")
     ctx = _ctx(tmp_path, {"instances": {"devices": [{}]}})
 
-    result = generator.execute(ctx, Stage.GENERATE)
+    result = _run_generator(generator, ctx)
 
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E9201" for diag in result.diagnostics)
@@ -171,7 +179,7 @@ def test_terraform_mikrotik_generator_derives_host_from_projection(tmp_path: Pat
     generator = TerraformMikroTikGenerator("object.mikrotik.generator.terraform")
     ctx = _ctx(tmp_path, _compiled_fixture())
 
-    result = generator.execute(ctx, Stage.GENERATE)
+    result = _run_generator(generator, ctx)
 
     assert result.status == PluginStatus.SUCCESS
     tfvars = (tmp_path / "generated" / "terraform" / "mikrotik" / "terraform.tfvars.example").read_text(
@@ -185,7 +193,7 @@ def test_terraform_mikrotik_generator_prefers_configured_host(tmp_path: Path) ->
     ctx = _ctx(tmp_path, _compiled_fixture())
     ctx.config["mikrotik_api_host"] = "https://router-api.example.invalid:9443"
 
-    result = generator.execute(ctx, Stage.GENERATE)
+    result = _run_generator(generator, ctx)
 
     assert result.status == PluginStatus.SUCCESS
     tfvars = (tmp_path / "generated" / "terraform" / "mikrotik" / "terraform.tfvars.example").read_text(
@@ -205,7 +213,7 @@ def test_terraform_mikrotik_generator_respects_capability_template_config(tmp_pa
         }
     }
 
-    result = generator.execute(ctx, Stage.GENERATE)
+    result = _run_generator(generator, ctx)
 
     assert result.status == PluginStatus.SUCCESS
     target_dir = tmp_path / "generated" / "terraform" / "mikrotik"
@@ -222,7 +230,7 @@ def test_terraform_mikrotik_generator_keeps_legacy_capability_template_compatibi
         {"capability_key": "has_wireguard", "template": "terraform/vpn.tf.j2", "output_file": "vpn.tf"}
     ]
 
-    result = generator.execute(ctx, Stage.GENERATE)
+    result = _run_generator(generator, ctx)
 
     assert result.status == PluginStatus.SUCCESS
     target_dir = tmp_path / "generated" / "terraform" / "mikrotik"
@@ -242,7 +250,7 @@ def test_terraform_mikrotik_generator_emits_backend_tf_when_remote_state_enabled
         },
     }
 
-    result = generator.execute(ctx, Stage.GENERATE)
+    result = _run_generator(generator, ctx)
 
     assert result.status == PluginStatus.SUCCESS
     backend_tf = (tmp_path / "generated" / "terraform" / "mikrotik" / "backend.tf").read_text(encoding="utf-8")
@@ -370,7 +378,7 @@ def test_terraform_mikrotik_generator_reflects_full_network_topology(tmp_path: P
     generator = TerraformMikroTikGenerator("object.mikrotik.generator.terraform")
     ctx = _ctx(tmp_path, _full_topology_fixture())
 
-    result = generator.execute(ctx, Stage.GENERATE)
+    result = _run_generator(generator, ctx)
 
     assert result.status == PluginStatus.SUCCESS
     target_dir = tmp_path / "generated" / "terraform" / "mikrotik"

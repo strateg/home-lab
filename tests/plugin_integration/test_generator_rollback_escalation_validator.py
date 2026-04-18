@@ -24,6 +24,14 @@ def _registry() -> PluginRegistry:
     return registry
 
 
+def _run_validator(validator: GeneratorRollbackEscalationValidator, ctx: PluginContext):
+    ctx._set_execution_context(validator.plugin_id, set())  # noqa: SLF001 - direct plugin execution helper
+    try:
+        return validator.execute(ctx, Stage.VALIDATE)
+    finally:
+        ctx._clear_execution_context()  # noqa: SLF001 - direct plugin execution helper
+
+
 def test_rollback_escalation_validator_succeeds_when_no_rollback_generators(tmp_path: Path) -> None:
     policy_file = tmp_path / "generator-rollback-policy.yaml"
     policy_file.write_text(
@@ -45,7 +53,7 @@ def test_rollback_escalation_validator_succeeds_when_no_rollback_generators(tmp_
         },
     )
 
-    result = validator.execute(ctx, Stage.VALIDATE)
+    result = _run_validator(validator, ctx)
 
     assert result.status == PluginStatus.SUCCESS
     summary = result.output_data["generator_rollback_summary"]
@@ -81,7 +89,7 @@ generators:
         },
     )
 
-    result = validator.execute(ctx, Stage.VALIDATE)
+    result = _run_validator(validator, ctx)
 
     assert result.status == PluginStatus.PARTIAL
     assert any(diag.code == "W9403" for diag in result.diagnostics)
@@ -109,7 +117,7 @@ def test_rollback_escalation_validator_warns_when_started_at_missing(tmp_path: P
         },
     )
 
-    result = validator.execute(ctx, Stage.VALIDATE)
+    result = _run_validator(validator, ctx)
 
     assert result.status == PluginStatus.PARTIAL
     assert any(diag.code == "W9402" for diag in result.diagnostics)
@@ -131,7 +139,7 @@ def test_rollback_escalation_validator_fails_when_policy_file_missing(tmp_path: 
         },
     )
 
-    result = validator.execute(ctx, Stage.VALIDATE)
+    result = _run_validator(validator, ctx)
 
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E9400" for diag in result.diagnostics)

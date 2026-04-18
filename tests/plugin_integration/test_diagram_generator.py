@@ -58,6 +58,14 @@ def _ctx(tmp_path: Path, compiled_json: dict) -> PluginContext:
     )
 
 
+def _run_generator(generator: DiagramGenerator, ctx: PluginContext):
+    ctx._set_execution_context(PLUGIN_ID, set())  # noqa: SLF001 - direct plugin execution helper
+    try:
+        return generator.execute(ctx, Stage.GENERATE)
+    finally:
+        ctx._clear_execution_context()  # noqa: SLF001 - direct plugin execution helper
+
+
 def _compiled_fixture() -> dict:
     return _semanticize(
         {
@@ -169,7 +177,7 @@ def test_diagram_generator_writes_expected_files(tmp_path: Path) -> None:
     generator = DiagramGenerator("base.generator.diagrams")
     ctx = _ctx(tmp_path, _compiled_fixture())
 
-    result = generator.execute(ctx, Stage.GENERATE)
+    result = _run_generator(generator, ctx)
 
     assert result.status == PluginStatus.SUCCESS
     target_dir = tmp_path / "generated" / "docs" / "diagrams"
@@ -194,7 +202,7 @@ def test_diagram_generator_supports_icon_mode_override_via_env(tmp_path: Path) -
     prev = os.environ.get("V5_DIAGRAM_ICON_MODE")
     os.environ["V5_DIAGRAM_ICON_MODE"] = "icon-nodes"
     try:
-        result = generator.execute(ctx, Stage.GENERATE)
+        result = _run_generator(generator, ctx)
     finally:
         if prev is None:
             os.environ.pop("V5_DIAGRAM_ICON_MODE", None)
@@ -238,7 +246,7 @@ def test_diagram_generator_emits_icon_cache_manifest_in_icon_node_mode(tmp_path:
         },
     )
 
-    result = generator.execute(ctx, Stage.GENERATE)
+    result = _run_generator(generator, ctx)
 
     assert result.status == PluginStatus.SUCCESS
     cache_root = tmp_path / "generated" / "docs" / "diagrams" / "icons"
@@ -265,7 +273,7 @@ def test_diagram_generator_uses_embedded_fallback_icons_when_packs_missing(tmp_p
         },
     )
 
-    result = generator.execute(ctx, Stage.GENERATE)
+    result = _run_generator(generator, ctx)
 
     assert result.status == PluginStatus.SUCCESS
     cache_root = tmp_path / "generated" / "docs" / "diagrams" / "icons"

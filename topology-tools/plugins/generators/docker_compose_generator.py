@@ -230,9 +230,9 @@ class DockerComposeGenerator(BaseGenerator):
                 )
             )
 
-        self.publish_if_possible(ctx, "compose_files", generated_files)
-        self.publish_if_possible(ctx, "generated_files", generated_files)
-        self.publish_if_possible(ctx, "compose_dir", str(compose_root))
+        ctx.publish("compose_files", generated_files)
+        ctx.publish("generated_files", generated_files)
+        ctx.publish("compose_dir", str(compose_root))
 
         return self.make_result(
             diagnostics=diagnostics,

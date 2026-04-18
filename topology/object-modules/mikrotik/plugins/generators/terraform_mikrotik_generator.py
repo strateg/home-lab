@@ -281,12 +281,12 @@ class TerraformMikroTikGenerator(BaseGenerator):
                 path=str(out_dir),
             )
         )
-        self.publish_if_possible(ctx, "generated_dir", str(out_dir))
-        self.publish_if_possible(ctx, "generated_files", written)
-        self.publish_if_possible(ctx, "terraform_mikrotik_files", written)
-        self.publish_if_possible(ctx, "artifact_plan", artifact_plan)
-        self.publish_if_possible(ctx, "artifact_generation_report", artifact_generation_report)
-        self.publish_if_possible(ctx, "artifact_contract_files", sorted(contract_paths.values()))
+        ctx.publish("generated_dir", str(out_dir))
+        ctx.publish("generated_files", written)
+        ctx.publish("terraform_mikrotik_files", written)
+        ctx.publish("artifact_plan", artifact_plan)
+        ctx.publish("artifact_generation_report", artifact_generation_report)
+        ctx.publish("artifact_contract_files", sorted(contract_paths.values()))
 
         return self.make_result(
             diagnostics=diagnostics,
