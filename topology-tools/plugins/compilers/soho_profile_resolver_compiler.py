@@ -29,9 +29,12 @@ class SohoProfileResolverCompiler(CompilerPlugin):
                 "available_bundles": [],
                 "catalog_status": "ok",
             }
-            self.publish_if_possible(ctx, "soho_profile_resolution", resolution)
-            self.publish_if_possible(ctx, "effective_product_bundles", [])
-            self.publish_if_possible(ctx, "available_product_bundles", [])
+            self.publish_outputs(
+                ctx,
+                soho_profile_resolution=resolution,
+                effective_product_bundles=[],
+                available_product_bundles=[],
+            )
             return self.make_result(diagnostics=diagnostics, output_data=resolution)
 
         profile_id = str(product_profile.get("profile_id", "")).strip()
@@ -75,19 +78,19 @@ class SohoProfileResolverCompiler(CompilerPlugin):
             "available_bundles": sorted(available_bundles),
             "catalog_status": catalog_status,
         }
-        self.publish_if_possible(ctx, "soho_profile_resolution", resolution)
-        self.publish_if_possible(ctx, "effective_product_bundles", resolution["required_bundles"])
-        self.publish_if_possible(ctx, "available_product_bundles", resolution["available_bundles"])
+        self.publish_outputs(
+            ctx,
+            soho_profile_resolution=resolution,
+            effective_product_bundles=resolution["required_bundles"],
+            available_product_bundles=resolution["available_bundles"],
+        )
 
         return self.make_result(diagnostics=diagnostics, output_data=resolution)
 
     @staticmethod
-    def publish_if_possible(ctx: PluginContext, key: str, value: Any) -> bool:
-        try:
+    def publish_outputs(ctx: PluginContext, **items: Any) -> None:
+        for key, value in items.items():
             ctx.publish(key, value)
-            return True
-        except Exception:
-            return False
 
     def _load_project_manifest(self, ctx: PluginContext) -> dict[str, Any]:
         path_raw = ctx.config.get("project_manifest_path")

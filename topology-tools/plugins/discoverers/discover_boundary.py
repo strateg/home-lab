@@ -51,10 +51,7 @@ class DiscoverBoundaryCompiler(DiscovererPlugin):
                     path=rel,
                 )
             )
-        try:
-            ctx.publish("boundary_ok", len(leaked) == 0)
-        except Exception:
-            pass
+        ctx.publish("boundary_ok", len(leaked) == 0)
         return self.make_result(diagnostics=diagnostics)
 
     def on_pre(self, ctx: PluginContext, stage: Stage) -> PluginResult:

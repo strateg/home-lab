@@ -20,10 +20,7 @@ class DiscoverInventoryCompiler(DiscovererPlugin):
             "manifest_count": len(manifest_list),
             "plugin_count": plugin_count,
         }
-        try:
-            ctx.publish("manifest_inventory", payload)
-        except Exception:
-            pass
+        ctx.publish("manifest_inventory", payload)
         return self.make_result(diagnostics=diagnostics, output_data=payload)
 
     def on_run(self, ctx: PluginContext, stage: Stage) -> PluginResult:

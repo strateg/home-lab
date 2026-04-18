@@ -30,10 +30,7 @@ class DiscoverCapabilityPreflightCompiler(DiscovererPlugin):
                         path=path,
                     )
                 )
-        try:
-            ctx.publish("capability_preflight_ok", len(missing) == 0)
-        except Exception:
-            pass
+        ctx.publish("capability_preflight_ok", len(missing) == 0)
         return self.make_result(diagnostics=diagnostics)
 
     def on_verify(self, ctx: PluginContext, stage: Stage) -> PluginResult:

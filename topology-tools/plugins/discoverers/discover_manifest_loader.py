@@ -94,10 +94,7 @@ class DiscoverManifestLoaderCompiler(DiscovererPlugin):
                 path="discover:module-manifests",
             )
         )
-        try:
-            ctx.publish("manifest_loader_summary", payload)
-        except Exception:
-            pass
+        ctx.publish("manifest_loader_summary", payload)
         return self.make_result(diagnostics=diagnostics, output_data=payload)
 
     def on_init(self, ctx: PluginContext, stage: Stage) -> PluginResult:

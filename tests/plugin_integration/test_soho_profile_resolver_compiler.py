@@ -64,11 +64,19 @@ def _ctx(tmp_path: Path, project_payload: dict, profile_payload: dict | None = N
     )
 
 
+def _run_resolver(compiler: SohoProfileResolverCompiler, ctx: PluginContext):
+    ctx._set_execution_context("base.compiler.soho_profile_resolver", set())  # noqa: SLF001 - direct plugin execution helper
+    try:
+        return compiler.execute(ctx, Stage.COMPILE)
+    finally:
+        ctx._clear_execution_context()  # noqa: SLF001 - direct plugin execution helper
+
+
 def test_resolver_reports_legacy_when_product_profile_is_missing(tmp_path: Path) -> None:
     compiler = SohoProfileResolverCompiler("base.compiler.soho_profile_resolver")
     ctx = _ctx(tmp_path, {"project": "home-lab"})
 
-    result = compiler.execute(ctx, Stage.COMPILE)
+    result = _run_resolver(compiler, ctx)
 
     assert result.status == PluginStatus.SUCCESS
     assert result.output_data["profile_present"] is False
@@ -103,7 +111,7 @@ def test_resolver_computes_required_bundles_from_canonical_profile(tmp_path: Pat
         },
     )
 
-    result = compiler.execute(ctx, Stage.COMPILE)
+    result = _run_resolver(compiler, ctx)
 
     assert result.status == PluginStatus.SUCCESS
     assert result.output_data["profile_present"] is True
