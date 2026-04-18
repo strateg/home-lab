@@ -392,7 +392,7 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows_validate
         key: validated_rows
-        required: false
+        required: true
     description: Publishes authoritative normalized instance rows after staged resolve/prepare/validate cutover.
 
   - id: base.compiler.capability_contract_loader

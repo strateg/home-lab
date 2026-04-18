@@ -29,6 +29,15 @@ def _write_manifest(path: Path, payload: dict) -> None:
     path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
 
 
+def _run_instance_rows_direct(ctx: PluginContext):
+    plugin = instance_rows_module.InstanceRowsCompiler(PLUGIN_ID)
+    ctx._set_execution_context(PLUGIN_ID, set())  # noqa: SLF001 - direct plugin unit-style execution
+    try:
+        return plugin.execute(ctx, Stage.COMPILE)
+    finally:
+        ctx._clear_execution_context()  # noqa: SLF001 - direct plugin unit-style execution
+
+
 def test_instance_rows_secret_resolve_manifest_requires_annotation_publications():
     registry = _registry()
     spec = registry.specs["base.compiler.instance_rows_secret_resolve"]
@@ -59,10 +68,16 @@ def test_instance_rows_secret_resolve_manifest_requires_annotation_publications(
         for item in registry.specs["base.compiler.instance_rows_validate"].consumes
         if item.get("required") is True
     }
+    final_required = {
+        (item["from_plugin"], item["key"])
+        for item in registry.specs[PLUGIN_ID].consumes
+        if item.get("required") is True
+    }
 
     assert ("base.compiler.instance_rows_secret_resolve", "secret_resolved_rows") in resolve_required
     assert ("base.compiler.instance_rows_resolve", "resolved_rows") in prepare_required
     assert ("base.compiler.instance_rows_prepare", "prepared_rows") in validate_required
+    assert ("base.compiler.instance_rows_validate", "validated_rows") in final_required
 
 
 def test_instance_rows_compiler_skips_when_core_owner():
@@ -75,7 +90,7 @@ def test_instance_rows_compiler_skips_when_core_owner():
         instance_bindings={"instance_bindings": {}},
     )
 
-    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    result = _run_instance_rows_direct(ctx)
     assert result.status == PluginStatus.SUCCESS
     assert result.output_data == {"normalized_rows": []}
 
@@ -103,7 +118,7 @@ def test_instance_rows_compiler_plugin_owner_normalizes_rows():
         },
     )
 
-    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    result = _run_instance_rows_direct(ctx)
     assert result.status in {PluginStatus.SUCCESS, PluginStatus.PARTIAL}
     assert not result.has_errors
     rows = result.output_data.get("normalized_rows")
@@ -173,6 +188,22 @@ def test_instance_rows_validate_requires_prepared_rows() -> None:
     )
 
     result = registry.execute_plugin("base.compiler.instance_rows_validate", ctx, Stage.COMPILE)
+
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E8003" for diag in result.diagnostics)
+
+
+def test_instance_rows_registry_requires_validated_rows() -> None:
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={"compilation_owner_instance_rows": "plugin"},
+        instance_bindings={"instance_bindings": {"devices": []}},
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
 
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E8003" for diag in result.diagnostics)
@@ -521,7 +552,7 @@ def test_instance_rows_compiler_accepts_semantic_instance_keys():
         },
     )
 
-    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    result = _run_instance_rows_direct(ctx)
     assert result.status in {PluginStatus.SUCCESS, PluginStatus.PARTIAL}
     assert not result.has_errors
     rows = result.output_data.get("normalized_rows")
@@ -555,7 +586,7 @@ def test_instance_rows_compiler_rejects_semantic_key_collision():
         },
     )
 
-    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    result = _run_instance_rows_direct(ctx)
     assert result.has_errors
     assert any(
         diag.code == "E8803" and "both '@extends' and legacy 'object_ref'" in diag.message
@@ -586,7 +617,7 @@ def test_instance_rows_compiler_rejects_typed_extends_mismatch():
         },
     )
 
-    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    result = _run_instance_rows_direct(ctx)
     assert result.has_errors
     assert any(
         diag.code == "E8804" and "instance inheritance requires object id" in diag.message
@@ -625,7 +656,7 @@ def test_sidecar_merge_passthrough_preserves_placeholders():
         },
     )
 
-    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    result = _run_instance_rows_direct(ctx)
     assert result.status in {PluginStatus.SUCCESS, PluginStatus.PARTIAL}
     rows = result.output_data.get("normalized_rows", [])
     assert rows and rows[0]["instance"] == "test-device"
@@ -665,7 +696,7 @@ def test_sidecar_missing_inject_mode_no_error():
         },
     )
 
-    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    result = _run_instance_rows_direct(ctx)
     # No error in inject mode when side-car is missing
     assert result.status in {PluginStatus.SUCCESS, PluginStatus.PARTIAL}
     assert not result.has_errors
@@ -701,7 +732,7 @@ def test_sidecar_missing_strict_mode_with_placeholders_emits_error():
         },
     )
 
-    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    result = _run_instance_rows_direct(ctx)
     # Strict mode should emit errors for unresolved placeholders
     error_codes = [d.code for d in result.diagnostics if d.severity == "error"]
     assert "E7210" in error_codes or "E7208" in error_codes
@@ -737,7 +768,7 @@ def test_strict_mode_ignores_non_secret_todo_placeholders():
         },
     )
 
-    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    result = _run_instance_rows_direct(ctx)
     error_codes = [d.code for d in result.diagnostics if d.severity == "error"]
     assert "E7208" not in error_codes
     assert "E7210" not in error_codes
@@ -775,7 +806,7 @@ def test_placeholder_non_placeholders_preserved():
         },
     )
 
-    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    result = _run_instance_rows_direct(ctx)
     rows = result.output_data.get("normalized_rows", [])
     hw_identity = rows[0]["extensions"].get("hardware_identity", {})
     # Non-placeholder values must be preserved exactly
@@ -823,7 +854,7 @@ def test_sidecar_decrypt_failure_inject_require_unlock_emits_error(monkeypatch):
         },
     )
 
-    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    result = _run_instance_rows_direct(ctx)
     error_codes = [d.code for d in result.diagnostics if d.severity == "error"]
     assert "E7201" in error_codes
     assert result.has_errors
@@ -870,7 +901,7 @@ def test_sidecar_decrypt_failure_inject_require_unlock_false_is_warning(monkeypa
         },
     )
 
-    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    result = _run_instance_rows_direct(ctx)
     warning_codes = [d.code for d in result.diagnostics if d.severity == "warning"]
     assert "W7210" in warning_codes
     assert not result.has_errors
@@ -920,7 +951,7 @@ def test_sidecar_instance_mismatch_does_not_merge_in_inject(monkeypatch):
         },
     )
 
-    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    result = _run_instance_rows_direct(ctx)
     rows = result.output_data.get("normalized_rows", [])
     hw_identity = rows[0]["extensions"].get("hardware_identity", {})
     assert hw_identity.get("serial_number") == "<TODO_SERIAL_NUMBER>"
@@ -951,7 +982,7 @@ def test_hardware_identity_secret_ref_is_forbidden():
         },
     )
 
-    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    result = _run_instance_rows_direct(ctx)
     assert result.has_errors
     assert any(d.code == "E3201" and "hardware_identity_secret_ref" in d.message for d in result.diagnostics)
 
@@ -983,7 +1014,7 @@ def test_instance_rows_compiler_rejects_unsafe_identifiers():
         },
     )
 
-    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    result = _run_instance_rows_direct(ctx)
     assert result.has_errors
     e3201_messages = [d.message for d in result.diagnostics if d.code == "E3201"]
     assert any("instance id 'inst:bad'" in message for message in e3201_messages)
@@ -1044,7 +1075,7 @@ def test_sidecar_secret_annotations_are_replaced(monkeypatch):
         },
     )
 
-    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    result = _run_instance_rows_direct(ctx)
     assert not result.has_errors
     rows = result.output_data.get("normalized_rows", [])
     hw_identity = rows[0]["extensions"].get("hardware_identity", {})
@@ -1096,7 +1127,7 @@ def test_sidecar_plaintext_conflict_emits_error(monkeypatch):
         },
     )
 
-    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    result = _run_instance_rows_direct(ctx)
     assert result.has_errors
     assert any(d.code == "E7212" for d in result.diagnostics)
     rows = result.output_data.get("normalized_rows", [])
@@ -1175,7 +1206,7 @@ def test_sidecar_uses_object_secret_annotations_without_instance_mac_duplication
         },
     )
 
-    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    result = _run_instance_rows_direct(ctx)
     assert not result.has_errors
     rows = result.output_data.get("normalized_rows", [])
     hw_identity = rows[0]["extensions"].get("hardware_identity", {})
@@ -1257,7 +1288,7 @@ def test_object_interface_mac_annotations_resolve_without_instance_hardware_iden
 
     annotation_result = registry.execute_plugin("base.compiler.annotation_resolver", ctx, Stage.COMPILE)
     assert annotation_result.status in {PluginStatus.SUCCESS, PluginStatus.PARTIAL}
-    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    result = _run_instance_rows_direct(ctx)
     assert not result.has_errors
     rows = result.output_data.get("normalized_rows", [])
     hw_identity = rows[0]["extensions"].get("hardware_identity", {})
@@ -1317,7 +1348,7 @@ def test_annotation_resolver_formats_validate_secret_values(monkeypatch):
 
     annotation_result = registry.execute_plugin("base.compiler.annotation_resolver", ctx, Stage.COMPILE)
     assert annotation_result.status in {PluginStatus.SUCCESS, PluginStatus.PARTIAL}
-    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    result = _run_instance_rows_direct(ctx)
     assert result.has_errors
     assert any(d.code == "E7213" for d in result.diagnostics)
     rows = result.output_data.get("normalized_rows", [])
@@ -1377,7 +1408,7 @@ def test_object_level_secret_annotation_resolves_serial_without_instance_marker(
 
     annotation_result = registry.execute_plugin("base.compiler.annotation_resolver", ctx, Stage.COMPILE)
     assert annotation_result.status in {PluginStatus.SUCCESS, PluginStatus.PARTIAL}
-    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    result = _run_instance_rows_direct(ctx)
     assert not result.has_errors
     rows = result.output_data.get("normalized_rows", [])
     serial = rows[0]["extensions"]["hardware_identity"]["serial_number"]
@@ -1436,7 +1467,7 @@ def test_object_level_typed_secret_annotation_rejects_invalid_scalar(monkeypatch
 
     annotation_result = registry.execute_plugin("base.compiler.annotation_resolver", ctx, Stage.COMPILE)
     assert annotation_result.status in {PluginStatus.SUCCESS, PluginStatus.PARTIAL}
-    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    result = _run_instance_rows_direct(ctx)
     assert result.has_errors
     assert any(d.code == "E7213" for d in result.diagnostics)
     rows = result.output_data.get("normalized_rows", [])
