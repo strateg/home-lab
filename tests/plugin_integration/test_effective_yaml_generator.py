@@ -116,9 +116,8 @@ def test_effective_yaml_execute_stage_commits_generated_file_payloads(tmp_path: 
     assert len(results) == 1
     assert results[0].status == PluginStatus.SUCCESS
     assert artifact_path.exists()
-    published = ctx.get_published_data()[PLUGIN_ID]
-    assert published["effective_yaml_path"] == str(artifact_path)
-    assert str(artifact_path) in published["generated_files"]
+    assert results[0].output_data["effective_yaml"] == str(artifact_path)
+    assert str(artifact_path) in results[0].output_data["generated_files"]
 
 
 def test_effective_yaml_execute_stage_requires_compiled_json(tmp_path: Path) -> None:

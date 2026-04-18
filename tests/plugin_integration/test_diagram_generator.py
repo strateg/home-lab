@@ -332,10 +332,10 @@ def test_diagram_execute_stage_commits_generated_payloads(tmp_path: Path) -> Non
 
     assert len(results) == 1
     assert results[0].status == PluginStatus.SUCCESS
-    published = ctx.get_published_data()[PLUGIN_ID]
-    assert published["diagram_dir"].endswith("generated/docs/diagrams")
-    assert any(path.endswith("physical-topology.md") for path in published["generated_files"])
-    assert any(path.endswith("index.md") for path in published["diagram_files"])
+    payload = results[0].output_data
+    assert payload["diagram_dir"].endswith("generated/docs/diagrams")
+    assert any(path.endswith("physical-topology.md") for path in payload["diagram_files"])
+    assert any(path.endswith("index.md") for path in payload["diagram_files"])
 
 
 def test_diagram_execute_stage_requires_compiled_json(tmp_path: Path) -> None:

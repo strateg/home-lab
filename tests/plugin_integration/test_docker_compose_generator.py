@@ -337,5 +337,5 @@ def test_docker_compose_execute_stage_requires_committed_normalized_rows(tmp_pat
     assert len(results) == 1
     assert results[0].status == PluginStatus.FAILED
     assert any(diag.code == "E8003" for diag in results[0].diagnostics)
-    assert PLUGIN_ID not in ctx.get_published_data()
+    assert not ctx.get_published_keys(PLUGIN_ID)
 

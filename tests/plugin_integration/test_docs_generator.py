@@ -193,10 +193,10 @@ def test_docs_execute_stage_commits_generated_payloads(tmp_path: Path) -> None:
 
     assert len(results) == 1
     assert results[0].status == PluginStatus.SUCCESS
-    published = ctx.get_published_data()[PLUGIN_ID]
-    assert published["generated_dir"].endswith("generated/docs")
-    assert any(path.endswith("overview.md") for path in published["generated_files"])
-    assert any(path.endswith("services.md") for path in published["docs_files"])
+    payload = results[0].output_data
+    assert payload["docs_dir"].endswith("generated/docs")
+    assert any(path.endswith("overview.md") for path in payload["docs_files"])
+    assert any(path.endswith("services.md") for path in payload["docs_files"])
 
 
 def test_docs_execute_stage_requires_compiled_json(tmp_path: Path) -> None:

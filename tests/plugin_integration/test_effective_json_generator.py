@@ -126,9 +126,8 @@ def test_effective_json_execute_stage_commits_generated_file_payloads(tmp_path):
     assert len(results) == 1
     assert results[0].status == PluginStatus.SUCCESS
     assert output_path.exists()
-    published = ctx.get_published_data()[PLUGIN_ID]
-    assert published["effective_json_path"] == str(output_path)
-    assert str(output_path) in published["generated_files"]
+    assert results[0].output_data["effective_json"] == str(output_path)
+    assert str(output_path) in results[0].output_data["generated_files"]
 
 
 def test_effective_json_execute_stage_requires_compiled_json(tmp_path):

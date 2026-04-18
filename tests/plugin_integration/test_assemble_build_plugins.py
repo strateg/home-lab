@@ -726,7 +726,8 @@ def test_artifact_family_summary_uses_contract_guard_checked_plugins(tmp_path: P
     result = registry.execute_plugin("base.builder.artifact_family_summary", ctx, Stage.BUILD)
 
     assert result.status == PluginStatus.SUCCESS
-    payload = ctx.get_published_data()["base.builder.artifact_family_summary"]["artifact_family_summary"]
+    summary_path = Path(result.output_data["artifact_family_summary_path"])
+    payload = json.loads(summary_path.read_text(encoding="utf-8"))
     assert payload["totals"]["plugins"] == 1
     assert payload["families"][0]["plugin_id"] == "base.generator.effective_json"
     assert payload["families"][0]["artifact_family"] == "effective-json"

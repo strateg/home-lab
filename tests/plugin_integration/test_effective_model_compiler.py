@@ -317,7 +317,7 @@ def test_effective_model_execute_stage_commits_compiled_json_authoritatively(tmp
     assert isinstance(ctx.compiled_json, dict)
     assert ctx.compiled_json["instances"]["devices"][0]["instance_id"] == "node-stage"
     assert ctx.compiled_json["instances"]["devices"][0]["instance_data"]["rack"] == "R1"
-    assert ctx.get_published_data()[PLUGIN_ID]["effective_model_candidate"] == ctx.compiled_json
+    assert results[-1].output_data["effective_model_candidate"] == ctx.compiled_json
 
 
 def test_effective_model_execute_stage_requires_committed_rows(tmp_path):
