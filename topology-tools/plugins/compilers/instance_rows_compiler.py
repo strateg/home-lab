@@ -734,38 +734,26 @@ class InstanceRowsCompiler(CompilerPlugin):
         object_secret_annotations_by_object: dict[str, dict[str, dict[str, Any]]] = {}
         annotation_formats: dict[str, dict[str, Any]] = {}
 
-        legacy_annotation_payloads = (
-            ctx.get_published_data().get(self._ANNOTATION_PLUGIN_ID, {})
-            if not ctx.is_snapshot_backed
-            else {}
-        )
-
         try:
             subscribed_rows = ctx.subscribe(self._ANNOTATION_PLUGIN_ID, "row_annotations_by_instance")
             if isinstance(subscribed_rows, dict):
                 row_annotations_by_instance = subscribed_rows
         except PluginDataExchangeError:
-            legacy_rows = legacy_annotation_payloads.get("row_annotations_by_instance")
-            if isinstance(legacy_rows, dict):
-                row_annotations_by_instance = legacy_rows
+            pass
 
         try:
             subscribed_objects = ctx.subscribe(self._ANNOTATION_PLUGIN_ID, "object_secret_annotations")
             if isinstance(subscribed_objects, dict):
                 object_secret_annotations_by_object = subscribed_objects
         except PluginDataExchangeError:
-            legacy_objects = legacy_annotation_payloads.get("object_secret_annotations")
-            if isinstance(legacy_objects, dict):
-                object_secret_annotations_by_object = legacy_objects
+            pass
 
         try:
             subscribed_formats = ctx.subscribe(self._ANNOTATION_PLUGIN_ID, "annotation_formats")
             if isinstance(subscribed_formats, dict):
                 annotation_formats = subscribed_formats
         except PluginDataExchangeError:
-            legacy_formats = legacy_annotation_payloads.get("annotation_formats")
-            if isinstance(legacy_formats, dict):
-                annotation_formats = legacy_formats
+            pass
 
         return row_annotations_by_instance, object_secret_annotations_by_object, annotation_formats
 

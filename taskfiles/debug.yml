@@ -1,0 +1,12 @@
+version: "3"
+
+tasks:
+
+  build:
+    desc: Build lane artifacts (passthrough secrets mode)
+    env:
+      V5_SECRETS_MODE: passthrough
+      PYTHONUNBUFFERED: "1"
+    cmds:
+      - task build:clean-generated
+      - "{{.PYTHON}} {{.DEBUG}} scripts/orchestration/lane.py build-v5"

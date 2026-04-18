@@ -18,8 +18,14 @@ vars:
   FRAMEWORK_VERSION: '{{.FRAMEWORK_VERSION}}'
   FRAMEWORK_DIST_OUTPUT: '{{default "dist/framework" .FRAMEWORK_DIST_OUTPUT}}'
   FRAMEWORK_BOOTSTRAP_OUTPUT: '{{default "build/infra-topology-framework-bootstrap" .FRAMEWORK_BOOTSTRAP_OUTPUT}}'
+  DEBUG: '{{default "-Xfrozen_modules=off -m debugpy --listen 127.0.0.1:5678 --wait-for-client" .DEBUG}}'
 
 includes:
+  debug:
+    taskfile: ./taskfiles/debug.yml
+    dir: .
+    vars:
+      PYTHON: "{{.PYTHON}}"
   validate:
     taskfile: ./taskfiles/validate.yml
     dir: .
