@@ -69,6 +69,7 @@ def test_artifact_manifest_generator_emits_checksums(tmp_path: Path):
     assert payload["artifact_count"] == 2
     assert [row["path"] for row in payload["artifacts"]] == sorted([row["path"] for row in payload["artifacts"]])
     assert result.output_data["artifact_manifest_path"] == str(manifest_path)
+    assert result.output_data["compatibility_fallback_used"] == 0
 
 
 def test_artifact_manifest_generator_is_deterministic_across_publish_order(tmp_path: Path):
@@ -206,3 +207,5 @@ def test_artifact_manifest_generator_respects_explicit_producer_list(tmp_path: P
     assert result.status == PluginStatus.SUCCESS
     payload = json.loads((project_root / "artifact-manifest.json").read_text(encoding="utf-8"))
     assert [row["producer_plugin"] for row in payload["artifacts"]] == ["object.proxmox.generator.terraform"]
+    assert result.output_data["compatibility_fallback_used"] == 1
+    assert any(diag.code == "I3903" for diag in result.diagnostics)

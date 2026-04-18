@@ -40,15 +40,18 @@ class ArtifactManifestGenerator(BaseGenerator):
 
         rows: list[dict[str, Any]] = []
         seen: set[tuple[str, str]] = set()
+        compatibility_fallback_used = 0
 
         for plugin_id in self._producer_ids(ctx):
-            generated_files = self._generated_files_for_producer(
+            generated_files, used_compatibility = self._generated_files_for_producer(
                 ctx,
                 plugin_id,
                 diagnostics=diagnostics,
                 stage=stage,
                 allow_legacy_fallback=not ctx.is_snapshot_backed,
             )
+            if used_compatibility:
+                compatibility_fallback_used += 1
             if not isinstance(generated_files, list):
                 continue
             for item in generated_files:
@@ -106,6 +109,20 @@ class ArtifactManifestGenerator(BaseGenerator):
         ctx.publish("artifact_manifest_path", str(manifest_path))
         ctx.publish("artifact_manifest", manifest)
 
+        if compatibility_fallback_used:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="I3903",
+                    severity="info",
+                    stage=stage,
+                    message=(
+                        "artifact manifest used compatibility producer fallback for "
+                        f"{compatibility_fallback_used} producer(s); migrate them to declared consumes."
+                    ),
+                    path=str(manifest_path),
+                )
+            )
+
         diagnostics.append(
             self.emit_diagnostic(
                 code="I3901",
@@ -121,6 +138,7 @@ class ArtifactManifestGenerator(BaseGenerator):
                 "artifact_manifest_path": str(manifest_path),
                 "generated_files": generated_files,
                 "artifact_count": len(rows),
+                "compatibility_fallback_used": compatibility_fallback_used,
             },
         )
 
@@ -135,15 +153,17 @@ class ArtifactManifestGenerator(BaseGenerator):
         diagnostics: list[PluginDiagnostic],
         stage: Stage,
         allow_legacy_fallback: bool,
-    ) -> list[str] | None:
+    ) -> tuple[list[str] | None, bool]:
         try:
             value = ctx.subscribe(plugin_id, "generated_files")
-            return value if isinstance(value, list) else None
+            return (value if isinstance(value, list) else None, False)
         except PluginDataExchangeError as exc:
             if allow_legacy_fallback:
                 payload = ctx.get_published_data().get(plugin_id)
                 generated_files = payload.get("generated_files") if isinstance(payload, dict) else None
-                return generated_files if isinstance(generated_files, list) else None
+                if isinstance(generated_files, list):
+                    return generated_files, True
+                return None, False
             diagnostics.append(
                 self.emit_diagnostic(
                     code="I3902",
@@ -156,7 +176,7 @@ class ArtifactManifestGenerator(BaseGenerator):
                     path=f"plugin:{plugin_id}:generated_files",
                 )
             )
-            return None
+            return None, False
 
     @staticmethod
     def _producer_ids(ctx: PluginContext) -> list[str]:
