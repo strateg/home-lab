@@ -2016,10 +2016,21 @@ plugins:
     depends_on:
       - base.generator.ansible_inventory
     timeout: 30
-    config: {}
+    config:
+      artifact_contract_compatibility_producers:
+        - object.proxmox.generator.terraform
+        - object.mikrotik.generator.terraform
+        - object.proxmox.generator.bootstrap
+        - object.mikrotik.generator.bootstrap
+        - object.orangepi.generator.bootstrap
     config_schema:
       type: object
-      properties: {}
+      properties:
+        artifact_contract_compatibility_producers:
+          type: array
+          description: Compatibility-only producers resolved via legacy publish registry fallback.
+          items:
+            type: string
       required: []
     consumes:
       - from_plugin: base.generator.ansible_inventory

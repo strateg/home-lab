@@ -26,6 +26,14 @@ class ArtifactContractAssembler(AssemblerPlugin):
         return ctx.config.get("plugin_registry")
 
 
+
+    @staticmethod
+    def _compatibility_producers(ctx: PluginContext) -> set[str]:
+        raw = ctx.config.get("artifact_contract_compatibility_producers")
+        if not isinstance(raw, list):
+            return set()
+        return {item.strip() for item in raw if isinstance(item, str) and item.strip()}
+
     @staticmethod
     def _payload_from_declared_consumes(ctx: PluginContext, plugin_id: str) -> dict[str, Any] | None:
         payload: dict[str, Any] = {}
@@ -81,6 +89,7 @@ class ArtifactContractAssembler(AssemblerPlugin):
             return self.make_result(diagnostics=diagnostics, output_data={"artifact_contract_guard": None})
 
         published_data = ctx.get_published_data()
+        compatibility_producers = self._compatibility_producers(ctx)
         summary: dict[str, Any] = {
             "legacy": 0,
             "migrating": 0,
@@ -106,9 +115,11 @@ class ArtifactContractAssembler(AssemblerPlugin):
             summary["checked"] += 1
             payload = self._payload_from_declared_consumes(ctx, plugin_id)
             used_legacy_fallback = False
-            if payload is None:
+            if payload is None and plugin_id in compatibility_producers:
                 payload = published_data.get(plugin_id, {})
                 used_legacy_fallback = True
+            elif payload is None:
+                payload = {}
             if used_legacy_fallback:
                 diagnostics.append(
                     self.emit_diagnostic(

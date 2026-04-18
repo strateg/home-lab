@@ -623,6 +623,11 @@ def test_base_manifest_declares_high_value_data_bus_contracts():
     assert registry.specs["base.compiler.effective_model"].compiled_json_owner is True
     assert artifact_manifest.phase == Phase.FINALIZE
     assert set(artifact_manifest.config.get("artifact_manifest_producers", [])) >= {
+        "base.generator.effective_json",
+        "base.generator.effective_yaml",
+        "base.generator.ansible_inventory",
+    }
+    assert set(artifact_manifest.config.get("artifact_manifest_compatibility_producers", [])) >= {
         "object.proxmox.generator.terraform",
         "object.mikrotik.generator.terraform",
         "object.proxmox.generator.bootstrap",

@@ -33,7 +33,9 @@ def _ctx(registry: PluginRegistry) -> PluginContext:
 
 
 def _run_guard(plugin: ArtifactContractAssembler, ctx: PluginContext, registry: PluginRegistry):
-    allowed = set(registry.specs[plugin.plugin_id].depends_on)
+    spec = registry.specs[plugin.plugin_id]
+    allowed = set(spec.depends_on)
+    ctx.config.update(spec.config)
     ctx._set_execution_context("base.assembler.artifact_contract_guard", allowed)  # noqa: SLF001 - direct plugin execution helper
     try:
         return plugin.execute(ctx, Stage.ASSEMBLE)
@@ -91,6 +93,7 @@ def test_artifact_contract_assembler_passes_when_migrating_generators_publish_co
     assert all(isinstance(item.get("artifact_plan"), dict) for item in summary["checked_plugins"])
     assert all(isinstance(item.get("artifact_generation_report"), dict) for item in summary["checked_plugins"])
     assert summary["missing_contracts"] == []
+    assert any(diag.code == "I9397" for diag in result.diagnostics)
 
 
 def test_artifact_contract_assembler_errors_for_missing_migrating_contracts() -> None:
