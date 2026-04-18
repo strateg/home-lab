@@ -65,6 +65,41 @@ def _seed_migrating_contract_publications(ctx: PluginContext, registry: PluginRe
         }
 
 
+def _seed_build_readiness_inputs(ctx: PluginContext) -> None:
+    """Populate validator/build inputs now required by the stricter build-stage contracts."""
+    for plugin_id, payload in {
+        "base.validator.generator_migration_status": {
+            "generator_migration_summary": {"legacy": 0, "migrating": 3, "migrated": 0, "rollback": 0}
+        },
+        "base.validator.generator_sunset": {
+            "generator_sunset_summary": {
+                "warnings": 0,
+                "errors": 0,
+                "pre_sunset_legacy_targets": 0,
+                "grace_window_legacy_targets": 0,
+                "hard_error_legacy_targets": 0,
+                "legacy_target_states": [],
+            }
+        },
+        "base.validator.generator_rollback_escalation": {
+            "generator_rollback_summary": {"warnings": 0, "escalated": 0, "missing_started_at": 0}
+        },
+        "base.validator.soho_product_profile": {
+            "product_profile_state": {
+                "profile_id": "soho.standard.v1",
+                "deployment_class": "managed-soho",
+                "status": "green",
+            }
+        },
+    }.items():
+        ctx._set_execution_context(plugin_id, set())
+        try:
+            for key, value in payload.items():
+                ctx.publish(key, value)
+        finally:
+            ctx._clear_execution_context()
+
+
 def test_assemble_and_build_stage_plugins_produce_release_artifacts(tmp_path: Path):
     registry = _registry()
     sbom_spec = registry.specs["base.builder.sbom"]
@@ -80,6 +115,38 @@ def test_assemble_and_build_stage_plugins_produce_release_artifacts(tmp_path: Pa
         if item["from_plugin"] == "base.assembler.artifact_contract_guard" and item["key"] == "artifact_contract_guard"
     )
     assert artifact_contract_guard_consume["required"] is True
+
+    generator_readiness_spec = registry.specs["base.builder.generator_readiness_evidence"]
+    required_generator_readiness_inputs = {
+        ("base.validator.generator_migration_status", "generator_migration_summary"),
+        ("base.validator.generator_sunset", "generator_sunset_summary"),
+        ("base.validator.generator_rollback_escalation", "generator_rollback_summary"),
+        ("base.builder.artifact_family_summary", "artifact_family_summary"),
+    }
+    assert {
+        (item["from_plugin"], item["key"])
+        for item in generator_readiness_spec.consumes
+        if item.get("required") is True
+    } >= required_generator_readiness_inputs
+
+    soho_readiness_spec = registry.specs["base.builder.soho_readiness_package"]
+    required_soho_inputs = {
+        ("base.builder.readiness_reports", "restore_readiness_report"),
+        ("base.validator.soho_product_profile", "product_profile_state"),
+    }
+    assert {
+        (item["from_plugin"], item["key"])
+        for item in soho_readiness_spec.consumes
+        if item.get("required") is True
+    } >= required_soho_inputs
+
+    changed_scopes_spec = registry.specs["base.assembler.changed_scopes"]
+    artifact_manifest_consume = next(
+        item
+        for item in changed_scopes_spec.consumes
+        if item["from_plugin"] == "base.generator.artifact_manifest" and item["key"] == "artifact_manifest"
+    )
+    assert artifact_manifest_consume["required"] is True
 
     release_manifest_spec = registry.specs["base.builder.release_manifest"]
     required_release_inputs = {
@@ -106,29 +173,23 @@ def test_assemble_and_build_stage_plugins_produce_release_artifacts(tmp_path: Pa
     source_file.parent.mkdir(parents=True, exist_ok=True)
     source_file.write_text("hello\n", encoding="utf-8")
 
+    artifact_manifest = {
+        "schema_version": 1,
+        "project_id": "home-lab",
+        "generated_at": "2026-03-26T00:00:00+00:00",
+        "artifact_count": 1,
+        "artifacts": [
+            {
+                "producer_plugin": "base.generator.docs",
+                "path": "generated/home-lab/docs/overview.md",
+                "sha256": "stub",
+                "size_bytes": 6,
+            }
+        ],
+    }
     artifact_manifest_path = generated_root / "artifact-manifest.json"
     artifact_manifest_path.parent.mkdir(parents=True, exist_ok=True)
-    artifact_manifest_path.write_text(
-        json.dumps(
-            {
-                "schema_version": 1,
-                "project_id": "home-lab",
-                "generated_at": "2026-03-26T00:00:00+00:00",
-                "artifact_count": 1,
-                "artifacts": [
-                    {
-                        "producer_plugin": "base.generator.docs",
-                        "path": "generated/home-lab/docs/overview.md",
-                        "sha256": "stub",
-                        "size_bytes": 6,
-                    }
-                ],
-            },
-            ensure_ascii=True,
-            indent=2,
-        ),
-        encoding="utf-8",
-    )
+    artifact_manifest_path.write_text(json.dumps(artifact_manifest, ensure_ascii=True, indent=2), encoding="utf-8")
 
     ctx = PluginContext(
         topology_path="topology/topology.yaml",
@@ -151,9 +212,11 @@ def test_assemble_and_build_stage_plugins_produce_release_artifacts(tmp_path: Pa
     ctx._set_execution_context("base.generator.artifact_manifest", set())
     try:
         ctx.publish("artifact_manifest_path", str(artifact_manifest_path))
+        ctx.publish("artifact_manifest", artifact_manifest)
     finally:
         ctx._clear_execution_context()
     _seed_migrating_contract_publications(ctx, registry)
+    _seed_build_readiness_inputs(ctx)
 
     assemble_results = registry.execute_stage(Stage.ASSEMBLE, ctx)
     assert [r.plugin_id for r in assemble_results] == [
@@ -253,28 +316,22 @@ def test_assemble_verify_flags_secret_like_content(tmp_path: Path):
     leaked_file.parent.mkdir(parents=True, exist_ok=True)
     leaked_file.write_text("api_key=AKIA1234567890ABCDEF\n", encoding="utf-8")
 
-    artifact_manifest_path = generated_root / "artifact-manifest.json"
-    artifact_manifest_path.write_text(
-        json.dumps(
+    artifact_manifest = {
+        "schema_version": 1,
+        "project_id": "home-lab",
+        "generated_at": "2026-03-26T00:00:00+00:00",
+        "artifact_count": 1,
+        "artifacts": [
             {
-                "schema_version": 1,
-                "project_id": "home-lab",
-                "generated_at": "2026-03-26T00:00:00+00:00",
-                "artifact_count": 1,
-                "artifacts": [
-                    {
-                        "producer_plugin": "base.generator.docs",
-                        "path": "generated/home-lab/configs/app.env",
-                        "sha256": "stub",
-                        "size_bytes": leaked_file.stat().st_size,
-                    }
-                ],
-            },
-            ensure_ascii=True,
-            indent=2,
-        ),
-        encoding="utf-8",
-    )
+                "producer_plugin": "base.generator.docs",
+                "path": "generated/home-lab/configs/app.env",
+                "sha256": "stub",
+                "size_bytes": leaked_file.stat().st_size,
+            }
+        ],
+    }
+    artifact_manifest_path = generated_root / "artifact-manifest.json"
+    artifact_manifest_path.write_text(json.dumps(artifact_manifest, ensure_ascii=True, indent=2), encoding="utf-8")
 
     ctx = PluginContext(
         topology_path="topology/topology.yaml",
@@ -292,6 +349,7 @@ def test_assemble_verify_flags_secret_like_content(tmp_path: Path):
     ctx._set_execution_context("base.generator.artifact_manifest", set())
     try:
         ctx.publish("artifact_manifest_path", str(artifact_manifest_path))
+        ctx.publish("artifact_manifest", artifact_manifest)
     finally:
         ctx._clear_execution_context()
     _seed_migrating_contract_publications(ctx, registry)
@@ -317,28 +375,22 @@ def test_changed_input_scopes_are_empty_on_second_identical_run(tmp_path: Path):
     source_file.parent.mkdir(parents=True, exist_ok=True)
     source_file.write_text("hello\n", encoding="utf-8")
 
-    artifact_manifest_path = generated_root / "artifact-manifest.json"
-    artifact_manifest_path.write_text(
-        json.dumps(
+    artifact_manifest = {
+        "schema_version": 1,
+        "project_id": "home-lab",
+        "generated_at": "2026-03-26T00:00:00+00:00",
+        "artifact_count": 1,
+        "artifacts": [
             {
-                "schema_version": 1,
-                "project_id": "home-lab",
-                "generated_at": "2026-03-26T00:00:00+00:00",
-                "artifact_count": 1,
-                "artifacts": [
-                    {
-                        "producer_plugin": "base.generator.docs",
-                        "path": "generated/home-lab/docs/overview.md",
-                        "sha256": "stable-sha",
-                        "size_bytes": source_file.stat().st_size,
-                    }
-                ],
-            },
-            ensure_ascii=True,
-            indent=2,
-        ),
-        encoding="utf-8",
-    )
+                "producer_plugin": "base.generator.docs",
+                "path": "generated/home-lab/docs/overview.md",
+                "sha256": "stable-sha",
+                "size_bytes": source_file.stat().st_size,
+            }
+        ],
+    }
+    artifact_manifest_path = generated_root / "artifact-manifest.json"
+    artifact_manifest_path.write_text(json.dumps(artifact_manifest, ensure_ascii=True, indent=2), encoding="utf-8")
 
     first_ctx = PluginContext(
         topology_path="topology/topology.yaml",
@@ -355,6 +407,7 @@ def test_changed_input_scopes_are_empty_on_second_identical_run(tmp_path: Path):
     first_ctx._set_execution_context("base.generator.artifact_manifest", set())
     try:
         first_ctx.publish("artifact_manifest_path", str(artifact_manifest_path))
+        first_ctx.publish("artifact_manifest", artifact_manifest)
     finally:
         first_ctx._clear_execution_context()
     _seed_migrating_contract_publications(first_ctx, registry)
@@ -378,6 +431,7 @@ def test_changed_input_scopes_are_empty_on_second_identical_run(tmp_path: Path):
     second_ctx._set_execution_context("base.generator.artifact_manifest", set())
     try:
         second_ctx.publish("artifact_manifest_path", str(artifact_manifest_path))
+        second_ctx.publish("artifact_manifest", artifact_manifest)
     finally:
         second_ctx._clear_execution_context()
     _seed_migrating_contract_publications(second_ctx, registry)
@@ -426,6 +480,34 @@ def test_assembly_manifest_requires_committed_artifact_manifest_path(tmp_path: P
         ctx._clear_execution_context()
 
     result = registry.execute_plugin("base.assembler.manifest", ctx, Stage.ASSEMBLE)
+
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E8003" for diag in result.diagnostics)
+
+
+def test_changed_scopes_requires_committed_artifact_manifest_payload(tmp_path: Path) -> None:
+    registry = _registry()
+    workspace_root = tmp_path / ".work" / "native" / "home-lab"
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={
+            "repo_root": str(tmp_path),
+            "project_id": "home-lab",
+            "workspace_root": str(workspace_root),
+            "plugin_registry": registry,
+        },
+        workspace_root=str(workspace_root),
+    )
+
+    ctx._set_execution_context("base.generator.artifact_manifest", set())
+    try:
+        ctx.publish("artifact_manifest_path", str(tmp_path / "generated" / "home-lab" / "artifact-manifest.json"))
+    finally:
+        ctx._clear_execution_context()
+
+    result = registry.execute_plugin("base.assembler.changed_scopes", ctx, Stage.ASSEMBLE)
 
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E8003" for diag in result.diagnostics)
@@ -575,6 +657,65 @@ def test_artifact_family_summary_requires_artifact_contract_guard(tmp_path: Path
     )
 
     result = registry.execute_plugin("base.builder.artifact_family_summary", ctx, Stage.BUILD)
+
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E8003" for diag in result.diagnostics)
+
+
+def test_generator_readiness_evidence_requires_committed_readiness_inputs(tmp_path: Path) -> None:
+    registry = _registry()
+    workspace_root = tmp_path / ".work" / "native" / "home-lab"
+    dist_root = tmp_path / "dist" / "home-lab"
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={
+            "repo_root": str(tmp_path),
+            "project_id": "home-lab",
+            "workspace_root": str(workspace_root),
+            "dist_root": str(dist_root),
+            "plugin_registry": registry,
+        },
+        workspace_root=str(workspace_root),
+        dist_root=str(dist_root),
+    )
+    ctx._set_execution_context("base.builder.artifact_family_summary", set())
+    try:
+        ctx.publish("artifact_family_summary", {"totals": {"plugins": 1}})
+    finally:
+        ctx._clear_execution_context()
+
+    result = registry.execute_plugin("base.builder.generator_readiness_evidence", ctx, Stage.BUILD)
+
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E8003" for diag in result.diagnostics)
+
+
+def test_soho_readiness_package_requires_committed_profile_and_readiness_report(tmp_path: Path) -> None:
+    registry = _registry()
+    workspace_root = tmp_path / ".work" / "native" / "home-lab"
+    generated_root = tmp_path / "generated"
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={
+            "repo_root": str(Path(__file__).resolve().parents[2]),
+            "project_id": "home-lab",
+            "workspace_root": str(workspace_root),
+            "generator_artifacts_root": str(generated_root),
+            "plugin_registry": registry,
+        },
+        workspace_root=str(workspace_root),
+    )
+    ctx._set_execution_context("base.builder.readiness_reports", set())
+    try:
+        ctx.publish("restore_readiness_report", {"status": "green", "checks": []})
+    finally:
+        ctx._clear_execution_context()
+
+    result = registry.execute_plugin("base.builder.soho_readiness_package", ctx, Stage.BUILD)
 
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E8003" for diag in result.diagnostics)

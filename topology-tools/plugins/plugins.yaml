@@ -1946,7 +1946,7 @@ plugins:
         required: true
       - from_plugin: base.generator.artifact_manifest
         key: artifact_manifest
-        required: false
+        required: true
     produces:
       - key: changed_input_scopes
         scope: pipeline_shared
