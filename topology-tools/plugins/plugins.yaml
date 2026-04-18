@@ -226,13 +226,13 @@ plugins:
     consumes:
       - from_plugin: base.compiler.annotation_resolver
         key: annotation_formats
-        required: false
+        required: true
       - from_plugin: base.compiler.annotation_resolver
         key: object_secret_annotations
-        required: false
+        required: true
       - from_plugin: base.compiler.annotation_resolver
         key: row_annotations_by_instance
-        required: false
+        required: true
     description: Resolves semantic row keys, annotations, and side-car secrets into stage-local rows.
 
   - id: base.compiler.instance_rows_resolve

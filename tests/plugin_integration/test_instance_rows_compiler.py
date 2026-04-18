@@ -29,6 +29,22 @@ def _write_manifest(path: Path, payload: dict) -> None:
     path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
 
 
+def test_instance_rows_secret_resolve_manifest_requires_annotation_publications():
+    registry = _registry()
+    spec = registry.specs["base.compiler.instance_rows_secret_resolve"]
+    required = {
+        (item["from_plugin"], item["key"])
+        for item in spec.consumes
+        if item.get("required") is True
+    }
+
+    assert required >= {
+        ("base.compiler.annotation_resolver", "annotation_formats"),
+        ("base.compiler.annotation_resolver", "object_secret_annotations"),
+        ("base.compiler.annotation_resolver", "row_annotations_by_instance"),
+    }
+
+
 def test_instance_rows_compiler_skips_when_core_owner():
     registry = _registry()
     ctx = PluginContext(
@@ -76,6 +92,22 @@ def test_instance_rows_compiler_plugin_owner_normalizes_rows():
     assert rows[0]["extensions"]["custom_flag"] is True
     assert rows[0]["extensions"]["endpoint_a"]["port"] == "eth0"
     assert "normalized_rows" in ctx.get_published_keys(PLUGIN_ID)
+
+
+def test_instance_rows_secret_resolve_requires_annotation_payloads() -> None:
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={"compilation_owner_instance_rows": "plugin"},
+        instance_bindings={"instance_bindings": {"devices": []}},
+    )
+
+    result = registry.execute_plugin("base.compiler.instance_rows_secret_resolve", ctx, Stage.COMPILE)
+
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E8003" for diag in result.diagnostics)
 
 
 def test_instance_rows_execute_stage_commits_normalized_rows_authoritatively(tmp_path):
@@ -1503,4 +1535,3 @@ def test_instance_rows_validate_execute_stage_requires_prepared_rows(tmp_path):
     assert results[2].status == PluginStatus.SUCCESS
     assert results[3].status == PluginStatus.FAILED
     assert any(diag.code == "E8003" for diag in results[3].diagnostics)
-
