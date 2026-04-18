@@ -31,7 +31,9 @@ def _write_manifest(path: Path, payload: dict) -> None:
 
 def _run_instance_rows_direct(ctx: PluginContext):
     plugin = instance_rows_module.InstanceRowsCompiler(PLUGIN_ID)
-    ctx._set_execution_context(PLUGIN_ID, set())  # noqa: SLF001 - direct plugin unit-style execution
+    ctx._set_execution_context(  # noqa: SLF001 - direct plugin unit-style execution
+        PLUGIN_ID, {"base.compiler.annotation_resolver"}
+    )
     try:
         return plugin.execute(ctx, Stage.COMPILE)
     finally:
