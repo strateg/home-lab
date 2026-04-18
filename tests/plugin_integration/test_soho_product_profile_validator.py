@@ -12,7 +12,8 @@ import yaml
 V5_TOOLS = Path(__file__).resolve().parents[2] / "topology-tools"
 sys.path.insert(0, str(V5_TOOLS))
 
-from kernel.plugin_base import PluginContext, PluginStatus, Stage
+from kernel import PluginRegistry, PluginStatus
+from kernel.plugin_base import PluginContext, Stage
 from plugins.validators.soho_product_profile_validator import SohoProductProfileValidator
 
 
@@ -60,6 +61,32 @@ sunset_policy:
         output_dir=str(tmp_path / "build"),
         config=config,
     )
+
+
+def _registry() -> PluginRegistry:
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(V5_TOOLS / "plugins" / "plugins.yaml")
+    return registry
+
+
+def _write_manifest(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+
+def test_soho_validator_manifest_requires_resolver_payloads() -> None:
+    registry = _registry()
+    consumes = registry.specs["base.validator.soho_product_profile"].consumes
+    required = {
+        (item["from_plugin"], item["key"])
+        for item in consumes
+        if item.get("required") is True
+    }
+    assert required >= {
+        ("base.compiler.soho_profile_resolver", "soho_profile_resolution"),
+        ("base.compiler.soho_profile_resolver", "effective_product_bundles"),
+        ("base.compiler.soho_profile_resolver", "available_product_bundles"),
+    }
 
 
 def test_soho_validator_warns_when_product_profile_is_missing(tmp_path: Path) -> None:
@@ -177,3 +204,53 @@ def test_soho_validator_treats_legacy_profile_as_hard_after_sunset(tmp_path: Pat
     codes = {diag.code for diag in result.diagnostics}
     assert "E7948" in codes
     assert "E7942" in codes
+
+
+def test_soho_validator_execute_stage_requires_committed_resolver_payloads(tmp_path: Path) -> None:
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "base.compiler.soho_profile_resolver",
+                "kind": "compiler",
+                "entry": f"{(V5_TOOLS / 'plugins/compilers/soho_profile_resolver_compiler.py').as_posix()}:SohoProfileResolverCompiler",
+                "api_version": "1.x",
+                "stages": ["compile"],
+                "phase": "run",
+                "order": 55,
+            },
+            {
+                "id": "base.validator.soho_product_profile",
+                "kind": "validator_json",
+                "entry": f"{(V5_TOOLS / 'plugins/validators/soho_product_profile_validator.py').as_posix()}:SohoProductProfileValidator",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "phase": "verify",
+                "order": 187,
+                "depends_on": ["base.compiler.soho_profile_resolver"],
+                "consumes": [
+                    {"from_plugin": "base.compiler.soho_profile_resolver", "key": "soho_profile_resolution", "required": True},
+                    {"from_plugin": "base.compiler.soho_profile_resolver", "key": "effective_product_bundles", "required": True},
+                    {"from_plugin": "base.compiler.soho_profile_resolver", "key": "available_product_bundles", "required": True},
+                ],
+            },
+        ],
+    }
+    _write_manifest(manifest, payload)
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        compiled_json={},
+        config={"repo_root": str(tmp_path), "project_id": "home-lab"},
+    )
+
+    results = registry.execute_stage(Stage.VALIDATE, ctx, parallel_plugins=False)
+
+    assert len(results) == 1
+    assert results[0].status == PluginStatus.FAILED
+    assert any(diag.code == "E8003" for diag in results[0].diagnostics)

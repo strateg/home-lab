@@ -1556,13 +1556,13 @@ plugins:
     consumes:
       - from_plugin: base.compiler.soho_profile_resolver
         key: soho_profile_resolution
-        required: false
+        required: true
       - from_plugin: base.compiler.soho_profile_resolver
         key: effective_product_bundles
-        required: false
+        required: true
       - from_plugin: base.compiler.soho_profile_resolver
         key: available_product_bundles
-        required: false
+        required: true
     description: Validates ADR0089 product_profile contract and emits machine-readable migration state report.
 
   - id: base.validator.generator_sunset
