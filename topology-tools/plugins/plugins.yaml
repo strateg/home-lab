@@ -1871,7 +1871,8 @@ plugins:
     depends_on:
       - base.compiler.effective_model
     timeout: 30
-    subinterpreter_compatible: false
+    subinterpreter_compatible: true
+    execution_mode: subinterpreter
     config:
       output_filename: effective-topology.yaml
     config_schema:
@@ -2029,7 +2030,8 @@ plugins:
     depends_on:
       - base.compiler.instance_rows
     timeout: 30
-    subinterpreter_compatible: false
+    subinterpreter_compatible: true
+    execution_mode: subinterpreter
     config: {}
     config_schema:
       type: object
