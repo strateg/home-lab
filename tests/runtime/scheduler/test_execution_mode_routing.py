@@ -119,6 +119,7 @@ def test_thread_legacy_mode_uses_execute_plugin() -> None:
 
 def test_subinterpreter_compatible_infers_execution_mode() -> None:
     """subinterpreter_compatible=true should infer execution_mode='subinterpreter'."""
+    import warnings
     from kernel.plugin_registry import PluginSpec
 
     # Test _resolve_execution_mode() deprecation fallback
@@ -133,10 +134,18 @@ def test_subinterpreter_compatible_infers_execution_mode() -> None:
         # No explicit execution_mode
     }
 
-    resolved = PluginSpec._resolve_execution_mode(data_with_compat)
-    assert resolved == "subinterpreter", "subinterpreter_compatible=true should infer subinterpreter mode"
+    # Should infer subinterpreter mode AND emit deprecation warning
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        resolved = PluginSpec._resolve_execution_mode(data_with_compat)
+        assert resolved == "subinterpreter", "subinterpreter_compatible=true should infer subinterpreter mode"
+        # Verify deprecation warning was emitted
+        assert len(w) == 1
+        assert issubclass(w[0].category, DeprecationWarning)
+        assert "test.compat" in str(w[0].message)
+        assert "subinterpreter_compatible" in str(w[0].message)
 
-    # Explicit execution_mode takes precedence
+    # Explicit execution_mode takes precedence (no warning)
     data_explicit = {
         "id": "test.explicit",
         "subinterpreter_compatible": True,

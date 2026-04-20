@@ -3,25 +3,25 @@ plugins:
   - id: object.proxmox.generator.terraform
     kind: generator
     entry: plugins/generators/terraform_proxmox_generator.py:TerraformProxmoxGenerator
-    api_version: "1.x"
-    stages: [generate]
+    api_version: 1.x
+    stages:
+      - generate
     phase: run
     order: 210
     migration_mode: migrating
     depends_on: []
     timeout: 30
-    subinterpreter_compatible: true  # Jinja2 templates (ADR 0097 Wave 3)
+    subinterpreter_compatible: true
     config:
-      terraform_version: ">= 1.6.0"
-      proxmox_provider_source: "bpg/proxmox"
-      proxmox_provider_version: ">= 0.66.0"
-      proxmox_api_url: ""
+      terraform_version: '>= 1.6.0'
+      proxmox_provider_source: bpg/proxmox
+      proxmox_provider_version: '>= 0.66.0'
+      proxmox_api_url: ''
       artifact_obsolete_action: warn
       terraform_remote_state:
         enabled: false
-        backend: ""
+        backend: ''
         config: {}
-      # Capability-driven template mappings (ADR0078)
       capability_templates:
         ceph:
           enabled_by: capabilities.has_ceph
@@ -52,9 +52,13 @@ plugins:
           description: Optional full Proxmox API endpoint URL override.
         artifact_obsolete_action:
           type: string
-          enum: [retain, delete, warn]
+          enum:
+            - retain
+            - delete
+            - warn
           default: warn
-          description: Action for stale files under generator output root (ADR0093 safe obsolete protocol).
+          description: Action for stale files under generator output root (ADR0093
+            safe obsolete protocol).
         terraform_remote_state:
           type: object
           description: Optional Terraform backend.tf generation for remote state.
@@ -72,7 +76,8 @@ plugins:
           required: []
         capability_templates:
           type: object
-          description: Capability-driven template mappings for conditional artifact generation.
+          description: Capability-driven template mappings for conditional artifact
+            generation.
           additionalProperties:
             type: object
             properties:
@@ -85,7 +90,10 @@ plugins:
               output:
                 type: string
                 description: Output filename for generated artifact.
-            required: [enabled_by, template, output]
+            required:
+              - enabled_by
+              - template
+              - output
       required: []
     produces:
       - key: generated_dir
@@ -100,22 +108,23 @@ plugins:
         scope: pipeline_shared
       - key: artifact_contract_files
         scope: pipeline_shared
-    description: Emits baseline Terraform artifacts for Proxmox from v5 projections (Phase 3 bootstrap).
-
+    description: Emits baseline Terraform artifacts for Proxmox from v5 projections
+      (Phase 3 bootstrap).
+    execution_mode: subinterpreter
   - id: object.proxmox.generator.bootstrap
     kind: generator
     entry: plugins/generators/bootstrap_proxmox_generator.py:BootstrapProxmoxGenerator
-    api_version: "1.x"
-    stages: [generate]
+    api_version: 1.x
+    stages:
+      - generate
     phase: run
     order: 310
     migration_mode: migrating
     depends_on: []
     timeout: 30
-    subinterpreter_compatible: true  # Jinja2 templates (ADR 0097 Wave 3)
+    subinterpreter_compatible: true
     config:
       artifact_obsolete_action: warn
-      # Bootstrap file mappings (ADR0078)
       bootstrap_files:
         - output_file: answer.toml
           template: bootstrap/answer.toml.j2
@@ -130,9 +139,13 @@ plugins:
       properties:
         artifact_obsolete_action:
           type: string
-          enum: [retain, delete, warn]
+          enum:
+            - retain
+            - delete
+            - warn
           default: warn
-          description: Action for stale files under generator output root (ADR0093 safe obsolete protocol).
+          description: Action for stale files under generator output root (ADR0093
+            safe obsolete protocol).
         bootstrap_files:
           type: array
           description: Bootstrap file mappings for node root directory.
@@ -145,7 +158,9 @@ plugins:
               template:
                 type: string
                 description: Template path relative to object template root.
-            required: [output_file, template]
+            required:
+              - output_file
+              - template
       required: []
     produces:
       - key: generated_dir
@@ -160,4 +175,6 @@ plugins:
         scope: pipeline_shared
       - key: artifact_contract_files
         scope: pipeline_shared
-    description: Emits contract-aware minimal bootstrap artifacts for Proxmox nodes (answer.toml + post-install-minimal.sh).
+    description: Emits contract-aware minimal bootstrap artifacts for Proxmox nodes
+      (answer.toml + post-install-minimal.sh).
+    execution_mode: subinterpreter

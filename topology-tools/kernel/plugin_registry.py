@@ -23,6 +23,7 @@ import sys
 import threading
 import time
 import traceback
+import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Optional, Type
@@ -360,6 +361,14 @@ class PluginSpec:
 
         # Deprecation fallback: infer from subinterpreter_compatible
         if data.get("subinterpreter_compatible", False):
+            plugin_id = data.get("id", "<unknown>")
+            warnings.warn(
+                f"Plugin '{plugin_id}' uses deprecated 'subinterpreter_compatible' field. "
+                f"Add explicit 'execution_mode: subinterpreter' to manifest. "
+                f"(ADR 0097 PR2 deprecation)",
+                DeprecationWarning,
+                stacklevel=4,
+            )
             return "subinterpreter"
 
         # Default: main_interpreter (envelope path in main interpreter)
