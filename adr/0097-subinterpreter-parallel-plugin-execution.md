@@ -12,8 +12,8 @@
 |-------|--------|----------|
 | **Infrastructure Waves 1-5** | ✅ COMPLETE | `adr/0097-analysis/evidence/WAVE-*-EVIDENCE.md` |
 | **PR1** Contracts + Envelope Path | ✅ COMPLETE | `adr/0097-analysis/PR1-EXECUTION-CHECKLIST.md` |
-| **PR2** Scheduler Cutover | ⏳ NOT STARTED | — |
-| **PR3** Representative Plugin Migrations | ⏳ NOT STARTED | — |
+| **PR2** Scheduler Cutover | ✅ COMPLETE | `adr/0097-analysis/PR2-EXECUTION-CHECKLIST.md` |
+| **PR3** Representative Plugin Migrations | ✅ COMPLETE | `adr/0097-analysis/PR3-EXECUTION-CHECKLIST.md` |
 | **PR4+** Fleet Migration | ⏳ NOT STARTED | — |
 
 ### Completed Components
@@ -28,9 +28,9 @@
 
 ### Next Steps
 
-1. **PR2**: Scheduler cutover — route all plugins through envelope/commit flow
-2. **PR2**: Introduce `execution_mode` manifest field
-3. **PR3**: Migrate representative plugins (module_loader, effective_model)
+1. ~~**PR2**: Scheduler cutover — route all plugins through envelope/commit flow~~ ✅
+2. ~~**PR2**: Introduce `execution_mode` manifest field~~ ✅
+3. ~~**PR3**: Migrate representative plugins (module_loader, effective_model)~~ ✅
 4. **PR4+**: Fleet migration and legacy cleanup
 
 ## Context
