@@ -1,10 +1,37 @@
 # ADR 0097: Actor-Style Dataflow Execution for Plugins on Python 3.14 Subinterpreters
 
-- Status: Proposed
+- Status: In Progress
 - Date: 2026-04-15
-- Revised: 2026-04-17
+- Revised: 2026-04-20
 - Depends on: ADR 0063, ADR 0080, ADR 0086, ADR 0098
 - Follow-up: ADR 0099 (test architecture migration for snapshot/envelope/pipeline-state runtime)
+
+## Implementation Progress
+
+| Phase | Status | Evidence |
+|-------|--------|----------|
+| **Infrastructure Waves 1-5** | ✅ COMPLETE | `adr/0097-analysis/evidence/WAVE-*-EVIDENCE.md` |
+| **PR1** Contracts + Envelope Path | ✅ COMPLETE | `adr/0097-analysis/PR1-EXECUTION-CHECKLIST.md` |
+| **PR2** Scheduler Cutover | ⏳ NOT STARTED | — |
+| **PR3** Representative Plugin Migrations | ⏳ NOT STARTED | — |
+| **PR4+** Fleet Migration | ⏳ NOT STARTED | — |
+
+### Completed Components
+
+- `PluginInputSnapshot`, `PluginExecutionEnvelope` dataclasses
+- `SubscriptionValue`, `PublishedMessage`, `EmittedEvent` dataclasses
+- `PluginContext.from_snapshot()` local-facade constructor
+- `run_plugin_once()` worker runner
+- `PipelineState` with `commit_envelope()`, `resolve_subscription()`, `invalidate_stage_local_data()`
+- `_build_input_snapshot()` helper in registry
+- Test coverage: dataclasses, commit, visibility, runner
+
+### Next Steps
+
+1. **PR2**: Scheduler cutover — route all plugins through envelope/commit flow
+2. **PR2**: Introduce `execution_mode` manifest field
+3. **PR3**: Migrate representative plugins (module_loader, effective_model)
+4. **PR4+**: Fleet migration and legacy cleanup
 
 ## Context
 

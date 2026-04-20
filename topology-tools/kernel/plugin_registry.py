@@ -309,7 +309,8 @@ class PluginSpec:
     migration_mode: str = "legacy"
     manifest_path: str = ""
     timeout: float = DEFAULT_PLUGIN_TIMEOUT
-    subinterpreter_compatible: bool = False  # ADR 0097 Wave 1
+    subinterpreter_compatible: bool = False  # ADR 0097 Wave 1 (DEPRECATED)
+    execution_mode: str = "main_interpreter"  # ADR 0097 PR2: subinterpreter | main_interpreter | thread_legacy
 
     @classmethod
     def from_dict(cls, data: dict[str, Any], manifest_path: str = "") -> PluginSpec:
@@ -337,7 +338,32 @@ class PluginSpec:
             manifest_path=manifest_path,
             timeout=data.get("timeout", DEFAULT_PLUGIN_TIMEOUT),
             subinterpreter_compatible=bool(data.get("subinterpreter_compatible", False)),
+            execution_mode=cls._resolve_execution_mode(data),
         )
+
+    @staticmethod
+    def _resolve_execution_mode(data: dict[str, Any]) -> str:
+        """Resolve execution_mode with deprecation fallback for subinterpreter_compatible.
+
+        ADR 0097 PR2: execution_mode is the primary routing field.
+        If execution_mode is not set but subinterpreter_compatible=true,
+        infer execution_mode='subinterpreter' for backward compatibility.
+        """
+        explicit_mode = data.get("execution_mode")
+        if explicit_mode is not None:
+            if explicit_mode not in ("subinterpreter", "main_interpreter", "thread_legacy"):
+                raise ValueError(
+                    f"Invalid execution_mode '{explicit_mode}'. "
+                    "Must be 'subinterpreter', 'main_interpreter', or 'thread_legacy'."
+                )
+            return explicit_mode
+
+        # Deprecation fallback: infer from subinterpreter_compatible
+        if data.get("subinterpreter_compatible", False):
+            return "subinterpreter"
+
+        # Default: main_interpreter (envelope path in main interpreter)
+        return "main_interpreter"
 
 
 @dataclass
@@ -1748,7 +1774,9 @@ class PluginRegistry:
                         self._trace_event(event="plugin_start", stage=stage, phase=phase, plugin_id=plugin_id)
 
                     spec = self.specs[plugin_id]
-                    if not spec.subinterpreter_compatible:
+                    # ADR 0097 PR2: Route based on execution_mode
+                    if spec.execution_mode == "thread_legacy":
+                        # Legacy path: direct execute_plugin() with context merge-back
                         result = self.execute_plugin(
                             plugin_id,
                             ctx,
@@ -1768,7 +1796,7 @@ class PluginRegistry:
                                 phase=phase,
                                 plugin_id=plugin_id,
                                 status=result.status,
-                                message="legacy compatibility path",
+                                message="thread_legacy compatibility path",
                             )
                         continue
 
@@ -1833,7 +1861,12 @@ class PluginRegistry:
                             )
                         continue
 
-                    if HAS_REAL_SUBINTERPRETERS:
+                    # ADR 0097 PR2: execution_mode routing
+                    # - "subinterpreter" + Python 3.14+ → isolated subinterpreter pool
+                    # - "subinterpreter" + Python <3.14 → ThreadPoolExecutor parallel
+                    # - "main_interpreter" → inline in main interpreter (no cross-interpreter sharing)
+                    if spec.execution_mode == "subinterpreter" and HAS_REAL_SUBINTERPRETERS:
+                        # Submit to real subinterpreter pool
                         snapshots_by_plugin[plugin_id] = snapshot
                         serialized_spec = SerializablePluginSpec.from_plugin_spec(spec)
                         future = executor.submit(
@@ -1842,7 +1875,40 @@ class PluginRegistry:
                             str(self.base_path),
                             serialized_spec.to_dict(),
                         )
+                        futures[future] = plugin_id
+                    elif spec.execution_mode == "main_interpreter" or HAS_REAL_SUBINTERPRETERS:
+                        # Execute inline in main interpreter (ADR 0097 D1: main owns state)
+                        # This includes: main_interpreter mode, or subinterpreter fallback on Py3.14+
+                        envelope = self._execute_plugin_envelope_local(
+                            plugin_id=plugin_id,
+                            spec=spec,
+                            stage=stage,
+                            phase=phase,
+                            snapshot=snapshot,
+                            timeout=spec.timeout,
+                        )
+                        result = self._commit_envelope_result(
+                            ctx=ctx,
+                            pipeline_state=pipeline_state,
+                            spec=spec,
+                            stage=stage,
+                            phase=phase,
+                            envelope=envelope,
+                            contract_warnings=contract_warnings,
+                            contract_errors=contract_errors,
+                        )
+                        results_by_plugin[plugin_id] = result
+                        if trace_execution:
+                            self._trace_event(
+                                event="plugin_result",
+                                stage=stage,
+                                phase=phase,
+                                plugin_id=plugin_id,
+                                status=result.status,
+                                message="main_interpreter inline execution",
+                            )
                     else:
+                        # Python <3.14: use ThreadPoolExecutor for parallel execution
                         future = executor.submit(
                             self._execute_plugin_envelope_local,
                             plugin_id=plugin_id,
@@ -1852,7 +1918,7 @@ class PluginRegistry:
                             snapshot=snapshot,
                             timeout=spec.timeout,
                         )
-                    futures[future] = plugin_id
+                        futures[future] = plugin_id
 
                 for future in concurrent.futures.as_completed(futures):
                     plugin_id = futures[future]
@@ -2510,7 +2576,20 @@ class PluginRegistry:
                     if trace_execution:
                         self._trace_event(event="plugin_start", stage=stage, phase=phase, plugin_id=plugin_id)
                     spec = self.specs[plugin_id]
-                    if spec.subinterpreter_compatible:
+                    # ADR 0097 PR2: Route based on execution_mode
+                    if spec.execution_mode == "thread_legacy":
+                        # Legacy path: direct execute_plugin() with context merge-back
+                        result = self.execute_plugin(
+                            plugin_id,
+                            ctx,
+                            stage,
+                            phase=phase,
+                            contract_warnings=contract_warnings,
+                            contract_errors=contract_errors,
+                        )
+                        self._mirror_context_into_pipeline_state(ctx, pipeline_state)
+                    else:
+                        # Envelope path: both subinterpreter and main_interpreter modes
                         try:
                             snapshot = self._build_input_snapshot(
                                 plugin_id=plugin_id,
@@ -2568,16 +2647,6 @@ class PluginRegistry:
                                     contract_warnings=contract_warnings,
                                     contract_errors=contract_errors,
                                 )
-                    else:
-                        result = self.execute_plugin(
-                            plugin_id,
-                            ctx,
-                            stage,
-                            phase=phase,
-                            contract_warnings=contract_warnings,
-                            contract_errors=contract_errors,
-                        )
-                        self._mirror_context_into_pipeline_state(ctx, pipeline_state)
                     results.append(result)
                     _record_stage_failure(result, phase=phase)
                     if trace_execution:

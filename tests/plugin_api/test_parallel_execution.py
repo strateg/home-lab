@@ -67,6 +67,7 @@ def test_parallel_execution_preserves_result_order_and_published_data(tmp_path: 
                     "phase": "run",
                     "order": 100,
                     "config": {"sleep_seconds": 0.04},
+                    "produces": [{"key": "ready", "scope": "pipeline_shared"}],
                 },
                 {
                     "id": "parallel.api.second",
@@ -77,6 +78,7 @@ def test_parallel_execution_preserves_result_order_and_published_data(tmp_path: 
                     "phase": "run",
                     "order": 120,
                     "config": {"sleep_seconds": 0.0},
+                    "produces": [{"key": "ready", "scope": "pipeline_shared"}],
                 },
             ],
         },
