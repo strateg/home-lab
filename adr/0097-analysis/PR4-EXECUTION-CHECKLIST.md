@@ -18,13 +18,22 @@ Purpose: Migrate remaining plugins to subinterpreter mode and clean up legacy co
 
 | Mode | Count | Status |
 |------|-------|--------|
-| `subinterpreter` | 59 | Ready for parallel execution |
-| `main_interpreter` | 30 | Needs analysis |
+| `subinterpreter` | 67 | Ready for parallel execution |
+| `main_interpreter` | 22 | Remaining (assemblers, builders, discoverers, compilers) |
 | `thread_legacy` | 0 | Not used |
 
 **Migrated in PR4:**
 - `base.generator.effective_yaml` (57 → 58)
 - `base.generator.docker_compose` (58 → 59)
+- 8 validators (59 → 67):
+  - `base.validator.foundation_file_placement`
+  - `base.validator.foundation_include_contract`
+  - `base.validator.foundation_layout`
+  - `base.validator.generator_rollback_escalation`
+  - `base.validator.generator_sunset`
+  - `base.validator.governance_contract`
+  - `base.validator.instance_placeholders`
+  - `base.validator.soho_product_profile`
 
 ### A2. Breakdown of `main_interpreter` plugins
 
@@ -165,20 +174,25 @@ Decision: **MIGRATED** to `subinterpreter`
 
 ---
 
-## F. Phase 2: Validators
+## F. Phase 2: Validators — COMPLETE
 
-### F1. Analyze each validator
+### F1. All validators migrated to subinterpreter mode
 
-For each validator marked `subinterpreter_compatible: false`:
+Analysis showed all 8 validators are compatible:
+- Only file system reads (no writes)
+- Use ctx.config, ctx.raw_yaml, ctx.objects (snapshot inputs)
+- Use ctx.publish() for outputs (envelope outbox)
+- No global state mutation
 
-1. [ ] `base.validator.foundation_file_placement` — analyze
-2. [ ] `base.validator.foundation_include_contract` — analyze
-3. [ ] `base.validator.foundation_layout` — analyze
-4. [ ] `base.validator.generator_rollback_escalation` — analyze
-5. [ ] `base.validator.generator_sunset` — analyze
-6. [ ] `base.validator.governance_contract` — analyze
-7. [ ] `base.validator.instance_placeholders` — analyze
-8. [ ] `base.validator.soho_product_profile` — analyze
+All migrated:
+1. [x] `base.validator.foundation_file_placement` — file system reads only
+2. [x] `base.validator.foundation_include_contract` — directory checks only
+3. [x] `base.validator.foundation_layout` — path validation only
+4. [x] `base.validator.generator_rollback_escalation` — policy file reads only
+5. [x] `base.validator.generator_sunset` — policy file reads only
+6. [x] `base.validator.governance_contract` — raw_yaml validation only
+7. [x] `base.validator.instance_placeholders` — format registry reads only
+8. [x] `base.validator.soho_product_profile` — manifest validation only
 
 ---
 

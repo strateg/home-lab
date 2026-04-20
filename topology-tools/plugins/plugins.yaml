@@ -1,2580 +1,2528 @@
 schema_version: 1
 plugins:
-  - id: base.discover.manifest_loader
-    kind: discoverer
-    entry: discoverers/discover_manifest_loader.py:DiscoverManifestLoaderCompiler
-    api_version: 1.x
-    stages:
-      - discover
-    phase: init
-    order: 10
-    depends_on: []
-    timeout: 30
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    produces:
-      - key: manifest_loader_summary
-        scope: pipeline_shared
-    description: Loads class/object module plugin manifests during discover bootstrap.
-  - id: base.discover.inventory
-    kind: discoverer
-    entry: discoverers/discover_inventory.py:DiscoverInventoryCompiler
-    api_version: 1.x
-    stages:
-      - discover
-    phase: run
-    order: 20
-    depends_on:
-      - base.discover.manifest_loader
-    timeout: 30
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.discover.manifest_loader
-        key: manifest_loader_summary
-        required: true
-    produces:
-      - key: manifest_inventory
-        scope: pipeline_shared
-    description: Publishes discovered plugin manifests inventory for discover-stage
-      traceability.
-  - id: base.discover.boundary
-    kind: discoverer
-    entry: discoverers/discover_boundary.py:DiscoverBoundaryCompiler
-    api_version: 1.x
-    stages:
-      - discover
-    phase: pre
-    order: 15
-    depends_on:
-      - base.discover.manifest_loader
-    timeout: 30
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.discover.manifest_loader
-        key: manifest_loader_summary
-        required: true
-    produces:
-      - key: boundary_ok
-        scope: pipeline_shared
-    description: Enforces framework/project plugin manifest boundary during discover
-      stage.
-  - id: base.discover.capability_preflight
-    kind: discoverer
-    entry: discoverers/discover_capability_preflight.py:DiscoverCapabilityPreflightCompiler
-    api_version: 1.x
-    stages:
-      - discover
-    phase: verify
-    order: 40
-    depends_on:
-      - base.discover.inventory
-      - base.discover.boundary
-    timeout: 30
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.discover.inventory
-        key: manifest_inventory
-        required: true
-      - from_plugin: base.discover.boundary
-        key: boundary_ok
-        required: true
-    produces:
-      - key: capability_preflight_ok
-        scope: pipeline_shared
-    description: Verifies capability contract files are present before compile/validate
-      execution.
-  - id: base.compiler.capabilities
-    kind: compiler
-    entry: compilers/capability_compiler.py:CapabilityCompiler
-    api_version: 1.x
-    stages:
-      - compile
-    phase: run
-    order: 50
-    depends_on:
-      - base.compiler.module_loader
-    timeout: 30
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    produces:
-      - key: capability_stats
-        scope: pipeline_shared
-      - key: derived_capabilities
-        scope: pipeline_shared
-    description: Derives capabilities from class/object definitions (ADR 0063 Phase
-      3 example)
-  - id: base.compiler.module_loader
-    kind: compiler
-    entry: compilers/module_loader_compiler.py:ModuleLoaderCompiler
-    api_version: 1.x
-    stages:
-      - compile
-    phase: init
-    order: 30
-    depends_on: []
-    timeout: 30
-    subinterpreter_compatible: true
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    produces:
-      - key: class_map
-        scope: pipeline_shared
-      - key: object_map
-        scope: pipeline_shared
-      - key: class_module_paths
-        scope: pipeline_shared
-      - key: object_module_paths
-        scope: pipeline_shared
-    description: Loads class/object module maps for plugin-first pipeline (ADR 0069).
-    execution_mode: subinterpreter
-  - id: base.compiler.model_lock_loader
-    kind: compiler
-    entry: compilers/model_lock_loader_compiler.py:ModelLockLoaderCompiler
-    api_version: 1.x
-    stages:
-      - compile
-    phase: init
-    order: 35
-    depends_on: []
-    timeout: 30
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    produces:
-      - key: lock_payload
-        scope: pipeline_shared
-      - key: model_lock_loaded
-        scope: pipeline_shared
-    description: Loads model.lock payload for plugin-first pipeline (ADR 0069).
-  - id: base.compiler.annotation_resolver
-    kind: compiler
-    entry: compilers/annotation_resolver_compiler.py:AnnotationResolverCompiler
-    api_version: 1.x
-    stages:
-      - compile
-    phase: init
-    order: 38
-    depends_on: []
-    timeout: 30
-    config:
-      format_registry_path: ../data/instance-field-formats.yaml
-    config_schema:
-      type: object
-      properties:
-        format_registry_path:
-          type: string
-          description: Path to annotation value format registry.
-      required: []
-    produces:
-      - key: object_annotations
-        scope: pipeline_shared
-      - key: object_secret_annotations
-        scope: pipeline_shared
-      - key: row_annotations_by_instance
-        scope: pipeline_shared
-      - key: annotation_formats
-        scope: pipeline_shared
-    description: Parses field annotations once and publishes normalized annotation
-      indexes.
-  - id: base.compiler.instance_rows_secret_resolve
-    kind: compiler
-    entry: compilers/instance_rows_secret_resolve_compiler.py:InstanceRowsSecretResolveCompiler
-    api_version: 1.x
-    stages:
-      - compile
-    phase: run
-    order: 39
-    depends_on:
-      - base.compiler.annotation_resolver
-    timeout: 30
-    subinterpreter_compatible: true
-    config:
-      secrets_mode: passthrough
-      secrets_root: projects/home-lab/secrets
-      require_unlock: true
-    config_schema:
-      type: object
-      properties:
-        secrets_mode:
-          type: string
-          enum:
-            - inject
-            - passthrough
-            - strict
-          default: passthrough
-          description: Side-car secrets merge mode (ADR 0072).
-        secrets_root:
-          type: string
-          default: projects/home-lab/secrets
-          description: Root directory for side-car secret files (relative to repo
-            root).
-        require_unlock:
-          type: boolean
-          default: true
-          description: Emit error when decryption fails due to missing unlocked age
-            key.
-      required: []
-    produces:
-      - key: secret_resolved_rows
-        scope: stage_local
-    consumes:
-      - from_plugin: base.compiler.annotation_resolver
-        key: annotation_formats
-        required: true
-      - from_plugin: base.compiler.annotation_resolver
-        key: object_secret_annotations
-        required: true
-      - from_plugin: base.compiler.annotation_resolver
-        key: row_annotations_by_instance
-        required: true
-    description: Resolves semantic row keys, annotations, and side-car secrets into
-      stage-local rows.
-    execution_mode: subinterpreter
-  - id: base.compiler.instance_rows_resolve
-    kind: compiler
-    entry: compilers/instance_rows_resolve_compiler.py:InstanceRowsResolveCompiler
-    api_version: 1.x
-    stages:
-      - compile
-    phase: run
-    order: 40
-    depends_on:
-      - base.compiler.instance_rows_secret_resolve
-    timeout: 30
-    subinterpreter_compatible: true
-    config:
-      secrets_mode: passthrough
-      secrets_root: projects/home-lab/secrets
-      require_unlock: true
-    config_schema:
-      type: object
-      properties:
-        secrets_mode:
-          type: string
-          enum:
-            - inject
-            - passthrough
-            - strict
-          default: passthrough
-          description: Side-car secrets merge mode (ADR 0072).
-        secrets_root:
-          type: string
-          default: projects/home-lab/secrets
-          description: Root directory for side-car secret files (relative to repo
-            root).
-        require_unlock:
-          type: boolean
-          default: true
-          description: Emit error when decryption fails due to missing unlocked age
-            key.
-      required: []
-    produces:
-      - key: resolved_rows
-        scope: stage_local
-    consumes:
-      - from_plugin: base.compiler.instance_rows_secret_resolve
-        key: secret_resolved_rows
-        required: true
-    description: Applies duplicate and identifier validation to secret-resolved rows
-      before shape preparation.
-    execution_mode: subinterpreter
-  - id: base.compiler.instance_rows_prepare
-    kind: compiler
-    entry: compilers/instance_rows_prepare_compiler.py:InstanceRowsPrepareCompiler
-    api_version: 1.x
-    stages:
-      - compile
-    phase: run
-    order: 41
-    depends_on:
-      - base.compiler.instance_rows_resolve
-    timeout: 30
-    subinterpreter_compatible: true
-    config:
-      secrets_mode: passthrough
-      secrets_root: projects/home-lab/secrets
-      require_unlock: true
-    config_schema:
-      type: object
-      properties:
-        secrets_mode:
-          type: string
-          enum:
-            - inject
-            - passthrough
-            - strict
-          default: passthrough
-          description: Side-car secrets merge mode (ADR 0072).
-        secrets_root:
-          type: string
-          default: projects/home-lab/secrets
-          description: Root directory for side-car secret files (relative to repo
-            root).
-        require_unlock:
-          type: boolean
-          default: true
-          description: Emit error when decryption fails due to missing unlocked age
-            key.
-      required: []
-    produces:
-      - key: prepared_rows
-        scope: stage_local
-    consumes:
-      - from_plugin: base.compiler.instance_rows_resolve
-        key: resolved_rows
-        required: true
-    description: Resolves class/object refs and builds prepared instance rows before
-      shape validation.
-    execution_mode: subinterpreter
-  - id: base.compiler.instance_rows_validate
-    kind: compiler
-    entry: compilers/instance_rows_validate_compiler.py:InstanceRowsValidateCompiler
-    api_version: 1.x
-    stages:
-      - compile
-    phase: run
-    order: 42
-    depends_on:
-      - base.compiler.instance_rows_prepare
-    timeout: 30
-    subinterpreter_compatible: true
-    config:
-      secrets_mode: passthrough
-      secrets_root: projects/home-lab/secrets
-      require_unlock: true
-    config_schema:
-      type: object
-      properties:
-        secrets_mode:
-          type: string
-          enum:
-            - inject
-            - passthrough
-            - strict
-          default: passthrough
-          description: Side-car secrets merge mode (ADR 0072).
-        secrets_root:
-          type: string
-          default: projects/home-lab/secrets
-          description: Root directory for side-car secret files (relative to repo
-            root).
-        require_unlock:
-          type: boolean
-          default: true
-          description: Emit error when decryption fails due to missing unlocked age
-            key.
-      required: []
-    produces:
-      - key: validated_rows
-        scope: stage_local
-    consumes:
-      - from_plugin: base.compiler.instance_rows_prepare
-        key: prepared_rows
-        required: true
-    description: Validates prepared instance-row shape and builds stage-local normalized
-      row payloads.
-    execution_mode: subinterpreter
-  - id: base.compiler.instance_rows
-    kind: compiler
-    entry: compilers/instance_rows_compiler.py:InstanceRowsCompiler
-    api_version: 1.x
-    stages:
-      - compile
-    phase: run
-    order: 43
-    depends_on:
-      - base.compiler.instance_rows_validate
-    timeout: 30
-    subinterpreter_compatible: true
-    config:
-      secrets_mode: passthrough
-      secrets_root: projects/home-lab/secrets
-      require_unlock: true
-    config_schema:
-      type: object
-      properties:
-        secrets_mode:
-          type: string
-          enum:
-            - inject
-            - passthrough
-            - strict
-          default: passthrough
-          description: Side-car secrets merge mode (ADR 0072).
-        secrets_root:
-          type: string
-          default: projects/home-lab/secrets
-          description: Root directory for side-car secret files (relative to repo
-            root).
-        require_unlock:
-          type: boolean
-          default: true
-          description: Emit error when decryption fails due to missing unlocked age
-            key.
-      required: []
-    produces:
-      - key: normalized_rows
-        scope: pipeline_shared
-    consumes:
-      - from_plugin: base.compiler.instance_rows_validate
-        key: validated_rows
-        required: true
-    description: Publishes authoritative normalized instance rows after staged resolve/prepare/validate
-      cutover.
-    execution_mode: subinterpreter
-  - id: base.compiler.capability_contract_loader
-    kind: compiler
-    entry: compilers/capability_contract_loader_compiler.py:CapabilityContractLoaderCompiler
-    api_version: 1.x
-    stages:
-      - compile
-    phase: init
-    order: 45
-    depends_on: []
-    timeout: 30
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    produces:
-      - key: catalog_ids
-        scope: pipeline_shared
-      - key: packs_map
-        scope: pipeline_shared
-    description: Loads capability catalog and packs contract for plugin-first pipeline.
-  - id: base.compiler.soho_profile_resolver
-    kind: compiler
-    entry: compilers/soho_profile_resolver_compiler.py:SohoProfileResolverCompiler
-    api_version: 1.x
-    stages:
-      - compile
-    phase: run
-    order: 55
-    depends_on: []
-    timeout: 30
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    produces:
-      - key: soho_profile_resolution
-        scope: pipeline_shared
-      - key: effective_product_bundles
-        scope: pipeline_shared
-      - key: available_product_bundles
-        scope: pipeline_shared
-    description: Resolves ADR0089 canonical SOHO profile contract and effective required
-      bundle set.
-  - id: base.compiler.effective_model
-    kind: compiler
-    entry: compilers/effective_model_compiler.py:EffectiveModelCompiler
-    api_version: 1.x
-    stages:
-      - compile
-    phase: finalize
-    compiled_json_owner: true
-    order: 60
-    depends_on:
-      - base.compiler.module_loader
-      - base.compiler.capabilities
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    produces:
-      - key: effective_model_candidate
-        scope: pipeline_shared
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-    description: Assembles candidate effective model in compile stage (ADR 0069 WS2).
-    execution_mode: subinterpreter
-  - id: base.validator.governance_contract
-    kind: validator_yaml
-    entry: validators/governance_contract_validator.py:GovernanceContractValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: pre
-    order: 90
-    depends_on: []
-    timeout: 30
-    subinterpreter_compatible: false
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    description: Validates v5 root governance contract (version/model/framework/project/meta).
-  - id: base.validator.foundation_layout
-    kind: validator_yaml
-    entry: validators/foundation_layout_validator.py:FoundationLayoutValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: pre
-    order: 95
-    depends_on:
-      - base.validator.governance_contract
-    timeout: 30
-    subinterpreter_compatible: false
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    description: Validates class/object module root paths and baseline YAML/plugin
-      layout.
-  - id: base.validator.foundation_include_contract
-    kind: validator_yaml
-    entry: validators/foundation_include_contract_validator.py:FoundationIncludeContractValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: pre
-    order: 96
-    depends_on:
-      - base.validator.foundation_layout
-    timeout: 30
-    subinterpreter_compatible: false
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    description: Validates deterministic v5 project instances directory contract.
-  - id: base.validator.foundation_file_placement
-    kind: validator_yaml
-    entry: validators/foundation_file_placement_validator.py:FoundationFilePlacementValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: pre
-    order: 96
-    depends_on:
-      - base.validator.foundation_include_contract
-    timeout: 30
-    subinterpreter_compatible: false
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    description: Validates policy-driven placement of instance YAML files in project
-      instances tree.
-  - id: base.validator.foundation_device_taxonomy
-    kind: validator_json
-    entry: validators/foundation_device_taxonomy_validator.py:FoundationDeviceTaxonomyValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 97
-    depends_on:
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-    description: Validates L1 group/class taxonomy conventions.
-    execution_mode: subinterpreter
-  - id: base.validator.references
-    kind: validator_json
-    entry: validators/reference_validator.py:ReferenceValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 100
-    depends_on:
-      - base.compiler.instance_rows
-      - base.compiler.capability_contract_loader
-    timeout: 30
-    subinterpreter_compatible: true
-    config:
-      strict_mode: false
-    config_schema:
-      type: object
-      properties:
-        strict_mode:
-          type: boolean
-          default: false
-          description: If true, treat warnings as errors
-      required: []
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-      - from_plugin: base.compiler.capability_contract_loader
-        key: catalog_ids
-        required: true
-    description: Validates all cross-entity references in compiled topology
-    execution_mode: subinterpreter
-  - id: base.validator.initialization_contract
-    kind: validator_json
-    entry: validators/initialization_contract_validator.py:InitializationContractValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 101
-    depends_on: []
-    timeout: 30
-    subinterpreter_compatible: true
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    description: Validates optional object initialization_contract payloads for compute/router
-      objects (ADR 0083).
-    execution_mode: subinterpreter
-  - id: base.validator.model_lock
-    kind: validator_json
-    entry: validators/model_lock_validator.py:ModelLockValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 110
-    depends_on:
-      - base.validator.references
-      - base.compiler.model_lock_loader
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    config:
-      strict_mode: false
-    config_schema:
-      type: object
-      properties:
-        strict_mode:
-          type: boolean
-          default: false
-          description: If true, require all refs to be pinned in model.lock
-      required: []
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-      - from_plugin: base.compiler.model_lock_loader
-        key: lock_payload
-        required: true
-      - from_plugin: base.compiler.model_lock_loader
-        key: model_lock_loaded
-        required: true
-    description: Validates that class_ref and object_ref are pinned in model.lock
-      (ADR 0063)
-    execution_mode: subinterpreter
-  - id: base.validator.power_source_refs
-    kind: validator_json
-    entry: validators/declarative_reference_validator.py:DeclarativeReferenceValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 115
-    depends_on:
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    config:
+- id: base.discover.manifest_loader
+  kind: discoverer
+  entry: discoverers/discover_manifest_loader.py:DiscoverManifestLoaderCompiler
+  api_version: 1.x
+  stages:
+  - discover
+  phase: init
+  order: 10
+  depends_on: []
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  produces:
+  - key: manifest_loader_summary
+    scope: pipeline_shared
+  description: Loads class/object module plugin manifests during discover bootstrap.
+- id: base.discover.inventory
+  kind: discoverer
+  entry: discoverers/discover_inventory.py:DiscoverInventoryCompiler
+  api_version: 1.x
+  stages:
+  - discover
+  phase: run
+  order: 20
+  depends_on:
+  - base.discover.manifest_loader
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.discover.manifest_loader
+    key: manifest_loader_summary
+    required: true
+  produces:
+  - key: manifest_inventory
+    scope: pipeline_shared
+  description: Publishes discovered plugin manifests inventory for discover-stage traceability.
+- id: base.discover.boundary
+  kind: discoverer
+  entry: discoverers/discover_boundary.py:DiscoverBoundaryCompiler
+  api_version: 1.x
+  stages:
+  - discover
+  phase: pre
+  order: 15
+  depends_on:
+  - base.discover.manifest_loader
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.discover.manifest_loader
+    key: manifest_loader_summary
+    required: true
+  produces:
+  - key: boundary_ok
+    scope: pipeline_shared
+  description: Enforces framework/project plugin manifest boundary during discover stage.
+- id: base.discover.capability_preflight
+  kind: discoverer
+  entry: discoverers/discover_capability_preflight.py:DiscoverCapabilityPreflightCompiler
+  api_version: 1.x
+  stages:
+  - discover
+  phase: verify
+  order: 40
+  depends_on:
+  - base.discover.inventory
+  - base.discover.boundary
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.discover.inventory
+    key: manifest_inventory
+    required: true
+  - from_plugin: base.discover.boundary
+    key: boundary_ok
+    required: true
+  produces:
+  - key: capability_preflight_ok
+    scope: pipeline_shared
+  description: Verifies capability contract files are present before compile/validate execution.
+- id: base.compiler.capabilities
+  kind: compiler
+  entry: compilers/capability_compiler.py:CapabilityCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: run
+  order: 50
+  depends_on:
+  - base.compiler.module_loader
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  produces:
+  - key: capability_stats
+    scope: pipeline_shared
+  - key: derived_capabilities
+    scope: pipeline_shared
+  description: Derives capabilities from class/object definitions (ADR 0063 Phase 3 example)
+- id: base.compiler.module_loader
+  kind: compiler
+  entry: compilers/module_loader_compiler.py:ModuleLoaderCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: init
+  order: 30
+  depends_on: []
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  produces:
+  - key: class_map
+    scope: pipeline_shared
+  - key: object_map
+    scope: pipeline_shared
+  - key: class_module_paths
+    scope: pipeline_shared
+  - key: object_module_paths
+    scope: pipeline_shared
+  description: Loads class/object module maps for plugin-first pipeline (ADR 0069).
+  execution_mode: subinterpreter
+- id: base.compiler.model_lock_loader
+  kind: compiler
+  entry: compilers/model_lock_loader_compiler.py:ModelLockLoaderCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: init
+  order: 35
+  depends_on: []
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  produces:
+  - key: lock_payload
+    scope: pipeline_shared
+  - key: model_lock_loaded
+    scope: pipeline_shared
+  description: Loads model.lock payload for plugin-first pipeline (ADR 0069).
+- id: base.compiler.annotation_resolver
+  kind: compiler
+  entry: compilers/annotation_resolver_compiler.py:AnnotationResolverCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: init
+  order: 38
+  depends_on: []
+  timeout: 30
+  config:
+    format_registry_path: ../data/instance-field-formats.yaml
+  config_schema:
+    type: object
+    properties:
+      format_registry_path:
+        type: string
+        description: Path to annotation value format registry.
+    required: []
+  produces:
+  - key: object_annotations
+    scope: pipeline_shared
+  - key: object_secret_annotations
+    scope: pipeline_shared
+  - key: row_annotations_by_instance
+    scope: pipeline_shared
+  - key: annotation_formats
+    scope: pipeline_shared
+  description: Parses field annotations once and publishes normalized annotation indexes.
+- id: base.compiler.instance_rows_secret_resolve
+  kind: compiler
+  entry: compilers/instance_rows_secret_resolve_compiler.py:InstanceRowsSecretResolveCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: run
+  order: 39
+  depends_on:
+  - base.compiler.annotation_resolver
+  timeout: 30
+  subinterpreter_compatible: true
+  config:
+    secrets_mode: passthrough
+    secrets_root: projects/home-lab/secrets
+    require_unlock: true
+  config_schema:
+    type: object
+    properties:
+      secrets_mode:
+        type: string
+        enum:
+        - inject
+        - passthrough
+        - strict
+        default: passthrough
+        description: Side-car secrets merge mode (ADR 0072).
+      secrets_root:
+        type: string
+        default: projects/home-lab/secrets
+        description: Root directory for side-car secret files (relative to repo root).
+      require_unlock:
+        type: boolean
+        default: true
+        description: Emit error when decryption fails due to missing unlocked age key.
+    required: []
+  produces:
+  - key: secret_resolved_rows
+    scope: stage_local
+  consumes:
+  - from_plugin: base.compiler.annotation_resolver
+    key: annotation_formats
+    required: true
+  - from_plugin: base.compiler.annotation_resolver
+    key: object_secret_annotations
+    required: true
+  - from_plugin: base.compiler.annotation_resolver
+    key: row_annotations_by_instance
+    required: true
+  description: Resolves semantic row keys, annotations, and side-car secrets into stage-local rows.
+  execution_mode: subinterpreter
+- id: base.compiler.instance_rows_resolve
+  kind: compiler
+  entry: compilers/instance_rows_resolve_compiler.py:InstanceRowsResolveCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: run
+  order: 40
+  depends_on:
+  - base.compiler.instance_rows_secret_resolve
+  timeout: 30
+  subinterpreter_compatible: true
+  config:
+    secrets_mode: passthrough
+    secrets_root: projects/home-lab/secrets
+    require_unlock: true
+  config_schema:
+    type: object
+    properties:
+      secrets_mode:
+        type: string
+        enum:
+        - inject
+        - passthrough
+        - strict
+        default: passthrough
+        description: Side-car secrets merge mode (ADR 0072).
+      secrets_root:
+        type: string
+        default: projects/home-lab/secrets
+        description: Root directory for side-car secret files (relative to repo root).
+      require_unlock:
+        type: boolean
+        default: true
+        description: Emit error when decryption fails due to missing unlocked age key.
+    required: []
+  produces:
+  - key: resolved_rows
+    scope: stage_local
+  consumes:
+  - from_plugin: base.compiler.instance_rows_secret_resolve
+    key: secret_resolved_rows
+    required: true
+  description: Applies duplicate and identifier validation to secret-resolved rows before shape preparation.
+  execution_mode: subinterpreter
+- id: base.compiler.instance_rows_prepare
+  kind: compiler
+  entry: compilers/instance_rows_prepare_compiler.py:InstanceRowsPrepareCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: run
+  order: 41
+  depends_on:
+  - base.compiler.instance_rows_resolve
+  timeout: 30
+  subinterpreter_compatible: true
+  config:
+    secrets_mode: passthrough
+    secrets_root: projects/home-lab/secrets
+    require_unlock: true
+  config_schema:
+    type: object
+    properties:
+      secrets_mode:
+        type: string
+        enum:
+        - inject
+        - passthrough
+        - strict
+        default: passthrough
+        description: Side-car secrets merge mode (ADR 0072).
+      secrets_root:
+        type: string
+        default: projects/home-lab/secrets
+        description: Root directory for side-car secret files (relative to repo root).
+      require_unlock:
+        type: boolean
+        default: true
+        description: Emit error when decryption fails due to missing unlocked age key.
+    required: []
+  produces:
+  - key: prepared_rows
+    scope: stage_local
+  consumes:
+  - from_plugin: base.compiler.instance_rows_resolve
+    key: resolved_rows
+    required: true
+  description: Resolves class/object refs and builds prepared instance rows before shape validation.
+  execution_mode: subinterpreter
+- id: base.compiler.instance_rows_validate
+  kind: compiler
+  entry: compilers/instance_rows_validate_compiler.py:InstanceRowsValidateCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: run
+  order: 42
+  depends_on:
+  - base.compiler.instance_rows_prepare
+  timeout: 30
+  subinterpreter_compatible: true
+  config:
+    secrets_mode: passthrough
+    secrets_root: projects/home-lab/secrets
+    require_unlock: true
+  config_schema:
+    type: object
+    properties:
+      secrets_mode:
+        type: string
+        enum:
+        - inject
+        - passthrough
+        - strict
+        default: passthrough
+        description: Side-car secrets merge mode (ADR 0072).
+      secrets_root:
+        type: string
+        default: projects/home-lab/secrets
+        description: Root directory for side-car secret files (relative to repo root).
+      require_unlock:
+        type: boolean
+        default: true
+        description: Emit error when decryption fails due to missing unlocked age key.
+    required: []
+  produces:
+  - key: validated_rows
+    scope: stage_local
+  consumes:
+  - from_plugin: base.compiler.instance_rows_prepare
+    key: prepared_rows
+    required: true
+  description: Validates prepared instance-row shape and builds stage-local normalized row payloads.
+  execution_mode: subinterpreter
+- id: base.compiler.instance_rows
+  kind: compiler
+  entry: compilers/instance_rows_compiler.py:InstanceRowsCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: run
+  order: 43
+  depends_on:
+  - base.compiler.instance_rows_validate
+  timeout: 30
+  subinterpreter_compatible: true
+  config:
+    secrets_mode: passthrough
+    secrets_root: projects/home-lab/secrets
+    require_unlock: true
+  config_schema:
+    type: object
+    properties:
+      secrets_mode:
+        type: string
+        enum:
+        - inject
+        - passthrough
+        - strict
+        default: passthrough
+        description: Side-car secrets merge mode (ADR 0072).
+      secrets_root:
+        type: string
+        default: projects/home-lab/secrets
+        description: Root directory for side-car secret files (relative to repo root).
+      require_unlock:
+        type: boolean
+        default: true
+        description: Emit error when decryption fails due to missing unlocked age key.
+    required: []
+  produces:
+  - key: normalized_rows
+    scope: pipeline_shared
+  consumes:
+  - from_plugin: base.compiler.instance_rows_validate
+    key: validated_rows
+    required: true
+  description: Publishes authoritative normalized instance rows after staged resolve/prepare/validate cutover.
+  execution_mode: subinterpreter
+- id: base.compiler.capability_contract_loader
+  kind: compiler
+  entry: compilers/capability_contract_loader_compiler.py:CapabilityContractLoaderCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: init
+  order: 45
+  depends_on: []
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  produces:
+  - key: catalog_ids
+    scope: pipeline_shared
+  - key: packs_map
+    scope: pipeline_shared
+  description: Loads capability catalog and packs contract for plugin-first pipeline.
+- id: base.compiler.soho_profile_resolver
+  kind: compiler
+  entry: compilers/soho_profile_resolver_compiler.py:SohoProfileResolverCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: run
+  order: 55
+  depends_on: []
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  produces:
+  - key: soho_profile_resolution
+    scope: pipeline_shared
+  - key: effective_product_bundles
+    scope: pipeline_shared
+  - key: available_product_bundles
+    scope: pipeline_shared
+  description: Resolves ADR0089 canonical SOHO profile contract and effective required bundle set.
+- id: base.compiler.effective_model
+  kind: compiler
+  entry: compilers/effective_model_compiler.py:EffectiveModelCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: finalize
+  compiled_json_owner: true
+  order: 60
+  depends_on:
+  - base.compiler.module_loader
+  - base.compiler.capabilities
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  produces:
+  - key: effective_model_candidate
+    scope: pipeline_shared
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Assembles candidate effective model in compile stage (ADR 0069 WS2).
+  execution_mode: subinterpreter
+- id: base.validator.governance_contract
+  kind: validator_yaml
+  entry: validators/governance_contract_validator.py:GovernanceContractValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: pre
+  order: 90
+  depends_on: []
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  description: Validates v5 root governance contract (version/model/framework/project/meta).
+  execution_mode: subinterpreter
+- id: base.validator.foundation_layout
+  kind: validator_yaml
+  entry: validators/foundation_layout_validator.py:FoundationLayoutValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: pre
+  order: 95
+  depends_on:
+  - base.validator.governance_contract
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  description: Validates class/object module root paths and baseline YAML/plugin layout.
+  execution_mode: subinterpreter
+- id: base.validator.foundation_include_contract
+  kind: validator_yaml
+  entry: validators/foundation_include_contract_validator.py:FoundationIncludeContractValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: pre
+  order: 96
+  depends_on:
+  - base.validator.foundation_layout
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  description: Validates deterministic v5 project instances directory contract.
+  execution_mode: subinterpreter
+- id: base.validator.foundation_file_placement
+  kind: validator_yaml
+  entry: validators/foundation_file_placement_validator.py:FoundationFilePlacementValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: pre
+  order: 96
+  depends_on:
+  - base.validator.foundation_include_contract
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  description: Validates policy-driven placement of instance YAML files in project instances tree.
+  execution_mode: subinterpreter
+- id: base.validator.foundation_device_taxonomy
+  kind: validator_json
+  entry: validators/foundation_device_taxonomy_validator.py:FoundationDeviceTaxonomyValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 97
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates L1 group/class taxonomy conventions.
+  execution_mode: subinterpreter
+- id: base.validator.references
+  kind: validator_json
+  entry: validators/reference_validator.py:ReferenceValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 100
+  depends_on:
+  - base.compiler.instance_rows
+  - base.compiler.capability_contract_loader
+  timeout: 30
+  subinterpreter_compatible: true
+  config:
+    strict_mode: false
+  config_schema:
+    type: object
+    properties:
+      strict_mode:
+        type: boolean
+        default: false
+        description: If true, treat warnings as errors
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  - from_plugin: base.compiler.capability_contract_loader
+    key: catalog_ids
+    required: true
+  description: Validates all cross-entity references in compiled topology
+  execution_mode: subinterpreter
+- id: base.validator.initialization_contract
+  kind: validator_json
+  entry: validators/initialization_contract_validator.py:InitializationContractValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 101
+  depends_on: []
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  description: Validates optional object initialization_contract payloads for compute/router objects (ADR 0083).
+  execution_mode: subinterpreter
+- id: base.validator.model_lock
+  kind: validator_json
+  entry: validators/model_lock_validator.py:ModelLockValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 110
+  depends_on:
+  - base.validator.references
+  - base.compiler.model_lock_loader
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  config:
+    strict_mode: false
+  config_schema:
+    type: object
+    properties:
+      strict_mode:
+        type: boolean
+        default: false
+        description: If true, require all refs to be pinned in model.lock
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  - from_plugin: base.compiler.model_lock_loader
+    key: lock_payload
+    required: true
+  - from_plugin: base.compiler.model_lock_loader
+    key: model_lock_loaded
+    required: true
+  description: Validates that class_ref and object_ref are pinned in model.lock (ADR 0063)
+  execution_mode: subinterpreter
+- id: base.validator.power_source_refs
+  kind: validator_json
+  entry: validators/declarative_reference_validator.py:DeclarativeReferenceValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 115
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  config:
+    enabled_rules:
+    - power_source
+    missing_rows_code: E6901
+    missing_rows_path: pipeline:mode
+    missing_rows_message_prefix: power_source_refs
+  config_schema:
+    type: object
+    properties:
       enabled_rules:
-        - power_source
-      missing_rows_code: E6901
-      missing_rows_path: pipeline:mode
-      missing_rows_message_prefix: power_source_refs
-    config_schema:
-      type: object
-      properties:
-        enabled_rules:
-          type: array
-          items:
-            type: string
-        missing_rows_code:
+        type: array
+        items:
           type: string
-        missing_rows_path:
-          type: string
-        missing_rows_message_prefix:
-          type: string
-      required:
-        - enabled_rules
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-    description: Validates ADR0062 L1 lateral relation power.source_ref and outlet
-      occupancy constraints.
-    execution_mode: subinterpreter
-  - id: base.validator.network_ip_overlap
-    kind: validator_json
-    entry: validators/network_ip_overlap_validator.py:NetworkIpOverlapValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 116
-    depends_on:
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-    description: Detects duplicate IP reuse across normalized instance rows.
-    execution_mode: subinterpreter
-  - id: base.validator.single_active_os
-    kind: validator_json
-    entry: validators/single_active_os_validator.py:SingleActiveOsValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 117
-    depends_on:
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-    description: Enforces at most one active OS ref per device row.
-    execution_mode: subinterpreter
-  - id: base.validator.network_reserved_ranges
-    kind: validator_json
-    entry: validators/network_reserved_ranges_validator.py:NetworkReservedRangesValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 118
-    depends_on:
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-    description: Validates VLAN reserved_ranges ranges, bounds, and overlaps.
-    execution_mode: subinterpreter
-  - id: base.validator.network_trust_zone_firewall_refs
-    kind: validator_json
-    entry: validators/network_trust_zone_firewall_refs_validator.py:NetworkTrustZoneFirewallRefsValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 119
-    depends_on:
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-    description: Validates trust-zone default firewall policy references.
-    execution_mode: subinterpreter
-  - id: base.validator.network_firewall_addressability
-    kind: validator_json
-    entry: validators/network_firewall_addressability_validator.py:NetworkFirewallAddressabilityValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 121
-    depends_on:
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-    description: Warns when firewall policy refs cannot resolve to static address
-      sets.
-    execution_mode: subinterpreter
-  - id: base.validator.runtime_target_os_binding
-    kind: validator_json
-    entry: validators/runtime_target_os_binding_validator.py:RuntimeTargetOsBindingValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 122
-    depends_on:
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-    description: Warns when docker/baremetal service runtime targets lack os_refs
-      bindings.
-    execution_mode: subinterpreter
-  - id: base.validator.network_ip_allocation_host_os_refs
-    kind: validator_json
-    entry: validators/network_ip_allocation_host_os_refs_validator.py:NetworkIpAllocationHostOsRefsValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 124
-    depends_on:
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-    description: Validates network ip_allocations host_os_ref/device_ref consistency.
-    execution_mode: subinterpreter
-  - id: base.validator.network_vlan_zone_consistency
-    kind: validator_json
-    entry: validators/network_vlan_zone_consistency_validator.py:NetworkVlanZoneConsistencyValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 125
-    depends_on:
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-    description: Warns when VLAN id is outside trust-zone vlan_ids contract.
-    execution_mode: subinterpreter
-  - id: base.validator.network_core_refs
-    kind: validator_json
-    entry: validators/declarative_reference_validator.py:DeclarativeReferenceValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 126
-    depends_on:
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    config:
+      missing_rows_code:
+        type: string
+      missing_rows_path:
+        type: string
+      missing_rows_message_prefix:
+        type: string
+    required:
+    - enabled_rules
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates ADR0062 L1 lateral relation power.source_ref and outlet occupancy constraints.
+  execution_mode: subinterpreter
+- id: base.validator.network_ip_overlap
+  kind: validator_json
+  entry: validators/network_ip_overlap_validator.py:NetworkIpOverlapValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 116
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Detects duplicate IP reuse across normalized instance rows.
+  execution_mode: subinterpreter
+- id: base.validator.single_active_os
+  kind: validator_json
+  entry: validators/single_active_os_validator.py:SingleActiveOsValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 117
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Enforces at most one active OS ref per device row.
+  execution_mode: subinterpreter
+- id: base.validator.network_reserved_ranges
+  kind: validator_json
+  entry: validators/network_reserved_ranges_validator.py:NetworkReservedRangesValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 118
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates VLAN reserved_ranges ranges, bounds, and overlaps.
+  execution_mode: subinterpreter
+- id: base.validator.network_trust_zone_firewall_refs
+  kind: validator_json
+  entry: validators/network_trust_zone_firewall_refs_validator.py:NetworkTrustZoneFirewallRefsValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 119
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates trust-zone default firewall policy references.
+  execution_mode: subinterpreter
+- id: base.validator.network_firewall_addressability
+  kind: validator_json
+  entry: validators/network_firewall_addressability_validator.py:NetworkFirewallAddressabilityValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 121
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Warns when firewall policy refs cannot resolve to static address sets.
+  execution_mode: subinterpreter
+- id: base.validator.runtime_target_os_binding
+  kind: validator_json
+  entry: validators/runtime_target_os_binding_validator.py:RuntimeTargetOsBindingValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 122
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Warns when docker/baremetal service runtime targets lack os_refs bindings.
+  execution_mode: subinterpreter
+- id: base.validator.network_ip_allocation_host_os_refs
+  kind: validator_json
+  entry: validators/network_ip_allocation_host_os_refs_validator.py:NetworkIpAllocationHostOsRefsValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 124
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates network ip_allocations host_os_ref/device_ref consistency.
+  execution_mode: subinterpreter
+- id: base.validator.network_vlan_zone_consistency
+  kind: validator_json
+  entry: validators/network_vlan_zone_consistency_validator.py:NetworkVlanZoneConsistencyValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 125
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Warns when VLAN id is outside trust-zone vlan_ids contract.
+  execution_mode: subinterpreter
+- id: base.validator.network_core_refs
+  kind: validator_json
+  entry: validators/declarative_reference_validator.py:DeclarativeReferenceValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 126
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  config:
+    enabled_rules:
+    - network_core
+    missing_rows_code: E7837
+    missing_rows_message_prefix: network_core_refs
+  config_schema:
+    type: object
+    properties:
       enabled_rules:
-        - network_core
-      missing_rows_code: E7837
-      missing_rows_message_prefix: network_core_refs
-    config_schema:
-      type: object
-      properties:
-        enabled_rules:
-          type: array
-          items:
-            type: string
-        missing_rows_code:
+        type: array
+        items:
           type: string
-        missing_rows_message_prefix:
-          type: string
-      required:
-        - enabled_rules
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-    description: Validates VLAN/bridge core refs (bridge/trust-zone/manager/host).
-    execution_mode: subinterpreter
-  - id: base.validator.network_vlan_tags
-    kind: validator_json
-    entry: validators/network_vlan_tags_validator.py:NetworkVlanTagsValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 127
-    depends_on:
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-    description: Validates workload vlan_tag consistency against VLAN network contracts.
-    execution_mode: subinterpreter
-  - id: base.validator.network_mtu_consistency
-    kind: validator_json
-    entry: validators/network_mtu_consistency_validator.py:NetworkMtuConsistencyValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 128
-    depends_on:
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-    description: Validates jumbo_frames and mtu consistency in VLAN networks.
-    execution_mode: subinterpreter
-  - id: base.validator.service_runtime_refs
-    kind: validator_json
-    entry: validators/service_runtime_refs_validator.py:ServiceRuntimeRefsValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 129
-    depends_on:
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-    description: Validates service runtime target_ref/network_binding_ref contracts.
-    execution_mode: subinterpreter
-  - id: base.validator.network_runtime_reachability
-    kind: validator_json
-    entry: validators/network_runtime_reachability_validator.py:NetworkRuntimeReachabilityValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 130
-    depends_on:
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-    description: Warns when runtime target cannot reach runtime.network_binding_ref.
-    execution_mode: subinterpreter
-  - id: base.validator.service_dependency_refs
-    kind: validator_json
-    entry: validators/declarative_reference_validator.py:DeclarativeReferenceValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 132
-    depends_on:
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    config:
+      missing_rows_code:
+        type: string
+      missing_rows_message_prefix:
+        type: string
+    required:
+    - enabled_rules
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates VLAN/bridge core refs (bridge/trust-zone/manager/host).
+  execution_mode: subinterpreter
+- id: base.validator.network_vlan_tags
+  kind: validator_json
+  entry: validators/network_vlan_tags_validator.py:NetworkVlanTagsValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 127
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates workload vlan_tag consistency against VLAN network contracts.
+  execution_mode: subinterpreter
+- id: base.validator.network_mtu_consistency
+  kind: validator_json
+  entry: validators/network_mtu_consistency_validator.py:NetworkMtuConsistencyValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 128
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates jumbo_frames and mtu consistency in VLAN networks.
+  execution_mode: subinterpreter
+- id: base.validator.service_runtime_refs
+  kind: validator_json
+  entry: validators/service_runtime_refs_validator.py:ServiceRuntimeRefsValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 129
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates service runtime target_ref/network_binding_ref contracts.
+  execution_mode: subinterpreter
+- id: base.validator.network_runtime_reachability
+  kind: validator_json
+  entry: validators/network_runtime_reachability_validator.py:NetworkRuntimeReachabilityValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 130
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Warns when runtime target cannot reach runtime.network_binding_ref.
+  execution_mode: subinterpreter
+- id: base.validator.service_dependency_refs
+  kind: validator_json
+  entry: validators/declarative_reference_validator.py:DeclarativeReferenceValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 132
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  config:
+    enabled_rules:
+    - service_dependency
+    missing_rows_code: E7848
+    missing_rows_message_prefix: service_dependency_refs
+  config_schema:
+    type: object
+    properties:
       enabled_rules:
-        - service_dependency
-      missing_rows_code: E7848
-      missing_rows_message_prefix: service_dependency_refs
-    config_schema:
-      type: object
-      properties:
-        enabled_rules:
-          type: array
-          items:
-            type: string
-        missing_rows_code:
+        type: array
+        items:
           type: string
-        missing_rows_message_prefix:
-          type: string
-      required:
-        - enabled_rules
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-    description: Validates service data_asset_refs and dependency service_ref links.
-    execution_mode: subinterpreter
-  - id: base.validator.storage_device_taxonomy
-    kind: validator_json
-    entry: validators/storage_device_taxonomy_validator.py:StorageDeviceTaxonomyValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 133
-    depends_on:
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-    description: Validates L1 storage slot/media taxonomy on device rows.
-    execution_mode: subinterpreter
-  - id: base.validator.storage_media_inventory
-    kind: validator_json
-    entry: validators/storage_media_inventory_validator.py:StorageMediaInventoryValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 134
-    depends_on:
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-    description: Validates L1 media registry and attachment consistency contracts.
-    execution_mode: subinterpreter
-  - id: base.validator.dns_refs
-    kind: validator_json
-    entry: validators/declarative_reference_validator.py:DeclarativeReferenceValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 135
-    depends_on:
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    config:
+      missing_rows_code:
+        type: string
+      missing_rows_message_prefix:
+        type: string
+    required:
+    - enabled_rules
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates service data_asset_refs and dependency service_ref links.
+  execution_mode: subinterpreter
+- id: base.validator.storage_device_taxonomy
+  kind: validator_json
+  entry: validators/storage_device_taxonomy_validator.py:StorageDeviceTaxonomyValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 133
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates L1 storage slot/media taxonomy on device rows.
+  execution_mode: subinterpreter
+- id: base.validator.storage_media_inventory
+  kind: validator_json
+  entry: validators/storage_media_inventory_validator.py:StorageMediaInventoryValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 134
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates L1 media registry and attachment consistency contracts.
+  execution_mode: subinterpreter
+- id: base.validator.dns_refs
+  kind: validator_json
+  entry: validators/declarative_reference_validator.py:DeclarativeReferenceValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 135
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  config:
+    enabled_rules:
+    - dns
+    missing_rows_code: E7856
+    missing_rows_message_prefix: dns_refs
+  config_schema:
+    type: object
+    properties:
       enabled_rules:
-        - dns
-      missing_rows_code: E7856
-      missing_rows_message_prefix: dns_refs
-    config_schema:
-      type: object
-      properties:
-        enabled_rules:
-          type: array
-          items:
-            type: string
-        missing_rows_code:
+        type: array
+        items:
           type: string
-        missing_rows_message_prefix:
-          type: string
-      required:
-        - enabled_rules
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-    description: Validates DNS record refs (device/lxc/service) in service DNS rows.
-    execution_mode: subinterpreter
-  - id: base.validator.certificate_refs
-    kind: validator_json
-    entry: validators/declarative_reference_validator.py:DeclarativeReferenceValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 136
-    depends_on:
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    config:
+      missing_rows_code:
+        type: string
+      missing_rows_message_prefix:
+        type: string
+    required:
+    - enabled_rules
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates DNS record refs (device/lxc/service) in service DNS rows.
+  execution_mode: subinterpreter
+- id: base.validator.certificate_refs
+  kind: validator_json
+  entry: validators/declarative_reference_validator.py:DeclarativeReferenceValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 136
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  config:
+    enabled_rules:
+    - certificate
+    missing_rows_code: E7857
+    missing_rows_message_prefix: certificate_refs
+  config_schema:
+    type: object
+    properties:
       enabled_rules:
-        - certificate
-      missing_rows_code: E7857
-      missing_rows_message_prefix: certificate_refs
-    config_schema:
-      type: object
-      properties:
-        enabled_rules:
-          type: array
-          items:
-            type: string
-        missing_rows_code:
+        type: array
+        items:
           type: string
-        missing_rows_message_prefix:
-          type: string
-      required:
-        - enabled_rules
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-    description: Validates certificate service refs and used_by service links.
-    execution_mode: subinterpreter
-  - id: base.validator.backup_refs
-    kind: validator_json
-    entry: validators/declarative_reference_validator.py:DeclarativeReferenceValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 137
-    depends_on:
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    config:
+      missing_rows_code:
+        type: string
+      missing_rows_message_prefix:
+        type: string
+    required:
+    - enabled_rules
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates certificate service refs and used_by service links.
+  execution_mode: subinterpreter
+- id: base.validator.backup_refs
+  kind: validator_json
+  entry: validators/declarative_reference_validator.py:DeclarativeReferenceValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 137
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  config:
+    enabled_rules:
+    - backup
+    missing_rows_code: E7858
+    missing_rows_message_prefix: backup_refs
+  config_schema:
+    type: object
+    properties:
       enabled_rules:
-        - backup
-      missing_rows_code: E7858
-      missing_rows_message_prefix: backup_refs
-    config_schema:
-      type: object
-      properties:
-        enabled_rules:
-          type: array
-          items:
-            type: string
-        missing_rows_code:
+        type: array
+        items:
           type: string
-        missing_rows_message_prefix:
-          type: string
-      required:
-        - enabled_rules
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-    description: Validates backup targets and destination pool references.
-    execution_mode: subinterpreter
-  - id: base.validator.security_policy_refs
-    kind: validator_json
-    entry: validators/security_policy_refs_validator.py:SecurityPolicyRefsValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 138
-    depends_on:
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-    description: Validates security_policy_ref links against security policy rows.
-    execution_mode: subinterpreter
-  - id: base.validator.vm_refs
-    kind: validator_json
-    entry: validators/vm_refs_validator.py:VmRefsValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 139
-    depends_on:
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-    description: Validates VM row refs (device/trust-zone/host-os/networks/storage).
-    execution_mode: subinterpreter
-  - id: base.validator.lxc_refs
-    kind: validator_json
-    entry: validators/lxc_refs_validator.py:LxcRefsValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 140
-    depends_on:
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    config:
+      missing_rows_code:
+        type: string
+      missing_rows_message_prefix:
+        type: string
+    required:
+    - enabled_rules
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates backup targets and destination pool references.
+  execution_mode: subinterpreter
+- id: base.validator.security_policy_refs
+  kind: validator_json
+  entry: validators/security_policy_refs_validator.py:SecurityPolicyRefsValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 138
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates security_policy_ref links against security policy rows.
+  execution_mode: subinterpreter
+- id: base.validator.vm_refs
+  kind: validator_json
+  entry: validators/vm_refs_validator.py:VmRefsValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 139
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates VM row refs (device/trust-zone/host-os/networks/storage).
+  execution_mode: subinterpreter
+- id: base.validator.lxc_refs
+  kind: validator_json
+  entry: validators/lxc_refs_validator.py:LxcRefsValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 140
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  config:
+    resource_profiles:
+      rp.lxc.micro:
+        cores: 1
+        memory_mb: 512
+        swap_mb: 512
+      rp.lxc.small:
+        cores: 1
+        memory_mb: 1024
+        swap_mb: 512
+      rp.lxc.balanced:
+        cores: 2
+        memory_mb: 1024
+        swap_mb: 1024
+      rp.lxc.standard:
+        cores: 2
+        memory_mb: 2048
+        swap_mb: 1024
+  config_schema:
+    type: object
+    properties:
       resource_profiles:
-        rp.lxc.micro:
-          cores: 1
-          memory_mb: 512
-          swap_mb: 512
-        rp.lxc.small:
-          cores: 1
-          memory_mb: 1024
-          swap_mb: 512
-        rp.lxc.balanced:
-          cores: 2
-          memory_mb: 1024
-          swap_mb: 1024
-        rp.lxc.standard:
-          cores: 2
-          memory_mb: 2048
-          swap_mb: 1024
-    config_schema:
-      type: object
-      properties:
-        resource_profiles:
+        type: object
+        description: Canonical LXC resource profile taxonomy used by resource_profile_ref.
+        additionalProperties:
           type: object
-          description: Canonical LXC resource profile taxonomy used by resource_profile_ref.
-          additionalProperties:
-            type: object
-            properties:
-              cores:
-                type: integer
-                minimum: 1
-              memory_mb:
-                type: integer
-                minimum: 128
-              swap_mb:
-                type: integer
-                minimum: 0
-            required:
-              - cores
-              - memory_mb
-              - swap_mb
-      required: []
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-    description: Validates LXC row refs (device/trust-zone/host-os/networks/storage).
-    execution_mode: subinterpreter
-  - id: base.validator.host_os_refs
-    kind: validator_json
-    entry: validators/host_os_refs_validator.py:HostOsRefsValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 141
-    depends_on:
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-    description: Validates runtime targets have active host OS bindings when OS inventory
-      exists.
-    execution_mode: subinterpreter
-  - id: base.validator.host_ref_dag
-    kind: validator_json
-    entry: validators/host_ref_dag_validator.py:HostRefDagValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 143
-    depends_on:
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-    description: Validates workload host_ref forms DAG with max depth 2 (ADR 0087
-      AC-6).
-    execution_mode: subinterpreter
-  - id: base.validator.docker_refs
-    kind: validator_json
-    entry: validators/docker_refs_validator.py:DockerRefsValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 144
-    depends_on:
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-    description: Validates Docker container refs and host capabilities (ADR 0087 Phase
-      1).
-    execution_mode: subinterpreter
-  - id: base.validator.hypervisor_execution_model
-    kind: validator_json
-    entry: validators/hypervisor_execution_model_validator.py:HypervisorExecutionModelValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 145
-    depends_on:
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-    description: Validates hypervisor execution_model linkage (ADR 0087 Phase 2).
-    execution_mode: subinterpreter
-  - id: base.validator.vm_hypervisor_compat
-    kind: validator_json
-    entry: validators/vm_hypervisor_compat_validator.py:VmHypervisorCompatValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 146
-    depends_on:
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-    description: Validates VM disk/bus/format compatibility with hypervisor (ADR 0087
-      Phase 3).
-    execution_mode: subinterpreter
-  - id: base.validator.volume_format_compat
-    kind: validator_json
-    entry: validators/volume_format_compat_validator.py:VolumeFormatCompatValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 147
-    depends_on:
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-    description: Validates volume format compatibility with pool and hypervisor (ADR
-      0087 Phase 4).
-    execution_mode: subinterpreter
-  - id: base.validator.nested_topology_scope
-    kind: validator_json
-    entry: validators/nested_topology_scope_validator.py:NestedTopologyScopeValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 148
-    depends_on:
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-    description: Validates nested topology scope declarations and references (ADR
-      0087 Phase 5).
-    execution_mode: subinterpreter
-  - id: base.validator.storage_l3_refs
-    kind: validator_json
-    entry: validators/storage_l3_refs_validator.py:StorageL3RefsValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 123
-    depends_on:
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-    description: Validates L3 storage references (volume->pool, data_asset->volume).
-    execution_mode: subinterpreter
-  - id: base.validator.embedded_in
-    kind: validator_json
-    entry: validators/embedded_in_validator.py:EmbeddedInValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 120
-    depends_on:
-      - base.validator.references
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-    description: Validates embedded_in references for OS instances (ADR 0064)
-    execution_mode: subinterpreter
-  - id: base.validator.ethernet_port_inventory
-    kind: validator_json
-    entry: validators/ethernet_port_inventory_validator.py:EthernetPortInventoryValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 125
-    depends_on:
-      - base.validator.references
-    timeout: 30
-    subinterpreter_compatible: true
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    produces:
-      - key: ethernet_ports_by_object
-        scope: pipeline_shared
-    description: Publishes object ethernet port inventory for endpoint validators.
-    execution_mode: subinterpreter
-  - id: base.validator.router_ports
-    kind: validator_json
-    entry: validators/router_port_validator.py:RouterPortValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: run
-    order: 142
-    depends_on:
-      - base.validator.references
-    timeout: 30
-    subinterpreter_compatible: true
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    description: Consolidated router data-channel contract and vendor router ethernet
-      port validation.
-    execution_mode: subinterpreter
-  - id: base.validator.capability_contract
-    kind: validator_json
-    entry: validators/capability_contract_validator.py:CapabilityContractValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: post
-    order: 130
-    depends_on:
-      - base.compiler.module_loader
-      - base.compiler.capability_contract_loader
-    timeout: 30
-    subinterpreter_compatible: true
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.compiler.capability_contract_loader
-        key: catalog_ids
-        required: true
-      - from_plugin: base.compiler.capability_contract_loader
-        key: packs_map
-        required: true
-      - from_plugin: base.compiler.module_loader
-        key: class_module_paths
-        required: true
-      - from_plugin: base.compiler.module_loader
-        key: object_module_paths
-        required: true
-    description: Validates capability contracts using compiler-derived data (ADR 0063
-      Phase 3 example)
-    execution_mode: subinterpreter
-  - id: base.validator.instance_placeholders
-    kind: validator_json
-    entry: validators/instance_placeholder_validator.py:InstancePlaceholderValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: post
-    order: 140
-    depends_on: []
-    timeout: 30
-    subinterpreter_compatible: false
-    config:
-      format_registry_path: ../data/instance-field-formats.yaml
-      enforcement_mode: enforce
+          properties:
+            cores:
+              type: integer
+              minimum: 1
+            memory_mb:
+              type: integer
+              minimum: 128
+            swap_mb:
+              type: integer
+              minimum: 0
+          required:
+          - cores
+          - memory_mb
+          - swap_mb
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates LXC row refs (device/trust-zone/host-os/networks/storage).
+  execution_mode: subinterpreter
+- id: base.validator.host_os_refs
+  kind: validator_json
+  entry: validators/host_os_refs_validator.py:HostOsRefsValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 141
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates runtime targets have active host OS bindings when OS inventory exists.
+  execution_mode: subinterpreter
+- id: base.validator.host_ref_dag
+  kind: validator_json
+  entry: validators/host_ref_dag_validator.py:HostRefDagValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 143
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates workload host_ref forms DAG with max depth 2 (ADR 0087 AC-6).
+  execution_mode: subinterpreter
+- id: base.validator.docker_refs
+  kind: validator_json
+  entry: validators/docker_refs_validator.py:DockerRefsValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 144
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates Docker container refs and host capabilities (ADR 0087 Phase 1).
+  execution_mode: subinterpreter
+- id: base.validator.hypervisor_execution_model
+  kind: validator_json
+  entry: validators/hypervisor_execution_model_validator.py:HypervisorExecutionModelValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 145
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates hypervisor execution_model linkage (ADR 0087 Phase 2).
+  execution_mode: subinterpreter
+- id: base.validator.vm_hypervisor_compat
+  kind: validator_json
+  entry: validators/vm_hypervisor_compat_validator.py:VmHypervisorCompatValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 146
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates VM disk/bus/format compatibility with hypervisor (ADR 0087 Phase 3).
+  execution_mode: subinterpreter
+- id: base.validator.volume_format_compat
+  kind: validator_json
+  entry: validators/volume_format_compat_validator.py:VolumeFormatCompatValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 147
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates volume format compatibility with pool and hypervisor (ADR 0087 Phase 4).
+  execution_mode: subinterpreter
+- id: base.validator.nested_topology_scope
+  kind: validator_json
+  entry: validators/nested_topology_scope_validator.py:NestedTopologyScopeValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 148
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates nested topology scope declarations and references (ADR 0087 Phase 5).
+  execution_mode: subinterpreter
+- id: base.validator.storage_l3_refs
+  kind: validator_json
+  entry: validators/storage_l3_refs_validator.py:StorageL3RefsValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 123
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates L3 storage references (volume->pool, data_asset->volume).
+  execution_mode: subinterpreter
+- id: base.validator.embedded_in
+  kind: validator_json
+  entry: validators/embedded_in_validator.py:EmbeddedInValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 120
+  depends_on:
+  - base.validator.references
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates embedded_in references for OS instances (ADR 0064)
+  execution_mode: subinterpreter
+- id: base.validator.ethernet_port_inventory
+  kind: validator_json
+  entry: validators/ethernet_port_inventory_validator.py:EthernetPortInventoryValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 125
+  depends_on:
+  - base.validator.references
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  produces:
+  - key: ethernet_ports_by_object
+    scope: pipeline_shared
+  description: Publishes object ethernet port inventory for endpoint validators.
+  execution_mode: subinterpreter
+- id: base.validator.router_ports
+  kind: validator_json
+  entry: validators/router_port_validator.py:RouterPortValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 142
+  depends_on:
+  - base.validator.references
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  description: Consolidated router data-channel contract and vendor router ethernet port validation.
+  execution_mode: subinterpreter
+- id: base.validator.capability_contract
+  kind: validator_json
+  entry: validators/capability_contract_validator.py:CapabilityContractValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: post
+  order: 130
+  depends_on:
+  - base.compiler.module_loader
+  - base.compiler.capability_contract_loader
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.capability_contract_loader
+    key: catalog_ids
+    required: true
+  - from_plugin: base.compiler.capability_contract_loader
+    key: packs_map
+    required: true
+  - from_plugin: base.compiler.module_loader
+    key: class_module_paths
+    required: true
+  - from_plugin: base.compiler.module_loader
+    key: object_module_paths
+    required: true
+  description: Validates capability contracts using compiler-derived data (ADR 0063 Phase 3 example)
+  execution_mode: subinterpreter
+- id: base.validator.instance_placeholders
+  kind: validator_json
+  entry: validators/instance_placeholder_validator.py:InstancePlaceholderValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: post
+  order: 140
+  depends_on: []
+  timeout: 30
+  subinterpreter_compatible: true
+  config:
+    format_registry_path: ../data/instance-field-formats.yaml
+    enforcement_mode: enforce
+    gate_statuses:
+    - modeled
+    - mapped
+  config_schema:
+    type: object
+    properties:
+      format_registry_path:
+        type: string
+        description: Path to ADR0068 placeholder format registry.
+      enforcement_mode:
+        type: string
+        enum:
+        - warn
+        - warn+gate-new
+        - enforce
+        default: enforce
+        description: ADR0068 policy mode (warn rollout, warn+gate-new, strict enforce).
       gate_statuses:
+        type: array
+        items:
+          type: string
+        default:
         - modeled
         - mapped
-    config_schema:
-      type: object
-      properties:
-        format_registry_path:
-          type: string
-          description: Path to ADR0068 placeholder format registry.
-        enforcement_mode:
-          type: string
-          enum:
-            - warn
-            - warn+gate-new
-            - enforce
-          default: enforce
-          description: ADR0068 policy mode (warn rollout, warn+gate-new, strict enforce).
-        gate_statuses:
-          type: array
-          items:
-            type: string
-          default:
-            - modeled
-            - mapped
-          description: Instance statuses treated as strict in warn+gate-new mode.
-      required: []
-    description: Validates ADR0068 @required/@optional placeholders and instance_overrides.
-  - id: base.validator.generator_migration_status
-    kind: validator_json
-    entry: validators/generator_migration_status_validator.py:GeneratorMigrationStatusValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: verify
-    order: 188
-    depends_on: []
-    timeout: 30
-    subinterpreter_compatible: true
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    produces:
-      - key: generator_migration_summary
-        scope: pipeline_shared
-    description: Emits ADR0093 generator migration status summary (legacy/migrating/migrated/rollback).
-    execution_mode: subinterpreter
-  - id: base.validator.soho_product_profile
-    kind: validator_json
-    entry: validators/soho_product_profile_validator.py:SohoProductProfileValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: verify
-    order: 187
-    depends_on:
-      - base.compiler.soho_profile_resolver
-    timeout: 30
-    subinterpreter_compatible: false
-    config:
-      soho_migration_policy_path: topology-tools/data/soho-migration-state-policy.yaml
-    config_schema:
-      type: object
-      properties:
-        soho_migration_policy_path:
-          type: string
-          description: Path to SOHO migration-state transition policy YAML.
-        soho_migration_today:
-          type: string
-          pattern: ^\d{4}-\d{2}-\d{2}$
-          description: Optional fixed date override (YYYY-MM-DD) for deterministic
-            sunset-policy checks.
-      required: []
-    produces:
-      - key: product_profile_state
-        scope: pipeline_shared
-    consumes:
-      - from_plugin: base.compiler.soho_profile_resolver
-        key: soho_profile_resolution
-        required: true
-      - from_plugin: base.compiler.soho_profile_resolver
-        key: effective_product_bundles
-        required: true
-      - from_plugin: base.compiler.soho_profile_resolver
-        key: available_product_bundles
-        required: true
-    description: Validates ADR0089 product_profile contract and emits machine-readable
-      migration state report.
-  - id: base.validator.generator_sunset
-    kind: validator_json
-    entry: validators/generator_sunset_validator.py:GeneratorSunsetValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: verify
-    order: 189
-    depends_on:
-      - base.validator.generator_migration_status
-    timeout: 30
-    subinterpreter_compatible: false
-    config:
-      sunset_policy_path: topology-tools/data/generator-sunset-policy.yaml
-    config_schema:
-      type: object
-      properties:
-        sunset_today:
-          type: string
-          pattern: ^\d{4}-\d{2}-\d{2}$
-          description: Optional fixed date override (YYYY-MM-DD) for deterministic
-            CI/tests.
-        sunset_policy_path:
-          type: string
-          description: Path to ADR0093 sunset policy YAML (repo-relative or absolute).
-        sunset_schedule:
+        description: Instance statuses treated as strict in warn+gate-new mode.
+    required: []
+  description: Validates ADR0068 @required/@optional placeholders and instance_overrides.
+  execution_mode: subinterpreter
+- id: base.validator.generator_migration_status
+  kind: validator_json
+  entry: validators/generator_migration_status_validator.py:GeneratorMigrationStatusValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: verify
+  order: 188
+  depends_on: []
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  produces:
+  - key: generator_migration_summary
+    scope: pipeline_shared
+  description: Emits ADR0093 generator migration status summary (legacy/migrating/migrated/rollback).
+  execution_mode: subinterpreter
+- id: base.validator.soho_product_profile
+  kind: validator_json
+  entry: validators/soho_product_profile_validator.py:SohoProductProfileValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: verify
+  order: 187
+  depends_on:
+  - base.compiler.soho_profile_resolver
+  timeout: 30
+  subinterpreter_compatible: true
+  config:
+    soho_migration_policy_path: topology-tools/data/soho-migration-state-policy.yaml
+  config_schema:
+    type: object
+    properties:
+      soho_migration_policy_path:
+        type: string
+        description: Path to SOHO migration-state transition policy YAML.
+      soho_migration_today:
+        type: string
+        pattern: ^\d{4}-\d{2}-\d{2}$
+        description: Optional fixed date override (YYYY-MM-DD) for deterministic sunset-policy checks.
+    required: []
+  produces:
+  - key: product_profile_state
+    scope: pipeline_shared
+  consumes:
+  - from_plugin: base.compiler.soho_profile_resolver
+    key: soho_profile_resolution
+    required: true
+  - from_plugin: base.compiler.soho_profile_resolver
+    key: effective_product_bundles
+    required: true
+  - from_plugin: base.compiler.soho_profile_resolver
+    key: available_product_bundles
+    required: true
+  description: Validates ADR0089 product_profile contract and emits machine-readable migration state report.
+  execution_mode: subinterpreter
+- id: base.validator.generator_sunset
+  kind: validator_json
+  entry: validators/generator_sunset_validator.py:GeneratorSunsetValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: verify
+  order: 189
+  depends_on:
+  - base.validator.generator_migration_status
+  timeout: 30
+  subinterpreter_compatible: true
+  config:
+    sunset_policy_path: topology-tools/data/generator-sunset-policy.yaml
+  config_schema:
+    type: object
+    properties:
+      sunset_today:
+        type: string
+        pattern: ^\d{4}-\d{2}-\d{2}$
+        description: Optional fixed date override (YYYY-MM-DD) for deterministic CI/tests.
+      sunset_policy_path:
+        type: string
+        description: Path to ADR0093 sunset policy YAML (repo-relative or absolute).
+      sunset_schedule:
+        type: object
+        description: 'Optional inline overrides for ADR0093 sunset policy. Keys are generator plugin IDs; values override
+          file-based policy.
+
+          '
+        additionalProperties:
           type: object
-          description: 'Optional inline overrides for ADR0093 sunset policy. Keys
-            are generator plugin IDs; values override file-based policy.
-
-            '
-          additionalProperties:
-            type: object
-            properties:
-              compatibility_sunset:
-                type: string
-                pattern: ^\d{4}-\d{2}-\d{2}$
-              hard_error_date:
-                type: string
-                pattern: ^\d{4}-\d{2}-\d{2}$
-            required:
-              - compatibility_sunset
-              - hard_error_date
-      required: []
-    produces:
-      - key: generator_sunset_summary
-        scope: pipeline_shared
-    description: Enforces ADR0093 sunset policy; scheduled legacy targets warn before
-      hard_error_date and fail at/after hard_error_date.
-  - id: base.validator.generator_rollback_escalation
-    kind: validator_json
-    entry: validators/generator_rollback_escalation_validator.py:GeneratorRollbackEscalationValidator
-    api_version: 1.x
-    stages:
-      - validate
-    phase: verify
-    order: 189
-    depends_on:
-      - base.validator.generator_migration_status
-    timeout: 30
-    subinterpreter_compatible: false
-    config:
-      rollback_policy_path: topology-tools/data/generator-rollback-policy.yaml
-    config_schema:
-      type: object
-      properties:
-        rollback_today:
-          type: string
-          pattern: ^\d{4}-\d{2}-\d{2}$
-          description: Optional fixed date override (YYYY-MM-DD) for deterministic
-            CI/tests.
-        rollback_policy_path:
-          type: string
-          description: Path to ADR0093 rollback policy YAML (repo-relative or absolute).
-        rollback_overrides:
+          properties:
+            compatibility_sunset:
+              type: string
+              pattern: ^\d{4}-\d{2}-\d{2}$
+            hard_error_date:
+              type: string
+              pattern: ^\d{4}-\d{2}-\d{2}$
+          required:
+          - compatibility_sunset
+          - hard_error_date
+    required: []
+  produces:
+  - key: generator_sunset_summary
+    scope: pipeline_shared
+  description: Enforces ADR0093 sunset policy; scheduled legacy targets warn before hard_error_date and fail at/after hard_error_date.
+  execution_mode: subinterpreter
+- id: base.validator.generator_rollback_escalation
+  kind: validator_json
+  entry: validators/generator_rollback_escalation_validator.py:GeneratorRollbackEscalationValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: verify
+  order: 189
+  depends_on:
+  - base.validator.generator_migration_status
+  timeout: 30
+  subinterpreter_compatible: true
+  config:
+    rollback_policy_path: topology-tools/data/generator-rollback-policy.yaml
+  config_schema:
+    type: object
+    properties:
+      rollback_today:
+        type: string
+        pattern: ^\d{4}-\d{2}-\d{2}$
+        description: Optional fixed date override (YYYY-MM-DD) for deterministic CI/tests.
+      rollback_policy_path:
+        type: string
+        description: Path to ADR0093 rollback policy YAML (repo-relative or absolute).
+      rollback_overrides:
+        type: object
+        description: Optional inline overrides by plugin_id (merged over file policy).
+        additionalProperties:
           type: object
-          description: Optional inline overrides by plugin_id (merged over file policy).
-          additionalProperties:
-            type: object
-            properties:
-              rollback_started_at:
-                type: string
-                pattern: ^\d{4}-\d{2}-\d{2}$
-            required: []
-      required: []
-    produces:
-      - key: generator_rollback_summary
-        scope: pipeline_shared
-    description: Emits ADR0093 rollback escalation warnings for generators in rollback
-      mode over threshold.
-  - id: base.generator.effective_json
-    kind: generator
-    entry: generators/effective_json_generator.py:EffectiveJsonGenerator
-    api_version: 1.x
-    stages:
-      - generate
-    phase: run
-    order: 190
-    depends_on:
-      - base.compiler.effective_model
-    timeout: 30
-    subinterpreter_compatible: true
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    produces:
-      - key: generated_files
-        scope: pipeline_shared
-      - key: effective_json_path
-        scope: pipeline_shared
-    description: Emits effective topology JSON from main-interpreter-committed compiled
-      model (ADR 0069 WS4).
-    execution_mode: subinterpreter
-  - id: base.generator.effective_yaml
-    kind: generator
-    entry: generators/effective_yaml_generator.py:EffectiveYamlGenerator
-    api_version: 1.x
-    stages:
-      - generate
-    phase: run
-    order: 200
-    depends_on:
-      - base.compiler.effective_model
-    timeout: 30
-    subinterpreter_compatible: true
-    execution_mode: subinterpreter
-    config:
-      output_filename: effective-topology.yaml
-    config_schema:
-      type: object
-      properties:
-        output_filename:
-          type: string
-          description: Filename for generated effective YAML artifact.
-      required: []
-    produces:
-      - key: generated_files
-        scope: pipeline_shared
-      - key: effective_yaml_path
-        scope: pipeline_shared
-    description: Emits effective topology YAML from main-interpreter-committed compiled
-      model (ADR 0069 WS4 seed).
-  - id: base.generator.docs
-    kind: generator
-    entry: generators/docs_generator.py:DocsGenerator
-    api_version: 1.x
-    stages:
-      - generate
-    phase: post
-    order: 220
-    depends_on:
-      - base.compiler.effective_model
-    timeout: 30
-    subinterpreter_compatible: true
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    produces:
-      - key: generated_dir
-        scope: pipeline_shared
-      - key: generated_files
-        scope: pipeline_shared
-      - key: docs_files
-        scope: pipeline_shared
-      - key: docs_projection
-        scope: pipeline_shared
-    description: Emits baseline markdown docs artifacts from main-interpreter-committed
-      compiled model projection.
-    execution_mode: subinterpreter
-  - id: base.generator.diagrams
-    kind: generator
-    entry: generators/diagram_generator.py:DiagramGenerator
-    api_version: 1.x
-    stages:
-      - generate
-    phase: post
-    order: 225
-    depends_on:
-      - base.compiler.effective_model
-    timeout: 60
-    subinterpreter_compatible: true
-    config:
-      mermaid_icon_mode: none
-    config_schema:
-      type: object
-      properties:
-        mermaid_icon_mode:
-          type: string
-          enum:
-            - icon-nodes
-            - compat
-            - none
-          description: 'Mermaid rendering mode (ADR 0027): icon-nodes uses @{ icon
-            } syntax, compat uses labelled plain nodes, none disables icons entirely.
+          properties:
+            rollback_started_at:
+              type: string
+              pattern: ^\d{4}-\d{2}-\d{2}$
+          required: []
+    required: []
+  produces:
+  - key: generator_rollback_summary
+    scope: pipeline_shared
+  description: Emits ADR0093 rollback escalation warnings for generators in rollback mode over threshold.
+  execution_mode: subinterpreter
+- id: base.generator.effective_json
+  kind: generator
+  entry: generators/effective_json_generator.py:EffectiveJsonGenerator
+  api_version: 1.x
+  stages:
+  - generate
+  phase: run
+  order: 190
+  depends_on:
+  - base.compiler.effective_model
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  produces:
+  - key: generated_files
+    scope: pipeline_shared
+  - key: effective_json_path
+    scope: pipeline_shared
+  description: Emits effective topology JSON from main-interpreter-committed compiled model (ADR 0069 WS4).
+  execution_mode: subinterpreter
+- id: base.generator.effective_yaml
+  kind: generator
+  entry: generators/effective_yaml_generator.py:EffectiveYamlGenerator
+  api_version: 1.x
+  stages:
+  - generate
+  phase: run
+  order: 200
+  depends_on:
+  - base.compiler.effective_model
+  timeout: 30
+  subinterpreter_compatible: true
+  execution_mode: subinterpreter
+  config:
+    output_filename: effective-topology.yaml
+  config_schema:
+    type: object
+    properties:
+      output_filename:
+        type: string
+        description: Filename for generated effective YAML artifact.
+    required: []
+  produces:
+  - key: generated_files
+    scope: pipeline_shared
+  - key: effective_yaml_path
+    scope: pipeline_shared
+  description: Emits effective topology YAML from main-interpreter-committed compiled model (ADR 0069 WS4 seed).
+- id: base.generator.docs
+  kind: generator
+  entry: generators/docs_generator.py:DocsGenerator
+  api_version: 1.x
+  stages:
+  - generate
+  phase: post
+  order: 220
+  depends_on:
+  - base.compiler.effective_model
+  timeout: 30
+  subinterpreter_compatible: true
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  produces:
+  - key: generated_dir
+    scope: pipeline_shared
+  - key: generated_files
+    scope: pipeline_shared
+  - key: docs_files
+    scope: pipeline_shared
+  - key: docs_projection
+    scope: pipeline_shared
+  description: Emits baseline markdown docs artifacts from main-interpreter-committed compiled model projection.
+  execution_mode: subinterpreter
+- id: base.generator.diagrams
+  kind: generator
+  entry: generators/diagram_generator.py:DiagramGenerator
+  api_version: 1.x
+  stages:
+  - generate
+  phase: post
+  order: 225
+  depends_on:
+  - base.compiler.effective_model
+  timeout: 60
+  subinterpreter_compatible: true
+  config:
+    mermaid_icon_mode: none
+  config_schema:
+    type: object
+    properties:
+      mermaid_icon_mode:
+        type: string
+        enum:
+        - icon-nodes
+        - compat
+        - none
+        description: 'Mermaid rendering mode (ADR 0027): icon-nodes uses @{ icon } syntax, compat uses labelled plain nodes,
+          none disables icons entirely.
 
-            '
-        icon_pack_search_roots:
-          type: array
-          items:
-            type: string
-          description: 'Optional filesystem roots used to discover local Iconify packs
-            under node_modules/@iconify-json for icon-node SVG cache emission.
+          '
+      icon_pack_search_roots:
+        type: array
+        items:
+          type: string
+        description: 'Optional filesystem roots used to discover local Iconify packs under node_modules/@iconify-json for
+          icon-node SVG cache emission.
 
-            '
-      required: []
-    produces:
-      - key: diagram_dir
-        scope: pipeline_shared
-      - key: generated_files
-        scope: pipeline_shared
-      - key: diagram_files
-        scope: pipeline_shared
-    description: 'Emits Mermaid topology diagram pages (physical + network) from main-interpreter-committed
-      compiled model. Supports icon-nodes, compat, and plain modes (ADR 0005, ADR
-      0027).
+          '
+    required: []
+  produces:
+  - key: diagram_dir
+    scope: pipeline_shared
+  - key: generated_files
+    scope: pipeline_shared
+  - key: diagram_files
+    scope: pipeline_shared
+  description: 'Emits Mermaid topology diagram pages (physical + network) from main-interpreter-committed compiled model.
+    Supports icon-nodes, compat, and plain modes (ADR 0005, ADR 0027).
 
-      '
-    execution_mode: subinterpreter
-  - id: base.generator.ansible_inventory
-    kind: generator
-    entry: generators/ansible_inventory_generator.py:AnsibleInventoryGenerator
-    api_version: 1.x
-    stages:
-      - generate
-    phase: run
-    order: 230
-    migration_mode: migrating
-    depends_on:
-      - base.compiler.effective_model
-    timeout: 30
-    subinterpreter_compatible: true
-    config:
-      inventory_profile: production
-      topology_lane: v5
-      artifact_obsolete_action: warn
-    config_schema:
-      type: object
-      properties:
-        inventory_profile:
-          type: string
-          description: Inventory profile folder name under ansible/inventory.
-        topology_lane:
-          type: string
-          description: Logical lane tag exported to group_vars/all.yml.
-        artifact_obsolete_action:
-          type: string
-          enum:
-            - retain
-            - delete
-            - warn
-          default: warn
-          description: Action for stale files under generator output root (ADR0093
-            safe obsolete protocol).
-      required: []
-    produces:
-      - key: generated_dir
-        scope: pipeline_shared
-      - key: generated_files
-        scope: pipeline_shared
-      - key: ansible_inventory_files
-        scope: pipeline_shared
-      - key: artifact_plan
-        scope: pipeline_shared
-      - key: artifact_generation_report
-        scope: pipeline_shared
-      - key: artifact_contract_files
-        scope: pipeline_shared
-    description: Emits baseline Ansible inventory artifacts from v5 projections (Phase
-      5 bootstrap).
-    execution_mode: subinterpreter
-  - id: base.generator.docker_compose
-    kind: generator
-    entry: generators/docker_compose_generator.py:DockerComposeGenerator
-    api_version: 1.x
-    stages:
-      - generate
-    phase: post
-    order: 230
-    depends_on:
-      - base.compiler.instance_rows
-    timeout: 30
-    subinterpreter_compatible: true
-    execution_mode: subinterpreter
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.compiler.instance_rows
-        key: normalized_rows
-        required: true
-    produces:
-      - key: generated_files
-        scope: pipeline_shared
-      - key: compose_files
-        scope: pipeline_shared
-      - key: compose_dir
-        scope: pipeline_shared
-    description: Generates docker-compose.yaml files from Docker stack instances (ADR
-      0087 Phase 6).
-  - id: base.generator.artifact_manifest
-    kind: generator
-    entry: generators/artifact_manifest_generator.py:ArtifactManifestGenerator
-    api_version: 1.x
-    stages:
-      - generate
-    phase: finalize
-    order: 390
-    depends_on:
-      - base.generator.effective_json
-      - base.generator.effective_yaml
-      - base.generator.ansible_inventory
-      - base.generator.docs
-      - base.generator.diagrams
-      - base.generator.docker_compose
-    timeout: 30
-    subinterpreter_compatible: true
-    config:
+    '
+  execution_mode: subinterpreter
+- id: base.generator.ansible_inventory
+  kind: generator
+  entry: generators/ansible_inventory_generator.py:AnsibleInventoryGenerator
+  api_version: 1.x
+  stages:
+  - generate
+  phase: run
+  order: 230
+  migration_mode: migrating
+  depends_on:
+  - base.compiler.effective_model
+  timeout: 30
+  subinterpreter_compatible: true
+  config:
+    inventory_profile: production
+    topology_lane: v5
+    artifact_obsolete_action: warn
+  config_schema:
+    type: object
+    properties:
+      inventory_profile:
+        type: string
+        description: Inventory profile folder name under ansible/inventory.
+      topology_lane:
+        type: string
+        description: Logical lane tag exported to group_vars/all.yml.
+      artifact_obsolete_action:
+        type: string
+        enum:
+        - retain
+        - delete
+        - warn
+        default: warn
+        description: Action for stale files under generator output root (ADR0093 safe obsolete protocol).
+    required: []
+  produces:
+  - key: generated_dir
+    scope: pipeline_shared
+  - key: generated_files
+    scope: pipeline_shared
+  - key: ansible_inventory_files
+    scope: pipeline_shared
+  - key: artifact_plan
+    scope: pipeline_shared
+  - key: artifact_generation_report
+    scope: pipeline_shared
+  - key: artifact_contract_files
+    scope: pipeline_shared
+  description: Emits baseline Ansible inventory artifacts from v5 projections (Phase 5 bootstrap).
+  execution_mode: subinterpreter
+- id: base.generator.docker_compose
+  kind: generator
+  entry: generators/docker_compose_generator.py:DockerComposeGenerator
+  api_version: 1.x
+  stages:
+  - generate
+  phase: post
+  order: 230
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  subinterpreter_compatible: true
+  execution_mode: subinterpreter
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  produces:
+  - key: generated_files
+    scope: pipeline_shared
+  - key: compose_files
+    scope: pipeline_shared
+  - key: compose_dir
+    scope: pipeline_shared
+  description: Generates docker-compose.yaml files from Docker stack instances (ADR 0087 Phase 6).
+- id: base.generator.artifact_manifest
+  kind: generator
+  entry: generators/artifact_manifest_generator.py:ArtifactManifestGenerator
+  api_version: 1.x
+  stages:
+  - generate
+  phase: finalize
+  order: 390
+  depends_on:
+  - base.generator.effective_json
+  - base.generator.effective_yaml
+  - base.generator.ansible_inventory
+  - base.generator.docs
+  - base.generator.diagrams
+  - base.generator.docker_compose
+  timeout: 30
+  subinterpreter_compatible: true
+  config:
+    artifact_manifest_producers:
+    - base.generator.effective_json
+    - base.generator.effective_yaml
+    - base.generator.ansible_inventory
+    - base.generator.docs
+    - base.generator.diagrams
+    - base.generator.docker_compose
+    artifact_manifest_compatibility_producers:
+    - object.proxmox.generator.terraform
+    - object.mikrotik.generator.terraform
+    - object.proxmox.generator.bootstrap
+    - object.mikrotik.generator.bootstrap
+    - object.orangepi.generator.bootstrap
+  config_schema:
+    type: object
+    properties:
       artifact_manifest_producers:
-        - base.generator.effective_json
-        - base.generator.effective_yaml
-        - base.generator.ansible_inventory
-        - base.generator.docs
-        - base.generator.diagrams
-        - base.generator.docker_compose
-      artifact_manifest_compatibility_producers:
-        - object.proxmox.generator.terraform
-        - object.mikrotik.generator.terraform
-        - object.proxmox.generator.bootstrap
-        - object.mikrotik.generator.bootstrap
-        - object.orangepi.generator.bootstrap
-    config_schema:
-      type: object
-      properties:
-        artifact_manifest_producers:
-          type: array
-          description: Declared producer plugin IDs consumed through snapshot/runtime
-            contracts.
-          items:
-            type: string
-        artifact_manifest_compatibility_producers:
-          type: array
-          description: Compatibility-only producer plugin IDs included only for legacy
-            direct execution fallback.
-          items:
-            type: string
-      required: []
-    consumes:
-      - from_plugin: base.generator.effective_json
-        key: generated_files
-        required: false
-      - from_plugin: base.generator.effective_yaml
-        key: generated_files
-        required: false
-      - from_plugin: base.generator.ansible_inventory
-        key: generated_files
-        required: false
-      - from_plugin: base.generator.docs
-        key: generated_files
-        required: false
-      - from_plugin: base.generator.diagrams
-        key: generated_files
-        required: false
-      - from_plugin: base.generator.docker_compose
-        key: generated_files
-        required: false
-    produces:
-      - key: generated_files
-        scope: pipeline_shared
-      - key: artifact_manifest_path
-        scope: pipeline_shared
-      - key: artifact_manifest
-        scope: pipeline_shared
-    description: Consolidates generated artifact checksums and producer attribution
-      into artifact-manifest.json.
-    execution_mode: subinterpreter
-  - id: base.assembler.changed_scopes
-    kind: assembler
-    entry: assemblers/workspace_assembler.py:ChangedInputScopesAssembler
-    api_version: 1.x
-    stages:
-      - assemble
-    phase: init
-    order: 405
-    depends_on:
-      - base.generator.artifact_manifest
-    timeout: 30
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.generator.artifact_manifest
-        key: artifact_manifest_path
-        required: true
-      - from_plugin: base.generator.artifact_manifest
-        key: artifact_manifest
-        required: true
-    produces:
-      - key: changed_input_scopes
-        scope: pipeline_shared
-    description: Computes changed_input_scopes from artifact-manifest checksum deltas.
-  - id: base.assembler.workspace
-    kind: assembler
-    entry: assemblers/workspace_assembler.py:WorkspaceAssembler
-    api_version: 1.x
-    stages:
-      - assemble
-    phase: run
-    order: 410
-    depends_on:
-      - base.generator.artifact_manifest
-    timeout: 30
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.generator.artifact_manifest
-        key: artifact_manifest_path
-        required: true
-    produces:
-      - key: assembly_dir
-        scope: pipeline_shared
-      - key: assembled_files
-        scope: pipeline_shared
-    description: Copies generated artifacts into workspace root for release assembly.
-  - id: base.assembler.verify
-    kind: assembler
-    entry: assemblers/workspace_assembler.py:AssemblyVerifyAssembler
-    api_version: 1.x
-    stages:
-      - assemble
-    phase: verify
-    order: 420
-    depends_on:
-      - base.assembler.workspace
-    timeout: 30
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.assembler.workspace
-        key: assembled_files
-        required: true
-    produces:
-      - key: assemble_verified
-        scope: pipeline_shared
-    description: Verifies assembled workspace content and checks basic secret-leak
-      guardrails.
-  - id: base.assembler.artifact_contract_guard
-    kind: assembler
-    entry: assemblers/artifact_contract_assembler.py:ArtifactContractAssembler
-    api_version: 1.x
-    stages:
-      - assemble
-    phase: verify
-    order: 418
-    depends_on:
-      - base.generator.ansible_inventory
-    timeout: 30
-    config:
-      artifact_contract_compatibility_producers:
-        - object.proxmox.generator.terraform
-        - object.mikrotik.generator.terraform
-        - object.proxmox.generator.bootstrap
-        - object.mikrotik.generator.bootstrap
-        - object.orangepi.generator.bootstrap
-    config_schema:
-      type: object
-      properties:
-        artifact_contract_compatibility_producers:
-          type: array
-          description: Compatibility-only producers resolved via legacy publish registry
-            fallback.
-          items:
-            type: string
-      required: []
-    consumes:
-      - from_plugin: base.generator.ansible_inventory
-        key: artifact_plan
-        required: false
-      - from_plugin: base.generator.ansible_inventory
-        key: artifact_generation_report
-        required: false
-      - from_plugin: base.generator.ansible_inventory
-        key: artifact_contract_files
-        required: false
-      - from_plugin: base.generator.ansible_inventory
-        key: generated_dir
-        required: false
-    produces:
-      - key: artifact_contract_guard
-        scope: pipeline_shared
-    description: Enforces ADR0093 contract publications for migrated/migrating generators.
-  - id: base.assembler.manifest
-    kind: assembler
-    entry: assemblers/workspace_assembler.py:AssemblyManifestAssembler
-    api_version: 1.x
-    stages:
-      - assemble
-    phase: finalize
-    order: 430
-    depends_on:
-      - base.assembler.workspace
-      - base.assembler.verify
-      - base.generator.artifact_manifest
-    timeout: 30
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.assembler.workspace
-        key: assembled_files
-        required: true
-      - from_plugin: base.generator.artifact_manifest
-        key: artifact_manifest_path
-        required: true
-    produces:
-      - key: generated_files
-        scope: pipeline_shared
-      - key: assembly_manifest_path
-        scope: pipeline_shared
-      - key: assembly_manifest
-        scope: pipeline_shared
-    description: Emits assembly-manifest.json consumed by build stage plugins.
-  - id: base.assembler.deploy_bundle
-    kind: assembler
-    entry: assemblers/workspace_assembler.py:DeployBundleAssembler
-    api_version: 1.x
-    stages:
-      - assemble
-    phase: finalize
-    order: 440
-    depends_on:
-      - base.assembler.manifest
-      - base.assembler.verify
-    timeout: 60
-    config: {}
-    config_schema:
-      type: object
-      properties:
-        deploy_bundles_root:
+        type: array
+        description: Declared producer plugin IDs consumed through snapshot/runtime contracts.
+        items:
           type: string
-      required: []
-    consumes:
-      - from_plugin: base.assembler.manifest
-        key: assembly_manifest_path
-        required: true
-      - from_plugin: base.assembler.verify
-        key: assemble_verified
-        required: true
-    produces:
-      - key: deploy_bundle_id
-        scope: pipeline_shared
-      - key: deploy_bundle_path
-        scope: pipeline_shared
-      - key: deploy_bundle_reused
-        scope: pipeline_shared
-    description: Creates or reuses deterministic deploy bundle from generated artifacts
-      for deploy-plane execution.
-  - id: base.builder.bundle
-    kind: builder
-    entry: builders/release_builder.py:ReleaseBundleBuilder
-    api_version: 1.x
-    stages:
-      - build
-    phase: run
-    order: 510
-    depends_on:
-      - base.assembler.manifest
-    timeout: 30
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.assembler.manifest
-        key: assembly_manifest_path
-        required: true
-    produces:
-      - key: generated_files
-        scope: pipeline_shared
-      - key: release_bundle_path
-        scope: pipeline_shared
-      - key: release_bundle_sha256
-        scope: pipeline_shared
-    description: Packages assembled workspace files into deterministic zip release
-      bundle.
-  - id: base.builder.sbom
-    kind: builder
-    entry: builders/release_builder.py:SbomBuilder
-    api_version: 1.x
-    stages:
-      - build
-    phase: verify
-    order: 520
-    depends_on:
-      - base.builder.bundle
-      - base.assembler.manifest
-    timeout: 30
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.assembler.manifest
-        key: assembly_manifest
-        required: true
-      - from_plugin: base.builder.bundle
-        key: release_bundle_path
-        required: true
-    produces:
-      - key: generated_files
-        scope: pipeline_shared
-      - key: sbom_path
-        scope: pipeline_shared
-    description: Generates minimal SBOM document from assembly manifest payload.
-  - id: base.builder.artifact_family_summary
-    kind: builder
-    entry: builders/release_builder.py:ArtifactFamilySummaryBuilder
-    api_version: 1.x
-    stages:
-      - build
-    phase: verify
-    order: 525
-    depends_on:
-      - base.builder.sbom
-      - base.assembler.artifact_contract_guard
-    timeout: 30
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.assembler.artifact_contract_guard
-        key: artifact_contract_guard
-        required: true
-    produces:
-      - key: generated_files
-        scope: pipeline_shared
-      - key: artifact_family_summary_path
-        scope: pipeline_shared
-      - key: artifact_family_summary
-        scope: pipeline_shared
-    description: Aggregates ADR0093 artifact family planning/report metadata into
-      build summary output.
-  - id: base.builder.generator_readiness_evidence
-    kind: builder
-    entry: builders/release_builder.py:GeneratorReadinessEvidenceBuilder
-    api_version: 1.x
-    stages:
-      - build
-    phase: verify
-    order: 528
-    depends_on:
-      - base.builder.artifact_family_summary
-      - base.validator.generator_migration_status
-      - base.validator.generator_sunset
-      - base.validator.generator_rollback_escalation
-    timeout: 30
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.validator.generator_migration_status
-        key: generator_migration_summary
-        required: true
-      - from_plugin: base.validator.generator_sunset
-        key: generator_sunset_summary
-        required: true
-      - from_plugin: base.validator.generator_rollback_escalation
-        key: generator_rollback_summary
-        required: true
-      - from_plugin: base.builder.artifact_family_summary
-        key: artifact_family_summary
-        required: true
-    produces:
-      - key: generated_files
-        scope: pipeline_shared
-      - key: generator_readiness_evidence_path
-        scope: pipeline_shared
-      - key: generator_readiness_evidence
-        scope: pipeline_shared
-    description: Emits consolidated ADR0093 generator migration/sunset/rollback readiness
-      evidence artifact.
-  - id: base.builder.readiness_reports
-    kind: builder
-    entry: builders/release_builder.py:ReadinessReportsBuilder
-    api_version: 1.x
-    stages:
-      - build
-    phase: verify
-    order: 529
-    depends_on:
-      - base.builder.generator_readiness_evidence
-    timeout: 30
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.builder.generator_readiness_evidence
-        key: generator_readiness_evidence
-        required: true
-    produces:
-      - key: generated_files
-        scope: pipeline_shared
-      - key: restore_readiness_report_path
-        scope: pipeline_shared
-      - key: restore_readiness_report
-        scope: pipeline_shared
-      - key: rollback_events_report_path
-        scope: pipeline_shared
-      - key: rollback_events_report
-        scope: pipeline_shared
-    description: Emits ADR0091-compatible reports/restore-readiness.json from generator
-      readiness evidence.
-  - id: base.builder.soho_readiness_package
-    kind: builder
-    entry: builders/soho_readiness_builder.py:SohoReadinessBuilder
-    api_version: 1.x
-    stages:
-      - build
-    phase: verify
-    order: 529
-    depends_on:
-      - base.builder.readiness_reports
-      - base.validator.soho_product_profile
-    timeout: 30
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.builder.readiness_reports
-        key: restore_readiness_report
-        required: true
-      - from_plugin: base.validator.soho_product_profile
-        key: product_profile_state
-        required: true
-    produces:
-      - key: generated_files
-        scope: pipeline_shared
-      - key: product_handover_dir
-        scope: pipeline_shared
-      - key: product_reports_dir
-        scope: pipeline_shared
-      - key: operator_readiness_report_path
-        scope: pipeline_shared
-      - key: support_bundle_manifest_path
-        scope: pipeline_shared
-      - key: operator_readiness
-        scope: pipeline_shared
-    description: Emits ADR0091 SOHO product handover/reports package and enforces
-      readiness gate diagnostics.
-  - id: base.builder.release_manifest
-    kind: builder
-    entry: builders/release_builder.py:ReleaseManifestBuilder
-    api_version: 1.x
-    stages:
-      - build
-    phase: finalize
-    order: 530
-    depends_on:
-      - base.builder.sbom
-      - base.builder.artifact_family_summary
-      - base.builder.generator_readiness_evidence
-      - base.builder.readiness_reports
-      - base.builder.soho_readiness_package
-      - base.builder.bundle
-      - base.assembler.manifest
-    timeout: 30
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    consumes:
-      - from_plugin: base.builder.bundle
-        key: release_bundle_path
-        required: true
-      - from_plugin: base.builder.bundle
-        key: release_bundle_sha256
-        required: true
-      - from_plugin: base.builder.sbom
-        key: sbom_path
-        required: true
-      - from_plugin: base.assembler.manifest
-        key: assembly_manifest_path
-        required: true
-      - from_plugin: base.builder.artifact_family_summary
-        key: artifact_family_summary_path
-        required: true
-      - from_plugin: base.builder.generator_readiness_evidence
-        key: generator_readiness_evidence_path
-        required: true
-      - from_plugin: base.builder.readiness_reports
-        key: restore_readiness_report_path
-        required: true
-      - from_plugin: base.builder.readiness_reports
-        key: rollback_events_report_path
-        required: true
-      - from_plugin: base.builder.soho_readiness_package
-        key: operator_readiness_report_path
-        required: true
-      - from_plugin: base.builder.soho_readiness_package
-        key: support_bundle_manifest_path
-        required: true
-    produces:
-      - key: generated_files
-        scope: pipeline_shared
-      - key: release_manifest_path
-        scope: pipeline_shared
-    description: Emits final release-manifest.json with bundle and SBOM references.
+      artifact_manifest_compatibility_producers:
+        type: array
+        description: Compatibility-only producer plugin IDs included only for legacy direct execution fallback.
+        items:
+          type: string
+    required: []
+  consumes:
+  - from_plugin: base.generator.effective_json
+    key: generated_files
+    required: false
+  - from_plugin: base.generator.effective_yaml
+    key: generated_files
+    required: false
+  - from_plugin: base.generator.ansible_inventory
+    key: generated_files
+    required: false
+  - from_plugin: base.generator.docs
+    key: generated_files
+    required: false
+  - from_plugin: base.generator.diagrams
+    key: generated_files
+    required: false
+  - from_plugin: base.generator.docker_compose
+    key: generated_files
+    required: false
+  produces:
+  - key: generated_files
+    scope: pipeline_shared
+  - key: artifact_manifest_path
+    scope: pipeline_shared
+  - key: artifact_manifest
+    scope: pipeline_shared
+  description: Consolidates generated artifact checksums and producer attribution into artifact-manifest.json.
+  execution_mode: subinterpreter
+- id: base.assembler.changed_scopes
+  kind: assembler
+  entry: assemblers/workspace_assembler.py:ChangedInputScopesAssembler
+  api_version: 1.x
+  stages:
+  - assemble
+  phase: init
+  order: 405
+  depends_on:
+  - base.generator.artifact_manifest
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.generator.artifact_manifest
+    key: artifact_manifest_path
+    required: true
+  - from_plugin: base.generator.artifact_manifest
+    key: artifact_manifest
+    required: true
+  produces:
+  - key: changed_input_scopes
+    scope: pipeline_shared
+  description: Computes changed_input_scopes from artifact-manifest checksum deltas.
+- id: base.assembler.workspace
+  kind: assembler
+  entry: assemblers/workspace_assembler.py:WorkspaceAssembler
+  api_version: 1.x
+  stages:
+  - assemble
+  phase: run
+  order: 410
+  depends_on:
+  - base.generator.artifact_manifest
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.generator.artifact_manifest
+    key: artifact_manifest_path
+    required: true
+  produces:
+  - key: assembly_dir
+    scope: pipeline_shared
+  - key: assembled_files
+    scope: pipeline_shared
+  description: Copies generated artifacts into workspace root for release assembly.
+- id: base.assembler.verify
+  kind: assembler
+  entry: assemblers/workspace_assembler.py:AssemblyVerifyAssembler
+  api_version: 1.x
+  stages:
+  - assemble
+  phase: verify
+  order: 420
+  depends_on:
+  - base.assembler.workspace
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.assembler.workspace
+    key: assembled_files
+    required: true
+  produces:
+  - key: assemble_verified
+    scope: pipeline_shared
+  description: Verifies assembled workspace content and checks basic secret-leak guardrails.
+- id: base.assembler.artifact_contract_guard
+  kind: assembler
+  entry: assemblers/artifact_contract_assembler.py:ArtifactContractAssembler
+  api_version: 1.x
+  stages:
+  - assemble
+  phase: verify
+  order: 418
+  depends_on:
+  - base.generator.ansible_inventory
+  timeout: 30
+  config:
+    artifact_contract_compatibility_producers:
+    - object.proxmox.generator.terraform
+    - object.mikrotik.generator.terraform
+    - object.proxmox.generator.bootstrap
+    - object.mikrotik.generator.bootstrap
+    - object.orangepi.generator.bootstrap
+  config_schema:
+    type: object
+    properties:
+      artifact_contract_compatibility_producers:
+        type: array
+        description: Compatibility-only producers resolved via legacy publish registry fallback.
+        items:
+          type: string
+    required: []
+  consumes:
+  - from_plugin: base.generator.ansible_inventory
+    key: artifact_plan
+    required: false
+  - from_plugin: base.generator.ansible_inventory
+    key: artifact_generation_report
+    required: false
+  - from_plugin: base.generator.ansible_inventory
+    key: artifact_contract_files
+    required: false
+  - from_plugin: base.generator.ansible_inventory
+    key: generated_dir
+    required: false
+  produces:
+  - key: artifact_contract_guard
+    scope: pipeline_shared
+  description: Enforces ADR0093 contract publications for migrated/migrating generators.
+- id: base.assembler.manifest
+  kind: assembler
+  entry: assemblers/workspace_assembler.py:AssemblyManifestAssembler
+  api_version: 1.x
+  stages:
+  - assemble
+  phase: finalize
+  order: 430
+  depends_on:
+  - base.assembler.workspace
+  - base.assembler.verify
+  - base.generator.artifact_manifest
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.assembler.workspace
+    key: assembled_files
+    required: true
+  - from_plugin: base.generator.artifact_manifest
+    key: artifact_manifest_path
+    required: true
+  produces:
+  - key: generated_files
+    scope: pipeline_shared
+  - key: assembly_manifest_path
+    scope: pipeline_shared
+  - key: assembly_manifest
+    scope: pipeline_shared
+  description: Emits assembly-manifest.json consumed by build stage plugins.
+- id: base.assembler.deploy_bundle
+  kind: assembler
+  entry: assemblers/workspace_assembler.py:DeployBundleAssembler
+  api_version: 1.x
+  stages:
+  - assemble
+  phase: finalize
+  order: 440
+  depends_on:
+  - base.assembler.manifest
+  - base.assembler.verify
+  timeout: 60
+  config: {}
+  config_schema:
+    type: object
+    properties:
+      deploy_bundles_root:
+        type: string
+    required: []
+  consumes:
+  - from_plugin: base.assembler.manifest
+    key: assembly_manifest_path
+    required: true
+  - from_plugin: base.assembler.verify
+    key: assemble_verified
+    required: true
+  produces:
+  - key: deploy_bundle_id
+    scope: pipeline_shared
+  - key: deploy_bundle_path
+    scope: pipeline_shared
+  - key: deploy_bundle_reused
+    scope: pipeline_shared
+  description: Creates or reuses deterministic deploy bundle from generated artifacts for deploy-plane execution.
+- id: base.builder.bundle
+  kind: builder
+  entry: builders/release_builder.py:ReleaseBundleBuilder
+  api_version: 1.x
+  stages:
+  - build
+  phase: run
+  order: 510
+  depends_on:
+  - base.assembler.manifest
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.assembler.manifest
+    key: assembly_manifest_path
+    required: true
+  produces:
+  - key: generated_files
+    scope: pipeline_shared
+  - key: release_bundle_path
+    scope: pipeline_shared
+  - key: release_bundle_sha256
+    scope: pipeline_shared
+  description: Packages assembled workspace files into deterministic zip release bundle.
+- id: base.builder.sbom
+  kind: builder
+  entry: builders/release_builder.py:SbomBuilder
+  api_version: 1.x
+  stages:
+  - build
+  phase: verify
+  order: 520
+  depends_on:
+  - base.builder.bundle
+  - base.assembler.manifest
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.assembler.manifest
+    key: assembly_manifest
+    required: true
+  - from_plugin: base.builder.bundle
+    key: release_bundle_path
+    required: true
+  produces:
+  - key: generated_files
+    scope: pipeline_shared
+  - key: sbom_path
+    scope: pipeline_shared
+  description: Generates minimal SBOM document from assembly manifest payload.
+- id: base.builder.artifact_family_summary
+  kind: builder
+  entry: builders/release_builder.py:ArtifactFamilySummaryBuilder
+  api_version: 1.x
+  stages:
+  - build
+  phase: verify
+  order: 525
+  depends_on:
+  - base.builder.sbom
+  - base.assembler.artifact_contract_guard
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.assembler.artifact_contract_guard
+    key: artifact_contract_guard
+    required: true
+  produces:
+  - key: generated_files
+    scope: pipeline_shared
+  - key: artifact_family_summary_path
+    scope: pipeline_shared
+  - key: artifact_family_summary
+    scope: pipeline_shared
+  description: Aggregates ADR0093 artifact family planning/report metadata into build summary output.
+- id: base.builder.generator_readiness_evidence
+  kind: builder
+  entry: builders/release_builder.py:GeneratorReadinessEvidenceBuilder
+  api_version: 1.x
+  stages:
+  - build
+  phase: verify
+  order: 528
+  depends_on:
+  - base.builder.artifact_family_summary
+  - base.validator.generator_migration_status
+  - base.validator.generator_sunset
+  - base.validator.generator_rollback_escalation
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.validator.generator_migration_status
+    key: generator_migration_summary
+    required: true
+  - from_plugin: base.validator.generator_sunset
+    key: generator_sunset_summary
+    required: true
+  - from_plugin: base.validator.generator_rollback_escalation
+    key: generator_rollback_summary
+    required: true
+  - from_plugin: base.builder.artifact_family_summary
+    key: artifact_family_summary
+    required: true
+  produces:
+  - key: generated_files
+    scope: pipeline_shared
+  - key: generator_readiness_evidence_path
+    scope: pipeline_shared
+  - key: generator_readiness_evidence
+    scope: pipeline_shared
+  description: Emits consolidated ADR0093 generator migration/sunset/rollback readiness evidence artifact.
+- id: base.builder.readiness_reports
+  kind: builder
+  entry: builders/release_builder.py:ReadinessReportsBuilder
+  api_version: 1.x
+  stages:
+  - build
+  phase: verify
+  order: 529
+  depends_on:
+  - base.builder.generator_readiness_evidence
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.builder.generator_readiness_evidence
+    key: generator_readiness_evidence
+    required: true
+  produces:
+  - key: generated_files
+    scope: pipeline_shared
+  - key: restore_readiness_report_path
+    scope: pipeline_shared
+  - key: restore_readiness_report
+    scope: pipeline_shared
+  - key: rollback_events_report_path
+    scope: pipeline_shared
+  - key: rollback_events_report
+    scope: pipeline_shared
+  description: Emits ADR0091-compatible reports/restore-readiness.json from generator readiness evidence.
+- id: base.builder.soho_readiness_package
+  kind: builder
+  entry: builders/soho_readiness_builder.py:SohoReadinessBuilder
+  api_version: 1.x
+  stages:
+  - build
+  phase: verify
+  order: 529
+  depends_on:
+  - base.builder.readiness_reports
+  - base.validator.soho_product_profile
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.builder.readiness_reports
+    key: restore_readiness_report
+    required: true
+  - from_plugin: base.validator.soho_product_profile
+    key: product_profile_state
+    required: true
+  produces:
+  - key: generated_files
+    scope: pipeline_shared
+  - key: product_handover_dir
+    scope: pipeline_shared
+  - key: product_reports_dir
+    scope: pipeline_shared
+  - key: operator_readiness_report_path
+    scope: pipeline_shared
+  - key: support_bundle_manifest_path
+    scope: pipeline_shared
+  - key: operator_readiness
+    scope: pipeline_shared
+  description: Emits ADR0091 SOHO product handover/reports package and enforces readiness gate diagnostics.
+- id: base.builder.release_manifest
+  kind: builder
+  entry: builders/release_builder.py:ReleaseManifestBuilder
+  api_version: 1.x
+  stages:
+  - build
+  phase: finalize
+  order: 530
+  depends_on:
+  - base.builder.sbom
+  - base.builder.artifact_family_summary
+  - base.builder.generator_readiness_evidence
+  - base.builder.readiness_reports
+  - base.builder.soho_readiness_package
+  - base.builder.bundle
+  - base.assembler.manifest
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.builder.bundle
+    key: release_bundle_path
+    required: true
+  - from_plugin: base.builder.bundle
+    key: release_bundle_sha256
+    required: true
+  - from_plugin: base.builder.sbom
+    key: sbom_path
+    required: true
+  - from_plugin: base.assembler.manifest
+    key: assembly_manifest_path
+    required: true
+  - from_plugin: base.builder.artifact_family_summary
+    key: artifact_family_summary_path
+    required: true
+  - from_plugin: base.builder.generator_readiness_evidence
+    key: generator_readiness_evidence_path
+    required: true
+  - from_plugin: base.builder.readiness_reports
+    key: restore_readiness_report_path
+    required: true
+  - from_plugin: base.builder.readiness_reports
+    key: rollback_events_report_path
+    required: true
+  - from_plugin: base.builder.soho_readiness_package
+    key: operator_readiness_report_path
+    required: true
+  - from_plugin: base.builder.soho_readiness_package
+    key: support_bundle_manifest_path
+    required: true
+  produces:
+  - key: generated_files
+    scope: pipeline_shared
+  - key: release_manifest_path
+    scope: pipeline_shared
+  description: Emits final release-manifest.json with bundle and SBOM references.
