@@ -14,7 +14,6 @@ sys.path.insert(0, str(V5_TOOLS))
 
 from kernel import PluginContext
 from kernel.plugin_base import PluginDiagnostic, Stage
-from tests.helpers.plugin_execution import publish_for_test
 from plugins.validators.backup_refs_validator import BackupRefsValidator
 from plugins.validators.certificate_refs_validator import CertificateRefsValidator
 from plugins.validators.declarative_reference_validator import DeclarativeReferenceValidator
@@ -22,6 +21,8 @@ from plugins.validators.dns_refs_validator import DnsRefsValidator
 from plugins.validators.network_core_refs_validator import NetworkCoreRefsValidator
 from plugins.validators.power_source_refs_validator import PowerSourceRefsValidator
 from plugins.validators.service_dependency_refs_validator import ServiceDependencyRefsValidator
+
+from tests.helpers.plugin_execution import publish_for_test
 
 
 def _context(*, config: dict[str, Any] | None = None, objects: dict[str, Any] | None = None) -> PluginContext:
@@ -44,9 +45,7 @@ def _publish_rows(ctx: PluginContext, rows: list[dict[str, Any]]) -> None:
 def _run(plugin: Any, ctx: PluginContext, *, plugin_id: str) -> list[PluginDiagnostic]:
     from tests.helpers.plugin_execution import run_plugin_for_test
 
-    return run_plugin_for_test(
-        plugin, ctx, Stage.VALIDATE, consumes_keys={"base.compiler.instance_rows"}
-    ).diagnostics
+    return run_plugin_for_test(plugin, ctx, Stage.VALIDATE, consumes_keys={"base.compiler.instance_rows"}).diagnostics
 
 
 def _triple(diags: list[PluginDiagnostic]) -> set[tuple[str, str, str]]:

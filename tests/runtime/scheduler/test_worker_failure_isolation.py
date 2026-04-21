@@ -20,22 +20,22 @@ from unittest.mock import patch
 V5_TOOLS = Path(__file__).resolve().parents[3] / "topology-tools"
 sys.path.insert(0, str(V5_TOOLS))
 
+from kernel.pipeline_runtime import PipelineState  # noqa: E402
 from kernel.plugin_base import (  # noqa: E402
     Phase,
     PluginContext,
+    PluginDiagnostic,
     PluginExecutionEnvelope,
     PluginInputSnapshot,
     PluginKind,
-    PluginDiagnostic,
     PluginResult,
     PluginStatus,
     PublishedMessage,
     Stage,
     ValidatorJsonPlugin,
 )
-from kernel.plugin_runner import run_plugin_once  # noqa: E402
-from kernel.pipeline_runtime import PipelineState  # noqa: E402
 from kernel.plugin_registry import PluginRegistry, PluginSpec  # noqa: E402
+from kernel.plugin_runner import run_plugin_once  # noqa: E402
 
 
 class CrashingPlugin(ValidatorJsonPlugin):
@@ -105,7 +105,11 @@ def test_crash_returns_failed_envelope() -> None:
     assert len(envelope.result.diagnostics) >= 1
     error_diag = envelope.result.diagnostics[0]
     assert error_diag.severity == "error"
-    assert "crash" in error_diag.message.lower() or "boom" in error_diag.message.lower() or "RuntimeError" in error_diag.message
+    assert (
+        "crash" in error_diag.message.lower()
+        or "boom" in error_diag.message.lower()
+        or "RuntimeError" in error_diag.message
+    )
 
 
 def test_crash_includes_traceback() -> None:
@@ -476,7 +480,11 @@ def test_subinterpreter_crash_is_isolated() -> None:
 
     with (
         patch("kernel.plugin_registry.HAS_REAL_SUBINTERPRETERS", True),
-        patch.object(registry, "_get_parallel_executor", side_effect=lambda max_workers: concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)),
+        patch.object(
+            registry,
+            "_get_parallel_executor",
+            side_effect=lambda max_workers: concurrent.futures.ThreadPoolExecutor(max_workers=max_workers),
+        ),
         patch.object(registry, "_validate_required_consumes_snapshot", return_value=[]),
         patch.object(
             registry,
@@ -544,7 +552,11 @@ def test_subinterpreter_memory_is_isolated() -> None:
 
     with (
         patch("kernel.plugin_registry.HAS_REAL_SUBINTERPRETERS", True),
-        patch.object(registry, "_get_parallel_executor", side_effect=lambda max_workers: concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)),
+        patch.object(
+            registry,
+            "_get_parallel_executor",
+            side_effect=lambda max_workers: concurrent.futures.ThreadPoolExecutor(max_workers=max_workers),
+        ),
         patch.object(registry, "_validate_required_consumes_snapshot", return_value=[]),
         patch.object(
             registry,

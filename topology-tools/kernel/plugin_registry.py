@@ -47,6 +47,7 @@ else:
     # For development/testing on Python < 3.14, fall back to ThreadPoolExecutor
     from concurrent.futures import ThreadPoolExecutor as InterpreterPoolExecutor  # type: ignore[assignment]
 
+from .pipeline_runtime import PipelineState
 from .plugin_base import (
     Phase,
     PluginBase,
@@ -54,14 +55,13 @@ from .plugin_base import (
     PluginDataExchangeError,
     PluginDiagnostic,
     PluginExecutionEnvelope,
-    PluginInputSnapshot,
     PluginExecutionScope,
+    PluginInputSnapshot,
     PluginKind,
     PluginResult,
     PluginStatus,
     Stage,
 )
-from .pipeline_runtime import PipelineState
 from .plugin_runner import run_plugin_once
 
 # Kernel version and compatibility matrix
@@ -897,17 +897,13 @@ class PluginRegistry:
             ctx.classes = {
                 class_id: item["payload"]
                 for class_id, item in class_map.items()
-                if isinstance(class_id, str)
-                and isinstance(item, dict)
-                and isinstance(item.get("payload"), dict)
+                if isinstance(class_id, str) and isinstance(item, dict) and isinstance(item.get("payload"), dict)
             }
         if isinstance(object_map, dict):
             ctx.objects = {
                 object_id: item["payload"]
                 for object_id, item in object_map.items()
-                if isinstance(object_id, str)
-                and isinstance(item, dict)
-                and isinstance(item.get("payload"), dict)
+                if isinstance(object_id, str) and isinstance(item, dict) and isinstance(item.get("payload"), dict)
             }
 
         if spec.compiled_json_owner:

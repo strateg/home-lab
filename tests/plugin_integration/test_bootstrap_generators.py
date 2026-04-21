@@ -216,7 +216,9 @@ def test_bootstrap_proxmox_generator_writes_expected_files(tmp_path: Path) -> No
 def test_bootstrap_proxmox_generator_uses_initialization_contract_mechanism(tmp_path: Path) -> None:
     plugin_config = _load_plugin_config(PROXMOX_MANIFEST, "object.proxmox.generator.bootstrap")
     generator = BootstrapProxmoxGenerator("object.proxmox.generator.bootstrap")
-    result = _run_generator(generator, _ctx(tmp_path, _compiled_fixture_with_proxmox_contract_mechanism(), plugin_config))
+    result = _run_generator(
+        generator, _ctx(tmp_path, _compiled_fixture_with_proxmox_contract_mechanism(), plugin_config)
+    )
 
     assert result.status == PluginStatus.SUCCESS
     root = tmp_path / "generated" / "bootstrap" / "srv-contract"
@@ -290,7 +292,9 @@ def test_bootstrap_orangepi_generator_writes_expected_files(tmp_path: Path) -> N
 def test_bootstrap_orangepi_generator_uses_initialization_contract_mechanism(tmp_path: Path) -> None:
     plugin_config = _load_plugin_config(ORANGEPI_MANIFEST, "object.orangepi.generator.bootstrap")
     generator = BootstrapOrangePiGenerator("object.orangepi.generator.bootstrap")
-    result = _run_generator(generator, _ctx(tmp_path, _compiled_fixture_with_orangepi_contract_mechanism(), plugin_config))
+    result = _run_generator(
+        generator, _ctx(tmp_path, _compiled_fixture_with_orangepi_contract_mechanism(), plugin_config)
+    )
 
     assert result.status == PluginStatus.SUCCESS
     root = tmp_path / "generated" / "bootstrap" / "opi-contract" / "cloud-init"

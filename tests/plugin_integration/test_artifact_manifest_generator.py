@@ -14,6 +14,7 @@ from kernel import PluginContext, PluginRegistry, PluginStatus
 from kernel.plugin_base import Phase, PluginInputSnapshot, Stage, SubscriptionValue
 from kernel.plugin_runner import run_plugin_once
 from plugins.generators.artifact_manifest_generator import ArtifactManifestGenerator
+
 from tests.helpers.plugin_execution import publish_for_test
 
 PLUGIN_ID = "base.generator.artifact_manifest"

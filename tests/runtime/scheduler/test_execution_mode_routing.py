@@ -139,11 +139,19 @@ def test_main_interpreter_mode_uses_envelope_path() -> None:
     snapshot = _make_snapshot(plugin_id)
 
     with (
-        patch.object(registry, "_get_parallel_executor", side_effect=lambda max_workers: concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)),
+        patch.object(
+            registry,
+            "_get_parallel_executor",
+            side_effect=lambda max_workers: concurrent.futures.ThreadPoolExecutor(max_workers=max_workers),
+        ),
         patch.object(registry, "_build_input_snapshot", return_value=snapshot),
         patch.object(registry, "_validate_required_consumes_snapshot", return_value=[]),
-        patch.object(registry, "_execute_plugin_envelope_local", return_value=_success_envelope(plugin_id)) as execute_local,
-        patch.object(registry, "_commit_envelope_result", return_value=PluginResult.success(plugin_id, "2.0")) as commit,
+        patch.object(
+            registry, "_execute_plugin_envelope_local", return_value=_success_envelope(plugin_id)
+        ) as execute_local,
+        patch.object(
+            registry, "_commit_envelope_result", return_value=PluginResult.success(plugin_id, "2.0")
+        ) as commit,
         patch.object(registry, "execute_plugin", return_value=PluginResult.success(plugin_id, "2.0")) as execute_legacy,
         patch.object(registry, "_mirror_context_into_pipeline_state") as mirror,
     ):
@@ -175,7 +183,11 @@ def test_subinterpreter_mode_uses_isolated_execution() -> None:
 
     with (
         patch("kernel.plugin_registry.HAS_REAL_SUBINTERPRETERS", True),
-        patch.object(registry, "_get_parallel_executor", side_effect=lambda max_workers: concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)),
+        patch.object(
+            registry,
+            "_get_parallel_executor",
+            side_effect=lambda max_workers: concurrent.futures.ThreadPoolExecutor(max_workers=max_workers),
+        ),
         patch.object(registry, "_build_input_snapshot", return_value=snapshot),
         patch.object(registry, "_validate_required_consumes_snapshot", return_value=[]),
         patch("kernel.plugin_registry._execute_plugin_isolated", side_effect=_isolated) as execute_isolated,
@@ -205,11 +217,17 @@ def test_subinterpreter_mode_falls_back_to_local_envelope_without_real_subinterp
 
     with (
         patch("kernel.plugin_registry.HAS_REAL_SUBINTERPRETERS", False),
-        patch.object(registry, "_get_parallel_executor", side_effect=lambda max_workers: concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)),
+        patch.object(
+            registry,
+            "_get_parallel_executor",
+            side_effect=lambda max_workers: concurrent.futures.ThreadPoolExecutor(max_workers=max_workers),
+        ),
         patch.object(registry, "_build_input_snapshot", return_value=snapshot),
         patch.object(registry, "_validate_required_consumes_snapshot", return_value=[]),
         patch("kernel.plugin_registry._execute_plugin_isolated") as execute_isolated,
-        patch.object(registry, "_execute_plugin_envelope_local", return_value=_success_envelope(plugin_id)) as execute_local,
+        patch.object(
+            registry, "_execute_plugin_envelope_local", return_value=_success_envelope(plugin_id)
+        ) as execute_local,
         patch.object(registry, "_commit_envelope_result", return_value=PluginResult.success(plugin_id, "2.0")),
     ):
         results = registry._execute_phase_parallel(
@@ -233,7 +251,11 @@ def test_thread_legacy_mode_uses_execute_plugin() -> None:
     ctx = PluginContext(topology_path="topology/topology.yaml", profile="test", model_lock={})
 
     with (
-        patch.object(registry, "_get_parallel_executor", side_effect=lambda max_workers: concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)),
+        patch.object(
+            registry,
+            "_get_parallel_executor",
+            side_effect=lambda max_workers: concurrent.futures.ThreadPoolExecutor(max_workers=max_workers),
+        ),
         patch.object(registry, "execute_plugin", return_value=PluginResult.success(plugin_id, "2.0")) as execute_legacy,
         patch.object(registry, "_mirror_context_into_pipeline_state") as mirror,
         patch.object(registry, "_build_input_snapshot") as build_snapshot,
@@ -257,6 +279,7 @@ def test_thread_legacy_mode_uses_execute_plugin() -> None:
 def test_subinterpreter_compatible_infers_execution_mode() -> None:
     """subinterpreter_compatible=true should infer execution_mode='subinterpreter'."""
     import warnings
+
     from kernel.plugin_registry import PluginSpec
 
     # Test _resolve_execution_mode() deprecation fallback
@@ -295,6 +318,7 @@ def test_subinterpreter_compatible_infers_execution_mode() -> None:
 def test_subinterpreter_compatible_logs_deprecation_warning() -> None:
     """Using subinterpreter_compatible without execution_mode should log warning."""
     import warnings
+
     from kernel.plugin_registry import PluginSpec
 
     with warnings.catch_warnings(record=True) as w:

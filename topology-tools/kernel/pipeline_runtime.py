@@ -49,9 +49,7 @@ class PipelineState:
                     f"Envelope publish plugin mismatch: expected '{plugin_id}', got '{message.plugin_id}'."
                 )
             if message.key not in declared_scopes:
-                raise PluginDataExchangeError(
-                    f"Plugin '{plugin_id}' published undeclared key '{message.key}'."
-                )
+                raise PluginDataExchangeError(f"Plugin '{plugin_id}' published undeclared key '{message.key}'.")
             pending_messages.append(
                 (
                     message.key,

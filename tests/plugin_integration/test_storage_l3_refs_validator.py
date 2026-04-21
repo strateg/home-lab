@@ -13,6 +13,7 @@ sys.path.insert(0, str(V5_TOOLS))
 
 from kernel import PluginContext, PluginRegistry, PluginStatus
 from kernel.plugin_base import Stage
+
 from tests.helpers.plugin_execution import publish_for_test
 
 PLUGIN_ID = "base.validator.storage_l3_refs"
@@ -539,6 +540,7 @@ def test_storage_l3_refs_validator_warns_on_unknown_backup_policy_alias():
     assert result.status == PluginStatus.PARTIAL
     assert any(diag.code == "W7869" for diag in result.diagnostics)
 
+
 def test_storage_l3_refs_validator_execute_stage_requires_committed_normalized_rows(tmp_path: Path) -> None:
     manifest = tmp_path / "plugins.yaml"
     spec = _registry().specs[PLUGIN_ID]
@@ -579,4 +581,3 @@ def test_storage_l3_refs_validator_execute_stage_requires_committed_normalized_r
     assert len(results) == 1
     assert results[0].status == PluginStatus.FAILED
     assert any(diag.code == "E8003" for diag in results[0].diagnostics)
-

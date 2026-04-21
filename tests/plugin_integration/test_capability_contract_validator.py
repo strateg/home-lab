@@ -11,6 +11,7 @@ sys.path.insert(0, str(V5_TOOLS))
 
 from kernel import PluginContext, PluginRegistry, PluginStatus
 from kernel.plugin_base import Stage
+
 from tests.helpers.plugin_execution import publish_for_test
 
 PLUGIN_ID = "base.validator.capability_contract"
@@ -32,9 +33,7 @@ def test_capability_contract_validator_skips_when_core_is_owner():
         ("base.compiler.module_loader", "object_module_paths"),
     }
     assert {
-        (item["from_plugin"], item["key"])
-        for item in spec.consumes
-        if item.get("required") is True
+        (item["from_plugin"], item["key"]) for item in spec.consumes if item.get("required") is True
     } >= required_inputs
     ctx = PluginContext(
         topology_path="topology/topology.yaml",

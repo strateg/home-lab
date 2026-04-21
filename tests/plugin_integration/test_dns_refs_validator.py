@@ -13,6 +13,7 @@ sys.path.insert(0, str(V5_TOOLS))
 
 from kernel import PluginContext, PluginRegistry, PluginStatus
 from kernel.plugin_base import Stage
+
 from tests.helpers.plugin_execution import publish_for_test
 
 PLUGIN_ID = "base.validator.dns_refs"
@@ -74,9 +75,7 @@ def test_dns_refs_manifest_requires_normalized_rows():
     registry = _registry()
 
     consumes = registry.specs[PLUGIN_ID].consumes
-    assert consumes == [
-        {"from_plugin": "base.compiler.instance_rows", "key": "normalized_rows", "required": True}
-    ]
+    assert consumes == [{"from_plugin": "base.compiler.instance_rows", "key": "normalized_rows", "required": True}]
 
 
 def test_dns_refs_validator_accepts_valid_dns_refs():
@@ -170,8 +169,10 @@ def test_dns_refs_execute_stage_consumes_committed_rows(tmp_path):
                     "missing_rows_code": "E7856",
                     "missing_rows_message_prefix": "dns_refs",
                 },
-                "consumes": [{"from_plugin": "base.compiler.instance_rows", "key": "normalized_rows", "required": True}],
-            }
+                "consumes": [
+                    {"from_plugin": "base.compiler.instance_rows", "key": "normalized_rows", "required": True}
+                ],
+            },
         ],
     }
     _write_manifest(manifest, payload)
@@ -218,8 +219,10 @@ def test_dns_refs_execute_stage_requires_committed_rows(tmp_path):
                     "missing_rows_code": "E7856",
                     "missing_rows_message_prefix": "dns_refs",
                 },
-                "consumes": [{"from_plugin": "base.compiler.instance_rows", "key": "normalized_rows", "required": True}],
-            }
+                "consumes": [
+                    {"from_plugin": "base.compiler.instance_rows", "key": "normalized_rows", "required": True}
+                ],
+            },
         ],
     }
     _write_manifest(manifest, payload)

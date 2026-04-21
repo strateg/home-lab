@@ -550,8 +550,12 @@ class PluginContext:
     _legacy_execution_tokens: list[Token[PluginExecutionScope | None]] = field(default_factory=list, repr=False)
 
     # Event plane pub/sub (ADR 0097) - loose coupling, transient events
-    _event_subscriptions: dict[str, set[str]] = field(default_factory=dict, repr=False)  # topic -> subscriber plugin_ids
-    _event_queues: dict[str, list[EventMessage]] = field(default_factory=dict, repr=False)  # plugin_id -> pending events
+    _event_subscriptions: dict[str, set[str]] = field(
+        default_factory=dict, repr=False
+    )  # topic -> subscriber plugin_ids
+    _event_queues: dict[str, list[EventMessage]] = field(
+        default_factory=dict, repr=False
+    )  # plugin_id -> pending events
     _event_history: list[EventMessage] = field(default_factory=list, repr=False)  # all emitted events for debugging
 
     def __post_init__(self) -> None:

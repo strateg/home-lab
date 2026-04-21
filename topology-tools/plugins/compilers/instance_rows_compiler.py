@@ -1322,10 +1322,14 @@ class InstanceRowsCompiler(CompilerPlugin):
         rows: list[dict[str, Any]] = []
         seen_instances: set[str] = set()
 
-        source_rows = secret_resolved_rows if secret_resolved_rows is not None else self._build_secret_resolved_rows(
-            ctx=ctx,
-            stage=stage,
-            diagnostics=diagnostics,
+        source_rows = (
+            secret_resolved_rows
+            if secret_resolved_rows is not None
+            else self._build_secret_resolved_rows(
+                ctx=ctx,
+                stage=stage,
+                diagnostics=diagnostics,
+            )
         )
         for secret_resolved_row in source_rows:
             if not isinstance(secret_resolved_row, dict):
@@ -1350,10 +1354,14 @@ class InstanceRowsCompiler(CompilerPlugin):
         diagnostics: list[PluginDiagnostic],
         resolved_rows: list[dict[str, Any]] | None = None,
     ) -> list[dict[str, Any]]:
-        source_rows = resolved_rows if resolved_rows is not None else self._build_resolved_rows(
-            ctx=ctx,
-            stage=stage,
-            diagnostics=diagnostics,
+        source_rows = (
+            resolved_rows
+            if resolved_rows is not None
+            else self._build_resolved_rows(
+                ctx=ctx,
+                stage=stage,
+                diagnostics=diagnostics,
+            )
         )
 
         prepared_rows: list[dict[str, Any]] = []
@@ -1379,10 +1387,14 @@ class InstanceRowsCompiler(CompilerPlugin):
         diagnostics: list[PluginDiagnostic],
         prepared_rows: list[dict[str, Any]] | None = None,
     ) -> list[dict[str, Any]]:
-        source_rows = prepared_rows if prepared_rows is not None else self._build_prepared_rows(
-            ctx=ctx,
-            stage=stage,
-            diagnostics=diagnostics,
+        source_rows = (
+            prepared_rows
+            if prepared_rows is not None
+            else self._build_prepared_rows(
+                ctx=ctx,
+                stage=stage,
+                diagnostics=diagnostics,
+            )
         )
 
         validated_rows: list[dict[str, Any]] = []
@@ -1419,10 +1431,14 @@ class InstanceRowsCompiler(CompilerPlugin):
             except PluginDataExchangeError:
                 validated_rows = None
 
-        rows = validated_rows if validated_rows is not None else self._build_validated_rows(
-            ctx=ctx,
-            stage=stage,
-            diagnostics=diagnostics,
+        rows = (
+            validated_rows
+            if validated_rows is not None
+            else self._build_validated_rows(
+                ctx=ctx,
+                stage=stage,
+                diagnostics=diagnostics,
+            )
         )
 
         ctx.publish("normalized_rows", rows)

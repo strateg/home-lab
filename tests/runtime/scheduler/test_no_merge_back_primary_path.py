@@ -98,7 +98,9 @@ def test_main_interpreter_mode_does_not_call_mirror() -> None:
         patch.object(registry, "_build_input_snapshot", return_value=snapshot),
         patch.object(registry, "_validate_required_consumes_snapshot", return_value=[]),
         patch.object(registry, "_execute_plugin_envelope_local", return_value=_success_envelope(plugin_id)),
-        patch.object(registry, "_commit_envelope_result", return_value=PluginResult.success(plugin_id, "2.0")) as commit,
+        patch.object(
+            registry, "_commit_envelope_result", return_value=PluginResult.success(plugin_id, "2.0")
+        ) as commit,
         patch.object(registry, "_mirror_context_into_pipeline_state") as mirror,
     ):
         registry.execute_stage(Stage.VALIDATE, ctx, parallel_plugins=False)
@@ -119,7 +121,9 @@ def test_subinterpreter_mode_does_not_call_mirror() -> None:
         patch.object(registry, "_build_input_snapshot", return_value=snapshot),
         patch.object(registry, "_validate_required_consumes_snapshot", return_value=[]),
         patch.object(registry, "_execute_plugin_envelope_local", return_value=_success_envelope(plugin_id)),
-        patch.object(registry, "_commit_envelope_result", return_value=PluginResult.success(plugin_id, "2.0")) as commit,
+        patch.object(
+            registry, "_commit_envelope_result", return_value=PluginResult.success(plugin_id, "2.0")
+        ) as commit,
         patch.object(registry, "_mirror_context_into_pipeline_state") as mirror,
     ):
         registry.execute_stage(Stage.VALIDATE, ctx, parallel_plugins=False)
@@ -183,8 +187,8 @@ def test_envelope_path_uses_pipeline_state_commit() -> None:
     from kernel.plugin_base import (
         PluginExecutionEnvelope,
         PluginResult,
-        PublishedMessage,
         PluginStatus,
+        PublishedMessage,
     )
 
     state = PipelineState()
@@ -231,8 +235,8 @@ def test_commit_envelope_does_not_mutate_context_directly() -> None:
         PluginContext,
         PluginExecutionEnvelope,
         PluginResult,
-        PublishedMessage,
         PluginStatus,
+        PublishedMessage,
     )
 
     state = PipelineState()

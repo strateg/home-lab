@@ -13,6 +13,7 @@ sys.path.insert(0, str(V5_TOOLS))
 
 from kernel import PluginContext, PluginRegistry, PluginStatus
 from kernel.plugin_base import Stage
+
 from tests.helpers.plugin_execution import publish_for_test
 
 PLUGIN_ID = "base.compiler.effective_model"
@@ -33,9 +34,7 @@ def test_effective_model_manifest_requires_normalized_rows():
     registry = _registry()
 
     consumes = registry.specs[PLUGIN_ID].consumes
-    assert consumes == [
-        {"from_plugin": "base.compiler.instance_rows", "key": "normalized_rows", "required": True}
-    ]
+    assert consumes == [{"from_plugin": "base.compiler.instance_rows", "key": "normalized_rows", "required": True}]
 
 
 def test_effective_model_compiler_publishes_candidate():
@@ -270,8 +269,10 @@ def test_effective_model_execute_stage_commits_compiled_json_authoritatively(tmp
                 "execution_mode": "subinterpreter",
                 "depends_on": ["base.compiler.instance_rows"],
                 "produces": [{"key": "effective_model_candidate", "scope": "pipeline_shared"}],
-                "consumes": [{"from_plugin": "base.compiler.instance_rows", "key": "normalized_rows", "required": True}],
-            }
+                "consumes": [
+                    {"from_plugin": "base.compiler.instance_rows", "key": "normalized_rows", "required": True}
+                ],
+            },
         ],
     }
     _write_manifest(manifest, payload)
@@ -360,7 +361,9 @@ def test_effective_model_execute_stage_requires_committed_rows(tmp_path):
                 "execution_mode": "subinterpreter",
                 "depends_on": ["base.compiler.instance_rows"],
                 "produces": [{"key": "effective_model_candidate", "scope": "pipeline_shared"}],
-                "consumes": [{"from_plugin": "base.compiler.instance_rows", "key": "normalized_rows", "required": True}],
+                "consumes": [
+                    {"from_plugin": "base.compiler.instance_rows", "key": "normalized_rows", "required": True}
+                ],
             },
         ],
     }

@@ -25,8 +25,6 @@ class ArtifactContractAssembler(AssemblerPlugin):
     def _resolve_registry(ctx: PluginContext) -> Any:
         return ctx.config.get("plugin_registry")
 
-
-
     @staticmethod
     def _compatibility_producers(ctx: PluginContext) -> set[str]:
         raw = ctx.config.get("artifact_contract_compatibility_producers")

@@ -14,6 +14,7 @@ sys.path.insert(0, str(V5_TOOLS))
 
 from kernel import PluginContext, PluginRegistry, PluginStatus
 from kernel.plugin_base import Stage
+
 from tests.helpers.plugin_execution import publish_for_test
 
 PLUGIN_ID = "base.validator.network_vlan_zone_consistency"
@@ -110,7 +111,10 @@ def test_network_vlan_zone_consistency_validator_requires_compiler_rows():
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E8003" for diag in result.diagnostics)
 
-def test_network_vlan_zone_consistency_validator_execute_stage_requires_committed_normalized_rows(tmp_path: Path) -> None:
+
+def test_network_vlan_zone_consistency_validator_execute_stage_requires_committed_normalized_rows(
+    tmp_path: Path,
+) -> None:
     manifest = tmp_path / "plugins.yaml"
     spec = _registry().specs[PLUGIN_ID]
     rel_entry, class_name = spec.entry.split(":", 1)
@@ -150,4 +154,3 @@ def test_network_vlan_zone_consistency_validator_execute_stage_requires_committe
     assert len(results) == 1
     assert results[0].status == PluginStatus.FAILED
     assert any(diag.code == "E8003" for diag in results[0].diagnostics)
-

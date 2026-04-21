@@ -11,8 +11,9 @@ sys.path.insert(0, str(V5_TOOLS))
 
 from kernel import PluginContext, PluginStatus
 from kernel.plugin_base import Stage
-from tests.helpers.plugin_execution import publish_for_test, run_plugin_for_test
 from plugins.validators.declarative_reference_validator import DeclarativeReferenceValidator
+
+from tests.helpers.plugin_execution import publish_for_test, run_plugin_for_test
 
 
 def _context(*, config: dict | None = None, objects: dict | None = None) -> PluginContext:

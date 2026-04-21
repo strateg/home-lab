@@ -80,13 +80,13 @@ def test_module_loader_execute_stage_commits_authoritative_maps(tmp_path):
     payload = {
         "schema_version": 1,
         "plugins": [
-                {
-                    "id": PLUGIN_ID,
-                    "kind": "compiler",
-                    "entry": f"{(V5_TOOLS / 'plugins/compilers/module_loader_compiler.py').as_posix()}:ModuleLoaderCompiler",
-                    "api_version": "1.x",
-                    "stages": ["compile"],
-                    "phase": "init",
+            {
+                "id": PLUGIN_ID,
+                "kind": "compiler",
+                "entry": f"{(V5_TOOLS / 'plugins/compilers/module_loader_compiler.py').as_posix()}:ModuleLoaderCompiler",
+                "api_version": "1.x",
+                "stages": ["compile"],
+                "phase": "init",
                 "order": 30,
                 "subinterpreter_compatible": True,
                 "produces": [

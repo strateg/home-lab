@@ -13,6 +13,7 @@ sys.path.insert(0, str(V5_TOOLS))
 
 from kernel import PluginContext, PluginRegistry, PluginStatus
 from kernel.plugin_base import Stage
+
 from tests.helpers.plugin_execution import publish_for_test
 
 PLUGIN_ID = "base.validator.embedded_in"
@@ -247,6 +248,7 @@ def test_embedded_in_validator_reads_rows_via_subscribe():
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(d.code == "E3201" for d in result.diagnostics)
+
 
 def test_embedded_in_execute_stage_requires_committed_normalized_rows(tmp_path: Path) -> None:
     manifest = tmp_path / "plugins.yaml"

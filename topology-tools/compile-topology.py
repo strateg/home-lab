@@ -19,8 +19,19 @@ import yaml
 TOPOLOGY_TOOLS = Path(__file__).resolve().parent
 sys.path.insert(0, str(TOPOLOGY_TOOLS))
 
+from ai_runtime.ai_advisory_contract import parse_ai_output_payload, validate_ai_contract_payloads
+from ai_runtime.ai_ansible import (
+    parse_ansible_output_candidates,
+    validate_ansible_candidates_with_lint,
+)
+from ai_runtime.ai_assisted import build_candidate_diff, materialize_candidate_artifacts
+from ai_runtime.ai_promotion import promote_approved_candidates, resolve_approvals
+from ai_runtime.ai_rollback import list_ai_promoted_artifacts, rollback_ai_promoted_artifacts
+from ai_runtime.ai_sandbox import enforce_sandbox_resource_limits
 from compiler_ai_sessions import AiConfig, AiSessionPreparation, json_safe_payload, prepare_ai_session
-from compiler_cli import CompilerCliDependencies, build_parser as build_compiler_parser, run_cli
+from compiler_cli import CompilerCliDependencies
+from compiler_cli import build_parser as build_compiler_parser
+from compiler_cli import run_cli
 from compiler_contract import manifest_digest, validate_compiled_model_contract
 from compiler_decisions import select_effective_payload
 from compiler_diagnostics import CompilerDiagnostic
@@ -38,24 +49,15 @@ from framework_lock import resolve_paths as resolve_framework_lock_paths
 from framework_lock import verify_framework_lock
 from kernel import (
     KERNEL_VERSION,
+    STAGE_ORDER,
     Phase,
     PluginContext,
     PluginRegistry,
     PluginResult,
     PluginStatus,
-    STAGE_ORDER,
     Stage,
 )
 from plugin_manifest_discovery import discover_plugin_manifest_paths, validate_module_index_consistency
-from ai_runtime.ai_advisory_contract import parse_ai_output_payload, validate_ai_contract_payloads
-from ai_runtime.ai_ansible import (
-    parse_ansible_output_candidates,
-    validate_ansible_candidates_with_lint,
-)
-from ai_runtime.ai_assisted import build_candidate_diff, materialize_candidate_artifacts
-from ai_runtime.ai_promotion import promote_approved_candidates, resolve_approvals
-from ai_runtime.ai_rollback import list_ai_promoted_artifacts, rollback_ai_promoted_artifacts
-from ai_runtime.ai_sandbox import enforce_sandbox_resource_limits
 from yaml_loader import load_yaml_file
 
 REPO_ROOT = Path(__file__).resolve().parents[1]

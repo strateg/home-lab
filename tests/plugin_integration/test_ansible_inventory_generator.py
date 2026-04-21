@@ -16,7 +16,6 @@ from kernel import PluginRegistry
 from kernel.plugin_base import PluginContext, PluginStatus, Stage
 from plugins.generators.ansible_inventory_generator import AnsibleInventoryGenerator
 
-
 PLUGIN_ID = "base.generator.ansible_inventory"
 
 

@@ -13,6 +13,7 @@ sys.path.insert(0, str(V5_TOOLS))
 
 from kernel import PluginContext, PluginRegistry, PluginStatus
 from kernel.plugin_base import Stage
+
 from tests.helpers.plugin_execution import publish_for_test
 
 
@@ -112,7 +113,9 @@ def test_assemble_and_build_stage_plugins_produce_release_artifacts(tmp_path: Pa
     registry = _registry()
     sbom_spec = registry.specs["base.builder.sbom"]
     sbom_release_bundle_consume = next(
-        item for item in sbom_spec.consumes if item["from_plugin"] == "base.builder.bundle" and item["key"] == "release_bundle_path"
+        item
+        for item in sbom_spec.consumes
+        if item["from_plugin"] == "base.builder.bundle" and item["key"] == "release_bundle_path"
     )
     assert sbom_release_bundle_consume["required"] is True
 
@@ -132,9 +135,7 @@ def test_assemble_and_build_stage_plugins_produce_release_artifacts(tmp_path: Pa
         ("base.builder.artifact_family_summary", "artifact_family_summary"),
     }
     assert {
-        (item["from_plugin"], item["key"])
-        for item in generator_readiness_spec.consumes
-        if item.get("required") is True
+        (item["from_plugin"], item["key"]) for item in generator_readiness_spec.consumes if item.get("required") is True
     } >= required_generator_readiness_inputs
 
     soho_readiness_spec = registry.specs["base.builder.soho_readiness_package"]
@@ -143,9 +144,7 @@ def test_assemble_and_build_stage_plugins_produce_release_artifacts(tmp_path: Pa
         ("base.validator.soho_product_profile", "product_profile_state"),
     }
     assert {
-        (item["from_plugin"], item["key"])
-        for item in soho_readiness_spec.consumes
-        if item.get("required") is True
+        (item["from_plugin"], item["key"]) for item in soho_readiness_spec.consumes if item.get("required") is True
     } >= required_soho_inputs
 
     changed_scopes_spec = registry.specs["base.assembler.changed_scopes"]
@@ -166,9 +165,7 @@ def test_assemble_and_build_stage_plugins_produce_release_artifacts(tmp_path: Pa
         ("base.builder.soho_readiness_package", "support_bundle_manifest_path"),
     }
     assert {
-        (item["from_plugin"], item["key"])
-        for item in release_manifest_spec.consumes
-        if item.get("required") is True
+        (item["from_plugin"], item["key"]) for item in release_manifest_spec.consumes if item.get("required") is True
     } >= required_release_inputs
 
     repo_root = tmp_path
@@ -603,8 +600,12 @@ def test_release_manifest_requires_committed_build_artifacts(tmp_path: Path) -> 
             "rollback_events_report_path": str(dist_root / "reports" / "rollback-events.json"),
         },
         "base.builder.soho_readiness_package": {
-            "operator_readiness_report_path": str(tmp_path / "generated" / "home-lab" / "product" / "reports" / "operator-readiness.json"),
-            "support_bundle_manifest_path": str(tmp_path / "generated" / "home-lab" / "product" / "reports" / "support-bundle-manifest.json"),
+            "operator_readiness_report_path": str(
+                tmp_path / "generated" / "home-lab" / "product" / "reports" / "operator-readiness.json"
+            ),
+            "support_bundle_manifest_path": str(
+                tmp_path / "generated" / "home-lab" / "product" / "reports" / "support-bundle-manifest.json"
+            ),
         },
     }.items():
         ctx._set_execution_context(plugin_id, set())  # noqa: SLF001 - test fixture setup

@@ -13,6 +13,7 @@ sys.path.insert(0, str(V5_TOOLS))
 
 from kernel import PluginContext, PluginRegistry, PluginStatus
 from kernel.plugin_base import Stage
+
 from tests.helpers.plugin_execution import publish_for_test
 
 PLUGIN_ID = "base.validator.volume_format_compat"
@@ -484,6 +485,7 @@ def test_volume_format_compat_accepts_top_level_properties():
     errors = [d for d in result.diagnostics if d.severity == "error"]
     assert errors == []
 
+
 def test_volume_format_compat_validator_execute_stage_requires_committed_normalized_rows(tmp_path: Path) -> None:
     manifest = tmp_path / "plugins.yaml"
     spec = _registry().specs[PLUGIN_ID]
@@ -524,4 +526,3 @@ def test_volume_format_compat_validator_execute_stage_requires_committed_normali
     assert len(results) == 1
     assert results[0].status == PluginStatus.FAILED
     assert any(diag.code == "E8003" for diag in results[0].diagnostics)
-

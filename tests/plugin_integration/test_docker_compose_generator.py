@@ -14,6 +14,7 @@ sys.path.insert(0, str(V5_TOOLS))
 
 from kernel import PluginContext, PluginRegistry, PluginStatus
 from kernel.plugin_base import Stage
+
 from tests.helpers.plugin_execution import publish_for_test
 
 PLUGIN_ID = "base.generator.docker_compose"
@@ -286,6 +287,7 @@ def test_docker_compose_generator_output_is_deterministic(tmp_path: Path) -> Non
     path2 = tmp_path / "run2" / "generated" / "docker-compose" / "srv-orangepi5" / "monitoring" / "docker-compose.yaml"
     assert path1.read_text() == path2.read_text()
 
+
 def test_docker_compose_execute_stage_requires_committed_normalized_rows(tmp_path: Path) -> None:
     manifest = tmp_path / "plugins.yaml"
     spec = _registry().specs[PLUGIN_ID]
@@ -337,4 +339,3 @@ def test_docker_compose_execute_stage_requires_committed_normalized_rows(tmp_pat
     assert results[0].status == PluginStatus.FAILED
     assert any(diag.code == "E8003" for diag in results[0].diagnostics)
     assert not ctx.get_published_keys(PLUGIN_ID)
-

@@ -11,6 +11,7 @@ import subprocess
 from pathlib import Path
 
 import yaml
+
 from tests.helpers.plugin_execution import run_plugin_for_test
 
 REPO_ROOT = Path(__file__).resolve().parents[2]

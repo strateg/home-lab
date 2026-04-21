@@ -50,7 +50,9 @@ def publish_for_test(
 ) -> None:
     """Publish fixture payload under a producer plugin identity for tests."""
 
-    effective_stage = stage if stage is not None else (_infer_stage_for_plugin_id(producer_plugin_id) if infer_stage else None)
+    effective_stage = (
+        stage if stage is not None else (_infer_stage_for_plugin_id(producer_plugin_id) if infer_stage else None)
+    )
     ctx._set_execution_context(producer_plugin_id, set(consumes_keys or ()), stage=effective_stage)
     try:
         ctx.publish(key, value)

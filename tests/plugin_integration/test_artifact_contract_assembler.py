@@ -12,6 +12,7 @@ sys.path.insert(0, str(V5_TOOLS))
 from kernel.plugin_base import PluginContext, PluginStatus, Stage
 from kernel.plugin_registry import PluginRegistry
 from plugins.assemblers.artifact_contract_assembler import ArtifactContractAssembler
+
 from tests.helpers.plugin_execution import publish_for_test, run_plugin_for_test
 
 
@@ -68,9 +69,7 @@ def test_artifact_contract_assembler_passes_when_migrating_generators_publish_co
         _publish(
             ctx,
             plugin_id,
-            _required_keys_payload(
-                generated_dir=f"/tmp/generated/{plugin_id.replace('.', '_')}_{idx}"
-            ),
+            _required_keys_payload(generated_dir=f"/tmp/generated/{plugin_id.replace('.', '_')}_{idx}"),
         )
 
     plugin = ArtifactContractAssembler("base.assembler.artifact_contract_guard")

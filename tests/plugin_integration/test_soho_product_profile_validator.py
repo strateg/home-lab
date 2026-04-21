@@ -15,6 +15,7 @@ sys.path.insert(0, str(V5_TOOLS))
 from kernel import PluginRegistry, PluginStatus
 from kernel.plugin_base import PluginContext, Stage
 from plugins.validators.soho_product_profile_validator import SohoProductProfileValidator
+
 from tests.helpers.plugin_execution import publish_for_test, run_plugin_for_test
 
 _SOHO_RESOLVER_PLUGIN_ID = "base.compiler.soho_profile_resolver"
@@ -116,11 +117,7 @@ def _write_manifest(path: Path, payload: dict[str, Any]) -> None:
 def test_soho_validator_manifest_requires_resolver_payloads() -> None:
     registry = _registry()
     consumes = registry.specs["base.validator.soho_product_profile"].consumes
-    required = {
-        (item["from_plugin"], item["key"])
-        for item in consumes
-        if item.get("required") is True
-    }
+    required = {(item["from_plugin"], item["key"]) for item in consumes if item.get("required") is True}
     assert required >= {
         ("base.compiler.soho_profile_resolver", "soho_profile_resolution"),
         ("base.compiler.soho_profile_resolver", "effective_product_bundles"),
@@ -302,9 +299,21 @@ def test_soho_validator_execute_stage_requires_committed_resolver_payloads(tmp_p
                 "order": 187,
                 "depends_on": ["base.compiler.soho_profile_resolver"],
                 "consumes": [
-                    {"from_plugin": "base.compiler.soho_profile_resolver", "key": "soho_profile_resolution", "required": True},
-                    {"from_plugin": "base.compiler.soho_profile_resolver", "key": "effective_product_bundles", "required": True},
-                    {"from_plugin": "base.compiler.soho_profile_resolver", "key": "available_product_bundles", "required": True},
+                    {
+                        "from_plugin": "base.compiler.soho_profile_resolver",
+                        "key": "soho_profile_resolution",
+                        "required": True,
+                    },
+                    {
+                        "from_plugin": "base.compiler.soho_profile_resolver",
+                        "key": "effective_product_bundles",
+                        "required": True,
+                    },
+                    {
+                        "from_plugin": "base.compiler.soho_profile_resolver",
+                        "key": "available_product_bundles",
+                        "required": True,
+                    },
                 ],
             },
         ],

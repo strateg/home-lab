@@ -10,6 +10,7 @@ from __future__ import annotations
 __version__ = "0.5.0"
 __api_version__ = "1.0"
 
+from .pipeline_runtime import PipelineState
 from .plugin_base import (  # Legacy alias
     AssemblerPlugin,
     BuilderPlugin,
@@ -35,8 +36,6 @@ from .plugin_base import (  # Legacy alias
     ValidatorJsonPlugin,
     ValidatorYamlPlugin,
 )
-from .pipeline_runtime import PipelineState
-from .plugin_runner import run_plugin_once
 from .plugin_registry import (
     DEFAULT_PLUGIN_TIMEOUT,
     KERNEL_API_VERSION,
@@ -50,6 +49,7 @@ from .plugin_registry import (
     PluginRegistry,
     PluginSpec,
 )
+from .plugin_runner import run_plugin_once
 
 __all__ = [
     # Version info

@@ -39,9 +39,9 @@ from kernel.plugin_base import (
     Phase,
     PluginContext,
     PluginExecutionScope,
+    PluginKind,
     Stage,
 )
-from kernel.plugin_base import PluginKind
 from kernel.plugin_registry import PluginRegistry, PluginSpec, SerializablePluginSpec
 
 

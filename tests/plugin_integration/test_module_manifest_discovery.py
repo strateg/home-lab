@@ -315,7 +315,9 @@ def test_discover_boundary_rejects_project_manifests_outside_project_plugins_roo
 
 
 def test_discover_stage_plugins_require_committed_upstream_payloads() -> None:
-    plugins = yaml.safe_load((Path(__file__).resolve().parents[2] / "topology-tools" / "plugins" / "plugins.yaml").read_text())
+    plugins = yaml.safe_load(
+        (Path(__file__).resolve().parents[2] / "topology-tools" / "plugins" / "plugins.yaml").read_text()
+    )
     by_id = {plugin["id"]: plugin for plugin in plugins["plugins"]}
 
     inventory_consume = next(
@@ -355,7 +357,9 @@ def test_discover_inventory_requires_committed_manifest_loader_summary(tmp_path:
         config={"discovered_plugin_manifests": [], "discovered_plugin_count": 0},
     )
 
-    result = compiler._plugin_registry.execute_plugin("base.discover.inventory", ctx, mod.Stage.DISCOVER, phase=mod.Phase.RUN)
+    result = compiler._plugin_registry.execute_plugin(
+        "base.discover.inventory", ctx, mod.Stage.DISCOVER, phase=mod.Phase.RUN
+    )
 
     assert result.status == mod.PluginStatus.FAILED
     assert any(diag.code == "E8003" for diag in result.diagnostics)
