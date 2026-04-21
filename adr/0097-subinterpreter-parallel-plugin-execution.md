@@ -2,7 +2,7 @@
 
 - Status: In Progress
 - Date: 2026-04-15
-- Revised: 2026-04-20
+- Revised: 2026-04-21
 - Depends on: ADR 0063, ADR 0080, ADR 0086, ADR 0098
 - Follow-up: ADR 0099 (test architecture migration for snapshot/envelope/pipeline-state runtime)
 
@@ -14,7 +14,7 @@
 | **PR1** Contracts + Envelope Path | ✅ COMPLETE | `adr/0097-analysis/PR1-EXECUTION-CHECKLIST.md` |
 | **PR2** Scheduler Cutover | ✅ COMPLETE | `adr/0097-analysis/PR2-EXECUTION-CHECKLIST.md` |
 | **PR3** Representative Plugin Migrations | ✅ COMPLETE | `adr/0097-analysis/PR3-EXECUTION-CHECKLIST.md` |
-| **PR4+** Fleet Migration | ⏳ NOT STARTED | — |
+| **PR4** Fleet Migration | ✅ COMPLETE | `adr/0097-analysis/PR4-EXECUTION-CHECKLIST.md` |
 
 ### Completed Components
 
@@ -31,7 +31,8 @@
 1. ~~**PR2**: Scheduler cutover — route all plugins through envelope/commit flow~~ ✅
 2. ~~**PR2**: Introduce `execution_mode` manifest field~~ ✅
 3. ~~**PR3**: Migrate representative plugins (module_loader, effective_model)~~ ✅
-4. **PR4+**: Fleet migration and legacy cleanup
+4. ~~**PR4**: Fleet migration and legacy field cleanup~~ ✅
+5. **PR5+**: Legacy runtime cleanup and documentation (deferred to ADR 0099)
 
 ## Context
 
