@@ -20,6 +20,7 @@ plugins:
     scope: pipeline_shared
   description: Loads class/object module plugin manifests during discover bootstrap.
 - id: base.discover.inventory
+  execution_mode: subinterpreter
   kind: discoverer
   entry: discoverers/discover_inventory.py:DiscoverInventoryCompiler
   api_version: 1.x
@@ -42,8 +43,10 @@ plugins:
   produces:
   - key: manifest_inventory
     scope: pipeline_shared
-  description: Publishes discovered plugin manifests inventory for discover-stage traceability.
+  description: Publishes discovered plugin manifests inventory for discover-stage
+    traceability.
 - id: base.discover.boundary
+  execution_mode: subinterpreter
   kind: discoverer
   entry: discoverers/discover_boundary.py:DiscoverBoundaryCompiler
   api_version: 1.x
@@ -66,8 +69,10 @@ plugins:
   produces:
   - key: boundary_ok
     scope: pipeline_shared
-  description: Enforces framework/project plugin manifest boundary during discover stage.
+  description: Enforces framework/project plugin manifest boundary during discover
+    stage.
 - id: base.discover.capability_preflight
+  execution_mode: subinterpreter
   kind: discoverer
   entry: discoverers/discover_capability_preflight.py:DiscoverCapabilityPreflightCompiler
   api_version: 1.x
@@ -94,8 +99,10 @@ plugins:
   produces:
   - key: capability_preflight_ok
     scope: pipeline_shared
-  description: Verifies capability contract files are present before compile/validate execution.
+  description: Verifies capability contract files are present before compile/validate
+    execution.
 - id: base.compiler.capabilities
+  execution_mode: subinterpreter
   kind: compiler
   entry: compilers/capability_compiler.py:CapabilityCompiler
   api_version: 1.x
@@ -116,7 +123,8 @@ plugins:
     scope: pipeline_shared
   - key: derived_capabilities
     scope: pipeline_shared
-  description: Derives capabilities from class/object definitions (ADR 0063 Phase 3 example)
+  description: Derives capabilities from class/object definitions (ADR 0063 Phase
+    3 example)
 - id: base.compiler.module_loader
   kind: compiler
   entry: compilers/module_loader_compiler.py:ModuleLoaderCompiler
@@ -127,7 +135,6 @@ plugins:
   order: 30
   depends_on: []
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -166,6 +173,7 @@ plugins:
     scope: pipeline_shared
   description: Loads model.lock payload for plugin-first pipeline (ADR 0069).
 - id: base.compiler.annotation_resolver
+  execution_mode: subinterpreter
   kind: compiler
   entry: compilers/annotation_resolver_compiler.py:AnnotationResolverCompiler
   api_version: 1.x
@@ -205,7 +213,6 @@ plugins:
   depends_on:
   - base.compiler.annotation_resolver
   timeout: 30
-  subinterpreter_compatible: true
   config:
     secrets_mode: passthrough
     secrets_root: projects/home-lab/secrets
@@ -228,7 +235,8 @@ plugins:
       require_unlock:
         type: boolean
         default: true
-        description: Emit error when decryption fails due to missing unlocked age key.
+        description: Emit error when decryption fails due to missing unlocked age
+          key.
     required: []
   produces:
   - key: secret_resolved_rows
@@ -243,7 +251,8 @@ plugins:
   - from_plugin: base.compiler.annotation_resolver
     key: row_annotations_by_instance
     required: true
-  description: Resolves semantic row keys, annotations, and side-car secrets into stage-local rows.
+  description: Resolves semantic row keys, annotations, and side-car secrets into
+    stage-local rows.
   execution_mode: subinterpreter
 - id: base.compiler.instance_rows_resolve
   kind: compiler
@@ -256,7 +265,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows_secret_resolve
   timeout: 30
-  subinterpreter_compatible: true
   config:
     secrets_mode: passthrough
     secrets_root: projects/home-lab/secrets
@@ -279,7 +287,8 @@ plugins:
       require_unlock:
         type: boolean
         default: true
-        description: Emit error when decryption fails due to missing unlocked age key.
+        description: Emit error when decryption fails due to missing unlocked age
+          key.
     required: []
   produces:
   - key: resolved_rows
@@ -288,7 +297,8 @@ plugins:
   - from_plugin: base.compiler.instance_rows_secret_resolve
     key: secret_resolved_rows
     required: true
-  description: Applies duplicate and identifier validation to secret-resolved rows before shape preparation.
+  description: Applies duplicate and identifier validation to secret-resolved rows
+    before shape preparation.
   execution_mode: subinterpreter
 - id: base.compiler.instance_rows_prepare
   kind: compiler
@@ -301,7 +311,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows_resolve
   timeout: 30
-  subinterpreter_compatible: true
   config:
     secrets_mode: passthrough
     secrets_root: projects/home-lab/secrets
@@ -324,7 +333,8 @@ plugins:
       require_unlock:
         type: boolean
         default: true
-        description: Emit error when decryption fails due to missing unlocked age key.
+        description: Emit error when decryption fails due to missing unlocked age
+          key.
     required: []
   produces:
   - key: prepared_rows
@@ -333,7 +343,8 @@ plugins:
   - from_plugin: base.compiler.instance_rows_resolve
     key: resolved_rows
     required: true
-  description: Resolves class/object refs and builds prepared instance rows before shape validation.
+  description: Resolves class/object refs and builds prepared instance rows before
+    shape validation.
   execution_mode: subinterpreter
 - id: base.compiler.instance_rows_validate
   kind: compiler
@@ -346,7 +357,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows_prepare
   timeout: 30
-  subinterpreter_compatible: true
   config:
     secrets_mode: passthrough
     secrets_root: projects/home-lab/secrets
@@ -369,7 +379,8 @@ plugins:
       require_unlock:
         type: boolean
         default: true
-        description: Emit error when decryption fails due to missing unlocked age key.
+        description: Emit error when decryption fails due to missing unlocked age
+          key.
     required: []
   produces:
   - key: validated_rows
@@ -378,7 +389,8 @@ plugins:
   - from_plugin: base.compiler.instance_rows_prepare
     key: prepared_rows
     required: true
-  description: Validates prepared instance-row shape and builds stage-local normalized row payloads.
+  description: Validates prepared instance-row shape and builds stage-local normalized
+    row payloads.
   execution_mode: subinterpreter
 - id: base.compiler.instance_rows
   kind: compiler
@@ -391,7 +403,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows_validate
   timeout: 30
-  subinterpreter_compatible: true
   config:
     secrets_mode: passthrough
     secrets_root: projects/home-lab/secrets
@@ -414,7 +425,8 @@ plugins:
       require_unlock:
         type: boolean
         default: true
-        description: Emit error when decryption fails due to missing unlocked age key.
+        description: Emit error when decryption fails due to missing unlocked age
+          key.
     required: []
   produces:
   - key: normalized_rows
@@ -423,9 +435,11 @@ plugins:
   - from_plugin: base.compiler.instance_rows_validate
     key: validated_rows
     required: true
-  description: Publishes authoritative normalized instance rows after staged resolve/prepare/validate cutover.
+  description: Publishes authoritative normalized instance rows after staged resolve/prepare/validate
+    cutover.
   execution_mode: subinterpreter
 - id: base.compiler.capability_contract_loader
+  execution_mode: subinterpreter
   kind: compiler
   entry: compilers/capability_contract_loader_compiler.py:CapabilityContractLoaderCompiler
   api_version: 1.x
@@ -447,6 +461,7 @@ plugins:
     scope: pipeline_shared
   description: Loads capability catalog and packs contract for plugin-first pipeline.
 - id: base.compiler.soho_profile_resolver
+  execution_mode: subinterpreter
   kind: compiler
   entry: compilers/soho_profile_resolver_compiler.py:SohoProfileResolverCompiler
   api_version: 1.x
@@ -468,7 +483,8 @@ plugins:
     scope: pipeline_shared
   - key: available_product_bundles
     scope: pipeline_shared
-  description: Resolves ADR0089 canonical SOHO profile contract and effective required bundle set.
+  description: Resolves ADR0089 canonical SOHO profile contract and effective required
+    bundle set.
 - id: base.compiler.effective_model
   kind: compiler
   entry: compilers/effective_model_compiler.py:EffectiveModelCompiler
@@ -483,7 +499,6 @@ plugins:
   - base.compiler.capabilities
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -508,7 +523,6 @@ plugins:
   order: 90
   depends_on: []
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -527,7 +541,6 @@ plugins:
   depends_on:
   - base.validator.governance_contract
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -546,7 +559,6 @@ plugins:
   depends_on:
   - base.validator.foundation_layout
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -565,13 +577,13 @@ plugins:
   depends_on:
   - base.validator.foundation_include_contract
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
     properties: {}
     required: []
-  description: Validates policy-driven placement of instance YAML files in project instances tree.
+  description: Validates policy-driven placement of instance YAML files in project
+    instances tree.
   execution_mode: subinterpreter
 - id: base.validator.foundation_device_taxonomy
   kind: validator_json
@@ -584,7 +596,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -608,7 +619,6 @@ plugins:
   - base.compiler.instance_rows
   - base.compiler.capability_contract_loader
   timeout: 30
-  subinterpreter_compatible: true
   config:
     strict_mode: false
   config_schema:
@@ -638,13 +648,13 @@ plugins:
   order: 101
   depends_on: []
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
     properties: {}
     required: []
-  description: Validates optional object initialization_contract payloads for compute/router objects (ADR 0083).
+  description: Validates optional object initialization_contract payloads for compute/router
+    objects (ADR 0083).
   execution_mode: subinterpreter
 - id: base.validator.model_lock
   kind: validator_json
@@ -659,7 +669,6 @@ plugins:
   - base.compiler.model_lock_loader
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   config:
     strict_mode: false
   config_schema:
@@ -680,7 +689,8 @@ plugins:
   - from_plugin: base.compiler.model_lock_loader
     key: model_lock_loaded
     required: true
-  description: Validates that class_ref and object_ref are pinned in model.lock (ADR 0063)
+  description: Validates that class_ref and object_ref are pinned in model.lock (ADR
+    0063)
   execution_mode: subinterpreter
 - id: base.validator.power_source_refs
   kind: validator_json
@@ -693,7 +703,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   config:
     enabled_rules:
     - power_source
@@ -719,7 +728,8 @@ plugins:
   - from_plugin: base.compiler.instance_rows
     key: normalized_rows
     required: true
-  description: Validates ADR0062 L1 lateral relation power.source_ref and outlet occupancy constraints.
+  description: Validates ADR0062 L1 lateral relation power.source_ref and outlet occupancy
+    constraints.
   execution_mode: subinterpreter
 - id: base.validator.network_ip_overlap
   kind: validator_json
@@ -732,7 +742,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -755,7 +764,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -778,7 +786,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -801,7 +808,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -824,7 +830,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -847,7 +852,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -870,7 +874,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -893,7 +896,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -916,7 +918,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   config:
     enabled_rules:
     - network_core
@@ -952,7 +953,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -975,7 +975,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -998,7 +997,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -1021,7 +1019,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -1044,7 +1041,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   config:
     enabled_rules:
     - service_dependency
@@ -1080,7 +1076,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -1103,7 +1098,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -1126,7 +1120,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   config:
     enabled_rules:
     - dns
@@ -1162,7 +1155,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   config:
     enabled_rules:
     - certificate
@@ -1198,7 +1190,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   config:
     enabled_rules:
     - backup
@@ -1234,7 +1225,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -1257,7 +1247,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -1280,7 +1269,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   config:
     resource_profiles:
       rp.lxc.micro:
@@ -1339,7 +1327,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -1349,7 +1336,8 @@ plugins:
   - from_plugin: base.compiler.instance_rows
     key: normalized_rows
     required: true
-  description: Validates runtime targets have active host OS bindings when OS inventory exists.
+  description: Validates runtime targets have active host OS bindings when OS inventory
+    exists.
   execution_mode: subinterpreter
 - id: base.validator.host_ref_dag
   kind: validator_json
@@ -1362,7 +1350,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -1385,7 +1372,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -1395,7 +1381,8 @@ plugins:
   - from_plugin: base.compiler.instance_rows
     key: normalized_rows
     required: true
-  description: Validates Docker container refs and host capabilities (ADR 0087 Phase 1).
+  description: Validates Docker container refs and host capabilities (ADR 0087 Phase
+    1).
   execution_mode: subinterpreter
 - id: base.validator.hypervisor_execution_model
   kind: validator_json
@@ -1408,7 +1395,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -1431,7 +1417,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -1441,7 +1426,8 @@ plugins:
   - from_plugin: base.compiler.instance_rows
     key: normalized_rows
     required: true
-  description: Validates VM disk/bus/format compatibility with hypervisor (ADR 0087 Phase 3).
+  description: Validates VM disk/bus/format compatibility with hypervisor (ADR 0087
+    Phase 3).
   execution_mode: subinterpreter
 - id: base.validator.volume_format_compat
   kind: validator_json
@@ -1454,7 +1440,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -1464,7 +1449,8 @@ plugins:
   - from_plugin: base.compiler.instance_rows
     key: normalized_rows
     required: true
-  description: Validates volume format compatibility with pool and hypervisor (ADR 0087 Phase 4).
+  description: Validates volume format compatibility with pool and hypervisor (ADR
+    0087 Phase 4).
   execution_mode: subinterpreter
 - id: base.validator.nested_topology_scope
   kind: validator_json
@@ -1477,7 +1463,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -1487,7 +1472,8 @@ plugins:
   - from_plugin: base.compiler.instance_rows
     key: normalized_rows
     required: true
-  description: Validates nested topology scope declarations and references (ADR 0087 Phase 5).
+  description: Validates nested topology scope declarations and references (ADR 0087
+    Phase 5).
   execution_mode: subinterpreter
 - id: base.validator.storage_l3_refs
   kind: validator_json
@@ -1500,7 +1486,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -1524,7 +1509,6 @@ plugins:
   - base.validator.references
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -1547,7 +1531,6 @@ plugins:
   depends_on:
   - base.validator.references
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -1569,13 +1552,13 @@ plugins:
   depends_on:
   - base.validator.references
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
     properties: {}
     required: []
-  description: Consolidated router data-channel contract and vendor router ethernet port validation.
+  description: Consolidated router data-channel contract and vendor router ethernet
+    port validation.
   execution_mode: subinterpreter
 - id: base.validator.capability_contract
   kind: validator_json
@@ -1589,7 +1572,6 @@ plugins:
   - base.compiler.module_loader
   - base.compiler.capability_contract_loader
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -1608,7 +1590,8 @@ plugins:
   - from_plugin: base.compiler.module_loader
     key: object_module_paths
     required: true
-  description: Validates capability contracts using compiler-derived data (ADR 0063 Phase 3 example)
+  description: Validates capability contracts using compiler-derived data (ADR 0063
+    Phase 3 example)
   execution_mode: subinterpreter
 - id: base.validator.instance_placeholders
   kind: validator_json
@@ -1620,7 +1603,6 @@ plugins:
   order: 140
   depends_on: []
   timeout: 30
-  subinterpreter_compatible: true
   config:
     format_registry_path: ../data/instance-field-formats.yaml
     enforcement_mode: enforce
@@ -1662,7 +1644,6 @@ plugins:
   order: 188
   depends_on: []
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -1684,7 +1665,6 @@ plugins:
   depends_on:
   - base.compiler.soho_profile_resolver
   timeout: 30
-  subinterpreter_compatible: true
   config:
     soho_migration_policy_path: topology-tools/data/soho-migration-state-policy.yaml
   config_schema:
@@ -1696,7 +1676,8 @@ plugins:
       soho_migration_today:
         type: string
         pattern: ^\d{4}-\d{2}-\d{2}$
-        description: Optional fixed date override (YYYY-MM-DD) for deterministic sunset-policy checks.
+        description: Optional fixed date override (YYYY-MM-DD) for deterministic sunset-policy
+          checks.
     required: []
   produces:
   - key: product_profile_state
@@ -1711,7 +1692,8 @@ plugins:
   - from_plugin: base.compiler.soho_profile_resolver
     key: available_product_bundles
     required: true
-  description: Validates ADR0089 product_profile contract and emits machine-readable migration state report.
+  description: Validates ADR0089 product_profile contract and emits machine-readable
+    migration state report.
   execution_mode: subinterpreter
 - id: base.validator.generator_sunset
   kind: validator_json
@@ -1724,7 +1706,6 @@ plugins:
   depends_on:
   - base.validator.generator_migration_status
   timeout: 30
-  subinterpreter_compatible: true
   config:
     sunset_policy_path: topology-tools/data/generator-sunset-policy.yaml
   config_schema:
@@ -1739,8 +1720,8 @@ plugins:
         description: Path to ADR0093 sunset policy YAML (repo-relative or absolute).
       sunset_schedule:
         type: object
-        description: 'Optional inline overrides for ADR0093 sunset policy. Keys are generator plugin IDs; values override
-          file-based policy.
+        description: 'Optional inline overrides for ADR0093 sunset policy. Keys are
+          generator plugin IDs; values override file-based policy.
 
           '
         additionalProperties:
@@ -1759,7 +1740,8 @@ plugins:
   produces:
   - key: generator_sunset_summary
     scope: pipeline_shared
-  description: Enforces ADR0093 sunset policy; scheduled legacy targets warn before hard_error_date and fail at/after hard_error_date.
+  description: Enforces ADR0093 sunset policy; scheduled legacy targets warn before
+    hard_error_date and fail at/after hard_error_date.
   execution_mode: subinterpreter
 - id: base.validator.generator_rollback_escalation
   kind: validator_json
@@ -1772,7 +1754,6 @@ plugins:
   depends_on:
   - base.validator.generator_migration_status
   timeout: 30
-  subinterpreter_compatible: true
   config:
     rollback_policy_path: topology-tools/data/generator-rollback-policy.yaml
   config_schema:
@@ -1799,7 +1780,8 @@ plugins:
   produces:
   - key: generator_rollback_summary
     scope: pipeline_shared
-  description: Emits ADR0093 rollback escalation warnings for generators in rollback mode over threshold.
+  description: Emits ADR0093 rollback escalation warnings for generators in rollback
+    mode over threshold.
   execution_mode: subinterpreter
 - id: base.generator.effective_json
   kind: generator
@@ -1812,7 +1794,6 @@ plugins:
   depends_on:
   - base.compiler.effective_model
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -1823,7 +1804,8 @@ plugins:
     scope: pipeline_shared
   - key: effective_json_path
     scope: pipeline_shared
-  description: Emits effective topology JSON from main-interpreter-committed compiled model (ADR 0069 WS4).
+  description: Emits effective topology JSON from main-interpreter-committed compiled
+    model (ADR 0069 WS4).
   execution_mode: subinterpreter
 - id: base.generator.effective_yaml
   kind: generator
@@ -1836,7 +1818,6 @@ plugins:
   depends_on:
   - base.compiler.effective_model
   timeout: 30
-  subinterpreter_compatible: true
   execution_mode: subinterpreter
   config:
     output_filename: effective-topology.yaml
@@ -1852,7 +1833,8 @@ plugins:
     scope: pipeline_shared
   - key: effective_yaml_path
     scope: pipeline_shared
-  description: Emits effective topology YAML from main-interpreter-committed compiled model (ADR 0069 WS4 seed).
+  description: Emits effective topology YAML from main-interpreter-committed compiled
+    model (ADR 0069 WS4 seed).
 - id: base.generator.docs
   kind: generator
   entry: generators/docs_generator.py:DocsGenerator
@@ -1864,7 +1846,6 @@ plugins:
   depends_on:
   - base.compiler.effective_model
   timeout: 30
-  subinterpreter_compatible: true
   config: {}
   config_schema:
     type: object
@@ -1879,7 +1860,8 @@ plugins:
     scope: pipeline_shared
   - key: docs_projection
     scope: pipeline_shared
-  description: Emits baseline markdown docs artifacts from main-interpreter-committed compiled model projection.
+  description: Emits baseline markdown docs artifacts from main-interpreter-committed
+    compiled model projection.
   execution_mode: subinterpreter
 - id: base.generator.diagrams
   kind: generator
@@ -1892,7 +1874,6 @@ plugins:
   depends_on:
   - base.compiler.effective_model
   timeout: 60
-  subinterpreter_compatible: true
   config:
     mermaid_icon_mode: none
   config_schema:
@@ -1904,16 +1885,16 @@ plugins:
         - icon-nodes
         - compat
         - none
-        description: 'Mermaid rendering mode (ADR 0027): icon-nodes uses @{ icon } syntax, compat uses labelled plain nodes,
-          none disables icons entirely.
+        description: 'Mermaid rendering mode (ADR 0027): icon-nodes uses @{ icon }
+          syntax, compat uses labelled plain nodes, none disables icons entirely.
 
           '
       icon_pack_search_roots:
         type: array
         items:
           type: string
-        description: 'Optional filesystem roots used to discover local Iconify packs under node_modules/@iconify-json for
-          icon-node SVG cache emission.
+        description: 'Optional filesystem roots used to discover local Iconify packs
+          under node_modules/@iconify-json for icon-node SVG cache emission.
 
           '
     required: []
@@ -1924,8 +1905,8 @@ plugins:
     scope: pipeline_shared
   - key: diagram_files
     scope: pipeline_shared
-  description: 'Emits Mermaid topology diagram pages (physical + network) from main-interpreter-committed compiled model.
-    Supports icon-nodes, compat, and plain modes (ADR 0005, ADR 0027).
+  description: 'Emits Mermaid topology diagram pages (physical + network) from main-interpreter-committed
+    compiled model. Supports icon-nodes, compat, and plain modes (ADR 0005, ADR 0027).
 
     '
   execution_mode: subinterpreter
@@ -1941,7 +1922,6 @@ plugins:
   depends_on:
   - base.compiler.effective_model
   timeout: 30
-  subinterpreter_compatible: true
   config:
     inventory_profile: production
     topology_lane: v5
@@ -1962,7 +1942,8 @@ plugins:
         - delete
         - warn
         default: warn
-        description: Action for stale files under generator output root (ADR0093 safe obsolete protocol).
+        description: Action for stale files under generator output root (ADR0093 safe
+          obsolete protocol).
     required: []
   produces:
   - key: generated_dir
@@ -1977,7 +1958,8 @@ plugins:
     scope: pipeline_shared
   - key: artifact_contract_files
     scope: pipeline_shared
-  description: Emits baseline Ansible inventory artifacts from v5 projections (Phase 5 bootstrap).
+  description: Emits baseline Ansible inventory artifacts from v5 projections (Phase
+    5 bootstrap).
   execution_mode: subinterpreter
 - id: base.generator.docker_compose
   kind: generator
@@ -1990,7 +1972,6 @@ plugins:
   depends_on:
   - base.compiler.instance_rows
   timeout: 30
-  subinterpreter_compatible: true
   execution_mode: subinterpreter
   config: {}
   config_schema:
@@ -2008,7 +1989,8 @@ plugins:
     scope: pipeline_shared
   - key: compose_dir
     scope: pipeline_shared
-  description: Generates docker-compose.yaml files from Docker stack instances (ADR 0087 Phase 6).
+  description: Generates docker-compose.yaml files from Docker stack instances (ADR
+    0087 Phase 6).
 - id: base.generator.artifact_manifest
   kind: generator
   entry: generators/artifact_manifest_generator.py:ArtifactManifestGenerator
@@ -2025,7 +2007,6 @@ plugins:
   - base.generator.diagrams
   - base.generator.docker_compose
   timeout: 30
-  subinterpreter_compatible: true
   config:
     artifact_manifest_producers:
     - base.generator.effective_json
@@ -2045,12 +2026,14 @@ plugins:
     properties:
       artifact_manifest_producers:
         type: array
-        description: Declared producer plugin IDs consumed through snapshot/runtime contracts.
+        description: Declared producer plugin IDs consumed through snapshot/runtime
+          contracts.
         items:
           type: string
       artifact_manifest_compatibility_producers:
         type: array
-        description: Compatibility-only producer plugin IDs included only for legacy direct execution fallback.
+        description: Compatibility-only producer plugin IDs included only for legacy
+          direct execution fallback.
         items:
           type: string
     required: []
@@ -2080,7 +2063,8 @@ plugins:
     scope: pipeline_shared
   - key: artifact_manifest
     scope: pipeline_shared
-  description: Consolidates generated artifact checksums and producer attribution into artifact-manifest.json.
+  description: Consolidates generated artifact checksums and producer attribution
+    into artifact-manifest.json.
   execution_mode: subinterpreter
 - id: base.assembler.changed_scopes
   kind: assembler
@@ -2136,6 +2120,7 @@ plugins:
     scope: pipeline_shared
   description: Copies generated artifacts into workspace root for release assembly.
 - id: base.assembler.verify
+  execution_mode: subinterpreter
   kind: assembler
   entry: assemblers/workspace_assembler.py:AssemblyVerifyAssembler
   api_version: 1.x
@@ -2182,7 +2167,8 @@ plugins:
     properties:
       artifact_contract_compatibility_producers:
         type: array
-        description: Compatibility-only producers resolved via legacy publish registry fallback.
+        description: Compatibility-only producers resolved via legacy publish registry
+          fallback.
         items:
           type: string
     required: []
@@ -2269,7 +2255,8 @@ plugins:
     scope: pipeline_shared
   - key: deploy_bundle_reused
     scope: pipeline_shared
-  description: Creates or reuses deterministic deploy bundle from generated artifacts for deploy-plane execution.
+  description: Creates or reuses deterministic deploy bundle from generated artifacts
+    for deploy-plane execution.
 - id: base.builder.bundle
   kind: builder
   entry: builders/release_builder.py:ReleaseBundleBuilder
@@ -2356,8 +2343,10 @@ plugins:
     scope: pipeline_shared
   - key: artifact_family_summary
     scope: pipeline_shared
-  description: Aggregates ADR0093 artifact family planning/report metadata into build summary output.
+  description: Aggregates ADR0093 artifact family planning/report metadata into build
+    summary output.
 - id: base.builder.generator_readiness_evidence
+  execution_mode: subinterpreter
   kind: builder
   entry: builders/release_builder.py:GeneratorReadinessEvidenceBuilder
   api_version: 1.x
@@ -2396,8 +2385,10 @@ plugins:
     scope: pipeline_shared
   - key: generator_readiness_evidence
     scope: pipeline_shared
-  description: Emits consolidated ADR0093 generator migration/sunset/rollback readiness evidence artifact.
+  description: Emits consolidated ADR0093 generator migration/sunset/rollback readiness
+    evidence artifact.
 - id: base.builder.readiness_reports
+  execution_mode: subinterpreter
   kind: builder
   entry: builders/release_builder.py:ReadinessReportsBuilder
   api_version: 1.x
@@ -2428,8 +2419,10 @@ plugins:
     scope: pipeline_shared
   - key: rollback_events_report
     scope: pipeline_shared
-  description: Emits ADR0091-compatible reports/restore-readiness.json from generator readiness evidence.
+  description: Emits ADR0091-compatible reports/restore-readiness.json from generator
+    readiness evidence.
 - id: base.builder.soho_readiness_package
+  execution_mode: subinterpreter
   kind: builder
   entry: builders/soho_readiness_builder.py:SohoReadinessBuilder
   api_version: 1.x
@@ -2466,8 +2459,10 @@ plugins:
     scope: pipeline_shared
   - key: operator_readiness
     scope: pipeline_shared
-  description: Emits ADR0091 SOHO product handover/reports package and enforces readiness gate diagnostics.
+  description: Emits ADR0091 SOHO product handover/reports package and enforces readiness
+    gate diagnostics.
 - id: base.builder.release_manifest
+  execution_mode: subinterpreter
   kind: builder
   entry: builders/release_builder.py:ReleaseManifestBuilder
   api_version: 1.x
