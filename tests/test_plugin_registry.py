@@ -39,7 +39,10 @@ from kernel import (
     ValidatorJsonPlugin,
 )
 from kernel.plugin_base import Phase, PluginDiagnostic, Stage
+
 from tests.helpers.plugin_execution import publish_for_test
+
+REFERENCE_VALIDATOR_ENTRY = "plugins/validators/reference_validator.py:ReferenceValidator"
 
 
 def _write_manifest(path: Path, payload: dict) -> None:
@@ -103,7 +106,7 @@ def test_stage_order_prefers_order_over_manifest_insertion(tmp_path: Path):
             {
                 "id": "zmod.validator_json.second",
                 "kind": "validator_json",
-                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "entry": REFERENCE_VALIDATOR_ENTRY,
                 "api_version": "1.x",
                 "stages": ["validate"],
                 "order": 188,
@@ -112,7 +115,7 @@ def test_stage_order_prefers_order_over_manifest_insertion(tmp_path: Path):
             {
                 "id": "amod.validator_json.first",
                 "kind": "validator_json",
-                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "entry": REFERENCE_VALIDATOR_ENTRY,
                 "api_version": "1.x",
                 "stages": ["validate"],
                 "order": 100,
@@ -137,7 +140,7 @@ def test_stage_order_uses_id_as_tiebreaker(tmp_path: Path):
             {
                 "id": "zmod.validator_json.b",
                 "kind": "validator_json",
-                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "entry": REFERENCE_VALIDATOR_ENTRY,
                 "api_version": "1.x",
                 "stages": ["validate"],
                 "order": 100,
@@ -146,7 +149,7 @@ def test_stage_order_uses_id_as_tiebreaker(tmp_path: Path):
             {
                 "id": "amod.validator_json.a",
                 "kind": "validator_json",
-                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "entry": REFERENCE_VALIDATOR_ENTRY,
                 "api_version": "1.x",
                 "stages": ["validate"],
                 "order": 100,
@@ -171,7 +174,7 @@ def test_stage_order_respects_depends_on_over_numeric_order(tmp_path: Path):
             {
                 "id": "amod.validator_json.base",
                 "kind": "validator_json",
-                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "entry": REFERENCE_VALIDATOR_ENTRY,
                 "api_version": "1.x",
                 "stages": ["validate"],
                 "order": 188,
@@ -180,7 +183,7 @@ def test_stage_order_respects_depends_on_over_numeric_order(tmp_path: Path):
             {
                 "id": "zmod.validator_json.dep",
                 "kind": "validator_json",
-                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "entry": REFERENCE_VALIDATOR_ENTRY,
                 "api_version": "1.x",
                 "stages": ["validate"],
                 "order": 91,
@@ -205,7 +208,7 @@ def test_execution_order_filters_by_phase(tmp_path: Path):
             {
                 "id": "phase.validator_json.init",
                 "kind": "validator_json",
-                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "entry": REFERENCE_VALIDATOR_ENTRY,
                 "api_version": "1.x",
                 "stages": ["validate"],
                 "phase": "init",
@@ -214,7 +217,7 @@ def test_execution_order_filters_by_phase(tmp_path: Path):
             {
                 "id": "phase.validator_json.run",
                 "kind": "validator_json",
-                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "entry": REFERENCE_VALIDATOR_ENTRY,
                 "api_version": "1.x",
                 "stages": ["validate"],
                 "phase": "run",
@@ -516,7 +519,7 @@ def test_execute_stage_fails_on_capability_mismatch(tmp_path: Path):
             {
                 "id": "captest.validator_json.consumer",
                 "kind": "validator_json",
-                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "entry": REFERENCE_VALIDATOR_ENTRY,
                 "api_version": "1.x",
                 "stages": ["validate"],
                 "order": 100,
@@ -553,7 +556,7 @@ def test_execute_stage_allows_when_capability_is_provided(tmp_path: Path):
             {
                 "id": "captest.validator_json.provider",
                 "kind": "validator_json",
-                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "entry": REFERENCE_VALIDATOR_ENTRY,
                 "api_version": "1.x",
                 "stages": ["validate"],
                 "order": 91,
@@ -562,7 +565,7 @@ def test_execute_stage_allows_when_capability_is_provided(tmp_path: Path):
             {
                 "id": "captest.validator_json.consumer",
                 "kind": "validator_json",
-                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "entry": REFERENCE_VALIDATOR_ENTRY,
                 "api_version": "1.x",
                 "stages": ["validate"],
                 "order": 100,
@@ -597,7 +600,7 @@ def test_execute_stage_fails_on_unsupported_model_version(tmp_path: Path):
             {
                 "id": "modeltest.validator_json.simple",
                 "kind": "validator_json",
-                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "entry": REFERENCE_VALIDATOR_ENTRY,
                 "api_version": "1.x",
                 "stages": ["validate"],
                 "order": 100,
@@ -634,7 +637,7 @@ def test_execute_stage_accepts_compatible_model_version(tmp_path: Path):
             {
                 "id": "modeltest.validator_json.simple",
                 "kind": "validator_json",
-                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "entry": REFERENCE_VALIDATOR_ENTRY,
                 "api_version": "1.x",
                 "stages": ["validate"],
                 "order": 100,
@@ -669,7 +672,7 @@ def test_execute_stage_fails_when_plugin_model_versions_incompatible(tmp_path: P
             {
                 "id": "modeltest.validator_json.restricted",
                 "kind": "validator_json",
-                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "entry": REFERENCE_VALIDATOR_ENTRY,
                 "api_version": "1.x",
                 "stages": ["validate"],
                 "order": 100,
@@ -707,7 +710,7 @@ def test_execute_stage_fails_when_plugin_model_versions_require_missing_context(
             {
                 "id": "modeltest.validator_json.restricted",
                 "kind": "validator_json",
-                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "entry": REFERENCE_VALIDATOR_ENTRY,
                 "api_version": "1.x",
                 "stages": ["validate"],
                 "order": 100,
@@ -745,7 +748,7 @@ def test_execute_stage_allows_when_plugin_model_versions_match(tmp_path: Path):
             {
                 "id": "modeltest.validator_json.restricted",
                 "kind": "validator_json",
-                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "entry": REFERENCE_VALIDATOR_ENTRY,
                 "api_version": "1.x",
                 "stages": ["validate"],
                 "order": 100,
@@ -832,6 +835,10 @@ def test_execute_stage_runs_finalize_on_fail_fast(tmp_path: Path):
                 "stages": ["validate"],
                 "phase": "finalize",
                 "order": 188,
+                "produces": [
+                    {"key": "finalized", "scope": "pipeline_shared"},
+                    {"key": "failure_count", "scope": "pipeline_shared"},
+                ],
             },
         ],
     }
@@ -908,6 +915,7 @@ def test_partial_stage_selection_runs_finalize_for_started_stages_only(tmp_path:
                 "stages": ["compile"],
                 "phase": "finalize",
                 "order": 88,
+                "produces": [{"key": "finalized", "scope": "pipeline_shared"}],
             },
             {
                 "id": "partial.validate.finalize",
@@ -917,6 +925,7 @@ def test_partial_stage_selection_runs_finalize_for_started_stages_only(tmp_path:
                 "stages": ["validate"],
                 "phase": "finalize",
                 "order": 188,
+                "produces": [{"key": "finalized", "scope": "pipeline_shared"}],
             },
             {
                 "id": "partial.generate.finalize",
@@ -926,6 +935,7 @@ def test_partial_stage_selection_runs_finalize_for_started_stages_only(tmp_path:
                 "stages": ["generate"],
                 "phase": "finalize",
                 "order": 390,
+                "produces": [{"key": "finalized", "scope": "pipeline_shared"}],
             },
         ],
     }
@@ -962,7 +972,7 @@ def test_execute_stage_skips_when_before_capability_preflight(tmp_path: Path):
             {
                 "id": "when.validator_json.consumer",
                 "kind": "validator_json",
-                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "entry": REFERENCE_VALIDATOR_ENTRY,
                 "api_version": "1.x",
                 "stages": ["validate"],
                 "order": 100,
@@ -1281,6 +1291,7 @@ def test_execute_stage_parallel_respects_depends_on(tmp_path: Path):
                 "stages": ["validate"],
                 "phase": "run",
                 "order": 100,
+                "produces": [{"key": "ready", "scope": "pipeline_shared"}],
             },
             {
                 "id": "parallel.validator_json.base_b",
@@ -1290,6 +1301,7 @@ def test_execute_stage_parallel_respects_depends_on(tmp_path: Path):
                 "stages": ["validate"],
                 "phase": "run",
                 "order": 110,
+                "produces": [{"key": "ready", "scope": "pipeline_shared"}],
             },
             {
                 "id": "parallel.validator_json.consumer",
@@ -1306,6 +1318,19 @@ def test_execute_stage_parallel_respects_depends_on(tmp_path: Path):
                         "parallel.validator_json.base_b",
                     ]
                 },
+                "produces": [{"key": "ready", "scope": "pipeline_shared"}],
+                "consumes": [
+                    {
+                        "from_plugin": "parallel.validator_json.base_a",
+                        "key": "ready",
+                        "required": True,
+                    },
+                    {
+                        "from_plugin": "parallel.validator_json.base_b",
+                        "key": "ready",
+                        "required": True,
+                    },
+                ],
             },
         ],
     }
@@ -1480,6 +1505,7 @@ def test_execute_stage_parallel_compatible_plugin_crash_does_not_commit_partial_
     assert by_plugin["envelope.validator_json.crash"].status == PluginStatus.FAILED
     assert by_plugin["envelope.validator_json.consumer"].status == PluginStatus.FAILED
     assert ctx.get_published_keys("envelope.validator_json.crash") == []
+
 
 def test_execute_stage_invalidates_stage_local_outputs(tmp_path: Path):
     """stage_local published keys must be dropped after stage completion."""

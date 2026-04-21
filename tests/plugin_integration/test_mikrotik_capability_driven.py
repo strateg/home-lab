@@ -10,6 +10,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.helpers.plugin_execution import run_plugin_for_test
+
 V5_ROOT = Path(__file__).resolve().parents[2]
 V5_TOOLS = Path(__file__).resolve().parents[2] / "topology-tools"
 sys.path.insert(0, str(V5_TOOLS))
@@ -269,7 +271,7 @@ class TestMikroTikGeneratorCapabilityDriven:
         ctx = self._ctx(tmp_path, compiled_json)
         generator = TerraformMikroTikGenerator("test.generator.mikrotik")
 
-        result = generator.execute(ctx, Stage.GENERATE)
+        result = run_plugin_for_test(generator, ctx, Stage.GENERATE)
 
         assert result.status == PluginStatus.SUCCESS
         generated_files = [Path(f).name for f in result.output_data.get("terraform_mikrotik_files", [])]
@@ -292,7 +294,7 @@ class TestMikroTikGeneratorCapabilityDriven:
         ctx = self._ctx(tmp_path, compiled_json)
         generator = TerraformMikroTikGenerator("test.generator.mikrotik")
 
-        result = generator.execute(ctx, Stage.GENERATE)
+        result = run_plugin_for_test(generator, ctx, Stage.GENERATE)
 
         assert result.status == PluginStatus.SUCCESS
         generated_files = [Path(f).name for f in result.output_data.get("terraform_mikrotik_files", [])]
@@ -320,7 +322,7 @@ class TestMikroTikGeneratorCapabilityDriven:
         ctx = self._ctx(tmp_path, compiled_json)
         generator = TerraformMikroTikGenerator("test.generator.mikrotik")
 
-        result = generator.execute(ctx, Stage.GENERATE)
+        result = run_plugin_for_test(generator, ctx, Stage.GENERATE)
 
         assert result.status == PluginStatus.SUCCESS
         generated_files = [Path(f).name for f in result.output_data.get("terraform_mikrotik_files", [])]
@@ -343,7 +345,7 @@ class TestMikroTikGeneratorCapabilityDriven:
         ctx = self._ctx(tmp_path, compiled_json)
         generator = TerraformMikroTikGenerator("test.generator.mikrotik")
 
-        result = generator.execute(ctx, Stage.GENERATE)
+        result = run_plugin_for_test(generator, ctx, Stage.GENERATE)
 
         assert result.status == PluginStatus.SUCCESS
         generated_files = [Path(f).name for f in result.output_data.get("terraform_mikrotik_files", [])]
