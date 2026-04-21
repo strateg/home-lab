@@ -1,0 +1,52 @@
+name: Legacy Pattern Guard
+
+on:
+  pull_request:
+    paths:
+      - 'tests/**'
+      - 'topology-tools/kernel/**'
+
+jobs:
+  check-legacy-patterns:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Count legacy pattern usage
+        run: |
+          # Count _set_execution_context calls (excluding helper definition)
+          COUNT=$(grep -r "_set_execution_context" tests/ \
+            --include="*.py" \
+            | grep -v "tests/helpers/plugin_execution.py" \
+            | grep -v "# noqa" \
+            | wc -l || echo "0")
+
+          echo "Legacy pattern count: $COUNT"
+
+          # Baseline from ADR 0099 migration tracking
+          # This value should decrease over time as tests are migrated
+          BASELINE=$(cat .github/legacy-baseline.txt 2>/dev/null || echo "372")
+
+          if [ "$COUNT" -gt "$BASELINE" ]; then
+            echo "::error::Legacy pattern usage increased from $BASELINE to $COUNT"
+            echo "New tests should use: from tests.helpers.plugin_execution import run_plugin_for_test"
+            exit 1
+          fi
+
+          echo "Legacy pattern count ($COUNT) <= baseline ($BASELINE)"
+
+      - name: Check no SerializablePluginContext
+        run: |
+          if grep -r "SerializablePluginContext" tests/ topology-tools/ --include="*.py" 2>/dev/null; then
+            echo "::error::SerializablePluginContext found (dead code - removed in ADR 0097)"
+            exit 1
+          fi
+          echo "No SerializablePluginContext references found"
+
+      - name: Check helper module exists
+        run: |
+          if [ ! -f "tests/helpers/plugin_execution.py" ]; then
+            echo "::error::Test helper module missing: tests/helpers/plugin_execution.py"
+            exit 1
+          fi
+          echo "Test helper module exists"

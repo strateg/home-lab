@@ -1,13 +1,14 @@
-"""ADR 0097 Wave 5 Tests: Subinterpreter Execution (Python 3.14+ Required).
+"""ADR 0097 Execution Model Tests: Subinterpreter Execution (Python 3.14+ Required).
 
 This test suite validates the subinterpreter-based parallel execution system.
 Python 3.14+ is the minimum version - ThreadPoolExecutor fallback removed.
 
 Test coverage:
-1. Context serialization round-trip (no data loss)
-2. NoOpLock functionality
-3. Executor returns InterpreterPoolExecutor
-4. Plugin manifest schema parsing
+1. NoOpLock functionality
+2. Executor returns InterpreterPoolExecutor
+3. Plugin manifest schema parsing
+4. Event plane API
+5. SerializablePluginSpec serialization
 """
 
 from __future__ import annotations
@@ -38,79 +39,10 @@ from kernel.plugin_base import (
     Phase,
     PluginContext,
     PluginExecutionScope,
-    SerializablePluginContext,
     Stage,
 )
 from kernel.plugin_base import PluginKind
 from kernel.plugin_registry import PluginRegistry, PluginSpec, SerializablePluginSpec
-
-
-class TestSerializablePluginContext:
-    """Test SerializablePluginContext serialization/deserialization."""
-
-    def test_roundtrip_serialization(self):
-        """Test that context survives serialization round-trip without data loss."""
-        # Create a realistic PluginContext
-        original_ctx = PluginContext(
-            topology_path="/path/to/topology.yaml",
-            profile="production",
-            model_lock={"core_model_version": "0062-1.0", "framework_version": "0.5.0"},
-            compiled_json={
-                "instances": {"example": {"@class": "host", "hostname": "test"}},
-                "metadata": {"version": "1.0"},
-            },
-            config={
-                "parallel_execution": True,
-                "timeout": 30,
-                "custom_flag": "value",
-            },
-            output_dir="/path/to/output",
-            capability_catalog={"cap1": {"provider": "plugin1"}},
-            changed_input_scopes=["topology", "instances"],
-        )
-
-        # Serialize
-        serialized = SerializablePluginContext.from_plugin_context(original_ctx)
-
-        # Verify serialized fields
-        assert serialized.topology_path == original_ctx.topology_path
-        assert serialized.profile == original_ctx.profile
-        assert serialized.model_lock == original_ctx.model_lock
-        assert serialized.output_dir == original_ctx.output_dir
-        assert serialized.capability_catalog == original_ctx.capability_catalog
-        assert serialized.changed_input_scopes == original_ctx.changed_input_scopes
-        assert isinstance(serialized.compiled_json_bytes, bytes)
-        assert isinstance(serialized.plugin_config_bytes, bytes)
-
-        # Deserialize
-        restored_ctx = serialized.to_plugin_context()
-
-        # Verify all data preserved
-        assert restored_ctx.topology_path == original_ctx.topology_path
-        assert restored_ctx.profile == original_ctx.profile
-        assert restored_ctx.model_lock == original_ctx.model_lock
-        assert restored_ctx.compiled_json == original_ctx.compiled_json
-        assert restored_ctx.config == original_ctx.config
-        assert restored_ctx.output_dir == original_ctx.output_dir
-        assert restored_ctx.capability_catalog == original_ctx.capability_catalog
-        assert restored_ctx.changed_input_scopes == original_ctx.changed_input_scopes
-
-    def test_serialization_with_minimal_context(self):
-        """Test serialization with minimal required fields."""
-        ctx = PluginContext(
-            topology_path="/topology.yaml",
-            profile="test-real",
-            model_lock={},
-        )
-
-        serialized = SerializablePluginContext.from_plugin_context(ctx)
-        restored = serialized.to_plugin_context()
-
-        assert restored.topology_path == ctx.topology_path
-        assert restored.profile == ctx.profile
-        assert restored.model_lock == ctx.model_lock
-        assert restored.compiled_json == {}
-        assert restored.output_dir == ""
 
 
 class TestExecutorSelection:
@@ -186,22 +118,6 @@ class TestNoOpLock:
             model_lock={},
         )
         assert isinstance(ctx._published_data_lock, NoOpLock)
-
-    def test_deserialized_context_uses_nooplock(self):
-        """Test that deserialized context uses NoOpLock."""
-        original_ctx = PluginContext(
-            topology_path="/test",
-            profile="test",
-            model_lock={},
-            compiled_json={"test": "data"},
-        )
-
-        # Serialize and deserialize
-        serialized = SerializablePluginContext.from_plugin_context(original_ctx)
-        restored = serialized.to_plugin_context()
-
-        # Deserialized context should use NoOpLock
-        assert isinstance(restored._published_data_lock, NoOpLock)
 
     def test_publish_works_with_nooplock(self):
         """Test that publish() works with NoOpLock."""
@@ -524,44 +440,6 @@ class TestEventPlane:
         assert len(topic_a_events) == 2
         assert topic_a_events[0].payload == {"msg": 1}
         assert topic_a_events[1].payload == {"msg": 3}
-
-    def test_event_serialization_roundtrip(self):
-        """Test event plane data survives serialization round-trip."""
-        ctx = PluginContext(
-            topology_path="/test",
-            profile="test",
-            model_lock={},
-        )
-
-        # Set up subscriptions and emit events
-        scope = PluginExecutionScope(
-            plugin_id="test.plugin",
-            allowed_dependencies=frozenset(),
-            phase=Phase.RUN,
-            config={},
-            stage=Stage.VALIDATE,
-        )
-        token = ctx._set_execution_scope(scope)
-
-        ctx.subscribe_topic("test.topic")
-        ctx.emit("test.topic", {"data": "test"})
-
-        ctx._clear_execution_scope(token)
-
-        # Serialize and deserialize
-        serialized = SerializablePluginContext.from_plugin_context(ctx)
-        restored = serialized.to_plugin_context()
-
-        # Verify subscriptions preserved
-        assert "test.topic" in restored._event_subscriptions
-        assert "test.plugin" in restored._event_subscriptions["test.topic"]
-
-        # Verify event queues preserved
-        assert "test.plugin" in restored._event_queues
-        assert len(restored._event_queues["test.plugin"]) == 1
-        event = restored._event_queues["test.plugin"][0]
-        assert event.topic == "test.topic"
-        assert event.payload == {"data": "test"}
 
 
 if __name__ == "__main__":
