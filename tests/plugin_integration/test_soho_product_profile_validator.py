@@ -15,6 +15,7 @@ sys.path.insert(0, str(V5_TOOLS))
 from kernel import PluginRegistry, PluginStatus
 from kernel.plugin_base import PluginContext, Stage
 from plugins.validators.soho_product_profile_validator import SohoProductProfileValidator
+from tests.helpers.plugin_execution import publish_for_test, run_plugin_for_test
 
 _SOHO_RESOLVER_PLUGIN_ID = "base.compiler.soho_profile_resolver"
 
@@ -72,18 +73,17 @@ def _registry() -> PluginRegistry:
 
 
 def _publish(ctx: PluginContext, plugin_id: str, payload: dict[str, Any]) -> None:
-    ctx._set_execution_context(plugin_id, set())  # noqa: SLF001 - test fixture setup
-    try:
-        for key, value in payload.items():
-            ctx.publish(key, value)
-    finally:
-        ctx._clear_execution_context()
+    for key, value in payload.items():
+        publish_for_test(ctx, plugin_id, key, value)
 
 
 def _run_validator(validator: SohoProductProfileValidator, ctx: PluginContext):
-    from tests.helpers.plugin_execution import run_plugin_for_test
-
-    return run_plugin_for_test(validator, ctx, Stage.VALIDATE)
+    return run_plugin_for_test(
+        validator,
+        ctx,
+        Stage.VALIDATE,
+        consumes_keys={_SOHO_RESOLVER_PLUGIN_ID},
+    )
 
 
 def _seed_resolver_payloads(

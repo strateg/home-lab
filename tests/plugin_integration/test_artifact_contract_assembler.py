@@ -12,6 +12,7 @@ sys.path.insert(0, str(V5_TOOLS))
 from kernel.plugin_base import PluginContext, PluginStatus, Stage
 from kernel.plugin_registry import PluginRegistry
 from plugins.assemblers.artifact_contract_assembler import ArtifactContractAssembler
+from tests.helpers.plugin_execution import publish_for_test, run_plugin_for_test
 
 
 def _registry() -> PluginRegistry:
@@ -34,13 +35,8 @@ def _ctx(registry: PluginRegistry) -> PluginContext:
 
 def _run_guard(plugin: ArtifactContractAssembler, ctx: PluginContext, registry: PluginRegistry):
     spec = registry.specs[plugin.plugin_id]
-    allowed = set(spec.depends_on)
     ctx.config.update(spec.config)
-    ctx._set_execution_context("base.assembler.artifact_contract_guard", allowed)  # noqa: SLF001 - direct plugin execution helper
-    try:
-        return plugin.execute(ctx, Stage.ASSEMBLE)
-    finally:
-        ctx._clear_execution_context()  # noqa: SLF001 - direct plugin execution helper
+    return run_plugin_for_test(plugin, ctx, Stage.ASSEMBLE, consumes_keys=set(spec.depends_on))
 
 
 def _required_keys_payload(*, generated_dir: str | None = None) -> dict[str, object]:
@@ -53,12 +49,8 @@ def _required_keys_payload(*, generated_dir: str | None = None) -> dict[str, obj
 
 
 def _publish(ctx: PluginContext, plugin_id: str, payload: dict[str, object]) -> None:
-    ctx._set_execution_context(plugin_id, set())  # noqa: SLF001 - test fixture setup
-    try:
-        for key, value in payload.items():
-            ctx.publish(key, value)
-    finally:
-        ctx._clear_execution_context()
+    for key, value in payload.items():
+        publish_for_test(ctx, plugin_id, key, value)
 
 
 def _migrating_generators(registry: PluginRegistry) -> list[str]:

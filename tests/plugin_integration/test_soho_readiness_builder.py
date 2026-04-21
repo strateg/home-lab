@@ -12,6 +12,7 @@ sys.path.insert(0, str(V5_TOOLS))
 
 from kernel.plugin_base import PluginContext, PluginStatus, Stage
 from plugins.builders.soho_readiness_builder import SohoReadinessBuilder
+from tests.helpers.plugin_execution import publish_for_test, run_plugin_for_test
 
 _ADR0091_DOMAINS = {
     "greenfield-first-install",
@@ -26,18 +27,17 @@ _ADR0091_DOMAINS = {
 
 
 def _publish(ctx: PluginContext, plugin_id: str, payload: dict) -> None:
-    ctx._set_execution_context(plugin_id, set())  # noqa: SLF001 - test fixture setup
-    try:
-        for key, value in payload.items():
-            ctx.publish(key, value)
-    finally:
-        ctx._clear_execution_context()
+    for key, value in payload.items():
+        publish_for_test(ctx, plugin_id, key, value)
 
 
 def _run_builder(builder: SohoReadinessBuilder, ctx: PluginContext):
-    from tests.helpers.plugin_execution import run_plugin_for_test
-
-    return run_plugin_for_test(builder, ctx, Stage.BUILD)
+    return run_plugin_for_test(
+        builder,
+        ctx,
+        Stage.BUILD,
+        consumes_keys={"base.validator.soho_product_profile", "base.builder.readiness_reports"},
+    )
 
 
 def test_soho_readiness_builder_emits_product_package_and_reports(tmp_path: Path) -> None:

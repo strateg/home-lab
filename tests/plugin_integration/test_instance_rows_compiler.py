@@ -14,6 +14,7 @@ sys.path.insert(0, str(V5_TOOLS))
 from kernel import PluginContext, PluginRegistry, PluginStatus
 from kernel.plugin_base import Stage
 from plugins.compilers import instance_rows_compiler as instance_rows_module
+from tests.helpers.plugin_execution import run_plugin_for_test
 
 PLUGIN_ID = "base.compiler.instance_rows"
 
@@ -31,13 +32,7 @@ def _write_manifest(path: Path, payload: dict) -> None:
 
 def _run_instance_rows_direct(ctx: PluginContext):
     plugin = instance_rows_module.InstanceRowsCompiler(PLUGIN_ID)
-    ctx._set_execution_context(  # noqa: SLF001 - direct plugin unit-style execution
-        PLUGIN_ID, {"base.compiler.annotation_resolver"}
-    )
-    try:
-        return plugin.execute(ctx, Stage.COMPILE)
-    finally:
-        ctx._clear_execution_context()  # noqa: SLF001 - direct plugin unit-style execution
+    return run_plugin_for_test(plugin, ctx, Stage.COMPILE, consumes_keys={"base.compiler.annotation_resolver"})
 
 
 def test_instance_rows_secret_resolve_manifest_requires_annotation_publications():
@@ -224,7 +219,7 @@ def test_instance_rows_execute_stage_commits_normalized_rows_authoritatively(tmp
                 "stages": ["compile"],
                 "phase": "run",
                 "order": 39,
-                "subinterpreter_compatible": True,
+                "execution_mode": "subinterpreter",
                 "config": {
                     "secrets_mode": "passthrough",
                     "secrets_root": "projects/home-lab/secrets",
@@ -241,7 +236,7 @@ def test_instance_rows_execute_stage_commits_normalized_rows_authoritatively(tmp
                 "phase": "run",
                 "order": 40,
                 "depends_on": ["base.compiler.instance_rows_secret_resolve"],
-                "subinterpreter_compatible": True,
+                "execution_mode": "subinterpreter",
                 "config": {
                     "secrets_mode": "passthrough",
                     "secrets_root": "projects/home-lab/secrets",
@@ -259,7 +254,7 @@ def test_instance_rows_execute_stage_commits_normalized_rows_authoritatively(tmp
                 "phase": "run",
                 "order": 41,
                 "depends_on": ["base.compiler.instance_rows_resolve"],
-                "subinterpreter_compatible": True,
+                "execution_mode": "subinterpreter",
                 "config": {
                     "secrets_mode": "passthrough",
                     "secrets_root": "projects/home-lab/secrets",
@@ -277,7 +272,7 @@ def test_instance_rows_execute_stage_commits_normalized_rows_authoritatively(tmp
                 "phase": "run",
                 "order": 42,
                 "depends_on": ["base.compiler.instance_rows_prepare"],
-                "subinterpreter_compatible": True,
+                "execution_mode": "subinterpreter",
                 "config": {
                     "secrets_mode": "passthrough",
                     "secrets_root": "projects/home-lab/secrets",
@@ -295,7 +290,7 @@ def test_instance_rows_execute_stage_commits_normalized_rows_authoritatively(tmp
                 "phase": "run",
                 "order": 43,
                 "depends_on": ["base.compiler.instance_rows_validate"],
-                "subinterpreter_compatible": True,
+                "execution_mode": "subinterpreter",
                 "config": {
                     "secrets_mode": "passthrough",
                     "secrets_root": "projects/home-lab/secrets",
@@ -360,7 +355,7 @@ def _instance_rows_stage_manifest(*, plugin_id: str, entry_rel: str, class_name:
                 "stages": ["compile"],
                 "phase": "run",
                 "order": 39,
-                "subinterpreter_compatible": True,
+                "execution_mode": "subinterpreter",
                 "config": {
                     "secrets_mode": "passthrough",
                     "secrets_root": "projects/home-lab/secrets",
@@ -377,7 +372,7 @@ def _instance_rows_stage_manifest(*, plugin_id: str, entry_rel: str, class_name:
                 "phase": "run",
                 "order": 40,
                 "depends_on": ["base.compiler.instance_rows_secret_resolve"],
-                "subinterpreter_compatible": True,
+                "execution_mode": "subinterpreter",
                 "config": {
                     "secrets_mode": "passthrough",
                     "secrets_root": "projects/home-lab/secrets",
@@ -395,7 +390,7 @@ def _instance_rows_stage_manifest(*, plugin_id: str, entry_rel: str, class_name:
                 "phase": "run",
                 "order": 41,
                 "depends_on": ["base.compiler.instance_rows_resolve"],
-                "subinterpreter_compatible": True,
+                "execution_mode": "subinterpreter",
                 "config": {
                     "secrets_mode": "passthrough",
                     "secrets_root": "projects/home-lab/secrets",
@@ -413,7 +408,7 @@ def _instance_rows_stage_manifest(*, plugin_id: str, entry_rel: str, class_name:
                 "phase": "run",
                 "order": 42,
                 "depends_on": ["base.compiler.instance_rows_prepare"],
-                "subinterpreter_compatible": True,
+                "execution_mode": "subinterpreter",
                 "config": {
                     "secrets_mode": "passthrough",
                     "secrets_root": "projects/home-lab/secrets",
@@ -434,7 +429,7 @@ def _instance_rows_stage_manifest(*, plugin_id: str, entry_rel: str, class_name:
         "phase": "run",
         "order": order,
         "depends_on": depends_on,
-        "subinterpreter_compatible": True,
+        "execution_mode": "subinterpreter",
         "config": {
             "compilation_owner_instance_rows": "plugin",
             "secrets_mode": "passthrough",
@@ -470,7 +465,7 @@ def test_instance_rows_execute_stage_requires_validated_rows_in_snapshot_path(tm
                 "stages": ["compile"],
                 "phase": "run",
                 "order": 42,
-                "subinterpreter_compatible": True,
+                "execution_mode": "subinterpreter",
                 "config": {"compilation_owner_instance_rows": "core"},
                 "produces": [{"key": "validated_rows", "scope": "stage_local"}],
             },
@@ -483,7 +478,7 @@ def test_instance_rows_execute_stage_requires_validated_rows_in_snapshot_path(tm
                 "phase": "run",
                 "order": 43,
                 "depends_on": ["base.compiler.instance_rows_validate"],
-                "subinterpreter_compatible": True,
+                "execution_mode": "subinterpreter",
                 "config": {
                     "compilation_owner_instance_rows": "plugin",
                     "secrets_mode": "passthrough",
@@ -1538,7 +1533,7 @@ def test_instance_rows_prepare_execute_stage_requires_resolved_rows(tmp_path):
         "stages": ["compile"],
         "phase": "run",
         "order": 39,
-        "subinterpreter_compatible": True,
+        "execution_mode": "subinterpreter",
         "config": {"compilation_owner_instance_rows": "core"},
         "produces": [],
     })
@@ -1592,7 +1587,7 @@ def test_instance_rows_validate_execute_stage_requires_prepared_rows(tmp_path):
         "stages": ["compile"],
         "phase": "run",
         "order": 39,
-        "subinterpreter_compatible": True,
+        "execution_mode": "subinterpreter",
         "config": {"compilation_owner_instance_rows": "core"},
         "produces": [],
     })
@@ -1605,7 +1600,7 @@ def test_instance_rows_validate_execute_stage_requires_prepared_rows(tmp_path):
         "phase": "run",
         "order": 40,
         "depends_on": ["base.compiler.instance_rows_secret_resolve"],
-        "subinterpreter_compatible": True,
+        "execution_mode": "subinterpreter",
         "config": {"compilation_owner_instance_rows": "core"},
         "produces": [],
         "consumes": [],

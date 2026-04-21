@@ -12,21 +12,26 @@ sys.path.insert(0, str(V5_TOOLS))
 
 from kernel.plugin_base import PluginContext, PluginStatus, Stage
 from plugins.builders.release_builder import GeneratorReadinessEvidenceBuilder
+from tests.helpers.plugin_execution import publish_for_test, run_plugin_for_test
 
 
 def _publish(ctx: PluginContext, plugin_id: str, payload: dict) -> None:
-    ctx._set_execution_context(plugin_id, set())  # noqa: SLF001 - test fixture setup
-    try:
-        for key, value in payload.items():
-            ctx.publish(key, value)
-    finally:
-        ctx._clear_execution_context()
+    for key, value in payload.items():
+        publish_for_test(ctx, plugin_id, key, value)
 
 
 def _run_builder(builder: GeneratorReadinessEvidenceBuilder, ctx: PluginContext):
-    from tests.helpers.plugin_execution import run_plugin_for_test
-
-    return run_plugin_for_test(builder, ctx, Stage.BUILD)
+    return run_plugin_for_test(
+        builder,
+        ctx,
+        Stage.BUILD,
+        consumes_keys={
+            "base.validator.generator_migration_status",
+            "base.validator.generator_sunset",
+            "base.validator.generator_rollback_escalation",
+            "base.builder.artifact_family_summary",
+        },
+    )
 
 
 def test_generator_readiness_evidence_builder_emits_green_when_no_signals(tmp_path: Path) -> None:

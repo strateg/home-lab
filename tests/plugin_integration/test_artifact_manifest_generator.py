@@ -14,6 +14,7 @@ from kernel import PluginContext, PluginRegistry, PluginStatus
 from kernel.plugin_base import Phase, PluginInputSnapshot, Stage, SubscriptionValue
 from kernel.plugin_runner import run_plugin_once
 from plugins.generators.artifact_manifest_generator import ArtifactManifestGenerator
+from tests.helpers.plugin_execution import publish_for_test
 
 PLUGIN_ID = "base.generator.artifact_manifest"
 
@@ -49,16 +50,8 @@ def test_artifact_manifest_generator_emits_checksums(tmp_path: Path):
         },
     )
 
-    ctx._set_execution_context("base.generator.docs", set())
-    try:
-        ctx.publish("generated_files", [str(docs_path)])
-    finally:
-        ctx._clear_execution_context()
-    ctx._set_execution_context("base.generator.ansible_inventory", set())
-    try:
-        ctx.publish("generated_files", [str(inv_path)])
-    finally:
-        ctx._clear_execution_context()
+    publish_for_test(ctx, "base.generator.docs", "generated_files", [str(docs_path)])
+    publish_for_test(ctx, "base.generator.ansible_inventory", "generated_files", [str(inv_path)])
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.GENERATE, phase=Phase.FINALIZE)
 
@@ -102,11 +95,7 @@ def test_artifact_manifest_generator_is_deterministic_across_publish_order(tmp_p
             "base.generator.ansible_inventory": str(inv_path),
         }
         for plugin_id in (first_plugin, second_plugin):
-            ctx._set_execution_context(plugin_id, set())
-            try:
-                ctx.publish("generated_files", [plugin_to_file[plugin_id]])
-            finally:
-                ctx._clear_execution_context()
+            publish_for_test(ctx, plugin_id, "generated_files", [plugin_to_file[plugin_id]])
         result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.GENERATE, phase=Phase.FINALIZE)
         assert result.status == PluginStatus.SUCCESS
         manifest_path = project_root / "artifact-manifest.json"
@@ -196,11 +185,7 @@ def test_artifact_manifest_generator_respects_explicit_producer_list(tmp_path: P
         ("object.proxmox.generator.terraform", included_path),
         ("base.generator.docs", ignored_path),
     ):
-        ctx._set_execution_context(plugin_id, set())
-        try:
-            ctx.publish("generated_files", [str(artifact_path)])
-        finally:
-            ctx._clear_execution_context()
+        publish_for_test(ctx, plugin_id, "generated_files", [str(artifact_path)])
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.GENERATE, phase=Phase.FINALIZE)
 

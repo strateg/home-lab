@@ -5,6 +5,24 @@ from __future__ import annotations
 from typing import Any, Iterable
 
 
+def _infer_stage_for_plugin_id(plugin_id: str):
+    from kernel.plugin_base import Stage
+
+    if ".discover" in plugin_id:
+        return Stage.DISCOVER
+    if ".compiler" in plugin_id:
+        return Stage.COMPILE
+    if ".validator" in plugin_id:
+        return Stage.VALIDATE
+    if ".generator" in plugin_id:
+        return Stage.GENERATE
+    if ".assembler" in plugin_id:
+        return Stage.ASSEMBLE
+    if ".builder" in plugin_id:
+        return Stage.BUILD
+    return None
+
+
 def run_plugin_for_test(plugin, ctx, stage, *, consumes_keys: Iterable[str] | None = None) -> Any:
     """Execute plugin with scoped context wiring.
 
@@ -27,10 +45,13 @@ def publish_for_test(
     value: Any,
     *,
     consumes_keys: Iterable[str] | None = None,
+    stage: Any | None = None,
+    infer_stage: bool = True,
 ) -> None:
     """Publish fixture payload under a producer plugin identity for tests."""
 
-    ctx._set_execution_context(producer_plugin_id, set(consumes_keys or ()))
+    effective_stage = stage if stage is not None else (_infer_stage_for_plugin_id(producer_plugin_id) if infer_stage else None)
+    ctx._set_execution_context(producer_plugin_id, set(consumes_keys or ()), stage=effective_stage)
     try:
         ctx.publish(key, value)
     finally:
