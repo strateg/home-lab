@@ -39,6 +39,7 @@ from kernel import (
     ValidatorJsonPlugin,
 )
 from kernel.plugin_base import Phase, PluginDiagnostic, Stage
+from tests.helpers.plugin_execution import publish_for_test
 
 
 def _write_manifest(path: Path, payload: dict) -> None:
@@ -311,8 +312,9 @@ def test_plugin_execution():
             }
         },
     )
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish(
+    publish_for_test(
+        ctx,
+        "base.compiler.instance_rows",
         "normalized_rows",
         [
             {
@@ -325,10 +327,7 @@ def test_plugin_execution():
             }
         ],
     )
-    ctx._clear_execution_context()
-    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
-    ctx.publish("catalog_ids", [])
-    ctx._clear_execution_context()
+    publish_for_test(ctx, "base.compiler.capability_contract_loader", "catalog_ids", [])
 
     result = registry.execute_plugin("base.validator.references", ctx, Stage.VALIDATE)
     assert isinstance(result, PluginResult)
@@ -366,8 +365,9 @@ def test_plugin_detects_invalid_ref():
         },
     )
 
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish(
+    publish_for_test(
+        ctx,
+        "base.compiler.instance_rows",
         "normalized_rows",
         [
             {
@@ -380,10 +380,7 @@ def test_plugin_detects_invalid_ref():
             }
         ],
     )
-    ctx._clear_execution_context()
-    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
-    ctx.publish("catalog_ids", [])
-    ctx._clear_execution_context()
+    publish_for_test(ctx, "base.compiler.capability_contract_loader", "catalog_ids", [])
 
     result = registry.execute_plugin("base.validator.references", ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
@@ -1695,11 +1692,7 @@ def test_execute_plugin_warns_on_undeclared_subscribe(tmp_path: Path):
     registry = PluginRegistry(V5_TOOLS)
     registry.load_manifest(manifest)
     ctx = PluginContext(topology_path="test", profile="test", model_lock={})
-    ctx._set_execution_context("contract.compiler.producer", set(), stage=Stage.COMPILE)
-    try:
-        ctx.publish("runtime_key", {"ok": True})
-    finally:
-        ctx._clear_execution_context()
+    publish_for_test(ctx, "contract.compiler.producer", "runtime_key", {"ok": True}, stage=Stage.COMPILE)
 
     result = registry.execute_plugin(
         "contract.validator_json.consumer",
@@ -1803,11 +1796,7 @@ def test_execute_plugin_errors_on_undeclared_subscribe_in_strict_mode(tmp_path: 
     registry = PluginRegistry(V5_TOOLS)
     registry.load_manifest(manifest)
     ctx = PluginContext(topology_path="test", profile="test", model_lock={})
-    ctx._set_execution_context("strict.compiler.producer", set(), stage=Stage.COMPILE)
-    try:
-        ctx.publish("runtime_key", {"ok": True})
-    finally:
-        ctx._clear_execution_context()
+    publish_for_test(ctx, "strict.compiler.producer", "runtime_key", {"ok": True}, stage=Stage.COMPILE)
 
     result = registry.execute_plugin(
         "strict.validator_json.consumer",
@@ -1870,11 +1859,7 @@ def test_execute_plugin_requires_explicit_consumes_even_with_declared_producer(t
     registry = PluginRegistry(V5_TOOLS)
     registry.load_manifest(manifest)
     ctx = PluginContext(topology_path="test", profile="test", model_lock={})
-    ctx._set_execution_context("strict.compiler.producer", set(), stage=Stage.COMPILE)
-    try:
-        ctx.publish("runtime_key", {"ok": True})
-    finally:
-        ctx._clear_execution_context()
+    publish_for_test(ctx, "strict.compiler.producer", "runtime_key", {"ok": True}, stage=Stage.COMPILE)
 
     result = registry.execute_plugin(
         "strict.validator_json.consumer",
@@ -2039,11 +2024,7 @@ def test_execute_plugin_fails_on_invalid_consumed_schema_ref_payload(tmp_path: P
     registry = PluginRegistry(V5_TOOLS)
     registry.load_manifest(manifest)
     ctx = PluginContext(topology_path="test", profile="test", model_lock={})
-    ctx._set_execution_context("schema.compiler.producer", set(), stage=Stage.COMPILE)
-    try:
-        ctx.publish("runtime_key", {"ok": True})
-    finally:
-        ctx._clear_execution_context()
+    publish_for_test(ctx, "schema.compiler.producer", "runtime_key", {"ok": True}, stage=Stage.COMPILE)
 
     result = registry.execute_plugin("schema.validator_json.consumer", ctx, Stage.VALIDATE)
     assert any(diag.code == "E8002" for diag in result.diagnostics)
@@ -2225,28 +2206,22 @@ def test_timeout_does_not_block_pipeline():
             }
         },
     )
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    try:
-        ctx.publish(
-            "normalized_rows",
-            [
-                {
-                    "group": "devices",
-                    "instance": "test-device",
-                    "class_ref": "class.router",
-                    "object_ref": "obj.test",
-                    "firmware_ref": None,
-                    "os_refs": [],
-                }
-            ],
-        )
-    finally:
-        ctx._clear_execution_context()
-    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
-    try:
-        ctx.publish("catalog_ids", [])
-    finally:
-        ctx._clear_execution_context()
+    publish_for_test(
+        ctx,
+        "base.compiler.instance_rows",
+        "normalized_rows",
+        [
+            {
+                "group": "devices",
+                "instance": "test-device",
+                "class_ref": "class.router",
+                "object_ref": "obj.test",
+                "firmware_ref": None,
+                "os_refs": [],
+            }
+        ],
+    )
+    publish_for_test(ctx, "base.compiler.capability_contract_loader", "catalog_ids", [])
 
     plugin = registry.load_plugin("base.validator.references")
     original_execute = plugin.execute
@@ -2292,13 +2267,9 @@ def test_runtime_config_takes_precedence():
         },
         config={"strict_mode": True},
     )
-    ctx._set_execution_context("base.compiler.model_lock_loader", set())
-    ctx.publish("lock_payload", {})
-    ctx.publish("model_lock_loaded", False)
-    ctx._clear_execution_context()
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish("normalized_rows", [])
-    ctx._clear_execution_context()
+    publish_for_test(ctx, "base.compiler.model_lock_loader", "lock_payload", {})
+    publish_for_test(ctx, "base.compiler.model_lock_loader", "model_lock_loaded", False)
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", [])
 
     result = registry.execute_plugin("base.validator.model_lock", ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
@@ -2316,13 +2287,8 @@ def test_publish_subscribe_basic():
     )
 
     # Set execution context (simulating registry behavior)
-    ctx._set_execution_context("plugin.producer", set())
-
-    # Publish data
-    ctx.publish("key1", {"data": "value1"})
-    ctx.publish("key2", [1, 2, 3])
-
-    ctx._clear_execution_context()
+    publish_for_test(ctx, "plugin.producer", "key1", {"data": "value1"})
+    publish_for_test(ctx, "plugin.producer", "key2", [1, 2, 3])
 
     # Set up consumer plugin with dependency
     ctx._set_execution_context("plugin.consumer", {"plugin.producer"})
@@ -2351,9 +2317,7 @@ def test_publish_subscribe_dependency_check():
     )
 
     # Producer publishes data
-    ctx._set_execution_context("plugin.producer", set())
-    ctx.publish("data", {"value": 42})
-    ctx._clear_execution_context()
+    publish_for_test(ctx, "plugin.producer", "data", {"value": 42})
 
     # Consumer WITHOUT dependency should fail
     ctx._set_execution_context("plugin.consumer", set())  # Empty depends_on
@@ -2388,9 +2352,7 @@ def test_publish_subscribe_missing_data():
     ctx._clear_execution_context()
 
     # Producer publishes some data
-    ctx._set_execution_context("plugin.producer", set())
-    ctx.publish("existing_key", "value")
-    ctx._clear_execution_context()
+    publish_for_test(ctx, "plugin.producer", "existing_key", "value")
 
     # Consumer tries to get missing key
     ctx._set_execution_context("plugin.consumer", {"plugin.producer"})
