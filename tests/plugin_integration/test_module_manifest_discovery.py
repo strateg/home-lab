@@ -9,6 +9,8 @@ from pathlib import Path
 
 import yaml
 
+from tests.helpers.plugin_execution import publish_for_test
+
 
 def _load_compiler_module():
     repo_root = Path(__file__).resolve().parents[2]
@@ -68,40 +70,32 @@ def _create_compiler(mod, tmp_path: Path):
 
 
 def _seed_manifest_loader_summary(ctx) -> None:
-    ctx._set_execution_context("base.discover.manifest_loader", set())
-    try:
-        ctx.publish(
-            "manifest_loader_summary",
-            {
-                "status": "ok",
-                "discovered_manifests": list(ctx.config.get("discovered_plugin_manifests", [])),
-                "plugin_count": int(ctx.config.get("discovered_plugin_count", 0)),
-            },
-        )
-    finally:
-        ctx._clear_execution_context()
+    publish_for_test(
+        ctx,
+        "base.discover.manifest_loader",
+        "manifest_loader_summary",
+        {
+            "status": "ok",
+            "discovered_manifests": list(ctx.config.get("discovered_plugin_manifests", [])),
+            "plugin_count": int(ctx.config.get("discovered_plugin_count", 0)),
+        },
+    )
 
 
 def _seed_discover_preflight_inputs(ctx) -> None:
     _seed_manifest_loader_summary(ctx)
-    ctx._set_execution_context("base.discover.inventory", set())
-    try:
-        ctx.publish(
-            "manifest_inventory",
-            {
-                "manifest_paths": list(ctx.config.get("discovered_plugin_manifests", [])),
-                "manifest_count": len(ctx.config.get("discovered_plugin_manifests", [])),
-                "plugin_count": int(ctx.config.get("discovered_plugin_count", 0)),
-            },
-        )
-    finally:
-        ctx._clear_execution_context()
+    publish_for_test(
+        ctx,
+        "base.discover.inventory",
+        "manifest_inventory",
+        {
+            "manifest_paths": list(ctx.config.get("discovered_plugin_manifests", [])),
+            "manifest_count": len(ctx.config.get("discovered_plugin_manifests", [])),
+            "plugin_count": int(ctx.config.get("discovered_plugin_count", 0)),
+        },
+    )
 
-    ctx._set_execution_context("base.discover.boundary", set())
-    try:
-        ctx.publish("boundary_ok", True)
-    finally:
-        ctx._clear_execution_context()
+    publish_for_test(ctx, "base.discover.boundary", "boundary_ok", True)
 
 
 def test_module_level_manifests_are_loaded(tmp_path: Path) -> None:
@@ -192,7 +186,9 @@ def test_discover_init_plugin_loads_module_manifests(tmp_path: Path) -> None:
 
     assert "class.validator.alpha" in compiler._plugin_registry.specs
     assert "object.validator.beta" in compiler._plugin_registry.specs
-    discovered = ctx.config.get("discovered_plugin_manifests", [])
+    # Discover bootstrap currently commits manifest ownership into compiler state;
+    # ctx.config is not guaranteed to receive merge-back for this direct stage helper.
+    discovered = list(getattr(compiler, "_discovered_manifest_paths", []))
     assert any(str(path).replace("\\", "/").endswith("class-modules/alpha/plugins.yaml") for path in discovered)
 
 
