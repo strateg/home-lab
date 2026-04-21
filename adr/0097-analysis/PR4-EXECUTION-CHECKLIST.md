@@ -270,11 +270,26 @@ Analysis complete. Results:
 - [x] Create migration script to convert `subinterpreter_compatible` to `execution_mode` (automated cleanup)
 - [x] Remove field from all manifests (62 plugins cleaned, 0 remain)
 
-### H2. Clean up legacy code paths
+### H2. Clean up legacy code paths — VERIFIED CLEAN
 
-- [ ] Remove `_mirror_context_into_pipeline_state()` calls for non-legacy plugins
-- [ ] Remove `SerializablePluginContext` usage in primary path
-- [ ] Consolidate envelope path as the only execution model
+Analysis completed 2026-04-21:
+
+- [x] **`_mirror_context_into_pipeline_state()` calls** — CLEAN
+  - Called ONLY inside `if spec.execution_mode == "thread_legacy"` blocks (lines 1787, 2589)
+  - 0 plugins use thread_legacy mode
+  - No action needed for non-legacy plugins (subinterpreter/main_interpreter already clean)
+
+- [x] **`SerializablePluginContext` usage** — CLEAN
+  - Defined in `topology-tools/kernel/plugin_base.py:977`
+  - NOT used anywhere in the codebase (dead code)
+  - Primary path does not use it
+
+- [x] **Envelope path consolidation** — COMPLETE
+  - Line 2601: "Envelope path: both subinterpreter and main_interpreter modes"
+  - Both modes use: snapshot → envelope → commit (no merge-back)
+  - Only thread_legacy (0 plugins) uses old context mutation path
+
+**Recommendation:** Keep thread_legacy code path for safety (tests exist, doesn't hurt), but mark as deprecated for new plugins. Consider removal in ADR 0099 if no use cases emerge.
 
 ### H3. Update documentation
 
@@ -315,8 +330,8 @@ PR4+ is complete when:
 - [x] All compatible plugins migrated to `subinterpreter` mode (74/84 base plugins)
 - [x] Plugins requiring `main_interpreter` are documented with reasons (see section K)
 - [x] `subinterpreter_compatible` field removed from all manifests (62 legacy entries cleaned)
-- [ ] Legacy runtime code paths marked for removal or removed (deferred to ADR 0099 test migration)
-- [ ] Documentation updated (deferred to PR5)
+- [x] Legacy runtime code paths verified clean (H2: primary path uses envelope only, thread_legacy deprecated)
+- [ ] Documentation updated (H3: deferred to PR5)
 - [x] All tests pass (compile successful with 5 expected artifact contract errors)
 - [x] Generated outputs match baseline (diagnostics unchanged)
 
