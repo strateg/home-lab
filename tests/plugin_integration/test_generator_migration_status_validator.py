@@ -15,11 +15,9 @@ from plugins.validators.generator_migration_status_validator import GeneratorMig
 
 
 def _run_validator(validator: GeneratorMigrationStatusValidator, ctx: PluginContext):
-    ctx._set_execution_context(validator.plugin_id, set())  # noqa: SLF001 - direct plugin execution helper
-    try:
-        return validator.execute(ctx, Stage.VALIDATE)
-    finally:
-        ctx._clear_execution_context()  # noqa: SLF001 - direct plugin execution helper
+    from tests.helpers.plugin_execution import run_plugin_for_test
+
+    return run_plugin_for_test(validator, ctx, Stage.VALIDATE)
 
 
 def test_generator_migration_status_validator_reports_summary() -> None:

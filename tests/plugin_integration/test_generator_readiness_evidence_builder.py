@@ -24,19 +24,9 @@ def _publish(ctx: PluginContext, plugin_id: str, payload: dict) -> None:
 
 
 def _run_builder(builder: GeneratorReadinessEvidenceBuilder, ctx: PluginContext):
-    ctx._set_execution_context(  # noqa: SLF001 - direct plugin execution helper
-        builder.plugin_id,
-        {
-            "base.validator.generator_migration_status",
-            "base.validator.generator_sunset",
-            "base.validator.generator_rollback_escalation",
-            "base.builder.artifact_family_summary",
-        },
-    )
-    try:
-        return builder.execute(ctx, Stage.BUILD)
-    finally:
-        ctx._clear_execution_context()  # noqa: SLF001 - direct plugin execution helper
+    from tests.helpers.plugin_execution import run_plugin_for_test
+
+    return run_plugin_for_test(builder, ctx, Stage.BUILD)
 
 
 def test_generator_readiness_evidence_builder_emits_green_when_no_signals(tmp_path: Path) -> None:

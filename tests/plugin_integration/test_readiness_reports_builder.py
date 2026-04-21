@@ -24,14 +24,9 @@ def _publish(ctx: PluginContext, plugin_id: str, payload: dict) -> None:
 
 
 def _run_builder(builder: ReadinessReportsBuilder, ctx: PluginContext):
-    ctx._set_execution_context(  # noqa: SLF001 - direct plugin execution helper
-        builder.plugin_id,
-        {"base.builder.generator_readiness_evidence"},
-    )
-    try:
-        return builder.execute(ctx, Stage.BUILD)
-    finally:
-        ctx._clear_execution_context()  # noqa: SLF001 - direct plugin execution helper
+    from tests.helpers.plugin_execution import run_plugin_for_test
+
+    return run_plugin_for_test(builder, ctx, Stage.BUILD)
 
 
 def _readiness_evidence(*, status: str = "green") -> dict[str, object]:

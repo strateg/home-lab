@@ -70,11 +70,9 @@ def _ctx(tmp_path: Path, compiled_json: dict, *, artifacts_root: Path | None = N
 
 
 def _run_generator(generator: AnsibleInventoryGenerator, ctx: PluginContext):
-    ctx._set_execution_context(PLUGIN_ID, set())  # noqa: SLF001 - direct plugin execution helper
-    try:
-        return generator.execute(ctx, Stage.GENERATE)
-    finally:
-        ctx._clear_execution_context()  # noqa: SLF001 - direct plugin execution helper
+    from tests.helpers.plugin_execution import run_plugin_for_test
+
+    return run_plugin_for_test(generator, ctx, Stage.GENERATE)
 
 
 def _compiled_fixture() -> dict:

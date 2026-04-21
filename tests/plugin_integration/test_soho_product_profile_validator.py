@@ -81,11 +81,9 @@ def _publish(ctx: PluginContext, plugin_id: str, payload: dict[str, Any]) -> Non
 
 
 def _run_validator(validator: SohoProductProfileValidator, ctx: PluginContext):
-    ctx._set_execution_context(validator.plugin_id, {_SOHO_RESOLVER_PLUGIN_ID})  # noqa: SLF001 - direct plugin execution helper
-    try:
-        return validator.execute(ctx, Stage.VALIDATE)
-    finally:
-        ctx._clear_execution_context()  # noqa: SLF001 - direct plugin execution helper
+    from tests.helpers.plugin_execution import run_plugin_for_test
+
+    return run_plugin_for_test(validator, ctx, Stage.VALIDATE)
 
 
 def _seed_resolver_payloads(

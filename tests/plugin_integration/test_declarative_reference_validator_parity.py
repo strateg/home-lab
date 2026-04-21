@@ -36,17 +36,18 @@ def _context(*, config: dict[str, Any] | None = None, objects: dict[str, Any] | 
 
 
 def _publish_rows(ctx: PluginContext, rows: list[dict[str, Any]]) -> None:
-    ctx._set_execution_context("base.compiler.instance_rows", set())
+    # Test helper: simulate publish from dependency plugin
+    ctx._set_execution_context("base.compiler.instance_rows", set())  # noqa: SLF001
     ctx.publish("normalized_rows", rows)
-    ctx._clear_execution_context()
+    ctx._clear_execution_context()  # noqa: SLF001
 
 
 def _run(plugin: Any, ctx: PluginContext, *, plugin_id: str) -> list[PluginDiagnostic]:
-    ctx._set_execution_context(plugin_id, {"base.compiler.instance_rows"}, stage=Stage.VALIDATE)
-    try:
-        return plugin.execute(ctx, Stage.VALIDATE).diagnostics
-    finally:
-        ctx._clear_execution_context()
+    from tests.helpers.plugin_execution import run_plugin_for_test
+
+    return run_plugin_for_test(
+        plugin, ctx, Stage.VALIDATE, consumes_keys={"base.compiler.instance_rows"}
+    ).diagnostics
 
 
 def _triple(diags: list[PluginDiagnostic]) -> set[tuple[str, str, str]]:

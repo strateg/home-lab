@@ -96,11 +96,9 @@ def _ctx(tmp_path: Path, compiled_json: dict, plugin_config: dict | None = None)
 
 
 def _run_generator(generator, ctx: PluginContext):
-    ctx._set_execution_context(generator.plugin_id, set())  # noqa: SLF001 - direct plugin execution helper
-    try:
-        return generator.execute(ctx, Stage.GENERATE)
-    finally:
-        ctx._clear_execution_context()  # noqa: SLF001 - direct plugin execution helper
+    from tests.helpers.plugin_execution import run_plugin_for_test
+
+    return run_plugin_for_test(generator, ctx, Stage.GENERATE)
 
 
 def _semanticize(compiled_json: dict) -> dict:

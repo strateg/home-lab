@@ -53,11 +53,9 @@ def _ctx(registry: PluginRegistry, *, today: str, sunset: str, hard_error: str) 
 
 
 def _run_validator(validator: GeneratorSunsetValidator, ctx: PluginContext):
-    ctx._set_execution_context(validator.plugin_id, set())  # noqa: SLF001 - direct plugin execution helper
-    try:
-        return validator.execute(ctx, Stage.VALIDATE)
-    finally:
-        ctx._clear_execution_context()  # noqa: SLF001 - direct plugin execution helper
+    from tests.helpers.plugin_execution import run_plugin_for_test
+
+    return run_plugin_for_test(validator, ctx, Stage.VALIDATE)
 
 
 def test_generator_sunset_validator_succeeds_for_non_legacy_targets() -> None:

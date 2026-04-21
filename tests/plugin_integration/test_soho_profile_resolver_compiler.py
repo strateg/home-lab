@@ -65,11 +65,9 @@ def _ctx(tmp_path: Path, project_payload: dict, profile_payload: dict | None = N
 
 
 def _run_resolver(compiler: SohoProfileResolverCompiler, ctx: PluginContext):
-    ctx._set_execution_context("base.compiler.soho_profile_resolver", set())  # noqa: SLF001 - direct plugin execution helper
-    try:
-        return compiler.execute(ctx, Stage.COMPILE)
-    finally:
-        ctx._clear_execution_context()  # noqa: SLF001 - direct plugin execution helper
+    from tests.helpers.plugin_execution import run_plugin_for_test
+
+    return run_plugin_for_test(compiler, ctx, Stage.COMPILE)
 
 
 def test_resolver_reports_legacy_when_product_profile_is_missing(tmp_path: Path) -> None:

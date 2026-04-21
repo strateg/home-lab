@@ -25,11 +25,9 @@ def _registry() -> PluginRegistry:
 
 
 def _run_validator(validator: GeneratorRollbackEscalationValidator, ctx: PluginContext):
-    ctx._set_execution_context(validator.plugin_id, set())  # noqa: SLF001 - direct plugin execution helper
-    try:
-        return validator.execute(ctx, Stage.VALIDATE)
-    finally:
-        ctx._clear_execution_context()  # noqa: SLF001 - direct plugin execution helper
+    from tests.helpers.plugin_execution import run_plugin_for_test
+
+    return run_plugin_for_test(validator, ctx, Stage.VALIDATE)
 
 
 def test_rollback_escalation_validator_succeeds_when_no_rollback_generators(tmp_path: Path) -> None:
