@@ -2,6 +2,26 @@
 
 **Purpose:** Final verification before marking ADR 0099 as Implemented
 
+## Current Snapshot (2026-04-21)
+
+- ADR0099 is **not yet at cutover**.
+- Directory scaffolding is in place:
+  - `tests/plugins/unit/`
+  - `tests/runtime/parity/`
+  - `tests/helpers/`
+- Helper migration is active and all tests touched in the current wave were
+  converted away from direct `_set_execution_context(...)` usage.
+- Remaining legacy footprint:
+  - **62** `_set_execution_context` references in `tests/`
+  - **13** test files outside helpers still contain direct legacy setup
+- Validation evidence from the latest targeted run:
+  - `474 passed`, `0 failed` across changed integration + scheduler suites
+  - `24 passed`, `0 failed` in `test_parity_stage_order.py`
+- Runtime scheduler skips: **0**
+
+Use the checklist below as the final cutover gate, not as a statement that the
+ADR is already fully implemented.
+
 ## Pre-Cutover Verification
 
 ### Dead Code Removal
@@ -22,9 +42,9 @@ grep -r "thread_legacy" topology-tools/kernel/
 
 ### Directory Structure
 
-- [ ] `tests/plugins/unit/` exists with README.md
-- [ ] `tests/runtime/parity/` exists with README.md
-- [ ] `tests/helpers/` exists with `__init__.py` and `plugin_execution.py`
+- [x] `tests/plugins/unit/` exists with README.md
+- [x] `tests/runtime/parity/` exists with README.md
+- [x] `tests/helpers/` exists with `__init__.py` and `plugin_execution.py`
 
 **Verification:**
 ```bash
@@ -48,7 +68,7 @@ grep -r "_set_execution_context" tests/ --include="*.py" -l | grep -v helpers
 ### Test Execution
 
 - [ ] All tests pass: `pytest tests/ -q`
-- [ ] No skipped tests in `tests/runtime/scheduler/`
+- [x] No skipped tests in `tests/runtime/scheduler/`
 - [ ] Parity maintained (no behavioral changes)
 
 **Verification:**

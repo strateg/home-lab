@@ -13,6 +13,7 @@ sys.path.insert(0, str(V5_TOOLS))
 
 from kernel import PluginContext, PluginRegistry, PluginStatus
 from kernel.plugin_base import Stage
+from tests.helpers.plugin_execution import publish_for_test
 
 PLUGIN_ID = "base.validator.dns_refs"
 
@@ -40,9 +41,7 @@ def _context() -> PluginContext:
 
 
 def _publish_rows(ctx: PluginContext, rows: list[dict]) -> None:
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish("normalized_rows", rows)
-    ctx._clear_execution_context()
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", rows)
 
 
 def _base_rows() -> list[dict]:
@@ -165,7 +164,7 @@ def test_dns_refs_execute_stage_consumes_committed_rows(tmp_path):
                 "phase": "run",
                 "order": 135,
                 "depends_on": ["base.compiler.instance_rows"],
-                "subinterpreter_compatible": True,
+                "execution_mode": "subinterpreter",
                 "config": {
                     "enabled_rules": ["dns"],
                     "missing_rows_code": "E7856",
@@ -213,7 +212,7 @@ def test_dns_refs_execute_stage_requires_committed_rows(tmp_path):
                 "phase": "run",
                 "order": 135,
                 "depends_on": ["base.compiler.instance_rows"],
-                "subinterpreter_compatible": True,
+                "execution_mode": "subinterpreter",
                 "config": {
                     "enabled_rules": ["dns"],
                     "missing_rows_code": "E7856",

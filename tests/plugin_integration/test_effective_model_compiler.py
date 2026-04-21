@@ -13,6 +13,7 @@ sys.path.insert(0, str(V5_TOOLS))
 
 from kernel import PluginContext, PluginRegistry, PluginStatus
 from kernel.plugin_base import Stage
+from tests.helpers.plugin_execution import publish_for_test
 
 PLUGIN_ID = "base.compiler.effective_model"
 
@@ -73,8 +74,9 @@ def test_effective_model_compiler_publishes_candidate():
             }
         },
     )
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish(
+    publish_for_test(
+        ctx,
+        "base.compiler.instance_rows",
         "normalized_rows",
         [
             {
@@ -97,7 +99,6 @@ def test_effective_model_compiler_publishes_candidate():
             }
         ],
     )
-    ctx._clear_execution_context()
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
 
@@ -198,8 +199,9 @@ def test_effective_model_compiler_reads_normalized_rows_via_subscribe():
         },
     )
 
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish(
+    publish_for_test(
+        ctx,
+        "base.compiler.instance_rows",
         "normalized_rows",
         [
             {
@@ -219,7 +221,6 @@ def test_effective_model_compiler_reads_normalized_rows_via_subscribe():
             }
         ],
     )
-    ctx._clear_execution_context()
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
 
@@ -266,7 +267,7 @@ def test_effective_model_execute_stage_commits_compiled_json_authoritatively(tmp
                 "phase": "finalize",
                 "order": 60,
                 "compiled_json_owner": True,
-                "subinterpreter_compatible": True,
+                "execution_mode": "subinterpreter",
                 "depends_on": ["base.compiler.instance_rows"],
                 "produces": [{"key": "effective_model_candidate", "scope": "pipeline_shared"}],
                 "consumes": [{"from_plugin": "base.compiler.instance_rows", "key": "normalized_rows", "required": True}],
@@ -287,8 +288,9 @@ def test_effective_model_execute_stage_commits_compiled_json_authoritatively(tmp
         config={},
         instance_bindings={"instance_bindings": {"devices": []}},
     )
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish(
+    publish_for_test(
+        ctx,
+        "base.compiler.instance_rows",
         "normalized_rows",
         [
             {
@@ -308,7 +310,6 @@ def test_effective_model_execute_stage_commits_compiled_json_authoritatively(tmp
             }
         ],
     )
-    ctx._clear_execution_context()
 
     results = registry.execute_stage(Stage.COMPILE, ctx, parallel_plugins=False)
 
@@ -356,7 +357,7 @@ def test_effective_model_execute_stage_requires_committed_rows(tmp_path):
                 "phase": "finalize",
                 "order": 60,
                 "compiled_json_owner": True,
-                "subinterpreter_compatible": True,
+                "execution_mode": "subinterpreter",
                 "depends_on": ["base.compiler.instance_rows"],
                 "produces": [{"key": "effective_model_candidate", "scope": "pipeline_shared"}],
                 "consumes": [{"from_plugin": "base.compiler.instance_rows", "key": "normalized_rows", "required": True}],
@@ -405,8 +406,9 @@ def test_effective_model_compiler_includes_inherited_lineage_fields():
         config={},
         instance_bindings={"instance_bindings": {"devices": []}},
     )
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish(
+    publish_for_test(
+        ctx,
+        "base.compiler.instance_rows",
         "normalized_rows",
         [
             {
@@ -426,7 +428,6 @@ def test_effective_model_compiler_includes_inherited_lineage_fields():
             }
         ],
     )
-    ctx._clear_execution_context()
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
 

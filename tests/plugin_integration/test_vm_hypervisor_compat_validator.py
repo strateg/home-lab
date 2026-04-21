@@ -13,6 +13,7 @@ sys.path.insert(0, str(V5_TOOLS))
 
 from kernel import PluginContext, PluginRegistry, PluginStatus
 from kernel.plugin_base import Stage
+from tests.helpers.plugin_execution import publish_for_test
 
 PLUGIN_ID = "base.validator.vm_hypervisor_compat"
 
@@ -46,9 +47,7 @@ def _context() -> PluginContext:
 
 
 def _publish_rows(ctx: PluginContext, rows: list[dict]) -> None:
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish("normalized_rows", rows)
-    ctx._clear_execution_context()
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", rows)
 
 
 def _base_rows() -> list[dict]:

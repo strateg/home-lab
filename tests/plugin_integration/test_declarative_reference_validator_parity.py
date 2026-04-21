@@ -14,6 +14,7 @@ sys.path.insert(0, str(V5_TOOLS))
 
 from kernel import PluginContext
 from kernel.plugin_base import PluginDiagnostic, Stage
+from tests.helpers.plugin_execution import publish_for_test
 from plugins.validators.backup_refs_validator import BackupRefsValidator
 from plugins.validators.certificate_refs_validator import CertificateRefsValidator
 from plugins.validators.declarative_reference_validator import DeclarativeReferenceValidator
@@ -37,9 +38,7 @@ def _context(*, config: dict[str, Any] | None = None, objects: dict[str, Any] | 
 
 def _publish_rows(ctx: PluginContext, rows: list[dict[str, Any]]) -> None:
     # Test helper: simulate publish from dependency plugin
-    ctx._set_execution_context("base.compiler.instance_rows", set())  # noqa: SLF001
-    ctx.publish("normalized_rows", rows)
-    ctx._clear_execution_context()  # noqa: SLF001
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", rows)
 
 
 def _run(plugin: Any, ctx: PluginContext, *, plugin_id: str) -> list[PluginDiagnostic]:

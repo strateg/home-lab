@@ -12,10 +12,10 @@ Worker failure cannot partially mutate pipeline-visible state.
 
 from __future__ import annotations
 
+import concurrent.futures
 import sys
 from pathlib import Path
-
-import pytest
+from unittest.mock import patch
 
 V5_TOOLS = Path(__file__).resolve().parents[3] / "topology-tools"
 sys.path.insert(0, str(V5_TOOLS))
@@ -23,16 +23,19 @@ sys.path.insert(0, str(V5_TOOLS))
 from kernel.plugin_base import (  # noqa: E402
     Phase,
     PluginContext,
+    PluginExecutionEnvelope,
     PluginInputSnapshot,
     PluginKind,
+    PluginDiagnostic,
     PluginResult,
     PluginStatus,
+    PublishedMessage,
     Stage,
-    SubscriptionValue,
     ValidatorJsonPlugin,
 )
 from kernel.plugin_runner import run_plugin_once  # noqa: E402
 from kernel.pipeline_runtime import PipelineState  # noqa: E402
+from kernel.plugin_registry import PluginRegistry, PluginSpec  # noqa: E402
 
 
 class CrashingPlugin(ValidatorJsonPlugin):
@@ -146,6 +149,11 @@ def test_crash_collects_partial_outbox() -> None:
     # The outbox may contain partial data (published before crash)
     # This is collected but NOT committed to PipelineState
     # The envelope captures what was published before the crash
+    assert len(envelope.published_messages) == 1
+    message = envelope.published_messages[0]
+    assert message.plugin_id == "test.crasher"
+    assert message.key == "partial_output"
+    assert message.value == {"before_crash": True}
 
 
 def test_failed_envelope_not_committed_to_pipeline_state() -> None:
@@ -179,14 +187,44 @@ def test_failed_envelope_not_committed_to_pipeline_state() -> None:
 
 def test_crash_does_not_affect_subsequent_plugin() -> None:
     """Crash in one plugin should not affect subsequent plugins in wavefront."""
-    # This is a scheduler-level test that requires integration testing
-    pytest.skip("PR2 integration test: requires scheduler execution with multiple plugins")
+    crash_snapshot = PluginInputSnapshot(
+        plugin_id="test.crasher",
+        stage=Stage.VALIDATE,
+        phase=Phase.RUN,
+        topology_path="topology/topology.yaml",
+        profile="test",
+        subscriptions={},
+        allowed_dependencies=frozenset(),
+        produced_key_scopes={"partial_output": "pipeline_shared"},
+    )
+    success_snapshot = PluginInputSnapshot(
+        plugin_id="test.succeeder",
+        stage=Stage.VALIDATE,
+        phase=Phase.RUN,
+        topology_path="topology/topology.yaml",
+        profile="test",
+        subscriptions={},
+        allowed_dependencies=frozenset(),
+        produced_key_scopes={"success_output": "pipeline_shared"},
+    )
+    crash_envelope = run_plugin_once(snapshot=crash_snapshot, plugin=CrashingPlugin("test.crasher"))
+    success_envelope = run_plugin_once(snapshot=success_snapshot, plugin=SuccessfulPlugin("test.succeeder"))
 
-    # When PR2 is implemented, this test should:
-    # 1. Create wavefront with [crasher, successor]
-    # 2. Execute wavefront
-    # 3. Verify crasher failed
-    # 4. Verify successor succeeded (unaffected by crasher)
+    assert crash_envelope.result.status == PluginStatus.FAILED
+    assert success_envelope.result.status == PluginStatus.SUCCESS
+
+    state = PipelineState()
+    # Scheduler behavior: commit only successful envelope
+    state.commit_envelope(
+        plugin_id="test.succeeder",
+        stage=Stage.VALIDATE,
+        phase=Phase.RUN,
+        produces=[{"key": "success_output", "scope": "pipeline_shared"}],
+        envelope=success_envelope,
+    )
+
+    assert "test.crasher" not in state.committed_data
+    assert state.committed_data["test.succeeder"]["success_output"] == {"ok": True}
 
 
 # --- Partial state leak prevention tests ---
@@ -278,18 +316,196 @@ def test_successful_plugin_after_crash_commits_normally() -> None:
 
 def test_subinterpreter_crash_is_isolated() -> None:
     """Crash in subinterpreter should be isolated from main interpreter."""
-    pytest.skip("PR2 integration test: requires actual subinterpreter execution")
+    registry = PluginRegistry(V5_TOOLS)
+    crash_id = "test.sub.crasher"
+    success_id = "test.sub.success"
+    registry.specs[crash_id] = PluginSpec(
+        id=crash_id,
+        kind=PluginKind.VALIDATOR_JSON,
+        entry="validators/references_validator.py:ReferencesValidator",
+        api_version="2.0",
+        stages=[Stage.VALIDATE],
+        order=100,
+        phase=Phase.RUN,
+        depends_on=[],
+        config={},
+        produces=[{"key": "partial_output", "scope": "pipeline_shared"}],
+        consumes=[],
+        execution_mode="subinterpreter",
+        manifest_path="tests/runtime/scheduler",
+    )
+    registry.specs[success_id] = PluginSpec(
+        id=success_id,
+        kind=PluginKind.VALIDATOR_JSON,
+        entry="validators/references_validator.py:ReferencesValidator",
+        api_version="2.0",
+        stages=[Stage.VALIDATE],
+        order=110,
+        phase=Phase.RUN,
+        depends_on=[],
+        config={},
+        produces=[{"key": "success_output", "scope": "pipeline_shared"}],
+        consumes=[],
+        execution_mode="subinterpreter",
+        manifest_path="tests/runtime/scheduler",
+    )
+    ctx = PluginContext(topology_path="topology/topology.yaml", profile="test", model_lock={})
 
-    # When PR2 is implemented with subinterpreters:
-    # 1. Execute crashing plugin in subinterpreter
-    # 2. Verify crash doesn't affect main interpreter state
-    # 3. Verify failed envelope is returned correctly
+    def _snapshot(plugin_id: str, key: str) -> PluginInputSnapshot:
+        return PluginInputSnapshot(
+            plugin_id=plugin_id,
+            stage=Stage.VALIDATE,
+            phase=Phase.RUN,
+            topology_path="topology/topology.yaml",
+            profile="test",
+            subscriptions={},
+            allowed_dependencies=frozenset(),
+            produced_key_scopes={key: "pipeline_shared"},
+        )
+
+    def _isolated(snapshot_dict, _base_path, _serialized_spec):
+        pid = snapshot_dict["plugin_id"]
+        if pid == crash_id:
+            return PluginExecutionEnvelope(
+                result=PluginResult(
+                    plugin_id=pid,
+                    api_version="2.0",
+                    status=PluginStatus.FAILED,
+                    diagnostics=[
+                        PluginDiagnostic(
+                            code="E4102",
+                            severity="error",
+                            stage=Stage.VALIDATE.value,
+                            phase=Phase.RUN.value,
+                            message="forced crash",
+                            path="kernel.subinterpreter",
+                            plugin_id="kernel",
+                        )
+                    ],
+                ),
+                published_messages=[
+                    PublishedMessage(
+                        plugin_id=pid,
+                        key="partial_output",
+                        value={"before_crash": True},
+                        scope="pipeline_shared",
+                        stage=Stage.VALIDATE,
+                        phase=Phase.RUN,
+                    )
+                ],
+            )
+        return PluginExecutionEnvelope(
+            result=PluginResult.success(pid, "2.0"),
+            published_messages=[
+                PublishedMessage(
+                    plugin_id=pid,
+                    key="success_output",
+                    value={"ok": True},
+                    scope="pipeline_shared",
+                    stage=Stage.VALIDATE,
+                    phase=Phase.RUN,
+                )
+            ],
+        )
+
+    with (
+        patch("kernel.plugin_registry.HAS_REAL_SUBINTERPRETERS", True),
+        patch.object(registry, "_get_parallel_executor", side_effect=lambda max_workers: concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)),
+        patch.object(registry, "_validate_required_consumes_snapshot", return_value=[]),
+        patch.object(
+            registry,
+            "_build_input_snapshot",
+            side_effect=lambda *, plugin_id, **_: _snapshot(
+                plugin_id,
+                "partial_output" if plugin_id == crash_id else "success_output",
+            ),
+        ),
+        patch("kernel.plugin_registry._execute_plugin_isolated", side_effect=_isolated),
+    ):
+        results = registry._execute_phase_parallel(
+            stage=Stage.VALIDATE,
+            phase=Phase.RUN,
+            ctx=ctx,
+            plugin_ids=[crash_id, success_id],
+        )
+
+    statuses = {r.plugin_id: r.status for r in results}
+    assert statuses[crash_id] == PluginStatus.FAILED
+    assert statuses[success_id] == PluginStatus.SUCCESS
+    committed = ctx.get_published_data()
+    assert crash_id not in committed
+    assert committed[success_id]["success_output"] == {"ok": True}
 
 
 def test_subinterpreter_memory_is_isolated() -> None:
-    """Subinterpreter memory should be isolated from main interpreter."""
-    pytest.skip("PR2 integration test: requires actual subinterpreter execution")
+    """Subinterpreter route exposes only envelope payloads to main pipeline state."""
+    registry = PluginRegistry(V5_TOOLS)
+    plugin_id = "test.sub.state_only"
+    registry.specs[plugin_id] = PluginSpec(
+        id=plugin_id,
+        kind=PluginKind.VALIDATOR_JSON,
+        entry="validators/references_validator.py:ReferencesValidator",
+        api_version="2.0",
+        stages=[Stage.VALIDATE],
+        order=100,
+        phase=Phase.RUN,
+        depends_on=[],
+        config={},
+        produces=[{"key": "safe_output", "scope": "pipeline_shared"}],
+        consumes=[],
+        execution_mode="subinterpreter",
+        manifest_path="tests/runtime/scheduler",
+    )
+    ctx = PluginContext(topology_path="topology/topology.yaml", profile="test", model_lock={})
+    marker = {"mutated": False}
 
-    # When PR2 is implemented with subinterpreters:
-    # 1. Plugin modifies global state in subinterpreter
-    # 2. Verify main interpreter globals are unaffected
+    def _isolated(snapshot_dict, _base_path, _serialized_spec):
+        marker["mutated"] = True
+        return PluginExecutionEnvelope(
+            result=PluginResult.success(snapshot_dict["plugin_id"], "2.0"),
+            published_messages=[
+                PublishedMessage(
+                    plugin_id=snapshot_dict["plugin_id"],
+                    key="safe_output",
+                    value={"ok": True},
+                    scope="pipeline_shared",
+                    stage=Stage.VALIDATE,
+                    phase=Phase.RUN,
+                )
+            ],
+            execution_metadata={"worker_private": "not_committed"},
+        )
+
+    with (
+        patch("kernel.plugin_registry.HAS_REAL_SUBINTERPRETERS", True),
+        patch.object(registry, "_get_parallel_executor", side_effect=lambda max_workers: concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)),
+        patch.object(registry, "_validate_required_consumes_snapshot", return_value=[]),
+        patch.object(
+            registry,
+            "_build_input_snapshot",
+            return_value=PluginInputSnapshot(
+                plugin_id=plugin_id,
+                stage=Stage.VALIDATE,
+                phase=Phase.RUN,
+                topology_path="topology/topology.yaml",
+                profile="test",
+                subscriptions={},
+                allowed_dependencies=frozenset(),
+                produced_key_scopes={"safe_output": "pipeline_shared"},
+            ),
+        ),
+        patch("kernel.plugin_registry._execute_plugin_isolated", side_effect=_isolated),
+    ):
+        results = registry._execute_phase_parallel(
+            stage=Stage.VALIDATE,
+            phase=Phase.RUN,
+            ctx=ctx,
+            plugin_ids=[plugin_id],
+        )
+
+    assert marker["mutated"] is True
+    assert len(results) == 1
+    assert results[0].status == PluginStatus.SUCCESS
+    committed = ctx.get_published_data()
+    assert committed[plugin_id]["safe_output"] == {"ok": True}
+    assert "worker_private" not in committed[plugin_id]

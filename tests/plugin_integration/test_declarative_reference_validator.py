@@ -11,6 +11,7 @@ sys.path.insert(0, str(V5_TOOLS))
 
 from kernel import PluginContext, PluginStatus
 from kernel.plugin_base import Stage
+from tests.helpers.plugin_execution import publish_for_test, run_plugin_for_test
 from plugins.validators.declarative_reference_validator import DeclarativeReferenceValidator
 
 
@@ -27,9 +28,11 @@ def _context(*, config: dict | None = None, objects: dict | None = None) -> Plug
 
 
 def _publish_rows(ctx: PluginContext, rows: list[dict]) -> None:
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish("normalized_rows", rows)
-    ctx._clear_execution_context()
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", rows)
+
+
+def _execute(plugin: DeclarativeReferenceValidator, ctx: PluginContext):
+    return run_plugin_for_test(plugin, ctx, Stage.VALIDATE, consumes_keys={"base.compiler.instance_rows"})
 
 
 def test_declarative_reference_validator_accepts_valid_dns_backup_service_dependencies():
@@ -77,11 +80,7 @@ def test_declarative_reference_validator_accepts_valid_dns_backup_service_depend
     ]
     _publish_rows(ctx, rows)
 
-    ctx._set_execution_context("validator.declarative_refs", {"base.compiler.instance_rows"}, stage=Stage.VALIDATE)
-    try:
-        result = plugin.execute(ctx, Stage.VALIDATE)
-    finally:
-        ctx._clear_execution_context()
+    result = _execute(plugin, ctx)
 
     assert result.status == PluginStatus.SUCCESS
     assert result.diagnostics == []
@@ -102,11 +101,7 @@ def test_declarative_reference_validator_emits_dns_error_for_unknown_service_ref
     ]
     _publish_rows(ctx, rows)
 
-    ctx._set_execution_context("validator.declarative_refs", {"base.compiler.instance_rows"}, stage=Stage.VALIDATE)
-    try:
-        result = plugin.execute(ctx, Stage.VALIDATE)
-    finally:
-        ctx._clear_execution_context()
+    result = _execute(plugin, ctx)
 
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E7856" for diag in result.diagnostics)
@@ -155,11 +150,7 @@ def test_declarative_reference_validator_accepts_valid_network_core_and_power_so
     ]
     _publish_rows(ctx, rows)
 
-    ctx._set_execution_context("validator.declarative_refs", {"base.compiler.instance_rows"}, stage=Stage.VALIDATE)
-    try:
-        result = plugin.execute(ctx, Stage.VALIDATE)
-    finally:
-        ctx._clear_execution_context()
+    result = _execute(plugin, ctx)
 
     assert result.status == PluginStatus.SUCCESS
     assert result.diagnostics == []
@@ -185,11 +176,7 @@ def test_declarative_reference_validator_emits_network_core_error_for_unknown_br
     ]
     _publish_rows(ctx, rows)
 
-    ctx._set_execution_context("validator.declarative_refs", {"base.compiler.instance_rows"}, stage=Stage.VALIDATE)
-    try:
-        result = plugin.execute(ctx, Stage.VALIDATE)
-    finally:
-        ctx._clear_execution_context()
+    result = _execute(plugin, ctx)
 
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E7833" for diag in result.diagnostics)
@@ -217,11 +204,7 @@ def test_declarative_reference_validator_emits_power_source_error_for_duplicate_
     ]
     _publish_rows(ctx, rows)
 
-    ctx._set_execution_context("validator.declarative_refs", {"base.compiler.instance_rows"}, stage=Stage.VALIDATE)
-    try:
-        result = plugin.execute(ctx, Stage.VALIDATE)
-    finally:
-        ctx._clear_execution_context()
+    result = _execute(plugin, ctx)
 
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E7805" for diag in result.diagnostics)

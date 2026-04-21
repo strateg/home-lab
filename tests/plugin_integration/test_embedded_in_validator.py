@@ -13,6 +13,7 @@ sys.path.insert(0, str(V5_TOOLS))
 
 from kernel import PluginContext, PluginRegistry, PluginStatus
 from kernel.plugin_base import Stage
+from tests.helpers.plugin_execution import publish_for_test
 
 PLUGIN_ID = "base.validator.embedded_in"
 
@@ -57,10 +58,7 @@ def test_embedded_in_validator_skips_when_core_is_owner():
         },
     )
 
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish("normalized_rows", [])
-    ctx._clear_execution_context()
-
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", [])
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.SUCCESS
     assert result.diagnostics == []
@@ -137,8 +135,9 @@ def test_embedded_in_validator_matches_legacy_rules_when_plugin_owner():
             }
         },
     )
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish(
+    publish_for_test(
+        ctx,
+        "base.compiler.instance_rows",
         "normalized_rows",
         [
             {
@@ -197,7 +196,6 @@ def test_embedded_in_validator_matches_legacy_rules_when_plugin_owner():
             },
         ],
     )
-    ctx._clear_execution_context()
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
@@ -229,8 +227,9 @@ def test_embedded_in_validator_reads_rows_via_subscribe():
         instance_bindings={"instance_bindings": {}},
     )
 
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish(
+    publish_for_test(
+        ctx,
+        "base.compiler.instance_rows",
         "normalized_rows",
         [
             {
@@ -244,7 +243,6 @@ def test_embedded_in_validator_reads_rows_via_subscribe():
             }
         ],
     )
-    ctx._clear_execution_context()
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
@@ -311,4 +309,3 @@ def test_embedded_in_execute_stage_requires_committed_normalized_rows(tmp_path: 
     embedded = next(result for result in results if result.plugin_id == PLUGIN_ID)
     assert embedded.status == PluginStatus.FAILED
     assert any(diag.code == "E8003" for diag in embedded.diagnostics)
-

@@ -9,9 +9,10 @@ execution_mode manifest field:
 
 from __future__ import annotations
 
+import concurrent.futures
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -21,6 +22,7 @@ sys.path.insert(0, str(V5_TOOLS))
 from kernel.plugin_base import (  # noqa: E402
     Phase,
     PluginContext,
+    PluginExecutionEnvelope,
     PluginInputSnapshot,
     PluginKind,
     PluginResult,
@@ -28,6 +30,7 @@ from kernel.plugin_base import (  # noqa: E402
     Stage,
     ValidatorJsonPlugin,
 )
+from kernel.plugin_registry import PluginRegistry, PluginSpec  # noqa: E402
 
 
 class SimpleValidatorPlugin(ValidatorJsonPlugin):
@@ -40,6 +43,48 @@ class SimpleValidatorPlugin(ValidatorJsonPlugin):
     def execute(self, ctx, stage):
         ctx.publish("validated", {"ok": True})
         return PluginResult.success(self.plugin_id, self.api_version)
+
+
+def _make_spec(plugin_id: str, *, execution_mode: str = "main_interpreter") -> PluginSpec:
+    return PluginSpec(
+        id=plugin_id,
+        kind=PluginKind.VALIDATOR_JSON,
+        entry="validators/references_validator.py:ReferencesValidator",
+        api_version="2.0",
+        stages=[Stage.VALIDATE],
+        order=100,
+        phase=Phase.RUN,
+        depends_on=[],
+        config={},
+        produces=[{"key": "validated", "scope": "pipeline_shared"}],
+        consumes=[],
+        manifest_path="tests/runtime/scheduler",
+        execution_mode=execution_mode,
+    )
+
+
+def _make_snapshot(plugin_id: str) -> PluginInputSnapshot:
+    return PluginInputSnapshot(
+        plugin_id=plugin_id,
+        stage=Stage.VALIDATE,
+        phase=Phase.RUN,
+        topology_path="topology/topology.yaml",
+        profile="test",
+        subscriptions={},
+        allowed_dependencies=frozenset(),
+        produced_key_scopes={"validated": "pipeline_shared"},
+    )
+
+
+def _success_envelope(plugin_id: str) -> PluginExecutionEnvelope:
+    return PluginExecutionEnvelope(
+        result=PluginResult(
+            plugin_id=plugin_id,
+            api_version="2.0",
+            status=PluginStatus.SUCCESS,
+            diagnostics=[],
+        )
+    )
 
 
 # --- execution_mode field existence tests ---
@@ -86,32 +131,124 @@ def test_execution_mode_default_is_main_interpreter() -> None:
 
 def test_main_interpreter_mode_uses_envelope_path() -> None:
     """Plugins with execution_mode='main_interpreter' must use envelope path."""
-    pytest.skip("PR2 not implemented: execution_mode routing not yet added")
+    registry = PluginRegistry(V5_TOOLS)
+    plugin_id = "test.main"
+    spec = _make_spec(plugin_id, execution_mode="main_interpreter")
+    registry.specs[plugin_id] = spec
+    ctx = PluginContext(topology_path="topology/topology.yaml", profile="test", model_lock={})
+    snapshot = _make_snapshot(plugin_id)
 
-    # When PR2 is implemented, this test should verify:
-    # 1. Plugin with execution_mode="main_interpreter"
-    # 2. Goes through _build_input_snapshot() -> run_plugin_once() -> _commit_envelope_result()
-    # 3. Does NOT use legacy execute_plugin()
+    with (
+        patch.object(registry, "_get_parallel_executor", side_effect=lambda max_workers: concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)),
+        patch.object(registry, "_build_input_snapshot", return_value=snapshot),
+        patch.object(registry, "_validate_required_consumes_snapshot", return_value=[]),
+        patch.object(registry, "_execute_plugin_envelope_local", return_value=_success_envelope(plugin_id)) as execute_local,
+        patch.object(registry, "_commit_envelope_result", return_value=PluginResult.success(plugin_id, "2.0")) as commit,
+        patch.object(registry, "execute_plugin", return_value=PluginResult.success(plugin_id, "2.0")) as execute_legacy,
+        patch.object(registry, "_mirror_context_into_pipeline_state") as mirror,
+    ):
+        results = registry._execute_phase_parallel(
+            stage=Stage.VALIDATE,
+            phase=Phase.RUN,
+            ctx=ctx,
+            plugin_ids=[plugin_id],
+        )
+
+    assert len(results) == 1
+    execute_local.assert_called_once()
+    commit.assert_called_once()
+    execute_legacy.assert_not_called()
+    mirror.assert_not_called()
 
 
 def test_subinterpreter_mode_uses_isolated_execution() -> None:
     """Plugins with execution_mode='subinterpreter' must use isolated execution when available."""
-    pytest.skip("PR2 not implemented: execution_mode routing not yet added")
+    registry = PluginRegistry(V5_TOOLS)
+    plugin_id = "test.sub"
+    spec = _make_spec(plugin_id, execution_mode="subinterpreter")
+    registry.specs[plugin_id] = spec
+    ctx = PluginContext(topology_path="topology/topology.yaml", profile="test", model_lock={})
+    snapshot = _make_snapshot(plugin_id)
 
-    # When PR2 is implemented, this test should verify:
-    # 1. Plugin with execution_mode="subinterpreter"
-    # 2. Uses _execute_plugin_isolated() when HAS_REAL_SUBINTERPRETERS
-    # 3. Falls back to _execute_plugin_envelope_local() otherwise
+    def _isolated(snapshot_dict, _base_path_str, _serialized_spec_dict):
+        return _success_envelope(snapshot_dict["plugin_id"])
+
+    with (
+        patch("kernel.plugin_registry.HAS_REAL_SUBINTERPRETERS", True),
+        patch.object(registry, "_get_parallel_executor", side_effect=lambda max_workers: concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)),
+        patch.object(registry, "_build_input_snapshot", return_value=snapshot),
+        patch.object(registry, "_validate_required_consumes_snapshot", return_value=[]),
+        patch("kernel.plugin_registry._execute_plugin_isolated", side_effect=_isolated) as execute_isolated,
+        patch.object(registry, "_execute_plugin_envelope_local") as execute_local,
+        patch.object(registry, "_commit_envelope_result", return_value=PluginResult.success(plugin_id, "2.0")),
+    ):
+        results = registry._execute_phase_parallel(
+            stage=Stage.VALIDATE,
+            phase=Phase.RUN,
+            ctx=ctx,
+            plugin_ids=[plugin_id],
+        )
+
+    assert len(results) == 1
+    execute_isolated.assert_called_once()
+    execute_local.assert_not_called()
+
+
+def test_subinterpreter_mode_falls_back_to_local_envelope_without_real_subinterpreters() -> None:
+    """subinterpreter mode should use local envelope runner when real subinterpreters are unavailable."""
+    registry = PluginRegistry(V5_TOOLS)
+    plugin_id = "test.sub.fallback"
+    spec = _make_spec(plugin_id, execution_mode="subinterpreter")
+    registry.specs[plugin_id] = spec
+    ctx = PluginContext(topology_path="topology/topology.yaml", profile="test", model_lock={})
+    snapshot = _make_snapshot(plugin_id)
+
+    with (
+        patch("kernel.plugin_registry.HAS_REAL_SUBINTERPRETERS", False),
+        patch.object(registry, "_get_parallel_executor", side_effect=lambda max_workers: concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)),
+        patch.object(registry, "_build_input_snapshot", return_value=snapshot),
+        patch.object(registry, "_validate_required_consumes_snapshot", return_value=[]),
+        patch("kernel.plugin_registry._execute_plugin_isolated") as execute_isolated,
+        patch.object(registry, "_execute_plugin_envelope_local", return_value=_success_envelope(plugin_id)) as execute_local,
+        patch.object(registry, "_commit_envelope_result", return_value=PluginResult.success(plugin_id, "2.0")),
+    ):
+        results = registry._execute_phase_parallel(
+            stage=Stage.VALIDATE,
+            phase=Phase.RUN,
+            ctx=ctx,
+            plugin_ids=[plugin_id],
+        )
+
+    assert len(results) == 1
+    execute_isolated.assert_not_called()
+    execute_local.assert_called_once()
 
 
 def test_thread_legacy_mode_uses_execute_plugin() -> None:
     """Plugins with execution_mode='thread_legacy' must use legacy execute_plugin()."""
-    pytest.skip("PR2 not implemented: execution_mode routing not yet added")
+    registry = PluginRegistry(V5_TOOLS)
+    plugin_id = "test.thread_legacy"
+    spec = _make_spec(plugin_id, execution_mode="thread_legacy")
+    registry.specs[plugin_id] = spec
+    ctx = PluginContext(topology_path="topology/topology.yaml", profile="test", model_lock={})
 
-    # When PR2 is implemented, this test should verify:
-    # 1. Plugin with execution_mode="thread_legacy"
-    # 2. Uses execute_plugin() (legacy path)
-    # 3. Calls _mirror_context_into_pipeline_state() for sync
+    with (
+        patch.object(registry, "_get_parallel_executor", side_effect=lambda max_workers: concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)),
+        patch.object(registry, "execute_plugin", return_value=PluginResult.success(plugin_id, "2.0")) as execute_legacy,
+        patch.object(registry, "_mirror_context_into_pipeline_state") as mirror,
+        patch.object(registry, "_build_input_snapshot") as build_snapshot,
+    ):
+        results = registry._execute_phase_parallel(
+            stage=Stage.VALIDATE,
+            phase=Phase.RUN,
+            ctx=ctx,
+            plugin_ids=[plugin_id],
+        )
+
+    assert len(results) == 1
+    execute_legacy.assert_called_once()
+    mirror.assert_called_once()
+    build_snapshot.assert_not_called()
 
 
 # --- subinterpreter_compatible deprecation tests ---
@@ -157,7 +294,15 @@ def test_subinterpreter_compatible_infers_execution_mode() -> None:
 
 def test_subinterpreter_compatible_logs_deprecation_warning() -> None:
     """Using subinterpreter_compatible without execution_mode should log warning."""
-    pytest.skip("PR2 not implemented: deprecation warning not yet added")
+    import warnings
+    from kernel.plugin_registry import PluginSpec
+
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        resolved = PluginSpec._resolve_execution_mode({"id": "test.warn", "subinterpreter_compatible": True})
+        assert resolved == "subinterpreter"
+        assert len(w) == 1
+        assert issubclass(w[0].category, DeprecationWarning)
 
 
 # --- current behavior baseline tests ---

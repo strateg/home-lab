@@ -20,6 +20,7 @@ sys.path.insert(0, str(V5_TOOLS))
 
 from kernel import PluginContext, PluginRegistry, PluginResult, PluginStatus
 from kernel.plugin_base import Stage
+from tests.helpers.plugin_execution import publish_for_test
 
 
 def test_execution_order():
@@ -61,8 +62,9 @@ def test_plugin_execution():
             }
         },
     )
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish(
+    publish_for_test(
+        ctx,
+        "base.compiler.instance_rows",
         "normalized_rows",
         [
             {
@@ -75,11 +77,7 @@ def test_plugin_execution():
             }
         ],
     )
-    ctx._clear_execution_context()
-    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
-    ctx.publish("catalog_ids", [])
-    ctx._clear_execution_context()
-
+    publish_for_test(ctx, "base.compiler.capability_contract_loader", "catalog_ids", [])
     result = registry.execute_plugin("base.validator.references", ctx, Stage.VALIDATE)
     assert isinstance(result, PluginResult)
     assert result.status == PluginStatus.SUCCESS
@@ -111,8 +109,9 @@ def test_plugin_detects_invalid_ref():
             }
         },
     )
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish(
+    publish_for_test(
+        ctx,
+        "base.compiler.instance_rows",
         "normalized_rows",
         [
             {
@@ -125,11 +124,7 @@ def test_plugin_detects_invalid_ref():
             }
         ],
     )
-    ctx._clear_execution_context()
-    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
-    ctx.publish("catalog_ids", [])
-    ctx._clear_execution_context()
-
+    publish_for_test(ctx, "base.compiler.capability_contract_loader", "catalog_ids", [])
     result = registry.execute_plugin("base.validator.references", ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert len(result.diagnostics) >= 1

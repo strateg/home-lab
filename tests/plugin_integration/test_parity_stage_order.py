@@ -9,6 +9,8 @@ import sys
 from datetime import date
 from pathlib import Path
 
+from tests.helpers.plugin_execution import publish_for_test
+
 
 def _load_compiler_module():
     repo_root = Path(__file__).resolve().parents[2]
@@ -23,19 +25,15 @@ def _load_compiler_module():
 
 
 def _publish_minimal_compile_outputs(ctx) -> None:
-    ctx._set_execution_context("base.compiler.module_loader", set())
-    ctx.publish("class_map", {})
-    ctx.publish("object_map", {})
-    ctx._clear_execution_context()
+    publish_for_test(ctx, "base.compiler.module_loader", "class_map", {})
+    publish_for_test(ctx, "base.compiler.module_loader", "object_map", {})
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", [])
+    publish_for_test(ctx, "base.compiler.capability_contract_loader", "catalog_ids", [])
+    publish_for_test(ctx, "base.compiler.capability_contract_loader", "packs_map", {})
 
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish("normalized_rows", [])
-    ctx._clear_execution_context()
 
-    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
-    ctx.publish("catalog_ids", [])
-    ctx.publish("packs_map", {})
-    ctx._clear_execution_context()
+def _disable_framework_lock(compiler) -> None:
+    compiler._verify_framework_lock = lambda **kwargs: True  # type: ignore[method-assign]
 
 
 def test_compiler_stage_order_uses_kernel_canonical_value():
@@ -61,6 +59,7 @@ def test_pipeline_stage_order_and_compiled_context(monkeypatch):
         enable_plugins=True,
         plugins_manifest_path=mod.DEFAULT_PLUGINS_MANIFEST,
     )
+    _disable_framework_lock(compiler)
 
     seen_stages: list[str] = []
 
@@ -138,6 +137,7 @@ def test_pipeline_mode_plugin_first_uses_plugin_compiled_json(monkeypatch):
         enable_plugins=True,
         plugins_manifest_path=mod.DEFAULT_PLUGINS_MANIFEST,
     )
+    _disable_framework_lock(compiler)
 
     plugin_payload = {
         "version": "plugin-first",
@@ -189,6 +189,7 @@ def test_pipeline_mode_legacy_is_rejected():
         enable_plugins=True,
         plugins_manifest_path=mod.DEFAULT_PLUGINS_MANIFEST,
     )
+    _disable_framework_lock(compiler)
 
     exit_code = compiler.run()
     assert exit_code == 1
@@ -213,6 +214,7 @@ def test_parity_gate_is_rejected_after_cutover():
         enable_plugins=True,
         plugins_manifest_path=mod.DEFAULT_PLUGINS_MANIFEST,
     )
+    _disable_framework_lock(compiler)
 
     exit_code = compiler.run()
     assert exit_code == 1
@@ -236,6 +238,7 @@ def test_compiled_model_contract_rejects_incompatible_version(monkeypatch):
         enable_plugins=True,
         plugins_manifest_path=mod.DEFAULT_PLUGINS_MANIFEST,
     )
+    _disable_framework_lock(compiler)
 
     plugin_payload = {
         "version": "plugin-first",
@@ -280,6 +283,7 @@ def test_runtime_profile_is_propagated_to_plugin_context(monkeypatch):
         enable_plugins=True,
         plugins_manifest_path=mod.DEFAULT_PLUGINS_MANIFEST,
     )
+    _disable_framework_lock(compiler)
 
     seen_profiles: list[str] = []
 
@@ -725,16 +729,18 @@ def test_ai_advisory_redaction_patterns_collect_from_annotations_and_registry(tm
     )
     ctx.config["secrets_root"] = str(secrets_root)
 
-    ctx._set_execution_context("base.compiler.annotation_resolver", set())
-    ctx.publish(
+    publish_for_test(
+        ctx,
+        "base.compiler.annotation_resolver",
         "row_annotations_by_instance",
         {"r1": {"hardware.serial_number": {"secret": True}, "nested.plain": {"secret": False}}},
     )
-    ctx.publish(
+    publish_for_test(
+        ctx,
+        "base.compiler.annotation_resolver",
         "object_secret_annotations",
         {"obj": {"credentials.api_token": {"secret": True}}},
     )
-    ctx._clear_execution_context()
 
     annotation_patterns = compiler._collect_annotation_redaction_patterns(ctx)
     registry_patterns = compiler._collect_registry_redaction_patterns(ctx)
@@ -771,7 +777,6 @@ def test_strict_only_rejects_legacy_instance_bindings_path():
         ),
         encoding="utf-8",
     )
-
     compiler = mod.V5Compiler(
         manifest_path=topology_path,
         output_json=test_output_dir / "effective-topology.json",
@@ -784,6 +789,7 @@ def test_strict_only_rejects_legacy_instance_bindings_path():
         enable_plugins=True,
         plugins_manifest_path=mod.DEFAULT_PLUGINS_MANIFEST,
     )
+    _disable_framework_lock(compiler)
 
     exit_code = compiler.run()
 
@@ -808,6 +814,7 @@ def test_stage_selection_runs_compile_and_validate_only(monkeypatch):
         plugins_manifest_path=mod.DEFAULT_PLUGINS_MANIFEST,
         stages=[mod.Stage.COMPILE, mod.Stage.VALIDATE],
     )
+    _disable_framework_lock(compiler)
 
     seen_stages: list[str] = []
 

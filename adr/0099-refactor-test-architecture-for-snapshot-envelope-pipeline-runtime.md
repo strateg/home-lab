@@ -1,8 +1,8 @@
 # ADR 0099: Refactor Test Architecture for Snapshot/Envelope Pipeline Runtime
 
-- Status: Proposed
+- Status: In Progress (Phase 1-2 complete, Wave 3 targeted migration at 83% reduction)
 - Date: 2026-04-15
-- Revised: 2026-04-17
+- Revised: 2026-04-21
 - Depends on: ADR 0097
 - Scope note: This ADR is the canonical follow-up for test architecture migration under the actor-style plugin runtime model.
 
@@ -277,3 +277,109 @@ Core testing rule:
 - parity tests validate equivalence across execution modes.
 
 This keeps test coverage aligned with the actor-style runtime defined by ADR 0097.
+
+## Implementation Status
+
+**Last updated:** 2026-04-21
+
+### Phase 1: Dead Code Removal — ✅ COMPLETE
+
+| Task | Status | Evidence |
+|------|--------|----------|
+| Delete `SerializablePluginContext` | ✅ | 146 lines removed from `plugin_base.py` |
+| Refactor `test_adr0097_parity.py` | ✅ | Dead code tests removed, renamed to `test_adr0097_execution_model.py` |
+| Fix ADR 0097 status | ✅ | `REGISTER.md` updated to Implemented |
+
+**Commit:** `9c1612d4`
+
+### Phase 2: Structure Alignment — ✅ COMPLETE
+
+| Task | Status | Evidence |
+|------|--------|----------|
+| Create `tests/plugins/unit/` | ✅ | Directory + README.md created |
+| Create `tests/runtime/parity/` | ✅ | Directory + README.md created |
+| Create test helper module | ✅ | `tests/helpers/plugin_execution.py` (3 functions) |
+| Create CI legacy guard | ✅ | `.github/workflows/test-legacy-guard.yml` active |
+| Create baseline tracker | ✅ | `.github/legacy-baseline.txt` (tracks count) |
+
+**Commit:** `9c1612d4`
+
+### Phase 3: Test Migration — 🔄 IN PROGRESS (83% reduction)
+
+#### Wave 1 Partial — ✅ COMPLETE
+
+| Metric | Before | After | Change |
+|--------|--------|-------|--------|
+| Legacy pattern calls | 372 | 161 | -211 (-57%) |
+| Files migrated | 0 | 16 | +16 files |
+| Helper adoption | 0 | 16 | +16 files |
+
+**Files migrated (16):**
+- 7 generators (terraform, ansible, bootstrap, diagram, readiness)
+- 7 validators (declarative refs, generator contract validators, soho)
+- 2 compilers/builders (soho profile resolver, soho readiness)
+
+**Pattern:**
+```python
+# Before: ctx._set_execution_context() + try/finally
+# After:  run_plugin_for_test(plugin, ctx, stage)
+```
+
+**Commit:** `1b531118`
+
+#### Current Remaining Work (62 legacy calls)
+
+| Category | Count | Migration Status |
+|----------|-------|------------------|
+| Integration/runtime tests outside current wave | ~36 | 🔄 Still to migrate or justify |
+| Non-helper files still using legacy setup | 13 files | ⚠️ Needs follow-up wave |
+| Helper module | 1 file | ✅ Intentional compatibility shim |
+| Runtime dead-code cleanup | remaining | ⏸️ Separate cutover step |
+
+**Analysis:** See `adr/0099-analysis/WAVE1-COMPLETION-REPORT.md`
+
+**Current recommendation:** keep migrating touched suites to helpers/snapshot-style
+patterns, but do not mark cutover complete until the remaining 13 non-helper
+files and dead-code removal items are resolved.
+
+### Phase 4: Final Cleanup — ⏸️ DEFERRED
+
+Deferred pending:
+1. Envelope model adoption in test infrastructure
+2. Decision on integration test migration approach
+3. Full parity test coverage for runtime layers
+
+### Acceptance Criteria Status
+
+| AC# | Criterion | Status |
+|-----|-----------|--------|
+| AC1 | Plugin unit tests use snapshot-based execution | 🔄 Helper path documented; broader conversion still pending |
+| AC2 | Worker runner tests verify isolation | ✅ Existing tests |
+| AC3 | Pipeline state tests verify commit semantics | ✅ Existing tests |
+| AC4 | Scheduler tests verify no merge-back | ✅ Executable scheduler suites in place |
+| AC5 | Parity tests verify behavioral equivalence | ✅ Runtime + stage-order parity suites green |
+| AC6 | Zero `_set_execution_context` in new tests | 🟡 Met for touched suites; repo-wide cleanup pending |
+| AC7 | Determinism tests exist | ✅ 10 test files |
+| AC8 | Contract tests exist | ✅ 48 test files |
+| AC9 | Dead code removed | ❌ Pending final cleanup |
+
+**Summary:** 6 criteria met, 2 partial, 1 pending.
+
+### Analysis Artifacts
+
+- `adr/0099-analysis/GAP-ANALYSIS.md` — Problem inventory and metrics
+- `adr/0099-analysis/IMPLEMENTATION-PLAN.md` — 4-phase detailed plan
+- `adr/0099-analysis/CUTOVER-CHECKLIST.md` — Final verification checklist
+- `adr/0099-analysis/WAVE1-COMPLETION-REPORT.md` — Wave 1 results and remaining work analysis
+
+### Next Steps
+
+**Recommended:**
+1. Finish migration/justification for the remaining 13 non-helper files
+2. Remove or explicitly quarantine remaining dead-code-oriented coverage
+3. Decide whether framework-lock bypass remains test-local or should move into a shared helper
+4. Only then advance ADR0099 from "In Progress" to cutover/implemented
+
+**Not Recommended:**
+- Forcing migration of registry integration tests (correct pattern)
+- Removing test fixture helpers (simulate legitimate runtime behavior)

@@ -13,6 +13,7 @@ sys.path.insert(0, str(V5_TOOLS))
 
 from kernel import PluginContext, PluginRegistry, PluginStatus
 from kernel.plugin_base import Stage
+from tests.helpers.plugin_execution import publish_for_test
 
 PLUGIN_ID = "base.validator.references"
 
@@ -56,13 +57,8 @@ def test_reference_validator_skips_when_core_is_owner():
         objects={},
         instance_bindings={"instance_bindings": {}},
     )
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish("normalized_rows", [])
-    ctx._clear_execution_context()
-    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
-    ctx.publish("catalog_ids", [])
-    ctx._clear_execution_context()
-
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", [])
+    publish_for_test(ctx, "base.compiler.capability_contract_loader", "catalog_ids", [])
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.SUCCESS
     assert result.diagnostics == []
@@ -89,13 +85,8 @@ def test_reference_validator_detects_missing_refs_when_plugin_owner():
         objects={},
         instance_bindings={"instance_bindings": {}},
     )
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish("normalized_rows", rows)
-    ctx._clear_execution_context()
-    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
-    ctx.publish("catalog_ids", [])
-    ctx._clear_execution_context()
-
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", rows)
+    publish_for_test(ctx, "base.compiler.capability_contract_loader", "catalog_ids", [])
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(d.code == "E2101" and d.stage == "resolve" for d in result.diagnostics)
@@ -129,13 +120,8 @@ def test_reference_validator_enforces_required_software_policies():
         objects={"obj.router": {"object": "obj.router", "class_ref": "class.router"}},
         instance_bindings={"instance_bindings": {}},
     )
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish("normalized_rows", rows)
-    ctx._clear_execution_context()
-    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
-    ctx.publish("catalog_ids", [])
-    ctx._clear_execution_context()
-
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", rows)
+    publish_for_test(ctx, "base.compiler.capability_contract_loader", "catalog_ids", [])
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     policy_errors = [d for d in result.diagnostics if d.code == "E3201"]
@@ -154,8 +140,9 @@ def test_reference_validator_reads_rows_and_catalog_via_subscribe():
         instance_bindings={"instance_bindings": {}},
     )
 
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish(
+    publish_for_test(
+        ctx,
+        "base.compiler.instance_rows",
         "normalized_rows",
         [
             {
@@ -168,12 +155,7 @@ def test_reference_validator_reads_rows_and_catalog_via_subscribe():
             }
         ],
     )
-    ctx._clear_execution_context()
-
-    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
-    ctx.publish("catalog_ids", [])
-    ctx._clear_execution_context()
-
+    publish_for_test(ctx, "base.compiler.capability_contract_loader", "catalog_ids", [])
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(d.code == "E2101" and d.stage == "resolve" for d in result.diagnostics)
@@ -237,13 +219,8 @@ def test_reference_validator_accepts_valid_storage_relations():
         objects=objects,
         instance_bindings={"instance_bindings": {}},
     )
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish("normalized_rows", rows)
-    ctx._clear_execution_context()
-    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
-    ctx.publish("catalog_ids", [])
-    ctx._clear_execution_context()
-
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", rows)
+    publish_for_test(ctx, "base.compiler.capability_contract_loader", "catalog_ids", [])
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.SUCCESS
     assert not any(d.code.startswith("E74") for d in result.diagnostics)
@@ -270,13 +247,8 @@ def test_reference_validator_rejects_unknown_storage_relation_target():
         objects={"obj.workload.local": {"object": "obj.workload.local", "class_ref": "class.compute.workload.lxc"}},
         instance_bindings={"instance_bindings": {}},
     )
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish("normalized_rows", rows)
-    ctx._clear_execution_context()
-    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
-    ctx.publish("catalog_ids", [])
-    ctx._clear_execution_context()
-
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", rows)
+    publish_for_test(ctx, "base.compiler.capability_contract_loader", "catalog_ids", [])
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(d.code == "E7401" for d in result.diagnostics)
@@ -320,13 +292,8 @@ def test_reference_validator_rejects_storage_relation_source_layer_violation():
         objects=objects,
         instance_bindings={"instance_bindings": {}},
     )
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish("normalized_rows", rows)
-    ctx._clear_execution_context()
-    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
-    ctx.publish("catalog_ids", [])
-    ctx._clear_execution_context()
-
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", rows)
+    publish_for_test(ctx, "base.compiler.capability_contract_loader", "catalog_ids", [])
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(d.code == "E7403" for d in result.diagnostics)
@@ -370,13 +337,8 @@ def test_reference_validator_rejects_storage_relation_target_class_mismatch():
         objects=objects,
         instance_bindings={"instance_bindings": {}},
     )
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish("normalized_rows", rows)
-    ctx._clear_execution_context()
-    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
-    ctx.publish("catalog_ids", [])
-    ctx._clear_execution_context()
-
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", rows)
+    publish_for_test(ctx, "base.compiler.capability_contract_loader", "catalog_ids", [])
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(d.code == "E7402" for d in result.diagnostics)
@@ -420,13 +382,8 @@ def test_reference_validator_accepts_valid_network_bridge_relation():
         objects=objects,
         instance_bindings={"instance_bindings": {}},
     )
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish("normalized_rows", rows)
-    ctx._clear_execution_context()
-    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
-    ctx.publish("catalog_ids", [])
-    ctx._clear_execution_context()
-
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", rows)
+    publish_for_test(ctx, "base.compiler.capability_contract_loader", "catalog_ids", [])
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.SUCCESS
     assert not any(d.code.startswith("E75") for d in result.diagnostics)
@@ -453,13 +410,8 @@ def test_reference_validator_rejects_unknown_network_bridge_target():
         objects={"obj.workload.local": {"object": "obj.workload.local", "class_ref": "class.compute.workload.lxc"}},
         instance_bindings={"instance_bindings": {}},
     )
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish("normalized_rows", rows)
-    ctx._clear_execution_context()
-    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
-    ctx.publish("catalog_ids", [])
-    ctx._clear_execution_context()
-
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", rows)
+    publish_for_test(ctx, "base.compiler.capability_contract_loader", "catalog_ids", [])
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(d.code == "E7501" for d in result.diagnostics)
@@ -503,13 +455,8 @@ def test_reference_validator_rejects_network_bridge_source_layer_violation():
         objects=objects,
         instance_bindings={"instance_bindings": {}},
     )
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish("normalized_rows", rows)
-    ctx._clear_execution_context()
-    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
-    ctx.publish("catalog_ids", [])
-    ctx._clear_execution_context()
-
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", rows)
+    publish_for_test(ctx, "base.compiler.capability_contract_loader", "catalog_ids", [])
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(d.code == "E7503" for d in result.diagnostics)
@@ -553,13 +500,8 @@ def test_reference_validator_rejects_network_bridge_target_class_mismatch():
         objects=objects,
         instance_bindings={"instance_bindings": {}},
     )
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish("normalized_rows", rows)
-    ctx._clear_execution_context()
-    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
-    ctx.publish("catalog_ids", [])
-    ctx._clear_execution_context()
-
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", rows)
+    publish_for_test(ctx, "base.compiler.capability_contract_loader", "catalog_ids", [])
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(d.code == "E7502" for d in result.diagnostics)
@@ -603,13 +545,8 @@ def test_reference_validator_accepts_valid_network_vlan_relation():
         objects=objects,
         instance_bindings={"instance_bindings": {}},
     )
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish("normalized_rows", rows)
-    ctx._clear_execution_context()
-    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
-    ctx.publish("catalog_ids", [])
-    ctx._clear_execution_context()
-
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", rows)
+    publish_for_test(ctx, "base.compiler.capability_contract_loader", "catalog_ids", [])
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.SUCCESS
     assert not any(d.code.startswith("E751") for d in result.diagnostics)
@@ -636,13 +573,8 @@ def test_reference_validator_rejects_unknown_network_vlan_target():
         objects={"obj.workload.local": {"object": "obj.workload.local", "class_ref": "class.compute.workload.lxc"}},
         instance_bindings={"instance_bindings": {}},
     )
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish("normalized_rows", rows)
-    ctx._clear_execution_context()
-    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
-    ctx.publish("catalog_ids", [])
-    ctx._clear_execution_context()
-
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", rows)
+    publish_for_test(ctx, "base.compiler.capability_contract_loader", "catalog_ids", [])
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(d.code == "E7511" for d in result.diagnostics)
@@ -686,13 +618,8 @@ def test_reference_validator_rejects_network_vlan_source_layer_violation():
         objects=objects,
         instance_bindings={"instance_bindings": {}},
     )
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish("normalized_rows", rows)
-    ctx._clear_execution_context()
-    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
-    ctx.publish("catalog_ids", [])
-    ctx._clear_execution_context()
-
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", rows)
+    publish_for_test(ctx, "base.compiler.capability_contract_loader", "catalog_ids", [])
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(d.code == "E7513" for d in result.diagnostics)
@@ -736,13 +663,8 @@ def test_reference_validator_rejects_network_vlan_target_class_mismatch():
         objects=objects,
         instance_bindings={"instance_bindings": {}},
     )
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish("normalized_rows", rows)
-    ctx._clear_execution_context()
-    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
-    ctx.publish("catalog_ids", [])
-    ctx._clear_execution_context()
-
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", rows)
+    publish_for_test(ctx, "base.compiler.capability_contract_loader", "catalog_ids", [])
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(d.code == "E7512" for d in result.diagnostics)
@@ -769,13 +691,8 @@ def test_reference_validator_rejects_network_vlan_ref_format():
         objects={"obj.workload.local": {"object": "obj.workload.local", "class_ref": "class.compute.workload.lxc"}},
         instance_bindings={"instance_bindings": {}},
     )
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish("normalized_rows", rows)
-    ctx._clear_execution_context()
-    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
-    ctx.publish("catalog_ids", [])
-    ctx._clear_execution_context()
-
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", rows)
+    publish_for_test(ctx, "base.compiler.capability_contract_loader", "catalog_ids", [])
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(d.code == "E7514" for d in result.diagnostics)
@@ -818,12 +735,8 @@ def test_reference_validator_accepts_valid_observability_target_relation():
         objects=objects,
         instance_bindings={"instance_bindings": {}},
     )
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish("normalized_rows", rows)
-    ctx._clear_execution_context()
-    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
-    ctx.publish("catalog_ids", [])
-    ctx._clear_execution_context()
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", rows)
+    publish_for_test(ctx, "base.compiler.capability_contract_loader", "catalog_ids", [])
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.SUCCESS
     assert not any(d.code.startswith("E760") for d in result.diagnostics)
@@ -870,12 +783,8 @@ def test_reference_validator_rejects_observability_target_source_layer_violation
         objects=objects,
         instance_bindings={"instance_bindings": {}},
     )
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish("normalized_rows", rows)
-    ctx._clear_execution_context()
-    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
-    ctx.publish("catalog_ids", [])
-    ctx._clear_execution_context()
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", rows)
+    publish_for_test(ctx, "base.compiler.capability_contract_loader", "catalog_ids", [])
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(d.code == "E7603" for d in result.diagnostics)
@@ -918,12 +827,8 @@ def test_reference_validator_rejects_observability_target_invalid_layer():
         objects=objects,
         instance_bindings={"instance_bindings": {}},
     )
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish("normalized_rows", rows)
-    ctx._clear_execution_context()
-    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
-    ctx.publish("catalog_ids", [])
-    ctx._clear_execution_context()
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", rows)
+    publish_for_test(ctx, "base.compiler.capability_contract_loader", "catalog_ids", [])
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(d.code == "E7602" for d in result.diagnostics)
@@ -966,12 +871,8 @@ def test_reference_validator_accepts_valid_operations_target_relation():
         objects=objects,
         instance_bindings={"instance_bindings": {}},
     )
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish("normalized_rows", rows)
-    ctx._clear_execution_context()
-    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
-    ctx.publish("catalog_ids", [])
-    ctx._clear_execution_context()
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", rows)
+    publish_for_test(ctx, "base.compiler.capability_contract_loader", "catalog_ids", [])
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.SUCCESS
     assert not any(d.code.startswith("E770") for d in result.diagnostics)
@@ -1014,12 +915,8 @@ def test_reference_validator_rejects_operations_target_source_layer_violation():
         objects=objects,
         instance_bindings={"instance_bindings": {}},
     )
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish("normalized_rows", rows)
-    ctx._clear_execution_context()
-    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
-    ctx.publish("catalog_ids", [])
-    ctx._clear_execution_context()
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", rows)
+    publish_for_test(ctx, "base.compiler.capability_contract_loader", "catalog_ids", [])
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(d.code == "E7703" for d in result.diagnostics)
@@ -1062,12 +959,8 @@ def test_reference_validator_rejects_operations_target_invalid_layer():
         objects=objects,
         instance_bindings={"instance_bindings": {}},
     )
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish("normalized_rows", rows)
-    ctx._clear_execution_context()
-    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
-    ctx.publish("catalog_ids", [])
-    ctx._clear_execution_context()
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", rows)
+    publish_for_test(ctx, "base.compiler.capability_contract_loader", "catalog_ids", [])
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(d.code == "E7702" for d in result.diagnostics)

@@ -12,6 +12,91 @@ Analysis of ADR 0099 requirements against current codebase state reveals:
 - 6 critical constraint violations
 - 44% of acceptance criteria currently met
 
+> Historical note: the executive summary and sections 1-7 below capture the
+> initial baseline snapshot used to scope ADR0099. See the incremental updates
+> for the current post-migration state.
+
+## Incremental Update (2026-04-21, post scheduler hardening)
+
+Completed in this iteration:
+- Removed placeholder skips from runtime scheduler suites:
+  - `tests/runtime/scheduler/test_execution_mode_routing.py`
+  - `tests/runtime/scheduler/test_no_merge_back_primary_path.py`
+  - `tests/runtime/scheduler/test_worker_failure_isolation.py`
+- Added concrete routing coverage for:
+  - `main_interpreter` envelope path
+  - `subinterpreter` isolated path and fallback path
+  - `thread_legacy` compatibility path
+- Added concrete no-merge-back and side-effect application tests.
+- Added ADR 0099 target directory scaffolding:
+  - `tests/plugins/unit/README.md`
+  - `tests/runtime/parity/README.md`
+  - `tests/helpers/__init__.py`
+  - `tests/helpers/plugin_execution.py`
+
+Updated point-in-time metrics after changes:
+- `_set_execution_context` references in tests: **173**
+- `get_published_data` references in tests: **9**
+- `pytest.skip()` in `tests/runtime/scheduler`: **0**
+- `pytest.skip()` in all tests: **3**
+
+Status impact:
+- AC4 (scheduler no-merge-back routing coverage): materially improved and now executable.
+- Remaining blockers are primarily legacy migration breadth (173 context-setup calls) and full layer rollout.
+
+## Incremental Update 2 (2026-04-21, wave-2 fixture migration)
+
+Completed in this iteration:
+- Added reusable fixture publisher helper:
+  - `tests/helpers/plugin_execution.py::publish_for_test(...)`
+- Migrated broad validator fixture setup from direct `ctx._set_execution_context(...)` blocks
+  to helper-based publish calls across integration suites.
+- Updated missing-consume assertions in selected tests to accept runtime contract code `E8003`
+  alongside plugin-specific legacy codes.
+- Fixed declarative parity suite helper import and executed parity coverage.
+
+Updated point-in-time metrics after wave-2 changes:
+- `_set_execution_context` references in tests: **86** (down from 173 in update 1)
+- `_set_execution_context` references in `tests/plugin_integration`: **60**
+- `pytest.skip()` in `tests/runtime/scheduler`: **0**
+- `pytest.skip()` in all tests: **3** (v4 baseline parity skips only)
+
+Validation evidence (targeted, post-change):
+- `pytest` suite over modified integration + scheduler files:
+  - **450 passed**, 0 failed (`~1m40s`)
+- Focused parity/contract subset:
+  - **63 passed**, 0 failed
+
+## Incremental Update 3 (2026-04-21, parity/order cleanup and helper hardening)
+
+Completed in this iteration:
+- Simplified `tests/helpers/plugin_execution.py::publish_for_test(...)` to a
+  single explicit signature (`ctx, producer_plugin_id, key, value`).
+- Removed direct `_set_execution_context(...)` usage from all tests touched in
+  the current migration wave; changed files now use `run_plugin_for_test(...)`
+  or `publish_for_test(...)`.
+- Restored `tests/plugin_integration/test_parity_stage_order.py` to green by
+  isolating the suite from unrelated framework-lock verification and by moving
+  fixture publication onto helper-based setup.
+- Added helper usage guidance to `tests/helpers/README.md` and expanded the new
+  ADR0099 README stubs for plugin-unit and runtime-parity layers.
+- Replaced deprecated `subinterpreter_compatible` manifest snippets in touched
+  integration tests with explicit `execution_mode: subinterpreter`.
+
+Updated point-in-time metrics after parity/order cleanup:
+- `_set_execution_context` references in tests: **62**
+- `_set_execution_context` references in `tests/plugin_integration`: **36**
+- files in `tests/` still containing `_set_execution_context`: **14**
+- files in `tests/` still containing `_set_execution_context` outside helpers: **13**
+- `pytest.skip()` in `tests/runtime/scheduler`: **0**
+- `pytest.skip()` in all tests: **3** (v4 baseline parity skips only)
+
+Validation evidence (targeted, post-change):
+- `pytest` over changed integration + scheduler suites:
+  - **474 passed**, 0 failed (`~1m26s`)
+- `pytest tests/plugin_integration/test_parity_stage_order.py -q`
+  - **24 passed**, 0 failed
+
 ## 1. Problem Inventory
 
 | ID | Problem | Severity | Impact |
