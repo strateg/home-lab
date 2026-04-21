@@ -250,13 +250,14 @@ Status: ⏳ NOT STARTED → ✅ COMPLETE
 
 ---
 
-## Next Steps (Deferred)
+## Next Steps
 
-### H2. Legacy Runtime Cleanup
-- Remove `_mirror_context_into_pipeline_state()` calls for non-legacy plugins
-- Remove `SerializablePluginContext` usage in primary path
-- Consolidate envelope path as the only execution model
-- **Owner:** ADR 0099 test migration
+### H2. Legacy Runtime Cleanup — ✅ VERIFIED COMPLETE
+- ✅ Verified `_mirror_context_into_pipeline_state()` only called for thread_legacy (0 plugins)
+- ✅ Verified `SerializablePluginContext` unused in primary path (dead code)
+- ✅ Verified envelope path is the only execution model (84 active plugins)
+- **Evidence:** `adr/0097-analysis/H2-LEGACY-RUNTIME-ANALYSIS.md`
+- **Recommendation:** Keep thread_legacy code for safety, consider removal in ADR 0099
 
 ### H3. Documentation Updates
 - Update plugin development guide for envelope model
