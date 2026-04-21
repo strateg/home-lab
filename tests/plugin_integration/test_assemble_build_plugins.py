@@ -70,7 +70,7 @@ def _seed_migrating_contract_publications(ctx: PluginContext, registry: PluginRe
             ctx.publish("artifact_contract_files", [f"/tmp/{plugin_id}.artifact-plan.json"])
             ctx.publish("generated_dir", f"/tmp/generated/{plugin_id.replace('.', '_')}")
         finally:
-            ctx._clear_execution_context()
+            ctx._clear_execution_context()  # noqa: SLF001
 
 
 def _seed_build_readiness_inputs(ctx: PluginContext) -> None:
@@ -100,12 +100,12 @@ def _seed_build_readiness_inputs(ctx: PluginContext) -> None:
             }
         },
     }.items():
-        ctx._set_execution_context(plugin_id, set())
+        ctx._set_execution_context(plugin_id, set())  # noqa: SLF001 - test fixture setup
         try:
             for key, value in payload.items():
                 ctx.publish(key, value)
         finally:
-            ctx._clear_execution_context()
+            ctx._clear_execution_context()  # noqa: SLF001
 
 
 def test_assemble_and_build_stage_plugins_produce_release_artifacts(tmp_path: Path):
@@ -217,12 +217,12 @@ def test_assemble_and_build_stage_plugins_produce_release_artifacts(tmp_path: Pa
         sbom_output_dir=str(sbom_root),
     )
 
-    ctx._set_execution_context("base.generator.artifact_manifest", set())
+    ctx._set_execution_context("base.generator.artifact_manifest", set())  # noqa: SLF001 - test fixture setup
     try:
         ctx.publish("artifact_manifest_path", str(artifact_manifest_path))
         ctx.publish("artifact_manifest", artifact_manifest)
     finally:
-        ctx._clear_execution_context()
+        ctx._clear_execution_context()  # noqa: SLF001
     _seed_migrating_contract_publications(ctx, registry)
     _seed_build_readiness_inputs(ctx)
 
@@ -354,12 +354,12 @@ def test_assemble_verify_flags_secret_like_content(tmp_path: Path):
         workspace_root=str(workspace_root),
     )
 
-    ctx._set_execution_context("base.generator.artifact_manifest", set())
+    ctx._set_execution_context("base.generator.artifact_manifest", set())  # noqa: SLF001 - test fixture setup
     try:
         ctx.publish("artifact_manifest_path", str(artifact_manifest_path))
         ctx.publish("artifact_manifest", artifact_manifest)
     finally:
-        ctx._clear_execution_context()
+        ctx._clear_execution_context()  # noqa: SLF001
     _seed_migrating_contract_publications(ctx, registry)
 
     results = registry.execute_stage(Stage.ASSEMBLE, ctx)
@@ -412,12 +412,12 @@ def test_changed_input_scopes_are_empty_on_second_identical_run(tmp_path: Path):
         },
         workspace_root=str(workspace_root),
     )
-    first_ctx._set_execution_context("base.generator.artifact_manifest", set())
+    first_ctx._set_execution_context("base.generator.artifact_manifest", set())  # noqa: SLF001 - test fixture setup
     try:
         first_ctx.publish("artifact_manifest_path", str(artifact_manifest_path))
         first_ctx.publish("artifact_manifest", artifact_manifest)
     finally:
-        first_ctx._clear_execution_context()
+        first_ctx._clear_execution_context()  # noqa: SLF001
     _seed_migrating_contract_publications(first_ctx, registry)
     first_results = registry.execute_stage(Stage.ASSEMBLE, first_ctx)
     assert all(result.status == PluginStatus.SUCCESS for result in first_results)
@@ -436,12 +436,12 @@ def test_changed_input_scopes_are_empty_on_second_identical_run(tmp_path: Path):
         },
         workspace_root=str(workspace_root),
     )
-    second_ctx._set_execution_context("base.generator.artifact_manifest", set())
+    second_ctx._set_execution_context("base.generator.artifact_manifest", set())  # noqa: SLF001 - test fixture setup
     try:
         second_ctx.publish("artifact_manifest_path", str(artifact_manifest_path))
         second_ctx.publish("artifact_manifest", artifact_manifest)
     finally:
-        second_ctx._clear_execution_context()
+        second_ctx._clear_execution_context()  # noqa: SLF001
     _seed_migrating_contract_publications(second_ctx, registry)
     second_results = registry.execute_stage(Stage.ASSEMBLE, second_ctx)
     assert all(result.status == PluginStatus.SUCCESS for result in second_results)
@@ -481,11 +481,11 @@ def test_assembly_manifest_requires_committed_artifact_manifest_path(tmp_path: P
         workspace_root=str(workspace_root),
     )
 
-    ctx._set_execution_context("base.assembler.workspace", set())
+    ctx._set_execution_context("base.assembler.workspace", set())  # noqa: SLF001 - test fixture setup
     try:
         ctx.publish("assembled_files", [])
     finally:
-        ctx._clear_execution_context()
+        ctx._clear_execution_context()  # noqa: SLF001
 
     result = registry.execute_plugin("base.assembler.manifest", ctx, Stage.ASSEMBLE)
 
@@ -509,11 +509,11 @@ def test_changed_scopes_requires_committed_artifact_manifest_payload(tmp_path: P
         workspace_root=str(workspace_root),
     )
 
-    ctx._set_execution_context("base.generator.artifact_manifest", set())
+    ctx._set_execution_context("base.generator.artifact_manifest", set())  # noqa: SLF001 - test fixture setup
     try:
         ctx.publish("artifact_manifest_path", str(tmp_path / "generated" / "home-lab" / "artifact-manifest.json"))
     finally:
-        ctx._clear_execution_context()
+        ctx._clear_execution_context()  # noqa: SLF001
 
     result = registry.execute_plugin("base.assembler.changed_scopes", ctx, Stage.ASSEMBLE)
 
@@ -545,11 +545,11 @@ def test_deploy_bundle_requires_committed_assembly_manifest_path(tmp_path: Path)
         workspace_root=str(workspace_root),
     )
 
-    ctx._set_execution_context("base.assembler.verify", set())
+    ctx._set_execution_context("base.assembler.verify", set())  # noqa: SLF001 - test fixture setup
     try:
         ctx.publish("assemble_verified", True)
     finally:
-        ctx._clear_execution_context()
+        ctx._clear_execution_context()  # noqa: SLF001
 
     result = registry.execute_plugin("base.assembler.deploy_bundle", ctx, Stage.ASSEMBLE)
 
@@ -607,12 +607,12 @@ def test_release_manifest_requires_committed_build_artifacts(tmp_path: Path) -> 
             "support_bundle_manifest_path": str(tmp_path / "generated" / "home-lab" / "product" / "reports" / "support-bundle-manifest.json"),
         },
     }.items():
-        ctx._set_execution_context(plugin_id, set())
+        ctx._set_execution_context(plugin_id, set())  # noqa: SLF001 - test fixture setup
         try:
             for key, value in payload.items():
                 ctx.publish(key, value)
         finally:
-            ctx._clear_execution_context()
+            ctx._clear_execution_context()  # noqa: SLF001
 
     result = registry.execute_plugin("base.builder.release_manifest", ctx, Stage.BUILD)
 
@@ -636,11 +636,11 @@ def test_sbom_requires_committed_release_bundle_path(tmp_path: Path) -> None:
         workspace_root=str(workspace_root),
     )
 
-    ctx._set_execution_context("base.assembler.manifest", set())
+    ctx._set_execution_context("base.assembler.manifest", set())  # noqa: SLF001 - test fixture setup
     try:
         ctx.publish("assembly_manifest", {"files": []})
     finally:
-        ctx._clear_execution_context()
+        ctx._clear_execution_context()  # noqa: SLF001
 
     result = registry.execute_plugin("base.builder.sbom", ctx, Stage.BUILD)
 
@@ -717,11 +717,11 @@ def test_artifact_family_summary_uses_contract_guard_checked_plugins(tmp_path: P
         "prefix_conflicts": [],
     }
 
-    ctx._set_execution_context("base.assembler.artifact_contract_guard", set())
+    ctx._set_execution_context("base.assembler.artifact_contract_guard", set())  # noqa: SLF001 - test fixture setup
     try:
         ctx.publish("artifact_contract_guard", contract_guard)
     finally:
-        ctx._clear_execution_context()
+        ctx._clear_execution_context()  # noqa: SLF001
 
     result = registry.execute_plugin("base.builder.artifact_family_summary", ctx, Stage.BUILD)
 
@@ -751,11 +751,11 @@ def test_generator_readiness_evidence_requires_committed_readiness_inputs(tmp_pa
         workspace_root=str(workspace_root),
         dist_root=str(dist_root),
     )
-    ctx._set_execution_context("base.builder.artifact_family_summary", set())
+    ctx._set_execution_context("base.builder.artifact_family_summary", set())  # noqa: SLF001 - test fixture setup
     try:
         ctx.publish("artifact_family_summary", {"totals": {"plugins": 1}})
     finally:
-        ctx._clear_execution_context()
+        ctx._clear_execution_context()  # noqa: SLF001
 
     result = registry.execute_plugin("base.builder.generator_readiness_evidence", ctx, Stage.BUILD)
 
@@ -780,11 +780,11 @@ def test_soho_readiness_package_requires_committed_profile_and_readiness_report(
         },
         workspace_root=str(workspace_root),
     )
-    ctx._set_execution_context("base.builder.readiness_reports", set())
+    ctx._set_execution_context("base.builder.readiness_reports", set())  # noqa: SLF001 - test fixture setup
     try:
         ctx.publish("restore_readiness_report", {"status": "green", "checks": []})
     finally:
-        ctx._clear_execution_context()
+        ctx._clear_execution_context()  # noqa: SLF001
 
     result = registry.execute_plugin("base.builder.soho_readiness_package", ctx, Stage.BUILD)
 

@@ -99,4 +99,4 @@
 | [0096](0096-ai-agent-rulebook-and-adr-derived-context-contract.md) | AI Agent Rulebook and ADR-Derived Context Contract | Implemented (Waves 1-3 complete) | 2026-04-10 | - | - |
 | [0097](0097-subinterpreter-parallel-plugin-execution.md) | Actor-Style Dataflow Execution for Plugins on Python 3.14 Subinterpreters | Implemented (PR1-PR5 complete) | 2026-04-15 | - | - |
 | [0098](0098-python-3-14-platform-migration.md) | Python 3.14 Platform Migration | Implemented (Phase A+B Complete, Phase C Deferred) | 2026-04-13 | - | - |
-| [0099](0099-refactor-test-architecture-for-snapshot-envelope-pipeline-runtime.md) | Refactor Test Architecture for Snapshot/Envelope Pipeline Runtime | Proposed | 2026-04-15 | [0097](0097-subinterpreter-parallel-plugin-execution.md) | - |
+| [0099](0099-refactor-test-architecture-for-snapshot-envelope-pipeline-runtime.md) | Refactor Test Architecture for Snapshot/Envelope Pipeline Runtime | Implemented | 2026-04-21 | [0097](0097-subinterpreter-parallel-plugin-execution.md) | - |

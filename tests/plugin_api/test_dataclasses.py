@@ -143,7 +143,7 @@ def test_plugin_context_publish_subscribe():
     publish_for_test(ctx, "plugin.producer", "key2", [1, 2, 3])
 
     # Set up consumer plugin with dependency
-    ctx._set_execution_context("plugin.consumer", {"plugin.producer"})  # intentional: direct subscribe contract check
+    ctx._set_execution_context("plugin.consumer", {"plugin.producer"})  # noqa: SLF001 - intentional: direct subscribe contract check
 
     data1 = ctx.subscribe("plugin.producer", "key1")
     assert data1 == {"data": "value1"}
@@ -154,7 +154,7 @@ def test_plugin_context_publish_subscribe():
     keys = ctx.get_published_keys("plugin.producer")
     assert set(keys) == {"key1", "key2"}
 
-    ctx._clear_execution_context()
+    ctx._clear_execution_context()  # noqa: SLF001
     print("PASS: publish/subscribe works")
 
 
@@ -169,7 +169,7 @@ def test_plugin_context_dependency_enforcement():
     publish_for_test(ctx, "plugin.producer", "data", {"value": 42})
 
     # Consumer WITHOUT dependency should fail
-    ctx._set_execution_context("plugin.consumer", set())  # intentional: direct dependency enforcement check
+    ctx._set_execution_context("plugin.consumer", set())  # noqa: SLF001 - intentional: direct dependency enforcement check
 
     try:
         ctx.subscribe("plugin.producer", "data")
@@ -177,7 +177,7 @@ def test_plugin_context_dependency_enforcement():
     except PluginDataExchangeError as e:
         assert "not in depends_on list" in str(e)
 
-    ctx._clear_execution_context()
+    ctx._clear_execution_context()  # noqa: SLF001
     print("PASS: dependency enforcement works")
 
 

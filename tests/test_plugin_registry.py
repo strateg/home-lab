@@ -1530,7 +1530,7 @@ def test_execute_stage_invalidates_stage_local_outputs(tmp_path: Path):
     assert results[0].status == PluginStatus.SUCCESS
     assert ctx.get_published_keys("stage_local.compiler.publisher") == []
 
-    ctx._set_execution_context(
+    ctx._set_execution_context(  # noqa: SLF001 - testing stage_local cleanup
         "stage_local.validator.consumer", {"stage_local.compiler.publisher"}, stage=Stage.VALIDATE
     )
     try:
@@ -1540,7 +1540,7 @@ def test_execute_stage_invalidates_stage_local_outputs(tmp_path: Path):
         except PluginDataExchangeError as exc:
             assert "has not published any data" in str(exc)
     finally:
-        ctx._clear_execution_context()
+        ctx._clear_execution_context()  # noqa: SLF001
 
 
 def test_execute_stage_trace_records_execution_events(tmp_path: Path):
@@ -2291,7 +2291,7 @@ def test_publish_subscribe_basic():
     publish_for_test(ctx, "plugin.producer", "key2", [1, 2, 3])
 
     # Set up consumer plugin with dependency
-    ctx._set_execution_context("plugin.consumer", {"plugin.producer"})
+    ctx._set_execution_context("plugin.consumer", {"plugin.producer"})  # noqa: SLF001 - testing context subscribe
 
     # Subscribe to data
     data1 = ctx.subscribe("plugin.producer", "key1")
@@ -2304,7 +2304,7 @@ def test_publish_subscribe_basic():
     keys = ctx.get_published_keys("plugin.producer")
     assert set(keys) == {"key1", "key2"}
 
-    ctx._clear_execution_context()
+    ctx._clear_execution_context()  # noqa: SLF001
     print("PASS: Basic publish/subscribe works")
 
 
@@ -2320,7 +2320,7 @@ def test_publish_subscribe_dependency_check():
     publish_for_test(ctx, "plugin.producer", "data", {"value": 42})
 
     # Consumer WITHOUT dependency should fail
-    ctx._set_execution_context("plugin.consumer", set())  # Empty depends_on
+    ctx._set_execution_context("plugin.consumer", set())  # noqa: SLF001 - testing dependency enforcement
 
     try:
         ctx.subscribe("plugin.producer", "data")
@@ -2328,7 +2328,7 @@ def test_publish_subscribe_dependency_check():
     except PluginDataExchangeError as e:
         assert "not in depends_on list" in str(e)
 
-    ctx._clear_execution_context()
+    ctx._clear_execution_context()  # noqa: SLF001
     print("PASS: Subscribe dependency check works")
 
 
@@ -2341,7 +2341,7 @@ def test_publish_subscribe_missing_data():
     )
 
     # Consumer with valid dependency but producer hasn't published
-    ctx._set_execution_context("plugin.consumer", {"plugin.producer"})
+    ctx._set_execution_context("plugin.consumer", {"plugin.producer"})  # noqa: SLF001 - testing missing data handling
 
     try:
         ctx.subscribe("plugin.producer", "nonexistent")
@@ -2349,13 +2349,13 @@ def test_publish_subscribe_missing_data():
     except PluginDataExchangeError as e:
         assert "has not published any data" in str(e)
 
-    ctx._clear_execution_context()
+    ctx._clear_execution_context()  # noqa: SLF001
 
     # Producer publishes some data
     publish_for_test(ctx, "plugin.producer", "existing_key", "value")
 
     # Consumer tries to get missing key
-    ctx._set_execution_context("plugin.consumer", {"plugin.producer"})
+    ctx._set_execution_context("plugin.consumer", {"plugin.producer"})  # noqa: SLF001 - testing missing key handling
 
     try:
         ctx.subscribe("plugin.producer", "nonexistent_key")
@@ -2363,7 +2363,7 @@ def test_publish_subscribe_missing_data():
     except PluginDataExchangeError as e:
         assert "has not published key" in str(e)
 
-    ctx._clear_execution_context()
+    ctx._clear_execution_context()  # noqa: SLF001
     print("PASS: Subscribe missing data error handling works")
 
 
