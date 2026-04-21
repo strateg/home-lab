@@ -13,11 +13,15 @@ sys.path.insert(0, str(V5_TOOLS))
 
 from kernel import PluginContext, PluginRegistry, PluginStatus
 from kernel.plugin_base import Stage
+from tests.helpers.plugin_execution import publish_for_test
 
 
 def _registry() -> PluginRegistry:
     registry = PluginRegistry(V5_TOOLS)
     registry.load_manifest(V5_TOOLS / "plugins" / "plugins.yaml")
+    registry.load_manifest(Path("topology/object-modules/proxmox/plugins.yaml"))
+    registry.load_manifest(Path("topology/object-modules/mikrotik/plugins.yaml"))
+    registry.load_manifest(Path("topology/object-modules/orangepi/plugins.yaml"))
     return registry
 
 
@@ -29,48 +33,48 @@ def _seed_migrating_contract_publications(ctx: PluginContext, registry: PluginRe
         if getattr(spec, "migration_mode", "legacy") != "migrating":
             continue
         planned_path = f"generated/home-lab/contracts/{plugin_id}.json"
-        ctx._set_execution_context(plugin_id, set())  # noqa: SLF001 - test fixture setup
-        try:
-            ctx.publish(
-                "artifact_plan",
-                {
-                    "schema_version": "1.0",
-                    "plugin_id": plugin_id,
-                    "artifact_family": f"test.{plugin_id}",
-                    "planned_outputs": [
-                        {
-                            "path": planned_path,
-                            "renderer": "jinja2",
-                            "required": True,
-                            "reason": "base-family",
-                        }
-                    ],
-                    "obsolete_candidates": [],
-                    "capabilities": [],
-                    "validation_profiles": [],
+        publish_for_test(
+            ctx,
+            plugin_id,
+            "artifact_plan",
+            {
+                "schema_version": "1.0",
+                "plugin_id": plugin_id,
+                "artifact_family": f"test.{plugin_id}",
+                "planned_outputs": [
+                    {
+                        "path": planned_path,
+                        "renderer": "jinja2",
+                        "required": True,
+                        "reason": "base-family",
+                    }
+                ],
+                "obsolete_candidates": [],
+                "capabilities": [],
+                "validation_profiles": [],
+            },
+        )
+        publish_for_test(
+            ctx,
+            plugin_id,
+            "artifact_generation_report",
+            {
+                "schema_version": "1.0",
+                "plugin_id": plugin_id,
+                "artifact_family": f"test.{plugin_id}",
+                "generated": [planned_path],
+                "skipped": [],
+                "obsolete": [],
+                "summary": {
+                    "planned_count": 1,
+                    "generated_count": 1,
+                    "skipped_count": 0,
+                    "obsolete_count": 0,
                 },
-            )
-            ctx.publish(
-                "artifact_generation_report",
-                {
-                    "schema_version": "1.0",
-                    "plugin_id": plugin_id,
-                    "artifact_family": f"test.{plugin_id}",
-                    "generated": [planned_path],
-                    "skipped": [],
-                    "obsolete": [],
-                    "summary": {
-                        "planned_count": 1,
-                        "generated_count": 1,
-                        "skipped_count": 0,
-                        "obsolete_count": 0,
-                    },
-                },
-            )
-            ctx.publish("artifact_contract_files", [f"/tmp/{plugin_id}.artifact-plan.json"])
-            ctx.publish("generated_dir", f"/tmp/generated/{plugin_id.replace('.', '_')}")
-        finally:
-            ctx._clear_execution_context()  # noqa: SLF001
+            },
+        )
+        publish_for_test(ctx, plugin_id, "artifact_contract_files", [f"/tmp/{plugin_id}.artifact-plan.json"])
+        publish_for_test(ctx, plugin_id, "generated_dir", f"/tmp/generated/{plugin_id.replace('.', '_')}")
 
 
 def _seed_build_readiness_inputs(ctx: PluginContext) -> None:
@@ -100,12 +104,8 @@ def _seed_build_readiness_inputs(ctx: PluginContext) -> None:
             }
         },
     }.items():
-        ctx._set_execution_context(plugin_id, set())  # noqa: SLF001 - test fixture setup
-        try:
-            for key, value in payload.items():
-                ctx.publish(key, value)
-        finally:
-            ctx._clear_execution_context()  # noqa: SLF001
+        for key, value in payload.items():
+            publish_for_test(ctx, plugin_id, key, value)
 
 
 def test_assemble_and_build_stage_plugins_produce_release_artifacts(tmp_path: Path):

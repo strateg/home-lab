@@ -86,6 +86,7 @@ def test_artifact_contract_assembler_passes_when_migrating_generators_publish_co
     assert all(isinstance(item.get("artifact_generation_report"), dict) for item in summary["checked_plugins"])
     assert summary["missing_contracts"] == []
     assert any(diag.code == "I9397" for diag in result.diagnostics)
+    assert not any(diag.code == "E9394" for diag in result.diagnostics)
 
 
 def test_artifact_contract_assembler_errors_for_missing_migrating_contracts() -> None:

@@ -398,6 +398,7 @@ class PluginInputSnapshot:
     source_file: str = ""
     compiled_file: str = ""
     subscriptions: dict[tuple[str, str], SubscriptionValue] = field(default_factory=dict)
+    legacy_published_data: dict[str, dict[str, Any]] = field(default_factory=dict)
     allowed_dependencies: frozenset[str] = field(default_factory=frozenset)
     produced_key_scopes: dict[str, str] = field(default_factory=dict)
 
@@ -588,6 +589,9 @@ class PluginContext:
             compiled_file=snapshot.compiled_file,
         )
         ctx._snapshot = snapshot
+        ctx._published_data = {
+            plugin_id: dict(payload) for plugin_id, payload in dict(snapshot.legacy_published_data).items()
+        }
         return ctx
 
     def _get_execution_scope(self) -> PluginExecutionScope | None:

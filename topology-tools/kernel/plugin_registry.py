@@ -789,6 +789,14 @@ class PluginRegistry:
                         continue
                     raise
 
+        legacy_published_data: dict[str, dict[str, Any]] = {}
+        if pipeline_state is not None:
+            compatibility_producers = self._compatibility_producer_ids(spec)
+            for producer_id in compatibility_producers:
+                payload = pipeline_state.committed_data.get(producer_id)
+                if isinstance(payload, dict) and payload:
+                    legacy_published_data[producer_id] = payload.copy()
+
         return PluginInputSnapshot(
             plugin_id=plugin_id,
             stage=stage,
@@ -817,9 +825,33 @@ class PluginRegistry:
             source_file=ctx.source_file,
             compiled_file=ctx.compiled_file,
             subscriptions=subscriptions,
+            legacy_published_data=legacy_published_data,
             allowed_dependencies=frozenset(spec.depends_on),
             produced_key_scopes=produced_key_scopes,
         )
+
+    @staticmethod
+    def _compatibility_producer_ids(spec: PluginSpec) -> set[str]:
+        """Return legacy compatibility producers declared in plugin config.
+
+        These producers are not part of explicit snapshot subscriptions yet, but
+        snapshot-backed plugins may still need read-only access to their already
+        committed payloads to support compatibility fallback paths during staged
+        migration.
+        """
+        config = getattr(spec, "config", {})
+        if not isinstance(config, dict):
+            return set()
+        out: set[str] = set()
+        for key, raw in config.items():
+            if not isinstance(key, str) or not key.endswith("_compatibility_producers"):
+                continue
+            if not isinstance(raw, list):
+                continue
+            for item in raw:
+                if isinstance(item, str) and item.strip():
+                    out.add(item.strip())
+        return out
 
     def _ensure_pipeline_state(self, ctx: PluginContext) -> PipelineState:
         """Return main-interpreter pipeline state for the current execution context."""
@@ -882,6 +914,20 @@ class PluginRegistry:
             candidate = plugin_payload.get("effective_model_candidate")
             if isinstance(candidate, dict):
                 ctx.compiled_json = candidate
+
+        changed_input_scopes = plugin_payload.get("changed_input_scopes")
+        if isinstance(changed_input_scopes, list):
+            normalized = [item for item in changed_input_scopes if isinstance(item, str) and item]
+            ctx.changed_input_scopes = normalized
+            ctx.config["changed_input_scopes"] = normalized
+
+        assembly_dir = plugin_payload.get("assembly_dir")
+        if isinstance(assembly_dir, str) and assembly_dir.strip():
+            ctx.workspace_root = assembly_dir
+
+        assembly_manifest = plugin_payload.get("assembly_manifest")
+        if isinstance(assembly_manifest, dict):
+            ctx.assembly_manifest = assembly_manifest
 
     def _validate_required_consumes_snapshot(
         self,
@@ -1101,7 +1147,28 @@ class PluginRegistry:
             result.diagnostics.extend(validation_diags)
             self._apply_result_status_from_diagnostics(result)
 
-        if result.status not in {PluginStatus.SUCCESS, PluginStatus.PARTIAL}:
+        envelope_to_commit = envelope
+        if result.status in {PluginStatus.SUCCESS, PluginStatus.PARTIAL}:
+            pass
+        elif (
+            result.status == PluginStatus.FAILED
+            and result.error_traceback is None
+            and not any(diag.severity == "error" for diag in validation_diags)
+        ):
+            commit_keys_on_failure = self._commit_keys_on_failure(spec)
+            if not commit_keys_on_failure:
+                return result
+            filtered_messages = [
+                message for message in envelope.published_messages if message.key in commit_keys_on_failure
+            ]
+            if not filtered_messages:
+                return result
+            envelope_to_commit = PluginExecutionEnvelope(
+                result=result,
+                published_messages=filtered_messages,
+                execution_metadata=envelope.execution_metadata,
+            )
+        else:
             return result
 
         try:
@@ -1110,7 +1177,7 @@ class PluginRegistry:
                 stage=stage,
                 phase=phase,
                 produces=spec.produces,
-                envelope=envelope,
+                envelope=envelope_to_commit,
             )
         except PluginDataExchangeError as exc:
             result.diagnostics.append(
@@ -1130,6 +1197,27 @@ class PluginRegistry:
         self._sync_pipeline_state_to_context(ctx, pipeline_state)
         self._apply_authoritative_commit_side_effects(ctx=ctx, pipeline_state=pipeline_state, spec=spec)
         return result
+
+    @staticmethod
+    def _commit_keys_on_failure(spec: PluginSpec) -> set[str]:
+        """Return declared output keys that may be committed from non-crash failures.
+
+        This is a narrow compatibility mechanism for verdict-style outputs such as
+        verification booleans that downstream plugins need even when the producer
+        reports diagnostics and therefore returns FAILED.
+        """
+        config = getattr(spec, "config", {})
+        if not isinstance(config, dict):
+            return set()
+        raw = config.get("commit_keys_on_failure")
+        if not isinstance(raw, list):
+            return set()
+        declared = {
+            item.get("key")
+            for item in spec.produces
+            if isinstance(item, dict) and isinstance(item.get("key"), str) and item.get("key")
+        }
+        return {item.strip() for item in raw if isinstance(item, str) and item.strip() in declared}
 
     @staticmethod
     def _apply_result_status_from_diagnostics(result: PluginResult) -> None:

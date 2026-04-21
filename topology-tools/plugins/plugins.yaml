@@ -2131,10 +2131,18 @@ plugins:
   depends_on:
   - base.assembler.workspace
   timeout: 30
-  config: {}
+  config:
+    commit_keys_on_failure:
+    - assemble_verified
   config_schema:
     type: object
-    properties: {}
+    properties:
+      commit_keys_on_failure:
+        type: array
+        description: Declared verdict keys that remain commit-eligible when the plugin
+          returns FAILED without crashing.
+        items:
+          type: string
     required: []
   consumes:
   - from_plugin: base.assembler.workspace

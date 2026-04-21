@@ -261,6 +261,72 @@ def test_no_partial_commit_on_crash() -> None:
     assert "test.partial_crasher" not in state.committed_data
 
 
+def test_failed_verdict_output_can_be_committed_when_explicitly_allowed() -> None:
+    """Non-crash failures may commit declared verdict keys when whitelisted."""
+    registry = PluginRegistry(V5_TOOLS)
+    plugin_id = "test.verify"
+    spec = PluginSpec(
+        id=plugin_id,
+        kind=PluginKind.ASSEMBLER,
+        entry="assemblers/workspace_assembler.py:AssemblyVerifyAssembler",
+        api_version="2.0",
+        stages=[Stage.ASSEMBLE],
+        order=420,
+        phase=Phase.VERIFY,
+        depends_on=[],
+        config={"commit_keys_on_failure": ["assemble_verified"]},
+        produces=[{"key": "assemble_verified", "scope": "pipeline_shared"}],
+        consumes=[],
+        execution_mode="subinterpreter",
+        manifest_path="tests/runtime/scheduler",
+    )
+    ctx = PluginContext(topology_path="topology/topology.yaml", profile="test", model_lock={})
+    state = PipelineState()
+    envelope = PluginExecutionEnvelope(
+        result=PluginResult(
+            plugin_id=plugin_id,
+            api_version="2.0",
+            status=PluginStatus.FAILED,
+            diagnostics=[
+                PluginDiagnostic(
+                    code="E8103",
+                    severity="error",
+                    stage=Stage.ASSEMBLE.value,
+                    phase=Phase.VERIFY.value,
+                    message="verification failed",
+                    path="assemble:verify",
+                    plugin_id=plugin_id,
+                )
+            ],
+        ),
+        published_messages=[
+            PublishedMessage(
+                plugin_id=plugin_id,
+                key="assemble_verified",
+                value=False,
+                scope="pipeline_shared",
+                stage=Stage.ASSEMBLE,
+                phase=Phase.VERIFY,
+            )
+        ],
+    )
+
+    result = registry._commit_envelope_result(  # noqa: SLF001 - runtime contract test
+        ctx=ctx,
+        pipeline_state=state,
+        spec=spec,
+        stage=Stage.ASSEMBLE,
+        phase=Phase.VERIFY,
+        envelope=envelope,
+        contract_warnings=False,
+        contract_errors=False,
+    )
+
+    assert result.status == PluginStatus.FAILED
+    assert state.committed_data[plugin_id]["assemble_verified"] is False
+    assert ctx.get_published_data()[plugin_id]["assemble_verified"] is False
+
+
 def test_successful_plugin_after_crash_commits_normally() -> None:
     """Successful plugin execution after a crash should commit normally."""
     state = PipelineState()

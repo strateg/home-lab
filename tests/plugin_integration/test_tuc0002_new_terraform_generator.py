@@ -11,6 +11,7 @@ import subprocess
 from pathlib import Path
 
 import yaml
+from tests.helpers.plugin_execution import run_plugin_for_test
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 COMPILER = REPO_ROOT / "topology-tools" / "compile-topology.py"
@@ -103,11 +104,7 @@ def _run_generator(generator, ctx) -> object:
     sys.path.insert(0, str(V5_TOOLS))
     from kernel.plugin_base import Stage  # noqa: WPS433
 
-    ctx._set_execution_context(generator.plugin_id, set())  # noqa: SLF001 - direct plugin execution helper
-    try:
-        return generator.execute(ctx, Stage.GENERATE)
-    finally:
-        ctx._clear_execution_context()  # noqa: SLF001 - direct plugin execution helper
+    return run_plugin_for_test(generator, ctx, Stage.GENERATE)
 
 
 def _list_plugin_ids(manifest_path: Path) -> set[str]:
