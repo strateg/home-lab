@@ -67,6 +67,30 @@ Rules:
 - Class/object module placement is an ownership convention, not runtime ACL.
   Shared standalone plugins should live under `topology-tools/plugins/<family>/`.
 
+### Execution Mode (ADR 0097)
+
+Plugins execute via actor-style dataflow on Python 3.14 subinterpreters:
+
+- **Declare `execution_mode`** in plugin manifest:
+  - `subinterpreter` — Default. Isolated parallel execution.
+  - `main_interpreter` — For plugins mutating context fields or accessing registry.
+  - `thread_legacy` — Deprecated migration-only mode.
+
+- **Envelope semantics:**
+  - Plugins receive immutable `PluginInputSnapshot` (resolved consumes)
+  - Plugins return `PluginExecutionEnvelope` (proposed outputs)
+  - Main interpreter validates and commits envelope to pipeline state
+  - Workers must not directly mutate pipeline-global state
+
+- **Subinterpreter compatibility criteria:**
+  - Read only from snapshot (`ctx.subscribe()`, `ctx.config`, `ctx.objects`)
+  - Write only to local outbox (`ctx.publish()`, `ctx.emit()`)
+  - No direct `ctx` field mutation
+  - No `ctx.config.get("plugin_registry")` access
+  - No dynamic module loading (`importlib.util`)
+
+**Current fleet:** 74/84 base plugins (88.1%) in subinterpreter mode.
+
 ## Directory Structure
 
 ```

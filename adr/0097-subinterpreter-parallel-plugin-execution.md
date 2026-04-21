@@ -1,8 +1,9 @@
 # ADR 0097: Actor-Style Dataflow Execution for Plugins on Python 3.14 Subinterpreters
 
-- Status: In Progress
+- Status: Implemented
 - Date: 2026-04-15
 - Revised: 2026-04-21
+- Implementation Complete: PR1-PR5
 - Depends on: ADR 0063, ADR 0080, ADR 0086, ADR 0098
 - Follow-up: ADR 0099 (test architecture migration for snapshot/envelope/pipeline-state runtime)
 
@@ -15,6 +16,7 @@
 | **PR2** Scheduler Cutover | ✅ COMPLETE | `adr/0097-analysis/PR2-EXECUTION-CHECKLIST.md` |
 | **PR3** Representative Plugin Migrations | ✅ COMPLETE | `adr/0097-analysis/PR3-EXECUTION-CHECKLIST.md` |
 | **PR4** Fleet Migration | ✅ COMPLETE | `adr/0097-analysis/PR4-EXECUTION-CHECKLIST.md` |
+| **PR5** Documentation | ✅ COMPLETE | `adr/0097-analysis/PR5-EXECUTION-CHECKLIST.md` |
 
 ### Completed Components
 
@@ -32,7 +34,8 @@
 2. ~~**PR2**: Introduce `execution_mode` manifest field~~ ✅
 3. ~~**PR3**: Migrate representative plugins (module_loader, effective_model)~~ ✅
 4. ~~**PR4**: Fleet migration and legacy field cleanup~~ ✅
-5. **PR5+**: Legacy runtime cleanup and documentation (deferred to ADR 0099)
+5. ~~**PR5**: Documentation updates (plugin-runtime.md, CLAUDE.md, envelope guide)~~ ✅
+6. **ADR 0099**: Test architecture migration for snapshot/envelope/pipeline-state runtime
 
 ## Context
 
