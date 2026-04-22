@@ -410,3 +410,51 @@ def test_topology_projection_contains_cross_domain_nodes_and_edges() -> None:
     assert ("svc-grafana", "inst.vlan.servers", "runtime_network_binding") in edge_tuples
     assert ("inst.vlan.servers", "srv-gamayun", "managed_by") in edge_tuples
     assert ("inst.backup.monitoring", "inst.pool.fast", "writes_to_storage") in edge_tuples
+
+
+def test_topology_projection_materializes_external_nodes_for_edge_endpoints() -> None:
+    payload = {
+        "instances": {
+            "devices": [
+                {
+                    "instance_id": "rtr-main",
+                    "instance": {
+                        "materializes_object": "obj.network.router.main",
+                        "materializes_class": "class.network.router",
+                    },
+                }
+            ],
+            "network": [
+                {
+                    "instance_id": "inst.data_link.wan",
+                    "instance": {
+                        "materializes_object": "obj.network.data_link.wan",
+                        "materializes_class": "class.network.data_link",
+                    },
+                    "instance_data": {
+                        "endpoint_a": {"device_ref": "rtr-main"},
+                        "endpoint_b": {"external_ref": "external.internet"},
+                    },
+                }
+            ],
+            "services": [],
+            "lxc": [],
+            "vm": [],
+            "pools": [],
+            "data-assets": [],
+            "operations": [],
+            "observability": [],
+            "firewall": [],
+            "power": [],
+            "qos": [],
+        }
+    }
+
+    projection = build_topology_projection(payload)
+    nodes = projection["nodes"]
+    edges = projection["edges"]
+
+    assert any(row["instance_id"] == "external.internet" and row["node_type"] == "external_ref" for row in nodes)
+    assert ("rtr-main", "external.internet", "data_link") in {
+        (row["source_id"], row["target_id"], row["edge_type"]) for row in edges
+    }

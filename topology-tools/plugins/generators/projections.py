@@ -791,6 +791,36 @@ def _extract_operations_dependencies(docs_projection: dict[str, Any]) -> list[di
     return edges
 
 
+def _materialize_missing_edge_endpoint_nodes(
+    nodes: list[dict[str, Any]],
+    edges: list[dict[str, Any]],
+) -> None:
+    """Ensure edge endpoints always exist as nodes (external refs become synthetic nodes)."""
+    known_ids = {
+        row.get("instance_id")
+        for row in nodes
+        if isinstance(row, dict) and isinstance(row.get("instance_id"), str) and row.get("instance_id")
+    }
+    for edge in edges:
+        if not isinstance(edge, dict):
+            continue
+        for endpoint_key in ("source_id", "target_id"):
+            endpoint_id = edge.get(endpoint_key)
+            if not isinstance(endpoint_id, str) or not endpoint_id or endpoint_id in known_ids:
+                continue
+            nodes.append(
+                {
+                    "instance_id": endpoint_id,
+                    "safe_id": _safe_id(endpoint_id),
+                    "node_type": "external_ref",
+                    "domain": str(edge.get("domain") or "physical"),
+                    "layer": str(edge.get("layer") or "L1"),
+                    "label": endpoint_id,
+                }
+            )
+            known_ids.add(endpoint_id)
+
+
 def build_topology_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     """Build unified topology graph projection with cross-domain nodes and dependencies."""
     diagram_projection = build_diagram_projection(compiled_json)
@@ -803,6 +833,7 @@ def build_topology_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     edges.extend(_extract_data_link_dependencies(diagram_projection))
     edges.extend(_extract_storage_dependencies(docs_projection))
     edges.extend(_extract_operations_dependencies(docs_projection))
+    _materialize_missing_edge_endpoint_nodes(nodes, edges)
 
     unique_nodes: dict[str, dict[str, Any]] = {}
     for row in nodes:

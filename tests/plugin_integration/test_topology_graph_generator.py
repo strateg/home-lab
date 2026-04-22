@@ -101,6 +101,15 @@ def _compiled_fixture() -> dict:
                             "trust_zone_ref": "inst.trust_zone.servers",
                         },
                     },
+                    {
+                        "instance_id": "inst.data_link.wan",
+                        "object_ref": "obj.network.data_link.wan",
+                        "class_ref": "class.network.data_link",
+                        "instance_data": {
+                            "endpoint_a": {"device_ref": "srv-pve"},
+                            "endpoint_b": {"external_ref": "external.internet"},
+                        },
+                    },
                 ],
                 "pools": [
                     {
@@ -169,6 +178,7 @@ def test_topology_graph_generator_writes_unified_diagram(tmp_path: Path) -> None
     assert "svc_grafana -->|runtime_target| lxc_grafana" in content
     assert "svc_grafana -->|service_dependency| svc_prometheus" in content
     assert "inst_backup_monitoring -->|writes_to_storage| inst_pool_fast" in content
+    assert "external_internet" in content
 
 
 def test_topology_graph_generator_honors_domain_and_layer_filters(tmp_path: Path) -> None:
