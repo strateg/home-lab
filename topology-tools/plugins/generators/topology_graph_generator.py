@@ -35,6 +35,19 @@ class TopologyGraphGenerator(BaseGenerator):
             return direction
         return "TB"
 
+    @staticmethod
+    def _include_external_refs(ctx: PluginContext) -> bool:
+        raw = ctx.config.get("include_external_refs")
+        if isinstance(raw, bool):
+            return raw
+        if isinstance(raw, str):
+            lowered = raw.strip().lower()
+            if lowered in {"false", "0", "no", "off"}:
+                return False
+            if lowered in {"true", "1", "yes", "on"}:
+                return True
+        return True
+
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
         payload = ctx.compiled_json
@@ -69,6 +82,7 @@ class TopologyGraphGenerator(BaseGenerator):
         edge_type_filter = self._normalize_filter(ctx.config.get("edge_type_filter"))
         node_type_filter = self._normalize_filter(ctx.config.get("node_type_filter"))
         graph_direction = self._graph_direction(ctx)
+        include_external_refs = self._include_external_refs(ctx)
 
         nodes = projection.get("nodes", [])
         edges = projection.get("edges", [])
@@ -92,6 +106,10 @@ class TopologyGraphGenerator(BaseGenerator):
             and (
                 node_type_filter is None
                 or (isinstance(row.get("node_type"), str) and row.get("node_type") in node_type_filter)
+            )
+            and (
+                include_external_refs
+                or (isinstance(row.get("node_type"), str) and row.get("node_type") != "external_ref")
             )
         ]
         allowed_node_ids = {
@@ -159,6 +177,7 @@ class TopologyGraphGenerator(BaseGenerator):
                 "filtered_node_type_counts": filtered_node_type_counts,
                 "filtered_edge_type_counts": filtered_edge_type_counts,
                 "graph_direction": graph_direction,
+                "include_external_refs": include_external_refs,
             },
         )
         self.write_text_atomic(output_path, content)
@@ -176,7 +195,8 @@ class TopologyGraphGenerator(BaseGenerator):
                     f"layer_filter={','.join(sorted(layer_filter)) if layer_filter else 'all'} "
                     f"edge_type_filter={','.join(sorted(edge_type_filter)) if edge_type_filter else 'all'} "
                     f"node_type_filter={','.join(sorted(node_type_filter)) if node_type_filter else 'all'} "
-                    f"graph_direction={graph_direction}"
+                    f"graph_direction={graph_direction} "
+                    f"include_external_refs={str(include_external_refs).lower()}"
                 ),
                 path=str(output_path),
             )

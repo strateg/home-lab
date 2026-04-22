@@ -1927,6 +1927,7 @@ plugins:
     edge_type_filter: []
     node_type_filter: []
     graph_direction: TB
+    include_external_refs: true
   config_schema:
     type: object
     properties:
@@ -1959,6 +1960,9 @@ plugins:
         - LR
         - RL
         description: Mermaid graph direction for unified topology graph rendering.
+      include_external_refs:
+        type: boolean
+        description: Include synthetic external_ref nodes and related edges in unified topology graph output.
     required: []
   produces:
   - key: generated_dir
