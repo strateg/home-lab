@@ -93,6 +93,7 @@ class TopologyGraphGenerator(BaseGenerator):
         include_external_refs = self._bool_config(ctx, "include_external_refs", default=True)
         show_edge_labels = self._bool_config(ctx, "show_edge_labels", default=True)
         show_domain_styling = self._bool_config(ctx, "show_domain_styling", default=True)
+        show_node_metadata = self._bool_config(ctx, "show_node_metadata", default=True)
 
         nodes = projection.get("nodes", [])
         edges = projection.get("edges", [])
@@ -197,6 +198,7 @@ class TopologyGraphGenerator(BaseGenerator):
                 "include_external_refs": include_external_refs,
                 "show_edge_labels": show_edge_labels,
                 "show_domain_styling": show_domain_styling,
+                "show_node_metadata": show_node_metadata,
                 "domain_styles": self._DOMAIN_STYLES,
                 "domain_class_map": domain_class_map,
             },
@@ -219,7 +221,8 @@ class TopologyGraphGenerator(BaseGenerator):
                     f"graph_direction={graph_direction} "
                     f"include_external_refs={str(include_external_refs).lower()} "
                     f"show_edge_labels={str(show_edge_labels).lower()} "
-                    f"show_domain_styling={str(show_domain_styling).lower()}"
+                    f"show_domain_styling={str(show_domain_styling).lower()} "
+                    f"show_node_metadata={str(show_node_metadata).lower()}"
                 ),
                 path=str(output_path),
             )

@@ -1930,6 +1930,7 @@ plugins:
     include_external_refs: true
     show_edge_labels: true
     show_domain_styling: true
+    show_node_metadata: true
   config_schema:
     type: object
     properties:
@@ -1971,6 +1972,9 @@ plugins:
       show_domain_styling:
         type: boolean
         description: Apply Mermaid classDef styling for nodes grouped by domain/external_ref in unified topology graph output.
+      show_node_metadata:
+        type: boolean
+        description: Include domain/layer metadata in node labels (instance_id-only labels when disabled).
     required: []
   produces:
   - key: generated_dir
