@@ -11,6 +11,16 @@ tasks:
     cmds:
       - "{{.PYTHON}} scripts/maintenance/clean_generated_artifacts.py --dry-run"
 
+  cleanup-obsolete:
+    desc: Remove obsolete artifacts identified by artifact plans
+    cmds:
+      - "{{.PYTHON}} scripts/orchestration/cleanup_obsolete_artifacts.py"
+
+  cleanup-obsolete-dry:
+    desc: Preview obsolete artifact cleanup (dry-run)
+    cmds:
+      - "{{.PYTHON}} scripts/orchestration/cleanup_obsolete_artifacts.py --dry-run"
+
   default:
     desc: Build lane artifacts (passthrough secrets mode)
     env:
