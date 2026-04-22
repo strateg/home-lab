@@ -87,6 +87,11 @@ tasks:
       - task framework:archive-v4-compile
       - task test:parity-v4-current
 
+  coverage-gate:
+    desc: Enforce coverage threshold (75% minimum)
+    cmds:
+      - "{{.PYTHON}} -m pytest tests --cov --cov-fail-under=75 --cov-report=term-missing"
+
   legacy-maintenance:
     desc: Legacy v4 maintenance lane (archive parity + acceptance baseline)
     cmds:

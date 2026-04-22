@@ -52,7 +52,7 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
-addopts = "-v --cov=topology-tools --cov-report=term-missing"
+addopts = "-v --cov=topology-tools --cov-report=term-missing --cov-fail-under=75"
 
 [tool.setuptools.packages.find]
 where = ["topology-tools"]
