@@ -2,7 +2,8 @@
 
 **Analysis Task:** Mermaid diagram generation — dependency graph visualization, unification, algorithm improvements, fixes
 
-**Created:** 2026-04-22
+**Created:** 2026-04-22  
+**Updated (Step 7 execution):** 2026-04-22
 
 **Purpose:** Verify that **Combination C1 (Conservative Path)** satisfies all constraints and requirements.
 
@@ -217,6 +218,24 @@ Before implementation:
 - [ ] Action items for ⚠️ CHECK resolved (2 items)
 
 **Validation Result:** ✅ **APPROVED FOR IMPLEMENTATION**
+
+---
+
+## SPC Contract Gate (Required Step 7 Format)
+
+| Requirement | Source | Met (Yes/No) | How verified | If No → What must change |
+|-------------|--------|--------------|--------------|---------------------------|
+| Plugin remains in correct lifecycle stage (`generate`) | ADR0086, `topology-tools/plugins/plugins.yaml` | Yes | `task validate:plugin-manifests` PASS; manifest entry `base.generator.topology_graph` validated | N/A |
+| Plugin manifest contract is valid (`depends_on`, `consumes`, `produces`, `execution_mode`) | ADR0086, ADR0097, plugin manifest schema | Yes | `task validate:plugin-manifests` PASS across framework + object manifests | N/A |
+| Unified projection/rendering contract stays deterministic | ADR0005, ADR0079 | Yes | `.venv/bin/python -m pytest ... test_topology_graph_generator.py test_projection_helpers.py` (PASS) | N/A |
+| Artifact generation contract remains valid | ADR0086, artifact contract tests | Yes | `.venv/bin/python -m pytest ... test_artifact_generation_contract.py` (PASS) | N/A |
+| Manifest schema/contract tests remain valid after Wave 2/3 extensions | Plugin contract policy | Yes | `.venv/bin/python -m pytest ... test_manifest.py` (PASS) | N/A |
+| `@` in IDs is sanitized for Mermaid node IDs | C4.3 action item, `projections.py::_safe_id()` | Yes | Code inspection: `_safe_id()` replaces `.`, `-`, and `@` with `_` | N/A |
+| Unified topology output location is explicitly defined under diagrams | C13.2 action item, generator output path | Yes | Code inspection: `topology_graph_generator.py` writes `docs/diagrams/unified-topology.md` | N/A |
+| ADR register consistency maintained with ADR0100 | ADR governance policy | Yes | `task validate:adr-consistency` PASS | N/A |
+
+**Critical NO count:** 0  
+**Step 7 verdict:** ✅ VALID (all critical requirements = YES)
 
 *(Pending resolution of C4.3 and C13.2)*
 
