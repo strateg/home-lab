@@ -97,6 +97,7 @@ class TopologyGraphGenerator(BaseGenerator):
         cross_domain_edges_dashed = self._bool_config(ctx, "cross_domain_edges_dashed", default=False)
         include_isolated_nodes = self._bool_config(ctx, "include_isolated_nodes", default=True)
         group_nodes_by_domain = self._bool_config(ctx, "group_nodes_by_domain", default=False)
+        group_nodes_by_layer = self._bool_config(ctx, "group_nodes_by_layer", default=False)
 
         nodes = projection.get("nodes", [])
         edges = projection.get("edges", [])
@@ -244,6 +245,17 @@ class TopologyGraphGenerator(BaseGenerator):
         for domain, rows in nodes_by_domain.items():
             rows.sort(key=lambda item: str(item.get("instance_id", "")))
             nodes_by_domain[domain] = rows
+        nodes_by_layer: dict[str, list[dict[str, Any]]] = {}
+        for row in filtered_nodes:
+            if not isinstance(row, dict):
+                continue
+            layer = row.get("layer")
+            if not isinstance(layer, str) or not layer:
+                layer = "unknown"
+            nodes_by_layer.setdefault(layer, []).append(row)
+        for layer, rows in nodes_by_layer.items():
+            rows.sort(key=lambda item: str(item.get("instance_id", "")))
+            nodes_by_layer[layer] = rows
 
         diagrams_root = self.resolve_output_path(ctx, "docs", "diagrams")
         output_path = diagrams_root / "unified-topology.md"
@@ -268,9 +280,11 @@ class TopologyGraphGenerator(BaseGenerator):
                 "cross_domain_edges_dashed": cross_domain_edges_dashed,
                 "include_isolated_nodes": include_isolated_nodes,
                 "group_nodes_by_domain": group_nodes_by_domain,
+                "group_nodes_by_layer": group_nodes_by_layer,
                 "domain_styles": self._DOMAIN_STYLES,
                 "domain_class_map": domain_class_map,
                 "nodes_by_domain": nodes_by_domain,
+                "nodes_by_layer": nodes_by_layer,
             },
         )
         self.write_text_atomic(output_path, content)
@@ -295,7 +309,8 @@ class TopologyGraphGenerator(BaseGenerator):
                     f"show_node_metadata={str(show_node_metadata).lower()} "
                     f"cross_domain_edges_dashed={str(cross_domain_edges_dashed).lower()} "
                     f"include_isolated_nodes={str(include_isolated_nodes).lower()} "
-                    f"group_nodes_by_domain={str(group_nodes_by_domain).lower()}"
+                    f"group_nodes_by_domain={str(group_nodes_by_domain).lower()} "
+                    f"group_nodes_by_layer={str(group_nodes_by_layer).lower()}"
                 ),
                 path=str(output_path),
             )

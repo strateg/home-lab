@@ -1934,6 +1934,7 @@ plugins:
     cross_domain_edges_dashed: false
     include_isolated_nodes: true
     group_nodes_by_domain: false
+    group_nodes_by_layer: false
   config_schema:
     type: object
     properties:
@@ -1987,6 +1988,9 @@ plugins:
       group_nodes_by_domain:
         type: boolean
         description: Render nodes inside Mermaid subgraphs grouped by domain.
+      group_nodes_by_layer:
+        type: boolean
+        description: Render nodes inside Mermaid subgraphs grouped by layer.
     required: []
   produces:
   - key: generated_dir
