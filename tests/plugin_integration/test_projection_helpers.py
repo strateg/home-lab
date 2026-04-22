@@ -266,7 +266,7 @@ def test_topology_projection_contains_cross_domain_nodes_and_edges() -> None:
                         "materializes_object": "obj.service.grafana",
                         "materializes_class": "class.service.visualization",
                     },
-                    "runtime": {"target_ref": "lxc-grafana"},
+                    "runtime": {"target_ref": "lxc-grafana", "network_binding_ref": "inst.vlan.servers"},
                     "instance_data": {"dependencies": [{"service_ref": "svc-prometheus"}]},
                     "layer": "L4",
                 },
@@ -355,5 +355,6 @@ def test_topology_projection_contains_cross_domain_nodes_and_edges() -> None:
     assert ("lxc-grafana", "srv-gamayun", "hosted_on") in edge_tuples
     assert ("svc-grafana", "svc-prometheus", "service_dependency") in edge_tuples
     assert ("svc-grafana", "lxc-grafana", "runtime_target") in edge_tuples
+    assert ("svc-grafana", "inst.vlan.servers", "runtime_network_binding") in edge_tuples
     assert ("inst.vlan.servers", "srv-gamayun", "managed_by") in edge_tuples
     assert ("inst.backup.monitoring", "inst.pool.fast", "writes_to_storage") in edge_tuples

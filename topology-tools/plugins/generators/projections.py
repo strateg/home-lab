@@ -448,13 +448,11 @@ def build_diagram_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def build_topology_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
-    """Build unified topology graph projection with cross-domain nodes and dependencies."""
-    diagram_projection = build_diagram_projection(compiled_json)
-    docs_projection = build_docs_projection(compiled_json)
-
+def _collect_topology_nodes(
+    diagram_projection: dict[str, Any],
+    docs_projection: dict[str, Any],
+) -> list[dict[str, Any]]:
     nodes: list[dict[str, Any]] = []
-    edges: list[dict[str, Any]] = []
 
     for row in diagram_projection.get("devices", []):
         if not isinstance(row, dict):
@@ -470,53 +468,23 @@ def build_topology_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     for row in diagram_projection.get("lxc", []):
         if not isinstance(row, dict):
             continue
-        instance_id = row.get("instance_id")
         _append_topology_node(
             nodes,
-            instance_id=instance_id,
+            instance_id=row.get("instance_id"),
             node_type="lxc",
             domain="physical",
             layer=str(row.get("layer") or "L1"),
-        )
-        _append_topology_edge(
-            edges,
-            source_id=instance_id,
-            target_id=row.get("host_ref"),
-            edge_type="hosted_on",
-            domain="physical",
-            layer="L1",
         )
 
     for row in docs_projection.get("services", []):
         if not isinstance(row, dict):
             continue
-        service_id = row.get("instance_id")
         _append_topology_node(
             nodes,
-            instance_id=service_id,
+            instance_id=row.get("instance_id"),
             node_type="service",
             domain="services",
             layer=str(row.get("layer") or "L4"),
-        )
-        _append_topology_edge(
-            edges,
-            source_id=service_id,
-            target_id=row.get("runtime_target_ref"),
-            edge_type="runtime_target",
-            domain="services",
-            layer="L4",
-        )
-
-    for row in docs_projection.get("service_dependencies", []):
-        if not isinstance(row, dict):
-            continue
-        _append_topology_edge(
-            edges,
-            source_id=row.get("service_id"),
-            target_id=row.get("depends_on"),
-            edge_type="service_dependency",
-            domain="services",
-            layer="L7",
         )
 
     for collection, node_type in (
@@ -535,121 +503,26 @@ def build_topology_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
                 layer="L2",
             )
 
-    network_projection = docs_projection.get("network", {})
-    if not isinstance(network_projection, dict):
-        network_projection = {}
-    for row in network_projection.get("networks", []):
-        if not isinstance(row, dict):
-            continue
-        _append_topology_edge(
-            edges,
-            source_id=row.get("instance_id"),
-            target_id=row.get("managed_by_ref"),
-            edge_type="managed_by",
-            domain="network",
-            layer="L2",
-        )
-        _append_topology_edge(
-            edges,
-            source_id=row.get("instance_id"),
-            target_id=row.get("trust_zone_ref"),
-            edge_type="trust_zone_member",
-            domain="network",
-            layer="L2",
-        )
-
-    for row in network_projection.get("bridges", []):
-        if not isinstance(row, dict):
-            continue
-        _append_topology_edge(
-            edges,
-            source_id=row.get("instance_id"),
-            target_id=row.get("host_ref"),
-            edge_type="hosted_on",
-            domain="network",
-            layer="L2",
-        )
-
-    for row in diagram_projection.get("data_links", []):
-        if not isinstance(row, dict):
-            continue
-        endpoint_a = row.get("endpoint_a")
-        endpoint_b = row.get("endpoint_b")
-        source_id = endpoint_a.get("device_ref") if isinstance(endpoint_a, dict) else None
-        target_id = endpoint_b.get("device_ref") if isinstance(endpoint_b, dict) else None
-        if not isinstance(source_id, str) or not source_id:
-            source_id = endpoint_a.get("external_ref") if isinstance(endpoint_a, dict) else None
-        if not isinstance(target_id, str) or not target_id:
-            target_id = endpoint_b.get("external_ref") if isinstance(endpoint_b, dict) else None
-        _append_topology_edge(
-            edges,
-            source_id=source_id,
-            target_id=target_id,
-            edge_type="data_link",
-            domain="physical",
-            layer="L1",
-        )
-
     storage_projection = docs_projection.get("storage", {})
     if not isinstance(storage_projection, dict):
         storage_projection = {}
-
     for row in storage_projection.get("storage_pools", []):
         if not isinstance(row, dict):
             continue
-        pool_id = row.get("instance_id")
         _append_topology_node(
             nodes,
-            instance_id=pool_id,
+            instance_id=row.get("instance_id"),
             node_type="storage_pool",
             domain="storage",
             layer="L3",
         )
-        _append_topology_edge(
-            edges,
-            source_id=pool_id,
-            target_id=row.get("host_ref"),
-            edge_type="hosted_on",
-            domain="storage",
-            layer="L3",
-        )
-
     for row in storage_projection.get("data_assets", []):
         if not isinstance(row, dict):
             continue
-        asset_id = row.get("instance_id")
         _append_topology_node(
             nodes,
-            instance_id=asset_id,
+            instance_id=row.get("instance_id"),
             node_type="data_asset",
-            domain="storage",
-            layer="L3",
-        )
-        _append_topology_edge(
-            edges,
-            source_id=asset_id,
-            target_id=row.get("host_ref"),
-            edge_type="hosted_on",
-            domain="storage",
-            layer="L3",
-        )
-
-    for row in storage_projection.get("mount_chains", []):
-        if not isinstance(row, dict):
-            continue
-        _append_topology_edge(
-            edges,
-            source_id=row.get("target_ref"),
-            target_id=row.get("storage_ref"),
-            edge_type="uses_storage",
-            domain="storage",
-            layer="L3",
-        )
-        _append_topology_edge(
-            edges,
-            source_id=row.get("data_asset_ref"),
-            target_id=row.get("storage_ref"),
-            edge_type="stored_in",
             domain="storage",
             layer="L3",
         )
@@ -675,7 +548,179 @@ def build_topology_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
                 domain="operations",
                 layer="L6",
             )
+    return nodes
 
+
+def _extract_host_dependencies(
+    diagram_projection: dict[str, Any],
+    docs_projection: dict[str, Any],
+) -> list[dict[str, Any]]:
+    edges: list[dict[str, Any]] = []
+    for row in diagram_projection.get("lxc", []):
+        if not isinstance(row, dict):
+            continue
+        _append_topology_edge(
+            edges,
+            source_id=row.get("instance_id"),
+            target_id=row.get("host_ref"),
+            edge_type="hosted_on",
+            domain="physical",
+            layer="L1",
+        )
+
+    network_projection = docs_projection.get("network", {})
+    if not isinstance(network_projection, dict):
+        network_projection = {}
+    for row in network_projection.get("bridges", []):
+        if not isinstance(row, dict):
+            continue
+        _append_topology_edge(
+            edges,
+            source_id=row.get("instance_id"),
+            target_id=row.get("host_ref"),
+            edge_type="hosted_on",
+            domain="network",
+            layer="L2",
+        )
+
+    storage_projection = docs_projection.get("storage", {})
+    if not isinstance(storage_projection, dict):
+        storage_projection = {}
+    for collection in ("storage_pools", "data_assets"):
+        for row in storage_projection.get(collection, []):
+            if not isinstance(row, dict):
+                continue
+            _append_topology_edge(
+                edges,
+                source_id=row.get("instance_id"),
+                target_id=row.get("host_ref"),
+                edge_type="hosted_on",
+                domain="storage",
+                layer="L3",
+            )
+    return edges
+
+
+def _extract_service_dependencies(docs_projection: dict[str, Any]) -> list[dict[str, Any]]:
+    edges: list[dict[str, Any]] = []
+    for row in docs_projection.get("services", []):
+        if not isinstance(row, dict):
+            continue
+        service_id = row.get("instance_id")
+        _append_topology_edge(
+            edges,
+            source_id=service_id,
+            target_id=row.get("runtime_target_ref"),
+            edge_type="runtime_target",
+            domain="services",
+            layer="L4",
+        )
+        _append_topology_edge(
+            edges,
+            source_id=service_id,
+            target_id=row.get("runtime_network_ref"),
+            edge_type="runtime_network_binding",
+            domain="services",
+            layer="L4",
+        )
+
+    for row in docs_projection.get("service_dependencies", []):
+        if not isinstance(row, dict):
+            continue
+        _append_topology_edge(
+            edges,
+            source_id=row.get("service_id"),
+            target_id=row.get("depends_on"),
+            edge_type="service_dependency",
+            domain="services",
+            layer="L7",
+        )
+    return edges
+
+
+def _extract_network_dependencies(docs_projection: dict[str, Any]) -> list[dict[str, Any]]:
+    edges: list[dict[str, Any]] = []
+    network_projection = docs_projection.get("network", {})
+    if not isinstance(network_projection, dict):
+        network_projection = {}
+    for row in network_projection.get("networks", []):
+        if not isinstance(row, dict):
+            continue
+        _append_topology_edge(
+            edges,
+            source_id=row.get("instance_id"),
+            target_id=row.get("managed_by_ref"),
+            edge_type="managed_by",
+            domain="network",
+            layer="L2",
+        )
+        _append_topology_edge(
+            edges,
+            source_id=row.get("instance_id"),
+            target_id=row.get("trust_zone_ref"),
+            edge_type="trust_zone_member",
+            domain="network",
+            layer="L2",
+        )
+    return edges
+
+
+def _extract_data_link_dependencies(diagram_projection: dict[str, Any]) -> list[dict[str, Any]]:
+    edges: list[dict[str, Any]] = []
+    for row in diagram_projection.get("data_links", []):
+        if not isinstance(row, dict):
+            continue
+        endpoint_a = row.get("endpoint_a")
+        endpoint_b = row.get("endpoint_b")
+        source_id = endpoint_a.get("device_ref") if isinstance(endpoint_a, dict) else None
+        target_id = endpoint_b.get("device_ref") if isinstance(endpoint_b, dict) else None
+        if not isinstance(source_id, str) or not source_id:
+            source_id = endpoint_a.get("external_ref") if isinstance(endpoint_a, dict) else None
+        if not isinstance(target_id, str) or not target_id:
+            target_id = endpoint_b.get("external_ref") if isinstance(endpoint_b, dict) else None
+        _append_topology_edge(
+            edges,
+            source_id=source_id,
+            target_id=target_id,
+            edge_type="data_link",
+            domain="physical",
+            layer="L1",
+        )
+    return edges
+
+
+def _extract_storage_dependencies(docs_projection: dict[str, Any]) -> list[dict[str, Any]]:
+    edges: list[dict[str, Any]] = []
+    storage_projection = docs_projection.get("storage", {})
+    if not isinstance(storage_projection, dict):
+        storage_projection = {}
+    for row in storage_projection.get("mount_chains", []):
+        if not isinstance(row, dict):
+            continue
+        _append_topology_edge(
+            edges,
+            source_id=row.get("target_ref"),
+            target_id=row.get("storage_ref"),
+            edge_type="uses_storage",
+            domain="storage",
+            layer="L3",
+        )
+        _append_topology_edge(
+            edges,
+            source_id=row.get("data_asset_ref"),
+            target_id=row.get("storage_ref"),
+            edge_type="stored_in",
+            domain="storage",
+            layer="L3",
+        )
+    return edges
+
+
+def _extract_operations_dependencies(docs_projection: dict[str, Any]) -> list[dict[str, Any]]:
+    edges: list[dict[str, Any]] = []
+    operations_projection = docs_projection.get("operations", {})
+    if not isinstance(operations_projection, dict):
+        operations_projection = {}
     for row in operations_projection.get("backup_policies", []):
         if not isinstance(row, dict):
             continue
@@ -704,6 +749,21 @@ def build_topology_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
             domain="operations",
             layer="L6",
         )
+    return edges
+
+
+def build_topology_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
+    """Build unified topology graph projection with cross-domain nodes and dependencies."""
+    diagram_projection = build_diagram_projection(compiled_json)
+    docs_projection = build_docs_projection(compiled_json)
+    nodes = _collect_topology_nodes(diagram_projection, docs_projection)
+    edges: list[dict[str, Any]] = []
+    edges.extend(_extract_host_dependencies(diagram_projection, docs_projection))
+    edges.extend(_extract_service_dependencies(docs_projection))
+    edges.extend(_extract_network_dependencies(docs_projection))
+    edges.extend(_extract_data_link_dependencies(diagram_projection))
+    edges.extend(_extract_storage_dependencies(docs_projection))
+    edges.extend(_extract_operations_dependencies(docs_projection))
 
     unique_nodes: dict[str, dict[str, Any]] = {}
     for row in nodes:
