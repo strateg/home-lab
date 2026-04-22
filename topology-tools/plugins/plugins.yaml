@@ -1932,6 +1932,7 @@ plugins:
     show_domain_styling: true
     show_node_metadata: true
     cross_domain_edges_dashed: false
+    include_isolated_nodes: true
   config_schema:
     type: object
     properties:
@@ -1979,6 +1980,9 @@ plugins:
       cross_domain_edges_dashed:
         type: boolean
         description: Render cross-domain dependency edges as dashed Mermaid links.
+      include_isolated_nodes:
+        type: boolean
+        description: Keep nodes without visible edges in filtered unified topology graph output.
     required: []
   produces:
   - key: generated_dir

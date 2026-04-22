@@ -95,6 +95,7 @@ class TopologyGraphGenerator(BaseGenerator):
         show_domain_styling = self._bool_config(ctx, "show_domain_styling", default=True)
         show_node_metadata = self._bool_config(ctx, "show_node_metadata", default=True)
         cross_domain_edges_dashed = self._bool_config(ctx, "cross_domain_edges_dashed", default=False)
+        include_isolated_nodes = self._bool_config(ctx, "include_isolated_nodes", default=True)
 
         nodes = projection.get("nodes", [])
         edges = projection.get("edges", [])
@@ -151,6 +152,34 @@ class TopologyGraphGenerator(BaseGenerator):
                 or (isinstance(row.get("edge_type"), str) and row.get("edge_type") in edge_type_filter)
             )
         ]
+        if not include_isolated_nodes:
+            connected_ids = {
+                edge_id
+                for row in filtered_edges
+                for edge_id in (row.get("source_id"), row.get("target_id"))
+                if isinstance(edge_id, str) and edge_id
+            }
+            filtered_nodes = [
+                row
+                for row in filtered_nodes
+                if isinstance(row, dict)
+                and isinstance(row.get("instance_id"), str)
+                and row.get("instance_id") in connected_ids
+            ]
+            allowed_node_ids = {
+                row.get("instance_id")
+                for row in filtered_nodes
+                if isinstance(row, dict) and isinstance(row.get("instance_id"), str)
+            }
+            filtered_edges = [
+                row
+                for row in filtered_edges
+                if isinstance(row, dict)
+                and isinstance(row.get("source_id"), str)
+                and isinstance(row.get("target_id"), str)
+                and row.get("source_id") in allowed_node_ids
+                and row.get("target_id") in allowed_node_ids
+            ]
 
         filtered_node_type_counts = dict(
             sorted(
@@ -225,6 +254,7 @@ class TopologyGraphGenerator(BaseGenerator):
                 "show_domain_styling": show_domain_styling,
                 "show_node_metadata": show_node_metadata,
                 "cross_domain_edges_dashed": cross_domain_edges_dashed,
+                "include_isolated_nodes": include_isolated_nodes,
                 "domain_styles": self._DOMAIN_STYLES,
                 "domain_class_map": domain_class_map,
             },
@@ -249,7 +279,8 @@ class TopologyGraphGenerator(BaseGenerator):
                     f"show_edge_labels={str(show_edge_labels).lower()} "
                     f"show_domain_styling={str(show_domain_styling).lower()} "
                     f"show_node_metadata={str(show_node_metadata).lower()} "
-                    f"cross_domain_edges_dashed={str(cross_domain_edges_dashed).lower()}"
+                    f"cross_domain_edges_dashed={str(cross_domain_edges_dashed).lower()} "
+                    f"include_isolated_nodes={str(include_isolated_nodes).lower()}"
                 ),
                 path=str(output_path),
             )

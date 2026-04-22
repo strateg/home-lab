@@ -181,6 +181,7 @@ def test_topology_graph_generator_writes_unified_diagram(tmp_path: Path) -> None
     assert "Show Domain Styling: True" in content
     assert "Show Node Metadata: True" in content
     assert "Cross-Domain Dashed Edges: False" in content
+    assert "Include Isolated Nodes: True" in content
     assert "graph TB" in content
     assert "svc_grafana -->|runtime_target| lxc_grafana" in content
     assert "svc_grafana -->|service_dependency| svc_prometheus" in content
@@ -367,3 +368,24 @@ def test_topology_graph_generator_can_dash_cross_domain_edges(tmp_path: Path) ->
     assert "Cross-Domain Dashed Edges: True" in content
     assert "svc_grafana -.->|runtime_target| lxc_grafana" in content
     assert "svc_grafana -->|service_dependency| svc_prometheus" in content
+
+
+def test_topology_graph_generator_can_exclude_isolated_nodes(tmp_path: Path) -> None:
+    registry = _registry()
+    ctx = _context(
+        tmp_path,
+        {
+            "edge_type_filter": ["service_dependency"],
+            "include_isolated_nodes": False,
+        },
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.GENERATE)
+
+    assert result.status == PluginStatus.SUCCESS
+    output_path = tmp_path / "generated" / "docs" / "diagrams" / "unified-topology.md"
+    content = output_path.read_text(encoding="utf-8")
+    assert "Include Isolated Nodes: False" in content
+    assert "svc_grafana -->|service_dependency| svc_prometheus" in content
+    assert "lxc_grafana" not in content
+    assert "srv_pve" not in content
