@@ -125,14 +125,8 @@ class TopologyGraphGenerator(BaseGenerator):
             row
             for row in nodes
             if isinstance(row, dict)
-            and (
-                domain_filter is None
-                or (isinstance(row.get("domain"), str) and row.get("domain") in domain_filter)
-            )
-            and (
-                layer_filter is None
-                or (isinstance(row.get("layer"), str) and row.get("layer") in layer_filter)
-            )
+            and (domain_filter is None or (isinstance(row.get("domain"), str) and row.get("domain") in domain_filter))
+            and (layer_filter is None or (isinstance(row.get("layer"), str) and row.get("layer") in layer_filter))
             and (
                 node_type_filter is None
                 or (isinstance(row.get("node_type"), str) and row.get("node_type") in node_type_filter)
@@ -156,14 +150,8 @@ class TopologyGraphGenerator(BaseGenerator):
             and isinstance(row.get("target_id"), str)
             and row.get("source_id") in allowed_node_ids
             and row.get("target_id") in allowed_node_ids
-            and (
-                domain_filter is None
-                or (isinstance(row.get("domain"), str) and row.get("domain") in domain_filter)
-            )
-            and (
-                layer_filter is None
-                or (isinstance(row.get("layer"), str) and row.get("layer") in layer_filter)
-            )
+            and (domain_filter is None or (isinstance(row.get("domain"), str) and row.get("domain") in domain_filter))
+            and (layer_filter is None or (isinstance(row.get("layer"), str) and row.get("layer") in layer_filter))
             and (
                 edge_type_filter is None
                 or (isinstance(row.get("edge_type"), str) and row.get("edge_type") in edge_type_filter)
@@ -217,9 +205,7 @@ class TopologyGraphGenerator(BaseGenerator):
             target_domain = filtered_node_domain_by_instance.get(target_id) if isinstance(target_id, str) else None
             rendered = dict(row)
             rendered["is_cross_domain"] = (
-                isinstance(source_domain, str)
-                and isinstance(target_domain, str)
-                and source_domain != target_domain
+                isinstance(source_domain, str) and isinstance(target_domain, str) and source_domain != target_domain
             )
             rendered_edges.append(rendered)
 

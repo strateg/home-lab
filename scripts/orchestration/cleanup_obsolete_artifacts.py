@@ -17,7 +17,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 # Project root
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -53,12 +53,14 @@ def collect_obsolete_artifacts(plans: List[Dict[str, Any]]) -> List[Dict[str, An
         plugin_id = plan.get("plugin_id", "unknown")
         for candidate in plan.get("obsolete_candidates", []):
             if candidate.get("action") == "warn" and candidate.get("reason") == "obsolete-shadowed":
-                obsolete.append({
-                    "path": candidate["path"],
-                    "plugin_id": plugin_id,
-                    "ownership_proven": candidate.get("ownership_proven", False),
-                    "source_plan": plan["_source_file"],
-                })
+                obsolete.append(
+                    {
+                        "path": candidate["path"],
+                        "plugin_id": plugin_id,
+                        "ownership_proven": candidate.get("ownership_proven", False),
+                        "source_plan": plan["_source_file"],
+                    }
+                )
 
     return obsolete
 
@@ -142,9 +144,7 @@ def confirm_deletion(artifacts: List[Dict[str, Any]]) -> bool:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Cleanup obsolete artifacts identified by artifact plans"
-    )
+    parser = argparse.ArgumentParser(description="Cleanup obsolete artifacts identified by artifact plans")
     parser.add_argument(
         "--dry-run",
         action="store_true",

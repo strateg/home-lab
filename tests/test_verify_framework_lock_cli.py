@@ -4,14 +4,13 @@ Tests for verify-framework-lock.py CLI script.
 Validates argument parsing and main execution logic.
 """
 
+# Add topology-tools to path
+import importlib.util
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-
-# Add topology-tools to path
-import importlib.util
 
 TOPOLOGY_TOOLS = Path(__file__).resolve().parents[1] / "topology-tools"
 sys.path.insert(0, str(TOPOLOGY_TOOLS))

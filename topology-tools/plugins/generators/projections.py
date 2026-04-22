@@ -3,8 +3,8 @@
 
 from __future__ import annotations
 
-from copy import deepcopy
 from collections import Counter
+from copy import deepcopy
 from typing import Any
 
 from plugins.generators.docs.network_projection import build_network_projection
@@ -239,12 +239,14 @@ def build_docs_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
             else:
                 target = None
             if isinstance(target, str) and target:
-                service_dependencies.append({
-                    "service_id": instance_id,
-                    "service_safe_id": _safe_id(instance_id),
-                    "depends_on": target,
-                    "depends_on_safe_id": _safe_id(target),
-                })
+                service_dependencies.append(
+                    {
+                        "service_id": instance_id,
+                        "service_safe_id": _safe_id(instance_id),
+                        "depends_on": target,
+                        "depends_on_safe_id": _safe_id(target),
+                    }
+                )
 
     service_dependencies = sorted(
         service_dependencies,

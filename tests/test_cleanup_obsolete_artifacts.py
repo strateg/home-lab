@@ -5,14 +5,14 @@ Validates artifact plan parsing, obsolete detection, and cleanup logic.
 """
 
 import json
+
+# Add scripts to path
+import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-
-# Add scripts to path
-import sys
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts" / "orchestration"
 sys.path.insert(0, str(SCRIPTS))
@@ -67,12 +67,8 @@ def mock_artifact_plans_dir(tmp_path: Path) -> Path:
     }
 
     # Write plans
-    (plans_dir / "test_obsolete.json").write_text(
-        json.dumps(plan_with_obsolete, indent=2), encoding="utf-8"
-    )
-    (plans_dir / "test_clean.json").write_text(
-        json.dumps(plan_without_obsolete, indent=2), encoding="utf-8"
-    )
+    (plans_dir / "test_obsolete.json").write_text(json.dumps(plan_with_obsolete, indent=2), encoding="utf-8")
+    (plans_dir / "test_clean.json").write_text(json.dumps(plan_without_obsolete, indent=2), encoding="utf-8")
 
     return plans_dir
 
