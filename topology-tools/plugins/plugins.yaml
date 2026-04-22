@@ -1926,6 +1926,7 @@ plugins:
     layer_filter: []
     edge_type_filter: []
     node_type_filter: []
+    graph_direction: TB
   config_schema:
     type: object
     properties:
@@ -1949,6 +1950,15 @@ plugins:
         description: Optional node-type whitelist for unified topology graph rendering.
         items:
           type: string
+      graph_direction:
+        type: string
+        enum:
+        - TB
+        - TD
+        - BT
+        - LR
+        - RL
+        description: Mermaid graph direction for unified topology graph rendering.
     required: []
   produces:
   - key: generated_dir

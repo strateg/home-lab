@@ -13,6 +13,8 @@ from plugins.generators.projections import ProjectionError, build_topology_proje
 class TopologyGraphGenerator(BaseGenerator):
     """Emit unified Mermaid topology dependency graph with domain/layer filtering."""
 
+    _VALID_GRAPH_DIRECTIONS = {"TB", "TD", "BT", "LR", "RL"}
+
     @staticmethod
     def _normalize_filter(raw: Any) -> set[str] | None:
         if isinstance(raw, str):
@@ -23,6 +25,15 @@ class TopologyGraphGenerator(BaseGenerator):
             return None
         normalized = {item for item in values if item}
         return normalized or None
+
+    def _graph_direction(self, ctx: PluginContext) -> str:
+        raw = ctx.config.get("graph_direction")
+        if not isinstance(raw, str):
+            return "TB"
+        direction = raw.strip().upper()
+        if direction in self._VALID_GRAPH_DIRECTIONS:
+            return direction
+        return "TB"
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
@@ -57,6 +68,7 @@ class TopologyGraphGenerator(BaseGenerator):
         layer_filter = self._normalize_filter(ctx.config.get("layer_filter"))
         edge_type_filter = self._normalize_filter(ctx.config.get("edge_type_filter"))
         node_type_filter = self._normalize_filter(ctx.config.get("node_type_filter"))
+        graph_direction = self._graph_direction(ctx)
 
         nodes = projection.get("nodes", [])
         edges = projection.get("edges", [])
@@ -146,6 +158,7 @@ class TopologyGraphGenerator(BaseGenerator):
                 "node_type_filter": sorted(node_type_filter) if node_type_filter else [],
                 "filtered_node_type_counts": filtered_node_type_counts,
                 "filtered_edge_type_counts": filtered_edge_type_counts,
+                "graph_direction": graph_direction,
             },
         )
         self.write_text_atomic(output_path, content)
@@ -162,7 +175,8 @@ class TopologyGraphGenerator(BaseGenerator):
                     f"domain_filter={','.join(sorted(domain_filter)) if domain_filter else 'all'} "
                     f"layer_filter={','.join(sorted(layer_filter)) if layer_filter else 'all'} "
                     f"edge_type_filter={','.join(sorted(edge_type_filter)) if edge_type_filter else 'all'} "
-                    f"node_type_filter={','.join(sorted(node_type_filter)) if node_type_filter else 'all'}"
+                    f"node_type_filter={','.join(sorted(node_type_filter)) if node_type_filter else 'all'} "
+                    f"graph_direction={graph_direction}"
                 ),
                 path=str(output_path),
             )

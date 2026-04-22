@@ -175,6 +175,8 @@ def test_topology_graph_generator_writes_unified_diagram(tmp_path: Path) -> None
     assert output_path.exists()
     content = output_path.read_text(encoding="utf-8")
     assert "Unified Topology Graph" in content
+    assert "Direction: TB" in content
+    assert "graph TB" in content
     assert "svc_grafana -->|runtime_target| lxc_grafana" in content
     assert "svc_grafana -->|service_dependency| svc_prometheus" in content
     assert "inst_backup_monitoring -->|writes_to_storage| inst_pool_fast" in content
@@ -244,3 +246,21 @@ def test_topology_graph_generator_honors_node_type_filter(tmp_path: Path) -> Non
     assert "svc_grafana" in content
     assert "svc_prometheus" in content
     assert "srv_pve" not in content
+
+
+def test_topology_graph_generator_honors_graph_direction(tmp_path: Path) -> None:
+    registry = _registry()
+    ctx = _context(
+        tmp_path,
+        {
+            "graph_direction": "LR",
+        },
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.GENERATE)
+
+    assert result.status == PluginStatus.SUCCESS
+    output_path = tmp_path / "generated" / "docs" / "diagrams" / "unified-topology.md"
+    content = output_path.read_text(encoding="utf-8")
+    assert "Direction: LR" in content
+    assert "graph LR" in content
