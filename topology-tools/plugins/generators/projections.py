@@ -56,8 +56,17 @@ def _zone_label(instance_id: str) -> str:
 
 
 def _safe_id(value: str) -> str:
-    """Make a string safe for use as a Mermaid node ID."""
-    return value.replace(".", "_").replace("-", "_")
+    """Make a string safe for use as a Mermaid node ID.
+
+    Replaces characters that are not alphanumeric or underscore.
+    Mermaid node IDs should contain only: a-z A-Z 0-9 _
+
+    Transformations:
+    - '.' → '_'  (dot to underscore)
+    - '-' → '_'  (dash to underscore)
+    - '@' → '_'  (at-sign to underscore, for service@host notation)
+    """
+    return value.replace(".", "_").replace("-", "_").replace("@", "_")
 
 
 def build_ansible_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
@@ -165,7 +174,12 @@ def build_docs_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
             else:
                 target = None
             if isinstance(target, str) and target:
-                service_dependencies.append({"service_id": instance_id, "depends_on": target})
+                service_dependencies.append({
+                    "service_id": instance_id,
+                    "service_safe_id": _safe_id(instance_id),
+                    "depends_on": target,
+                    "depends_on_safe_id": _safe_id(target),
+                })
 
     service_dependencies = sorted(
         service_dependencies,

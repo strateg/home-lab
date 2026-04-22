@@ -15,7 +15,7 @@ from plugins.generators.object_projection_loader import (  # noqa: E402
     load_bootstrap_projection_module,
     load_object_projection_module,
 )
-from plugins.generators.projections import build_ansible_projection  # noqa: E402
+from plugins.generators.projections import build_ansible_projection, build_docs_projection  # noqa: E402
 
 _PROXMOX_PROJECTIONS = load_object_projection_module("proxmox")
 _MIKROTIK_PROJECTIONS = load_object_projection_module("mikrotik")
@@ -175,3 +175,57 @@ def test_projection_requires_required_fields() -> None:
         match=r"compiled_json\.instances\.lxc\[0\]\.instance_id must be non-empty string",
     ):
         build_proxmox_projection(payload)
+
+
+def test_docs_projection_includes_service_dependencies() -> None:
+    """Test that build_docs_projection extracts service dependencies with safe_id."""
+    payload = {
+        "instances": {
+            "devices": [],
+            "lxc": [],
+            "services": [
+                {
+                    "instance_id": "svc-grafana@lxc.lxc-grafana",
+                    "instance": {
+                        "materializes_object": "obj.service.grafana",
+                        "materializes_class": "class.service.visualization",
+                    },
+                    "instance_data": {
+                        "dependencies": [
+                            {"service_ref": "svc-prometheus@lxc.lxc-prometheus"},
+                        ],
+                    },
+                },
+                {
+                    "instance_id": "svc-prometheus@lxc.lxc-prometheus",
+                    "instance": {
+                        "materializes_object": "obj.service.prometheus",
+                        "materializes_class": "class.service.monitoring",
+                    },
+                    "instance_data": {},
+                },
+            ],
+            "network": [],
+        }
+    }
+
+    projection = build_docs_projection(payload)
+
+    assert "service_dependencies" in projection
+    deps = projection["service_dependencies"]
+    assert len(deps) == 1
+    assert deps[0]["service_id"] == "svc-grafana@lxc.lxc-grafana"
+    assert deps[0]["depends_on"] == "svc-prometheus@lxc.lxc-prometheus"
+    assert deps[0]["service_safe_id"] == "svc_grafana_lxc_lxc_grafana"
+    assert deps[0]["depends_on_safe_id"] == "svc_prometheus_lxc_lxc_prometheus"
+
+
+def test_safe_id_sanitizes_special_characters() -> None:
+    """Test that safe_id replaces '.', '-', and '@' with '_'."""
+    from plugins.generators.projections import _safe_id
+
+    assert _safe_id("svc-grafana@lxc.lxc-grafana") == "svc_grafana_lxc_lxc_grafana"
+    assert _safe_id("inst.vlan.servers") == "inst_vlan_servers"
+    assert _safe_id("rtr-mikrotik-chateau") == "rtr_mikrotik_chateau"
+    assert _safe_id("svc-redis") == "svc_redis"
+    assert _safe_id("simple") == "simple"
