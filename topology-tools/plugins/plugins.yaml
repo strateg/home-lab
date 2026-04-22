@@ -1933,6 +1933,7 @@ plugins:
     show_node_metadata: true
     cross_domain_edges_dashed: false
     include_isolated_nodes: true
+    group_nodes_by_domain: false
   config_schema:
     type: object
     properties:
@@ -1983,6 +1984,9 @@ plugins:
       include_isolated_nodes:
         type: boolean
         description: Keep nodes without visible edges in filtered unified topology graph output.
+      group_nodes_by_domain:
+        type: boolean
+        description: Render nodes inside Mermaid subgraphs grouped by domain.
     required: []
   produces:
   - key: generated_dir

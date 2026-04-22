@@ -182,6 +182,7 @@ def test_topology_graph_generator_writes_unified_diagram(tmp_path: Path) -> None
     assert "Show Node Metadata: True" in content
     assert "Cross-Domain Dashed Edges: False" in content
     assert "Include Isolated Nodes: True" in content
+    assert "Group Nodes by Domain: False" in content
     assert "graph TB" in content
     assert "svc_grafana -->|runtime_target| lxc_grafana" in content
     assert "svc_grafana -->|service_dependency| svc_prometheus" in content
@@ -389,3 +390,22 @@ def test_topology_graph_generator_can_exclude_isolated_nodes(tmp_path: Path) -> 
     assert "svc_grafana -->|service_dependency| svc_prometheus" in content
     assert "lxc_grafana" not in content
     assert "srv_pve" not in content
+
+
+def test_topology_graph_generator_can_group_nodes_by_domain(tmp_path: Path) -> None:
+    registry = _registry()
+    ctx = _context(
+        tmp_path,
+        {
+            "group_nodes_by_domain": True,
+        },
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.GENERATE)
+
+    assert result.status == PluginStatus.SUCCESS
+    output_path = tmp_path / "generated" / "docs" / "diagrams" / "unified-topology.md"
+    content = output_path.read_text(encoding="utf-8")
+    assert "Group Nodes by Domain: True" in content
+    assert 'subgraph domain_services["Domain: services"]' in content
+    assert 'subgraph domain_network["Domain: network"]' in content
