@@ -1931,6 +1931,7 @@ plugins:
     show_edge_labels: true
     show_domain_styling: true
     show_node_metadata: true
+    cross_domain_edges_dashed: false
   config_schema:
     type: object
     properties:
@@ -1975,6 +1976,9 @@ plugins:
       show_node_metadata:
         type: boolean
         description: Include domain/layer metadata in node labels (instance_id-only labels when disabled).
+      cross_domain_edges_dashed:
+        type: boolean
+        description: Render cross-domain dependency edges as dashed Mermaid links.
     required: []
   produces:
   - key: generated_dir

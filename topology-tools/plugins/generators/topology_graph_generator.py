@@ -94,6 +94,7 @@ class TopologyGraphGenerator(BaseGenerator):
         show_edge_labels = self._bool_config(ctx, "show_edge_labels", default=True)
         show_domain_styling = self._bool_config(ctx, "show_domain_styling", default=True)
         show_node_metadata = self._bool_config(ctx, "show_node_metadata", default=True)
+        cross_domain_edges_dashed = self._bool_config(ctx, "cross_domain_edges_dashed", default=False)
 
         nodes = projection.get("nodes", [])
         edges = projection.get("edges", [])
@@ -171,6 +172,30 @@ class TopologyGraphGenerator(BaseGenerator):
                 key=lambda item: item[0],
             )
         )
+        filtered_node_domain_by_instance = {
+            str(row.get("instance_id")): str(row.get("domain"))
+            for row in filtered_nodes
+            if isinstance(row, dict)
+            and isinstance(row.get("instance_id"), str)
+            and row.get("instance_id")
+            and isinstance(row.get("domain"), str)
+            and row.get("domain")
+        }
+        rendered_edges: list[dict[str, Any]] = []
+        for row in filtered_edges:
+            if not isinstance(row, dict):
+                continue
+            source_id = row.get("source_id")
+            target_id = row.get("target_id")
+            source_domain = filtered_node_domain_by_instance.get(source_id) if isinstance(source_id, str) else None
+            target_domain = filtered_node_domain_by_instance.get(target_id) if isinstance(target_id, str) else None
+            rendered = dict(row)
+            rendered["is_cross_domain"] = (
+                isinstance(source_domain, str)
+                and isinstance(target_domain, str)
+                and source_domain != target_domain
+            )
+            rendered_edges.append(rendered)
         domain_class_map = {
             row.get("safe_id"): (
                 "external_ref" if str(row.get("node_type") or "") == "external_ref" else str(row.get("domain") or "")
@@ -187,7 +212,7 @@ class TopologyGraphGenerator(BaseGenerator):
             {
                 "projection": projection,
                 "nodes": filtered_nodes,
-                "edges": filtered_edges,
+                "edges": rendered_edges,
                 "domain_filter": sorted(domain_filter) if domain_filter else [],
                 "layer_filter": sorted(layer_filter) if layer_filter else [],
                 "edge_type_filter": sorted(edge_type_filter) if edge_type_filter else [],
@@ -199,6 +224,7 @@ class TopologyGraphGenerator(BaseGenerator):
                 "show_edge_labels": show_edge_labels,
                 "show_domain_styling": show_domain_styling,
                 "show_node_metadata": show_node_metadata,
+                "cross_domain_edges_dashed": cross_domain_edges_dashed,
                 "domain_styles": self._DOMAIN_STYLES,
                 "domain_class_map": domain_class_map,
             },
@@ -222,7 +248,8 @@ class TopologyGraphGenerator(BaseGenerator):
                     f"include_external_refs={str(include_external_refs).lower()} "
                     f"show_edge_labels={str(show_edge_labels).lower()} "
                     f"show_domain_styling={str(show_domain_styling).lower()} "
-                    f"show_node_metadata={str(show_node_metadata).lower()}"
+                    f"show_node_metadata={str(show_node_metadata).lower()} "
+                    f"cross_domain_edges_dashed={str(cross_domain_edges_dashed).lower()}"
                 ),
                 path=str(output_path),
             )

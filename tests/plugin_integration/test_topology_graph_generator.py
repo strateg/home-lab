@@ -180,6 +180,7 @@ def test_topology_graph_generator_writes_unified_diagram(tmp_path: Path) -> None
     assert "Show Edge Labels: True" in content
     assert "Show Domain Styling: True" in content
     assert "Show Node Metadata: True" in content
+    assert "Cross-Domain Dashed Edges: False" in content
     assert "graph TB" in content
     assert "svc_grafana -->|runtime_target| lxc_grafana" in content
     assert "svc_grafana -->|service_dependency| svc_prometheus" in content
@@ -188,6 +189,7 @@ def test_topology_graph_generator_writes_unified_diagram(tmp_path: Path) -> None
     assert "classDef services " in content
     assert "class svc_grafana services;" in content
     assert "svc-grafana<br/>services / L4" in content
+    assert "-.->" not in content
 
 
 def test_topology_graph_generator_honors_domain_and_layer_filters(tmp_path: Path) -> None:
@@ -346,3 +348,22 @@ def test_topology_graph_generator_can_disable_node_metadata(tmp_path: Path) -> N
     assert "Show Node Metadata: False" in content
     assert "svc-grafana<br/>services / L4" not in content
     assert 'svc_grafana["svc-grafana"]' in content
+
+
+def test_topology_graph_generator_can_dash_cross_domain_edges(tmp_path: Path) -> None:
+    registry = _registry()
+    ctx = _context(
+        tmp_path,
+        {
+            "cross_domain_edges_dashed": True,
+        },
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.GENERATE)
+
+    assert result.status == PluginStatus.SUCCESS
+    output_path = tmp_path / "generated" / "docs" / "diagrams" / "unified-topology.md"
+    content = output_path.read_text(encoding="utf-8")
+    assert "Cross-Domain Dashed Edges: True" in content
+    assert "svc_grafana -.->|runtime_target| lxc_grafana" in content
+    assert "svc_grafana -->|service_dependency| svc_prometheus" in content
