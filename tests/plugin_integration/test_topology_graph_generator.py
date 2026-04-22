@@ -178,11 +178,14 @@ def test_topology_graph_generator_writes_unified_diagram(tmp_path: Path) -> None
     assert "Direction: TB" in content
     assert "Include External Refs: True" in content
     assert "Show Edge Labels: True" in content
+    assert "Show Domain Styling: True" in content
     assert "graph TB" in content
     assert "svc_grafana -->|runtime_target| lxc_grafana" in content
     assert "svc_grafana -->|service_dependency| svc_prometheus" in content
     assert "inst_backup_monitoring -->|writes_to_storage| inst_pool_fast" in content
     assert "external_internet" in content
+    assert "classDef services " in content
+    assert "class svc_grafana services;" in content
 
 
 def test_topology_graph_generator_honors_domain_and_layer_filters(tmp_path: Path) -> None:
@@ -303,3 +306,22 @@ def test_topology_graph_generator_can_disable_edge_labels(tmp_path: Path) -> Non
     assert "Show Edge Labels: False" in content
     assert "svc_grafana --> lxc_grafana" in content
     assert " -->|runtime_target| " not in content
+
+
+def test_topology_graph_generator_can_disable_domain_styling(tmp_path: Path) -> None:
+    registry = _registry()
+    ctx = _context(
+        tmp_path,
+        {
+            "show_domain_styling": False,
+        },
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.GENERATE)
+
+    assert result.status == PluginStatus.SUCCESS
+    output_path = tmp_path / "generated" / "docs" / "diagrams" / "unified-topology.md"
+    content = output_path.read_text(encoding="utf-8")
+    assert "Show Domain Styling: False" in content
+    assert "classDef services " not in content
+    assert "class svc_grafana services;" not in content

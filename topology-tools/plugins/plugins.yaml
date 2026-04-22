@@ -1929,6 +1929,7 @@ plugins:
     graph_direction: TB
     include_external_refs: true
     show_edge_labels: true
+    show_domain_styling: true
   config_schema:
     type: object
     properties:
@@ -1967,6 +1968,9 @@ plugins:
       show_edge_labels:
         type: boolean
         description: Render edge labels (edge_type) on Mermaid links in unified topology graph output.
+      show_domain_styling:
+        type: boolean
+        description: Apply Mermaid classDef styling for nodes grouped by domain/external_ref in unified topology graph output.
     required: []
   produces:
   - key: generated_dir

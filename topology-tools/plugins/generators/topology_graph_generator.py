@@ -14,6 +14,14 @@ class TopologyGraphGenerator(BaseGenerator):
     """Emit unified Mermaid topology dependency graph with domain/layer filtering."""
 
     _VALID_GRAPH_DIRECTIONS = {"TB", "TD", "BT", "LR", "RL"}
+    _DOMAIN_STYLES = {
+        "physical": "fill:#e3f2fd,stroke:#1565c0,color:#0d47a1",
+        "network": "fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20",
+        "services": "fill:#fff8e1,stroke:#f9a825,color:#e65100",
+        "storage": "fill:#f3e5f5,stroke:#8e24aa,color:#4a148c",
+        "operations": "fill:#fce4ec,stroke:#c2185b,color:#880e4f",
+        "external_ref": "fill:#eceff1,stroke:#546e7a,color:#263238",
+    }
 
     @staticmethod
     def _normalize_filter(raw: Any) -> set[str] | None:
@@ -84,6 +92,7 @@ class TopologyGraphGenerator(BaseGenerator):
         graph_direction = self._graph_direction(ctx)
         include_external_refs = self._bool_config(ctx, "include_external_refs", default=True)
         show_edge_labels = self._bool_config(ctx, "show_edge_labels", default=True)
+        show_domain_styling = self._bool_config(ctx, "show_domain_styling", default=True)
 
         nodes = projection.get("nodes", [])
         edges = projection.get("edges", [])
@@ -161,6 +170,13 @@ class TopologyGraphGenerator(BaseGenerator):
                 key=lambda item: item[0],
             )
         )
+        domain_class_map = {
+            row.get("safe_id"): (
+                "external_ref" if str(row.get("node_type") or "") == "external_ref" else str(row.get("domain") or "")
+            )
+            for row in filtered_nodes
+            if isinstance(row, dict) and isinstance(row.get("safe_id"), str) and row.get("safe_id")
+        }
 
         diagrams_root = self.resolve_output_path(ctx, "docs", "diagrams")
         output_path = diagrams_root / "unified-topology.md"
@@ -180,6 +196,9 @@ class TopologyGraphGenerator(BaseGenerator):
                 "graph_direction": graph_direction,
                 "include_external_refs": include_external_refs,
                 "show_edge_labels": show_edge_labels,
+                "show_domain_styling": show_domain_styling,
+                "domain_styles": self._DOMAIN_STYLES,
+                "domain_class_map": domain_class_map,
             },
         )
         self.write_text_atomic(output_path, content)
@@ -199,7 +218,8 @@ class TopologyGraphGenerator(BaseGenerator):
                     f"node_type_filter={','.join(sorted(node_type_filter)) if node_type_filter else 'all'} "
                     f"graph_direction={graph_direction} "
                     f"include_external_refs={str(include_external_refs).lower()} "
-                    f"show_edge_labels={str(show_edge_labels).lower()}"
+                    f"show_edge_labels={str(show_edge_labels).lower()} "
+                    f"show_domain_styling={str(show_domain_styling).lower()}"
                 ),
                 path=str(output_path),
             )
