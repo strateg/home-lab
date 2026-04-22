@@ -1925,6 +1925,7 @@ plugins:
     domain_filter: []
     layer_filter: []
     edge_type_filter: []
+    node_type_filter: []
   config_schema:
     type: object
     properties:
@@ -1941,6 +1942,11 @@ plugins:
       edge_type_filter:
         type: array
         description: Optional dependency edge-type whitelist for unified topology graph rendering.
+        items:
+          type: string
+      node_type_filter:
+        type: array
+        description: Optional node-type whitelist for unified topology graph rendering.
         items:
           type: string
     required: []

@@ -199,6 +199,7 @@ def test_topology_graph_generator_honors_domain_and_layer_filters(tmp_path: Path
     assert "Domains: services" in content
     assert "Layers: L4" in content
     assert "Edge Types: all" in content
+    assert "Node Types: all" in content
     assert "svc_grafana" in content
     assert "svc_prometheus" in content
     assert "srv_pve" not in content
@@ -223,3 +224,23 @@ def test_topology_graph_generator_honors_edge_type_filter(tmp_path: Path) -> Non
     assert "runtime_target" in content
     assert "service_dependency" not in content
     assert "writes_to_storage" not in content
+
+
+def test_topology_graph_generator_honors_node_type_filter(tmp_path: Path) -> None:
+    registry = _registry()
+    ctx = _context(
+        tmp_path,
+        {
+            "node_type_filter": ["service"],
+        },
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.GENERATE)
+
+    assert result.status == PluginStatus.SUCCESS
+    output_path = tmp_path / "generated" / "docs" / "diagrams" / "unified-topology.md"
+    content = output_path.read_text(encoding="utf-8")
+    assert "Node Types: service" in content
+    assert "svc_grafana" in content
+    assert "svc_prometheus" in content
+    assert "srv_pve" not in content
