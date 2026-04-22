@@ -54,6 +54,7 @@ class TopologyGraphGenerator(BaseGenerator):
 
         domain_filter = self._normalize_filter(ctx.config.get("domain_filter"))
         layer_filter = self._normalize_filter(ctx.config.get("layer_filter"))
+        edge_type_filter = self._normalize_filter(ctx.config.get("edge_type_filter"))
 
         nodes = projection.get("nodes", [])
         edges = projection.get("edges", [])
@@ -73,6 +74,10 @@ class TopologyGraphGenerator(BaseGenerator):
             and (
                 layer_filter is None
                 or (isinstance(row.get("layer"), str) and row.get("layer") in layer_filter)
+            )
+            and (
+                edge_type_filter is None
+                or (isinstance(row.get("edge_type"), str) and row.get("edge_type") in edge_type_filter)
             )
         ]
         allowed_node_ids = {
@@ -110,6 +115,7 @@ class TopologyGraphGenerator(BaseGenerator):
                 "edges": filtered_edges,
                 "domain_filter": sorted(domain_filter) if domain_filter else [],
                 "layer_filter": sorted(layer_filter) if layer_filter else [],
+                "edge_type_filter": sorted(edge_type_filter) if edge_type_filter else [],
             },
         )
         self.write_text_atomic(output_path, content)
@@ -124,7 +130,8 @@ class TopologyGraphGenerator(BaseGenerator):
                     "generated unified topology graph: "
                     f"nodes={len(filtered_nodes)} edges={len(filtered_edges)} "
                     f"domain_filter={','.join(sorted(domain_filter)) if domain_filter else 'all'} "
-                    f"layer_filter={','.join(sorted(layer_filter)) if layer_filter else 'all'}"
+                    f"layer_filter={','.join(sorted(layer_filter)) if layer_filter else 'all'} "
+                    f"edge_type_filter={','.join(sorted(edge_type_filter)) if edge_type_filter else 'all'}"
                 ),
                 path=str(output_path),
             )

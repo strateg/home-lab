@@ -1924,6 +1924,7 @@ plugins:
   config:
     domain_filter: []
     layer_filter: []
+    edge_type_filter: []
   config_schema:
     type: object
     properties:
@@ -1935,6 +1936,11 @@ plugins:
       layer_filter:
         type: array
         description: Optional OSI/application layer whitelist for unified topology graph nodes (L1-L7).
+        items:
+          type: string
+      edge_type_filter:
+        type: array
+        description: Optional dependency edge-type whitelist for unified topology graph rendering.
         items:
           type: string
     required: []
