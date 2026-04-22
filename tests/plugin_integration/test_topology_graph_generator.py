@@ -184,6 +184,8 @@ def test_topology_graph_generator_writes_unified_diagram(tmp_path: Path) -> None
     assert "Include Isolated Nodes: True" in content
     assert "Group Nodes by Domain: False" in content
     assert "Group Nodes by Layer: False" in content
+    assert "Max Nodes: unlimited" in content
+    assert "Max Edges: unlimited" in content
     assert "graph TB" in content
     assert "svc_grafana -->|runtime_target| lxc_grafana" in content
     assert "svc_grafana -->|service_dependency| svc_prometheus" in content
@@ -429,3 +431,23 @@ def test_topology_graph_generator_can_group_nodes_by_layer(tmp_path: Path) -> No
     assert "Group Nodes by Layer: True" in content
     assert 'subgraph layer_L4["Layer: L4"]' in content
     assert 'subgraph layer_L2["Layer: L2"]' in content
+
+
+def test_topology_graph_generator_can_limit_nodes_and_edges(tmp_path: Path) -> None:
+    registry = _registry()
+    ctx = _context(
+        tmp_path,
+        {
+            "max_nodes": 2,
+            "max_edges": 1,
+        },
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.GENERATE)
+
+    assert result.status == PluginStatus.SUCCESS
+    output_path = tmp_path / "generated" / "docs" / "diagrams" / "unified-topology.md"
+    content = output_path.read_text(encoding="utf-8")
+    assert "Max Nodes: 2" in content
+    assert "Max Edges: 1" in content
+    assert "Output truncated:" in content

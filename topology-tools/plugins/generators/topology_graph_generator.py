@@ -44,6 +44,19 @@ class TopologyGraphGenerator(BaseGenerator):
         return "TB"
 
     @staticmethod
+    def _int_config(ctx: PluginContext, key: str, *, default: int) -> int:
+        raw = ctx.config.get(key)
+        if isinstance(raw, int):
+            return raw if raw >= 0 else default
+        if isinstance(raw, str):
+            try:
+                value = int(raw.strip())
+            except ValueError:
+                return default
+            return value if value >= 0 else default
+        return default
+
+    @staticmethod
     def _bool_config(ctx: PluginContext, key: str, *, default: bool) -> bool:
         raw = ctx.config.get(key)
         if isinstance(raw, bool):
@@ -98,6 +111,8 @@ class TopologyGraphGenerator(BaseGenerator):
         include_isolated_nodes = self._bool_config(ctx, "include_isolated_nodes", default=True)
         group_nodes_by_domain = self._bool_config(ctx, "group_nodes_by_domain", default=False)
         group_nodes_by_layer = self._bool_config(ctx, "group_nodes_by_layer", default=False)
+        max_nodes = self._int_config(ctx, "max_nodes", default=0)
+        max_edges = self._int_config(ctx, "max_edges", default=0)
 
         nodes = projection.get("nodes", [])
         edges = projection.get("edges", [])
@@ -183,26 +198,6 @@ class TopologyGraphGenerator(BaseGenerator):
                 and row.get("target_id") in allowed_node_ids
             ]
 
-        filtered_node_type_counts = dict(
-            sorted(
-                Counter(
-                    str(row.get("node_type", ""))
-                    for row in filtered_nodes
-                    if isinstance(row, dict) and row.get("node_type")
-                ).items(),
-                key=lambda item: item[0],
-            )
-        )
-        filtered_edge_type_counts = dict(
-            sorted(
-                Counter(
-                    str(row.get("edge_type", ""))
-                    for row in filtered_edges
-                    if isinstance(row, dict) and row.get("edge_type")
-                ).items(),
-                key=lambda item: item[0],
-            )
-        )
         filtered_node_domain_by_instance = {
             str(row.get("instance_id")): str(row.get("domain"))
             for row in filtered_nodes
@@ -227,6 +222,50 @@ class TopologyGraphGenerator(BaseGenerator):
                 and source_domain != target_domain
             )
             rendered_edges.append(rendered)
+
+        truncated_nodes = False
+        truncated_edges = False
+        if max_nodes > 0 and len(filtered_nodes) > max_nodes:
+            filtered_nodes = filtered_nodes[:max_nodes]
+            truncated_nodes = True
+            trimmed_node_ids = {
+                row.get("instance_id")
+                for row in filtered_nodes
+                if isinstance(row, dict) and isinstance(row.get("instance_id"), str)
+            }
+            rendered_edges = [
+                row
+                for row in rendered_edges
+                if isinstance(row, dict)
+                and isinstance(row.get("source_id"), str)
+                and isinstance(row.get("target_id"), str)
+                and row.get("source_id") in trimmed_node_ids
+                and row.get("target_id") in trimmed_node_ids
+            ]
+        if max_edges > 0 and len(rendered_edges) > max_edges:
+            rendered_edges = rendered_edges[:max_edges]
+            truncated_edges = True
+
+        filtered_node_type_counts = dict(
+            sorted(
+                Counter(
+                    str(row.get("node_type", ""))
+                    for row in filtered_nodes
+                    if isinstance(row, dict) and row.get("node_type")
+                ).items(),
+                key=lambda item: item[0],
+            )
+        )
+        filtered_edge_type_counts = dict(
+            sorted(
+                Counter(
+                    str(row.get("edge_type", ""))
+                    for row in rendered_edges
+                    if isinstance(row, dict) and row.get("edge_type")
+                ).items(),
+                key=lambda item: item[0],
+            )
+        )
         domain_class_map = {
             row.get("safe_id"): (
                 "external_ref" if str(row.get("node_type") or "") == "external_ref" else str(row.get("domain") or "")
@@ -281,6 +320,10 @@ class TopologyGraphGenerator(BaseGenerator):
                 "include_isolated_nodes": include_isolated_nodes,
                 "group_nodes_by_domain": group_nodes_by_domain,
                 "group_nodes_by_layer": group_nodes_by_layer,
+                "max_nodes": max_nodes,
+                "max_edges": max_edges,
+                "truncated_nodes": truncated_nodes,
+                "truncated_edges": truncated_edges,
                 "domain_styles": self._DOMAIN_STYLES,
                 "domain_class_map": domain_class_map,
                 "nodes_by_domain": nodes_by_domain,
@@ -297,7 +340,7 @@ class TopologyGraphGenerator(BaseGenerator):
                 stage=stage,
                 message=(
                     "generated unified topology graph: "
-                    f"nodes={len(filtered_nodes)} edges={len(filtered_edges)} "
+                    f"nodes={len(filtered_nodes)} edges={len(rendered_edges)} "
                     f"domain_filter={','.join(sorted(domain_filter)) if domain_filter else 'all'} "
                     f"layer_filter={','.join(sorted(layer_filter)) if layer_filter else 'all'} "
                     f"edge_type_filter={','.join(sorted(edge_type_filter)) if edge_type_filter else 'all'} "
@@ -310,7 +353,11 @@ class TopologyGraphGenerator(BaseGenerator):
                     f"cross_domain_edges_dashed={str(cross_domain_edges_dashed).lower()} "
                     f"include_isolated_nodes={str(include_isolated_nodes).lower()} "
                     f"group_nodes_by_domain={str(group_nodes_by_domain).lower()} "
-                    f"group_nodes_by_layer={str(group_nodes_by_layer).lower()}"
+                    f"group_nodes_by_layer={str(group_nodes_by_layer).lower()} "
+                    f"max_nodes={max_nodes} "
+                    f"max_edges={max_edges} "
+                    f"truncated_nodes={str(truncated_nodes).lower()} "
+                    f"truncated_edges={str(truncated_edges).lower()}"
                 ),
                 path=str(output_path),
             )
