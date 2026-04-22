@@ -1928,6 +1928,7 @@ plugins:
     node_type_filter: []
     graph_direction: TB
     include_external_refs: true
+    show_edge_labels: true
   config_schema:
     type: object
     properties:
@@ -1963,6 +1964,9 @@ plugins:
       include_external_refs:
         type: boolean
         description: Include synthetic external_ref nodes and related edges in unified topology graph output.
+      show_edge_labels:
+        type: boolean
+        description: Render edge labels (edge_type) on Mermaid links in unified topology graph output.
     required: []
   produces:
   - key: generated_dir

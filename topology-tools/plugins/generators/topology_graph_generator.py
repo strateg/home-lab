@@ -36,8 +36,8 @@ class TopologyGraphGenerator(BaseGenerator):
         return "TB"
 
     @staticmethod
-    def _include_external_refs(ctx: PluginContext) -> bool:
-        raw = ctx.config.get("include_external_refs")
+    def _bool_config(ctx: PluginContext, key: str, *, default: bool) -> bool:
+        raw = ctx.config.get(key)
         if isinstance(raw, bool):
             return raw
         if isinstance(raw, str):
@@ -46,7 +46,7 @@ class TopologyGraphGenerator(BaseGenerator):
                 return False
             if lowered in {"true", "1", "yes", "on"}:
                 return True
-        return True
+        return default
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
@@ -82,7 +82,8 @@ class TopologyGraphGenerator(BaseGenerator):
         edge_type_filter = self._normalize_filter(ctx.config.get("edge_type_filter"))
         node_type_filter = self._normalize_filter(ctx.config.get("node_type_filter"))
         graph_direction = self._graph_direction(ctx)
-        include_external_refs = self._include_external_refs(ctx)
+        include_external_refs = self._bool_config(ctx, "include_external_refs", default=True)
+        show_edge_labels = self._bool_config(ctx, "show_edge_labels", default=True)
 
         nodes = projection.get("nodes", [])
         edges = projection.get("edges", [])
@@ -178,6 +179,7 @@ class TopologyGraphGenerator(BaseGenerator):
                 "filtered_edge_type_counts": filtered_edge_type_counts,
                 "graph_direction": graph_direction,
                 "include_external_refs": include_external_refs,
+                "show_edge_labels": show_edge_labels,
             },
         )
         self.write_text_atomic(output_path, content)
@@ -196,7 +198,8 @@ class TopologyGraphGenerator(BaseGenerator):
                     f"edge_type_filter={','.join(sorted(edge_type_filter)) if edge_type_filter else 'all'} "
                     f"node_type_filter={','.join(sorted(node_type_filter)) if node_type_filter else 'all'} "
                     f"graph_direction={graph_direction} "
-                    f"include_external_refs={str(include_external_refs).lower()}"
+                    f"include_external_refs={str(include_external_refs).lower()} "
+                    f"show_edge_labels={str(show_edge_labels).lower()}"
                 ),
                 path=str(output_path),
             )

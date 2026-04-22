@@ -177,6 +177,7 @@ def test_topology_graph_generator_writes_unified_diagram(tmp_path: Path) -> None
     assert "Unified Topology Graph" in content
     assert "Direction: TB" in content
     assert "Include External Refs: True" in content
+    assert "Show Edge Labels: True" in content
     assert "graph TB" in content
     assert "svc_grafana -->|runtime_target| lxc_grafana" in content
     assert "svc_grafana -->|service_dependency| svc_prometheus" in content
@@ -283,3 +284,22 @@ def test_topology_graph_generator_can_exclude_external_refs(tmp_path: Path) -> N
     content = output_path.read_text(encoding="utf-8")
     assert "Include External Refs: False" in content
     assert "external_internet" not in content
+
+
+def test_topology_graph_generator_can_disable_edge_labels(tmp_path: Path) -> None:
+    registry = _registry()
+    ctx = _context(
+        tmp_path,
+        {
+            "show_edge_labels": False,
+        },
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.GENERATE)
+
+    assert result.status == PluginStatus.SUCCESS
+    output_path = tmp_path / "generated" / "docs" / "diagrams" / "unified-topology.md"
+    content = output_path.read_text(encoding="utf-8")
+    assert "Show Edge Labels: False" in content
+    assert "svc_grafana --> lxc_grafana" in content
+    assert " -->|runtime_target| " not in content
