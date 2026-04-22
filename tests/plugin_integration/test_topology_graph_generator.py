@@ -191,3 +191,4 @@ def test_topology_graph_generator_honors_domain_and_layer_filters(tmp_path: Path
     assert "svc_grafana" in content
     assert "svc_prometheus" in content
     assert "srv_pve" not in content
+    assert "service_dependency" not in content

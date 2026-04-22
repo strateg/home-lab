@@ -89,6 +89,14 @@ class TopologyGraphGenerator(BaseGenerator):
             and isinstance(row.get("target_id"), str)
             and row.get("source_id") in allowed_node_ids
             and row.get("target_id") in allowed_node_ids
+            and (
+                domain_filter is None
+                or (isinstance(row.get("domain"), str) and row.get("domain") in domain_filter)
+            )
+            and (
+                layer_filter is None
+                or (isinstance(row.get("layer"), str) and row.get("layer") in layer_filter)
+            )
         ]
 
         diagrams_root = self.resolve_output_path(ctx, "docs", "diagrams")

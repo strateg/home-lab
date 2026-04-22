@@ -96,6 +96,17 @@ def _compiled_fixture() -> dict:
                     },
                 },
             ],
+            "vm": [
+                {
+                    "instance_id": "vm-analytics",
+                    "instance": {
+                        "materializes_object": "obj.proxmox.vm.debian12.analytics",
+                        "materializes_class": "class.compute.workload.vm",
+                    },
+                    "instance_data": {"host_ref": "srv-gamayun"},
+                    "layer": "L1",
+                }
+            ],
             "services": [
                 {"instance_id": "svc-redis", "runtime": {"target_ref": "lxc-redis"}},
                 {"instance_id": "svc-snmp", "runtime": {"target_ref": "rtr-mk"}},
@@ -224,6 +235,34 @@ def test_docs_projection_includes_service_dependencies() -> None:
     assert deps[0]["depends_on_safe_id"] == "svc_prometheus_lxc_lxc_prometheus"
 
 
+def test_docs_projection_includes_vms_with_host_ref() -> None:
+    payload = {
+        "instances": {
+            "devices": [],
+            "lxc": [],
+            "services": [],
+            "network": [],
+            "vm": [
+                {
+                    "instance_id": "vm-analytics",
+                    "instance": {
+                        "materializes_object": "obj.proxmox.vm.debian12.analytics",
+                        "materializes_class": "class.compute.workload.vm",
+                    },
+                    "instance_data": {"host_ref": "srv-gamayun"},
+                }
+            ],
+        }
+    }
+
+    projection = build_docs_projection(payload)
+
+    assert "vms" in projection
+    assert len(projection["vms"]) == 1
+    assert projection["vms"][0]["instance_id"] == "vm-analytics"
+    assert projection["vms"][0]["host_ref"] == "srv-gamayun"
+
+
 def test_safe_id_sanitizes_special_characters() -> None:
     """Test that safe_id replaces '.', '-', and '@' with '_'."""
     from plugins.generators.projections import _safe_id
@@ -254,6 +293,17 @@ def test_topology_projection_contains_cross_domain_nodes_and_edges() -> None:
                     "instance": {
                         "materializes_object": "obj.proxmox.lxc.debian12.base",
                         "materializes_class": "class.compute.workload.container",
+                    },
+                    "instance_data": {"host_ref": "srv-gamayun"},
+                    "layer": "L1",
+                }
+            ],
+            "vm": [
+                {
+                    "instance_id": "vm-analytics",
+                    "instance": {
+                        "materializes_object": "obj.proxmox.vm.debian12.analytics",
+                        "materializes_class": "class.compute.workload.vm",
                     },
                     "instance_data": {"host_ref": "srv-gamayun"},
                     "layer": "L1",
@@ -346,6 +396,7 @@ def test_topology_projection_contains_cross_domain_nodes_and_edges() -> None:
     nodes = projection["nodes"]
     edges = projection["edges"]
     assert any(row["instance_id"] == "srv-gamayun" and row["domain"] == "physical" for row in nodes)
+    assert any(row["instance_id"] == "vm-analytics" and row["node_type"] == "vm" for row in nodes)
     assert any(row["instance_id"] == "svc-grafana" and row["domain"] == "services" for row in nodes)
     assert any(row["instance_id"] == "inst.vlan.servers" and row["domain"] == "network" for row in nodes)
     assert any(row["instance_id"] == "inst.pool.fast" and row["domain"] == "storage" for row in nodes)
@@ -353,6 +404,7 @@ def test_topology_projection_contains_cross_domain_nodes_and_edges() -> None:
 
     edge_tuples = {(row["source_id"], row["target_id"], row["edge_type"]) for row in edges}
     assert ("lxc-grafana", "srv-gamayun", "hosted_on") in edge_tuples
+    assert ("vm-analytics", "srv-gamayun", "hosted_on") in edge_tuples
     assert ("svc-grafana", "svc-prometheus", "service_dependency") in edge_tuples
     assert ("svc-grafana", "lxc-grafana", "runtime_target") in edge_tuples
     assert ("svc-grafana", "inst.vlan.servers", "runtime_network_binding") in edge_tuples

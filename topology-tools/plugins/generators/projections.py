@@ -195,6 +195,21 @@ def build_docs_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
             }
         )
 
+    docs_vms: list[dict[str, Any]] = []
+    for idx, row in enumerate(vm):
+        _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.vm[{idx}]")
+        object_ref = _require_object_ref(row, path=f"compiled_json.instances.vm[{idx}]")
+        docs_vms.append(
+            {
+                "instance_id": row["instance_id"],
+                "object_ref": object_ref,
+                "class_ref": _resolved_class_ref(row),
+                "status": row.get("status"),
+                "layer": row.get("layer"),
+                "host_ref": _get_instance_data(row, "instance_data.host_ref"),
+            }
+        )
+
     counts = {
         "devices": len(devices),
         "services": len(services),
@@ -245,6 +260,7 @@ def build_docs_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
         "counts": counts,
         "devices": _sorted_rows(docs_devices),
         "services": _sorted_rows(docs_services),
+        "vms": _sorted_rows(docs_vms),
         "groups": {name: len(rows) for name, rows in sorted(groups.items(), key=lambda item: item[0])},
         "service_dependencies": service_dependencies,
         "network": network_projection,
@@ -476,6 +492,17 @@ def _collect_topology_nodes(
             layer=str(row.get("layer") or "L1"),
         )
 
+    for row in docs_projection.get("vms", []):
+        if not isinstance(row, dict):
+            continue
+        _append_topology_node(
+            nodes,
+            instance_id=row.get("instance_id"),
+            node_type="vm",
+            domain="physical",
+            layer=str(row.get("layer") or "L1"),
+        )
+
     for row in docs_projection.get("services", []):
         if not isinstance(row, dict):
             continue
@@ -557,6 +584,18 @@ def _extract_host_dependencies(
 ) -> list[dict[str, Any]]:
     edges: list[dict[str, Any]] = []
     for row in diagram_projection.get("lxc", []):
+        if not isinstance(row, dict):
+            continue
+        _append_topology_edge(
+            edges,
+            source_id=row.get("instance_id"),
+            target_id=row.get("host_ref"),
+            edge_type="hosted_on",
+            domain="physical",
+            layer="L1",
+        )
+
+    for row in docs_projection.get("vms", []):
         if not isinstance(row, dict):
             continue
         _append_topology_edge(

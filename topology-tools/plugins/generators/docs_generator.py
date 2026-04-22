@@ -67,6 +67,7 @@ class DocsGenerator(BaseGenerator):
             "counts": projection.get("counts", {}),
             "devices": projection.get("devices", []),
             "services": projection.get("services", []),
+            "vms": projection.get("vms", []),
             "groups": projection.get("groups", {}),
             "service_dependencies": projection.get("service_dependencies", []),
             "network": projection.get("network", {}),
