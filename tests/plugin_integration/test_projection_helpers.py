@@ -395,6 +395,7 @@ def test_topology_projection_contains_cross_domain_nodes_and_edges() -> None:
     projection = build_topology_projection(payload)
     nodes = projection["nodes"]
     edges = projection["edges"]
+    metadata = projection["metadata"]
     assert any(row["instance_id"] == "srv-gamayun" and row["domain"] == "physical" for row in nodes)
     assert any(row["instance_id"] == "vm-analytics" and row["node_type"] == "vm" for row in nodes)
     assert any(row["instance_id"] == "svc-grafana" and row["domain"] == "services" for row in nodes)
@@ -410,6 +411,10 @@ def test_topology_projection_contains_cross_domain_nodes_and_edges() -> None:
     assert ("svc-grafana", "inst.vlan.servers", "runtime_network_binding") in edge_tuples
     assert ("inst.vlan.servers", "srv-gamayun", "managed_by") in edge_tuples
     assert ("inst.backup.monitoring", "inst.pool.fast", "writes_to_storage") in edge_tuples
+    assert metadata["node_type_counts"].get("service", 0) >= 2
+    assert metadata["edge_type_counts"].get("service_dependency", 0) >= 1
+    assert metadata["domain_counts"].get("services", 0) >= 2
+    assert metadata["layer_counts"].get("L4", 0) >= 2
 
 
 def test_topology_projection_materializes_external_nodes_for_edge_endpoints() -> None:
@@ -453,8 +458,10 @@ def test_topology_projection_materializes_external_nodes_for_edge_endpoints() ->
     projection = build_topology_projection(payload)
     nodes = projection["nodes"]
     edges = projection["edges"]
+    metadata = projection["metadata"]
 
     assert any(row["instance_id"] == "external.internet" and row["node_type"] == "external_ref" for row in nodes)
     assert ("rtr-main", "external.internet", "data_link") in {
         (row["source_id"], row["target_id"], row["edge_type"]) for row in edges
     }
+    assert metadata["node_type_counts"].get("external_ref", 0) >= 1

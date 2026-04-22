@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from collections import Counter
 from typing import Any
 
 from plugins.generators.docs.network_projection import build_network_projection
@@ -869,6 +870,30 @@ def build_topology_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
 
     node_domains = sorted({str(row.get("domain", "")) for row in sorted_nodes if row.get("domain")})
     node_layers = sorted({str(row.get("layer", "")) for row in sorted_nodes if row.get("layer")})
+    node_type_counts = dict(
+        sorted(
+            Counter(str(row.get("node_type", "")) for row in sorted_nodes if row.get("node_type")).items(),
+            key=lambda item: item[0],
+        )
+    )
+    edge_type_counts = dict(
+        sorted(
+            Counter(str(row.get("edge_type", "")) for row in sorted_edges if row.get("edge_type")).items(),
+            key=lambda item: item[0],
+        )
+    )
+    domain_counts = dict(
+        sorted(
+            Counter(str(row.get("domain", "")) for row in sorted_nodes if row.get("domain")).items(),
+            key=lambda item: item[0],
+        )
+    )
+    layer_counts = dict(
+        sorted(
+            Counter(str(row.get("layer", "")) for row in sorted_nodes if row.get("layer")).items(),
+            key=lambda item: item[0],
+        )
+    )
 
     return {
         "nodes": sorted_nodes,
@@ -878,6 +903,10 @@ def build_topology_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
             "total_edges": len(sorted_edges),
             "available_domains": node_domains,
             "available_layers": node_layers,
+            "node_type_counts": node_type_counts,
+            "edge_type_counts": edge_type_counts,
+            "domain_counts": domain_counts,
+            "layer_counts": layer_counts,
         },
         "counts": {
             "nodes": len(sorted_nodes),

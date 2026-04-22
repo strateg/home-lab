@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from typing import Any
 
 from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage
@@ -109,6 +110,27 @@ class TopologyGraphGenerator(BaseGenerator):
             )
         ]
 
+        filtered_node_type_counts = dict(
+            sorted(
+                Counter(
+                    str(row.get("node_type", ""))
+                    for row in filtered_nodes
+                    if isinstance(row, dict) and row.get("node_type")
+                ).items(),
+                key=lambda item: item[0],
+            )
+        )
+        filtered_edge_type_counts = dict(
+            sorted(
+                Counter(
+                    str(row.get("edge_type", ""))
+                    for row in filtered_edges
+                    if isinstance(row, dict) and row.get("edge_type")
+                ).items(),
+                key=lambda item: item[0],
+            )
+        )
+
         diagrams_root = self.resolve_output_path(ctx, "docs", "diagrams")
         output_path = diagrams_root / "unified-topology.md"
         content = self.render_template(
@@ -122,6 +144,8 @@ class TopologyGraphGenerator(BaseGenerator):
                 "layer_filter": sorted(layer_filter) if layer_filter else [],
                 "edge_type_filter": sorted(edge_type_filter) if edge_type_filter else [],
                 "node_type_filter": sorted(node_type_filter) if node_type_filter else [],
+                "filtered_node_type_counts": filtered_node_type_counts,
+                "filtered_edge_type_counts": filtered_edge_type_counts,
             },
         )
         self.write_text_atomic(output_path, content)
