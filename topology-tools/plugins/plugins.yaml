@@ -1910,6 +1910,45 @@ plugins:
 
     '
   execution_mode: subinterpreter
+- id: base.generator.topology_graph
+  kind: generator
+  entry: generators/topology_graph_generator.py:TopologyGraphGenerator
+  api_version: 1.x
+  stages:
+  - generate
+  phase: post
+  order: 227
+  depends_on:
+  - base.compiler.effective_model
+  timeout: 30
+  config:
+    domain_filter: []
+    layer_filter: []
+  config_schema:
+    type: object
+    properties:
+      domain_filter:
+        type: array
+        description: Optional domain whitelist for unified topology graph nodes (physical/network/services/storage/operations).
+        items:
+          type: string
+      layer_filter:
+        type: array
+        description: Optional OSI/application layer whitelist for unified topology graph nodes (L1-L7).
+        items:
+          type: string
+    required: []
+  produces:
+  - key: generated_dir
+    scope: pipeline_shared
+  - key: generated_files
+    scope: pipeline_shared
+  - key: topology_graph_files
+    scope: pipeline_shared
+  - key: topology_graph_projection
+    scope: pipeline_shared
+  description: Emits unified topology dependency Mermaid graph with optional domain/layer filtering.
+  execution_mode: subinterpreter
 - id: base.generator.ansible_inventory
   kind: generator
   entry: generators/ansible_inventory_generator.py:AnsibleInventoryGenerator
@@ -2005,6 +2044,7 @@ plugins:
   - base.generator.ansible_inventory
   - base.generator.docs
   - base.generator.diagrams
+  - base.generator.topology_graph
   - base.generator.docker_compose
   timeout: 30
   config:
@@ -2014,6 +2054,7 @@ plugins:
     - base.generator.ansible_inventory
     - base.generator.docs
     - base.generator.diagrams
+    - base.generator.topology_graph
     - base.generator.docker_compose
     artifact_manifest_compatibility_producers:
     - object.proxmox.generator.terraform
@@ -2051,6 +2092,9 @@ plugins:
     key: generated_files
     required: false
   - from_plugin: base.generator.diagrams
+    key: generated_files
+    required: false
+  - from_plugin: base.generator.topology_graph
     key: generated_files
     required: false
   - from_plugin: base.generator.docker_compose

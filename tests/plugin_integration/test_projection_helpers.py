@@ -15,7 +15,11 @@ from plugins.generators.object_projection_loader import (  # noqa: E402
     load_bootstrap_projection_module,
     load_object_projection_module,
 )
-from plugins.generators.projections import build_ansible_projection, build_docs_projection  # noqa: E402
+from plugins.generators.projections import (  # noqa: E402
+    build_ansible_projection,
+    build_docs_projection,
+    build_topology_projection,
+)
 
 _PROXMOX_PROJECTIONS = load_object_projection_module("proxmox")
 _MIKROTIK_PROJECTIONS = load_object_projection_module("mikrotik")
@@ -229,3 +233,127 @@ def test_safe_id_sanitizes_special_characters() -> None:
     assert _safe_id("rtr-mikrotik-chateau") == "rtr_mikrotik_chateau"
     assert _safe_id("svc-redis") == "svc_redis"
     assert _safe_id("simple") == "simple"
+
+
+def test_topology_projection_contains_cross_domain_nodes_and_edges() -> None:
+    payload = {
+        "instances": {
+            "devices": [
+                {
+                    "instance_id": "srv-gamayun",
+                    "instance": {
+                        "materializes_object": "obj.proxmox.ve",
+                        "materializes_class": "class.compute.hypervisor.proxmox",
+                    },
+                    "layer": "L1",
+                }
+            ],
+            "lxc": [
+                {
+                    "instance_id": "lxc-grafana",
+                    "instance": {
+                        "materializes_object": "obj.proxmox.lxc.debian12.base",
+                        "materializes_class": "class.compute.workload.container",
+                    },
+                    "instance_data": {"host_ref": "srv-gamayun"},
+                    "layer": "L1",
+                }
+            ],
+            "services": [
+                {
+                    "instance_id": "svc-grafana",
+                    "instance": {
+                        "materializes_object": "obj.service.grafana",
+                        "materializes_class": "class.service.visualization",
+                    },
+                    "runtime": {"target_ref": "lxc-grafana"},
+                    "instance_data": {"dependencies": [{"service_ref": "svc-prometheus"}]},
+                    "layer": "L4",
+                },
+                {
+                    "instance_id": "svc-prometheus",
+                    "instance": {
+                        "materializes_object": "obj.service.prometheus",
+                        "materializes_class": "class.service.monitoring",
+                    },
+                    "runtime": {"target_ref": "lxc-grafana"},
+                    "instance_data": {},
+                    "layer": "L4",
+                },
+            ],
+            "network": [
+                {
+                    "instance_id": "inst.trust_zone.servers",
+                    "instance": {
+                        "materializes_object": "obj.network.trust_zone.servers",
+                        "materializes_class": "class.network.trust_zone",
+                    },
+                },
+                {
+                    "instance_id": "inst.vlan.servers",
+                    "instance": {
+                        "materializes_object": "obj.network.vlan.servers",
+                        "materializes_class": "class.network.vlan",
+                    },
+                    "instance_data": {
+                        "managed_by_ref": "srv-gamayun",
+                        "trust_zone_ref": "inst.trust_zone.servers",
+                    },
+                },
+            ],
+            "pools": [
+                {
+                    "instance_id": "inst.pool.fast",
+                    "instance": {
+                        "materializes_object": "obj.storage.pool.fast",
+                        "materializes_class": "class.storage.pool.zfs",
+                    },
+                    "instance_data": {"host_ref": "srv-gamayun"},
+                }
+            ],
+            "data-assets": [
+                {
+                    "instance_id": "inst.data.asset.monitoring",
+                    "instance": {
+                        "materializes_object": "obj.storage.data_asset.monitoring",
+                        "materializes_class": "class.storage.data_asset",
+                    },
+                    "instance_data": {"host_ref": "srv-gamayun"},
+                }
+            ],
+            "operations": [
+                {
+                    "instance_id": "inst.backup.monitoring",
+                    "instance": {
+                        "materializes_object": "obj.ops.backup",
+                        "materializes_class": "class.ops.backup_policy",
+                    },
+                    "instance_data": {
+                        "target_ref": "svc-grafana",
+                        "data_asset_ref": "inst.data.asset.monitoring",
+                        "storage_ref": "inst.pool.fast",
+                    },
+                }
+            ],
+            "observability": [],
+            "firewall": [],
+            "power": [],
+            "qos": [],
+        }
+    }
+
+    projection = build_topology_projection(payload)
+    nodes = projection["nodes"]
+    edges = projection["edges"]
+    assert any(row["instance_id"] == "srv-gamayun" and row["domain"] == "physical" for row in nodes)
+    assert any(row["instance_id"] == "svc-grafana" and row["domain"] == "services" for row in nodes)
+    assert any(row["instance_id"] == "inst.vlan.servers" and row["domain"] == "network" for row in nodes)
+    assert any(row["instance_id"] == "inst.pool.fast" and row["domain"] == "storage" for row in nodes)
+    assert any(row["instance_id"] == "inst.backup.monitoring" and row["domain"] == "operations" for row in nodes)
+
+    edge_tuples = {(row["source_id"], row["target_id"], row["edge_type"]) for row in edges}
+    assert ("lxc-grafana", "srv-gamayun", "hosted_on") in edge_tuples
+    assert ("svc-grafana", "svc-prometheus", "service_dependency") in edge_tuples
+    assert ("svc-grafana", "lxc-grafana", "runtime_target") in edge_tuples
+    assert ("inst.vlan.servers", "srv-gamayun", "managed_by") in edge_tuples
+    assert ("inst.backup.monitoring", "inst.pool.fast", "writes_to_storage") in edge_tuples

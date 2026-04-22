@@ -244,3 +244,36 @@ def test_docs_execute_stage_requires_compiled_json(tmp_path: Path) -> None:
     assert results[0].status == PluginStatus.FAILED
     assert any(diag.code == "E3001" for diag in results[0].diagnostics)
     assert not ctx.get_published_keys(PLUGIN_ID)
+
+
+def test_service_dependencies_table_uses_graph_safe_ids(tmp_path: Path) -> None:
+    registry = _registry()
+    fixture = {
+        "instances": {
+            "devices": [],
+            "services": [
+                {
+                    "instance_id": "svc-grafana@lxc.lxc-grafana",
+                    "object_ref": "obj.service.grafana",
+                    "class_ref": "class.service.visualization",
+                    "instance_data": {"dependencies": [{"service_ref": "svc-prometheus@lxc.lxc-prometheus"}]},
+                },
+                {
+                    "instance_id": "svc-prometheus@lxc.lxc-prometheus",
+                    "object_ref": "obj.service.prometheus",
+                    "class_ref": "class.service.monitoring",
+                },
+            ],
+            "lxc": [],
+            "vm": [],
+            "vms": [],
+            "network": [],
+        }
+    }
+    ctx = _context(tmp_path, fixture)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.GENERATE)
+
+    assert result.status == PluginStatus.SUCCESS
+    content = (tmp_path / "generated" / "docs" / "service-dependencies.md").read_text(encoding="utf-8")
+    assert "| svc_grafana_lxc_lxc_grafana | svc_prometheus_lxc_lxc_prometheus |" in content

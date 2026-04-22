@@ -11,10 +11,10 @@ graph LR
 {% endfor %}
 ```
 
-| Service | Depends On |
+| Service (Graph ID) | Depends On (Graph ID) |
 | --- | --- |
 {% for row in deps -%}
-| {{ row.service_id }} | {{ row.depends_on }} |
+| {{ row.service_safe_id }} | {{ row.depends_on_safe_id }} |
 {% endfor %}
 
 {% if not deps %}

@@ -69,6 +69,55 @@ def _safe_id(value: str) -> str:
     return value.replace(".", "_").replace("-", "_").replace("@", "_")
 
 
+def _append_topology_node(
+    nodes: list[dict[str, Any]],
+    *,
+    instance_id: Any,
+    node_type: str,
+    domain: str,
+    layer: str,
+    label: str | None = None,
+) -> None:
+    if not isinstance(instance_id, str) or not instance_id:
+        return
+    nodes.append(
+        {
+            "instance_id": instance_id,
+            "safe_id": _safe_id(instance_id),
+            "node_type": node_type,
+            "domain": domain,
+            "layer": layer,
+            "label": label or instance_id,
+        }
+    )
+
+
+def _append_topology_edge(
+    edges: list[dict[str, Any]],
+    *,
+    source_id: Any,
+    target_id: Any,
+    edge_type: str,
+    domain: str,
+    layer: str,
+) -> None:
+    if not isinstance(source_id, str) or not source_id:
+        return
+    if not isinstance(target_id, str) or not target_id:
+        return
+    edges.append(
+        {
+            "source_id": source_id,
+            "target_id": target_id,
+            "source_safe_id": _safe_id(source_id),
+            "target_safe_id": _safe_id(target_id),
+            "edge_type": edge_type,
+            "domain": domain,
+            "layer": layer,
+        }
+    )
+
+
 def build_ansible_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     """Build stable view for Ansible inventory generator."""
     groups = _instance_groups(compiled_json)
@@ -396,4 +445,312 @@ def build_diagram_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
         "services": _sorted_rows(services),
         "lxc": _sorted_rows(lxc),
         "counts": counts,
+    }
+
+
+def build_topology_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
+    """Build unified topology graph projection with cross-domain nodes and dependencies."""
+    diagram_projection = build_diagram_projection(compiled_json)
+    docs_projection = build_docs_projection(compiled_json)
+
+    nodes: list[dict[str, Any]] = []
+    edges: list[dict[str, Any]] = []
+
+    for row in diagram_projection.get("devices", []):
+        if not isinstance(row, dict):
+            continue
+        _append_topology_node(
+            nodes,
+            instance_id=row.get("instance_id"),
+            node_type="device",
+            domain="physical",
+            layer=str(row.get("layer") or "L1"),
+        )
+
+    for row in diagram_projection.get("lxc", []):
+        if not isinstance(row, dict):
+            continue
+        instance_id = row.get("instance_id")
+        _append_topology_node(
+            nodes,
+            instance_id=instance_id,
+            node_type="lxc",
+            domain="physical",
+            layer=str(row.get("layer") or "L1"),
+        )
+        _append_topology_edge(
+            edges,
+            source_id=instance_id,
+            target_id=row.get("host_ref"),
+            edge_type="hosted_on",
+            domain="physical",
+            layer="L1",
+        )
+
+    for row in docs_projection.get("services", []):
+        if not isinstance(row, dict):
+            continue
+        service_id = row.get("instance_id")
+        _append_topology_node(
+            nodes,
+            instance_id=service_id,
+            node_type="service",
+            domain="services",
+            layer=str(row.get("layer") or "L4"),
+        )
+        _append_topology_edge(
+            edges,
+            source_id=service_id,
+            target_id=row.get("runtime_target_ref"),
+            edge_type="runtime_target",
+            domain="services",
+            layer="L4",
+        )
+
+    for row in docs_projection.get("service_dependencies", []):
+        if not isinstance(row, dict):
+            continue
+        _append_topology_edge(
+            edges,
+            source_id=row.get("service_id"),
+            target_id=row.get("depends_on"),
+            edge_type="service_dependency",
+            domain="services",
+            layer="L7",
+        )
+
+    for collection, node_type in (
+        ("trust_zones", "trust_zone"),
+        ("vlans", "vlan"),
+        ("bridges", "bridge"),
+    ):
+        for row in diagram_projection.get(collection, []):
+            if not isinstance(row, dict):
+                continue
+            _append_topology_node(
+                nodes,
+                instance_id=row.get("instance_id"),
+                node_type=node_type,
+                domain="network",
+                layer="L2",
+            )
+
+    network_projection = docs_projection.get("network", {})
+    if not isinstance(network_projection, dict):
+        network_projection = {}
+    for row in network_projection.get("networks", []):
+        if not isinstance(row, dict):
+            continue
+        _append_topology_edge(
+            edges,
+            source_id=row.get("instance_id"),
+            target_id=row.get("managed_by_ref"),
+            edge_type="managed_by",
+            domain="network",
+            layer="L2",
+        )
+        _append_topology_edge(
+            edges,
+            source_id=row.get("instance_id"),
+            target_id=row.get("trust_zone_ref"),
+            edge_type="trust_zone_member",
+            domain="network",
+            layer="L2",
+        )
+
+    for row in network_projection.get("bridges", []):
+        if not isinstance(row, dict):
+            continue
+        _append_topology_edge(
+            edges,
+            source_id=row.get("instance_id"),
+            target_id=row.get("host_ref"),
+            edge_type="hosted_on",
+            domain="network",
+            layer="L2",
+        )
+
+    for row in diagram_projection.get("data_links", []):
+        if not isinstance(row, dict):
+            continue
+        endpoint_a = row.get("endpoint_a")
+        endpoint_b = row.get("endpoint_b")
+        source_id = endpoint_a.get("device_ref") if isinstance(endpoint_a, dict) else None
+        target_id = endpoint_b.get("device_ref") if isinstance(endpoint_b, dict) else None
+        if not isinstance(source_id, str) or not source_id:
+            source_id = endpoint_a.get("external_ref") if isinstance(endpoint_a, dict) else None
+        if not isinstance(target_id, str) or not target_id:
+            target_id = endpoint_b.get("external_ref") if isinstance(endpoint_b, dict) else None
+        _append_topology_edge(
+            edges,
+            source_id=source_id,
+            target_id=target_id,
+            edge_type="data_link",
+            domain="physical",
+            layer="L1",
+        )
+
+    storage_projection = docs_projection.get("storage", {})
+    if not isinstance(storage_projection, dict):
+        storage_projection = {}
+
+    for row in storage_projection.get("storage_pools", []):
+        if not isinstance(row, dict):
+            continue
+        pool_id = row.get("instance_id")
+        _append_topology_node(
+            nodes,
+            instance_id=pool_id,
+            node_type="storage_pool",
+            domain="storage",
+            layer="L3",
+        )
+        _append_topology_edge(
+            edges,
+            source_id=pool_id,
+            target_id=row.get("host_ref"),
+            edge_type="hosted_on",
+            domain="storage",
+            layer="L3",
+        )
+
+    for row in storage_projection.get("data_assets", []):
+        if not isinstance(row, dict):
+            continue
+        asset_id = row.get("instance_id")
+        _append_topology_node(
+            nodes,
+            instance_id=asset_id,
+            node_type="data_asset",
+            domain="storage",
+            layer="L3",
+        )
+        _append_topology_edge(
+            edges,
+            source_id=asset_id,
+            target_id=row.get("host_ref"),
+            edge_type="hosted_on",
+            domain="storage",
+            layer="L3",
+        )
+
+    for row in storage_projection.get("mount_chains", []):
+        if not isinstance(row, dict):
+            continue
+        _append_topology_edge(
+            edges,
+            source_id=row.get("target_ref"),
+            target_id=row.get("storage_ref"),
+            edge_type="uses_storage",
+            domain="storage",
+            layer="L3",
+        )
+        _append_topology_edge(
+            edges,
+            source_id=row.get("data_asset_ref"),
+            target_id=row.get("storage_ref"),
+            edge_type="stored_in",
+            domain="storage",
+            layer="L3",
+        )
+
+    operations_projection = docs_projection.get("operations", {})
+    if not isinstance(operations_projection, dict):
+        operations_projection = {}
+    for collection, node_type in (
+        ("backup_policies", "backup_policy"),
+        ("healthchecks", "healthcheck"),
+        ("alerts", "alert"),
+        ("vpn_services", "vpn_service"),
+        ("qos_policies", "qos_policy"),
+        ("ups_inventory", "ups_device"),
+    ):
+        for row in operations_projection.get(collection, []):
+            if not isinstance(row, dict):
+                continue
+            _append_topology_node(
+                nodes,
+                instance_id=row.get("instance_id"),
+                node_type=node_type,
+                domain="operations",
+                layer="L6",
+            )
+
+    for row in operations_projection.get("backup_policies", []):
+        if not isinstance(row, dict):
+            continue
+        policy_id = row.get("instance_id")
+        _append_topology_edge(
+            edges,
+            source_id=policy_id,
+            target_id=row.get("target_ref"),
+            edge_type="backs_up_target",
+            domain="operations",
+            layer="L6",
+        )
+        _append_topology_edge(
+            edges,
+            source_id=policy_id,
+            target_id=row.get("data_asset_ref"),
+            edge_type="backs_up_data_asset",
+            domain="operations",
+            layer="L6",
+        )
+        _append_topology_edge(
+            edges,
+            source_id=policy_id,
+            target_id=row.get("storage_ref"),
+            edge_type="writes_to_storage",
+            domain="operations",
+            layer="L6",
+        )
+
+    unique_nodes: dict[str, dict[str, Any]] = {}
+    for row in nodes:
+        instance_id = row.get("instance_id")
+        if isinstance(instance_id, str) and instance_id and instance_id not in unique_nodes:
+            unique_nodes[instance_id] = row
+
+    deduped_edges: dict[tuple[str, str, str], dict[str, Any]] = {}
+    for row in edges:
+        source_id = row.get("source_id")
+        target_id = row.get("target_id")
+        edge_type = row.get("edge_type")
+        if not isinstance(source_id, str) or not isinstance(target_id, str) or not isinstance(edge_type, str):
+            continue
+        key = (source_id, target_id, edge_type)
+        if key not in deduped_edges:
+            deduped_edges[key] = row
+
+    sorted_nodes = sorted(
+        unique_nodes.values(),
+        key=lambda row: (str(row.get("domain", "")), str(row.get("layer", "")), str(row.get("instance_id", ""))),
+    )
+    sorted_edges = sorted(
+        deduped_edges.values(),
+        key=lambda row: (
+            str(row.get("domain", "")),
+            str(row.get("layer", "")),
+            str(row.get("source_id", "")),
+            str(row.get("target_id", "")),
+            str(row.get("edge_type", "")),
+        ),
+    )
+
+    node_domains = sorted({str(row.get("domain", "")) for row in sorted_nodes if row.get("domain")})
+    node_layers = sorted({str(row.get("layer", "")) for row in sorted_nodes if row.get("layer")})
+
+    return {
+        "nodes": sorted_nodes,
+        "edges": sorted_edges,
+        "metadata": {
+            "total_nodes": len(sorted_nodes),
+            "total_edges": len(sorted_edges),
+            "available_domains": node_domains,
+            "available_layers": node_layers,
+        },
+        "counts": {
+            "nodes": len(sorted_nodes),
+            "edges": len(sorted_edges),
+        },
     }
