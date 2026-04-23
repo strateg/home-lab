@@ -12,33 +12,51 @@ Current instance authoring keeps `@layer` in every instance file and enforces la
 
 In the active topology model, layer semantics already exist in class/object inheritance:
 
-- class contracts define allowed layers;
-- object contracts define concrete layer placement;
+- class contracts define canonical layer placement;
+- object contracts bind to class contracts;
 - instance files already reference object contracts via `@extends`.
 
-For current project data, `instance.@layer` is fully redundant with `object.@layer`, while path-based layer checks add duplication and migration friction.
+Repository analysis for current state:
+
+- all class modules already declare `@layer`;
+- all object modules currently duplicate class layer (`object.@layer == class.@layer` for 116/116 objects);
+- therefore both `instance.@layer` and `object.@layer` are redundant in current topology semantics.
+
+Path-based layer checks still add duplication and migration friction.
 
 ---
 
 ## Decision
 
-Adopt derived layer semantics for instances:
+Adopt **fully derived layer semantics** from `class -> object -> instance`:
 
-1. **Instance layer is derived from object**
-   - Canonical instance layer is resolved via `instance.@extends -> object.@layer`.
-   - `instance.@layer` becomes optional authoring metadata (not a required source-of-truth field).
+1. **Class is the canonical layer source**
+   - Canonical entity layer is defined by `class.@layer`.
+   - `layer-contract.class_layers.allowed_layers` remains governance policy, but effective runtime layer is `class.@layer`.
 
-2. **Consistency rule when `@layer` is present**
-   - If instance includes `@layer`, it must equal derived object layer.
-   - Mismatch is validation error.
+2. **Object layer is derived from class**
+   - Canonical object layer is resolved via `object.@extends -> class.@layer`.
+   - `object.@layer` is removed from object modules (non-canonical and prohibited after migration).
 
-3. **Validation shifts from path-layer to semantic-layer**
+3. **Instance layer is derived via object -> class chain**
+   - Canonical instance layer is resolved via `instance.@extends -> object.@extends -> class.@layer`.
+   - `instance.@layer` is optional transition metadata and must match derived layer when present.
+
+4. **Validation shifts from path-layer to semantic-layer**
    - Layer correctness checks must use derived layer and class/object contracts.
-   - Path layout is no longer the primary authority for layer identity.
+   - Path layout is not the primary authority for layer identity.
 
-4. **Path decoupling for instances**
-   - Instance files may be organized by operational/domain ownership (e.g., host, stack, team), not only by `Lx-*` buckets.
-   - Placement validators should enforce deterministic structure rules without requiring layer-bucket path semantics.
+5. **Layer-oriented source-tree placement only for class modules**
+   - `topology/class-modules/` may be reorganized to top-level layer buckets: `L0`…`L7`.
+   - This is optional but recommended because class is the canonical layer source.
+
+6. **Object modules stay domain/plugin-oriented**
+   - `topology/object-modules/` keeps domain/plugin-centric layout (no mandatory `L0`…`L7` path contract).
+   - Layer for objects is enforced semantically via `object.@extends -> class.@layer`, not by directory path.
+
+7. **Instances are path-decoupled**
+   - `projects/*/topology/instances/` may be organized by operational/domain ownership (host/stack/team/etc).
+   - Instance placement no longer обязано mirror `Lx-*` buckets.
 
 ---
 
@@ -62,13 +80,15 @@ Adopt derived layer semantics for instances:
 ### Strengths
 
 - Устраняет дублирование `@layer` на уровне instance.
+- Устраняет дублирование `@layer` на уровне object.
 - Делает `class -> object -> instance` единственным семантическим источником слоя.
 - Упрощает дальнейшую эволюцию структуры `instances/` без перепривязки к `Lx-*` директориям.
 
 ### Weaknesses
 
-- Повышается чувствительность к качеству object-модулей (`@layer` в object теперь критичен).
+- Повышается чувствительность к корректности `class.@layer` (единственная точка истины).
 - Появляется дополнительная логика вывода (derivation), которую нужно поддерживать в нескольких валидаторах.
+- Возможно потребуется частичное перемещение class-файлов по layer-директориям.
 
 ### Opportunities
 
@@ -80,7 +100,8 @@ Adopt derived layer semantics for instances:
 
 - Расхождение поведения между runtime loader и независимыми validation-скриптами.
 - Частичная миграция может создать «серую зону» смешанных правил.
-- Ошибки в object-layer mapping могут привести к массовым ложным диагностическим ошибкам.
+- Ошибки в class-layer mapping могут привести к массовым ложным диагностическим ошибкам.
+- Риск регрессий в toolchain из-за path-aware логики при переезде class-модулей.
 
 ---
 
@@ -91,6 +112,14 @@ Adopt derived layer semantics for instances:
 - `topology-tools/plugins/validators/foundation_file_placement_validator.py`
 - `topology-tools/plugins/compilers/instance_rows_compiler.py` (shape expectations)
 - related plugin contract/integration tests
+
+## Migration Scope (Phase B — class/object canonicalization)
+
+- Remove `@layer` from object modules and enforce derivation from `@extends` class.
+- Update validators/loaders to prohibit `object.@layer` after cutover window.
+- (Optional) Reorganize `topology/class-modules/**` into `L0..L7` tree.
+- Keep `topology/object-modules/**` domain/plugin-oriented; generate derived layer index/report for audit views.
+- Refresh module index / lock / path-sensitive tests.
 
 ---
 
