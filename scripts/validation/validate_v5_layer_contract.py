@@ -309,6 +309,19 @@ def main() -> int:
                 continue
             errors.append(f"layer-contract.class_layers has unknown class '{class_id}'")
 
+    class_declared_layer: dict[str, str] = {}
+    for class_id, payload in class_payloads.items():
+        declared = payload.get("@layer")
+        if declared is None:
+            continue
+        if not isinstance(declared, str) or not declared:
+            errors.append(f"class '{class_id}' has non-string @layer")
+            continue
+        if declared not in valid_layers:
+            errors.append(f"class '{class_id}' has unknown @layer '{declared}'")
+            continue
+        class_declared_layer[class_id] = declared
+
     object_payloads: dict[str, dict[str, Any]] = {}
     object_class_refs: dict[str, str] = {}
     object_allowed_layers: dict[str, list[str]] = {}
@@ -335,18 +348,26 @@ def main() -> int:
         object_payloads[object_id] = payload
         object_class_refs[object_id] = class_ref
 
+        derived_layer = class_declared_layer.get(class_ref)
         declared_layer = payload.get("@layer")
         if declared_layer is not None:
             if not isinstance(declared_layer, str) or not declared_layer:
                 errors.append(f"{rel_path}: object '{object_id}' has non-string @layer")
             elif declared_layer not in valid_layers:
                 errors.append(f"{rel_path}: object '{object_id}' has unknown @layer '{declared_layer}'")
-            else:
-                object_default_layer[object_id] = declared_layer
+            elif isinstance(derived_layer, str) and derived_layer and declared_layer != derived_layer:
+                errors.append(
+                    f"{rel_path}: object '{object_id}' @layer '{declared_layer}' conflicts with "
+                    f"class '{class_ref}' layer '{derived_layer}'"
+                )
 
         override_layers = _parse_object_layer_override(payload)
         if override_layers is None:
             object_allowed_layers[object_id] = list(class_allowed_layers.get(class_ref, []))
+            if isinstance(derived_layer, str) and derived_layer:
+                object_default_layer[object_id] = derived_layer
+            elif isinstance(declared_layer, str) and declared_layer:
+                object_default_layer[object_id] = declared_layer
             continue
 
         parsed_override = _normalize_layers(
@@ -366,6 +387,8 @@ def main() -> int:
                 f"(class={sorted(class_layers)}, object={sorted(set(parsed_override))})"
             )
         object_allowed_layers[object_id] = parsed_override
+        if object_id not in object_default_layer and isinstance(derived_layer, str) and derived_layer:
+            object_default_layer[object_id] = derived_layer
         if object_id not in object_default_layer and len(parsed_override) == 1:
             object_default_layer[object_id] = parsed_override[0]
 
