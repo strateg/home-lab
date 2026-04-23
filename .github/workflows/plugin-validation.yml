@@ -70,7 +70,7 @@ jobs:
 
       - name: Upload coverage
         if: matrix.python-version == '3.13'
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v6
         with:
           files: ./coverage-api.xml
           flags: plugin-api
@@ -104,7 +104,7 @@ jobs:
         run: task test:plugin-contract
 
       - name: Upload coverage
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v6
         with:
           files: ./coverage-contract.xml
           flags: plugin-contract
@@ -138,7 +138,7 @@ jobs:
         run: task test:plugin-integration
 
       - name: Upload coverage
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v6
         with:
           files: ./coverage-integration.xml
           flags: plugin-integration
