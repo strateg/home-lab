@@ -2,7 +2,6 @@
 @extends: class.network.bridge
 @title: Network Bridge Vmbr0
 @description: Main Proxmox hypervisor bridge
-@layer: L2
 @version: 1.0.0
 
 properties:

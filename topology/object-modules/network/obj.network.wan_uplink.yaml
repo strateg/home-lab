@@ -2,7 +2,6 @@
 @extends: class.network.data_link
 @title: Network WAN Uplink
 @description: WAN uplink channel to external ISP or provider network
-@layer: L2
 @version: 1.0.0
 
 properties:

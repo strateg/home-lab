@@ -1,7 +1,6 @@
 @object: obj.os.linux.generic.x86_64
 @extends: class.os
 @title: OS Linux Generic X86 64
-@layer: L4
 @version: 1.0.0
 
 vendor: generic

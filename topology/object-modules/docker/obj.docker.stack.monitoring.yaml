@@ -2,7 +2,6 @@
 @extends: class.compute.workload.docker.stack
 @title: Monitoring Stack
 @description: Prometheus + Grafana + Alertmanager + Loki observability stack
-@layer: L4
 @version: 1.0.0
 
 properties:

@@ -1,7 +1,6 @@
 @object: obj.os.openwrt.glinet.4x
 @extends: class.os
 @title: OS Openwrt GL.iNet 4x
-@layer: L4
 @version: 1.0.0
 
 vendor: glinet

@@ -1,7 +1,6 @@
 @object: obj.firmware.uefi.generic.x86_64
 @extends: class.firmware
 @title: Firmware UEFI Generic X86 64
-@layer: L1
 @version: 1.0.0
 
 vendor: generic

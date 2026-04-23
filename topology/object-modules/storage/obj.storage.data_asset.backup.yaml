@@ -2,7 +2,6 @@
 @extends: class.storage.data_asset
 @title: Storage Data Asset Backup
 @description: Backup data asset for backup artifacts and dumps
-@layer: L3
 @version: 1.0.0
 
 properties:

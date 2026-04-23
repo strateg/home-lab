@@ -2,7 +2,6 @@
 @extends: class.operations.backup
 @title: Operations Backup PG Dump
 @description: PostgreSQL database dump backup
-@layer: L7
 @version: 1.0.0
 
 properties:

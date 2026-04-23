@@ -2,7 +2,6 @@
 @extends: class.network.qos
 @title: Network QoS WAN Shaping
 @description: WAN traffic shaping profile with queue hierarchy
-@layer: L2
 @version: 1.0.0
 
 properties:

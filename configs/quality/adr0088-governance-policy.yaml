@@ -15,10 +15,8 @@ metadata:
       filename_prefix: obj.
       required_keys:
         - "@title"
-        - "@layer"
       min_coverage:
         "@title": 0.80
-        "@layer": 0.80
 warning_governance:
   allowlist:
     - W7816

@@ -2,7 +2,6 @@
 @extends: class.observability.alert
 @title: Observability Alert Infrastructure
 @description: Infrastructure alerts (router, disk, memory, temperature)
-@layer: L6
 @version: 1.0.0
 
 properties:

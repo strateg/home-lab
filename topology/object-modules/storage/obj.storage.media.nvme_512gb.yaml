@@ -2,7 +2,6 @@
 @extends: class.storage.media
 @title: Storage Media NVMe 512gb
 @description: 512GB M.2 NVMe SSD for high-performance system storage
-@layer: L1
 @version: 1.0.0
 
 properties:

@@ -2,7 +2,6 @@
 @extends: class.storage.data_asset
 @title: Storage Data Asset Config
 @description: Configuration data asset for service configs and state
-@layer: L3
 @version: 1.0.0
 
 properties:

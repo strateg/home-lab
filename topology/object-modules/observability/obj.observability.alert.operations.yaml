@@ -2,7 +2,6 @@
 @extends: class.observability.alert
 @title: Observability Alert Operations
 @description: Operations alerts (backup failed, scheduled tasks)
-@layer: L6
 @version: 1.0.0
 
 properties:

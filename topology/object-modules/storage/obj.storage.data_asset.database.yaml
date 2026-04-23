@@ -2,7 +2,6 @@
 @extends: class.storage.data_asset
 @title: Storage Data Asset Database
 @description: Database data asset for persistent DBMS storage
-@layer: L3
 @version: 1.0.0
 
 properties:

@@ -2,7 +2,6 @@
 @extends: class.network.trust_zone
 @title: Network Trust Zone Untrusted
 @description: External untrusted networks (ISP, Internet, LTE)
-@layer: L2
 @version: 1.0.0
 
 properties:

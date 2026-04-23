@@ -2,7 +2,6 @@
 @extends: class.observability.alert
 @title: Observability Alert Power
 @description: Power alerts (UPS battery, power outage)
-@layer: L6
 @version: 1.0.0
 
 properties:

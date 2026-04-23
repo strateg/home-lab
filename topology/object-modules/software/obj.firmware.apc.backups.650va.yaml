@@ -1,7 +1,6 @@
 @object: obj.firmware.apc.backups.650va
 @extends: class.firmware
 @title: Firmware Apc Backups 650va
-@layer: L1
 @version: 1.0.0
 
 vendor: apc

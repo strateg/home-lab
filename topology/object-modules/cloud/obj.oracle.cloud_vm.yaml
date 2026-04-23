@@ -1,7 +1,6 @@
 @object: obj.oracle.cloud_vm
 @extends: class.compute.workload.vm
 @title: Oracle Cloud VM
-@layer: L4
 @version: 1.0.0
 
 model: Oracle Cloud VM

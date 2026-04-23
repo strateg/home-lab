@@ -2,7 +2,6 @@
 @extends: class.compute.workload.docker.stack
 @title: Network Services Stack
 @description: DNS, reverse proxy, VPN, and MQTT network services
-@layer: L4
 @version: 1.0.0
 
 properties:

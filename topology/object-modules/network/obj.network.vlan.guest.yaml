@@ -2,7 +2,6 @@
 @extends: class.network.vlan
 @title: Network Vlan Guest
 @description: Guest WiFi network (isolated, internet only)
-@layer: L2
 @version: 1.0.0
 
 properties:

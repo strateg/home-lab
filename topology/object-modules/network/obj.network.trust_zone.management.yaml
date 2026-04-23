@@ -2,7 +2,6 @@
 @extends: class.network.trust_zone
 @title: Network Trust Zone Management
 @description: Management zone for infrastructure access
-@layer: L2
 @version: 1.0.0
 
 properties:

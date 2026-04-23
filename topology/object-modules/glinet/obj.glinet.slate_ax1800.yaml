@@ -1,7 +1,6 @@
 @object: obj.glinet.slate_ax1800
 @extends: class.router
 @title: GL.iNet Slate AX (GL-AXT1800)
-@layer: L1
 @version: 1.0.0
 
 vendor: GL.iNet

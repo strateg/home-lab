@@ -1,7 +1,6 @@
 @object: obj.proxmox.ve
 @extends: class.compute.hypervisor.proxmox
 @title: Proxmox Ve
-@layer: L1
 @version: 1.0.0
 
 model: Proxmox VE 9

@@ -2,7 +2,6 @@
 @extends: class.operations.backup
 @title: Operations Backup RClone
 @description: Rclone-based offsite cloud backup
-@layer: L7
 @version: 1.0.0
 
 properties:

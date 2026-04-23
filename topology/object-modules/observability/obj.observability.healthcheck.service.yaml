@@ -2,7 +2,6 @@
 @extends: class.observability.healthcheck
 @title: Observability Healthcheck Service
 @description: Service health monitoring (databases, caches, web apps)
-@layer: L6
 @version: 1.0.0
 
 properties:

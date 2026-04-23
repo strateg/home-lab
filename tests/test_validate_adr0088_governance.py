@@ -57,8 +57,8 @@ def _write_policy(path: Path) -> None:
                     "object_modules": {
                         "root": "topology/object-modules",
                         "filename_prefix": "obj.",
-                        "required_keys": ["@title", "@layer"],
-                        "min_coverage": {"@title": 0.9, "@layer": 0.9},
+                        "required_keys": ["@title"],
+                        "min_coverage": {"@title": 0.9},
                     },
                 }
             },

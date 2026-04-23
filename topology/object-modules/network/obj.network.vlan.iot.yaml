@@ -2,7 +2,6 @@
 @extends: class.network.vlan
 @title: Network Vlan IoT
 @description: IoT network for smart home devices (isolated)
-@layer: L2
 @version: 1.0.0
 
 properties:

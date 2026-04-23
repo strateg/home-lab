@@ -2,7 +2,6 @@
 @extends: class.network.firewall_policy
 @title: Network Firewall Policy Default Deny
 @description: Default deny policy for unsolicited WAN forward traffic (!dstnat)
-@layer: L2
 @version: 1.0.0
 
 properties:

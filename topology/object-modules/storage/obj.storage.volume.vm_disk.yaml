@@ -2,7 +2,6 @@
 @extends: class.storage.volume
 @title: VM Disk Volume
 @description: Generic virtual machine disk volume template (ADR 0087 Phase 4)
-@layer: L3
 @version: 1.0.0
 
 properties:

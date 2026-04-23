@@ -1,7 +1,6 @@
 @object: obj.firmware.openwrt.glinet.4x
 @extends: class.firmware
 @title: Firmware Openwrt GL.iNet 4x
-@layer: L1
 @version: 1.0.0
 
 vendor: glinet

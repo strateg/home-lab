@@ -2,7 +2,6 @@
 @extends: class.observability.healthcheck
 @title: Observability Healthcheck LXC
 @description: LXC container health monitoring
-@layer: L6
 @version: 1.0.0
 
 properties:

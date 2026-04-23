@@ -2,7 +2,6 @@
 @extends: class.network.vlan
 @title: Network Vlan Servers
 @description: Server VLAN for Proxmox LXC and edge devices
-@layer: L2
 @version: 1.0.0
 
 properties:

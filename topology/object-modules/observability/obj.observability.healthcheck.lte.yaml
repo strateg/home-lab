@@ -2,7 +2,6 @@
 @extends: class.observability.healthcheck
 @title: Observability Healthcheck LTE
 @description: LTE/mobile failover monitoring
-@layer: L6
 @version: 1.0.0
 
 properties:

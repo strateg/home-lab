@@ -1,7 +1,6 @@
 @object: obj.pdu.generic.managed
 @extends: class.power.pdu
 @title: PDU Generic Managed
-@layer: L1
 @version: 1.0.0
 
 model: Generic Managed PDU

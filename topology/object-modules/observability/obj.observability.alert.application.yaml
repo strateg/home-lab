@@ -2,7 +2,6 @@
 @extends: class.observability.alert
 @title: Observability Alert Application
 @description: Application alerts (service down, errors)
-@layer: L6
 @version: 1.0.0
 
 properties:
