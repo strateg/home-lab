@@ -51,7 +51,7 @@ def _publish_rows(ctx: PluginContext, rows: list[dict]) -> None:
     publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", rows)
 
 
-def test_network_ip_allocation_host_os_refs_validator_accepts_valid_host_os_ref():
+def test_network_ip_allocation_host_os_refs_validator_rejects_host_os_ref_in_mode_h():
     registry = _registry()
     ctx = _context()
     _publish_rows(
@@ -71,11 +71,11 @@ def test_network_ip_allocation_host_os_refs_validator_accepts_valid_host_os_ref(
     )
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
-    assert result.status == PluginStatus.SUCCESS
-    assert result.diagnostics == []
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7827" and "forbidden in Mode H" in diag.message for diag in result.diagnostics)
 
 
-def test_network_ip_allocation_host_os_refs_validator_rejects_unknown_host_os_ref():
+def test_network_ip_allocation_host_os_refs_validator_rejects_unknown_host_os_ref_by_forbidden_rule():
     registry = _registry()
     ctx = _context()
     _publish_rows(
@@ -99,7 +99,7 @@ def test_network_ip_allocation_host_os_refs_validator_rejects_unknown_host_os_re
     assert any(diag.code == "E7827" for diag in result.diagnostics)
 
 
-def test_network_ip_allocation_host_os_refs_validator_warns_on_device_ref_without_host_os_ref():
+def test_network_ip_allocation_host_os_refs_validator_accepts_device_ref_without_host_os_ref_mode_h():
     registry = _registry()
     ctx = _context()
     _publish_rows(
@@ -116,8 +116,8 @@ def test_network_ip_allocation_host_os_refs_validator_warns_on_device_ref_withou
     )
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
-    assert result.status == PluginStatus.PARTIAL
-    assert any(diag.code == "W7828" for diag in result.diagnostics)
+    assert result.status == PluginStatus.SUCCESS
+    assert result.diagnostics == []
 
 
 def test_network_ip_allocation_host_os_refs_validator_requires_compiler_rows():
@@ -169,7 +169,7 @@ def test_network_ip_allocation_host_os_refs_execute_stage_requires_committed_nor
     assert any(diag.code == "E8003" for diag in results[0].diagnostics)
 
 
-def test_network_ip_allocation_host_os_refs_validator_requires_host_or_device_ref():
+def test_network_ip_allocation_host_os_refs_validator_requires_device_ref():
     registry = _registry()
     ctx = _context()
     _publish_rows(
@@ -208,8 +208,8 @@ def test_network_ip_allocation_host_os_refs_validator_supports_top_level_payload
     )
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
-    assert result.status == PluginStatus.PARTIAL
-    assert any(diag.code == "W7828" for diag in result.diagnostics)
+    assert result.status == PluginStatus.SUCCESS
+    assert result.diagnostics == []
 
 
 def test_network_ip_allocation_host_os_refs_validator_supports_non_vlan_legacy_shape():
@@ -230,5 +230,5 @@ def test_network_ip_allocation_host_os_refs_validator_supports_non_vlan_legacy_s
     )
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
-    assert result.status == PluginStatus.SUCCESS
-    assert result.diagnostics == []
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7827" and "forbidden in Mode H" in diag.message for diag in result.diagnostics)

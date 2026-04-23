@@ -883,7 +883,7 @@ plugins:
   - from_plugin: base.compiler.instance_rows
     key: normalized_rows
     required: true
-  description: Validates network ip_allocations host_os_ref/device_ref consistency.
+  description: Enforces Mode H network allocation ownership (device_ref required; host_os_ref forbidden).
   execution_mode: subinterpreter
 - id: base.validator.network_vlan_zone_consistency
   kind: validator_json

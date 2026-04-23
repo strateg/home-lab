@@ -1,6 +1,6 @@
 # ADR 0101: Layer Harmonization for OS Runtime and Foundation Boundaries
 
-**Status:** Proposed
+**Status:** Implemented (Mode H active; L2 OS-coupling removed from VLAN allocations)
 **Date:** 2026-04-23
 **Depends on:** ADR 0062, ADR 0064, ADR 0071, ADR 0088
 
@@ -35,9 +35,9 @@ Adopt a harmonized layer contract with explicit concern boundaries:
 3. **Cloud VM instances follow workload placement**
    - Instances extending `class.compute.workload.vm` are authored in `L4`.
 
-4. **`L2` network allocations must not depend on OS placement**
-   - Remove `host_os_ref` from `L2` VLAN allocation authoring.
-   - Use endpoint references at device/workload level.
+4. **`L2` network allocations in Mode H**
+   - `host_os_ref` is removed from canonical VLAN allocation authoring and treated as forbidden field.
+   - `device_ref`/endpoint ownership is the canonical binding for allocation intent.
 
 5. **Reference hygiene is required**
    - Normalize storage references to canonical names (`inst.storage.pool.*`).
@@ -67,9 +67,9 @@ Migration is required for:
 - `topology/layer-contract.yaml` (`group_layers`, `class_layers`)
 - `topology/class-modules/software/class.os.yaml`
 - all `topology/object-modules/software/obj.os.*.yaml`
-- all project OS instances currently under `L1-foundation/os/`
-- cloud VM instance placement authored under `L1`
-- `L2` VLAN instances with `host_os_ref`
+- all project OS instances moved to `L4-platform/os/` sharded paths
+- cloud VM instance placement moved to `L4-platform/vm/`
+- `L2` VLAN allocations migrated to Mode H device ownership semantics
 - `L7` backup refs using non-canonical pool instance IDs
 
 ---
@@ -85,6 +85,7 @@ Minimum gates after migration implementation:
 Recommended integrity checks:
 
 - no `obj.os.*` or `inst.os.*` in `L1`
+- no governance warnings/errors requiring `host_os_ref` for valid `device_ref` allocations
 - no `host_os_ref` in `L2` VLAN instance files
 - no `inst.pool.*` legacy storage refs
 
@@ -95,6 +96,6 @@ Recommended integrity checks:
 - `topology/layer-contract.yaml`
 - `topology/class-modules/software/class.os.yaml`
 - `topology/object-modules/software/obj.os.*.yaml`
-- `projects/home-lab/topology/instances/L1-foundation/os/*.yaml`
+- `projects/home-lab/topology/instances/L4-platform/os/**/*.yaml`
 - `projects/home-lab/topology/instances/L2-network/network/inst.vlan.*.yaml`
 - `projects/home-lab/topology/instances/L7-operations/operations/backup-*.yaml`

@@ -10,7 +10,6 @@ trust_zone_ref: inst.trust_zone.user
 dhcp_range: 192.168.88.10-192.168.88.254
 ip_allocations:
   - device_ref: rtr-mikrotik-chateau
-    host_os_ref: inst.os.routeros.7.arm64
     ip: 192.168.88.1/24
     purpose: router management and local service plane
 reserved_ranges:

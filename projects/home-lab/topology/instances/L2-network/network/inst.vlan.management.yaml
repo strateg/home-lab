@@ -11,6 +11,5 @@ trust_zone_ref: inst.trust_zone.management
 
 ip_allocations:
   - device_ref: srv-gamayun
-    host_os_ref: inst.os.proxmox.ve.9
     ip: 10.0.99.1/24
     purpose: hypervisor management

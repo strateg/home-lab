@@ -11,6 +11,5 @@ trust_zone_ref: inst.trust_zone.servers
 
 ip_allocations:
   - device_ref: srv-orangepi5
-    host_os_ref: inst.os.debian.12.arm64.edge
     ip: 10.0.30.5/24
     purpose: docker host
