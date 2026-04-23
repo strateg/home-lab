@@ -78,6 +78,19 @@ def _write_instance(file_path: Path, *, instance: str, group: str, layer: str | 
 
 def _write_object(file_path: Path, *, object_id: str, layer: str) -> None:
     file_path.parent.mkdir(parents=True, exist_ok=True)
+    class_file = file_path.parents[1] / "class-modules" / "class.test.sample.yaml"
+    class_file.parent.mkdir(parents=True, exist_ok=True)
+    class_file.write_text(
+        "\n".join(
+            (
+                "@class: class.test.sample",
+                f"@layer: {layer}",
+                "@version: 1.0.0",
+            )
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     file_path.write_text(
         "\n".join(
             (

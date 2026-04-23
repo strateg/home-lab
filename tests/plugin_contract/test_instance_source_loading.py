@@ -81,6 +81,11 @@ def _write_class(path: Path, *, class_id: str, layer: str) -> None:
 
 def _write_object(path: Path, *, object_id: str, class_ref: str = "class.test", layer: str | None = None) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    if layer is not None:
+        repo_root = path.parents[1]
+        class_file = repo_root / "classes" / f"{class_ref}.yaml"
+        if not class_file.exists():
+            _write_class(class_file, class_id=class_ref, layer=layer)
     payload = {
         "@version": "1.0.0",
         "@object": object_id,

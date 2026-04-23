@@ -351,23 +351,16 @@ def main() -> int:
         derived_layer = class_declared_layer.get(class_ref)
         declared_layer = payload.get("@layer")
         if declared_layer is not None:
-            if not isinstance(declared_layer, str) or not declared_layer:
-                errors.append(f"{rel_path}: object '{object_id}' has non-string @layer")
-            elif declared_layer not in valid_layers:
-                errors.append(f"{rel_path}: object '{object_id}' has unknown @layer '{declared_layer}'")
-            elif isinstance(derived_layer, str) and derived_layer and declared_layer != derived_layer:
-                errors.append(
-                    f"{rel_path}: object '{object_id}' @layer '{declared_layer}' conflicts with "
-                    f"class '{class_ref}' layer '{derived_layer}'"
-                )
+            errors.append(
+                f"{rel_path}: object '{object_id}' must not declare @layer "
+                "(layer is derived from class via @extends)"
+            )
 
         override_layers = _parse_object_layer_override(payload)
         if override_layers is None:
             object_allowed_layers[object_id] = list(class_allowed_layers.get(class_ref, []))
             if isinstance(derived_layer, str) and derived_layer:
                 object_default_layer[object_id] = derived_layer
-            elif isinstance(declared_layer, str) and declared_layer:
-                object_default_layer[object_id] = declared_layer
             continue
 
         parsed_override = _normalize_layers(

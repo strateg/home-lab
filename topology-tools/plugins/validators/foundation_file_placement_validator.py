@@ -282,7 +282,7 @@ class FoundationFilePlacementValidator(ValidatorYamlPlugin):
             object_modules_root=repo_root / "topology" / "object-modules",
             semantic_registry=semantic_registry,
             class_layer_map=class_layer_map,
-            allow_object_layer_fallback=True,
+            allow_object_layer_fallback=False,
         )
 
     @staticmethod
