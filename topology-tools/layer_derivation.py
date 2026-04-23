@@ -53,7 +53,6 @@ def load_object_layer_map(
     object_modules_root: Path,
     semantic_registry: SemanticKeywordRegistry,
     class_layer_map: dict[str, str] | None = None,
-    allow_object_layer_fallback: bool = True,
 ) -> dict[str, str]:
     object_layer_map: dict[str, str] = {}
     class_layers = class_layer_map or {}
@@ -76,20 +75,10 @@ def load_object_layer_map(
             context="entity_manifest",
             token="parent_ref",
         )
-        layer_resolution = resolve_semantic_value(
-            object_payload,
-            registry=semantic_registry,
-            context="entity_manifest",
-            token="entity_layer",
-        )
         object_id = object_resolution.value if object_resolution.found else None
         class_ref = class_ref_resolution.value if class_ref_resolution.found else None
         derived_layer = class_layers.get(class_ref) if isinstance(class_ref, str) and class_ref else None
-        object_layer = layer_resolution.value if layer_resolution.found else None
         resolved_layer = derived_layer if isinstance(derived_layer, str) and derived_layer else None
-        if resolved_layer is None and allow_object_layer_fallback and isinstance(object_layer, str) and object_layer:
-            resolved_layer = object_layer
         if isinstance(object_id, str) and object_id and isinstance(resolved_layer, str) and resolved_layer:
             object_layer_map[object_id] = resolved_layer
     return object_layer_map
-

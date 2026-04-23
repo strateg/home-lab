@@ -195,7 +195,6 @@ def _load_sharded_instance_payload(
         object_modules_root=object_modules_root,
         semantic_registry=semantic_registry,
         class_layer_map=class_layer_map,
-        allow_object_layer_fallback=False,
     )
     shard_files = sorted(
         (path for path in instances_root.rglob("*.yaml") if path.is_file()),

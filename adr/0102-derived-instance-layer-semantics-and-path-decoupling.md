@@ -1,6 +1,6 @@
 # ADR 0102: Derived Instance Layer Semantics and Path-Decoupled Instance Layout
 
-**Status:** Accepted (Implementation Ready)
+**Status:** Implemented
 **Date:** 2026-04-23
 **Depends on:** ADR 0062, ADR 0071, ADR 0088, ADR 0101
 
@@ -213,6 +213,21 @@ Adopt **fully derived layer semantics** from `class -> object -> instance`:
 
 - Emergency rollback may temporarily re-enable `object.@layer` fallback without reverting class-directory migration.
 - Rollback does not change canonical policy in this ADR (class remains source-of-truth); it only restores compatibility behavior in tooling.
+
+---
+
+## Implementation Status
+
+- Phase A: completed
+- Phase B: completed
+- Phase C: completed
+
+Evidence:
+- targeted contract/integration tests for derivation and strict cutover
+- `task framework:lock-refresh`
+- `task validate:default`
+- `task framework:strict`
+- `task validate:adr-consistency`
 
 ---
 
