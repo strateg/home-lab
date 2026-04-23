@@ -131,55 +131,88 @@ Adopt **fully derived layer semantics** from `class -> object -> instance`:
 
 ---
 
-## Migration Scope (Phase A)
+## Implementation Plan (Phase A/B/C)
 
+### Phase A — Runtime/Validator semantic alignment (compatibility mode)
+
+**Scope**
 - `topology-tools/compiler_runtime.py`
-- `scripts/validation/validate_v5_layer_contract.py`
 - `topology-tools/plugins/validators/foundation_file_placement_validator.py`
-- `topology-tools/plugins/compilers/instance_rows_compiler.py` (shape expectations)
-- related plugin contract/integration tests
+- `scripts/validation/validate_v5_layer_contract.py`
+- `topology-tools/plugins/compilers/instance_rows_compiler.py` (row-shape compatibility)
+- shared derivation helper(s) and related tests
 
-## Migration Scope (Phase B — class/object canonicalization)
+**Required behavior**
+- Single derivation chain in all execution paths:
+  `instance.@extends -> object.@extends -> class.@layer`.
+- `instance.@layer` is optional; if present, strict-match with derived layer.
+- `object.@layer` allowed only as transitional fallback; mismatch with class-derived layer is violation.
+- Path is non-authoritative for layer identity.
 
-- Remove `@layer` from object modules and enforce derivation from `@extends` class.
-- Update validators/loaders to prohibit `object.@layer` after cutover window.
-- Reorganize `topology/class-modules/**` into layer tree aligned with instance directory naming:
-  `L0-meta`, `L1-foundation`, `L2-network`, `L3-data`, `L4-platform`,
-  `L5-application`, `L6-observability`, `L7-operations`.
-- Keep `topology/object-modules/**` domain/plugin-oriented; generate derived layer index/report for audit views.
-- Refresh module index / lock / path-sensitive tests.
+**Gate criteria (must pass)**
+1. Runtime and validators produce consistent layer decisions for identical fixtures.
+2. No mandatory dependency on instance path bucket for layer resolution.
+3. Contract + integration tests cover:
+   - missing `instance.@layer` + valid class chain (PASS),
+   - explicit `instance.@layer` mismatch (FAIL),
+   - `object.@layer` mismatch vs class-derived layer (FAIL).
 
----
-
-## Implementation Readiness Contract
-
-1. **Гейт совместимости**
-   - На переходный период `instance.@layer` допускается как optional.
-   - При наличии `instance.@layer` обязателен strict match с `object.@layer`.
-
-2. **Единое правило вывода**
-   - Во всех каналах проверки слой instance вычисляется одинаково:
-     `instance.@extends -> object.@layer`.
-
-3. **Критерии завершения реализации**
-   - Нет обязательности `@layer` в instance при наличии валидного `@extends`.
-   - `object.@layer` полностью удалён из object-модулей и запрещён контрактом.
-   - Все layer-checks используют derived layer from class как canonical.
-   - Валидации/тесты/strict-пайплайн зелёные.
-
-4. **Rollback boundary**
-   - Возможен возврат к mandatory `instance.@layer` без изменения class/object контрактов.
-   - Path-ориентированные проверки остаются совместимыми как warning-only fallback на период миграции.
+**Test evidence (attach in PR)**
+- Targeted pytest output for affected suites.
+- `task validate:default` output.
+- `task framework:strict` output.
 
 ---
 
-## Validation
+### Phase B — Canonicalization and structure migration
 
-- `.venv/bin/python -m pytest -q -o addopts= <targeted test set>`
-- `task framework:lock-refresh`
-- `task framework:strict`
-- `task validate:default`
-- `task validate:adr-consistency`
+**Scope**
+- Move class files into required layer directories:
+  `L0-meta`, `L1-foundation`, `L2-network`, `L3-data`,
+  `L4-platform`, `L5-application`, `L6-observability`, `L7-operations`.
+- Keep `topology/object-modules/**` domain/plugin-oriented.
+- Remove redundant `instance.@layer` where safely derivable.
+- Prepare/execute removal of `object.@layer` from object modules.
+- Refresh module index / framework lock / path-sensitive tests.
+
+**Gate criteria (must pass)**
+1. All class modules reside in the directory matching canonical `class.@layer`.
+2. Module loading/compilation remains deterministic after moves.
+3. No functional regression in generators/validators caused by path migration.
+
+**Test evidence (attach in PR)**
+- File-move map (old path -> new path) in PR description.
+- `task framework:lock-refresh` output.
+- `task validate:default` output.
+- `task framework:strict` output.
+
+---
+
+### Phase C — Strict cutover enforcement
+
+**Scope**
+- Enforce error-level prohibition of `object.@layer`.
+- Remove fallback reads of `object.@layer` from runtime/validators.
+- Keep rollback playbook and temporary compatibility branch/tag.
+
+**Gate criteria (must pass)**
+1. `object.@layer` in any object module fails validation with deterministic error code.
+2. Effective layer resolution uses only class-derived chain.
+3. All quality gates green on full topology.
+
+**Test evidence (attach in PR)**
+- Negative test evidence showing `object.@layer` rejection.
+- Full validation evidence:
+  - `task validate:default`
+  - `task framework:strict`
+  - `task validate:adr-consistency`
+
+---
+
+## Rollback boundary
+
+- Emergency rollback may temporarily re-enable `object.@layer` fallback without reverting class-directory migration.
+- Rollback does not change canonical policy in this ADR (class remains source-of-truth); it only restores compatibility behavior in tooling.
 
 ---
 
