@@ -10,6 +10,7 @@ from typing import Any, Callable
 
 import yaml
 from identifier_policy import contains_unsafe_identifier_chars
+from layer_derivation import load_class_layer_map, load_object_layer_map
 from semantic_keywords import SemanticKeywordRegistry, load_semantic_keyword_registry, resolve_semantic_value
 from yaml_loader import load_yaml_file
 
@@ -186,68 +187,16 @@ def _load_sharded_instance_payload(
 
     grouped_rows: dict[str, list[dict[str, Any]]] = {}
     seen_instances: dict[str, Path] = {}
-    class_layer_map: dict[str, str] = {}
-    if class_modules_root.exists() and class_modules_root.is_dir():
-        class_files = sorted(path for path in class_modules_root.rglob("*.yaml") if path.is_file())
-        for class_file in class_files:
-            try:
-                class_payload = load_yaml_file(class_file) or {}
-            except (OSError, yaml.YAMLError):
-                continue
-            if not isinstance(class_payload, dict):
-                continue
-            class_resolution = resolve_semantic_value(
-                class_payload,
-                registry=semantic_registry,
-                context="entity_manifest",
-                token="class_id",
-            )
-            layer_resolution = resolve_semantic_value(
-                class_payload,
-                registry=semantic_registry,
-                context="entity_manifest",
-                token="entity_layer",
-            )
-            class_id = class_resolution.value if class_resolution.found else None
-            class_layer = layer_resolution.value if layer_resolution.found else None
-            if isinstance(class_id, str) and class_id and isinstance(class_layer, str) and class_layer:
-                class_layer_map[class_id] = class_layer
-
-    object_layer_map: dict[str, str] = {}
-    if object_modules_root.exists() and object_modules_root.is_dir():
-        object_files = sorted(path for path in object_modules_root.rglob("*.yaml") if path.is_file())
-        for object_file in object_files:
-            try:
-                object_payload = load_yaml_file(object_file) or {}
-            except (OSError, yaml.YAMLError):
-                continue
-            if not isinstance(object_payload, dict):
-                continue
-            object_resolution = resolve_semantic_value(
-                object_payload,
-                registry=semantic_registry,
-                context="entity_manifest",
-                token="object_id",
-            )
-            class_ref_resolution = resolve_semantic_value(
-                object_payload,
-                registry=semantic_registry,
-                context="entity_manifest",
-                token="parent_ref",
-            )
-            layer_resolution = resolve_semantic_value(
-                object_payload,
-                registry=semantic_registry,
-                context="entity_manifest",
-                token="entity_layer",
-            )
-            object_id = object_resolution.value if object_resolution.found else None
-            class_ref = class_ref_resolution.value if class_ref_resolution.found else None
-            derived_layer = class_layer_map.get(class_ref) if isinstance(class_ref, str) and class_ref else None
-            object_layer = layer_resolution.value if layer_resolution.found else None
-            resolved_layer = derived_layer if isinstance(derived_layer, str) and derived_layer else object_layer
-            if isinstance(object_id, str) and object_id and isinstance(resolved_layer, str) and resolved_layer:
-                object_layer_map[object_id] = resolved_layer
+    class_layer_map = load_class_layer_map(
+        class_modules_root=class_modules_root,
+        semantic_registry=semantic_registry,
+    )
+    object_layer_map = load_object_layer_map(
+        object_modules_root=object_modules_root,
+        semantic_registry=semantic_registry,
+        class_layer_map=class_layer_map,
+        allow_object_layer_fallback=True,
+    )
     shard_files = sorted(
         (path for path in instances_root.rglob("*.yaml") if path.is_file()),
         key=lambda item: item.relative_to(instances_root).as_posix().casefold(),

@@ -7,6 +7,8 @@ from typing import Any
 
 import yaml
 from kernel.plugin_base import PluginContext, PluginResult, Stage, ValidatorYamlPlugin
+from layer_derivation import load_class_layer_map, load_object_layer_map
+from semantic_keywords import load_semantic_keyword_registry
 from yaml_loader import load_yaml_file
 
 
@@ -270,25 +272,18 @@ class FoundationFilePlacementValidator(ValidatorYamlPlugin):
         return Path.cwd().resolve()
 
     def _load_object_layer_map(self, *, ctx: PluginContext, project_root: Path) -> dict[str, str]:
-        object_modules_root = self._resolve_repo_root(ctx=ctx, project_root=project_root) / "topology" / "object-modules"
-        if not object_modules_root.exists() or not object_modules_root.is_dir():
-            return {}
-        object_layer_map: dict[str, str] = {}
-        for file_path in sorted(path for path in object_modules_root.rglob("obj.*.yaml") if path.is_file()):
-            payload = self._load_payload(file_path=file_path)
-            if not isinstance(payload, dict):
-                continue
-            object_id = payload.get("@object")
-            layer = payload.get("@layer")
-            if (
-                isinstance(object_id, str)
-                and object_id
-                and isinstance(layer, str)
-                and layer
-                and object_id not in object_layer_map
-            ):
-                object_layer_map[object_id] = layer
-        return object_layer_map
+        repo_root = self._resolve_repo_root(ctx=ctx, project_root=project_root)
+        semantic_registry = load_semantic_keyword_registry(repo_root / "topology" / "semantic-keywords.yaml")
+        class_layer_map = load_class_layer_map(
+            class_modules_root=repo_root / "topology" / "class-modules",
+            semantic_registry=semantic_registry,
+        )
+        return load_object_layer_map(
+            object_modules_root=repo_root / "topology" / "object-modules",
+            semantic_registry=semantic_registry,
+            class_layer_map=class_layer_map,
+            allow_object_layer_fallback=True,
+        )
 
     @staticmethod
     def _load_payload(*, file_path: Path) -> dict[str, Any] | None:
