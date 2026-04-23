@@ -157,6 +157,7 @@ def _load_sharded_instance_payload(
     mode: str,
     semantic_registry: SemanticKeywordRegistry,
     group_layer_map: dict[str, str],
+    class_modules_root: Path,
     object_modules_root: Path,
     add_diag: Callable[..., None],
     repo_root: Path,
@@ -185,6 +186,33 @@ def _load_sharded_instance_payload(
 
     grouped_rows: dict[str, list[dict[str, Any]]] = {}
     seen_instances: dict[str, Path] = {}
+    class_layer_map: dict[str, str] = {}
+    if class_modules_root.exists() and class_modules_root.is_dir():
+        class_files = sorted(path for path in class_modules_root.rglob("*.yaml") if path.is_file())
+        for class_file in class_files:
+            try:
+                class_payload = load_yaml_file(class_file) or {}
+            except (OSError, yaml.YAMLError):
+                continue
+            if not isinstance(class_payload, dict):
+                continue
+            class_resolution = resolve_semantic_value(
+                class_payload,
+                registry=semantic_registry,
+                context="entity_manifest",
+                token="class_id",
+            )
+            layer_resolution = resolve_semantic_value(
+                class_payload,
+                registry=semantic_registry,
+                context="entity_manifest",
+                token="entity_layer",
+            )
+            class_id = class_resolution.value if class_resolution.found else None
+            class_layer = layer_resolution.value if layer_resolution.found else None
+            if isinstance(class_id, str) and class_id and isinstance(class_layer, str) and class_layer:
+                class_layer_map[class_id] = class_layer
+
     object_layer_map: dict[str, str] = {}
     if object_modules_root.exists() and object_modules_root.is_dir():
         object_files = sorted(path for path in object_modules_root.rglob("*.yaml") if path.is_file())
@@ -201,6 +229,12 @@ def _load_sharded_instance_payload(
                 context="entity_manifest",
                 token="object_id",
             )
+            class_ref_resolution = resolve_semantic_value(
+                object_payload,
+                registry=semantic_registry,
+                context="entity_manifest",
+                token="parent_ref",
+            )
             layer_resolution = resolve_semantic_value(
                 object_payload,
                 registry=semantic_registry,
@@ -208,9 +242,12 @@ def _load_sharded_instance_payload(
                 token="entity_layer",
             )
             object_id = object_resolution.value if object_resolution.found else None
+            class_ref = class_ref_resolution.value if class_ref_resolution.found else None
+            derived_layer = class_layer_map.get(class_ref) if isinstance(class_ref, str) and class_ref else None
             object_layer = layer_resolution.value if layer_resolution.found else None
-            if isinstance(object_id, str) and object_id and isinstance(object_layer, str) and object_layer:
-                object_layer_map[object_id] = object_layer
+            resolved_layer = derived_layer if isinstance(derived_layer, str) and derived_layer else object_layer
+            if isinstance(object_id, str) and object_id and isinstance(resolved_layer, str) and resolved_layer:
+                object_layer_map[object_id] = resolved_layer
     shard_files = sorted(
         (path for path in instances_root.rglob("*.yaml") if path.is_file()),
         key=lambda item: item.relative_to(instances_root).as_posix().casefold(),
@@ -655,6 +692,7 @@ def load_core_compile_inputs(
         mode=resolved_instances_mode,
         semantic_registry=semantic_registry,
         group_layer_map=group_layer_map,
+        class_modules_root=paths.class_modules_root,
         object_modules_root=paths.object_modules_root,
         add_diag=add_diag,
         repo_root=repo_root,

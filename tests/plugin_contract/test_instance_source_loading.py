@@ -64,16 +64,33 @@ def _resolve_bundle(
     )
 
 
-def _write_object(path: Path, *, object_id: str, layer: str) -> None:
+def _write_class(path: Path, *, class_id: str, layer: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         yaml.safe_dump(
             {
                 "@version": "1.0.0",
-                "@object": object_id,
-                "@extends": "class.test",
+                "@class": class_id,
                 "@layer": layer,
             },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+
+
+def _write_object(path: Path, *, object_id: str, class_ref: str = "class.test", layer: str | None = None) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "@version": "1.0.0",
+        "@object": object_id,
+        "@extends": class_ref,
+    }
+    if layer is not None:
+        payload["@layer"] = layer
+    path.write_text(
+        yaml.safe_dump(
+            payload,
             sort_keys=False,
         ),
         encoding="utf-8",
@@ -266,6 +283,60 @@ def test_load_core_compile_inputs_derives_layer_from_object_when_missing(tmp_pat
     layer_contract_path = tmp_path / "layer-contract.yaml"
     _write_layer_contract(layer_contract_path)
     _write_object(tmp_path / "objects" / "obj.shard.router.yaml", object_id="obj.shard.router", layer="L1")
+
+    project_root = tmp_path / "projects" / "test"
+    shard_root = project_root / "instances"
+    shard_file = shard_root / "L1-foundation" / "devices" / "inst.router.a.yaml"
+    shard_file.parent.mkdir(parents=True, exist_ok=True)
+    shard_file.write_text(
+        yaml.safe_dump(
+            {
+                "@version": "1.0.0",
+                "@instance": "inst.router.a",
+                "group": "devices",
+                "@extends": "obj.shard.router",
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+
+    bundle = _resolve_bundle(
+        tmp_path,
+        layer_contract_path=layer_contract_path,
+        instances_root="instances",
+    )
+
+    diagnostics: list[dict[str, str]] = []
+
+    def _add_diag(**kwargs):
+        diagnostics.append(kwargs)
+
+    inputs = load_core_compile_inputs(
+        paths=bundle,
+        instances_mode="sharded-only",
+        load_yaml=_load_yaml,
+        add_diag=_add_diag,
+        repo_root=tmp_path,
+    )
+
+    assert isinstance(inputs.instance_payload, dict)
+    rows = inputs.instance_payload["instance_bindings"]["devices"]
+    assert len(rows) == 1
+    assert rows[0]["layer"] == "L1"
+    assert not any(item.get("severity") == "error" for item in diagnostics)
+
+
+def test_load_core_compile_inputs_derives_layer_from_class_when_object_has_no_layer(tmp_path: Path) -> None:
+    layer_contract_path = tmp_path / "layer-contract.yaml"
+    _write_layer_contract(layer_contract_path)
+    _write_class(tmp_path / "classes" / "class.test.yaml", class_id="class.test", layer="L1")
+    _write_object(
+        tmp_path / "objects" / "obj.shard.router.yaml",
+        object_id="obj.shard.router",
+        class_ref="class.test",
+        layer=None,
+    )
 
     project_root = tmp_path / "projects" / "test"
     shard_root = project_root / "instances"
