@@ -1,6 +1,6 @@
 # ADR 0102: Derived Instance Layer Semantics and Path-Decoupled Instance Layout
 
-**Status:** Proposed
+**Status:** Accepted (Implementation Ready)
 **Date:** 2026-04-23
 **Depends on:** ADR 0062, ADR 0071, ADR 0088, ADR 0101
 
@@ -57,6 +57,33 @@ Adopt derived layer semantics for instances:
 
 ---
 
+## SWOT Analysis
+
+### Strengths
+
+- Устраняет дублирование `@layer` на уровне instance.
+- Делает `class -> object -> instance` единственным семантическим источником слоя.
+- Упрощает дальнейшую эволюцию структуры `instances/` без перепривязки к `Lx-*` директориям.
+
+### Weaknesses
+
+- Повышается чувствительность к качеству object-модулей (`@layer` в object теперь критичен).
+- Появляется дополнительная логика вывода (derivation), которую нужно поддерживать в нескольких валидаторах.
+
+### Opportunities
+
+- Перейти к ownership/domain-ориентированной структуре instance-файлов.
+- Централизовать проверки слоёв в семантическом контракте вместо path-правил.
+- Снизить когнитивную нагрузку при добавлении новых instance.
+
+### Threats
+
+- Расхождение поведения между runtime loader и независимыми validation-скриптами.
+- Частичная миграция может создать «серую зону» смешанных правил.
+- Ошибки в object-layer mapping могут привести к массовым ложным диагностическим ошибкам.
+
+---
+
 ## Migration Scope (Phase A)
 
 - `topology-tools/compiler_runtime.py`
@@ -64,6 +91,27 @@ Adopt derived layer semantics for instances:
 - `topology-tools/plugins/validators/foundation_file_placement_validator.py`
 - `topology-tools/plugins/compilers/instance_rows_compiler.py` (shape expectations)
 - related plugin contract/integration tests
+
+---
+
+## Implementation Readiness Contract
+
+1. **Гейт совместимости**
+   - На переходный период `instance.@layer` допускается как optional.
+   - При наличии `instance.@layer` обязателен strict match с `object.@layer`.
+
+2. **Единое правило вывода**
+   - Во всех каналах проверки слой instance вычисляется одинаково:
+     `instance.@extends -> object.@layer`.
+
+3. **Критерии завершения реализации**
+   - Нет обязательности `@layer` в instance при наличии валидного `@extends`.
+   - Все layer-checks используют derived layer как canonical.
+   - Валидации/тесты/strict-пайплайн зелёные.
+
+4. **Rollback boundary**
+   - Возможен возврат к mandatory `instance.@layer` без изменения class/object контрактов.
+   - Path-ориентированные проверки остаются совместимыми как warning-only fallback на период миграции.
 
 ---
 

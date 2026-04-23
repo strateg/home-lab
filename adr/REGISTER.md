@@ -102,4 +102,4 @@
 | [0099](0099-refactor-test-architecture-for-snapshot-envelope-pipeline-runtime.md) | Refactor Test Architecture for Snapshot/Envelope Pipeline Runtime | Implemented | 2026-04-15 | [0097](0097-subinterpreter-parallel-plugin-execution.md) | - |
 | [0100](0100-unified-topology-graph-generator-and-filter-contract.md) | Unified Topology Graph Generator and Filter Contract | Implemented | 2026-04-22 | - | - |
 | [0101](0101-layer-harmonization-os-runtime-and-foundation-boundaries.md) | Layer Harmonization for OS Runtime and Foundation Boundaries | Implemented (Mode H active) | 2026-04-23 | - | - |
-| [0102](0102-derived-instance-layer-semantics-and-path-decoupling.md) | Derived Instance Layer Semantics and Path-Decoupled Instance Layout | Proposed | 2026-04-23 | - | - |
+| [0102](0102-derived-instance-layer-semantics-and-path-decoupling.md) | Derived Instance Layer Semantics and Path-Decoupled Instance Layout | Accepted (Implementation Ready) | 2026-04-23 | - | - |
