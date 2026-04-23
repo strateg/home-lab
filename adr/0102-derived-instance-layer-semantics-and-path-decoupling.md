@@ -46,9 +46,11 @@ Adopt **fully derived layer semantics** from `class -> object -> instance`:
    - Layer correctness checks must use derived layer and class/object contracts.
    - Path layout is not the primary authority for layer identity.
 
-5. **Layer-oriented source-tree placement only for class modules**
-   - `topology/class-modules/` may be reorganized to top-level layer buckets: `L0`…`L7`.
-   - This is optional but recommended because class is the canonical layer source.
+5. **Layer-oriented source-tree placement for class modules (required)**
+   - `topology/class-modules/` must be reorganized by layer buckets using the same names as instance layer directories:
+     - `L0-meta`, `L1-foundation`, `L2-network`, `L3-data`,
+     - `L4-platform`, `L5-application`, `L6-observability`, `L7-operations`.
+   - Class files must be placed under the directory that matches canonical `class.@layer`.
 
 6. **Object modules stay domain/plugin-oriented**
    - `topology/object-modules/` keeps domain/plugin-centric layout (no mandatory `L0`…`L7` path contract).
@@ -57,6 +59,30 @@ Adopt **fully derived layer semantics** from `class -> object -> instance`:
 7. **Instances are path-decoupled**
    - `projects/*/topology/instances/` may be organized by operational/domain ownership (host/stack/team/etc).
    - Instance placement no longer обязано mirror `Lx-*` buckets.
+
+8. **Path non-authority rule**
+   - Directory path must not be used as canonical source for layer resolution.
+   - Path-based checks are policy/hygiene checks only and cannot override semantic derivation.
+
+---
+
+## Transition and Cutover Policy
+
+### Transitional compatibility window (Phase A/B)
+
+- `instance.@layer`: optional.
+  - If present, it must equal derived layer (`instance -> object -> class`).
+- `object.@layer`: deprecated compatibility field.
+  - Runtime/validators may read it only as fallback while migration is in progress.
+  - Any mismatch between `object.@layer` and derived class layer is a validation violation.
+
+### Cutover (Phase C)
+
+- `object.@layer` becomes prohibited (error-level contract violation).
+- Effective layer resolution is strictly:
+  - object: `object.@extends -> class.@layer`
+  - instance: `instance.@extends -> object.@extends -> class.@layer`
+- Path-based layer assumptions remain non-authoritative.
 
 ---
 
@@ -88,7 +114,7 @@ Adopt **fully derived layer semantics** from `class -> object -> instance`:
 
 - Повышается чувствительность к корректности `class.@layer` (единственная точка истины).
 - Появляется дополнительная логика вывода (derivation), которую нужно поддерживать в нескольких валидаторах.
-- Возможно потребуется частичное перемещение class-файлов по layer-директориям.
+- Требуется массовое перемещение class-файлов по layer-директориям.
 
 ### Opportunities
 
@@ -117,7 +143,9 @@ Adopt **fully derived layer semantics** from `class -> object -> instance`:
 
 - Remove `@layer` from object modules and enforce derivation from `@extends` class.
 - Update validators/loaders to prohibit `object.@layer` after cutover window.
-- (Optional) Reorganize `topology/class-modules/**` into `L0..L7` tree.
+- Reorganize `topology/class-modules/**` into layer tree aligned with instance directory naming:
+  `L0-meta`, `L1-foundation`, `L2-network`, `L3-data`, `L4-platform`,
+  `L5-application`, `L6-observability`, `L7-operations`.
 - Keep `topology/object-modules/**` domain/plugin-oriented; generate derived layer index/report for audit views.
 - Refresh module index / lock / path-sensitive tests.
 
@@ -135,7 +163,8 @@ Adopt **fully derived layer semantics** from `class -> object -> instance`:
 
 3. **Критерии завершения реализации**
    - Нет обязательности `@layer` в instance при наличии валидного `@extends`.
-   - Все layer-checks используют derived layer как canonical.
+   - `object.@layer` полностью удалён из object-модулей и запрещён контрактом.
+   - Все layer-checks используют derived layer from class как canonical.
    - Валидации/тесты/strict-пайплайн зелёные.
 
 4. **Rollback boundary**
