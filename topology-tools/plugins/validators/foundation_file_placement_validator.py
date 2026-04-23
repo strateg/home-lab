@@ -67,6 +67,8 @@ class FoundationFilePlacementValidator(ValidatorYamlPlugin):
             )
             return self.make_result(diagnostics)
 
+        object_layer_map = self._load_object_layer_map(ctx=ctx, project_root=project_root)
+
         for file_path in sorted(path for path in instances_root.rglob("*.yaml") if path.is_file()):
             if file_path.name == "_index.yaml":
                 continue
@@ -76,32 +78,60 @@ class FoundationFilePlacementValidator(ValidatorYamlPlugin):
             if not isinstance(payload, dict):
                 continue
 
-            layer = payload.get("@layer")
             group = payload.get("group")
             instance_id = payload.get("@instance")
-            if not isinstance(layer, str) or not isinstance(group, str) or not isinstance(instance_id, str):
+            object_ref = payload.get("@extends")
+            explicit_layer = payload.get("@layer")
+            resolved_layer = explicit_layer if isinstance(explicit_layer, str) and explicit_layer else None
+            if resolved_layer is None and isinstance(object_ref, str) and object_ref:
+                mapped = object_layer_map.get(object_ref)
+                if isinstance(mapped, str) and mapped:
+                    resolved_layer = mapped
+
+            if (
+                isinstance(explicit_layer, str)
+                and explicit_layer
+                and isinstance(object_ref, str)
+                and object_ref
+                and object_layer_map.get(object_ref)
+                and explicit_layer != object_layer_map[object_ref]
+            ):
                 diagnostics.append(
                     self.emit_diagnostic(
                         code=self._WARNING_CODE,
                         severity="warning",
                         stage=stage,
                         message=(
-                            f"Instance file '{rel}' should declare string fields: @layer, group, @instance "
-                            "for placement checks."
+                            f"Instance '{instance_id}' explicit layer '{explicit_layer}' conflicts with "
+                            f"object '{object_ref}' layer '{object_layer_map[object_ref]}'."
+                        ),
+                        path=f"project:{file_path}",
+                    )
+                )
+
+            if not isinstance(resolved_layer, str) or not isinstance(group, str) or not isinstance(instance_id, str):
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code=self._WARNING_CODE,
+                        severity="warning",
+                        stage=stage,
+                        message=(
+                            f"Instance file '{rel}' should declare string fields: group, @instance, and either "
+                            "@layer or @extends (resolvable object layer) for placement checks."
                         ),
                         path=f"project:{file_path}",
                     )
                 )
                 continue
 
-            expected_layer_dir = self._LAYER_DIRS.get(layer)
+            expected_layer_dir = self._LAYER_DIRS.get(resolved_layer)
             if expected_layer_dir is None:
                 diagnostics.append(
                     self.emit_diagnostic(
                         code=self._WARNING_CODE,
                         severity="warning",
                         stage=stage,
-                        message=f"Instance '{instance_id}' uses unknown layer '{layer}' for placement policy.",
+                        message=f"Instance '{instance_id}' uses unknown layer '{resolved_layer}' for placement policy.",
                         path=f"project:{file_path}",
                     )
                 )
@@ -134,7 +164,7 @@ class FoundationFilePlacementValidator(ValidatorYamlPlugin):
                         severity="warning",
                         stage=stage,
                         message=(
-                            f"Instance '{instance_id}' layer '{layer}' should be placed under "
+                            f"Instance '{instance_id}' layer '{resolved_layer}' should be placed under "
                             f"'{expected_layer_dir}/', got '{actual_layer_dir}/'."
                         ),
                         path=f"project:{file_path}",
@@ -225,6 +255,40 @@ class FoundationFilePlacementValidator(ValidatorYamlPlugin):
 
         topology_path = Path(ctx.topology_path)
         return (topology_path.parent / manifest_path).resolve()
+
+    def _resolve_repo_root(self, *, ctx: PluginContext, project_root: Path) -> Path:
+        project_candidate = project_root.resolve()
+        if (project_candidate / "topology" / "object-modules").exists():
+            return project_candidate
+
+        repo_root_raw = ctx.config.get("repo_root")
+        if isinstance(repo_root_raw, str) and repo_root_raw.strip():
+            return Path(repo_root_raw).resolve()
+        topology_path = Path(ctx.topology_path)
+        if topology_path.is_absolute():
+            return topology_path.parent.parent.resolve()
+        return Path.cwd().resolve()
+
+    def _load_object_layer_map(self, *, ctx: PluginContext, project_root: Path) -> dict[str, str]:
+        object_modules_root = self._resolve_repo_root(ctx=ctx, project_root=project_root) / "topology" / "object-modules"
+        if not object_modules_root.exists() or not object_modules_root.is_dir():
+            return {}
+        object_layer_map: dict[str, str] = {}
+        for file_path in sorted(path for path in object_modules_root.rglob("obj.*.yaml") if path.is_file()):
+            payload = self._load_payload(file_path=file_path)
+            if not isinstance(payload, dict):
+                continue
+            object_id = payload.get("@object")
+            layer = payload.get("@layer")
+            if (
+                isinstance(object_id, str)
+                and object_id
+                and isinstance(layer, str)
+                and layer
+                and object_id not in object_layer_map
+            ):
+                object_layer_map[object_id] = layer
+        return object_layer_map
 
     @staticmethod
     def _load_payload(*, file_path: Path) -> dict[str, Any] | None:

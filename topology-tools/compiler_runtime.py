@@ -157,6 +157,7 @@ def _load_sharded_instance_payload(
     mode: str,
     semantic_registry: SemanticKeywordRegistry,
     group_layer_map: dict[str, str],
+    object_modules_root: Path,
     add_diag: Callable[..., None],
     repo_root: Path,
     project_manifest_path: Path,
@@ -184,6 +185,32 @@ def _load_sharded_instance_payload(
 
     grouped_rows: dict[str, list[dict[str, Any]]] = {}
     seen_instances: dict[str, Path] = {}
+    object_layer_map: dict[str, str] = {}
+    if object_modules_root.exists() and object_modules_root.is_dir():
+        object_files = sorted(path for path in object_modules_root.rglob("*.yaml") if path.is_file())
+        for object_file in object_files:
+            try:
+                object_payload = load_yaml_file(object_file) or {}
+            except (OSError, yaml.YAMLError):
+                continue
+            if not isinstance(object_payload, dict):
+                continue
+            object_resolution = resolve_semantic_value(
+                object_payload,
+                registry=semantic_registry,
+                context="entity_manifest",
+                token="object_id",
+            )
+            layer_resolution = resolve_semantic_value(
+                object_payload,
+                registry=semantic_registry,
+                context="entity_manifest",
+                token="entity_layer",
+            )
+            object_id = object_resolution.value if object_resolution.found else None
+            object_layer = layer_resolution.value if layer_resolution.found else None
+            if isinstance(object_id, str) and object_id and isinstance(object_layer, str) and object_layer:
+                object_layer_map[object_id] = object_layer
     shard_files = sorted(
         (path for path in instances_root.rglob("*.yaml") if path.is_file()),
         key=lambda item: item.relative_to(instances_root).as_posix().casefold(),
@@ -385,17 +412,20 @@ def _load_sharded_instance_payload(
             continue
 
         normalized_instance = instance_resolution.value
-        normalized_layer = layer_resolution.value
         normalized_object_ref = parent_resolution.value if parent_resolution.found else None
+        resolved_object_layer = (
+            object_layer_map.get(normalized_object_ref) if isinstance(normalized_object_ref, str) else None
+        )
+        normalized_layer = layer_resolution.value if layer_resolution.found else resolved_object_layer
         missing: list[str] = []
         if normalized_instance is None:
             missing.append("instance")
         if payload.get("group") is None:
             missing.append("group")
-        if normalized_layer is None:
-            missing.append("layer")
         if normalized_object_ref is None:
             missing.append("object_ref")
+        if normalized_layer is None:
+            missing.append("layer (or resolvable object layer)")
         if missing:
             add_diag(
                 code="E8801",
@@ -470,6 +500,18 @@ def _load_sharded_instance_payload(
                 severity="error",
                 stage="validate",
                 message="Instance shard must define non-empty 'layer'.",
+                path=f"{_diag_path(repo_root=repo_root, path=path)}:layer",
+            )
+            continue
+        if layer_resolution.found and isinstance(resolved_object_layer, str) and layer != resolved_object_layer:
+            add_diag(
+                code="E3201",
+                severity="error",
+                stage="validate",
+                message=(
+                    f"Instance layer '{layer}' conflicts with object '{object_ref}' layer "
+                    f"'{resolved_object_layer}'."
+                ),
                 path=f"{_diag_path(repo_root=repo_root, path=path)}:layer",
             )
             continue
@@ -613,6 +655,7 @@ def load_core_compile_inputs(
         mode=resolved_instances_mode,
         semantic_registry=semantic_registry,
         group_layer_map=group_layer_map,
+        object_modules_root=paths.object_modules_root,
         add_diag=add_diag,
         repo_root=repo_root,
         project_manifest_path=paths.project_manifest_path,

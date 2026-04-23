@@ -312,6 +312,7 @@ def main() -> int:
     object_payloads: dict[str, dict[str, Any]] = {}
     object_class_refs: dict[str, str] = {}
     object_allowed_layers: dict[str, list[str]] = {}
+    object_default_layer: dict[str, str] = {}
     for path in object_files:
         payload = _load_yaml_map(path, errors=errors)
         object_id = payload.get("@object")
@@ -333,6 +334,15 @@ def main() -> int:
 
         object_payloads[object_id] = payload
         object_class_refs[object_id] = class_ref
+
+        declared_layer = payload.get("@layer")
+        if declared_layer is not None:
+            if not isinstance(declared_layer, str) or not declared_layer:
+                errors.append(f"{rel_path}: object '{object_id}' has non-string @layer")
+            elif declared_layer not in valid_layers:
+                errors.append(f"{rel_path}: object '{object_id}' has unknown @layer '{declared_layer}'")
+            else:
+                object_default_layer[object_id] = declared_layer
 
         override_layers = _parse_object_layer_override(payload)
         if override_layers is None:
@@ -356,6 +366,8 @@ def main() -> int:
                 f"(class={sorted(class_layers)}, object={sorted(set(parsed_override))})"
             )
         object_allowed_layers[object_id] = parsed_override
+        if object_id not in object_default_layer and len(parsed_override) == 1:
+            object_default_layer[object_id] = parsed_override[0]
 
     if isinstance(instances_root_path, Path):
         instance_bindings = _load_instance_bindings_from_shards(instances_root_path, errors=errors)
@@ -388,7 +400,6 @@ def main() -> int:
                 continue
 
             row_id = row.get("@instance")
-            row_layer = row.get("@layer")
             object_ref = row.get("@extends")
 
             if not isinstance(row_id, str) or not row_id:
@@ -397,23 +408,44 @@ def main() -> int:
             if row_id in instances_by_id:
                 errors.append(f"{path}: duplicate instance '{row_id}'")
                 continue
-            if not isinstance(row_layer, str) or not row_layer:
-                errors.append(f"{path}: missing non-empty @layer")
-                continue
-            if row_layer not in valid_layers:
-                errors.append(f"{path}: unknown layer '{row_layer}'")
-                continue
-            if row_layer != expected_group_layer:
-                errors.append(
-                    f"{path}: layer '{row_layer}' must match group layer '{expected_group_layer}' for group '{group}'"
-                )
-
             if not isinstance(object_ref, str) or not object_ref:
                 errors.append(f"{path}: missing non-empty @extends")
                 continue
             if object_ref not in object_payloads:
                 errors.append(f"{path}: unknown @extends '{object_ref}'")
                 continue
+
+            explicit_row_layer = row.get("@layer")
+            if explicit_row_layer is None:
+                row_layer = object_default_layer.get(object_ref)
+                if not isinstance(row_layer, str) or not row_layer:
+                    errors.append(f"{path}: missing non-empty @layer and cannot derive layer from object '{object_ref}'")
+                    continue
+            else:
+                if not isinstance(explicit_row_layer, str) or not explicit_row_layer:
+                    errors.append(f"{path}: missing non-empty @layer")
+                    continue
+                if explicit_row_layer not in valid_layers:
+                    errors.append(f"{path}: unknown layer '{explicit_row_layer}'")
+                    continue
+                row_layer = explicit_row_layer
+
+            inferred_object_layer = object_default_layer.get(object_ref)
+            if (
+                explicit_row_layer is not None
+                and isinstance(inferred_object_layer, str)
+                and inferred_object_layer
+                and row_layer != inferred_object_layer
+            ):
+                errors.append(
+                    f"{path}: explicit @layer '{row_layer}' conflicts with object '{object_ref}' layer "
+                    f"'{inferred_object_layer}'"
+                )
+
+            if row_layer != expected_group_layer:
+                errors.append(
+                    f"{path}: layer '{row_layer}' must match group layer '{expected_group_layer}' for group '{group}'"
+                )
 
             class_ref = object_class_refs.get(object_ref)
             if not isinstance(class_ref, str) or not class_ref:

@@ -60,14 +60,29 @@ def _build_tree(root: Path) -> Path:
     return instances_root
 
 
-def _write_instance(file_path: Path, *, instance: str, group: str, layer: str) -> None:
+def _write_instance(file_path: Path, *, instance: str, group: str, layer: str | None) -> None:
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    lines = [
+        f"@instance: {instance}",
+        "@extends: obj.test.sample",
+        f"group: {group}",
+    ]
+    if layer is not None:
+        lines.append(f"@layer: {layer}")
+    lines.append("@version: 1.0.0")
+    file_path.write_text(
+        "\n".join(lines) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _write_object(file_path: Path, *, object_id: str, layer: str) -> None:
     file_path.parent.mkdir(parents=True, exist_ok=True)
     file_path.write_text(
         "\n".join(
             (
-                f"@instance: {instance}",
-                "@extends: obj.test.sample",
-                f"group: {group}",
+                f"@object: {object_id}",
+                "@extends: class.test.sample",
                 f"@layer: {layer}",
                 "@version: 1.0.0",
             )
@@ -156,6 +171,26 @@ def test_foundation_file_placement_validator_warns_on_missing_placement_fields(t
     result = registry.execute_plugin(PLUGIN_ID, _context(str(tmp_path)), Stage.VALIDATE)
     assert result.status == PluginStatus.PARTIAL
     assert any(diag.code == "W7901" for diag in result.diagnostics)
+
+
+def test_foundation_file_placement_validator_derives_layer_from_object_when_missing(tmp_path: Path):
+    instances_root = _build_tree(tmp_path)
+    _write_object(
+        tmp_path / "topology" / "object-modules" / "obj.test.sample.yaml",
+        object_id="obj.test.sample",
+        layer="L1",
+    )
+    _write_instance(
+        instances_root / "L1-foundation" / "devices" / "rtr-core.yaml",
+        instance="rtr-core",
+        group="devices",
+        layer=None,
+    )
+
+    registry = _registry()
+    result = registry.execute_plugin(PLUGIN_ID, _context(str(tmp_path)), Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert result.diagnostics == []
 
 
 def test_foundation_file_placement_validator_requires_project_root():
