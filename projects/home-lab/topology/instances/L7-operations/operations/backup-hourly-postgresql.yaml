@@ -19,7 +19,7 @@ databases:
   - homelab
 
 destination:
-  storage_ref: inst.pool.local_hdd
+  storage_ref: inst.storage.pool.local_hdd
   path: /mnt/hdd/backups/postgresql
 
 compression: zstd

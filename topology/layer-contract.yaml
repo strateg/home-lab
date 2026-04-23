@@ -28,7 +28,7 @@ group_layers:
   physical-links: L1
   power: L1
   firmware: L1
-  os: L1
+  os: L4
   network: L2
   data-channels: L2
   firewall: L2
@@ -67,7 +67,7 @@ class_layers:
   class.firmware:
     allowed_layers: [L1]
   class.os:
-    allowed_layers: [L1]
+    allowed_layers: [L4]
   class.network.physical_link:
     allowed_layers: [L1]
   class.storage.media:
@@ -108,7 +108,7 @@ class_layers:
   class.compute.workload.docker.stack:
     allowed_layers: [L4]
   class.compute.workload.vm:
-    allowed_layers: [L1, L4]
+    allowed_layers: [L4]
 
   # L5 - Application (services)
   class.service.alerting:

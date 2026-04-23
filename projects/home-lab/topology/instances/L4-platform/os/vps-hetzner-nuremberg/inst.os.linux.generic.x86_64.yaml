@@ -1,7 +1,7 @@
 @instance: inst.os.linux.generic.x86_64
 @extends: obj.os.linux.generic.x86_64
 group: os
-@layer: L1
+@layer: L4
 @version: 1.0.0
 source_id: inst.os.linux.generic.x86_64
 status: mapped

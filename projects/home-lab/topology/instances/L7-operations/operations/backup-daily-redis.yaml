@@ -14,7 +14,7 @@ schedule: "0 2 * * *"
 target_ref: lxc-redis
 data_asset_ref: inst.data_asset.redis
 
-storage_ref: inst.pool.local_hdd
+storage_ref: inst.storage.pool.local_hdd
 mode: snapshot
 compression: zstd
 

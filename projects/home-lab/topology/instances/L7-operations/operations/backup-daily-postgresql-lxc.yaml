@@ -14,7 +14,7 @@ schedule: "0 2 * * *"
 target_ref: lxc-postgresql
 data_asset_ref: inst.data_asset.postgresql_db
 
-storage_ref: inst.pool.local_hdd
+storage_ref: inst.storage.pool.local_hdd
 mode: snapshot
 compression: zstd
 

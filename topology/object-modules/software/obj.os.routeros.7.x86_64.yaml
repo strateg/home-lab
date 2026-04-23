@@ -1,7 +1,7 @@
 @object: obj.os.routeros.7.x86_64
 @extends: class.os
 @title: OS RouterOS 7 X86 64
-@layer: L1
+@layer: L4
 @version: 1.0.0
 
 vendor: mikrotik
