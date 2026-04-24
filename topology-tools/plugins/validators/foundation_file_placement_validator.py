@@ -7,8 +7,6 @@ from typing import Any
 
 import yaml
 from kernel.plugin_base import PluginContext, PluginResult, Stage, ValidatorYamlPlugin
-from layer_derivation import load_class_layer_map, load_object_layer_map
-from semantic_keywords import load_semantic_keyword_registry
 from yaml_loader import load_yaml_file
 
 
@@ -59,8 +57,6 @@ class FoundationFilePlacementValidator(ValidatorYamlPlugin):
             )
             return self.make_result(diagnostics)
 
-        object_layer_map = self._load_object_layer_map(ctx=ctx, project_root=project_root)
-
         for file_path in sorted(path for path in instances_root.rglob("*.yaml") if path.is_file()):
             if file_path.name == "_index.yaml":
                 continue
@@ -72,44 +68,14 @@ class FoundationFilePlacementValidator(ValidatorYamlPlugin):
 
             group = payload.get("group")
             instance_id = payload.get("@instance")
-            object_ref = payload.get("@extends")
-            explicit_layer = payload.get("@layer")
-            resolved_layer = explicit_layer if isinstance(explicit_layer, str) and explicit_layer else None
-            if resolved_layer is None and isinstance(object_ref, str) and object_ref:
-                mapped = object_layer_map.get(object_ref)
-                if isinstance(mapped, str) and mapped:
-                    resolved_layer = mapped
-
-            if (
-                isinstance(explicit_layer, str)
-                and explicit_layer
-                and isinstance(object_ref, str)
-                and object_ref
-                and object_layer_map.get(object_ref)
-                and explicit_layer != object_layer_map[object_ref]
-            ):
+            if not isinstance(group, str) or not isinstance(instance_id, str):
                 diagnostics.append(
                     self.emit_diagnostic(
                         code=self._WARNING_CODE,
                         severity="warning",
                         stage=stage,
                         message=(
-                            f"Instance '{instance_id}' explicit layer '{explicit_layer}' conflicts with "
-                            f"object '{object_ref}' layer '{object_layer_map[object_ref]}'."
-                        ),
-                        path=f"project:{file_path}",
-                    )
-                )
-
-            if not isinstance(resolved_layer, str) or not isinstance(group, str) or not isinstance(instance_id, str):
-                diagnostics.append(
-                    self.emit_diagnostic(
-                        code=self._WARNING_CODE,
-                        severity="warning",
-                        stage=stage,
-                        message=(
-                            f"Instance file '{rel}' should declare string fields: group, @instance, and either "
-                            "@layer or @extends (resolvable object layer) for placement checks."
+                            f"Instance file '{rel}' should declare string fields: group and @instance."
                         ),
                         path=f"project:{file_path}",
                     )
@@ -219,32 +185,6 @@ class FoundationFilePlacementValidator(ValidatorYamlPlugin):
 
         topology_path = Path(ctx.topology_path)
         return (topology_path.parent / manifest_path).resolve()
-
-    def _resolve_repo_root(self, *, ctx: PluginContext, project_root: Path) -> Path:
-        project_candidate = project_root.resolve()
-        if (project_candidate / "topology" / "object-modules").exists():
-            return project_candidate
-
-        repo_root_raw = ctx.config.get("repo_root")
-        if isinstance(repo_root_raw, str) and repo_root_raw.strip():
-            return Path(repo_root_raw).resolve()
-        topology_path = Path(ctx.topology_path)
-        if topology_path.is_absolute():
-            return topology_path.parent.parent.resolve()
-        return Path.cwd().resolve()
-
-    def _load_object_layer_map(self, *, ctx: PluginContext, project_root: Path) -> dict[str, str]:
-        repo_root = self._resolve_repo_root(ctx=ctx, project_root=project_root)
-        semantic_registry = load_semantic_keyword_registry(repo_root / "topology" / "semantic-keywords.yaml")
-        class_layer_map = load_class_layer_map(
-            class_modules_root=repo_root / "topology" / "class-modules",
-            semantic_registry=semantic_registry,
-        )
-        return load_object_layer_map(
-            object_modules_root=repo_root / "topology" / "object-modules",
-            semantic_registry=semantic_registry,
-            class_layer_map=class_layer_map,
-        )
 
     @staticmethod
     def _load_payload(*, file_path: Path) -> dict[str, Any] | None:

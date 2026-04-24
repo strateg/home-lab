@@ -79,35 +79,6 @@ def _write_instance(file_path: Path, *, instance: str, group: str, layer: str | 
     )
 
 
-def _write_object(file_path: Path, *, object_id: str, layer: str) -> None:
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-    class_file = file_path.parents[1] / "class-modules" / "class.test.sample.yaml"
-    class_file.parent.mkdir(parents=True, exist_ok=True)
-    class_file.write_text(
-        "\n".join(
-            (
-                "@class: class.test.sample",
-                f"@layer: {layer}",
-                "@version: 1.0.0",
-            )
-        )
-        + "\n",
-        encoding="utf-8",
-    )
-    file_path.write_text(
-        "\n".join(
-            (
-                f"@object: {object_id}",
-                "@extends: class.test.sample",
-                f"@layer: {layer}",
-                "@version: 1.0.0",
-            )
-        )
-        + "\n",
-        encoding="utf-8",
-    )
-
-
 def test_foundation_file_placement_validator_accepts_valid_layout(tmp_path: Path):
     instances_root = _build_tree(tmp_path)
     _write_instance(
@@ -189,13 +160,8 @@ def test_foundation_file_placement_validator_warns_on_missing_placement_fields(t
     assert any(diag.code == "W7901" for diag in result.diagnostics)
 
 
-def test_foundation_file_placement_validator_derives_layer_from_object_when_missing(tmp_path: Path):
+def test_foundation_file_placement_validator_accepts_missing_layer_metadata(tmp_path: Path):
     instances_root = _build_tree(tmp_path)
-    _write_object(
-        tmp_path / "topology" / "object-modules" / "obj.test.sample.yaml",
-        object_id="obj.test.sample",
-        layer="L1",
-    )
     _write_instance(
         instances_root / "devices" / "rtr-core.yaml",
         instance="rtr-core",
