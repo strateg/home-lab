@@ -224,6 +224,7 @@ Adopt **fully derived layer semantics** from `class -> object -> instance`:
 
 Evidence:
 - targeted contract/integration tests for derivation and strict cutover
+- `task framework:layer-derivation-report`
 - `task framework:lock-refresh`
 - `task validate:default`
 - `task framework:strict`

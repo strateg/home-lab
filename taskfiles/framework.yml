@@ -62,6 +62,11 @@ tasks:
     cmds:
       - "{{.PYTHON}} topology-tools/utils/cutover-readiness-report.py"
 
+  layer-derivation-report:
+    desc: Generate class->object->instance layer derivation audit report
+    cmds:
+      - "{{.PYTHON}} topology-tools/utils/generate-layer-derivation-report.py --enforce"
+
   baseline-evidence:
     desc: Generate baseline strict/validate evidence snapshot for ADR0076/ADR0081 P0
     cmds:
