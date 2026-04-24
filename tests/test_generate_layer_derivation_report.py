@@ -62,7 +62,7 @@ def _seed_repo(tmp_path: Path, *, object_has_layer: bool = False, instance_layer
     if instance_layer is not None:
         instance_payload["@layer"] = instance_layer
     _write_yaml(
-        projects_root / "topology" / "instances" / "L1-foundation" / "devices" / "inst.router.yaml",
+        projects_root / "topology" / "instances" / "devices" / "inst.router.yaml",
         instance_payload,
     )
     return topology_root / "topology.yaml"
@@ -121,4 +121,3 @@ def test_layer_derivation_report_fails_when_object_declares_layer(tmp_path: Path
     assert code == 1
     assert payload["summary"]["violations"] > 0
     assert any(item["code"] == "LDR001" for item in payload["violations"])
-

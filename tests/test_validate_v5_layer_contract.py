@@ -79,7 +79,7 @@ def _seed_repo(tmp_path: Path, *, object_has_layer: bool) -> Path:
         },
     )
     _write_yaml(
-        instances_root / "L1-foundation" / "devices" / "inst.router.a.yaml",
+        instances_root / "devices" / "inst.router.a.yaml",
         {
             "@version": "1.0.0",
             "@instance": "inst.router.a",
