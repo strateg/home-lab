@@ -19,14 +19,6 @@ def _count_yaml_files(root: Path, *, prefix: str) -> int:
     return sum(1 for path in root.glob("*.yaml") if path.name.startswith(prefix))
 
 
-def _resolve_group_root(instances_root: Path, *, group: str, legacy_bucket: str) -> Path:
-    canonical = instances_root / group
-    if canonical.exists():
-        return canonical
-    legacy = instances_root / legacy_bucket / group
-    return legacy
-
-
 def _build_report(
     repo_root: Path,
     *,
@@ -35,8 +27,8 @@ def _build_report(
     project_id: str,
 ) -> dict[str, Any]:
     instances_root = repo_root / "projects" / project_id / "topology" / "instances"
-    alerts_root = _resolve_group_root(instances_root, group="observability", legacy_bucket="L6-observability")
-    services_root = _resolve_group_root(instances_root, group="services", legacy_bucket="L5-application")
+    alerts_root = instances_root / "observability"
+    services_root = instances_root / "services"
 
     alerts_count = _count_yaml_files(alerts_root, prefix="alert-")
     services_count = _count_yaml_files(services_root, prefix="svc-")

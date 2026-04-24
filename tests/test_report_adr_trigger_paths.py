@@ -48,7 +48,7 @@ def test_adr0047_report_prefers_canonical_group_paths(tmp_path: Path) -> None:
     assert report["services_root"].endswith("projects/home-lab/topology/instances/services")
 
 
-def test_adr0083_trigger_snapshot_uses_legacy_fallback_when_canonical_absent(tmp_path: Path) -> None:
+def test_adr0083_trigger_snapshot_ignores_legacy_buckets_when_canonical_absent(tmp_path: Path) -> None:
     mod = _load_module("scripts/validation/report_adr0083_reactivation.py", "report_adr0083_reactivation")
     instances_root = tmp_path / "projects" / "home-lab" / "topology" / "instances"
 
@@ -57,7 +57,6 @@ def test_adr0083_trigger_snapshot_uses_legacy_fallback_when_canonical_absent(tmp
 
     snapshot = mod._trigger_snapshot(tmp_path, "home-lab")
 
-    assert snapshot["alerts_count"] == 1
-    assert snapshot["services_count"] == 1
+    assert snapshot["alerts_count"] == 0
+    assert snapshot["services_count"] == 0
     assert snapshot["gate"] == "ok"
-
