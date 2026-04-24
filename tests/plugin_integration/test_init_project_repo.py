@@ -133,7 +133,7 @@ def _fake_framework_distribution_zip(tmp_path: Path, *, version: str = "1.2.3") 
     return zip_path
 
 
-def test_init_project_repo_creates_l0_l7_structure_and_submodule(tmp_path: Path) -> None:
+def test_init_project_repo_creates_group_root_instances_structure_and_submodule(tmp_path: Path) -> None:
     framework_root = _fake_extracted_framework_repo(tmp_path)
     _git_init_and_commit(framework_root)
     output_root = tmp_path / "project"
@@ -165,22 +165,11 @@ def test_init_project_repo_creates_l0_l7_structure_and_submodule(tmp_path: Path)
     assert (output_root / "taskfiles" / "project.yml").exists()
     assert (output_root / "plugins" / "plugins.yaml").exists()
 
-    for bucket in (
-        "L0-meta",
-        "L1-foundation",
-        "L2-network",
-        "L3-data",
-        "L4-platform",
-        "L5-application",
-        "L6-observability",
-        "L7-operations",
-    ):
-        assert (output_root / "topology" / "instances" / bucket).exists()
+    for group in ("meta", "devices", "network", "pools", "data-assets", "platform", "service", "monitoring", "operations"):
+        assert (output_root / "topology" / "instances" / group).exists()
 
-    assert (
-        output_root / "topology" / "instances" / "L1-foundation" / "firmware" / "inst.firmware.apc.backups.650va.yaml"
-    ).exists()
-    assert (output_root / "topology" / "instances" / "L1-foundation" / "power" / "ups-main.yaml").exists()
+    assert (output_root / "topology" / "instances" / "firmware" / "inst.firmware.apc.backups.650va.yaml").exists()
+    assert (output_root / "topology" / "instances" / "power" / "ups-main.yaml").exists()
 
 
 def test_init_project_repo_default_flow_passes_strict_compile_with_real_framework(tmp_path: Path) -> None:

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Initialize new standalone project repo with framework submodule and compilable L0-L7 skeleton."""
+"""Initialize new standalone project repo with framework dependency and compilable instances skeleton."""
 
 from __future__ import annotations
 
@@ -17,30 +17,17 @@ import yaml
 SEMVER_FROM_DIST_NAME_RE = re.compile(r".*-(\d+\.\d+\.\d+)\.zip$", re.IGNORECASE)
 
 
-LAYER_BUCKETS: dict[str, str] = {
-    "L0": "L0-meta",
-    "L1": "L1-foundation",
-    "L2": "L2-network",
-    "L3": "L3-data",
-    "L4": "L4-platform",
-    "L5": "L5-application",
-    "L6": "L6-observability",
-    "L7": "L7-operations",
-}
-
 STARTER_FILES: dict[str, str] = {
-    "L1-foundation/firmware/inst.firmware.apc.backups.650va.yaml": (
+    "firmware/inst.firmware.apc.backups.650va.yaml": (
         "@instance: inst.firmware.apc.backups.650va\n"
         "@extends: obj.firmware.apc.backups.650va\n"
         "group: firmware\n"
-        "@layer: L1\n"
         "@version: 1.0.0\n"
     ),
-    "L1-foundation/power/ups-main.yaml": (
+    "power/ups-main.yaml": (
         "@instance: ups-main\n"
         "@extends: obj.apc.backups.650va\n"
         "group: power\n"
-        "@layer: L1\n"
         "@version: 1.0.0\n"
         "firmware_ref: inst.firmware.apc.backups.650va\n"
         "os_refs: []\n"
@@ -333,15 +320,8 @@ def _create_layer_structure(
     group_layers: dict[str, str],
     instances_root: Path,
 ) -> None:
-    for bucket in LAYER_BUCKETS.values():
-        _touch_gitkeep(instances_root / bucket)
-
     for group_name in sorted(group_layers):
-        layer = group_layers[group_name]
-        bucket_name = LAYER_BUCKETS.get(layer)
-        if not isinstance(bucket_name, str):
-            continue
-        _touch_gitkeep(instances_root / bucket_name / group_name)
+        _touch_gitkeep(instances_root / group_name)
 
     _touch_gitkeep(project_root / "secrets" / "instances")
     _touch_gitkeep(project_root / "secrets" / "terraform")

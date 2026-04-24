@@ -17,7 +17,7 @@
 Рекомендуемый путь (ADR0081): `artifact-first` через distribution zip.
 Submodule-подключение оставлено как legacy/rollback режим.
 
-Если нужен сразу готовый skeleton с каталогами `L0..L7`, подключенным framework и compile-check:
+Если нужен сразу готовый skeleton с group-root `instances/`, подключенным framework и compile-check:
 
 ```powershell
 python topology-tools/utils/init-project-repo.py `
@@ -33,7 +33,7 @@ python topology-tools/utils/init-project-repo.py `
 1. Инициализирует git-репозиторий в `--output-root`.
 2. Подключает `framework` как artifact dependency (распаковка zip в `./framework`).
 3. Генерирует `topology.yaml`, `project.yaml`, `framework.lock.yaml`.
-4. Создает структуру каталогов `instances/L0-meta ... instances/L7-operations` + group-каталоги из `layer-contract.yaml`.
+4. Создает структуру каталогов `instances/<group>/` из `layer-contract.yaml` (без обязательных `L0..L7` bucket-директорий).
 5. Добавляет минимальный compilable starter profile.
 6. Выполняет `verify-framework-lock --strict` и `compile-topology` (если не задан `--skip-compile-check`).
 
