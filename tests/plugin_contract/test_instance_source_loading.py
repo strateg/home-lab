@@ -761,7 +761,7 @@ def test_load_core_compile_inputs_accepts_non_sharded_l4_path_without_warning(tm
     )
 
     assert isinstance(inputs.instance_payload, dict)
-    assert not any(item.get("code") == "W7110" for item in diagnostics)
+    assert not any(item.get("severity") == "warning" for item in diagnostics)
 
 
 def test_load_core_compile_inputs_accepts_host_sharded_l5_path_without_warning(tmp_path: Path) -> None:
@@ -817,7 +817,7 @@ def test_load_core_compile_inputs_accepts_host_sharded_l5_path_without_warning(t
     )
 
     assert isinstance(inputs.instance_payload, dict)
-    assert not any(item.get("code") == "W7110" for item in diagnostics)
+    assert not any(item.get("severity") == "warning" for item in diagnostics)
 
 
 def test_load_core_compile_inputs_rejects_legacy_schema_version_field(tmp_path: Path) -> None:

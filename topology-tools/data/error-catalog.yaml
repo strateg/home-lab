@@ -469,11 +469,6 @@ codes:
     stage: load
     title: Missing Instance Source Configuration
     hint: Configure project manifest instances_root for selected source mode.
-  W7110:
-    severity: warning
-    stage: validate
-    title: Non-sharded L4/L5 Placement
-    hint: Prefer host-sharded placement for L4/L5 instance files.
   # ADR 0068 placeholder validation
   E6801:
     severity: error

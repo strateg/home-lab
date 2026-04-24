@@ -58,7 +58,6 @@ def test_adr0080_ranges_are_reserved_without_foreign_overlap():
         "W8002",
         "W8003",
         "W8004",
-        "W7110",
     }
     assert required.issubset(set(codes.keys()))
 
