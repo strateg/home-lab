@@ -1,6 +1,6 @@
 @instance: svc-nextcloud@lxc.lxc-nextcloud
 @extends: obj.service.nextcloud
-group: services
+@group: services
 @version: 1.0.0
 source_id: svc-nextcloud
 status: mapped

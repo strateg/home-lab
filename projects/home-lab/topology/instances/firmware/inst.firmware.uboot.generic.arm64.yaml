@@ -1,6 +1,6 @@
 @instance: inst.firmware.uboot.generic.arm64
 @extends: obj.firmware.uboot.generic.arm64
-group: firmware
+@group: firmware
 @version: 1.0.0
 source_id: inst.firmware.uboot.generic.arm64
 status: mapped

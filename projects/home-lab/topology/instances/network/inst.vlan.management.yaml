@@ -1,6 +1,6 @@
 @instance: inst.vlan.management
 @extends: obj.network.vlan.management
-group: network
+@group: network
 @version: 1.0.0
 source_id: net-management
 status: modeled

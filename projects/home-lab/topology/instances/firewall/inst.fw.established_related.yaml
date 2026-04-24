@@ -1,6 +1,6 @@
 @instance: inst.fw.established_related
 @extends: obj.network.firewall_policy.established_related
-group: firewall
+@group: firewall
 @version: 1.0.0
 source_id: fw-established-related
 status: mapped

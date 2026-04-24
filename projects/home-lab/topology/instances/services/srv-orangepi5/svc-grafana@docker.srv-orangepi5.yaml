@@ -1,6 +1,6 @@
 @instance: svc-grafana@docker.srv-orangepi5
 @extends: obj.service.grafana
-group: services
+@group: services
 @version: 1.0.0
 source_id: svc-grafana
 status: mapped

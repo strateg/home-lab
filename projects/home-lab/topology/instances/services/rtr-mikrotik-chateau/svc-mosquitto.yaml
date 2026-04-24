@@ -1,6 +1,6 @@
 @instance: svc-mosquitto
 @extends: obj.service.mosquitto
-group: services
+@group: services
 @version: 1.0.0
 source_id: svc-mosquitto
 status: mapped

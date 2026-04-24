@@ -1,6 +1,6 @@
 @instance: svc-postgresql
 @extends: obj.service.postgresql
-group: services
+@group: services
 @version: 1.0.0
 source_id: svc-postgresql
 status: mapped

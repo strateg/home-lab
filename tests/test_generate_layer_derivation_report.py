@@ -58,7 +58,7 @@ def _seed_repo(tmp_path: Path, *, object_has_layer: bool = False, instance_layer
         projects_root / "project.yaml",
         {"schema_version": 1, "project": "home-lab", "instances_root": "topology/instances", "secrets_root": "secrets"},
     )
-    instance_payload = {"@version": "1.0.0", "@instance": "inst.router", "group": "devices", "@extends": "obj.router"}
+    instance_payload = {"@version": "1.0.0", "@instance": "inst.router", "@group": "devices", "@extends": "obj.router"}
     if instance_layer is not None:
         instance_payload["@layer"] = instance_layer
     _write_yaml(

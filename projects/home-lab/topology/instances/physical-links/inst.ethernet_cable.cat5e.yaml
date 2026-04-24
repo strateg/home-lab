@@ -1,6 +1,6 @@
 @instance: inst.ethernet_cable.cat5e
 @extends: obj.network.ethernet_cable
-group: physical-links
+@group: physical-links
 @version: 1.0.0
 source_id: inst.ethernet_cable.cat5e
 status: modeled

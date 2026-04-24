@@ -1,6 +1,6 @@
 @instance: health-proxmox-host
 @extends: obj.observability.healthcheck.device
-group: observability
+@group: observability
 @version: 1.0.0
 source_id: health-proxmox-host
 status: mapped

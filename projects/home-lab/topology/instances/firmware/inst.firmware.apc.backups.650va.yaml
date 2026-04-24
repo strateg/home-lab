@@ -1,6 +1,6 @@
 @instance: inst.firmware.apc.backups.650va
 @extends: obj.firmware.apc.backups.650va
-group: firmware
+@group: firmware
 @version: 1.0.0
 source_id: inst.firmware.apc.backups.650va
 status: mapped

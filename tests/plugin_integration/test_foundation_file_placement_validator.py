@@ -68,7 +68,7 @@ def _write_instance(file_path: Path, *, instance: str, group: str, layer: str | 
     lines = [
         f"@instance: {instance}",
         "@extends: obj.test.sample",
-        f"group: {group}",
+        f"@group: {group}",
     ]
     if layer is not None:
         lines.append(f"@layer: {layer}")

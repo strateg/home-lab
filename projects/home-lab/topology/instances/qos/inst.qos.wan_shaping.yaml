@@ -1,6 +1,6 @@
 @instance: inst.qos.wan_shaping
 @extends: obj.network.qos.wan_shaping
-group: qos
+@group: qos
 @version: 1.0.0
 source_id: qos-wan
 status: modeled

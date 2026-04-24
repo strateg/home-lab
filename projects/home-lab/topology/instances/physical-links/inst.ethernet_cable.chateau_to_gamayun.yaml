@@ -1,6 +1,6 @@
 @instance: inst.ethernet_cable.chateau_to_gamayun
 @extends: obj.network.ethernet_cable
-group: physical-links
+@group: physical-links
 @version: 1.0.0
 source_id: link-rtr-mikrotik-srv-gamayun
 status: mapped

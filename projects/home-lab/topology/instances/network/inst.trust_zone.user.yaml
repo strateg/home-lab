@@ -1,6 +1,6 @@
 @instance: inst.trust_zone.user
 @extends: obj.network.trust_zone.user
-group: network
+@group: network
 @version: 1.0.0
 source_id: trust-zone-user
 status: mapped

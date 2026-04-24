@@ -1,6 +1,6 @@
 @instance: alert-power.ups-battery
 @extends: obj.observability.alert.power
-group: observability
+@group: observability
 @version: 1.0.0
 source_id: alert-power.ups-battery
 status: mapped

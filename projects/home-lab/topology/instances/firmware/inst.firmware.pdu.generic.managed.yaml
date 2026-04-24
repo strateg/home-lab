@@ -1,6 +1,6 @@
 @instance: inst.firmware.pdu.generic.managed
 @extends: obj.firmware.pdu.generic.managed
-group: firmware
+@group: firmware
 @version: 1.0.0
 source_id: inst.firmware.pdu.generic.managed
 status: mapped

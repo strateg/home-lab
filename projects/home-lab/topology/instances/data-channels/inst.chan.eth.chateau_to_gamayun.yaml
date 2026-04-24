@@ -1,6 +1,6 @@
 @instance: inst.chan.eth.chateau_to_gamayun
 @extends: obj.network.ethernet_channel
-group: data-channels
+@group: data-channels
 @version: 1.0.0
 source_id: link-rtr-mikrotik-srv-gamayun
 status: mapped

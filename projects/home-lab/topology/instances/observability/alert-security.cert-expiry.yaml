@@ -1,6 +1,6 @@
 @instance: alert-security.cert-expiry
 @extends: obj.observability.alert.security
-group: observability
+@group: observability
 @version: 1.0.0
 source_id: alert-security.cert-expiry
 status: mapped

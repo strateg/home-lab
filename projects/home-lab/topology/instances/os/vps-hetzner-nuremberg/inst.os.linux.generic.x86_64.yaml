@@ -1,6 +1,6 @@
 @instance: inst.os.linux.generic.x86_64
 @extends: obj.os.linux.generic.x86_64
-group: os
+@group: os
 @version: 1.0.0
 source_id: inst.os.linux.generic.x86_64
 status: mapped

@@ -1,7 +1,7 @@
 
 @instance: inst.storage.pool.local
 @extends: obj.storage.pool.local
-group: pools
+@group: pools
 @version: 1.0.0
 source_id: se-local
 status: mapped

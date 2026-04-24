@@ -1,6 +1,6 @@
 @instance: lxc-prometheus
 @extends: obj.proxmox.lxc.debian12.prometheus
-group: lxc
+@group: lxc
 @version: 1.0.0
 source_id: lxc-prometheus
 status: mapped

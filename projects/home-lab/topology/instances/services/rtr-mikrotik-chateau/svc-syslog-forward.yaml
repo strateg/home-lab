@@ -1,6 +1,6 @@
 @instance: svc-syslog-forward
 @extends: obj.service.syslog_forwarder
-group: services
+@group: services
 @version: 1.0.0
 source_id: svc-syslog-forward
 status: mapped

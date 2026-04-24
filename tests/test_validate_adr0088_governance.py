@@ -99,7 +99,7 @@ def _seed_repo(tmp_path: Path, *, legacy_in_active_instances: bool = False) -> t
             {
                 "@version": "1.0.0",
                 "@instance": "inst.router.a",
-                "group": "devices",
+                "@group": "devices",
                 "@extends": "obj.router",
             },
         )

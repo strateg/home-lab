@@ -1,6 +1,6 @@
 @instance: svc-homeassistant@docker.srv-orangepi5
 @extends: obj.service.homeassistant
-group: services
+@group: services
 @version: 1.0.0
 source_id: svc-homeassistant
 status: mapped

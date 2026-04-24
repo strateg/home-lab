@@ -1,6 +1,6 @@
 @instance: svc-proxmox-ui
 @extends: obj.service.proxmox.web_ui
-group: services
+@group: services
 @version: 1.0.0
 source_id: svc-proxmox-ui
 status: mapped

@@ -249,6 +249,7 @@ def _load_sharded_instance_payload(
         legacy_keys = (
             "instance",
             "extends",
+            "group",
             "object_ref",
             "class_ref",
             "version",
@@ -416,8 +417,8 @@ def _load_sharded_instance_payload(
         missing: list[str] = []
         if normalized_instance is None:
             missing.append("instance")
-        if payload.get("group") is None:
-            missing.append("group")
+        if payload.get("@group") is None:
+            missing.append("@group")
         if normalized_object_ref is None:
             missing.append("object_ref")
         if normalized_layer is None:
@@ -433,7 +434,7 @@ def _load_sharded_instance_payload(
             continue
 
         instance_id = normalized_instance
-        group_name = payload.get("group")
+        group_name = payload.get("@group")
         layer = normalized_layer
         object_ref = normalized_object_ref
         if not isinstance(instance_id, str) or not instance_id:
@@ -486,8 +487,8 @@ def _load_sharded_instance_payload(
                 code="E3201",
                 severity="error",
                 stage="validate",
-                message="Instance shard must define non-empty 'group'.",
-                path=f"{_diag_path(repo_root=repo_root, path=path)}:group",
+                message="Instance shard must define non-empty '@group'.",
+                path=f"{_diag_path(repo_root=repo_root, path=path)}:@group",
             )
             continue
         if not isinstance(layer, str) or not layer:
@@ -514,8 +515,8 @@ def _load_sharded_instance_payload(
                 code="E3201",
                 severity="error",
                 stage="validate",
-                message=f"Unknown instance group '{group_name}' (missing in layer-contract group_layers).",
-                path=f"{_diag_path(repo_root=repo_root, path=path)}:group",
+                message=f"Unknown instance @group '{group_name}' (missing in layer-contract group_layers).",
+                path=f"{_diag_path(repo_root=repo_root, path=path)}:@group",
             )
             continue
         if layer != expected_layer:
@@ -577,7 +578,7 @@ def _load_sharded_instance_payload(
         row.pop("@summary", None)
         row.pop("@description", None)
         row.pop("extends", None)
-        row.pop("group", None)
+        row.pop("@group", None)
         row["instance"] = instance_id
         row["layer"] = layer
         row["object_ref"] = object_ref

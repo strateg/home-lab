@@ -1,6 +1,6 @@
 @instance: inst.chan.eth.chateau_to_orangepi5
 @extends: obj.network.ethernet_channel
-group: data-channels
+@group: data-channels
 @version: 1.0.0
 source_id: link-rtr-mikrotik-srv-orangepi5
 status: mapped

@@ -1,6 +1,6 @@
 @instance: ups-main
 @extends: obj.apc.backups.650va
-group: power
+@group: power
 @version: 1.0.0
 source_id: ups-main
 status: mapped

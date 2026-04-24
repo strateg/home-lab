@@ -81,7 +81,7 @@ def _seed_repo(tmp_path: Path, *, object_has_layer: bool, instance_has_layer: bo
     instance_payload = {
         "@version": "1.0.0",
         "@instance": "inst.router.a",
-        "group": "devices",
+        "@group": "devices",
         "@extends": "obj.router",
     }
     if instance_has_layer:

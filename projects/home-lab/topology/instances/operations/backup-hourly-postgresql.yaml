@@ -1,6 +1,6 @@
 @instance: backup-hourly-postgresql
 @extends: obj.operations.backup.pg_dump
-group: operations
+@group: operations
 @version: 1.0.0
 source_id: backup-hourly-postgresql
 status: mapped

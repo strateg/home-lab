@@ -1,6 +1,6 @@
 @instance: health-ups
 @extends: obj.observability.healthcheck.ups
-group: observability
+@group: observability
 @version: 1.0.0
 source_id: health-ups
 status: mapped

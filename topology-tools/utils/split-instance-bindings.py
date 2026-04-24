@@ -71,13 +71,13 @@ def _sanitize_row(
     payload: dict[str, Any] = {
         "@instance": normalized_instance_id,
         "@extends": object_ref,
-        "group": group_name,
+        "@group": group_name,
         "@version": "1.0.0",
     }
     _ = drop_class_ref
 
     for key, value in row.items():
-        if key in {"instance", "class_ref", "layer", "object_ref", "version", "@version"}:
+        if key in {"instance", "class_ref", "layer", "object_ref", "version", "@version", "group", "@group"}:
             continue
         payload[key] = value
 

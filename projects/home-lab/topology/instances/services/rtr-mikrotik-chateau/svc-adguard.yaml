@@ -1,6 +1,6 @@
 @instance: svc-adguard
 @extends: obj.service.adguard
-group: services
+@group: services
 @version: 1.0.0
 source_id: svc-adguard
 status: mapped

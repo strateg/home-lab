@@ -1,6 +1,6 @@
 @instance: lxc-grafana
 @extends: obj.proxmox.lxc.debian12.grafana
-group: lxc
+@group: lxc
 @version: 1.0.0
 source_id: lxc-grafana
 status: mapped

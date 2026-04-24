@@ -1,6 +1,6 @@
 @instance: pdu-rack
 @extends: obj.pdu.generic.managed
-group: power
+@group: power
 @version: 1.0.0
 source_id: pdu-rack
 status: mapped

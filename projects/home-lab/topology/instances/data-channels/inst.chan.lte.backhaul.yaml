@@ -1,6 +1,6 @@
 @instance: inst.chan.lte.backhaul
 @extends: obj.network.lte_channel
-group: data-channels
+@group: data-channels
 @version: 1.0.0
 source_id: link-lte-backhaul
 status: mapped

@@ -1,6 +1,6 @@
 @instance: backup-mikrotik-config
 @extends: obj.operations.backup.config_export
-group: operations
+@group: operations
 @version: 1.0.0
 source_id: backup-mikrotik-config
 status: mapped

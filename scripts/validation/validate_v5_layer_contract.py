@@ -113,9 +113,9 @@ def _load_instance_bindings_from_shards(instances_root: Path, *, errors: list[st
                 f"{path.relative_to(ROOT).as_posix()}: sharded instance file must not contain 'instance_bindings'"
             )
             continue
-        group = payload.get("group")
+        group = payload.get("@group")
         if not isinstance(group, str) or not group:
-            errors.append(f"{path.relative_to(ROOT).as_posix()}: missing non-empty group")
+            errors.append(f"{path.relative_to(ROOT).as_posix()}: missing non-empty @group")
             continue
         if top_level_dir != group:
             errors.append(
@@ -125,7 +125,7 @@ def _load_instance_bindings_from_shards(instances_root: Path, *, errors: list[st
             continue
         row = dict(payload)
         row.pop("@version", None)
-        row.pop("group", None)
+        row.pop("@group", None)
         grouped.setdefault(group, []).append(row)
     for group_name in grouped:
         grouped[group_name].sort(key=lambda item: str(item.get("@instance", "")))

@@ -66,7 +66,7 @@ def test_write_shards_emits_canonical_semantic_keys(tmp_path: Path) -> None:
     assert payload["@instance"] == "inst.router.a"
     assert payload["@extends"] == "obj.router"
     assert payload["@version"] == "1.0.0"
-    assert payload["group"] == "devices"
+    assert payload["@group"] == "devices"
     assert payload["note"] == "preserved"
     assert "layer" not in payload
     assert "class_ref" not in payload

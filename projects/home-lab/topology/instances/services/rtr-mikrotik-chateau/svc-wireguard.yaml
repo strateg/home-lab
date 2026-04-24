@@ -1,6 +1,6 @@
 @instance: svc-wireguard
 @extends: obj.service.wireguard
-group: services
+@group: services
 @version: 1.0.0
 source_id: svc-wireguard
 status: modeled

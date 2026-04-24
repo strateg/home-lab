@@ -1,6 +1,6 @@
 @instance: inst.fw.guest_isolated
 @extends: obj.network.firewall_policy.guest_isolated
-group: firewall
+@group: firewall
 @version: 1.0.0
 source_id: fw-guest-isolated
 status: modeled

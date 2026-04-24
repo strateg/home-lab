@@ -1,6 +1,6 @@
 @instance: backup-weekly-full
 @extends: obj.operations.backup.vzdump
-group: operations
+@group: operations
 @version: 1.0.0
 source_id: backup-weekly-full
 status: mapped

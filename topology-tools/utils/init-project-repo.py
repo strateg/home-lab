@@ -21,13 +21,13 @@ STARTER_FILES: dict[str, str] = {
     "firmware/inst.firmware.apc.backups.650va.yaml": (
         "@instance: inst.firmware.apc.backups.650va\n"
         "@extends: obj.firmware.apc.backups.650va\n"
-        "group: firmware\n"
+        "@group: firmware\n"
         "@version: 1.0.0\n"
     ),
     "power/ups-main.yaml": (
         "@instance: ups-main\n"
         "@extends: obj.apc.backups.650va\n"
-        "group: power\n"
+        "@group: power\n"
         "@version: 1.0.0\n"
         "firmware_ref: inst.firmware.apc.backups.650va\n"
         "os_refs: []\n"

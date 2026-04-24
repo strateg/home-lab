@@ -1,6 +1,6 @@
 @instance: svc-loki
 @extends: obj.service.loki
-group: services
+@group: services
 @version: 1.0.0
 source_id: svc-loki
 status: mapped

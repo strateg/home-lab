@@ -1,6 +1,6 @@
 @instance: inst.os.proxmox.ve.9
 @extends: obj.os.proxmox.ve.9
-group: os
+@group: os
 @version: 1.0.0
 source_id: inst.os.proxmox.ve.9
 status: mapped

@@ -1,6 +1,6 @@
 @instance: inst.vlan.servers
 @extends: obj.network.vlan.servers
-group: network
+@group: network
 @version: 1.0.0
 source_id: net-servers
 status: modeled

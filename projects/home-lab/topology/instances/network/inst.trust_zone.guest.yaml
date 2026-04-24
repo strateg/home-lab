@@ -1,6 +1,6 @@
 @instance: inst.trust_zone.guest
 @extends: obj.network.trust_zone.guest
-group: network
+@group: network
 @version: 1.0.0
 source_id: trust-zone-guest
 status: mapped

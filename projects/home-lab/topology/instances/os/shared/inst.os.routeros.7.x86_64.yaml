@@ -1,6 +1,6 @@
 @instance: inst.os.routeros.7.x86_64
 @extends: obj.os.routeros.7.x86_64
-group: os
+@group: os
 @version: 1.0.0
 source_id: inst.os.routeros.7.x86_64
 embedded_in: inst.firmware.routeros.7.x86_64

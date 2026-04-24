@@ -41,6 +41,7 @@ Adopt **fully derived layer semantics** from `class -> object -> instance`:
 3. **Instance layer is derived via object -> class chain**
    - Canonical instance layer is resolved via `instance.@extends -> object.@extends -> class.@layer`.
    - `instance.@layer` is non-canonical and prohibited (same anti-duplication policy as objects).
+   - Instance shard grouping key is canonical `@group` (plain `group` is deprecated/non-canonical).
 
 4. **Validation shifts from path-layer to semantic-layer**
    - Layer correctness checks must use derived layer and class/object contracts.
@@ -78,6 +79,7 @@ Adopt **fully derived layer semantics** from `class -> object -> instance`:
 
 - `object.@layer` becomes prohibited (error-level contract violation).
 - `instance.@layer` becomes prohibited (error-level contract violation).
+- `group` in instance shards is replaced by canonical `@group`.
 - Effective layer resolution is strictly:
   - object: `object.@extends -> class.@layer`
   - instance: `instance.@extends -> object.@extends -> class.@layer`

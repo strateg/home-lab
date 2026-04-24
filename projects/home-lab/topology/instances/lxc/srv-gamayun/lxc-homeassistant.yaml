@@ -1,6 +1,6 @@
 @instance: lxc-homeassistant
 @extends: obj.proxmox.lxc.debian12.homeassistant
-group: lxc
+@group: lxc
 @version: 1.0.0
 source_id: lxc-homeassistant
 status: mapped

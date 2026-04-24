@@ -1,6 +1,6 @@
 @instance: inst.data_asset.tailscale
 @extends: obj.storage.data_asset.config
-group: data-assets
+@group: data-assets
 @version: 1.0.0
 source_id: data-tailscale
 status: mapped

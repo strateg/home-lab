@@ -1,6 +1,6 @@
 @instance: lxc-nginx-proxy
 @extends: obj.proxmox.lxc.debian12.nginx
-group: lxc
+@group: lxc
 @version: 1.0.0
 source_id: lxc-nginx-proxy
 status: mapped

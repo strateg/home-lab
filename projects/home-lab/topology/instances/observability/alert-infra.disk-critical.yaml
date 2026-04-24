@@ -1,6 +1,6 @@
 @instance: alert-infra.disk-critical
 @extends: obj.observability.alert.infrastructure
-group: observability
+@group: observability
 @version: 1.0.0
 source_id: alert-infra.disk-critical
 status: mapped

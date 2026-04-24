@@ -1,6 +1,6 @@
 @instance: backup-srv-orangepi5-data
 @extends: obj.operations.backup.rsync
-group: operations
+@group: operations
 @version: 1.0.0
 source_id: backup-srv-orangepi5-data
 status: mapped

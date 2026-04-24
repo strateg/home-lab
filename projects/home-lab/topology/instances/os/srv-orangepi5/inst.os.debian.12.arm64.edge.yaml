@@ -1,6 +1,6 @@
 @instance: inst.os.debian.12.arm64.edge
 @extends: obj.os.debian.12.arm64.edge
-group: os
+@group: os
 @version: 1.0.0
 source_id: inst.os.debian.12.arm64.edge
 status: mapped

@@ -1,6 +1,6 @@
 @instance: svc-docker-host
 @extends: obj.service.docker_host
-group: services
+@group: services
 @version: 1.0.0
 source_id: svc-docker-host
 status: mapped

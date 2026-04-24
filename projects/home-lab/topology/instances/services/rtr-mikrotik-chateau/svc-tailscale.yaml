@@ -1,6 +1,6 @@
 @instance: svc-tailscale
 @extends: obj.service.tailscale
-group: services
+@group: services
 @version: 1.0.0
 source_id: svc-tailscale
 status: mapped

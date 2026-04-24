@@ -1,6 +1,6 @@
 @instance: health-nextcloud
 @extends: obj.observability.healthcheck.service
-group: observability
+@group: observability
 @version: 1.0.0
 source_id: health-nextcloud
 status: mapped

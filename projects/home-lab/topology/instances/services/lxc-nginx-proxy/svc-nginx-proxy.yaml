@@ -1,6 +1,6 @@
 @instance: svc-nginx-proxy
 @extends: obj.service.nginx_proxy
-group: services
+@group: services
 @version: 1.0.0
 source_id: svc-nginx-proxy
 status: mapped

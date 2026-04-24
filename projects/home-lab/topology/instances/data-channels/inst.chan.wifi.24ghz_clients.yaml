@@ -1,6 +1,6 @@
 @instance: inst.chan.wifi.24ghz_clients
 @extends: obj.network.wifi_ap_channel
-group: data-channels
+@group: data-channels
 @version: 1.0.0
 source_id: link-wifi-24ghz-clients
 status: mapped

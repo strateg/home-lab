@@ -1,6 +1,6 @@
 @instance: svc-snmp
 @extends: obj.service.mikrotik.snmp
-group: services
+@group: services
 @version: 1.0.0
 source_id: svc-snmp
 status: mapped

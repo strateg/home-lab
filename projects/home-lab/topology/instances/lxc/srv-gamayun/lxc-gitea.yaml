@@ -1,6 +1,6 @@
 @instance: lxc-gitea
 @extends: obj.proxmox.lxc.debian12.gitea
-group: lxc
+@group: lxc
 @version: 1.0.0
 source_id: lxc-gitea
 status: mapped
