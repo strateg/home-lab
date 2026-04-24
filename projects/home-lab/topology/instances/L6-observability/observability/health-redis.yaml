@@ -1,7 +1,6 @@
 @instance: health-redis
 @extends: obj.observability.healthcheck.service
 group: observability
-@layer: L6
 @version: 1.0.0
 source_id: health-redis
 status: mapped

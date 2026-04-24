@@ -1,7 +1,6 @@
 @instance: inst.fw.default_deny
 @extends: obj.network.firewall_policy.default_deny
 group: firewall
-@layer: L2
 @version: 1.0.0
 source_id: fw-default-deny
 status: mapped

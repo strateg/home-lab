@@ -1,7 +1,6 @@
 @instance: inst.vlan.iot
 @extends: obj.network.vlan.iot
 group: network
-@layer: L2
 @version: 1.0.0
 source_id: net-iot
 status: modeled

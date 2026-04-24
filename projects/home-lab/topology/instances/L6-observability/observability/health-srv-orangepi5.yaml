@@ -1,7 +1,6 @@
 @instance: health-srv-orangepi5
 @extends: obj.observability.healthcheck.device
 group: observability
-@layer: L6
 @version: 1.0.0
 source_id: health-srv-orangepi5
 status: mapped

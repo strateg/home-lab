@@ -1,7 +1,6 @@
 @instance: inst.data_asset.postgresql_dumps
 @extends: obj.storage.data_asset.backup
 group: data-assets
-@layer: L3
 @version: 1.0.0
 source_id: data-postgresql-dumps
 status: mapped

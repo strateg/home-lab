@@ -1,7 +1,6 @@
 @instance: inst.data_asset.redis
 @extends: obj.storage.data_asset.cache
 group: data-assets
-@layer: L3
 @version: 1.0.0
 source_id: data-redis-db
 status: mapped

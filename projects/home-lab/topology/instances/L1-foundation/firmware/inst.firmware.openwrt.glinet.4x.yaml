@@ -1,7 +1,6 @@
 @instance: inst.firmware.openwrt.glinet.4x
 @extends: obj.firmware.openwrt.glinet.4x
 group: firmware
-@layer: L1
 @version: 1.0.0
 source_id: inst.firmware.openwrt.glinet.4x
 status: mapped

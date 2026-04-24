@@ -1,7 +1,6 @@
 @instance: alert-infra.router-down
 @extends: obj.observability.alert.infrastructure
 group: observability
-@layer: L6
 @version: 1.0.0
 source_id: alert-infra.router-down
 status: mapped

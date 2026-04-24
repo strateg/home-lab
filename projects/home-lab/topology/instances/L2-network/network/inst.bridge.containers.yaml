@@ -1,7 +1,6 @@
 @instance: inst.bridge.containers
 @extends: obj.network.bridge.containers
 group: network
-@layer: L2
 @version: 1.0.0
 source_id: bridge-containers
 status: mapped

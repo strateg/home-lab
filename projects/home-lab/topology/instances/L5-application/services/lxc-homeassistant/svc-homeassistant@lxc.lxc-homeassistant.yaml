@@ -1,7 +1,6 @@
 @instance: svc-homeassistant@lxc.lxc-homeassistant
 @extends: obj.service.homeassistant
 group: services
-@layer: L5
 @version: 1.0.0
 source_id: svc-homeassistant
 status: mapped

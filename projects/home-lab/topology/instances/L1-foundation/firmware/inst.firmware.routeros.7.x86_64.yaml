@@ -1,7 +1,6 @@
 @instance: inst.firmware.routeros.7.x86_64
 @extends: obj.firmware.routeros.7.x86_64
 group: firmware
-@layer: L1
 @version: 1.0.0
 source_id: inst.firmware.routeros.7.x86_64
 status: mapped

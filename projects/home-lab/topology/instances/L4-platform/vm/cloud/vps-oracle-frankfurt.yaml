@@ -1,7 +1,6 @@
 @instance: vps-oracle-frankfurt
 @extends: obj.oracle.cloud_vm
 group: vm
-@layer: L4
 @version: 1.0.0
 source_id: vps-oracle-frankfurt
 status: mapped

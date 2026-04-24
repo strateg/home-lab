@@ -1,7 +1,6 @@
 @instance: lxc-redis
 @extends: obj.proxmox.lxc.debian12.redis
 group: lxc
-@layer: L4
 @version: 1.0.0
 source_id: lxc-redis
 status: mapped

@@ -1,7 +1,6 @@
 @instance: inst.vlan.guest
 @extends: obj.network.vlan.guest
 group: network
-@layer: L2
 @version: 1.0.0
 source_id: net-guest
 status: modeled

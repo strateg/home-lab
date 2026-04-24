@@ -1,7 +1,6 @@
 @instance: inst.chan.wan.isp_uplink
 @extends: obj.network.wan_uplink
 group: data-channels
-@layer: L2
 @version: 1.0.0
 source_id: link-wan-isp
 status: mapped

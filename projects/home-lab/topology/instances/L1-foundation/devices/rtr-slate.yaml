@@ -1,7 +1,6 @@
 @instance: rtr-slate
 @extends: obj.glinet.slate_ax1800
 group: devices
-@layer: L1
 @version: 1.0.0
 source_id: rtr-slate
 status: mapped

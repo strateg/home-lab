@@ -1,7 +1,6 @@
 @instance: stack-monitoring
 @extends: obj.docker.stack.monitoring
 group: docker
-@layer: L4
 @version: 1.0.0
 source_id: stack-monitoring
 status: modeled

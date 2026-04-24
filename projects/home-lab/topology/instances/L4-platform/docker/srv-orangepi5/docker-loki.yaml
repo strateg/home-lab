@@ -1,7 +1,6 @@
 @instance: docker-loki
 @extends: obj.docker.container.generic
 group: docker
-@layer: L4
 @version: 1.0.0
 source_id: docker-loki
 status: modeled

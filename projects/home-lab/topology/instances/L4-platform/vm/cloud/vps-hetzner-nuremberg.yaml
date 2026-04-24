@@ -1,7 +1,6 @@
 @instance: vps-hetzner-nuremberg
 @extends: obj.hetzner.cloud_vm
 group: vm
-@layer: L4
 @version: 1.0.0
 source_id: vps-hetzner-nuremberg
 status: mapped

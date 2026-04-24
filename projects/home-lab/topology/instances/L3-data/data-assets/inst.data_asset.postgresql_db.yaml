@@ -1,7 +1,6 @@
 @instance: inst.data_asset.postgresql_db
 @extends: obj.storage.data_asset.database
 group: data-assets
-@layer: L3
 @version: 1.0.0
 source_id: data-postgresql-db
 status: mapped

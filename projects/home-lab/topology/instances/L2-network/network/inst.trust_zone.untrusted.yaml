@@ -1,7 +1,6 @@
 @instance: inst.trust_zone.untrusted
 @extends: obj.network.trust_zone.untrusted
 group: network
-@layer: L2
 @version: 1.0.0
 source_id: trust-zone-untrusted
 status: mapped

@@ -1,7 +1,6 @@
 @instance: backup-offsite-weekly
 @extends: obj.operations.backup.rclone
 group: operations
-@layer: L7
 @version: 1.0.0
 source_id: backup-offsite-weekly
 status: mapped

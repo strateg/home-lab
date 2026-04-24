@@ -1,7 +1,6 @@
 @instance: backup-daily-postgresql-lxc
 @extends: obj.operations.backup.vzdump
 group: operations
-@layer: L7
 @version: 1.0.0
 source_id: backup-daily-postgresql-lxc
 status: mapped

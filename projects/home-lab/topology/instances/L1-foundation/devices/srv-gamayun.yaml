@@ -1,7 +1,6 @@
 @instance: srv-gamayun
 @extends: obj.proxmox.ve
 group: devices
-@layer: L1
 @version: 1.0.0
 source_id: srv-gamayun
 status: mapped

@@ -1,7 +1,6 @@
 @instance: net-mon-bandwidth
 @extends: obj.observability.healthcheck.network
 group: observability
-@layer: L6
 @version: 1.0.0
 source_id: net-mon-bandwidth
 status: mapped

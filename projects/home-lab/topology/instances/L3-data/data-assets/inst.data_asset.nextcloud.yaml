@@ -1,7 +1,6 @@
 @instance: inst.data_asset.nextcloud
 @extends: obj.storage.data_asset.media
 group: data-assets
-@layer: L3
 @version: 1.0.0
 source_id: data-nextcloud
 status: mapped

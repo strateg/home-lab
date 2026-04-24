@@ -1,7 +1,6 @@
 @instance: stack-media
 @extends: obj.docker.stack.media
 group: docker
-@layer: L4
 @version: 1.0.0
 source_id: stack-media
 status: modeled

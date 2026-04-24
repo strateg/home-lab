@@ -1,7 +1,6 @@
 @instance: rtr-mikrotik-chateau
 @extends: obj.mikrotik.chateau_lte7_ax
 group: devices
-@layer: L1
 @version: 1.0.0
 source_id: rtr-mikrotik-chateau
 status: mapped

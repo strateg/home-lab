@@ -1,7 +1,6 @@
 @instance: health-lte-failover
 @extends: obj.observability.healthcheck.lte
 group: observability
-@layer: L6
 @version: 1.0.0
 source_id: health-lte-failover
 status: mapped
