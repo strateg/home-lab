@@ -82,6 +82,10 @@ Adopt **fully derived layer semantics** from `class -> object -> instance`:
 - Effective layer resolution is strictly:
   - object: `object.@extends -> class.@layer`
   - instance: `instance.@extends -> object.@extends -> class.@layer`
+- Legacy instance layer-bucket paths (`L0-*`…`L7-*`) are no longer accepted by compiler runtime.
+  Canonical shard path contract is only:
+  - `<group>/<instance>.yaml`
+  - `<group>/<host-shard>/<instance>.yaml`
 - Path-based layer assumptions remain non-authoritative.
 
 ---

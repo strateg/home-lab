@@ -135,7 +135,7 @@ def test_load_core_compile_inputs_sharded_only_loads_rows(tmp_path: Path) -> Non
 
     project_root = tmp_path / "projects" / "test"
     shard_root = project_root / "instances"
-    shard_file = shard_root / "L1-foundation" / "devices" / "inst.router.a.yaml"
+    shard_file = shard_root / "devices" / "inst.router.a.yaml"
     shard_file.parent.mkdir(parents=True, exist_ok=True)
     shard_file.write_text(
         yaml.safe_dump(
@@ -185,7 +185,7 @@ def test_load_core_compile_inputs_reports_group_layer_mismatch(tmp_path: Path) -
 
     project_root = tmp_path / "projects" / "test"
     shard_root = project_root / "instances"
-    shard_file = shard_root / "L1-foundation" / "devices" / "inst.router.a.yaml"
+    shard_file = shard_root / "devices" / "inst.router.a.yaml"
     shard_file.parent.mkdir(parents=True, exist_ok=True)
     shard_file.write_text(
         yaml.safe_dump(
@@ -230,7 +230,7 @@ def test_load_core_compile_inputs_accepts_semantic_instance_keys(tmp_path: Path)
 
     project_root = tmp_path / "projects" / "test"
     shard_root = project_root / "instances"
-    shard_file = shard_root / "L1-foundation" / "devices" / "inst.router.a.yaml"
+    shard_file = shard_root / "devices" / "inst.router.a.yaml"
     shard_file.parent.mkdir(parents=True, exist_ok=True)
     shard_file.write_text(
         yaml.safe_dump(
@@ -291,7 +291,7 @@ def test_load_core_compile_inputs_derives_layer_from_object_when_missing(tmp_pat
 
     project_root = tmp_path / "projects" / "test"
     shard_root = project_root / "instances"
-    shard_file = shard_root / "L1-foundation" / "devices" / "inst.router.a.yaml"
+    shard_file = shard_root / "devices" / "inst.router.a.yaml"
     shard_file.parent.mkdir(parents=True, exist_ok=True)
     shard_file.write_text(
         yaml.safe_dump(
@@ -345,7 +345,7 @@ def test_load_core_compile_inputs_derives_layer_from_class_when_object_has_no_la
 
     project_root = tmp_path / "projects" / "test"
     shard_root = project_root / "instances"
-    shard_file = shard_root / "L1-foundation" / "devices" / "inst.router.a.yaml"
+    shard_file = shard_root / "devices" / "inst.router.a.yaml"
     shard_file.parent.mkdir(parents=True, exist_ok=True)
     shard_file.write_text(
         yaml.safe_dump(
@@ -393,7 +393,7 @@ def test_load_core_compile_inputs_rejects_instance_layer_conflict_with_object(tm
 
     project_root = tmp_path / "projects" / "test"
     shard_root = project_root / "instances"
-    shard_file = shard_root / "L1-foundation" / "devices" / "inst.router.a.yaml"
+    shard_file = shard_root / "devices" / "inst.router.a.yaml"
     shard_file.parent.mkdir(parents=True, exist_ok=True)
     shard_file.write_text(
         yaml.safe_dump(
@@ -438,7 +438,7 @@ def test_load_core_compile_inputs_rejects_semantic_metadata_collision(tmp_path: 
 
     project_root = tmp_path / "projects" / "test"
     shard_root = project_root / "instances"
-    shard_file = shard_root / "L1-foundation" / "devices" / "inst.router.a.yaml"
+    shard_file = shard_root / "devices" / "inst.router.a.yaml"
     shard_file.parent.mkdir(parents=True, exist_ok=True)
     shard_file.write_text(
         yaml.safe_dump(
@@ -485,7 +485,7 @@ def test_load_core_compile_inputs_rejects_legacy_class_ref_in_shard(tmp_path: Pa
 
     project_root = tmp_path / "projects" / "test"
     shard_root = project_root / "instances"
-    shard_file = shard_root / "L1-foundation" / "devices" / "inst.router.a.yaml"
+    shard_file = shard_root / "devices" / "inst.router.a.yaml"
     shard_file.parent.mkdir(parents=True, exist_ok=True)
     shard_file.write_text(
         yaml.safe_dump(
@@ -531,7 +531,7 @@ def test_load_core_compile_inputs_rejects_filename_unsafe_instance_id(tmp_path: 
 
     project_root = tmp_path / "projects" / "test"
     shard_root = project_root / "instances"
-    shard_file = shard_root / "L1-foundation" / "devices" / "inst.router.bad.yaml"
+    shard_file = shard_root / "devices" / "inst.router.bad.yaml"
     shard_file.parent.mkdir(parents=True, exist_ok=True)
     shard_file.write_text(
         yaml.safe_dump(
@@ -621,7 +621,7 @@ def test_load_core_compile_inputs_rejects_group_directory_mismatch(tmp_path: Pat
 
     project_root = tmp_path / "projects" / "test"
     shard_root = project_root / "instances"
-    shard_file = shard_root / "L1-foundation" / "network" / "inst.router.a.yaml"
+    shard_file = shard_root / "network" / "inst.router.a.yaml"
     shard_file.parent.mkdir(parents=True, exist_ok=True)
     shard_file.write_text(
         yaml.safe_dump(
@@ -666,7 +666,7 @@ def test_load_core_compile_inputs_accepts_host_sharded_instance_path(tmp_path: P
 
     project_root = tmp_path / "projects" / "test"
     shard_root = project_root / "instances"
-    shard_file = shard_root / "L1-foundation" / "devices" / "host-a" / "inst.router.a.yaml"
+    shard_file = shard_root / "devices" / "host-a" / "inst.router.a.yaml"
     shard_file.parent.mkdir(parents=True, exist_ok=True)
     shard_file.write_text(
         yaml.safe_dump(
@@ -708,7 +708,7 @@ def test_load_core_compile_inputs_accepts_host_sharded_instance_path(tmp_path: P
     assert not any(item.get("severity") == "error" for item in diagnostics)
 
 
-def test_load_core_compile_inputs_warns_on_non_sharded_l4_path(tmp_path: Path) -> None:
+def test_load_core_compile_inputs_accepts_non_sharded_l4_path_without_warning(tmp_path: Path) -> None:
     layer_contract_path = tmp_path / "layer-contract.yaml"
     layer_contract_path.write_text(
         yaml.safe_dump(
@@ -725,7 +725,7 @@ def test_load_core_compile_inputs_warns_on_non_sharded_l4_path(tmp_path: Path) -
 
     project_root = tmp_path / "projects" / "test"
     shard_root = project_root / "instances"
-    shard_file = shard_root / "L4-platform" / "vm" / "inst.vm.a.yaml"
+    shard_file = shard_root / "vm" / "inst.vm.a.yaml"
     shard_file.parent.mkdir(parents=True, exist_ok=True)
     shard_file.write_text(
         yaml.safe_dump(
@@ -761,7 +761,7 @@ def test_load_core_compile_inputs_warns_on_non_sharded_l4_path(tmp_path: Path) -
     )
 
     assert isinstance(inputs.instance_payload, dict)
-    assert any(item.get("code") == "W7110" for item in diagnostics)
+    assert not any(item.get("code") == "W7110" for item in diagnostics)
 
 
 def test_load_core_compile_inputs_accepts_host_sharded_l5_path_without_warning(tmp_path: Path) -> None:
@@ -781,7 +781,7 @@ def test_load_core_compile_inputs_accepts_host_sharded_l5_path_without_warning(t
 
     project_root = tmp_path / "projects" / "test"
     shard_root = project_root / "instances"
-    shard_file = shard_root / "L5-application" / "services" / "host-a" / "svc.app.a.yaml"
+    shard_file = shard_root / "services" / "host-a" / "svc.app.a.yaml"
     shard_file.parent.mkdir(parents=True, exist_ok=True)
     shard_file.write_text(
         yaml.safe_dump(
@@ -826,7 +826,7 @@ def test_load_core_compile_inputs_rejects_legacy_schema_version_field(tmp_path: 
 
     project_root = tmp_path / "projects" / "test"
     shard_root = project_root / "instances"
-    shard_file = shard_root / "L1-foundation" / "devices" / "inst.router.a.yaml"
+    shard_file = shard_root / "devices" / "inst.router.a.yaml"
     shard_file.parent.mkdir(parents=True, exist_ok=True)
     shard_file.write_text(
         yaml.safe_dump(

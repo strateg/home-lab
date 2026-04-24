@@ -16,15 +16,15 @@ from yaml_loader import load_yaml_file
 
 INSTANCE_SOURCE_MODES = {"auto", "sharded-only"}
 _INSTANCE_VERSION_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
-_LAYER_BUCKETS: dict[str, str] = {
-    "L0": "L0-meta",
-    "L1": "L1-foundation",
-    "L2": "L2-network",
-    "L3": "L3-data",
-    "L4": "L4-platform",
-    "L5": "L5-application",
-    "L6": "L6-observability",
-    "L7": "L7-operations",
+_LEGACY_LAYER_BUCKET_NAMES = {
+    "L0-meta",
+    "L1-foundation",
+    "L2-network",
+    "L3-data",
+    "L4-platform",
+    "L5-application",
+    "L6-observability",
+    "L7-operations",
 }
 
 
@@ -527,14 +527,22 @@ def _load_sharded_instance_payload(
                 path=f"{_diag_path(repo_root=repo_root, path=path)}:layer",
             )
             continue
-        bucket_values = set(_LAYER_BUCKETS.values())
         group_dir: str | None = None
-        if len(relative_parts) in {2, 3} and str(relative_parts[0]) not in bucket_values:
-            # New canonical layout: <group>/<instance>.yaml or <group>/<host-shard>/<instance>.yaml
+        if len(relative_parts) in {2, 3}:
+            # Canonical layout: <group>/<instance>.yaml or <group>/<host-shard>/<instance>.yaml
             group_dir = str(relative_parts[0])
-        elif len(relative_parts) in {3, 4} and str(relative_parts[0]) in bucket_values:
-            # Legacy compatibility: <layer-bucket>/<group>/<instance>.yaml
-            group_dir = str(relative_parts[1])
+            if group_dir in _LEGACY_LAYER_BUCKET_NAMES:
+                add_diag(
+                    code="E7108",
+                    severity="error",
+                    stage="validate",
+                    message=(
+                        "Legacy layer-bucket paths are not allowed in instances_root. "
+                        "Use '<group>/<instance>.yaml' or '<group>/<host-shard>/<instance>.yaml'."
+                    ),
+                    path=_diag_path(repo_root=repo_root, path=path),
+                )
+                continue
         else:
             add_diag(
                 code="E7108",
@@ -542,8 +550,7 @@ def _load_sharded_instance_payload(
                 stage="validate",
                 message=(
                     "Instance shard path must be either "
-                    "'<group>/<instance>.yaml' / '<group>/<host-shard>/<instance>.yaml' "
-                    "or legacy '<layer-bucket>/<group>/<instance>.yaml'."
+                    "'<group>/<instance>.yaml' or '<group>/<host-shard>/<instance>.yaml'."
                 ),
                 path=_diag_path(repo_root=repo_root, path=path),
             )
