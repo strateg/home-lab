@@ -30,6 +30,7 @@ LAYER_BUCKETS = {
     "L6": "L6-observability",
     "L7": "L7-operations",
 }
+LEGACY_INSTANCE_BUCKETS = tuple(LAYER_BUCKETS.values())
 
 
 def _is_planned_status(value: Any) -> bool:
@@ -93,6 +94,20 @@ def _load_instance_bindings_from_shards(instances_root: Path, *, errors: list[st
         payload = _load_yaml_map(path, errors=errors)
         if not payload:
             continue
+        rel_parts = rel.parts
+        if len(rel_parts) not in {2, 3}:
+            errors.append(
+                f"{path.relative_to(ROOT).as_posix()}: instance shard path must be "
+                "'<group>/<instance>.yaml' or '<group>/<host-shard>/<instance>.yaml'"
+            )
+            continue
+        top_level_dir = str(rel_parts[0])
+        if top_level_dir in LEGACY_INSTANCE_BUCKETS:
+            errors.append(
+                f"{path.relative_to(ROOT).as_posix()}: legacy layer-bucket instances path is not allowed; "
+                "use canonical '<group>/...'"
+            )
+            continue
         if "instance_bindings" in payload:
             errors.append(
                 f"{path.relative_to(ROOT).as_posix()}: sharded instance file must not contain 'instance_bindings'"
@@ -101,6 +116,12 @@ def _load_instance_bindings_from_shards(instances_root: Path, *, errors: list[st
         group = payload.get("group")
         if not isinstance(group, str) or not group:
             errors.append(f"{path.relative_to(ROOT).as_posix()}: missing non-empty group")
+            continue
+        if top_level_dir != group:
+            errors.append(
+                f"{path.relative_to(ROOT).as_posix()}: shard top-level directory '{top_level_dir}' "
+                f"must match group '{group}'"
+            )
             continue
         row = dict(payload)
         row.pop("@version", None)

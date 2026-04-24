@@ -136,3 +136,22 @@ def test_layer_contract_rejects_class_layer_path_mismatch(tmp_path: Path, capsys
 
     assert code == 1
     assert "must be placed under 'topology/class-modules/L1-foundation/...'" in captured.out
+
+
+def test_layer_contract_rejects_legacy_instance_bucket_paths(tmp_path: Path, capsys, monkeypatch) -> None:
+    mod = _load_module()
+    topology_path = _seed_repo(tmp_path, object_has_layer=False)
+    canonical = tmp_path / "projects" / "home-lab" / "topology" / "instances" / "devices" / "inst.router.a.yaml"
+    legacy = tmp_path / "projects" / "home-lab" / "topology" / "instances" / "L1-foundation" / "devices" / "inst.router.a.yaml"
+    legacy.parent.mkdir(parents=True, exist_ok=True)
+    canonical.rename(legacy)
+
+    mod.ROOT = tmp_path
+    mod.DEFAULT_MANIFEST = topology_path
+    monkeypatch.setattr(sys, "argv", ["validate_v5_layer_contract.py"])
+
+    code = mod.main()
+    captured = capsys.readouterr()
+
+    assert code == 1
+    assert "legacy layer-bucket instances path is not allowed" in captured.out
