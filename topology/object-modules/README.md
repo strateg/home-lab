@@ -23,8 +23,8 @@ Validation (legacy checker, run with explicit v5 paths):
 
 ```bash
 python v5/topology-tools/check-capability-contract.py \
-  --catalog v5/topology/class-modules/router/capability-catalog.yaml \
-  --packs v5/topology/class-modules/router/capability-packs.yaml \
+  --catalog v5/topology/class-modules/L1-foundation/router/capability-catalog.yaml \
+  --packs v5/topology/class-modules/L1-foundation/router/capability-packs.yaml \
   --classes-dir v5/topology/class-modules \
   --objects-dir v5/topology/object-modules
 ```

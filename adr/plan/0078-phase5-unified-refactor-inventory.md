@@ -173,7 +173,7 @@
 **Description:** Extract common router port validation logic to class-level base, keep object-specific filtering in object modules
 
 **Files Affected:**
-- MODIFY: `v5/topology/class-modules/router/plugins/router_port_validator_base.py` (new)
+- MODIFY: `v5/topology/class-modules/L1-foundation/router/plugins/router_port_validator_base.py` (new)
 - MODIFY: `v5/topology/object-modules/mikrotik/plugins/mikrotik_router_ports_validator.py`
 - MODIFY: `v5/topology/object-modules/glinet/plugins/glinet_router_ports_validator.py`
 
@@ -312,7 +312,7 @@
 |------|--------|
 | 2026-03-23 | Initial Phase 5 inventory and backlog draft |
 | 2026-03-23 | WP-001/WP-002/WP-003 implemented: shared helpers extracted to _shared/plugins/ |
-| 2026-03-23 | WP-004 implemented: RouterPortValidatorBase extracted to class-modules/router/ |
+| 2026-03-23 | WP-004 implemented: RouterPortValidatorBase extracted to class-modules/L1-foundation/router/ |
 | 2026-03-23 | WP-005/WP-006 implemented: projection constants extracted to projection_core.py |
 | 2026-03-24 | HOTFIX: Created shared_helper_loader.py for dynamic module loading (hyphenated dirs) |
 | 2026-03-24 | FIX: Resolved 26 W7844 network binding warnings (validator + instance data) |
@@ -337,7 +337,7 @@
 | `_shared/plugins/terraform_helpers.py` | `render_string_list()` |
 | `_shared/plugins/capability_helpers.py` | `get_capability_templates()`, `capability_expression_enabled()` |
 | `_shared/plugins/bootstrap_helpers.py` | `get_bootstrap_files()`, `get_post_install_*()` |
-| `class-modules/router/plugins/router_port_validator_base.py` | `RouterPortValidatorBase` |
+| `class-modules/L1-foundation/router/plugins/router_port_validator_base.py` | `RouterPortValidatorBase` |
 | `topology-tools/plugins/generators/shared_helper_loader.py` | Dynamic module loader for hyphenated directories |
 
 ### Code Reduction

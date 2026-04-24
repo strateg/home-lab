@@ -22,7 +22,7 @@ def _write_fixture_repo(tmp_path: Path) -> Path:
             [
                 "version: 5.0.0",
                 "framework:",
-                "  capability_packs: topology/class-modules/router/capability-packs.yaml",
+                "  capability_packs: topology/class-modules/L1-foundation/router/capability-packs.yaml",
                 "",
             ]
         ),

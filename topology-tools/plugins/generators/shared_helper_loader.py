@@ -173,7 +173,7 @@ def load_router_port_validator_base(
     ctx: PluginContext | None = None,
     class_modules_root: Path | str | None = None,
 ) -> ModuleType:
-    """Load RouterPortValidatorBase from class-modules/router/plugins/."""
+    """Load RouterPortValidatorBase from class-modules/L1-foundation/router/plugins/."""
     return load_class_plugin_module(
         "router",
         "router_port_validator_base",

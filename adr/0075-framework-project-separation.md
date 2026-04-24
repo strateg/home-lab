@@ -84,8 +84,8 @@ framework:
   layer_contract: v5/topology/layer-contract.yaml
   model_lock: v5/topology/model.lock.yaml
   profile_map: v5/topology/profile-map.yaml
-  capability_catalog: v5/topology/class-modules/router/capability-catalog.yaml
-  capability_packs: v5/topology/class-modules/router/capability-packs.yaml
+  capability_catalog: v5/topology/class-modules/L1-foundation/router/capability-catalog.yaml
+  capability_packs: v5/topology/class-modules/L1-foundation/router/capability-packs.yaml
 
 project:
   active: home-lab

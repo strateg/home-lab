@@ -145,7 +145,7 @@ using vendor rule variants.
 **Scope (files)**
 - New: `topology-tools/plugins/validators/router_port_validator.py`
 - Existing candidate files:
-  - `topology/class-modules/router/plugins/validators/router_data_channel_interface_validator.py`
+  - `topology/class-modules/L1-foundation/router/plugins/validators/router_data_channel_interface_validator.py`
   - `topology/object-modules/mikrotik/plugins/validators/mikrotik_router_ports_validator.py`
   - `topology/object-modules/glinet/plugins/validators/glinet_router_ports_validator.py`
 
@@ -173,7 +173,7 @@ Update manifests after introducing unified router port validator.
 
 **Scope (files)**
 - `topology-tools/plugins/plugins.yaml`
-- `topology/class-modules/router/plugins.yaml`
+- `topology/class-modules/L1-foundation/router/plugins.yaml`
 - `topology/object-modules/mikrotik/plugins.yaml`
 - `topology/object-modules/glinet/plugins.yaml`
 

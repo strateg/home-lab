@@ -321,7 +321,7 @@ def test_module_index_consistency_reports_stale_entry(tmp_path: Path) -> None:
     _write_manifest(object_root / "mikrotik" / "plugins.yaml", plugin_id="object.validator.mikrotik")
     _write_module_index(
         module_index,
-        class_manifests=["class-modules/router/plugins.yaml"],
+        class_manifests=["class-modules/L1-foundation/router/plugins.yaml"],
         object_manifests=["object-modules/mikrotik/plugins.yaml"],
     )
 
@@ -344,7 +344,7 @@ def test_module_index_consistency_passes_for_exact_match(tmp_path: Path) -> None
     _write_manifest(object_root / "mikrotik" / "plugins.yaml", plugin_id="object.validator.mikrotik")
     _write_module_index(
         module_index,
-        class_manifests=["class-modules/router/plugins.yaml"],
+        class_manifests=["class-modules/L1-foundation/router/plugins.yaml"],
         object_manifests=["object-modules/mikrotik/plugins.yaml"],
     )
 

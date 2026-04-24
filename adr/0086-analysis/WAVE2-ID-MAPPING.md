@@ -71,7 +71,7 @@ Changes:
 
 Updated files:
 
-- `topology/class-modules/router/plugins.yaml`
+- `topology/class-modules/L1-foundation/router/plugins.yaml`
 - `topology/object-modules/mikrotik/plugins.yaml`
 - `topology/object-modules/glinet/plugins.yaml`
 
@@ -110,7 +110,7 @@ The following files remain in repository as legacy compatibility artifacts and c
 - `topology-tools/plugins/validators/service_dependency_refs_validator.py`
 - `topology-tools/plugins/validators/network_core_refs_validator.py`
 - `topology-tools/plugins/validators/power_source_refs_validator.py`
-- `topology/class-modules/router/plugins/validators/router_data_channel_interface_validator.py`
+- `topology/class-modules/L1-foundation/router/plugins/validators/router_data_channel_interface_validator.py`
 - `topology/object-modules/mikrotik/plugins/validators/mikrotik_router_ports_validator.py`
 - `topology/object-modules/glinet/plugins/validators/glinet_router_ports_validator.py`
 

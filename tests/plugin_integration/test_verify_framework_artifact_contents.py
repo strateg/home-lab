@@ -29,7 +29,7 @@ def test_verify_framework_artifact_contents_passes_on_runtime_only_manifest(tmp_
         manifest,
         [
             "framework.yaml",
-            "topology/class-modules/router/class.router.yaml",
+            "topology/class-modules/L1-foundation/router/class.router.yaml",
             "topology/object-modules/router/object.router.yaml",
             "topology/layer-contract.yaml",
             "topology/model.lock.yaml",
@@ -65,7 +65,7 @@ def test_verify_framework_artifact_contents_fails_on_forbidden_paths(tmp_path: P
         manifest,
         [
             "framework.yaml",
-            "topology/class-modules/router/class.router.yaml",
+            "topology/class-modules/L1-foundation/router/class.router.yaml",
             "topology/object-modules/router/object.router.yaml",
             "topology/layer-contract.yaml",
             "topology/model.lock.yaml",

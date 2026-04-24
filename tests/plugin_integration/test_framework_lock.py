@@ -85,8 +85,8 @@ def _create_fixture_repo(tmp_path: Path, *, min_framework_version: str = "5.0.0"
                 "model_lock": "topology/model.lock.yaml",
                 "profile_map": "topology/profile-map.yaml",
                 "layer_contract": "topology/layer-contract.yaml",
-                "capability_catalog": "topology/class-modules/router/capability-catalog.yaml",
-                "capability_packs": "topology/class-modules/router/capability-packs.yaml",
+                "capability_catalog": "topology/class-modules/L1-foundation/router/capability-catalog.yaml",
+                "capability_packs": "topology/class-modules/L1-foundation/router/capability-packs.yaml",
             },
             "project": {
                 "active": "home-lab",

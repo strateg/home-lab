@@ -169,7 +169,7 @@ capabilities:
 ```
 
 ```yaml
-# v5/topology/class-modules/router/instances/mikrotik-rb3011.yaml
+# v5/topology/class-modules/L1-foundation/router/instances/mikrotik-rb3011.yaml
 name: router.mikrotik_rb3011
 inherits: router
 

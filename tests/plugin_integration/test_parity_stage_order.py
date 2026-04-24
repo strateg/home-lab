@@ -764,8 +764,8 @@ def test_strict_only_rejects_legacy_instance_bindings_path():
                 "paths": {
                     "class_modules_root": "topology/class-modules",
                     "object_modules_root": "topology/object-modules",
-                    "capability_catalog": "topology/class-modules/router/capability-catalog.yaml",
-                    "capability_packs": "topology/class-modules/router/capability-packs.yaml",
+                    "capability_catalog": "topology/class-modules/L1-foundation/router/capability-catalog.yaml",
+                    "capability_packs": "topology/class-modules/L1-foundation/router/capability-packs.yaml",
                     "layer_contract": "topology/layer-contract.yaml",
                     "model_lock": "topology/model.lock.yaml",
                     "instances_root": "topology/instances",

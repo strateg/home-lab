@@ -166,7 +166,7 @@ Target files:
 
 1. `v5/topology/object-modules/network/plugins.yaml`
 2. `v5/topology/object-modules/network/plugins/ethernet_cable_endpoint_validator.py`
-3. `v5/topology/class-modules/router/plugins.yaml` и/или `v5/topology-tools/plugins/plugins.yaml`
+3. `v5/topology/class-modules/L1-foundation/router/plugins.yaml` и/или `v5/topology-tools/plugins/plugins.yaml`
 
 Verification:
 

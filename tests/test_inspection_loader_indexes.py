@@ -55,7 +55,7 @@ def test_loader_load_capability_pack_catalog_resolves_manifest_and_catalog(
             [
                 "version: 5.0.0",
                 "framework:",
-                "  capability_packs: topology/class-modules/router/capability-packs.yaml",
+                "  capability_packs: topology/class-modules/L1-foundation/router/capability-packs.yaml",
                 "",
             ]
         ),

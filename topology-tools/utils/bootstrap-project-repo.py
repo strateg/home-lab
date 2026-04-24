@@ -230,8 +230,8 @@ def _topology_framework_section(layout: str, *, framework_mount: str, framework_
             "model_lock": f"{prefix}/model.lock.yaml",
             "profile_map": f"{prefix}/profile-map.yaml",
             "layer_contract": f"{prefix}/layer-contract.yaml",
-            "capability_catalog": f"{prefix}/class-modules/router/capability-catalog.yaml",
-            "capability_packs": f"{prefix}/class-modules/router/capability-packs.yaml",
+            "capability_catalog": f"{prefix}/class-modules/L1-foundation/router/capability-catalog.yaml",
+            "capability_packs": f"{prefix}/class-modules/L1-foundation/router/capability-packs.yaml",
         }
 
     return {
@@ -264,12 +264,12 @@ def _topology_framework_section(layout: str, *, framework_mount: str, framework_
         "capability_catalog": _mounted_path(
             framework_root,
             framework_mount,
-            ["topology/class-modules/router/capability-catalog.yaml", "class-modules/router/capability-catalog.yaml"],
+            ["topology/class-modules/L1-foundation/router/capability-catalog.yaml", "class-modules/L1-foundation/router/capability-catalog.yaml"],
         ),
         "capability_packs": _mounted_path(
             framework_root,
             framework_mount,
-            ["topology/class-modules/router/capability-packs.yaml", "class-modules/router/capability-packs.yaml"],
+            ["topology/class-modules/L1-foundation/router/capability-packs.yaml", "class-modules/L1-foundation/router/capability-packs.yaml"],
         ),
     }
 

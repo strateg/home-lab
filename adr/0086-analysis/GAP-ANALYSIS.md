@@ -90,7 +90,7 @@ This gap analysis follows the revised ADR 0086 scope:
 ### Likely Edit
 
 - `topology-tools/plugins/plugins.yaml` (new consolidated validator entries + ID rewires)
-- `topology/class-modules/router/plugins.yaml` (remove/migrate standalone entries)
+- `topology/class-modules/L1-foundation/router/plugins.yaml` (remove/migrate standalone entries)
 - `topology/object-modules/*/plugins.yaml` (remove/migrate standalone entries)
 - Plugin contract/architecture tests in `tests/plugin_contract/` and `tests/plugin_integration/`
 - Docs and agent guidance files referencing level-boundary rules

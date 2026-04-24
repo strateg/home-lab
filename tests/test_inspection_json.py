@@ -166,7 +166,7 @@ def test_capabilities_payload_summary_and_error_contracts(tmp_path: Path, monkey
             [
                 "version: 5.0.0",
                 "framework:",
-                "  capability_packs: topology/class-modules/router/capability-packs.yaml",
+                "  capability_packs: topology/class-modules/L1-foundation/router/capability-packs.yaml",
                 "",
             ]
         ),

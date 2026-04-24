@@ -45,8 +45,8 @@ def _create_minimal_repo(tmp_path: Path) -> tuple[Path, Path, Path, Path]:
                 "model_lock": "topology/model.lock.yaml",
                 "profile_map": "topology/profile-map.yaml",
                 "layer_contract": "topology/layer-contract.yaml",
-                "capability_catalog": "topology/class-modules/router/capability-catalog.yaml",
-                "capability_packs": "topology/class-modules/router/capability-packs.yaml",
+                "capability_catalog": "topology/class-modules/L1-foundation/router/capability-catalog.yaml",
+                "capability_packs": "topology/class-modules/L1-foundation/router/capability-packs.yaml",
             },
             "project": {
                 "active": "home-lab",
@@ -232,8 +232,8 @@ def test_compile_supports_project_manifest_at_projects_root(monkeypatch, tmp_pat
                 "model_lock": "framework/model.lock.yaml",
                 "profile_map": "framework/profile-map.yaml",
                 "layer_contract": "framework/layer-contract.yaml",
-                "capability_catalog": "framework/class-modules/router/capability-catalog.yaml",
-                "capability_packs": "framework/class-modules/router/capability-packs.yaml",
+                "capability_catalog": "framework/class-modules/L1-foundation/router/capability-catalog.yaml",
+                "capability_packs": "framework/class-modules/L1-foundation/router/capability-packs.yaml",
             },
             "project": {
                 "active": "home-lab",
