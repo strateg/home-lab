@@ -84,7 +84,7 @@ def _fake_extracted_framework_repo(tmp_path: Path) -> Path:
 
 def _fake_seed_project_root(tmp_path: Path) -> Path:
     root = tmp_path / "seed-project"
-    _write(root / "topology" / "instances" / "L1-foundation" / "compute" / "vm.seed.yaml", "instance: vm.seed\n")
+    _write(root / "topology" / "instances" / "compute" / "vm.seed.yaml", "instance: vm.seed\n")
     _write(root / "secrets" / "instances" / "vm.seed.yaml", "secret: value\n")
     _write(root / "overrides" / "ansible" / "inventory-overrides" / "production" / "group_vars.yml", "a: b\n")
     _write(root / "plugins" / "plugins.yaml", "schema_version: 1\nplugins: []\n")
@@ -209,7 +209,7 @@ def test_bootstrap_project_repo_can_seed_project_data(tmp_path: Path) -> None:
         check=False,
     )
     assert run.returncode == 0, run.stdout + "\n" + run.stderr
-    assert (output_root / "topology" / "instances" / "L1-foundation" / "compute" / "vm.seed.yaml").exists()
+    assert (output_root / "topology" / "instances" / "compute" / "vm.seed.yaml").exists()
     assert (output_root / "secrets" / "instances" / "vm.seed.yaml").exists()
     assert (output_root / "overrides" / "ansible" / "inventory-overrides" / "production" / "group_vars.yml").exists()
     assert (output_root / "plugins" / "plugins.yaml").exists()
