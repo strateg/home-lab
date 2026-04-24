@@ -11,6 +11,8 @@
 - [ ] `@summary` is supported and normalized (nullable).
 - [ ] `@layer` is required and validated for class/object/instance manifests.
 - [ ] `@description` is supported and normalized (nullable).
+- [ ] Instance shard grouping metadata uses canonical `@group`.
+- [ ] Plain `group` key is rejected/forbidden in active instance shard contract.
 - [ ] Alias collisions are rejected by validator diagnostics.
 - [ ] Context-scoped semantic mapping is enforced (`@capability/@schema` only in capability-entry context).
 - [ ] ADR 0067 partial-supersede boundaries are documented and accepted.
@@ -33,6 +35,7 @@
 
 - [ ] All framework class/object manifests migrated to canonical keys.
 - [ ] Project manifests/instances migrated to canonical keys.
+- [ ] Instance shard headers are canonicalized to `@instance/@extends/@group/@version`.
 - [ ] Legacy aliases either absent or explicitly allowed by configured mode.
 - [ ] Migration scope excludes `archive/v4/` unconditionally (immutable reference) and excludes `generated/`/historical artifacts.
 - [ ] Active instances root (`projects/*/topology/instances`) has zero legacy `class_ref/object_ref` fields.

@@ -7,7 +7,8 @@
 3. ADR0088 diagnostic family is implemented (`E8801..E8806` in error catalog; runtime/tests include explicit mentions).
 4. Active instance source path is canonical-only:
    - `projects/home-lab/topology/instances`: `class_ref=0`, `object_ref=0`
-   - `@instance/@extends/@layer/@version`: `148/148/148/148`
+   - `@instance/@extends/@group/@version`: canonical in shard headers
+   - `instance.@layer` and plain `group` are removed from canonical shard contract (derived-layer + service-key policy).
 5. Gates are green:
    - compile: `errors=0`, `warnings=5`, `infos=81`
    - `validate-v5`: PASS
@@ -31,6 +32,7 @@
 | Area | Gap | Required change |
 |---|---|---|
 | Semantic contract | Runtime is strict, but policy text still under-specifies post-cutover governance | Add explicit post-cutover semantic-only continuity rule |
+| Instance shard service keys | `group` previously existed as plain non-`@` service key in shard header | Lock canonical shard service key as `@group`; reject plain `group` in active lane |
 | Metadata quality | Mandatory metadata coverage not uniformly achieved | Define coverage targets and phased enforcement gate |
 | Legacy boundary | Legacy key usage persists in `_legacy` tree | Codify boundary-fenced handling as intentional/non-active |
 | Warning policy | `W7816` profile exists without explicit policy gate | Add warning governance and escalation contract |

@@ -13,7 +13,8 @@ Incremental migration with compatibility mode first, then enforcement.
    - `E8801..E8806` catalog + runtime enforcement in key compilers.
 2. Active instance source path is canonical-only (`projects/home-lab/topology/instances`):
    - zero legacy `class_ref/object_ref`
-   - full `@instance/@extends/@layer/@version` coverage.
+   - canonical shard header uses `@instance/@extends/@group/@version`
+   - `instance.@layer` removed (derived from object→class), plain `group` replaced by `@group`.
 3. Contract gates are green:
    - compile (`errors=0`)
    - `validate-v5` PASS
@@ -114,6 +115,9 @@ Incremental migration with compatibility mode first, then enforcement.
    - define deterministic escalation criteria (warning -> error) for repeated conflict classes.
 4. Compliance reporting:
    - publish periodic ADR0088 status snapshot against cutover checklist.
+5. Instance-shard service-key hardening:
+   - enforce canonical `@group` for shard grouping metadata
+   - treat plain `group` as non-canonical/legacy in active-lane shard contract.
 
 **Gate:** quality-hardening policies are documented, measurable, and enforced in CI without semantic rollback.
 
