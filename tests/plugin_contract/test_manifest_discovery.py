@@ -279,7 +279,7 @@ def test_module_index_consistency_reports_missing_index_entry(tmp_path: Path) ->
     object_root = topology_root / "object-modules"
     module_index = topology_root / "module-index.yaml"
 
-    _write_manifest(class_root / "router" / "plugins.yaml", plugin_id="class.validator.router")
+    _write_manifest(class_root / "L1-foundation" / "router" / "plugins.yaml", plugin_id="class.validator.router")
     _write_manifest(object_root / "mikrotik" / "plugins.yaml", plugin_id="object.validator.mikrotik")
     _write_module_index(
         module_index,
@@ -340,7 +340,7 @@ def test_module_index_consistency_passes_for_exact_match(tmp_path: Path) -> None
     object_root = topology_root / "object-modules"
     module_index = topology_root / "module-index.yaml"
 
-    _write_manifest(class_root / "router" / "plugins.yaml", plugin_id="class.validator.router")
+    _write_manifest(class_root / "L1-foundation" / "router" / "plugins.yaml", plugin_id="class.validator.router")
     _write_manifest(object_root / "mikrotik" / "plugins.yaml", plugin_id="object.validator.mikrotik")
     _write_module_index(
         module_index,

@@ -12,7 +12,7 @@ SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "inspection" / "inspe
 
 def _write_fixture_repo(tmp_path: Path) -> Path:
     build_dir = tmp_path / "build"
-    topology_dir = tmp_path / "topology" / "class-modules" / "router"
+    topology_dir = tmp_path / "topology" / "class-modules" / "L1-foundation" / "router"
     build_dir.mkdir(parents=True, exist_ok=True)
     topology_dir.mkdir(parents=True, exist_ok=True)
 

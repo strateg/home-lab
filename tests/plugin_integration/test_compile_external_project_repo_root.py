@@ -42,10 +42,10 @@ def test_compile_with_external_project_repo_root(tmp_path: Path) -> None:
                 "profile_map": str(framework_root / "topology" / "profile-map.yaml"),
                 "layer_contract": str(framework_root / "topology" / "layer-contract.yaml"),
                 "capability_catalog": str(
-                    framework_root / "topology" / "class-modules" / "router" / "capability-catalog.yaml"
+                    framework_root / "topology" / "class-modules" / "L1-foundation" / "router" / "capability-catalog.yaml"
                 ),
                 "capability_packs": str(
-                    framework_root / "topology" / "class-modules" / "router" / "capability-packs.yaml"
+                    framework_root / "topology" / "class-modules" / "L1-foundation" / "router" / "capability-packs.yaml"
                 ),
             },
             "project": {
@@ -147,10 +147,10 @@ def test_compile_with_external_project_repo_root_uses_standalone_topology_defaul
                 "profile_map": str(framework_root / "topology" / "profile-map.yaml"),
                 "layer_contract": str(framework_root / "topology" / "layer-contract.yaml"),
                 "capability_catalog": str(
-                    framework_root / "topology" / "class-modules" / "router" / "capability-catalog.yaml"
+                    framework_root / "topology" / "class-modules" / "L1-foundation" / "router" / "capability-catalog.yaml"
                 ),
                 "capability_packs": str(
-                    framework_root / "topology" / "class-modules" / "router" / "capability-packs.yaml"
+                    framework_root / "topology" / "class-modules" / "L1-foundation" / "router" / "capability-packs.yaml"
                 ),
             },
             "project": {

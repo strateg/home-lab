@@ -47,7 +47,7 @@ def test_loader_load_capability_pack_catalog_resolves_manifest_and_catalog(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     loader = _load_module(INSPECTION_DIR / "inspection_loader.py", "inspection_loader_contract_catalog")
-    topology_dir = tmp_path / "topology" / "class-modules" / "router"
+    topology_dir = tmp_path / "topology" / "class-modules" / "L1-foundation" / "router"
     topology_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = tmp_path / "topology" / "topology.yaml"
     manifest_path.write_text(
