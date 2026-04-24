@@ -15,16 +15,6 @@ from yaml_loader import load_yaml_file
 class FoundationFilePlacementValidator(ValidatorYamlPlugin):
     """Validate policy taxonomy for instance YAML file placement."""
 
-    _LAYER_DIRS = {
-        "L0": "L0-meta",
-        "L1": "L1-foundation",
-        "L2": "L2-network",
-        "L3": "L3-data",
-        "L4": "L4-platform",
-        "L5": "L5-application",
-        "L6": "L6-observability",
-        "L7": "L7-operations",
-    }
     _ERROR_CODE = "E7900"
     _WARNING_CODE = "W7901"
 
@@ -126,21 +116,8 @@ class FoundationFilePlacementValidator(ValidatorYamlPlugin):
                 )
                 continue
 
-            expected_layer_dir = self._LAYER_DIRS.get(resolved_layer)
-            if expected_layer_dir is None:
-                diagnostics.append(
-                    self.emit_diagnostic(
-                        code=self._WARNING_CODE,
-                        severity="warning",
-                        stage=stage,
-                        message=f"Instance '{instance_id}' uses unknown layer '{resolved_layer}' for placement policy.",
-                        path=f"project:{file_path}",
-                    )
-                )
-                continue
-
             rel_parts = rel.split("/")
-            if len(rel_parts) < 3:
+            if len(rel_parts) not in {2, 3}:
                 diagnostics.append(
                     self.emit_diagnostic(
                         code=self._WARNING_CODE,
@@ -148,30 +125,15 @@ class FoundationFilePlacementValidator(ValidatorYamlPlugin):
                         stage=stage,
                         message=(
                             f"Instance file '{rel}' should follow "
-                            "'<layer-dir>/<group>/<instance>.yaml' placement pattern."
+                            "'<group>/<instance>.yaml' or '<group>/<host-shard>/<instance>.yaml' placement pattern."
                         ),
                         path=f"project:{file_path}",
                     )
                 )
                 continue
 
-            actual_layer_dir = rel_parts[0]
-            actual_group_dir = rel_parts[1]
+            actual_group_dir = rel_parts[0]
             actual_filename = rel_parts[-1]
-
-            if actual_layer_dir != expected_layer_dir:
-                diagnostics.append(
-                    self.emit_diagnostic(
-                        code=self._WARNING_CODE,
-                        severity="warning",
-                        stage=stage,
-                        message=(
-                            f"Instance '{instance_id}' layer '{resolved_layer}' should be placed under "
-                            f"'{expected_layer_dir}/', got '{actual_layer_dir}/'."
-                        ),
-                        path=f"project:{file_path}",
-                    )
-                )
 
             if actual_group_dir != group:
                 diagnostics.append(
@@ -181,7 +143,7 @@ class FoundationFilePlacementValidator(ValidatorYamlPlugin):
                         stage=stage,
                         message=(
                             f"Instance '{instance_id}' group '{group}' should be placed under "
-                            f"'{expected_layer_dir}/{group}/', got '{actual_layer_dir}/{actual_group_dir}/'."
+                            f"'{group}/', got '{actual_group_dir}/'."
                         ),
                         path=f"project:{file_path}",
                     )

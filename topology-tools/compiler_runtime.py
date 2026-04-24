@@ -26,7 +26,6 @@ _LAYER_BUCKETS: dict[str, str] = {
     "L6": "L6-observability",
     "L7": "L7-operations",
 }
-_HOST_SHARD_WARNING_LAYERS = {"L4", "L5"}
 
 
 @dataclass
@@ -528,33 +527,28 @@ def _load_sharded_instance_payload(
                 path=f"{_diag_path(repo_root=repo_root, path=path)}:layer",
             )
             continue
-        if len(relative_parts) not in {3, 4}:
+        bucket_values = set(_LAYER_BUCKETS.values())
+        group_dir: str | None = None
+        if len(relative_parts) in {2, 3} and str(relative_parts[0]) not in bucket_values:
+            # New canonical layout: <group>/<instance>.yaml or <group>/<host-shard>/<instance>.yaml
+            group_dir = str(relative_parts[0])
+        elif len(relative_parts) in {3, 4} and str(relative_parts[0]) in bucket_values:
+            # Legacy compatibility: <layer-bucket>/<group>/<instance>.yaml
+            group_dir = str(relative_parts[1])
+        else:
             add_diag(
                 code="E7108",
                 severity="error",
                 stage="validate",
                 message=(
-                    "Instance shard path must be "
-                    "'<layer-bucket>/<group>/<instance>.yaml' or "
-                    "'<layer-bucket>/<group>/<host-shard>/<instance>.yaml' under instances_root."
+                    "Instance shard path must be either "
+                    "'<group>/<instance>.yaml' / '<group>/<host-shard>/<instance>.yaml' "
+                    "or legacy '<layer-bucket>/<group>/<instance>.yaml'."
                 ),
                 path=_diag_path(repo_root=repo_root, path=path),
             )
             continue
-        expected_bucket = _LAYER_BUCKETS.get(layer)
-        layer_bucket = str(relative_parts[0])
-        group_dir = str(relative_parts[1])
-        if isinstance(expected_bucket, str) and expected_bucket and layer_bucket != expected_bucket:
-            add_diag(
-                code="E7108",
-                severity="error",
-                stage="validate",
-                message=(
-                    f"Layer bucket '{layer_bucket}' does not match layer '{layer}'. " f"Expected '{expected_bucket}'."
-                ),
-                path=_diag_path(repo_root=repo_root, path=path),
-            )
-            continue
+
         if group_dir != group_name:
             add_diag(
                 code="E7109",
@@ -564,18 +558,6 @@ def _load_sharded_instance_payload(
                 path=_diag_path(repo_root=repo_root, path=path),
             )
             continue
-
-        if len(relative_parts) == 3 and layer in _HOST_SHARD_WARNING_LAYERS:
-            add_diag(
-                code="W7110",
-                severity="warning",
-                stage="validate",
-                message=(
-                    f"Non-sharded placement for layer '{layer}' group '{group_name}' is deprecated; "
-                    "prefer '<layer-bucket>/<group>/<host-shard>/<instance>.yaml'."
-                ),
-                path=_diag_path(repo_root=repo_root, path=path),
-            )
 
         row = dict(payload)
         row.pop("schema_version", None)

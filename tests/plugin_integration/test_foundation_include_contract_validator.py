@@ -15,21 +15,24 @@ from kernel.plugin_base import Stage
 PLUGIN_ID = "base.validator.foundation_include_contract"
 
 REQUIRED_INSTANCE_DIRS = (
-    "L0-meta/meta",
-    "L1-foundation/devices",
-    "L1-foundation/firmware",
-    "L1-foundation/physical-links",
-    "L1-foundation/power",
-    "L2-network/data-channels",
-    "L2-network/network",
-    "L3-data/pools",
-    "L3-data/data-assets",
-    "L4-platform/os",
-    "L4-platform/lxc",
-    "L4-platform/vm",
-    "L5-application/services",
-    "L6-observability/observability",
-    "L7-operations/operations",
+    "meta",
+    "devices",
+    "firmware",
+    "physical-links",
+    "power",
+    "data-channels",
+    "firewall",
+    "network",
+    "qos",
+    "pools",
+    "data-assets",
+    "docker",
+    "lxc",
+    "os",
+    "vm",
+    "services",
+    "observability",
+    "operations",
 )
 
 
@@ -81,7 +84,7 @@ def test_foundation_include_contract_validator_accepts_valid_tree(tmp_path: Path
 
 def test_foundation_include_contract_validator_rejects_missing_required_dir(tmp_path: Path):
     _build_tree(tmp_path)
-    missing_dir = tmp_path / "topology" / "instances" / "L3-data" / "pools"
+    missing_dir = tmp_path / "topology" / "instances" / "pools"
     missing_dir.rmdir()
 
     registry = _registry()
@@ -92,7 +95,7 @@ def test_foundation_include_contract_validator_rejects_missing_required_dir(tmp_
 
 def test_foundation_include_contract_validator_rejects_manual_index_file(tmp_path: Path):
     _build_tree(tmp_path)
-    index_file = tmp_path / "topology" / "instances" / "L1-foundation" / "devices" / "_index.yaml"
+    index_file = tmp_path / "topology" / "instances" / "devices" / "_index.yaml"
     index_file.write_text("{}", encoding="utf-8")
 
     registry = _registry()

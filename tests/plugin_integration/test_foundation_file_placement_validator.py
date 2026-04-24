@@ -15,21 +15,24 @@ from kernel.plugin_base import Stage
 PLUGIN_ID = "base.validator.foundation_file_placement"
 
 REQUIRED_INSTANCE_DIRS = (
-    "L0-meta/meta",
-    "L1-foundation/devices",
-    "L1-foundation/firmware",
-    "L1-foundation/physical-links",
-    "L1-foundation/power",
-    "L2-network/data-channels",
-    "L2-network/network",
-    "L3-data/pools",
-    "L3-data/data-assets",
-    "L4-platform/os",
-    "L4-platform/lxc",
-    "L4-platform/vm",
-    "L5-application/services",
-    "L6-observability/observability",
-    "L7-operations/operations",
+    "meta",
+    "devices",
+    "firmware",
+    "physical-links",
+    "power",
+    "data-channels",
+    "firewall",
+    "network",
+    "qos",
+    "pools",
+    "data-assets",
+    "os",
+    "lxc",
+    "vm",
+    "docker",
+    "services",
+    "observability",
+    "operations",
 )
 
 
@@ -108,7 +111,7 @@ def _write_object(file_path: Path, *, object_id: str, layer: str) -> None:
 def test_foundation_file_placement_validator_accepts_valid_layout(tmp_path: Path):
     instances_root = _build_tree(tmp_path)
     _write_instance(
-        instances_root / "L1-foundation" / "devices" / "rtr-core.yaml",
+        instances_root / "devices" / "rtr-core.yaml",
         instance="rtr-core",
         group="devices",
         layer="L1",
@@ -153,7 +156,7 @@ def test_foundation_file_placement_validator_warns_on_group_dir_mismatch(tmp_pat
 def test_foundation_file_placement_validator_warns_on_filename_instance_mismatch(tmp_path: Path):
     instances_root = _build_tree(tmp_path)
     _write_instance(
-        instances_root / "L1-foundation" / "devices" / "wrong-name.yaml",
+        instances_root / "devices" / "wrong-name.yaml",
         instance="rtr-core",
         group="devices",
         layer="L1",
@@ -167,7 +170,7 @@ def test_foundation_file_placement_validator_warns_on_filename_instance_mismatch
 
 def test_foundation_file_placement_validator_warns_on_missing_placement_fields(tmp_path: Path):
     instances_root = _build_tree(tmp_path)
-    file_path = instances_root / "L1-foundation" / "devices" / "rtr-core.yaml"
+    file_path = instances_root / "devices" / "rtr-core.yaml"
     file_path.write_text(
         "\n".join(
             (
@@ -194,7 +197,7 @@ def test_foundation_file_placement_validator_derives_layer_from_object_when_miss
         layer="L1",
     )
     _write_instance(
-        instances_root / "L1-foundation" / "devices" / "rtr-core.yaml",
+        instances_root / "devices" / "rtr-core.yaml",
         instance="rtr-core",
         group="devices",
         layer=None,

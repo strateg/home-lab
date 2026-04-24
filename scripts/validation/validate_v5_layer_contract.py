@@ -20,6 +20,16 @@ from yaml_loader import load_yaml_file
 
 DEFAULT_MANIFEST = ROOT / "topology/topology.yaml"
 DEFAULT_VALID_LAYERS = ("L0", "L1", "L2", "L3", "L4", "L5", "L6", "L7")
+LAYER_BUCKETS = {
+    "L0": "L0-meta",
+    "L1": "L1-foundation",
+    "L2": "L2-network",
+    "L3": "L3-data",
+    "L4": "L4-platform",
+    "L5": "L5-application",
+    "L6": "L6-observability",
+    "L7": "L7-operations",
+}
 
 
 def _is_planned_status(value: Any) -> bool:
@@ -283,6 +293,7 @@ def main() -> int:
         errors.append(f"object modules directory has no yaml files: {object_modules_root.relative_to(ROOT).as_posix()}")
 
     class_payloads: dict[str, dict[str, Any]] = {}
+    class_rel_paths: dict[str, str] = {}
     for path in class_files:
         payload = _load_yaml_map(path, errors=errors)
         class_id = payload.get("@class")
@@ -294,6 +305,7 @@ def main() -> int:
             errors.append(f"{rel_path}: duplicate class id '{class_id}'")
             continue
         class_payloads[class_id] = payload
+        class_rel_paths[class_id] = path.relative_to(class_modules_root).as_posix()
 
     class_allowed_layers: dict[str, list[str]] = {}
     for class_id in sorted(class_payloads):
@@ -312,6 +324,8 @@ def main() -> int:
     class_declared_layer: dict[str, str] = {}
     for class_id, payload in class_payloads.items():
         declared = payload.get("@layer")
+        rel_path = class_rel_paths.get(class_id, class_id)
+        display_path = f"topology/class-modules/{rel_path}" if rel_path != class_id else rel_path
         if declared is None:
             continue
         if not isinstance(declared, str) or not declared:
@@ -320,6 +334,18 @@ def main() -> int:
         if declared not in valid_layers:
             errors.append(f"class '{class_id}' has unknown @layer '{declared}'")
             continue
+        expected_bucket = LAYER_BUCKETS.get(declared)
+        if isinstance(expected_bucket, str) and expected_bucket:
+            rel_parts = Path(rel_path).parts
+            if not rel_parts:
+                errors.append(
+                    f"{display_path}: class '{class_id}' has invalid path; expected '{expected_bucket}/...'"
+                )
+            elif rel_parts[0] != expected_bucket:
+                errors.append(
+                    f"{display_path}: class '{class_id}' with @layer '{declared}' must be placed under "
+                    f"'topology/class-modules/{expected_bucket}/...'"
+                )
         class_declared_layer[class_id] = declared
 
     object_payloads: dict[str, dict[str, Any]] = {}

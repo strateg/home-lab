@@ -117,3 +117,22 @@ def test_layer_contract_accepts_class_derived_object_layers(tmp_path: Path, caps
 
     assert code == 0
     assert "v5 layer contract: PASS" in captured.out
+
+
+def test_layer_contract_rejects_class_layer_path_mismatch(tmp_path: Path, capsys, monkeypatch) -> None:
+    mod = _load_module()
+    topology_path = _seed_repo(tmp_path, object_has_layer=False)
+    bad_class_path = tmp_path / "topology" / "class-modules" / "L1-foundation" / "class.router.yaml"
+    moved_bad_path = tmp_path / "topology" / "class-modules" / "L2-network" / "class.router.yaml"
+    moved_bad_path.parent.mkdir(parents=True, exist_ok=True)
+    bad_class_path.rename(moved_bad_path)
+
+    mod.ROOT = tmp_path
+    mod.DEFAULT_MANIFEST = topology_path
+    monkeypatch.setattr(sys, "argv", ["validate_v5_layer_contract.py"])
+
+    code = mod.main()
+    captured = capsys.readouterr()
+
+    assert code == 1
+    assert "must be placed under 'topology/class-modules/L1-foundation/...'" in captured.out
