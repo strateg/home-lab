@@ -21,14 +21,19 @@ graph TB
 {% endif %}
 {% endif %}
 {% endfor %}
+{% set rendered_link_pairs = namespace(values=[]) %}
 {% for link in data_links %}
-{% if link.endpoint_a and link.endpoint_b %}
-{% set src = link.endpoint_a.device_ref | default(link.endpoint_a.get('external_ref', 'unknown')) | replace('.', '_') | replace('-', '_') %}
-{% set dst = link.endpoint_b.device_ref | default(link.endpoint_b.get('external_ref', 'unknown')) | replace('.', '_') | replace('-', '_') %}
+{% if link.endpoint_a and link.endpoint_b and link.endpoint_a.get('device_ref') and link.endpoint_b.get('device_ref') %}
+{% set src = link.endpoint_a.device_ref | replace('.', '_') | replace('-', '_') | replace('@', '_') %}
+{% set dst = link.endpoint_b.device_ref | replace('.', '_') | replace('-', '_') | replace('@', '_') %}
+{% set pair_key = src ~ '->' ~ dst %}
+{% if pair_key not in rendered_link_pairs.values %}
 {% if link.medium in ['wifi', 'lte', 'wwan'] %}
     {{ src }} -.->|{{ link.medium | upper }}{% if link.speed_mbps %} {{ link.speed_mbps }}Mbps{% endif %}| {{ dst }}
 {% else %}
     {{ src }} -->|{{ link.medium | upper }}{% if link.speed_mbps %} {{ link.speed_mbps }}Mbps{% endif %}| {{ dst }}
+{% endif %}
+{% set _ = rendered_link_pairs.values.append(pair_key) %}
 {% endif %}
 {% endif %}
 {% endfor %}

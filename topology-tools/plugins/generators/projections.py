@@ -290,6 +290,8 @@ def build_diagram_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     groups = _instance_groups(compiled_json)
     raw_devices = _group_rows(groups, canonical=GROUP_DEVICES)
     raw_network = _group_rows(groups, canonical=GROUP_NETWORK)
+    raw_data_channels = _group_rows(groups, canonical="data-channels")
+    raw_physical_links = _group_rows(groups, canonical="physical-links")
     raw_services = _group_rows(groups, canonical=GROUP_SERVICES)
     raw_lxc = _group_rows(groups, canonical=GROUP_LXC)
 
@@ -399,6 +401,49 @@ def build_diagram_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
                     "status": row.get("status", ""),
                 }
             )
+
+    # Data channels / physical links may be modeled in dedicated groups.
+    for row in [*raw_data_channels, *raw_physical_links]:
+        inst_id = row.get("instance_id", "")
+        class_ref = _resolved_class_ref(row)
+        object_ref = _resolved_object_ref(row)
+        idata = row.get("instance_data") or {}
+        if not isinstance(idata, dict):
+            idata = {}
+
+        medium = idata.get("medium")
+        if not isinstance(medium, str) or not medium:
+            medium_source = f"{class_ref} {object_ref}".lower()
+            if "wifi" in medium_source:
+                medium = "wifi"
+            elif "lte" in medium_source:
+                medium = "lte"
+            elif "ethernet" in medium_source or "physical_link" in medium_source:
+                medium = "ethernet"
+            elif "wan_uplink" in medium_source or ".wan" in medium_source:
+                medium = "wan"
+            else:
+                medium = "link"
+
+        speed_mbps = idata.get("speed_mbps")
+        if not isinstance(speed_mbps, (int, float)):
+            speed_mbps = idata.get("negotiated_speed_mbps")
+        if not isinstance(speed_mbps, (int, float)):
+            speed_mbps = idata.get("max_speed_mbps")
+
+        data_links.append(
+            {
+                "instance_id": inst_id,
+                "safe_id": _safe_id(inst_id),
+                "class_ref": class_ref,
+                "endpoint_a": idata.get("endpoint_a", {}),
+                "endpoint_b": idata.get("endpoint_b", {}),
+                "medium": medium,
+                "speed_mbps": speed_mbps,
+                "notes": row.get("notes", ""),
+                "status": row.get("status", ""),
+            }
+        )
 
     # --- Services (L4/L5) ---
     services: list[dict[str, Any]] = []
