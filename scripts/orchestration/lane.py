@@ -15,6 +15,8 @@ PYTHON = sys.executable
 PHASE1_REPORT_JSON = "build/diagnostics/phase1-gate-report.json"
 LAYER_REPORT_JSON = "build/diagnostics/layer-contract-report.json"
 ADR0088_GOVERNANCE_REPORT_JSON = "build/diagnostics/adr0088-governance-report.json"
+LAYER_DERIVATION_REPORT_JSON = "build/diagnostics/layer-derivation-report.json"
+LAYER_DERIVATION_REPORT_TXT = "build/diagnostics/layer-derivation-report.txt"
 SUPPORTED_SECRETS_MODES = {"inject", "passthrough", "strict"}
 LEGACY_ROOT_DIRS = ("v4", "v5")
 
@@ -120,6 +122,17 @@ def _validate_v5_commands(secrets_mode: str) -> list[list[str]]:
             ADR0088_GOVERNANCE_REPORT_JSON,
             "--mode",
             governance_mode,
+        ]
+    )
+    commands.append(
+        [
+            PYTHON,
+            "topology-tools/utils/generate-layer-derivation-report.py",
+            "--output-json",
+            LAYER_DERIVATION_REPORT_JSON,
+            "--output-txt",
+            LAYER_DERIVATION_REPORT_TXT,
+            "--enforce",
         ]
     )
     return commands
