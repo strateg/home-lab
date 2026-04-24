@@ -90,3 +90,8 @@ def test_write_shards_requires_non_empty_object_ref(tmp_path: Path) -> None:
     else:
         raise AssertionError("Expected ValueError for missing object_ref.")
 
+
+def test_default_paths_target_project_instances_root() -> None:
+    mod = _load_module()
+    assert mod.DEFAULT_OUTPUT_ROOT.as_posix().endswith("projects/home-lab/topology/instances")
+    assert mod.DEFAULT_PROJECT_FILE.as_posix().endswith("projects/home-lab/topology/instances/project.yaml")

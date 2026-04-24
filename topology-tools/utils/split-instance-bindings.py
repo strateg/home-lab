@@ -19,7 +19,7 @@ from identifier_policy import contains_unsafe_identifier_chars, normalize_identi
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_INPUT = REPO_ROOT / "projects" / "home-lab" / "_legacy" / "instance-bindings.yaml"
-DEFAULT_OUTPUT_ROOT = REPO_ROOT / "topology" / "instances"
+DEFAULT_OUTPUT_ROOT = REPO_ROOT / "projects" / "home-lab" / "topology" / "instances"
 DEFAULT_PROJECT_FILE = DEFAULT_OUTPUT_ROOT / "project.yaml"
 
 
