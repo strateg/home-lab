@@ -40,7 +40,7 @@ Adopt **fully derived layer semantics** from `class -> object -> instance`:
 
 3. **Instance layer is derived via object -> class chain**
    - Canonical instance layer is resolved via `instance.@extends -> object.@extends -> class.@layer`.
-   - `instance.@layer` is optional transition metadata and must match derived layer when present.
+   - `instance.@layer` is non-canonical and prohibited (same anti-duplication policy as objects).
 
 4. **Validation shifts from path-layer to semantic-layer**
    - Layer correctness checks must use derived layer and class/object contracts.
@@ -70,8 +70,6 @@ Adopt **fully derived layer semantics** from `class -> object -> instance`:
 
 ### Transitional compatibility window (Phase A/B)
 
-- `instance.@layer`: optional.
-  - If present, it must equal derived layer (`instance -> object -> class`).
 - `object.@layer`: deprecated compatibility field.
   - Runtime/validators may read it only as fallback while migration is in progress.
   - Any mismatch between `object.@layer` and derived class layer is a validation violation.
@@ -79,6 +77,7 @@ Adopt **fully derived layer semantics** from `class -> object -> instance`:
 ### Cutover (Phase C)
 
 - `object.@layer` becomes prohibited (error-level contract violation).
+- `instance.@layer` becomes prohibited (error-level contract violation).
 - Effective layer resolution is strictly:
   - object: `object.@extends -> class.@layer`
   - instance: `instance.@extends -> object.@extends -> class.@layer`
@@ -196,13 +195,15 @@ Adopt **fully derived layer semantics** from `class -> object -> instance`:
 
 **Scope**
 - Enforce error-level prohibition of `object.@layer`.
+- Enforce error-level prohibition of `instance.@layer`.
 - Remove fallback reads of `object.@layer` from runtime/validators.
 - Keep rollback playbook and temporary compatibility branch/tag.
 
 **Gate criteria (must pass)**
 1. `object.@layer` in any object module fails validation with deterministic error code.
-2. Effective layer resolution uses only class-derived chain.
-3. All quality gates green on full topology.
+2. `instance.@layer` in any instance shard fails validation with deterministic error code.
+3. Effective layer resolution uses only class-derived chain.
+4. All quality gates green on full topology.
 
 **Test evidence (attach in PR)**
 - Negative test evidence showing `object.@layer` rejection.

@@ -343,6 +343,18 @@ def _load_sharded_instance_payload(
                 path=_diag_path(repo_root=repo_root, path=path),
             )
             continue
+        if layer_resolution.found:
+            add_diag(
+                code="E8802",
+                severity="error",
+                stage="validate",
+                message=(
+                    "Instance shard must not declare entity layer metadata "
+                    "(@layer/layer). Layer is derived from object->class semantics."
+                ),
+                path=_diag_path(repo_root=repo_root, path=path),
+            )
+            continue
 
         parent_resolution = resolve_semantic_value(
             payload,
@@ -400,7 +412,7 @@ def _load_sharded_instance_payload(
         resolved_object_layer = (
             object_layer_map.get(normalized_object_ref) if isinstance(normalized_object_ref, str) else None
         )
-        normalized_layer = layer_resolution.value if layer_resolution.found else resolved_object_layer
+        normalized_layer = resolved_object_layer
         missing: list[str] = []
         if normalized_instance is None:
             missing.append("instance")
@@ -484,18 +496,6 @@ def _load_sharded_instance_payload(
                 severity="error",
                 stage="validate",
                 message="Instance shard must define non-empty 'layer'.",
-                path=f"{_diag_path(repo_root=repo_root, path=path)}:layer",
-            )
-            continue
-        if layer_resolution.found and isinstance(resolved_object_layer, str) and layer != resolved_object_layer:
-            add_diag(
-                code="E3201",
-                severity="error",
-                stage="validate",
-                message=(
-                    f"Instance layer '{layer}' conflicts with object '{object_ref}' layer "
-                    f"'{resolved_object_layer}'."
-                ),
                 path=f"{_diag_path(repo_root=repo_root, path=path)}:layer",
             )
             continue

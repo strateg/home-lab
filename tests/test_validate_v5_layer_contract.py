@@ -27,7 +27,7 @@ def _write_yaml(path: Path, payload: dict) -> None:
     path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
 
 
-def _seed_repo(tmp_path: Path, *, object_has_layer: bool) -> Path:
+def _seed_repo(tmp_path: Path, *, object_has_layer: bool, instance_has_layer: bool = False) -> Path:
     topology_root = tmp_path / "topology"
     projects_root = tmp_path / "projects" / "home-lab"
     class_modules_root = topology_root / "class-modules"
@@ -78,14 +78,17 @@ def _seed_repo(tmp_path: Path, *, object_has_layer: bool) -> Path:
             "secrets_root": "secrets",
         },
     )
+    instance_payload = {
+        "@version": "1.0.0",
+        "@instance": "inst.router.a",
+        "group": "devices",
+        "@extends": "obj.router",
+    }
+    if instance_has_layer:
+        instance_payload["@layer"] = "L1"
     _write_yaml(
         instances_root / "devices" / "inst.router.a.yaml",
-        {
-            "@version": "1.0.0",
-            "@instance": "inst.router.a",
-            "group": "devices",
-            "@extends": "obj.router",
-        },
+        instance_payload,
     )
     return tmp_path / "topology" / "topology.yaml"
 
@@ -155,3 +158,17 @@ def test_layer_contract_rejects_legacy_instance_bucket_paths(tmp_path: Path, cap
 
     assert code == 1
     assert "legacy layer-bucket instances path is not allowed" in captured.out
+
+
+def test_layer_contract_rejects_instance_layer_metadata(tmp_path: Path, capsys, monkeypatch) -> None:
+    mod = _load_module()
+    _seed_repo(tmp_path, object_has_layer=False, instance_has_layer=True)
+    mod.ROOT = tmp_path
+    mod.DEFAULT_MANIFEST = tmp_path / "topology" / "topology.yaml"
+    monkeypatch.setattr(sys, "argv", ["validate_v5_layer_contract.py"])
+
+    code = mod.main()
+    captured = capsys.readouterr()
+
+    assert code == 1
+    assert "must not declare @layer" in captured.out

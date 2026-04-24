@@ -478,32 +478,17 @@ def main() -> int:
                 errors.append(f"{path}: unknown @extends '{object_ref}'")
                 continue
 
-            explicit_row_layer = row.get("@layer")
-            if explicit_row_layer is None:
-                row_layer = object_default_layer.get(object_ref)
-                if not isinstance(row_layer, str) or not row_layer:
-                    errors.append(f"{path}: missing non-empty @layer and cannot derive layer from object '{object_ref}'")
-                    continue
-            else:
-                if not isinstance(explicit_row_layer, str) or not explicit_row_layer:
-                    errors.append(f"{path}: missing non-empty @layer")
-                    continue
-                if explicit_row_layer not in valid_layers:
-                    errors.append(f"{path}: unknown layer '{explicit_row_layer}'")
-                    continue
-                row_layer = explicit_row_layer
-
-            inferred_object_layer = object_default_layer.get(object_ref)
-            if (
-                explicit_row_layer is not None
-                and isinstance(inferred_object_layer, str)
-                and inferred_object_layer
-                and row_layer != inferred_object_layer
-            ):
+            if "@layer" in row:
                 errors.append(
-                    f"{path}: explicit @layer '{row_layer}' conflicts with object '{object_ref}' layer "
-                    f"'{inferred_object_layer}'"
+                    f"{path}: instance '{row_id}' must not declare @layer; "
+                    "layer is derived from @extends -> class.@layer"
                 )
+                continue
+
+            row_layer = object_default_layer.get(object_ref)
+            if not isinstance(row_layer, str) or not row_layer:
+                errors.append(f"{path}: cannot derive layer from object '{object_ref}'")
+                continue
 
             if row_layer != expected_group_layer:
                 errors.append(

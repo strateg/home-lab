@@ -132,6 +132,7 @@ def test_resolve_instance_source_mode_auto_resolves_to_sharded_only(tmp_path: Pa
 def test_load_core_compile_inputs_sharded_only_loads_rows(tmp_path: Path) -> None:
     layer_contract_path = tmp_path / "layer-contract.yaml"
     _write_layer_contract(layer_contract_path)
+    _write_object(tmp_path / "objects" / "obj.shard.router.yaml", object_id="obj.shard.router", layer="L1")
 
     project_root = tmp_path / "projects" / "test"
     shard_root = project_root / "instances"
@@ -143,7 +144,6 @@ def test_load_core_compile_inputs_sharded_only_loads_rows(tmp_path: Path) -> Non
                 "@version": "1.0.0",
                 "@instance": "inst.router.a",
                 "group": "devices",
-                "@layer": "L1",
                 "@extends": "obj.shard.router",
             },
             sort_keys=False,
@@ -182,6 +182,7 @@ def test_load_core_compile_inputs_sharded_only_loads_rows(tmp_path: Path) -> Non
 def test_load_core_compile_inputs_reports_group_layer_mismatch(tmp_path: Path) -> None:
     layer_contract_path = tmp_path / "layer-contract.yaml"
     _write_layer_contract(layer_contract_path)
+    _write_object(tmp_path / "objects" / "obj.shard.router.yaml", object_id="obj.shard.router", layer="L2")
 
     project_root = tmp_path / "projects" / "test"
     shard_root = project_root / "instances"
@@ -193,7 +194,6 @@ def test_load_core_compile_inputs_reports_group_layer_mismatch(tmp_path: Path) -
                 "@version": "1.0.0",
                 "@instance": "inst.router.a",
                 "group": "devices",
-                "@layer": "L2",
                 "@extends": "obj.shard.router",
             },
             sort_keys=False,
@@ -227,6 +227,7 @@ def test_load_core_compile_inputs_reports_group_layer_mismatch(tmp_path: Path) -
 def test_load_core_compile_inputs_accepts_semantic_instance_keys(tmp_path: Path) -> None:
     layer_contract_path = tmp_path / "layer-contract.yaml"
     _write_layer_contract(layer_contract_path)
+    _write_object(tmp_path / "objects" / "obj.shard.router.yaml", object_id="obj.shard.router", layer="L1")
 
     project_root = tmp_path / "projects" / "test"
     shard_root = project_root / "instances"
@@ -238,7 +239,6 @@ def test_load_core_compile_inputs_accepts_semantic_instance_keys(tmp_path: Path)
                 "@version": "1.0.0",
                 "@instance": "inst.router.a",
                 "group": "devices",
-                "@layer": "L1",
                 "@extends": "obj.shard.router",
                 "@title": "Router instance",
                 "@summary": "Semantic summary",
@@ -386,7 +386,7 @@ def test_load_core_compile_inputs_derives_layer_from_class_when_object_has_no_la
     assert not any(item.get("severity") == "error" for item in diagnostics)
 
 
-def test_load_core_compile_inputs_rejects_instance_layer_conflict_with_object(tmp_path: Path) -> None:
+def test_load_core_compile_inputs_rejects_explicit_instance_layer_metadata(tmp_path: Path) -> None:
     layer_contract_path = tmp_path / "layer-contract.yaml"
     _write_layer_contract(layer_contract_path)
     _write_object(tmp_path / "objects" / "obj.shard.router.yaml", object_id="obj.shard.router", layer="L1")
@@ -429,7 +429,7 @@ def test_load_core_compile_inputs_rejects_instance_layer_conflict_with_object(tm
     )
 
     assert inputs.instance_payload is None
-    assert any(item.get("code") == "E3201" and "conflicts with object" in item.get("message", "") for item in diagnostics)
+    assert any(item.get("code") == "E8802" and "must not declare entity layer metadata" in item.get("message", "") for item in diagnostics)
 
 
 def test_load_core_compile_inputs_rejects_semantic_metadata_collision(tmp_path: Path) -> None:
@@ -446,7 +446,6 @@ def test_load_core_compile_inputs_rejects_semantic_metadata_collision(tmp_path: 
                 "@version": "1.0.0",
                 "@instance": "inst.router.a",
                 "group": "devices",
-                "@layer": "L1",
                 "@extends": "obj.shard.router",
                 "@title": "Router instance",
                 "title": "Legacy duplicate",
@@ -493,7 +492,6 @@ def test_load_core_compile_inputs_rejects_legacy_class_ref_in_shard(tmp_path: Pa
                 "@version": "1.0.0",
                 "@instance": "inst.router.a",
                 "group": "devices",
-                "@layer": "L1",
                 "@extends": "obj.shard.router",
                 "class_ref": "class.router",
             },
@@ -528,6 +526,7 @@ def test_load_core_compile_inputs_rejects_legacy_class_ref_in_shard(tmp_path: Pa
 def test_load_core_compile_inputs_rejects_filename_unsafe_instance_id(tmp_path: Path) -> None:
     layer_contract_path = tmp_path / "layer-contract.yaml"
     _write_layer_contract(layer_contract_path)
+    _write_object(tmp_path / "objects" / "obj.shard.router.yaml", object_id="obj.shard.router", layer="L1")
 
     project_root = tmp_path / "projects" / "test"
     shard_root = project_root / "instances"
@@ -539,7 +538,6 @@ def test_load_core_compile_inputs_rejects_filename_unsafe_instance_id(tmp_path: 
                 "@version": "1.0.0",
                 "@instance": "inst.router:bad",
                 "group": "devices",
-                "@layer": "L1",
                 "@extends": "obj.shard.router",
             },
             sort_keys=False,
@@ -573,6 +571,7 @@ def test_load_core_compile_inputs_rejects_filename_unsafe_instance_id(tmp_path: 
 def test_load_core_compile_inputs_rejects_wrong_layer_bucket(tmp_path: Path) -> None:
     layer_contract_path = tmp_path / "layer-contract.yaml"
     _write_layer_contract(layer_contract_path)
+    _write_object(tmp_path / "objects" / "obj.shard.router.yaml", object_id="obj.shard.router", layer="L1")
 
     project_root = tmp_path / "projects" / "test"
     shard_root = project_root / "instances"
@@ -584,7 +583,6 @@ def test_load_core_compile_inputs_rejects_wrong_layer_bucket(tmp_path: Path) -> 
                 "@version": "1.0.0",
                 "@instance": "inst.router.a",
                 "group": "devices",
-                "@layer": "L1",
                 "@extends": "obj.shard.router",
             },
             sort_keys=False,
@@ -618,6 +616,7 @@ def test_load_core_compile_inputs_rejects_wrong_layer_bucket(tmp_path: Path) -> 
 def test_load_core_compile_inputs_rejects_group_directory_mismatch(tmp_path: Path) -> None:
     layer_contract_path = tmp_path / "layer-contract.yaml"
     _write_layer_contract(layer_contract_path)
+    _write_object(tmp_path / "objects" / "obj.shard.router.yaml", object_id="obj.shard.router", layer="L1")
 
     project_root = tmp_path / "projects" / "test"
     shard_root = project_root / "instances"
@@ -629,7 +628,6 @@ def test_load_core_compile_inputs_rejects_group_directory_mismatch(tmp_path: Pat
                 "@version": "1.0.0",
                 "@instance": "inst.router.a",
                 "group": "devices",
-                "@layer": "L1",
                 "@extends": "obj.shard.router",
             },
             sort_keys=False,
@@ -663,6 +661,7 @@ def test_load_core_compile_inputs_rejects_group_directory_mismatch(tmp_path: Pat
 def test_load_core_compile_inputs_accepts_host_sharded_instance_path(tmp_path: Path) -> None:
     layer_contract_path = tmp_path / "layer-contract.yaml"
     _write_layer_contract(layer_contract_path)
+    _write_object(tmp_path / "objects" / "obj.shard.router.yaml", object_id="obj.shard.router", layer="L1")
 
     project_root = tmp_path / "projects" / "test"
     shard_root = project_root / "instances"
@@ -674,7 +673,6 @@ def test_load_core_compile_inputs_accepts_host_sharded_instance_path(tmp_path: P
                 "@version": "1.0.0",
                 "@instance": "inst.router.a",
                 "group": "devices",
-                "@layer": "L1",
                 "@extends": "obj.shard.router",
             },
             sort_keys=False,
@@ -722,6 +720,7 @@ def test_load_core_compile_inputs_accepts_non_sharded_l4_path_without_warning(tm
         ),
         encoding="utf-8",
     )
+    _write_object(tmp_path / "objects" / "obj.shard.vm.yaml", object_id="obj.shard.vm", layer="L4")
 
     project_root = tmp_path / "projects" / "test"
     shard_root = project_root / "instances"
@@ -733,7 +732,6 @@ def test_load_core_compile_inputs_accepts_non_sharded_l4_path_without_warning(tm
                 "@version": "1.0.0",
                 "@instance": "inst.vm.a",
                 "group": "vm",
-                "@layer": "L4",
                 "@extends": "obj.shard.vm",
             },
             sort_keys=False,
@@ -778,6 +776,7 @@ def test_load_core_compile_inputs_accepts_host_sharded_l5_path_without_warning(t
         ),
         encoding="utf-8",
     )
+    _write_object(tmp_path / "objects" / "obj.shard.service.yaml", object_id="obj.shard.service", layer="L5")
 
     project_root = tmp_path / "projects" / "test"
     shard_root = project_root / "instances"
@@ -789,7 +788,6 @@ def test_load_core_compile_inputs_accepts_host_sharded_l5_path_without_warning(t
                 "@version": "1.0.0",
                 "@instance": "svc.app.a",
                 "group": "services",
-                "@layer": "L5",
                 "@extends": "obj.shard.service",
             },
             sort_keys=False,
@@ -834,7 +832,6 @@ def test_load_core_compile_inputs_rejects_legacy_schema_version_field(tmp_path: 
                 "schema_version": 1,
                 "@instance": "inst.router.a",
                 "group": "devices",
-                "@layer": "L1",
                 "@extends": "obj.shard.router",
             },
             sort_keys=False,
