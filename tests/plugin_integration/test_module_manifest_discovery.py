@@ -263,7 +263,7 @@ def test_discover_boundary_allows_project_plugins_and_rejects_instances(tmp_path
             "project_plugins_root": "projects/home-lab/plugins",
             "discovered_plugin_manifests": [
                 "projects/home-lab/plugins/plugins.yaml",
-                "projects/home-lab/topology/instances/L1-foundation/power/plugins.yaml",
+                "projects/home-lab/topology/instances/power/plugins.yaml",
             ],
             "discovered_plugin_count": 0,
         },
@@ -279,7 +279,7 @@ def test_discover_boundary_allows_project_plugins_and_rejects_instances(tmp_path
 
     assert result.status == mod.PluginStatus.FAILED
     assert any("outside allowed boundary" in d.message for d in result.diagnostics)
-    assert any(d.path.endswith("topology/instances/L1-foundation/power/plugins.yaml") for d in result.diagnostics)
+    assert any(d.path.endswith("topology/instances/power/plugins.yaml") for d in result.diagnostics)
 
 
 def test_discover_boundary_rejects_project_manifests_outside_project_plugins_root(tmp_path: Path) -> None:

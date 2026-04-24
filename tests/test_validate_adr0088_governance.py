@@ -90,17 +90,16 @@ def _seed_repo(tmp_path: Path, *, legacy_in_active_instances: bool = False) -> t
     )
     if legacy_in_active_instances:
         _write_text(
-            tmp_path / "projects/home-lab/topology/instances/L1-foundation/devices/inst.router.a.yaml",
-            "@version: 1.0.0\n@instance: inst.router.a\ngroup: devices\n@layer: L1\n@extends: obj.router\nclass_ref: class.router\n",
+            tmp_path / "projects/home-lab/topology/instances/devices/inst.router.a.yaml",
+            "@version: 1.0.0\n@instance: inst.router.a\ngroup: devices\n@extends: obj.router\nclass_ref: class.router\n",
         )
     else:
         _write_yaml(
-            tmp_path / "projects/home-lab/topology/instances/L1-foundation/devices/inst.router.a.yaml",
+            tmp_path / "projects/home-lab/topology/instances/devices/inst.router.a.yaml",
             {
                 "@version": "1.0.0",
                 "@instance": "inst.router.a",
                 "group": "devices",
-                "@layer": "L1",
                 "@extends": "obj.router",
             },
         )
