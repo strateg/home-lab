@@ -94,10 +94,10 @@ def test_foundation_file_placement_validator_accepts_valid_layout(tmp_path: Path
     assert result.diagnostics == []
 
 
-def test_foundation_file_placement_validator_warns_on_layer_dir_mismatch(tmp_path: Path):
+def test_foundation_file_placement_validator_warns_on_unexpected_top_level_dir(tmp_path: Path):
     instances_root = _build_tree(tmp_path)
     _write_instance(
-        instances_root / "L2-network" / "devices" / "rtr-core.yaml",
+        instances_root / "legacy-bucket" / "devices" / "rtr-core.yaml",
         instance="rtr-core",
         group="devices",
         layer="L1",
@@ -112,7 +112,7 @@ def test_foundation_file_placement_validator_warns_on_layer_dir_mismatch(tmp_pat
 def test_foundation_file_placement_validator_warns_on_group_dir_mismatch(tmp_path: Path):
     instances_root = _build_tree(tmp_path)
     _write_instance(
-        instances_root / "L1-foundation" / "firmware" / "rtr-core.yaml",
+        instances_root / "legacy-bucket" / "firmware" / "rtr-core.yaml",
         instance="rtr-core",
         group="devices",
         layer="L1",
