@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Split legacy instance-bindings.yaml into ADR0071 sharded instance files."""
+"""Split legacy instance-bindings.yaml into canonical sharded instance files."""
 
 from __future__ import annotations
 
@@ -64,18 +64,20 @@ def _sanitize_row(
     if changed:
         rewrite_map[instance_id] = normalized_instance_id
 
+    object_ref = row.get("object_ref")
+    if not isinstance(object_ref, str) or not object_ref:
+        raise ValueError(f"group '{group_name}' row '{instance_id}' is missing non-empty 'object_ref'")
+
     payload: dict[str, Any] = {
-        "instance": normalized_instance_id,
-        "object_ref": row.get("object_ref"),
+        "@instance": normalized_instance_id,
+        "@extends": object_ref,
         "group": group_name,
-        "layer": row.get("layer"),
-        "version": "1.0.0",
+        "@version": "1.0.0",
     }
-    if not drop_class_ref and isinstance(row.get("class_ref"), str) and row.get("class_ref"):
-        payload["class_ref"] = row["class_ref"]
+    _ = drop_class_ref
 
     for key, value in row.items():
-        if key in {"instance", "class_ref", "layer", "object_ref"}:
+        if key in {"instance", "class_ref", "layer", "object_ref", "version", "@version"}:
             continue
         payload[key] = value
 
@@ -116,7 +118,7 @@ def _write_shards(
                 sanitize_instance_ids=sanitize_instance_ids,
                 rewrite_map=rewrite_map,
             )
-            instance_id = shard_payload["instance"]
+            instance_id = shard_payload["@instance"]
             target = group_dir / f"{instance_id}.yaml"
             if target.exists() and not force:
                 raise FileExistsError(f"target already exists: {target}")
@@ -177,7 +179,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--keep-class-ref",
         action="store_true",
-        help="Keep class_ref in generated shards (default: dropped).",
+        help="Deprecated compatibility flag; class_ref is always dropped in canonical shards.",
     )
     parser.add_argument(
         "--sanitize-instance-ids",
