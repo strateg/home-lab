@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import yaml
 from kernel.plugin_base import PluginContext, PluginResult, Stage, ValidatorYamlPlugin
@@ -12,7 +13,7 @@ from yaml_loader import load_yaml_file
 class FoundationIncludeContractValidator(ValidatorYamlPlugin):
     """Validate deterministic v5 project instances directory contract."""
 
-    _REQUIRED_INSTANCE_DIRS = (
+    _DEFAULT_REQUIRED_INSTANCE_DIRS = (
         "meta",
         "devices",
         "firmware",
@@ -62,7 +63,8 @@ class FoundationIncludeContractValidator(ValidatorYamlPlugin):
             return self.make_result(diagnostics)
 
         instances_root = self._resolve_instances_root(ctx=ctx, project_root=project_root)
-        for rel_dir in self._REQUIRED_INSTANCE_DIRS:
+        required_dirs = self._resolve_required_instance_dirs(ctx=ctx, project_root=project_root)
+        for rel_dir in required_dirs:
             target = instances_root / rel_dir
             if not target.exists() or not target.is_dir():
                 diagnostics.append(
@@ -145,3 +147,66 @@ class FoundationIncludeContractValidator(ValidatorYamlPlugin):
 
         topology_path = Path(ctx.topology_path)
         return (topology_path.parent / manifest_path).resolve()
+
+    def _resolve_required_instance_dirs(self, *, ctx: PluginContext, project_root: Path) -> tuple[str, ...]:
+        topology_manifest = self._resolve_topology_manifest_path(ctx=ctx, project_root=project_root)
+        if topology_manifest is None or not topology_manifest.exists() or not topology_manifest.is_file():
+            return self._DEFAULT_REQUIRED_INSTANCE_DIRS
+
+        topology_payload = self._safe_load_yaml_mapping(topology_manifest)
+        if topology_payload is None:
+            return self._DEFAULT_REQUIRED_INSTANCE_DIRS
+        framework = topology_payload.get("framework")
+        if not isinstance(framework, dict):
+            return self._DEFAULT_REQUIRED_INSTANCE_DIRS
+        layer_contract_raw = framework.get("layer_contract")
+        if not isinstance(layer_contract_raw, str) or not layer_contract_raw.strip():
+            return self._DEFAULT_REQUIRED_INSTANCE_DIRS
+
+        layer_contract_path = Path(layer_contract_raw)
+        if not layer_contract_path.is_absolute():
+            layer_contract_path = (topology_manifest.parent / layer_contract_path).resolve()
+
+        layer_payload = self._safe_load_yaml_mapping(layer_contract_path)
+        if layer_payload is None:
+            return self._DEFAULT_REQUIRED_INSTANCE_DIRS
+        group_layers = layer_payload.get("group_layers")
+        if not isinstance(group_layers, dict):
+            return self._DEFAULT_REQUIRED_INSTANCE_DIRS
+
+        resolved = tuple(
+            sorted(group for group in group_layers.keys() if isinstance(group, str) and group.strip())
+        )
+        return resolved or self._DEFAULT_REQUIRED_INSTANCE_DIRS
+
+    def _resolve_topology_manifest_path(self, *, ctx: PluginContext, project_root: Path) -> Path | None:
+        topology_raw = str(ctx.topology_path).strip()
+        if topology_raw:
+            topology_path = Path(topology_raw)
+            if topology_path.is_absolute():
+                return topology_path.resolve()
+
+            repo_root_raw = ctx.config.get("repo_root")
+            if isinstance(repo_root_raw, str) and repo_root_raw.strip():
+                return (Path(repo_root_raw) / topology_path).resolve()
+
+            project_candidate = (project_root / topology_path).resolve()
+            if project_candidate.exists():
+                return project_candidate
+
+            return topology_path.resolve()
+
+        default_path = (project_root / "topology.yaml").resolve()
+        if default_path.exists():
+            return default_path
+        return None
+
+    @staticmethod
+    def _safe_load_yaml_mapping(path: Path) -> dict[str, Any] | None:
+        try:
+            payload = load_yaml_file(path) or {}
+        except (OSError, yaml.YAMLError):
+            return None
+        if not isinstance(payload, dict):
+            return None
+        return payload

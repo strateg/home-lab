@@ -189,3 +189,45 @@ def test_foundation_include_contract_validator_resolves_relative_instances_root_
     )
     assert result.status == PluginStatus.SUCCESS
     assert result.diagnostics == []
+
+
+def test_foundation_include_contract_validator_derives_required_dirs_from_layer_contract(tmp_path: Path):
+    project_root = tmp_path / "home-lab"
+    instances_root = project_root / "topology" / "instances"
+    (instances_root / "alpha").mkdir(parents=True, exist_ok=True)
+    (instances_root / "omega").mkdir(parents=True, exist_ok=True)
+
+    topology_root = project_root / "topology"
+    topology_root.mkdir(parents=True, exist_ok=True)
+    (project_root / "topology.yaml").write_text(
+        "\n".join(
+            (
+                "version: 5.0.0",
+                "framework:",
+                "  layer_contract: topology/layer-contract.yaml",
+            )
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (topology_root / "layer-contract.yaml").write_text(
+        "\n".join(
+            (
+                "schema_version: 1",
+                "group_layers:",
+                "  alpha: L1",
+                "  omega: L7",
+            )
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    registry = _registry()
+    result = registry.execute_plugin(
+        PLUGIN_ID,
+        _context(str(project_root), topology_path=str(project_root / "topology.yaml")),
+        Stage.VALIDATE,
+    )
+    assert result.status == PluginStatus.SUCCESS
+    assert result.diagnostics == []
