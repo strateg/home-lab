@@ -5,7 +5,9 @@ vars:
     sh: |
       if [ -f .venv/bin/python ]; then echo ".venv/bin/python"
       elif [ -f .venv/Scripts/python.exe ]; then echo ".venv/Scripts/python.exe"
-      elif command -v python3 >/dev/null 2>&1; then echo "python3"
+      elif command -v py >/dev/null 2>&1; then echo "py -3"
+      elif command -v python >/dev/null 2>&1 && python -c "import sys" >/dev/null 2>&1; then echo "python"
+      elif command -v python3 >/dev/null 2>&1 && python3 -c "import sys" >/dev/null 2>&1; then echo "python3"
       else echo "python"
       fi
   PROJECT_ID: '{{default "home-lab" .PROJECT_ID}}'
