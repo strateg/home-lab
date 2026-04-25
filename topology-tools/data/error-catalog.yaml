@@ -438,6 +438,11 @@ codes:
     stage: load
     title: Strict YAML Duplicate Key
     hint: Remove duplicate mapping keys; strict loader rejects ambiguous YAML mappings.
+  E8807:
+    severity: error
+    stage: validate
+    title: Legacy Instance Service Key
+    hint: Replace plain 'group' with canonical '@group' in instance shard manifests.
   # ADR 0071 sharded instances loader
   E7101:
     severity: error

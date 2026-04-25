@@ -246,10 +246,21 @@ def _load_sharded_instance_payload(
                 path=_diag_path(repo_root=repo_root, path=path),
             )
             continue
+        if "group" in payload:
+            add_diag(
+                code="E8807",
+                severity="error",
+                stage="validate",
+                message=(
+                    "Instance shard uses legacy service key 'group'. "
+                    "Use canonical '@group'."
+                ),
+                path=_diag_path(repo_root=repo_root, path=path),
+            )
+            continue
         legacy_keys = (
             "instance",
             "extends",
-            "group",
             "object_ref",
             "class_ref",
             "version",

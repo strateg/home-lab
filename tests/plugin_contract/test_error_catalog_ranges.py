@@ -54,6 +54,7 @@ def test_adr0080_ranges_are_reserved_without_foreign_overlap():
         "E8804",
         "E8805",
         "E8806",
+        "E8807",
         "W8001",
         "W8002",
         "W8003",

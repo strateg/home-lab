@@ -55,6 +55,7 @@
 - [ ] `python -m pytest tests -q` passes.
 - [ ] Effective JSON contract tests pass with lineage assertions.
 - [ ] E880x ADR0088 diagnostics are present in error catalog and covered by tests.
+- [ ] E8807 (`legacy group` -> `@group`) is present in error catalog and covered by tests.
 
 ## Operational Readiness
 
