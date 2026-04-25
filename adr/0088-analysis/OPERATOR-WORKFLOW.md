@@ -22,6 +22,7 @@ Legacy aliases (`class_ref`, `object_ref`, legacy capability alias forms) are no
 2. ADR0088 governance is executed by lane in default `enforce` mode.
 3. Standalone governance report:
    - `python scripts/validation/validate_adr0088_governance.py --mode enforce --diagnostics-json build/diagnostics/report.json --output-json build/diagnostics/adr0088-governance-report.json`
+4. Periodic status snapshot is recorded in `adr/0088-analysis/STATUS-SNAPSHOT-YYYY-MM-DD.md`.
 
 ## Rollback / emergency fallback (temporary)
 

@@ -23,6 +23,7 @@ Incremental migration with compatibility mode first, then enforcement.
    - class/object metadata coverage for `@title/@layer` is complete
    - governance default mode is `enforce` (with `warn` override retained via env)
    - boundary-scoped legacy keys remain in `projects/home-lab/_legacy`
+   - active-lane legacy boundary policy includes `class_ref/object_ref/group` detection
    - non-blocking `W7816` duplicate-IP warning profile is policy-governed.
 
 ## Wave 0 — Baseline normalization and contract cleanup
