@@ -17,6 +17,7 @@ def test_default_semantic_registry_has_no_legacy_aliases() -> None:
     assert registry.get("class_id").aliases == ()
     assert registry.get("object_id").aliases == ()
     assert registry.get("instance_id").aliases == ()
+    assert registry.get("instance_group").aliases == ()
     assert registry.get("parent_ref").aliases == ()
     assert registry.get("capability_id").aliases == ()
 
@@ -42,3 +43,13 @@ def test_default_semantic_registry_resolves_only_canonical_keys() -> None:
     assert not legacy.found
     assert legacy.value is None
     assert legacy.present_keys == ()
+
+    group = resolve_semantic_value(
+        {"@group": "devices"},
+        registry=registry,
+        context="entity_manifest",
+        token="instance_group",
+    )
+    assert group.found
+    assert group.value == "devices"
+    assert group.key == "@group"

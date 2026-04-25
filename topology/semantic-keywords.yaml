@@ -12,6 +12,9 @@ registry:
   instance_id:
     canonical: "@instance"
     aliases: []
+  instance_group:
+    canonical: "@group"
+    aliases: []
   parent_ref:
     canonical: "@extends"
     aliases: []
@@ -40,6 +43,7 @@ contexts:
       - class_id
       - object_id
       - instance_id
+      - instance_group
       - parent_ref
       - entity_title
       - entity_summary

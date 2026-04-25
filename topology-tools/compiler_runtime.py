@@ -337,6 +337,25 @@ def _load_sharded_instance_payload(
             )
             continue
 
+        group_resolution = resolve_semantic_value(
+            payload,
+            registry=semantic_registry,
+            context="entity_manifest",
+            token="instance_group",
+        )
+        if group_resolution.has_collision:
+            add_diag(
+                code="E8803",
+                severity="error",
+                stage="validate",
+                message=(
+                    "Instance shard contains semantic-key collision for instance_group: "
+                    f"{', '.join(group_resolution.present_keys)}."
+                ),
+                path=_diag_path(repo_root=repo_root, path=path),
+            )
+            continue
+
         layer_resolution = resolve_semantic_value(
             payload,
             registry=semantic_registry,
@@ -428,7 +447,7 @@ def _load_sharded_instance_payload(
         missing: list[str] = []
         if normalized_instance is None:
             missing.append("instance")
-        if payload.get("@group") is None:
+        if not group_resolution.found:
             missing.append("@group")
         if normalized_object_ref is None:
             missing.append("object_ref")
@@ -445,7 +464,7 @@ def _load_sharded_instance_payload(
             continue
 
         instance_id = normalized_instance
-        group_name = payload.get("@group")
+        group_name = group_resolution.value if group_resolution.found else None
         layer = normalized_layer
         object_ref = normalized_object_ref
         if not isinstance(instance_id, str) or not instance_id:
