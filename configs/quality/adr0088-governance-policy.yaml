@@ -36,3 +36,4 @@ legacy_boundary:
   key_patterns:
     class_ref: "^[\\s]*class_ref[\\s]*:"
     object_ref: "^[\\s]*object_ref[\\s]*:"
+    group: "^group[\\s]*:"

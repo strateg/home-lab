@@ -12,7 +12,7 @@ Incremental migration with compatibility mode first, then enforcement.
    - strict YAML loader active in core runtime path
    - `E8801..E8806` catalog + runtime enforcement in key compilers.
 2. Active instance source path is canonical-only (`projects/home-lab/topology/instances`):
-   - zero legacy `class_ref/object_ref`
+   - zero legacy `class_ref/object_ref/group`
    - canonical shard header uses `@instance/@extends/@group/@version`
    - `instance.@layer` removed (derived from object→class), plain `group` replaced by `@group`.
 3. Contract gates are green:

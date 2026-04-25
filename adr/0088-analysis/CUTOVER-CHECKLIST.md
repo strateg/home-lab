@@ -38,7 +38,7 @@
 - [ ] Instance shard headers are canonicalized to `@instance/@extends/@group/@version`.
 - [ ] Legacy aliases either absent or explicitly allowed by configured mode.
 - [ ] Migration scope excludes `archive/v4/` unconditionally (immutable reference) and excludes `generated/`/historical artifacts.
-- [ ] Active instances root (`projects/*/topology/instances`) has zero legacy `class_ref/object_ref` fields.
+- [ ] Active instances root (`projects/*/topology/instances`) has zero legacy `class_ref/object_ref/group` fields.
 - [ ] Legacy semantic key footprint is explicitly boundary-scoped (e.g., `_legacy`) and excluded from active-lane compliance KPIs.
 
 ## Post-cutover quality governance

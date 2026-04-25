@@ -73,13 +73,19 @@ def _write_policy(path: Path) -> None:
                 "key_patterns": {
                     "class_ref": r"^\s*class_ref\s*:",
                     "object_ref": r"^\s*object_ref\s*:",
+                    "group": r"^group\s*:",
                 },
             },
         },
     )
 
 
-def _seed_repo(tmp_path: Path, *, legacy_in_active_instances: bool = False) -> tuple[Path, Path]:
+def _seed_repo(
+    tmp_path: Path,
+    *,
+    legacy_in_active_instances: bool = False,
+    legacy_group_in_active_instances: bool = False,
+) -> tuple[Path, Path]:
     _write_yaml(
         tmp_path / "topology/class-modules/class.router.yaml",
         {"@class": "class.router", "@version": "1.0.0"},
@@ -92,6 +98,11 @@ def _seed_repo(tmp_path: Path, *, legacy_in_active_instances: bool = False) -> t
         _write_text(
             tmp_path / "projects/home-lab/topology/instances/devices/inst.router.a.yaml",
             "@version: 1.0.0\n@instance: inst.router.a\ngroup: devices\n@extends: obj.router\nclass_ref: class.router\n",
+        )
+    elif legacy_group_in_active_instances:
+        _write_text(
+            tmp_path / "projects/home-lab/topology/instances/devices/inst.router.a.yaml",
+            "@version: 1.0.0\n@instance: inst.router.a\ngroup: devices\n@extends: obj.router\n",
         )
     else:
         _write_yaml(
@@ -147,6 +158,21 @@ def test_governance_enforce_mode_fails_on_metadata_coverage(tmp_path: Path) -> N
 def test_governance_fails_when_legacy_keys_present_in_active_instances(tmp_path: Path) -> None:
     mod = _load_module()
     policy_path, diagnostics_path = _seed_repo(tmp_path, legacy_in_active_instances=True)
+
+    report = mod.run_governance(
+        repo_root=tmp_path,
+        policy_path=policy_path,
+        diagnostics_json=diagnostics_path,
+        mode="warn",
+    )
+
+    assert report["summary"]["errors"] > 0
+    assert any(item["code"] == "G3101" for item in report["errors"])
+
+
+def test_governance_fails_when_plain_group_present_in_active_instances(tmp_path: Path) -> None:
+    mod = _load_module()
+    policy_path, diagnostics_path = _seed_repo(tmp_path, legacy_group_in_active_instances=True)
 
     report = mod.run_governance(
         repo_root=tmp_path,

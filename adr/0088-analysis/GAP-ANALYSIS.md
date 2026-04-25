@@ -6,7 +6,7 @@
 2. Strict YAML loader is active in core runtime entrypoints (no `yaml.safe_load` in `compile-topology.py`, `compiler_runtime.py`, `plugin_manifest_discovery.py`, `kernel/plugin_registry.py`).
 3. ADR0088 diagnostic family is implemented (`E8801..E8806` in error catalog; runtime/tests include explicit mentions).
 4. Active instance source path is canonical-only:
-   - `projects/home-lab/topology/instances`: `class_ref=0`, `object_ref=0`
+   - `projects/home-lab/topology/instances`: `class_ref=0`, `object_ref=0`, `group=0` (plain legacy key)
    - `@instance/@extends/@group/@version`: canonical in shard headers
    - `instance.@layer` and plain `group` are removed from canonical shard contract (derived-layer + service-key policy).
 5. Gates are green:
