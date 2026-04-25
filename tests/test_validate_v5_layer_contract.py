@@ -172,3 +172,22 @@ def test_layer_contract_rejects_instance_layer_metadata(tmp_path: Path, capsys, 
 
     assert code == 1
     assert "must not declare @layer" in captured.out
+
+
+def test_layer_contract_rejects_legacy_group_service_key(tmp_path: Path, capsys, monkeypatch) -> None:
+    mod = _load_module()
+    _seed_repo(tmp_path, object_has_layer=False)
+    shard = tmp_path / "projects" / "home-lab" / "topology" / "instances" / "devices" / "inst.router.a.yaml"
+    payload = yaml.safe_load(shard.read_text(encoding="utf-8")) or {}
+    payload["group"] = payload.pop("@group")
+    shard.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    mod.ROOT = tmp_path
+    mod.DEFAULT_MANIFEST = tmp_path / "topology" / "topology.yaml"
+    monkeypatch.setattr(sys, "argv", ["validate_v5_layer_contract.py"])
+
+    code = mod.main()
+    captured = capsys.readouterr()
+
+    assert code == 1
+    assert "E8807 legacy instance service key 'group'" in captured.out

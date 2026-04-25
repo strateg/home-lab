@@ -94,6 +94,12 @@ def _load_instance_bindings_from_shards(instances_root: Path, *, errors: list[st
         payload = _load_yaml_map(path, errors=errors)
         if not payload:
             continue
+        if "group" in payload:
+            errors.append(
+                f"{path.relative_to(ROOT).as_posix()}: E8807 legacy instance service key 'group' is not allowed; "
+                "use canonical '@group'"
+            )
+            continue
         rel_parts = rel.parts
         if len(rel_parts) not in {2, 3}:
             errors.append(
