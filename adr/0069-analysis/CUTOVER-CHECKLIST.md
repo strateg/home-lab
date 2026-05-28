@@ -27,51 +27,51 @@ Note:
 
 ## A. Stage and Ownership
 
-- [ ] Runtime executes `compile -> validate -> generate` stages in this exact order.
-- [ ] `ctx.compiled_json` is produced by compiler plugins before validator/generator stages.
-- [ ] Core `compile-topology.py` does not contain domain-specific validation rules.
-- [ ] Artifact emission is performed by generator plugins, not legacy core emit branches.
+- [x] Runtime executes `compile -> validate -> generate` stages in this exact order.
+- [x] `ctx.compiled_json` is produced by compiler plugins before validator/generator stages.
+- [x] Core `compile-topology.py` does not contain domain-specific validation rules.
+- [x] Artifact emission is performed by generator plugins, not legacy core emit branches.
 
 ## B. Parity Gates
 
-- [ ] Effective JSON parity passed for `production`.
-- [ ] Effective JSON parity passed for `modeled`.
-- [ ] Effective JSON parity passed for `test-real`.
-- [ ] Diagnostics parity (codes + severities) passed on baseline fixtures.
+- [x] Effective JSON parity passed for `production`.
+- [x] Effective JSON parity passed for `modeled`.
+- [x] Effective JSON parity passed for `test-real`.
+- [x] Diagnostics parity (codes + severities) passed on baseline fixtures.
 
 ## C. Early ADR Guardrails
 
 ### ADR 0005 (Determinism)
-- [ ] Generated artifact ordering is deterministic across repeated runs.
-- [ ] No noisy diffs on stable inputs.
+- [x] Generated artifact ordering is deterministic across repeated runs.
+- [x] No noisy diffs on stable inputs.
 
 ### ADR 0027 (Quality Gates)
-- [ ] Render/validation quality gates remain enabled by default in plugin-first path.
-- [ ] Existing explicit opt-out behavior remains explicit and documented.
+- [x] Render/validation quality gates remain enabled by default in plugin-first path.
+- [x] Existing explicit opt-out behavior remains explicit and documented.
 
 ### ADR 0028 (Stable Entrypoints)
-- [ ] Top-level CLI entrypoint remains stable for existing workflows.
-- [ ] Internals are modularized without breaking CLI contract.
+- [x] Top-level CLI entrypoint remains stable for existing workflows.
+- [x] Internals are modularized without breaking CLI contract.
 
 ### ADR 0046 (Generator Architecture)
-- [ ] Generator plugins keep separated concerns (rendering, data prep, IO).
-- [ ] Generator plugin tests exist and pass.
+- [x] Generator plugins keep separated concerns (rendering, data prep, IO).
+- [x] Generator plugin tests exist and pass.
 
 ### ADR 0050 (Artifact Layout Contract)
-- [ ] Output paths/layout remain compatible with accepted generated artifact structure.
-- [ ] Ownership boundaries for generated artifacts are unchanged.
+- [x] Output paths/layout remain compatible with accepted generated artifact structure.
+- [x] Ownership boundaries for generated artifacts are unchanged.
 
 ## D. Test and CI
 
-- [ ] `v5/tests/plugin_contract/*` green.
-- [ ] `v5/tests/plugin_integration/*` green.
-- [ ] Compiler/generator parity tests green.
-- [ ] CI default path validates plugin-first execution.
+- [x] `tests/plugin_contract/*` green.
+- [x] `tests/plugin_integration/*` green.
+- [x] Compiler/generator parity tests green.
+- [x] CI default path validates plugin-first execution.
 
 ## E. Cleanup Readiness
 
-- [ ] Legacy core branches are either deleted or hard-disabled.
-- [ ] Documentation updated to plugin-first architecture.
+- [x] Legacy core branches are either deleted or hard-disabled.
+- [x] Documentation updated to plugin-first architecture.
 - [x] ADR0069 status promoted from `Proposed` to `Accepted` (2026-03-12).
 
 ---
@@ -121,11 +121,11 @@ Validate baseline workflows under plugin-first and legacy fallback.
 
 | Command / Flow | Expected Result | Plugin-first | Legacy fallback |
 |---|---|---|---|
-| Default compile command | Success, expected artifacts, stable exit code | [ ] | [ ] |
-| Compile with explicit output path | Artifacts in expected layout (ADR0050) | [ ] | [ ] |
-| Compile with diagnostics/report options | Report produced, code/severity stable | [ ] | [ ] |
-| Compile with quality gate enabled (default) | Gate executes and enforces policy | [ ] | [ ] |
-| Compile with documented opt-out behavior | Opt-out remains explicit and documented | [ ] | [ ] |
+| Default compile command | Success, expected artifacts, stable exit code | [x] | N/A (retired) |
+| Compile with explicit output path | Artifacts in expected layout (ADR0050) | [x] | N/A (retired) |
+| Compile with diagnostics/report options | Report produced, code/severity stable | [x] | N/A (retired) |
+| Compile with quality gate enabled (default) | Gate executes and enforces policy | [x] | N/A (retired) |
+| Compile with documented opt-out behavior | Opt-out remains explicit and documented | [x] | N/A (retired) |
 
 Add links to evidence beside each row in review notes.
 

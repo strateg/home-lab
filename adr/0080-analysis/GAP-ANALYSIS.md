@@ -325,3 +325,46 @@ or protect with `threading.Lock()`.
 - `adr/0065-plugin-api-contract-specification.md` — diagnostic code contract
 - `adr/0074-v5-generator-architecture.md` — order ranges for generate stage
 - `adr/0079-v5-documentation-and-diagram-generation-migration.md` — concurrent generator work
+
+---
+
+## Resolution Status (2026-04-29)
+
+All gaps have been resolved. Current implementation state:
+
+### Resolved Gaps
+
+| Gap | Resolution | Evidence |
+|-----|------------|----------|
+| G1 | `discover` stage implemented | 5 discoverer plugins |
+| G2 | `PluginContext` extended | assemblers/builders work |
+| G3 | `when` predicate implemented | Conditional execution works |
+| G4 | Diagnostic ranges allocated | Error catalog updated |
+| G5 | Order ranges defined | All 6 stages have ranges |
+| G6 | `artifact_manifest` implemented | Generator plugin exists |
+| G7-G10 | Wave coordination completed | Parallel execution works |
+| G11 | Schema/runtime aligned | 6 stages in enum |
+| G12-G18 | Phase/scope rules implemented | Runtime enforces contracts |
+| G19-G24 | Parallelism blockers resolved | ADR 0097 subinterpreters |
+
+### Current Plugin Statistics
+
+| Stage | Plugins |
+|-------|---------|
+| discover | 5 |
+| compile | 12 |
+| validate | 49 |
+| generate | 28 |
+| assemble | 2 |
+| build | 2 |
+| **Total** | **98** |
+
+### Implementation Evidence
+
+- 6-stage pipeline operational: `discover → compile → validate → generate → assemble → build`
+- Parallel plugin execution via ADR 0097 (subinterpreters)
+- All diagnostic ranges allocated
+- Phase-aware execution working
+- Data bus contracts enforced
+
+**Status:** All gaps resolved. ADR 0080 fully implemented.

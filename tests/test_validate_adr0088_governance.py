@@ -183,3 +183,28 @@ def test_governance_fails_when_plain_group_present_in_active_instances(tmp_path:
 
     assert report["summary"]["errors"] > 0
     assert any(item["code"] == "G3101" for item in report["errors"])
+
+
+def test_governance_ignores_nested_group_fields_in_instance_payload(tmp_path: Path) -> None:
+    mod = _load_module()
+    policy_path, diagnostics_path = _seed_repo(tmp_path)
+    _write_text(
+        tmp_path / "projects/home-lab/topology/instances/devices/inst.router.a.yaml",
+        (
+            "@version: 1.0.0\n"
+            "@instance: inst.router.a\n"
+            "@group: devices\n"
+            "@extends: obj.router\n"
+            "settings:\n"
+            "  group: full\n"
+        ),
+    )
+
+    report = mod.run_governance(
+        repo_root=tmp_path,
+        policy_path=policy_path,
+        diagnostics_json=diagnostics_path,
+        mode="warn",
+    )
+
+    assert report["summary"]["errors"] == 0
