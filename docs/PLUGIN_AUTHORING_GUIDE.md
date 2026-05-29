@@ -650,6 +650,70 @@ Validation failure is a **hard error** — plugin does not execute.
 
 ---
 
+## Exclusive Model Ownership (`compiled_json_owner`)
+
+The `compiled_json_owner` flag designates a plugin as the exclusive owner of the compiled model for a specific phase and stage combination.
+
+### When to Use
+
+Use `compiled_json_owner: true` when:
+- Your plugin produces the authoritative compiled model
+- Only one plugin should modify the model in a given phase/stage
+- You need to prevent conflicting model mutations
+
+### Declaration
+
+```yaml
+- id: base.compiler.effective_model
+  kind: compiler
+  stages: [compile]
+  phase: finalize
+  compiled_json_owner: true  # Exclusive ownership
+  order: 60
+  produces:
+    - key: effective_model_candidate
+      scope: pipeline_shared
+```
+
+### Constraints
+
+1. **Single Owner Rule**: Only one plugin can declare `compiled_json_owner: true` for a given (phase, stage) pair
+2. **Conflict Detection**: Registry raises `PluginLoadError` if multiple owners overlap
+3. **Phase Binding**: Ownership is scoped to the declared phase (e.g., `finalize`)
+
+### Example Conflict
+
+```yaml
+# Plugin A
+- id: plugin.a
+  phase: finalize
+  stages: [compile]
+  compiled_json_owner: true
+
+# Plugin B - CONFLICT!
+- id: plugin.b
+  phase: finalize
+  stages: [compile]
+  compiled_json_owner: true
+```
+
+Error: `compiled_json_owner conflicts with 'plugin.a' for phase 'finalize' and stages ['compile']`
+
+### Current Owners
+
+| Phase | Stage | Owner Plugin |
+|-------|-------|--------------|
+| finalize | compile | `base.compiler.effective_model` |
+
+### Best Practices
+
+1. Only use when truly needed for model consistency
+2. Document why exclusive ownership is required
+3. Keep owner plugins focused and minimal
+4. Coordinate with team before adding new owners
+
+---
+
 ## Diagnostics and Error Handling
 
 ### Emitting Diagnostics

@@ -101,3 +101,13 @@ tasks:
     desc: Remove generated terraform.tfvars files
     cmds:
       - "{{.PYTHON}} scripts/terraform/generate-tfvars.py all --cleanup"
+
+  multi-project:
+    desc: Compile multiple projects in parallel
+    cmds:
+      - "{{.PYTHON}} topology-tools/multi_project_runner.py {{if .PROJECTS}}--projects {{.PROJECTS}}{{end}} {{if .MAX_WORKERS}}--max-workers {{.MAX_WORKERS}}{{end}}"
+
+  multi-project-list:
+    desc: List discovered projects
+    cmds:
+      - "{{.PYTHON}} topology-tools/multi_project_runner.py --list-projects"
