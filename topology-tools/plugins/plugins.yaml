@@ -2360,6 +2360,7 @@ plugins:
     scope: pipeline_shared
   description: Emits assembly-manifest.json consumed by build stage plugins.
 - id: base.assembler.deploy_bundle
+  execution_mode: subinterpreter
   kind: assembler
   entry: assemblers/workspace_assembler.py:DeployBundleAssembler
   api_version: 1.x

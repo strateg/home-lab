@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import importlib.util
 import json
 import re
 import shutil
@@ -20,6 +19,24 @@ from kernel.plugin_base import (
     PluginResult,
     Stage,
 )
+
+# ADR 0097 P4.1: Static import for subinterpreter compatibility.
+# Add scripts path for deploy bundle utilities.
+_SCRIPTS_ROOT = Path(__file__).resolve().parents[3] / "scripts" / "orchestration" / "deploy"
+if str(_SCRIPTS_ROOT) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_ROOT.parent.parent))
+
+# Lazy import to avoid import errors when bundle.py dependencies are missing
+_bundle_module = None
+
+
+def _get_bundle_module():
+    """Lazy-load bundle module for deploy bundle operations."""
+    global _bundle_module
+    if _bundle_module is None:
+        from scripts.orchestration.deploy import bundle as _bm
+        _bundle_module = _bm
+    return _bundle_module
 
 
 def _sha256(path: Path) -> str:
@@ -666,27 +683,13 @@ class DeployBundleAssembler(AssemblerPlugin):
             return (repo_root / candidate).resolve()
         return (repo_root / ".work" / "deploy" / "bundles").resolve()
 
-    @classmethod
-    def _load_bundle_module(cls, ctx: PluginContext):
-        repo_root = cls._repo_root(ctx)
-        framework_root = Path(__file__).resolve().parents[3]
-        candidates = [
-            (repo_root / "scripts" / "orchestration" / "deploy" / "bundle.py").resolve(),
-            (framework_root / "scripts" / "orchestration" / "deploy" / "bundle.py").resolve(),
-        ]
-        module_path = next((path for path in candidates if path.exists()), None)
-        if module_path is None:
-            raise FileNotFoundError(
-                "deploy bundle module not found in workspace or framework roots: "
-                f"{', '.join(str(path) for path in candidates)}"
-            )
-        spec = importlib.util.spec_from_file_location("_deploy_bundle_module", module_path)
-        if spec is None or spec.loader is None:
-            raise ImportError(f"cannot load deploy bundle module spec: {module_path}")
-        module = importlib.util.module_from_spec(spec)
-        sys.modules[spec.name] = module
-        spec.loader.exec_module(module)
-        return module
+    @staticmethod
+    def _load_bundle_module():
+        """Load bundle module using static import for subinterpreter compatibility.
+
+        ADR 0097 P4.1: Replaced importlib.util dynamic loading with static import.
+        """
+        return _get_bundle_module()
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
@@ -726,7 +729,7 @@ class DeployBundleAssembler(AssemblerPlugin):
             return self.make_result(diagnostics=diagnostics)
 
         try:
-            bundle_module = self._load_bundle_module(ctx)
+            bundle_module = self._load_bundle_module()
             topology_hash = str(bundle_module.hash_tree(generated_root))
             secrets_hash = str(bundle_module.hash_mapping({}))
             bundle_id = str(
