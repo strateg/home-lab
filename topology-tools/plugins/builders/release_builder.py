@@ -106,7 +106,8 @@ class ReleaseBundleBuilder(BuilderPlugin):
         workspace_root = self._workspace_root(ctx)
         dist_root = self._dist_root(ctx)
         dist_root.mkdir(parents=True, exist_ok=True)
-        ctx.dist_root = str(dist_root)
+        # ADR 0097 P4.1: Removed ctx.dist_root mutation for subinterpreter compatibility.
+        # dist_root is published via output_data for downstream plugins.
 
         project_id = str(ctx.config.get("project_id", "project")).strip() or "project"
         release_tag = str(ctx.release_tag).strip() if isinstance(ctx.release_tag, str) else ""
@@ -143,6 +144,7 @@ class ReleaseBundleBuilder(BuilderPlugin):
         ctx.publish("generated_files", generated_files)
         ctx.publish("release_bundle_path", str(bundle_path))
         ctx.publish("release_bundle_sha256", bundle_sha256)
+        ctx.publish("dist_root", str(dist_root))
 
         diagnostics.append(
             self.emit_diagnostic(
@@ -159,6 +161,7 @@ class ReleaseBundleBuilder(BuilderPlugin):
                 "release_bundle_path": str(bundle_path),
                 "release_bundle_sha256": bundle_sha256,
                 "generated_files": generated_files,
+                "dist_root": str(dist_root),
             },
         )
 

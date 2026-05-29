@@ -846,6 +846,12 @@ class PluginRegistry:
         spec = self.specs[plugin_id]
         base_config = ctx.config.copy()
         scoped_config = {**spec.config, **base_config}
+
+        # ADR 0097 P4.1: Inject generator migration metadata for artifact_contract_guard
+        # This replaces direct plugin_registry access, enabling subinterpreter execution.
+        if plugin_id == "base.assembler.artifact_contract_guard":
+            scoped_config["generator_migration_metadata"] = self._compute_generator_migration_metadata()
+
         produced_key_scopes = self._declared_produced_scopes(spec)
 
         subscriptions: dict[tuple[str, str], Any] = {}
@@ -931,6 +937,26 @@ class PluginRegistry:
                 if isinstance(item, str) and item.strip():
                     out.add(item.strip())
         return out
+
+    def _compute_generator_migration_metadata(self) -> dict[str, dict[str, str]]:
+        """Compute generator migration metadata for ADR0097 P4.1 subinterpreter compatibility.
+
+        Returns a dict mapping generator plugin IDs to their migration metadata:
+        {
+            "plugin_id": {"migration_mode": "legacy|migrating|migrated|rollback"}
+        }
+
+        This pre-computed metadata replaces direct plugin_registry access in
+        subinterpreter-mode assemblers that need to inspect generator contracts.
+        """
+        metadata: dict[str, dict[str, str]] = {}
+        for plugin_id, spec in self.specs.items():
+            if spec.kind != PluginKind.GENERATOR:
+                continue
+            metadata[plugin_id] = {
+                "migration_mode": str(getattr(spec, "migration_mode", "legacy")).strip().lower() or "legacy",
+            }
+        return metadata
 
     def _ensure_pipeline_state(self, ctx: PluginContext) -> PipelineState:
         """Return main-interpreter pipeline state for the current execution context."""

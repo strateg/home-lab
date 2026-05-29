@@ -408,7 +408,8 @@ class WorkspaceAssembler(AssemblerPlugin):
             assembled_files.append(str(dest_path))
 
         assembled_files.sort()
-        ctx.workspace_root = str(workspace_root)
+        # ADR 0097 P4.1: Removed ctx.workspace_root mutation for subinterpreter compatibility.
+        # Orchestrator commits published assembly_dir to ctx.workspace_root automatically.
         ctx.publish("assembly_dir", str(workspace_root))
         ctx.publish("assembled_files", assembled_files)
 
@@ -600,7 +601,8 @@ class AssemblyManifestAssembler(AssemblerPlugin):
         manifest_path = workspace_root / "assembly-manifest.json"
         manifest_path.write_text(json.dumps(manifest, ensure_ascii=True, indent=2), encoding="utf-8")
 
-        ctx.assembly_manifest = manifest
+        # ADR 0097 P4.1: Removed ctx.assembly_manifest mutation for subinterpreter compatibility.
+        # Orchestrator commits published assembly_manifest to context automatically.
         ctx.publish("generated_files", [str(manifest_path)])
         ctx.publish("assembly_manifest_path", str(manifest_path))
         ctx.publish("assembly_manifest", manifest)

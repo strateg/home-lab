@@ -2110,6 +2110,7 @@ plugins:
   description: Generates docker-compose.yaml files from Docker stack instances (ADR
     0087 Phase 6).
 - id: base.generator.artifact_manifest
+  execution_mode: subinterpreter
   kind: generator
   entry: generators/artifact_manifest_generator.py:ArtifactManifestGenerator
   api_version: 1.x
@@ -2217,6 +2218,7 @@ plugins:
     scope: pipeline_shared
   description: Computes changed_input_scopes from artifact-manifest checksum deltas.
 - id: base.assembler.workspace
+  execution_mode: subinterpreter
   kind: assembler
   entry: assemblers/workspace_assembler.py:WorkspaceAssembler
   api_version: 1.x
@@ -2276,6 +2278,7 @@ plugins:
     scope: pipeline_shared
   description: Verifies assembled workspace content and checks basic secret-leak guardrails.
 - id: base.assembler.artifact_contract_guard
+  execution_mode: subinterpreter
   kind: assembler
   entry: assemblers/artifact_contract_assembler.py:ArtifactContractAssembler
   api_version: 1.x
@@ -2321,6 +2324,7 @@ plugins:
     scope: pipeline_shared
   description: Enforces ADR0093 contract publications for migrated/migrating generators.
 - id: base.assembler.manifest
+  execution_mode: subinterpreter
   kind: assembler
   entry: assemblers/workspace_assembler.py:AssemblyManifestAssembler
   api_version: 1.x
@@ -2389,6 +2393,7 @@ plugins:
   description: Creates or reuses deterministic deploy bundle from generated artifacts
     for deploy-plane execution.
 - id: base.builder.bundle
+  execution_mode: subinterpreter
   kind: builder
   entry: builders/release_builder.py:ReleaseBundleBuilder
   api_version: 1.x
@@ -2414,6 +2419,8 @@ plugins:
   - key: release_bundle_path
     scope: pipeline_shared
   - key: release_bundle_sha256
+    scope: pipeline_shared
+  - key: dist_root
     scope: pipeline_shared
   description: Packages assembled workspace files into deterministic zip release bundle.
 - id: base.builder.sbom

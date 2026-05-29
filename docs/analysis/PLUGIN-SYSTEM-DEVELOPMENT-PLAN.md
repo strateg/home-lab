@@ -17,8 +17,8 @@
 | Phase 4 | **Complete** | `7cd390d5`, `5c5f1cd8`, `3bb0c4e9` | sbom migration, InputViewSpec, event patterns |
 
 **Current Plugin Fleet:**
-- Subinterpreter: 75/84 (89.3%)
-- Main interpreter: 9/84 (10.7%)
+- Subinterpreter: 81/85 (95.3%)
+- Main interpreter: 4/85 (4.7%)
 
 ---
 
@@ -76,8 +76,8 @@ Evolve the v5 plugin system to achieve:
 | Metric | Current Value | Target |
 |--------|---------------|--------|
 | Total plugins | 85 | — |
-| Subinterpreter-ready | 74 (87.1%) | 81 (95%) |
-| Main interpreter | 11 (12.9%) | 4 (5%) |
+| Subinterpreter-ready | 81 (95.3%) | 81 (95%) ✓ |
+| Main interpreter | 4 (4.7%) | 4 (5%) ✓ |
 | Plugins with config_schema | 47 (55%) | 85 (100%) |
 | Max dependency depth | 6 | 5 |
 | Kernel LOC | 4,242 | <3,500 |
@@ -85,19 +85,19 @@ Evolve the v5 plugin system to achieve:
 
 ### 2.2 Main Interpreter Plugins (Migration Candidates)
 
-| Plugin ID | Reason for main_interpreter | Migration Complexity |
-|-----------|----------------------------|---------------------|
-| base.discover.manifest_loader | Phase: init, bootstrap | High |
-| base.compiler.model_lock_loader | Loads model.lock | Medium |
-| base.assembler.workspace | Copies files to workspace | Medium |
-| base.assembler.manifest | Writes assembly manifest | Medium |
-| base.assembler.deploy_bundle | Creates deploy bundles | High |
-| base.assembler.changed_scopes | Computes changed scopes | Low |
-| base.assembler.artifact_contract_guard | Guards contracts | Low |
-| base.builder.bundle | Creates release bundle | Medium |
-| base.builder.sbom | Generates SBOM | Low |
-| base.builder.release_manifest | Final manifest | Low |
-| base.generator.artifact_manifest | Consolidates artifacts | Medium |
+| Plugin ID | Reason for main_interpreter | Migration Complexity | Status |
+|-----------|----------------------------|---------------------|--------|
+| base.discover.manifest_loader | Phase: init, bootstrap | High | Remaining |
+| base.compiler.model_lock_loader | Loads model.lock | Medium | Remaining |
+| base.assembler.workspace | Copies files to workspace | Medium | ✓ Migrated |
+| base.assembler.manifest | Writes assembly manifest | Medium | ✓ Migrated |
+| base.assembler.deploy_bundle | Creates deploy bundles | High | Remaining |
+| base.assembler.changed_scopes | Computes changed scopes | Low | Remaining |
+| base.assembler.artifact_contract_guard | Guards contracts | Low | ✓ Migrated |
+| base.builder.bundle | Creates release bundle | Medium | ✓ Migrated |
+| base.builder.sbom | Generates SBOM | Low | ✓ Migrated |
+| base.builder.release_manifest | Final manifest | Low | ✓ Migrated |
+| base.generator.artifact_manifest | Consolidates artifacts | Medium | ✓ Migrated |
 
 ### 2.3 High Fan-Out Plugins (Bottlenecks)
 

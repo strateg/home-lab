@@ -1,4 +1,8 @@
-"""Assembler-stage contract guard for ADR0093 migrated generators."""
+"""Assembler-stage contract guard for ADR0093 migrated generators.
+
+ADR 0097 P4.1: Migrated to subinterpreter mode by using generator_migration_metadata
+config instead of direct plugin_registry access.
+"""
 
 from __future__ import annotations
 
@@ -10,7 +14,6 @@ from kernel.plugin_base import (
     PluginContext,
     PluginDataExchangeError,
     PluginDiagnostic,
-    PluginKind,
     PluginResult,
     Stage,
 )
@@ -22,8 +25,18 @@ class ArtifactContractAssembler(AssemblerPlugin):
     _REQUIRED_KEYS = ("artifact_plan", "artifact_generation_report", "artifact_contract_files")
 
     @staticmethod
-    def _resolve_registry(ctx: PluginContext) -> Any:
-        return ctx.config.get("plugin_registry")
+    def _resolve_generator_metadata(ctx: PluginContext) -> dict[str, dict[str, str]] | None:
+        """Resolve generator migration metadata from config.
+
+        Returns dict of {plugin_id: {"migration_mode": str}} for all generators,
+        or None if metadata is unavailable.
+
+        ADR 0097 P4.1: This replaces direct plugin_registry access for subinterpreter compatibility.
+        """
+        metadata = ctx.config.get("generator_migration_metadata")
+        if isinstance(metadata, dict):
+            return metadata
+        return None
 
     @staticmethod
     def _compatibility_producers(ctx: PluginContext) -> set[str]:
@@ -72,15 +85,16 @@ class ArtifactContractAssembler(AssemblerPlugin):
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
-        registry = self._resolve_registry(ctx)
-        specs = getattr(registry, "specs", None)
-        if not isinstance(specs, dict):
+
+        # ADR 0097 P4.1: Use pre-computed generator metadata instead of registry access
+        generator_metadata = self._resolve_generator_metadata(ctx)
+        if generator_metadata is None:
             diagnostics.append(
                 self.emit_diagnostic(
                     code="W9395",
                     severity="warning",
                     stage=stage,
-                    message="plugin_registry specs are unavailable; artifact contract assemble guard skipped.",
+                    message="generator_migration_metadata unavailable; artifact contract assemble guard skipped.",
                     path="pipeline:assemble",
                 )
             )
@@ -100,10 +114,8 @@ class ArtifactContractAssembler(AssemblerPlugin):
         }
         generator_output_roots: list[tuple[str, str, Path]] = []
 
-        for plugin_id, spec in sorted(specs.items()):
-            if spec.kind != PluginKind.GENERATOR:
-                continue
-            mode = str(getattr(spec, "migration_mode", "legacy")).strip().lower() or "legacy"
+        for plugin_id, meta in sorted(generator_metadata.items()):
+            mode = str(meta.get("migration_mode", "legacy")).strip().lower() or "legacy"
             if mode not in summary:
                 mode = "legacy"
             summary[mode] += 1
