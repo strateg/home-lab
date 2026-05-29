@@ -158,6 +158,21 @@ tasks:
     cmds:
       - "{{.PYTHON}} scripts/validation/lint_plugin_depth.py --verbose --output-json build/diagnostics/plugin-depth.json"
 
+  error-catalog-sync:
+    desc: Validate error catalog synchronization with source code
+    cmds:
+      - "{{.PYTHON}} scripts/validation/sync_error_catalog.py"
+
+  error-catalog-sync-verbose:
+    desc: Validate error catalog synchronization with verbose output
+    cmds:
+      - "{{.PYTHON}} scripts/validation/sync_error_catalog.py --verbose"
+
+  error-catalog-fix:
+    desc: Generate stub entries for undefined error codes
+    cmds:
+      - "{{.PYTHON}} scripts/validation/sync_error_catalog.py --fix"
+
   module-index:
     desc: Validate topology/module-index.yaml consistency against class/object plugin manifests
     cmds:

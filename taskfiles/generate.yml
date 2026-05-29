@@ -20,3 +20,13 @@ tasks:
     desc: Roll back ADR0094 AI-promoted files from git baseline
     cmds:
       - "{{.PYTHON}} topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode passthrough --ai-assisted {{if .AI_ROLLBACK_ALL}}--ai-rollback-all{{end}} {{if .AI_ROLLBACK_PATHS}}--ai-rollback-paths {{.AI_ROLLBACK_PATHS}}{{end}} {{if .AI_ROLLBACK_REF}}--ai-rollback-ref {{.AI_ROLLBACK_REF}}{{end}}"
+
+  plugin-reference:
+    desc: Generate plugin reference documentation (PLUGIN-REFERENCE.md)
+    cmds:
+      - "{{.PYTHON}} scripts/docs/generate_plugin_reference.py"
+
+  plugin-reference-verbose:
+    desc: Generate plugin reference documentation with verbose output
+    cmds:
+      - "{{.PYTHON}} scripts/docs/generate_plugin_reference.py --verbose"
