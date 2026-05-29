@@ -89,7 +89,7 @@ Plugins execute via actor-style dataflow on Python 3.14 subinterpreters:
   - No `ctx.config.get("plugin_registry")` access
   - No dynamic module loading (`importlib.util`)
 
-**Current fleet:** 82/85 base plugins (96.5%) in subinterpreter mode.
+**Current fleet:** 83/85 base plugins (97.6%) in subinterpreter mode.
 
 ## Directory Structure
 

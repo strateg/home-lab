@@ -1030,6 +1030,11 @@ class PluginRegistry:
         if isinstance(assembly_manifest, dict):
             ctx.assembly_manifest = assembly_manifest
 
+        # ADR 0097 P4.1: Commit lock_payload to ctx.model_lock for subinterpreter compatibility.
+        lock_payload = plugin_payload.get("lock_payload")
+        if isinstance(lock_payload, dict):
+            ctx.model_lock = lock_payload
+
     def _validate_required_consumes_snapshot(
         self,
         *,

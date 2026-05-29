@@ -152,6 +152,7 @@ plugins:
   description: Loads class/object module maps for plugin-first pipeline (ADR 0069).
   execution_mode: subinterpreter
 - id: base.compiler.model_lock_loader
+  execution_mode: subinterpreter
   kind: compiler
   entry: compilers/model_lock_loader_compiler.py:ModelLockLoaderCompiler
   api_version: 1.x

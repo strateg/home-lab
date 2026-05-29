@@ -17,8 +17,8 @@
 | Phase 4 | **Complete** | `7cd390d5`, `5c5f1cd8`, `3bb0c4e9` | sbom migration, InputViewSpec, event patterns |
 
 **Current Plugin Fleet:**
-- Subinterpreter: 82/85 (96.5%)
-- Main interpreter: 3/85 (3.5%)
+- Subinterpreter: 83/85 (97.6%)
+- Main interpreter: 2/85 (2.4%)
 
 ---
 
@@ -76,8 +76,8 @@ Evolve the v5 plugin system to achieve:
 | Metric | Current Value | Target |
 |--------|---------------|--------|
 | Total plugins | 85 | — |
-| Subinterpreter-ready | 82 (96.5%) | 81 (95%) ✓ |
-| Main interpreter | 3 (3.5%) | 4 (5%) ✓ |
+| Subinterpreter-ready | 83 (97.6%) | 81 (95%) ✓ |
+| Main interpreter | 2 (2.4%) | 4 (5%) ✓ |
 | Plugins with config_schema | 47 (55%) | 85 (100%) |
 | Max dependency depth | 6 | 5 |
 | Kernel LOC | 4,242 | <3,500 |
@@ -87,8 +87,8 @@ Evolve the v5 plugin system to achieve:
 
 | Plugin ID | Reason for main_interpreter | Migration Complexity | Status |
 |-----------|----------------------------|---------------------|--------|
-| base.discover.manifest_loader | Phase: init, bootstrap | High | Remaining |
-| base.compiler.model_lock_loader | Loads model.lock | Medium | Remaining |
+| base.discover.manifest_loader | Phase: init, bootstrap | High | Remaining (bootstrap) |
+| base.compiler.model_lock_loader | Loads model.lock | Medium | ✓ Migrated |
 | base.assembler.workspace | Copies files to workspace | Medium | ✓ Migrated |
 | base.assembler.manifest | Writes assembly manifest | Medium | ✓ Migrated |
 | base.assembler.deploy_bundle | Creates deploy bundles | High | Remaining |

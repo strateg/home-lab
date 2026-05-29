@@ -47,7 +47,9 @@ class ModelLockLoaderCompiler(CompilerPlugin):
                     path="pipeline:model_lock_loader",
                 )
             )
-            ctx.model_lock = {}
+            # ADR 0097 P4.1: Publish empty payload for orchestrator to commit.
+            ctx.publish("lock_payload", {})
+            ctx.publish("model_lock_loaded", False)
             return self.make_result(
                 diagnostics,
                 output_data={"lock_payload": {}, "model_lock_loaded": False},
@@ -55,7 +57,7 @@ class ModelLockLoaderCompiler(CompilerPlugin):
 
         lock_path = Path(lock_path_raw)
         if not lock_path.exists() or not lock_path.is_file():
-            ctx.model_lock = {}
+            # ADR 0097 P4.1: Publish empty payload for orchestrator to commit.
             ctx.publish("lock_payload", {})
             ctx.publish("model_lock_loaded", False)
             return self.make_result(
@@ -76,7 +78,7 @@ class ModelLockLoaderCompiler(CompilerPlugin):
                     plugin_id=self.plugin_id,
                 )
             )
-            ctx.model_lock = {}
+            # ADR 0097 P4.1: Publish empty payload for orchestrator to commit.
             ctx.publish("lock_payload", {})
             ctx.publish("model_lock_loaded", False)
             return self.make_result(
@@ -95,7 +97,7 @@ class ModelLockLoaderCompiler(CompilerPlugin):
                     plugin_id=self.plugin_id,
                 )
             )
-            ctx.model_lock = {}
+            # ADR 0097 P4.1: Publish empty payload for orchestrator to commit.
             ctx.publish("lock_payload", {})
             ctx.publish("model_lock_loaded", False)
             return self.make_result(
@@ -103,7 +105,7 @@ class ModelLockLoaderCompiler(CompilerPlugin):
                 output_data={"lock_payload": {}, "model_lock_loaded": False},
             )
 
-        ctx.model_lock = payload
+        # ADR 0097 P4.1: Publish payload for orchestrator to commit to ctx.model_lock.
         ctx.publish("lock_payload", payload)
         ctx.publish("model_lock_loaded", True)
         return self.make_result(
