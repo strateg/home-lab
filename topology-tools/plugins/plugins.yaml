@@ -751,6 +751,13 @@ plugins:
   - from_plugin: base.compiler.instance_rows
     key: normalized_rows
     required: true
+  # ADR 0097 P4.2: input_view declares partial data requirements for snapshot optimization
+  input_view:
+    raw_yaml: false  # This validator doesn't need raw YAML access
+    subscriptions:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        projection: "$.rows[?(@.network)]"  # Only need rows with network field
   description: Detects duplicate IP reuse across normalized instance rows.
   execution_mode: subinterpreter
 - id: base.validator.single_active_os
