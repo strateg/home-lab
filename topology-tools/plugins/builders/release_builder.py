@@ -204,7 +204,8 @@ class SbomBuilder(BuilderPlugin):
             else dist_root / "sbom"
         )
         sbom_root.mkdir(parents=True, exist_ok=True)
-        ctx.sbom_output_dir = str(sbom_root)
+        # Note: ctx.sbom_output_dir mutation removed for subinterpreter compatibility.
+        # The computed sbom_path is published via data plane instead.
 
         sbom_path = sbom_root / "sbom.json"
         files = assembly_manifest.get("files", [])

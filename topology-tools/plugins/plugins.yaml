@@ -2402,6 +2402,7 @@ plugins:
     scope: pipeline_shared
   description: Packages assembled workspace files into deterministic zip release bundle.
 - id: base.builder.sbom
+  execution_mode: subinterpreter
   kind: builder
   entry: builders/release_builder.py:SbomBuilder
   api_version: 1.x

@@ -12,15 +12,15 @@ The plugin runtime supports three execution modes per ADR 0097:
 
 | Mode | Usage | Count | Percentage |
 |------|-------|-------|------------|
-| `subinterpreter` | Isolated parallel execution (default) | 74 | 88.1% |
-| `main_interpreter` | Main interpreter execution (restricted) | 10 | 11.9% |
+| `subinterpreter` | Isolated parallel execution (default) | 75 | 89.3% |
+| `main_interpreter` | Main interpreter execution (restricted) | 9 | 10.7% |
 | `thread_legacy` | Deprecated migration mode | 0 | 0% |
 
 **Total active plugins:** 84
 
 ---
 
-## main_interpreter Plugins (10)
+## main_interpreter Plugins (9)
 
 These plugins **require** main interpreter execution due to technical constraints that prevent subinterpreter isolation:
 
@@ -67,22 +67,20 @@ These plugins **require** main interpreter execution due to technical constraint
 - Validates artifact contracts against plugin registry
 - Requires direct registry access
 
-### Builders (3)
+### Builders (2)
 
 #### base.builder.bundle
 **Reason:** Mutates `ctx.dist_root` field
 - Prepares distribution bundle structure
 - Sets global distribution paths
 
-#### base.builder.sbom
-**Reason:** Mutates `ctx.sbom_output_dir` field
-- Generates Software Bill of Materials
-- Writes SBOM metadata to shared location
-
 #### base.builder.artifact_family_summary
 **Reason:** Accesses `ctx.config.get("plugin_registry")`
 - Generates artifact family summary
 - Requires direct registry access for metadata
+
+> **Note:** `base.builder.sbom` was migrated to subinterpreter mode on 2026-05-29.
+> The ctx.sbom_output_dir mutation was removed; the plugin now uses data plane only.
 
 ---
 
@@ -90,7 +88,7 @@ These plugins **require** main interpreter execution due to technical constraint
 
 | Pattern | Count | Examples |
 |---------|-------|----------|
-| Direct `ctx` field mutation | 7 | `ctx.model_lock`, `ctx.workspace_root`, `ctx.dist_root` |
+| Direct `ctx` field mutation | 6 | `ctx.model_lock`, `ctx.workspace_root`, `ctx.dist_root` |
 | Plugin registry access | 2 | `ctx.config.get("plugin_registry")` |
 | Dynamic module loading | 1 | `importlib.util` |
 
@@ -141,14 +139,15 @@ Potential architectural changes to reduce main_interpreter dependency:
 
 ```yaml
 execution_mode_distribution:
-  subinterpreter: 74
-  main_interpreter: 10
+  subinterpreter: 75
+  main_interpreter: 9
   thread_legacy: 0
   total: 84
 
 migration_status:
-  fleet_coverage: 88.1%
+  fleet_coverage: 89.3%
   incompatible_documented: yes
   pr4_complete: yes
   pr5_documentation: yes
+  last_migration: base.builder.sbom (2026-05-29)
 ```
