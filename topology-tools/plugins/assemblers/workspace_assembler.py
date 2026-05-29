@@ -235,7 +235,9 @@ class ChangedInputScopesAssembler(AssemblerPlugin):
             payload = self._read_manifest(manifest_path) if manifest_path is not None else None
 
         if payload is None:
-            ctx.changed_input_scopes = None
+            # ADR 0097 P4.1: Publish None instead of direct mutation for subinterpreter compatibility.
+            # Orchestrator commits published changed_input_scopes to context automatically.
+            ctx.publish("changed_input_scopes", None)
             diagnostics.append(
                 self.emit_diagnostic(
                     code="I8104",
@@ -250,8 +252,8 @@ class ChangedInputScopesAssembler(AssemblerPlugin):
         current_entries = self._extract_entries(payload, project_id)
         previous_entries = self._read_previous_entries(state_path)
         dirty_scopes, changed_files = self._derive_dirty_scopes(previous_entries, current_entries)
-        ctx.changed_input_scopes = dirty_scopes
-        ctx.config["changed_input_scopes"] = dirty_scopes
+        # ADR 0097 P4.1: Removed ctx.changed_input_scopes and ctx.config mutations.
+        # Orchestrator commits published changed_input_scopes to context automatically.
         ctx.publish("changed_input_scopes", dirty_scopes)
 
         snapshot_payload = {

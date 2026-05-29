@@ -17,8 +17,8 @@
 | Phase 4 | **Complete** | `7cd390d5`, `5c5f1cd8`, `3bb0c4e9` | sbom migration, InputViewSpec, event patterns |
 
 **Current Plugin Fleet:**
-- Subinterpreter: 81/85 (95.3%)
-- Main interpreter: 4/85 (4.7%)
+- Subinterpreter: 82/85 (96.5%)
+- Main interpreter: 3/85 (3.5%)
 
 ---
 
@@ -76,8 +76,8 @@ Evolve the v5 plugin system to achieve:
 | Metric | Current Value | Target |
 |--------|---------------|--------|
 | Total plugins | 85 | — |
-| Subinterpreter-ready | 81 (95.3%) | 81 (95%) ✓ |
-| Main interpreter | 4 (4.7%) | 4 (5%) ✓ |
+| Subinterpreter-ready | 82 (96.5%) | 81 (95%) ✓ |
+| Main interpreter | 3 (3.5%) | 4 (5%) ✓ |
 | Plugins with config_schema | 47 (55%) | 85 (100%) |
 | Max dependency depth | 6 | 5 |
 | Kernel LOC | 4,242 | <3,500 |
@@ -92,7 +92,7 @@ Evolve the v5 plugin system to achieve:
 | base.assembler.workspace | Copies files to workspace | Medium | ✓ Migrated |
 | base.assembler.manifest | Writes assembly manifest | Medium | ✓ Migrated |
 | base.assembler.deploy_bundle | Creates deploy bundles | High | Remaining |
-| base.assembler.changed_scopes | Computes changed scopes | Low | Remaining |
+| base.assembler.changed_scopes | Computes changed scopes | Low | ✓ Migrated |
 | base.assembler.artifact_contract_guard | Guards contracts | Low | ✓ Migrated |
 | base.builder.bundle | Creates release bundle | Medium | ✓ Migrated |
 | base.builder.sbom | Generates SBOM | Low | ✓ Migrated |
