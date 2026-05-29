@@ -20,13 +20,14 @@ plugin microkernel and its stage/phase lifecycle (ADR 0080).
 8. [Data Exchange (Publish/Subscribe)](#data-exchange-publishsubscribe)
 9. [Phase Handlers](#phase-handlers)
 10. [Conditional Execution (`when`)](#conditional-execution-when)
-11. [Configuration](#configuration)
-12. [Diagnostics and Error Handling](#diagnostics-and-error-handling)
-13. [Parallel Execution Safety](#parallel-execution-safety)
-14. [Testing](#testing)
-15. [Best Practices](#best-practices)
-16. [Migration from Legacy API](#migration-from-legacy-api)
-17. [ADR0093 Generator Contract](#adr0093-generator-contract)
+11. [Input View Specification (`input_view`)](#input-view-specification-input_view)
+12. [Configuration](#configuration)
+13. [Diagnostics and Error Handling](#diagnostics-and-error-handling)
+14. [Parallel Execution Safety](#parallel-execution-safety)
+15. [Testing](#testing)
+16. [Best Practices](#best-practices)
+17. [Migration from Legacy API](#migration-from-legacy-api)
+18. [ADR0093 Generator Contract](#adr0093-generator-contract)
 
 ---
 
@@ -605,6 +606,101 @@ when:
 ```
 
 All conditions are AND-ed. A skipped plugin returns `SKIPPED` status (not an error).
+
+---
+
+## Input View Specification (`input_view`)
+
+> **Status:** ADR 0097 P4.2 - Schema implemented, runtime filtering pending
+
+The `input_view` manifest key declares partial data requirements, enabling future snapshot optimization. Plugins with `input_view` signal which data they actually need, allowing the orchestrator to build minimal snapshots.
+
+### Basic Usage
+
+```yaml
+- id: my.validator.network_check
+  input_view:
+    raw_yaml: false  # Don't need raw YAML access
+```
+
+### Full Specification
+
+```yaml
+input_view:
+  # Compiled JSON projection (JSONPath expressions)
+  compiled_json:
+    include:
+      - "$.instances[?(@.object_ref=~/^network\\./)].network"
+      - "$.instances[*].id"
+    exclude: []
+
+  # Raw YAML access (default: true)
+  raw_yaml: false
+
+  # Subscription projections
+  subscriptions:
+    - from_plugin: base.compiler.instance_rows
+      key: normalized_rows
+      projection: "$.rows[?(@.layer=='L2')]"
+
+  # Object map filtering (glob patterns)
+  object_map:
+    include_refs:
+      - "network.*"
+    exclude_refs: []
+
+  # Class map filtering (glob patterns)
+  class_map:
+    include_refs:
+      - "network.*"
+```
+
+### Supported Data Sources
+
+| Source | Filter Type | Example |
+|--------|-------------|---------|
+| `compiled_json` | JSONPath include/exclude | `$.instances[*].network` |
+| `raw_yaml` | Boolean on/off | `false` |
+| `subscriptions` | JSONPath projection per key | `$.rows[?(@.layer=='L2')]` |
+| `object_map` | Glob patterns | `network.*` |
+| `class_map` | Glob patterns | `lxc.*` |
+
+### When to Use
+
+Use `input_view` when your plugin:
+- Only needs a subset of the compiled model
+- Doesn't need raw YAML access
+- Only needs filtered subscription data
+- Works with specific object/class types
+
+### Benefits
+
+- **Memory reduction:** Smaller snapshots for parallel execution
+- **Documentation:** Explicit data dependencies
+- **Future optimization:** Runtime filtering when implemented
+
+### Current Behavior
+
+Currently `input_view` is parsed and stored in `PluginSpec.input_view` but runtime filtering is not yet implemented. Plugins receive full snapshots regardless of `input_view` declarations. This will change in a future release.
+
+### Example: Network Validator
+
+```yaml
+- id: base.validator.network_ip_overlap
+  kind: validator_json
+  input_view:
+    raw_yaml: false
+    subscriptions:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        projection: "$.rows[?(@.network)]"
+  consumes:
+    - from_plugin: base.compiler.instance_rows
+      key: normalized_rows
+      required: true
+```
+
+This validator only needs rows with network data, not the full normalized_rows payload.
 
 ---
 

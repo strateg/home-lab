@@ -802,6 +802,12 @@ plugins:
   - from_plugin: base.compiler.instance_rows
     key: normalized_rows
     required: true
+  input_view:
+    raw_yaml: false
+    subscriptions:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        projection: "$.rows[?(@.object_ref=~/^network\\.vlan\\./)]"
   description: Validates VLAN reserved_ranges ranges, bounds, and overlaps.
   execution_mode: subinterpreter
 - id: base.validator.network_trust_zone_firewall_refs
@@ -1858,6 +1864,8 @@ plugins:
     type: object
     properties: {}
     required: []
+  input_view:
+    raw_yaml: false  # Generator uses compiled model only
   produces:
   - key: generated_dir
     scope: pipeline_shared
