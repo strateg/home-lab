@@ -405,8 +405,21 @@ class FilteredSnapshotCache:
 | Task | Status | Notes |
 |------|--------|-------|
 | Design specification | Complete | This document |
-| InputViewSpec dataclass | Pending | Phase 2 |
-| Manifest schema extension | Pending | Phase 2 |
-| JSONPath validation | Pending | Phase 2 |
-| Runtime filtering | Pending | Phase 2 |
-| Plugin migrations | Pending | Phase 3 |
+| InputViewSpec dataclass | Complete | `kernel/plugin_base.py` |
+| PluginSpec.input_view field | Complete | `kernel/plugin_registry.py` |
+| Manifest parsing | Complete | `PluginSpec._parse_input_view()` |
+| JSONPath validation | Pending | Runtime validation |
+| Runtime filtering | Pending | `build_filtered_snapshot()` |
+| Plugin migrations | Pending | Add input_view to manifests |
+
+### Files Modified
+
+- `topology-tools/kernel/plugin_base.py`
+  - Added `SubscriptionProjection` dataclass
+  - Added `CompiledJsonView` dataclass
+  - Added `MapFilterView` dataclass
+  - Added `InputViewSpec` dataclass with `has_filters` property
+
+- `topology-tools/kernel/plugin_registry.py`
+  - Added `input_view: InputViewSpec | None` field to `PluginSpec`
+  - Added `_parse_input_view()` static method for manifest parsing

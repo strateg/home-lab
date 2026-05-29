@@ -49,6 +49,9 @@ else:
 
 from .pipeline_runtime import PipelineState
 from .plugin_base import (
+    CompiledJsonView,
+    InputViewSpec,
+    MapFilterView,
     Phase,
     PluginBase,
     PluginContext,
@@ -61,6 +64,7 @@ from .plugin_base import (
     PluginResult,
     PluginStatus,
     Stage,
+    SubscriptionProjection,
 )
 from .plugin_runner import run_plugin_once
 
@@ -312,6 +316,7 @@ class PluginSpec:
     timeout: float = DEFAULT_PLUGIN_TIMEOUT
     subinterpreter_compatible: bool = False  # ADR 0097 Wave 1 (DEPRECATED)
     execution_mode: str = "main_interpreter"  # ADR 0097 PR2: subinterpreter | main_interpreter | thread_legacy
+    input_view: InputViewSpec | None = None  # ADR 0097 P4.2: snapshot filtering specification
 
     @classmethod
     def from_dict(cls, data: dict[str, Any], manifest_path: str = "") -> PluginSpec:
@@ -340,6 +345,80 @@ class PluginSpec:
             timeout=data.get("timeout", DEFAULT_PLUGIN_TIMEOUT),
             subinterpreter_compatible=bool(data.get("subinterpreter_compatible", False)),
             execution_mode=cls._resolve_execution_mode(data),
+            input_view=cls._parse_input_view(data.get("input_view")),
+        )
+
+    @staticmethod
+    def _parse_input_view(raw: dict[str, Any] | None) -> InputViewSpec | None:
+        """Parse input_view manifest section into InputViewSpec.
+
+        Supports the following manifest structure:
+            input_view:
+              compiled_json:
+                include: ["$.instances[*].network"]
+                exclude: []
+              raw_yaml: false
+              subscriptions:
+                - from_plugin: base.compiler.instance_rows
+                  key: normalized_rows
+                  projection: "$.rows[?(@.layer=='L2')]"
+              object_map:
+                include_refs: ["network.*"]
+              class_map:
+                include_refs: ["network.*"]
+        """
+        if raw is None:
+            return None
+        if not isinstance(raw, dict):
+            return None
+
+        compiled_json_raw = raw.get("compiled_json")
+        compiled_json = None
+        if isinstance(compiled_json_raw, dict):
+            compiled_json = CompiledJsonView(
+                include=tuple(compiled_json_raw.get("include", [])),
+                exclude=tuple(compiled_json_raw.get("exclude", [])),
+            )
+
+        raw_yaml = raw.get("raw_yaml", True)
+        if not isinstance(raw_yaml, bool):
+            raw_yaml = True
+
+        subscriptions_raw = raw.get("subscriptions", [])
+        subscriptions = []
+        if isinstance(subscriptions_raw, list):
+            for sub in subscriptions_raw:
+                if isinstance(sub, dict) and all(k in sub for k in ("from_plugin", "key", "projection")):
+                    subscriptions.append(
+                        SubscriptionProjection(
+                            from_plugin=str(sub["from_plugin"]),
+                            key=str(sub["key"]),
+                            projection=str(sub["projection"]),
+                        )
+                    )
+
+        object_map_raw = raw.get("object_map")
+        object_map = None
+        if isinstance(object_map_raw, dict):
+            object_map = MapFilterView(
+                include_refs=tuple(object_map_raw.get("include_refs", [])),
+                exclude_refs=tuple(object_map_raw.get("exclude_refs", [])),
+            )
+
+        class_map_raw = raw.get("class_map")
+        class_map = None
+        if isinstance(class_map_raw, dict):
+            class_map = MapFilterView(
+                include_refs=tuple(class_map_raw.get("include_refs", [])),
+                exclude_refs=tuple(class_map_raw.get("exclude_refs", [])),
+            )
+
+        return InputViewSpec(
+            compiled_json=compiled_json,
+            raw_yaml=raw_yaml,
+            subscriptions=tuple(subscriptions),
+            object_map=object_map,
+            class_map=class_map,
         )
 
     @staticmethod

@@ -367,6 +367,85 @@ class PluginResult:
         return any(d.severity == "warning" for d in self.diagnostics)
 
 
+# =============================================================================
+# Input View Specification (ADR 0097 Phase 4)
+# =============================================================================
+
+
+@dataclass(frozen=True)
+class SubscriptionProjection:
+    """Projection specification for a consumed data key.
+
+    Allows plugins to declare partial data requirements for subscribed data,
+    reducing snapshot size through JSONPath filtering.
+    """
+
+    from_plugin: str
+    key: str
+    projection: str  # JSONPath expression
+
+
+@dataclass(frozen=True)
+class CompiledJsonView:
+    """Projection specification for compiled_json data.
+
+    Allows plugins to request only specific portions of the compiled model
+    using JSONPath include/exclude patterns.
+    """
+
+    include: tuple[str, ...] = ()  # JSONPath include patterns
+    exclude: tuple[str, ...] = ()  # JSONPath exclude patterns
+
+
+@dataclass(frozen=True)
+class MapFilterView:
+    """Projection specification for class_map/object_map filtering.
+
+    Allows plugins to filter maps by object reference glob patterns.
+    """
+
+    include_refs: tuple[str, ...] = ()  # Glob patterns (e.g., "network.*")
+    exclude_refs: tuple[str, ...] = ()  # Glob patterns
+
+
+@dataclass(frozen=True)
+class InputViewSpec:
+    """Typed specification for plugin input data requirements (ADR 0097 P4.2).
+
+    Plugins can declare partial data requirements to reduce snapshot size.
+    When input_view is specified in the manifest, the orchestrator builds
+    a filtered snapshot containing only the declared data subsets.
+
+    Example manifest usage:
+        input_view:
+          compiled_json:
+            include:
+              - "$.instances[?(@.object_ref=~/^network\\./)].network"
+          raw_yaml: false
+          subscriptions:
+            - from_plugin: base.compiler.instance_rows
+              key: normalized_rows
+              projection: "$.rows[?(@.layer=='L2')]"
+    """
+
+    compiled_json: CompiledJsonView | None = None
+    raw_yaml: bool = True  # Include raw YAML by default
+    subscriptions: tuple[SubscriptionProjection, ...] = ()
+    object_map: MapFilterView | None = None
+    class_map: MapFilterView | None = None
+
+    @property
+    def has_filters(self) -> bool:
+        """Check if any filtering is specified."""
+        return (
+            self.compiled_json is not None
+            or not self.raw_yaml
+            or len(self.subscriptions) > 0
+            or self.object_map is not None
+            or self.class_map is not None
+        )
+
+
 @dataclass(frozen=True)
 class PluginInputSnapshot:
     """Immutable plugin-visible input for the envelope-model execution path."""
