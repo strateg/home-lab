@@ -28,6 +28,21 @@ repos:
 
 - repo: local
   hooks:
+    - id: check-plugin-cycles
+      name: Check plugin dependency cycles
+      entry: python scripts/validation/check_plugin_cycles.py
+      language: python
+      additional_dependencies:
+        - pyyaml>=6.0
+      pass_filenames: false
+      files: |
+        (?x)^(
+          topology-tools/plugins/plugins\.yaml|
+          topology/class-modules/.*/plugins\.yaml|
+          topology/object-modules/.*/plugins\.yaml|
+          projects/.*/plugins\.yaml
+        )$
+
     - id: detect-secrets-update-baseline
       name: Update detect-secrets baseline
       entry: python scripts/secrets/update_secrets_baseline.py

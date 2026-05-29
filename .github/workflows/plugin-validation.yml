@@ -221,8 +221,17 @@ jobs:
         with:
           version: 3.45.4
 
-      - name: Validate plugin manifests
-        run: task validate:plugin-manifests
+      - name: Validate plugin manifests (strict)
+        run: task validate:plugin-manifests-strict
+
+      - name: Lint config_schema declarations (strict)
+        run: task validate:plugin-config-schema
+
+      - name: Check plugin dependency cycles
+        run: task validate:plugin-cycles
+
+      - name: Lint plugin dependency depth
+        run: task validate:plugin-depth
 
   compile-with-plugins:
     name: Compile with Plugins Enabled

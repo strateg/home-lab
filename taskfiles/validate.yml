@@ -118,6 +118,46 @@ tasks:
     cmds:
       - "{{.PYTHON}} scripts/validation/validate_plugin_manifests.py"
 
+  plugin-manifests-strict:
+    desc: Validate plugin manifests with strict mode (fail on config_schema warnings)
+    cmds:
+      - "{{.PYTHON}} scripts/validation/validate_plugin_manifests.py --fail-on-warnings"
+
+  plugin-cycles:
+    desc: Check plugin dependency graph for circular dependencies
+    cmds:
+      - "{{.PYTHON}} scripts/validation/check_plugin_cycles.py"
+
+  plugin-cycles-verbose:
+    desc: Check plugin dependency graph for circular dependencies (verbose output)
+    cmds:
+      - "{{.PYTHON}} scripts/validation/check_plugin_cycles.py --verbose"
+
+  plugin-config-schema:
+    desc: Lint plugins for required config_schema declarations (strict mode)
+    cmds:
+      - "{{.PYTHON}} scripts/validation/lint_plugin_config_schema.py --mode strict"
+
+  plugin-config-schema-warn:
+    desc: Lint plugins for required config_schema declarations (warning mode)
+    cmds:
+      - "{{.PYTHON}} scripts/validation/lint_plugin_config_schema.py --mode warn --verbose"
+
+  plugin-depth:
+    desc: Lint plugin dependency depth (max=6, warn=5)
+    cmds:
+      - "{{.PYTHON}} scripts/validation/lint_plugin_depth.py"
+
+  plugin-depth-verbose:
+    desc: Lint plugin dependency depth with verbose output
+    cmds:
+      - "{{.PYTHON}} scripts/validation/lint_plugin_depth.py --verbose --show-chains"
+
+  plugin-depth-report:
+    desc: Generate plugin dependency depth JSON report
+    cmds:
+      - "{{.PYTHON}} scripts/validation/lint_plugin_depth.py --verbose --output-json build/diagnostics/plugin-depth.json"
+
   module-index:
     desc: Validate topology/module-index.yaml consistency against class/object plugin manifests
     cmds:
