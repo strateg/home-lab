@@ -14,7 +14,6 @@ from __future__ import annotations
 import concurrent.futures
 import contextvars
 import heapq
-import json
 import re
 import sys
 import threading
