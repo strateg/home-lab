@@ -340,7 +340,6 @@ class PluginRegistry:
         self.base_path = base_path
         self._ensure_import_path(self.base_path)
         self.manifest_schema_path = self.base_path / "schemas" / "plugin-manifest.schema.json"
-        self._manifest_schema: Optional[dict[str, Any]] = None
         self.specs: dict[str, PluginSpec] = {}
         self.instances: dict[str, PluginBase] = {}
         self.manifests: list[str] = []
@@ -360,6 +359,7 @@ class PluginRegistry:
             metadata_provider=self._inject_snapshot_metadata,
         )
         self._plugin_loader = PluginLoader(self.base_path)
+        self._manifest_loader = ManifestLoader(self.manifest_schema_path)
 
     def _get_parallel_executor(self, max_workers: int) -> InterpreterPoolExecutor:
         """Return subinterpreter executor for parallel plugin execution (ADR 0097 Wave 5).
@@ -410,37 +410,24 @@ class PluginRegistry:
             sys.path.insert(0, candidate)
 
     def _get_manifest_schema(self) -> dict[str, Any]:
-        if self._manifest_schema is not None:
-            return self._manifest_schema
+        """Get manifest JSON schema.
 
-        if not HAS_JSONSCHEMA:
-            raise PluginLoadError(
-                "manifest.schema",
-                "jsonschema dependency is required for plugin manifest validation.",
-            )
-        if not self.manifest_schema_path.exists():
-            raise PluginLoadError(
-                "manifest.schema",
-                f"Plugin manifest schema not found: {self.manifest_schema_path}",
-            )
+        Delegates to ManifestLoader (ADR 0063 Phase 3).
+        """
         try:
-            self._manifest_schema = json.loads(self.manifest_schema_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
-            raise PluginLoadError(
-                "manifest.schema",
-                f"Failed to load plugin manifest schema '{self.manifest_schema_path}': {exc}",
-            ) from exc
-        return self._manifest_schema
+            return self._manifest_loader._get_schema()
+        except ManifestLoadError as e:
+            raise PluginLoadError(e.source, str(e).split(": ", 1)[-1]) from e
 
     def _validate_manifest_payload(self, payload: dict[str, Any], *, manifest_path: Path) -> None:
-        schema = self._get_manifest_schema()
+        """Validate manifest against JSON schema.
+
+        Delegates to ManifestLoader (ADR 0063 Phase 3).
+        """
         try:
-            jsonschema.validate(payload, schema)
-        except jsonschema.ValidationError as exc:
-            raise PluginLoadError(
-                "manifest.schema",
-                f"Manifest schema validation failed for {manifest_path}: {exc.message}",
-            ) from exc
+            self._manifest_loader.validate_payload(payload, manifest_path)
+        except ManifestLoadError as e:
+            raise PluginLoadError(e.source, str(e).split(": ", 1)[-1]) from e
 
     def load_manifest(self, manifest_path: Path) -> None:
         """Load plugins from a manifest file."""
