@@ -81,7 +81,7 @@ Evolve the v5 plugin system to achieve:
 | Plugins with config_schema | 47 (55%) | 85 (100%) |
 | Max dependency depth | 6 | 5 |
 | Kernel LOC | 4,242 | <3,500 |
-| plugin_registry.py LOC | 2,426 (-19.1%) | <500/module |
+| plugin_registry.py LOC | 2,425 (-19.2%) | <500/module |
 
 ### 2.2 Main Interpreter Plugins (Migration Candidates)
 
@@ -777,12 +777,12 @@ Document test coverage requirements for different plugin types.
 **Priority:** HIGH
 **Effort:** 40 hours
 **Owner:** TBD
-**Status:** Phase 2h Complete (19.1% reduction achieved)
+**Status:** Phase 2i Complete (19.2% reduction achieved)
 
 **Description:**
 Split the monolithic plugin_registry.py (2,860 LOC) into focused submodules.
 
-**Current Structure (Phase 2h Complete):**
+**Current Structure (Phase 2i Complete):**
 
 ```
 topology-tools/kernel/
@@ -802,7 +802,7 @@ topology-tools/kernel/
 │   ├── execution_planner.py    # 232 LOC - Plan generation ✓
 │   ├── parallel_executor.py    # 256 LOC - Parallel execution ✓
 │   └── snapshot_builder.py     # 258 LOC - Snapshot creation ✓
-└── plugin_registry.py          # 2426 LOC - Facade + core execution logic
+└── plugin_registry.py          # 2425 LOC - Facade + core execution logic
 ```
 
 **Commit History:**
@@ -820,6 +820,7 @@ topology-tools/kernel/
 | `8c257e1a` | docs | Update P3.1 status with Phase 2d-2f commits | — |
 | `b3f521d1` | 2g | Delegate _load_entry_point to PluginLoader | -34 |
 | `b1c1cee8` | 2h | Delegate manifest loading to ManifestLoader | -13 |
+| `fc14fedf` | 2i | Remove unused json import | -1 |
 
 **Phase 1 Summary:**
 - Extracted 8 modules totaling 1,864 LOC
@@ -827,10 +828,11 @@ topology-tools/kernel/
 - Backwards compatibility maintained via re-exports
 - No circular import issues
 
-**Phase 2 Summary (Phases 2a-2h complete):**
+**Phase 2 Summary (Phases 2a-2i complete):**
 - Removed duplicate classes: SerializablePluginSpec, PluginLoadError, PluginCycleError, PluginConfigError
 - Removed duplicate function: _execute_plugin_isolated (~97 LOC)
 - Re-exported constants from extracted modules
+- Removed unused imports: importlib.util, json
 - Created component instances in __init__: _spec_validator, _config_validator, _dependency_resolver, _snapshot_builder, _plugin_loader, _manifest_loader
 - Delegated 25+ methods to extracted components:
   - ConfigValidator: validate_plugin_config, _resolve_payload_schema_path, _load_payload_schema, _schema_ref_by_produced_key, _schema_ref_by_consumed_key
@@ -840,7 +842,7 @@ topology-tools/kernel/
   - ExecutionPlanner: _string_list
   - PluginLoader: _load_entry_point
   - ManifestLoader: _get_manifest_schema, _validate_manifest_payload
-- **Total reduction: 3000 → 2426 LOC (-574 lines, -19.1%)**
+- **Total reduction: 3000 → 2425 LOC (-575 lines, -19.2%)**
 
 **Remaining Work (Phase 3):**
 - Core execution methods (~1900 LOC) require deeper refactoring:
