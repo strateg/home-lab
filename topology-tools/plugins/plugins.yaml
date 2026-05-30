@@ -2190,7 +2190,6 @@ plugins:
     scope: pipeline_shared
   description: Consolidates generated artifact checksums and producer attribution
     into artifact-manifest.json.
-  execution_mode: subinterpreter
 - id: base.assembler.changed_scopes
   execution_mode: subinterpreter
   kind: assembler

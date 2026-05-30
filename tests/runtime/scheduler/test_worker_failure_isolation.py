@@ -494,7 +494,7 @@ def test_subinterpreter_crash_is_isolated() -> None:
                 "partial_output" if plugin_id == crash_id else "success_output",
             ),
         ),
-        patch("kernel.plugin_registry._execute_plugin_isolated", side_effect=_isolated),
+        patch("kernel.plugin_registry.execute_plugin_isolated", side_effect=_isolated),
     ):
         results = registry._execute_phase_parallel(
             stage=Stage.VALIDATE,
@@ -572,7 +572,7 @@ def test_subinterpreter_memory_is_isolated() -> None:
                 produced_key_scopes={"safe_output": "pipeline_shared"},
             ),
         ),
-        patch("kernel.plugin_registry._execute_plugin_isolated", side_effect=_isolated),
+        patch("kernel.plugin_registry.execute_plugin_isolated", side_effect=_isolated),
     ):
         results = registry._execute_phase_parallel(
             stage=Stage.VALIDATE,

@@ -730,6 +730,25 @@ class DeployBundleAssembler(AssemblerPlugin):
 
         try:
             bundle_module = self._load_bundle_module()
+        except (ImportError, ModuleNotFoundError) as exc:
+            # Deploy bundle module not available in external project contexts.
+            # This is expected when framework is used as submodule without scripts dir.
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="I8106",
+                    severity="info",
+                    stage=stage,
+                    message=f"deploy bundle assembly skipped: bundle module not available ({exc})",
+                    path=str(bundles_root),
+                )
+            )
+            return PluginResult.skipped(
+                self.plugin_id,
+                api_version=self.api_version,
+                reason="bundle module not available",
+            )
+
+        try:
             topology_hash = str(bundle_module.hash_tree(generated_root))
             secrets_hash = str(bundle_module.hash_mapping({}))
             bundle_id = str(

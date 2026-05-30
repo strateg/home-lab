@@ -88,7 +88,7 @@ class SpecValidator:
         Args:
             existing_specs: Dictionary of already registered specs (for duplicate/conflict detection)
         """
-        self._specs = existing_specs or {}
+        self._specs = existing_specs if existing_specs is not None else {}
 
     def validate(self, spec: PluginSpec) -> None:
         """Validate plugin specification.

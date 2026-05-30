@@ -190,7 +190,7 @@ def test_subinterpreter_mode_uses_isolated_execution() -> None:
         ),
         patch.object(registry, "_build_input_snapshot", return_value=snapshot),
         patch.object(registry, "_validate_required_consumes_snapshot", return_value=[]),
-        patch("kernel.plugin_registry._execute_plugin_isolated", side_effect=_isolated) as execute_isolated,
+        patch("kernel.plugin_registry.execute_plugin_isolated", side_effect=_isolated) as execute_isolated,
         patch.object(registry, "_execute_plugin_envelope_local") as execute_local,
         patch.object(registry, "_commit_envelope_result", return_value=PluginResult.success(plugin_id, "2.0")),
     ):
@@ -224,7 +224,7 @@ def test_subinterpreter_mode_falls_back_to_local_envelope_without_real_subinterp
         ),
         patch.object(registry, "_build_input_snapshot", return_value=snapshot),
         patch.object(registry, "_validate_required_consumes_snapshot", return_value=[]),
-        patch("kernel.plugin_registry._execute_plugin_isolated") as execute_isolated,
+        patch("kernel.plugin_registry.execute_plugin_isolated") as execute_isolated,
         patch.object(
             registry, "_execute_plugin_envelope_local", return_value=_success_envelope(plugin_id)
         ) as execute_local,

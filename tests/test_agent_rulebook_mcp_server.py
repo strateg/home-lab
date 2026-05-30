@@ -10,6 +10,11 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
+# Skip all tests if mcp module is not installed
+pytest.importorskip("mcp", reason="mcp module required for MCP server tests")
+
 
 def _load_module():
     repo_root = Path(__file__).resolve().parents[1]

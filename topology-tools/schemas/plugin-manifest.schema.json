@@ -182,6 +182,36 @@
           "enum": ["subinterpreter", "main_interpreter", "thread_legacy"],
           "default": "main_interpreter",
           "description": "Plugin execution mode (ADR 0097 PR2). 'subinterpreter': isolated execution in Python 3.14+ subinterpreter. 'main_interpreter': envelope-based execution in main interpreter. 'thread_legacy': legacy execute_plugin() path for compatibility."
+        },
+        "input_view": {
+          "type": "object",
+          "description": "ADR 0097 P4.2: Declares partial data requirements for snapshot optimization.",
+          "properties": {
+            "raw_yaml": {
+              "type": "boolean",
+              "description": "Whether the plugin needs raw YAML access"
+            },
+            "subscriptions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "from_plugin": {
+                    "type": "string"
+                  },
+                  "key": {
+                    "type": "string"
+                  },
+                  "projection": {
+                    "type": "string",
+                    "description": "JSONPath projection for selective data extraction"
+                  }
+                },
+                "required": ["from_plugin", "key"]
+              }
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false

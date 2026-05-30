@@ -37,6 +37,8 @@ def _ctx(registry: PluginRegistry) -> PluginContext:
 def _run_guard(plugin: ArtifactContractAssembler, ctx: PluginContext, registry: PluginRegistry):
     spec = registry.specs[plugin.plugin_id]
     ctx.config.update(spec.config)
+    # ADR 0097 P4.1: Inject generator_migration_metadata for subinterpreter compatibility
+    ctx.config["generator_migration_metadata"] = registry._compute_generator_migration_metadata()
     return run_plugin_for_test(plugin, ctx, Stage.ASSEMBLE, consumes_keys=set(spec.depends_on))
 
 
