@@ -354,6 +354,7 @@ class PluginRegistry:
         # ADR 0063 Phase 3: Delegate to extracted components
         self._spec_validator = SpecValidator(self.specs)
         self._config_validator = ConfigValidator(self.base_path)
+        self._dependency_resolver = DependencyResolver(self.specs)
 
     def _get_parallel_executor(self, max_workers: int) -> InterpreterPoolExecutor:
         """Return subinterpreter executor for parallel plugin execution (ADR 0097 Wave 5).
@@ -1344,6 +1345,9 @@ class PluginRegistry:
     def resolve_dependencies(self) -> list[str]:
         """Resolve plugin dependencies and return execution order.
 
+        Delegates to DependencyResolver (ADR 0063 Phase 3).
+        Converts DependencyError to PluginLoadError for backwards compatibility.
+
         Returns:
             List of plugin IDs in execution order
 
@@ -1351,114 +1355,10 @@ class PluginRegistry:
             PluginCycleError: If circular dependency detected
             PluginLoadError: If dependency not found
         """
-        # Check all dependencies exist
-        for spec in self.specs.values():
-            for dep_id in spec.depends_on:
-                if dep_id not in self.specs:
-                    raise PluginLoadError(spec.id, f"Missing dependency: {dep_id}")
-                dep_spec = self.specs[dep_id]
-                allowed_dependency = False
-                for stage in spec.stages:
-                    for dep_stage in dep_spec.stages:
-                        dep_stage_rank = self._stage_rank(dep_stage)
-                        stage_rank = self._stage_rank(stage)
-                        if dep_stage_rank < stage_rank:
-                            allowed_dependency = True
-                            break
-                        if dep_stage_rank == stage_rank and self._phase_rank(dep_spec.phase) <= self._phase_rank(
-                            spec.phase
-                        ):
-                            allowed_dependency = True
-                            break
-                    if allowed_dependency:
-                        break
-                if not allowed_dependency:
-                    raise PluginLoadError(
-                        spec.id,
-                        "Forward stage/phase dependency is not allowed: "
-                        f"'{spec.id}' ({[s.value for s in spec.stages]}/{spec.phase.value}) depends on "
-                        f"'{dep_id}' ({[s.value for s in dep_spec.stages]}/{dep_spec.phase.value})",
-                    )
-        self._validate_declared_data_bus_contracts()
-
-        # Topological sort with cycle detection
-        visited: set[str] = set()
-        in_stack: set[str] = set()
-        order: list[str] = []
-
-        def visit(plugin_id: str, path: list[str]) -> None:
-            if plugin_id in in_stack:
-                cycle_start = path.index(plugin_id)
-                raise PluginCycleError(path[cycle_start:] + [plugin_id])
-
-            if plugin_id in visited:
-                return
-
-            in_stack.add(plugin_id)
-            path.append(plugin_id)
-
-            for dep_id in self.specs[plugin_id].depends_on:
-                visit(dep_id, path)
-
-            path.pop()
-            in_stack.remove(plugin_id)
-            visited.add(plugin_id)
-            order.append(plugin_id)
-
-        for plugin_id in self.specs:
-            if plugin_id not in visited:
-                visit(plugin_id, [])
-
-        return order
-
-    def _validate_declared_data_bus_contracts(self) -> None:
-        """Validate declared consumes/producers compatibility across specs."""
-        for consumer_spec in self.specs.values():
-            for consume_entry in consumer_spec.consumes:
-                if not isinstance(consume_entry, dict):
-                    continue
-                from_plugin = consume_entry.get("from_plugin")
-                key = consume_entry.get("key")
-                if not isinstance(from_plugin, str) or not from_plugin:
-                    continue
-                if not isinstance(key, str) or not key:
-                    continue
-                if from_plugin not in consumer_spec.depends_on:
-                    raise PluginLoadError(
-                        consumer_spec.id,
-                        f"consumes '{from_plugin}.{key}' requires '{from_plugin}' in depends_on.",
-                    )
-                producer_spec = self.specs.get(from_plugin)
-                if producer_spec is None:
-                    raise PluginLoadError(
-                        consumer_spec.id,
-                        f"consumes references unknown producer '{from_plugin}'.",
-                    )
-                produced_scopes = self._declared_produced_scopes(producer_spec)
-                if produced_scopes and key not in produced_scopes:
-                    raise PluginLoadError(
-                        consumer_spec.id,
-                        f"consumes references undeclared producer key '{from_plugin}.{key}'.",
-                    )
-                key_scope = produced_scopes.get(key)
-                if key_scope == "stage_local" and not self._is_stage_local_consumption_valid(
-                    producer_spec, consumer_spec
-                ):
-                    raise PluginLoadError(
-                        consumer_spec.id,
-                        "stage_local key cannot cross stage boundary: "
-                        f"'{from_plugin}.{key}' from {producer_spec.phase.value}/{[s.value for s in producer_spec.stages]} "
-                        f"to {consumer_spec.phase.value}/{[s.value for s in consumer_spec.stages]}",
-                    )
-
-    def _is_stage_local_consumption_valid(self, producer: PluginSpec, consumer: PluginSpec) -> bool:
-        for producer_stage in producer.stages:
-            for consumer_stage in consumer.stages:
-                if producer_stage != consumer_stage:
-                    continue
-                if self._phase_rank(producer.phase) <= self._phase_rank(consumer.phase):
-                    return True
-        return False
+        try:
+            return self._dependency_resolver.resolve()
+        except DependencyError as e:
+            raise PluginLoadError(e.plugin_id, str(e).split(": ", 1)[-1]) from e
 
     def get_execution_order(self, stage: Stage, profile: Optional[str] = None, phase: Phase = Phase.RUN) -> list[str]:
         """Get plugins to execute for a stage, in order.
