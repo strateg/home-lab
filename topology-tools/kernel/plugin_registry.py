@@ -2043,71 +2043,9 @@ class PluginRegistry:
             active_plugin_ids = [
                 plugin_id for plugin_id in ordered_plugin_ids if when_allowed_by_plugin.get(plugin_id, False)
             ]
-            core_model_version = ctx.model_lock.get("core_model_version") if isinstance(ctx.model_lock, dict) else None
-            if isinstance(core_model_version, str) and core_model_version:
-                if not self._is_model_version_compatible(core_model_version):
-                    result = PluginResult.failed(
-                        plugin_id="kernel.model_version_guard",
-                        api_version=KERNEL_API_VERSION,
-                        diagnostics=[
-                            PluginDiagnostic(
-                                code="E4011",
-                                severity="error",
-                                stage=stage.value,
-                                phase=Phase.RUN.value,
-                                message=(
-                                    f"Unsupported core_model_version '{core_model_version}'. "
-                                    f"Kernel supports: {MODEL_VERSIONS}"
-                                ),
-                                path="model.lock:core_model_version",
-                                plugin_id="kernel",
-                            )
-                        ],
-                    )
-                    results.append(result)
-                    self._results.append(result)
-                    return results
-            model_version_diags: list[PluginDiagnostic] = []
-            for plugin_id in active_plugin_ids:
-                spec = self.specs.get(plugin_id)
-                if not isinstance(spec, PluginSpec):
-                    continue
-                declared_model_versions = [
-                    item for item in spec.model_versions if isinstance(item, str) and item.strip()
-                ]
-                if not declared_model_versions:
-                    continue
-                if not isinstance(core_model_version, str) or not core_model_version:
-                    model_version_diags.append(
-                        PluginDiagnostic(
-                            code="E4012",
-                            severity="error",
-                            stage=stage.value,
-                            phase=Phase.RUN.value,
-                            message=(
-                                f"Plugin '{plugin_id}' declares model_versions={declared_model_versions}, "
-                                "but model.lock core_model_version is unavailable."
-                            ),
-                            path=f"plugin:{plugin_id}",
-                            plugin_id="kernel",
-                        )
-                    )
-                    continue
-                if not self._is_model_version_in_set(core_model_version, declared_model_versions):
-                    model_version_diags.append(
-                        PluginDiagnostic(
-                            code="E4011",
-                            severity="error",
-                            stage=stage.value,
-                            phase=Phase.RUN.value,
-                            message=(
-                                f"Plugin '{plugin_id}' does not support core_model_version "
-                                f"'{core_model_version}'. Supported by plugin: {declared_model_versions}"
-                            ),
-                            path=f"plugin:{plugin_id}",
-                            plugin_id="kernel",
-                        )
-                    )
+
+            # Model version validation (extracted method)
+            model_version_diags = self._validate_model_versions(stage, ctx, active_plugin_ids)
             if model_version_diags:
                 result = PluginResult.failed(
                     plugin_id="kernel.model_version_guard",
@@ -2118,45 +2056,13 @@ class PluginRegistry:
                 self._results.append(result)
                 return results
 
-            available_capabilities: set[str] = set()
-            for spec in self.specs.values():
-                if not self._profile_allows_spec(spec, profile):
-                    continue
-                if not self._when_predicates_allow(spec, ctx):
-                    continue
-                for capability in spec.capabilities:
-                    if isinstance(capability, str) and capability:
-                        available_capabilities.add(capability)
-
-            preflight_diags: list[PluginDiagnostic] = []
-            for plugin_id in active_plugin_ids:
-                spec = self.specs.get(plugin_id)
-                if not isinstance(spec, PluginSpec):
-                    continue
-                missing = sorted(
-                    capability
-                    for capability in spec.requires_capabilities
-                    if isinstance(capability, str) and capability and capability not in available_capabilities
-                )
-                if missing:
-                    preflight_diags.append(
-                        PluginDiagnostic(
-                            code="E4010",
-                            severity="error",
-                            stage=stage.value,
-                            message=(
-                                f"Plugin '{plugin_id}' requires missing capabilities: {missing}. "
-                                "Provide capability-producing plugins or adjust requires_capabilities."
-                            ),
-                            path=f"plugin:{plugin_id}",
-                            plugin_id="kernel",
-                        )
-                    )
-            if preflight_diags:
+            # Capability validation (extracted method)
+            capability_diags = self._validate_required_capabilities(stage, ctx, profile, active_plugin_ids)
+            if capability_diags:
                 result = PluginResult.failed(
                     plugin_id="kernel.capability_guard",
                     api_version=KERNEL_API_VERSION,
-                    diagnostics=preflight_diags,
+                    diagnostics=capability_diags,
                 )
                 results.append(result)
                 self._results.append(result)
@@ -2371,6 +2277,130 @@ class PluginRegistry:
             if normalized is not None
         }
         return normalized_core in normalized_allowed
+
+    def _validate_model_versions(
+        self,
+        stage: Stage,
+        ctx: PluginContext,
+        active_plugin_ids: list[str],
+    ) -> list[PluginDiagnostic]:
+        """Validate model version compatibility for active plugins.
+
+        Returns list of diagnostics (empty if all pass).
+        """
+        diagnostics: list[PluginDiagnostic] = []
+        core_model_version = ctx.model_lock.get("core_model_version") if isinstance(ctx.model_lock, dict) else None
+
+        # Check kernel supports this model version
+        if isinstance(core_model_version, str) and core_model_version:
+            if not self._is_model_version_compatible(core_model_version):
+                diagnostics.append(
+                    PluginDiagnostic(
+                        code="E4011",
+                        severity="error",
+                        stage=stage.value,
+                        phase=Phase.RUN.value,
+                        message=(
+                            f"Unsupported core_model_version '{core_model_version}'. "
+                            f"Kernel supports: {MODEL_VERSIONS}"
+                        ),
+                        path="model.lock:core_model_version",
+                        plugin_id="kernel",
+                    )
+                )
+                return diagnostics  # Early return - kernel incompatibility
+
+        # Check per-plugin model_versions declarations
+        for plugin_id in active_plugin_ids:
+            spec = self.specs.get(plugin_id)
+            if not isinstance(spec, PluginSpec):
+                continue
+            declared_model_versions = [
+                item for item in spec.model_versions if isinstance(item, str) and item.strip()
+            ]
+            if not declared_model_versions:
+                continue
+            if not isinstance(core_model_version, str) or not core_model_version:
+                diagnostics.append(
+                    PluginDiagnostic(
+                        code="E4012",
+                        severity="error",
+                        stage=stage.value,
+                        phase=Phase.RUN.value,
+                        message=(
+                            f"Plugin '{plugin_id}' declares model_versions={declared_model_versions}, "
+                            "but model.lock core_model_version is unavailable."
+                        ),
+                        path=f"plugin:{plugin_id}",
+                        plugin_id="kernel",
+                    )
+                )
+                continue
+            if not self._is_model_version_in_set(core_model_version, declared_model_versions):
+                diagnostics.append(
+                    PluginDiagnostic(
+                        code="E4011",
+                        severity="error",
+                        stage=stage.value,
+                        phase=Phase.RUN.value,
+                        message=(
+                            f"Plugin '{plugin_id}' does not support core_model_version "
+                            f"'{core_model_version}'. Supported by plugin: {declared_model_versions}"
+                        ),
+                        path=f"plugin:{plugin_id}",
+                        plugin_id="kernel",
+                    )
+                )
+        return diagnostics
+
+    def _validate_required_capabilities(
+        self,
+        stage: Stage,
+        ctx: PluginContext,
+        profile: Optional[str],
+        active_plugin_ids: list[str],
+    ) -> list[PluginDiagnostic]:
+        """Validate that all required capabilities are available.
+
+        Returns list of diagnostics (empty if all pass).
+        """
+        # Collect available capabilities from active plugins
+        available_capabilities: set[str] = set()
+        for spec in self.specs.values():
+            if not self._profile_allows_spec(spec, profile):
+                continue
+            if not self._when_predicates_allow(spec, ctx):
+                continue
+            for capability in spec.capabilities:
+                if isinstance(capability, str) and capability:
+                    available_capabilities.add(capability)
+
+        # Check each plugin's requires_capabilities
+        diagnostics: list[PluginDiagnostic] = []
+        for plugin_id in active_plugin_ids:
+            spec = self.specs.get(plugin_id)
+            if not isinstance(spec, PluginSpec):
+                continue
+            missing = sorted(
+                capability
+                for capability in spec.requires_capabilities
+                if isinstance(capability, str) and capability and capability not in available_capabilities
+            )
+            if missing:
+                diagnostics.append(
+                    PluginDiagnostic(
+                        code="E4010",
+                        severity="error",
+                        stage=stage.value,
+                        message=(
+                            f"Plugin '{plugin_id}' requires missing capabilities: {missing}. "
+                            "Provide capability-producing plugins or adjust requires_capabilities."
+                        ),
+                        path=f"plugin:{plugin_id}",
+                        plugin_id="kernel",
+                    )
+                )
+        return diagnostics
 
     def get_load_errors(self) -> list[str]:
         """Return any errors encountered during manifest loading."""
