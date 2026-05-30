@@ -14,7 +14,6 @@ from __future__ import annotations
 import concurrent.futures
 import contextvars
 import heapq
-import importlib.util
 import json
 import re
 import sys
@@ -84,6 +83,7 @@ from .registry import (
     ManifestLoader,
     PluginCycleError,
     PluginLoadError,
+    PluginLoader,
     PluginManifest,
     SpecValidationError,
     SpecValidator,
@@ -359,6 +359,7 @@ class PluginRegistry:
             self.specs,
             metadata_provider=self._inject_snapshot_metadata,
         )
+        self._plugin_loader = PluginLoader(self.base_path)
 
     def _get_parallel_executor(self, max_workers: int) -> InterpreterPoolExecutor:
         """Return subinterpreter executor for parallel plugin execution (ADR 0097 Wave 5).
@@ -1765,45 +1766,10 @@ class PluginRegistry:
     def _load_entry_point(self, spec: PluginSpec) -> Type[PluginBase]:
         """Load plugin class from entry point specification.
 
+        Delegates to PluginLoader (ADR 0063 Phase 3).
         Entry format: "path/to/module.py:ClassName"
         """
-        try:
-            module_path, class_name = spec.entry.rsplit(":", 1)
-        except ValueError:
-            raise PluginLoadError(spec.id, f"Invalid entry format: {spec.entry}")
-
-        # Resolve module path relative to manifest location
-        manifest_dir = Path(spec.manifest_path).parent
-        full_module_path = manifest_dir / module_path
-
-        if not full_module_path.exists():
-            # Try relative to base_path
-            full_module_path = self.base_path / module_path
-            if not full_module_path.exists():
-                raise PluginLoadError(spec.id, f"Module not found: {module_path}")
-
-        # Module-level plugins may import sibling helpers; keep module directory importable.
-        self._ensure_import_path(full_module_path.parent)
-
-        # Load module dynamically
-        module_name = f"_plugin_{spec.id.replace('.', '_')}"
-        spec_obj = importlib.util.spec_from_file_location(module_name, full_module_path)
-        if spec_obj is None or spec_obj.loader is None:
-            raise PluginLoadError(spec.id, f"Cannot load module: {full_module_path}")
-
-        module = importlib.util.module_from_spec(spec_obj)
-        sys.modules[module_name] = module
-        spec_obj.loader.exec_module(module)
-
-        # Get class from module
-        if not hasattr(module, class_name):
-            raise PluginLoadError(spec.id, f"Class '{class_name}' not found in {module_path}")
-
-        plugin_class = getattr(module, class_name)
-        if not isinstance(plugin_class, type) or not issubclass(plugin_class, PluginBase):
-            raise PluginLoadError(spec.id, f"'{class_name}' is not a PluginBase subclass")
-
-        return plugin_class
+        return self._plugin_loader._load_entry_point(spec)
 
     def execute_plugin(
         self,
