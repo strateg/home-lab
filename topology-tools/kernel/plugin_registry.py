@@ -107,49 +107,14 @@ EXECUTION_PROFILES = ["production", "modeled", "test-real"]
 
 # Default timeout for plugin execution (seconds)
 DEFAULT_PLUGIN_TIMEOUT = 30.0
-PHASE_ORDER: tuple[Phase, ...] = (
-    Phase.INIT,
-    Phase.PRE,
-    Phase.RUN,
-    Phase.POST,
-    Phase.VERIFY,
-    Phase.FINALIZE,
-)
-STAGE_ORDER: tuple[Stage, ...] = (
-    Stage.DISCOVER,
-    Stage.COMPILE,
-    Stage.VALIDATE,
-    Stage.GENERATE,
-    Stage.ASSEMBLE,
-    Stage.BUILD,
-)
-STAGE_ORDER_RANGES: dict[Stage, tuple[int, int]] = {
-    Stage.DISCOVER: (10, 89),
-    Stage.COMPILE: (30, 89),
-    Stage.VALIDATE: (90, 189),
-    Stage.GENERATE: (190, 399),
-    Stage.ASSEMBLE: (400, 499),
-    Stage.BUILD: (500, 599),
-}
-KIND_STAGE_AFFINITY: dict[PluginKind, set[Stage]] = {
-    PluginKind.DISCOVERER: {Stage.DISCOVER},
-    PluginKind.COMPILER: {Stage.COMPILE},
-    PluginKind.VALIDATOR_YAML: {Stage.VALIDATE},
-    PluginKind.VALIDATOR_JSON: {Stage.VALIDATE},
-    PluginKind.GENERATOR: {Stage.GENERATE},
-    PluginKind.ASSEMBLER: {Stage.ASSEMBLE},
-    PluginKind.BUILDER: {Stage.BUILD},
-}
-KIND_ENTRY_FAMILY: dict[PluginKind, str] = {
-    PluginKind.DISCOVERER: "discoverers",
-    PluginKind.COMPILER: "compilers",
-    PluginKind.VALIDATOR_YAML: "validators",
-    PluginKind.VALIDATOR_JSON: "validators",
-    PluginKind.GENERATOR: "generators",
-    PluginKind.ASSEMBLER: "assemblers",
-    PluginKind.BUILDER: "builders",
-}
-ENTRY_FAMILIES: set[str] = set(KIND_ENTRY_FAMILY.values())
+
+# Re-export constants from registry.spec_validator for backwards compatibility
+PHASE_ORDER = _PHASE_ORDER
+STAGE_ORDER = _STAGE_ORDER
+STAGE_ORDER_RANGES = _STAGE_ORDER_RANGES
+KIND_STAGE_AFFINITY = _KIND_STAGE_AFFINITY
+KIND_ENTRY_FAMILY = _KIND_ENTRY_FAMILY
+ENTRY_FAMILIES = _ENTRY_FAMILIES
 
 
 def _execute_plugin_isolated(
@@ -249,74 +214,7 @@ def _execute_plugin_isolated(
         )
 
 
-@dataclass
-class SerializablePluginSpec:
-    """Minimal plugin spec for cross-interpreter transfer (ADR 0097).
-
-    Contains only fields required for plugin execution in subinterpreter.
-    Reduces serialization overhead by ~60% compared to full PluginSpec.
-    """
-
-    id: str
-    kind: str  # String value of PluginKind enum
-    entry: str
-    api_version: str
-    depends_on: list[str]
-    config: dict[str, Any]
-    produces: list[dict[str, Any]]
-    consumes: list[dict[str, Any]]
-    manifest_path: str  # Required for resolving module paths
-
-    @classmethod
-    def from_plugin_spec(cls, spec: "PluginSpec") -> "SerializablePluginSpec":
-        """Create minimal serializable spec from full PluginSpec.
-
-        Uses JSON round-trip for proper deep copying of nested structures.
-        """
-        # Deep copy via JSON to ensure nested structures are independent
-        config_copy = json.loads(json.dumps(spec.config)) if spec.config else {}
-        produces_copy = json.loads(json.dumps(spec.produces)) if spec.produces else []
-        consumes_copy = json.loads(json.dumps(spec.consumes)) if spec.consumes else []
-        return cls(
-            id=spec.id,
-            kind=spec.kind.value,
-            entry=spec.entry,
-            api_version=spec.api_version,
-            depends_on=spec.depends_on.copy(),
-            config=config_copy,
-            produces=produces_copy,
-            consumes=consumes_copy,
-            manifest_path=str(spec.manifest_path),
-        )
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dict for pickle serialization."""
-        return {
-            "id": self.id,
-            "kind": self.kind,
-            "entry": self.entry,
-            "api_version": self.api_version,
-            "depends_on": self.depends_on,
-            "config": self.config,
-            "produces": self.produces,
-            "consumes": self.consumes,
-            "manifest_path": self.manifest_path,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "SerializablePluginSpec":
-        """Reconstruct from dict in target interpreter."""
-        return cls(
-            id=data["id"],
-            kind=data["kind"],
-            entry=data["entry"],
-            api_version=data["api_version"],
-            depends_on=data.get("depends_on", []),
-            config=data.get("config", {}),
-            produces=data.get("produces", []),
-            consumes=data.get("consumes", []),
-            manifest_path=data.get("manifest_path", ""),
-        )
+# SerializablePluginSpec is imported from .scheduler for backwards compatibility
 
 
 @dataclass
@@ -512,28 +410,13 @@ class PluginManifest:
         return cls.from_data(data, str(path))
 
 
-class PluginLoadError(Exception):
-    """Error loading a plugin."""
+# Exception classes are imported from .registry for backwards compatibility:
+# - PluginLoadError from registry.plugin_loader
+# - PluginCycleError from registry.dependency_resolver
+# - ConfigValidationError (alias PluginConfigError) from registry.config_validator
 
-    def __init__(self, plugin_id: str, message: str) -> None:
-        self.plugin_id = plugin_id
-        super().__init__(f"Plugin '{plugin_id}': {message}")
-
-
-class PluginCycleError(Exception):
-    """Circular dependency detected in plugins."""
-
-    def __init__(self, cycle: list[str]) -> None:
-        self.cycle = cycle
-        super().__init__(f"Circular plugin dependency: {' -> '.join(cycle)}")
-
-
-class PluginConfigError(Exception):
-    """Plugin configuration validation error."""
-
-    def __init__(self, plugin_id: str, message: str) -> None:
-        self.plugin_id = plugin_id
-        super().__init__(f"Plugin '{plugin_id}' config error: {message}")
+# Backwards compatibility alias
+PluginConfigError = ConfigValidationError
 
 
 class PluginRegistry:
