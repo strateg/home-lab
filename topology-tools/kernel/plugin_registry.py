@@ -641,9 +641,8 @@ class PluginRegistry:
 
     @staticmethod
     def _string_list(value: Any) -> list[str]:
-        if not isinstance(value, list):
-            return []
-        return [item for item in value if isinstance(item, str) and item]
+        """Delegate to ExecutionPlanner (ADR 0063 Phase 3)."""
+        return ExecutionPlanner._string_list(value)
 
     def _active_changed_input_scopes(self, ctx: PluginContext) -> set[str] | None:
         if isinstance(ctx.changed_input_scopes, list):
@@ -700,33 +699,13 @@ class PluginRegistry:
 
     @staticmethod
     def _declared_produced_scopes(spec: PluginSpec) -> dict[str, str]:
-        key_scopes: dict[str, str] = {}
-        for entry in spec.produces:
-            if not isinstance(entry, dict):
-                continue
-            key = entry.get("key")
-            if not isinstance(key, str) or not key:
-                continue
-            scope = entry.get("scope", "pipeline_shared")
-            if scope not in {"stage_local", "pipeline_shared"}:
-                scope = "pipeline_shared"
-            key_scopes[key] = scope
-        return key_scopes
+        """Delegate to SnapshotBuilder (ADR 0063 Phase 3)."""
+        return SnapshotBuilder._declared_produced_scopes(spec)
 
     @staticmethod
     def _declared_consumes(spec: PluginSpec) -> set[tuple[str, str]]:
-        declared: set[tuple[str, str]] = set()
-        for entry in spec.consumes:
-            if not isinstance(entry, dict):
-                continue
-            from_plugin = entry.get("from_plugin")
-            key = entry.get("key")
-            if not isinstance(from_plugin, str) or not isinstance(key, str):
-                continue
-            if not from_plugin or not key:
-                continue
-            declared.add((from_plugin, key))
-        return declared
+        """Delegate to SnapshotBuilder (ADR 0063 Phase 3)."""
+        return SnapshotBuilder._declared_consumes(spec)
 
     def _build_input_snapshot(
         self,
@@ -812,26 +791,8 @@ class PluginRegistry:
 
     @staticmethod
     def _compatibility_producer_ids(spec: PluginSpec) -> set[str]:
-        """Return legacy compatibility producers declared in plugin config.
-
-        These producers are not part of explicit snapshot subscriptions yet, but
-        snapshot-backed plugins may still need read-only access to their already
-        committed payloads to support compatibility fallback paths during staged
-        migration.
-        """
-        config = getattr(spec, "config", {})
-        if not isinstance(config, dict):
-            return set()
-        out: set[str] = set()
-        for key, raw in config.items():
-            if not isinstance(key, str) or not key.endswith("_compatibility_producers"):
-                continue
-            if not isinstance(raw, list):
-                continue
-            for item in raw:
-                if isinstance(item, str) and item.strip():
-                    out.add(item.strip())
-        return out
+        """Delegate to SnapshotBuilder (ADR 0063 Phase 3)."""
+        return SnapshotBuilder._compatibility_producer_ids(spec)
 
     def _compute_generator_migration_metadata(self) -> dict[str, dict[str, str]]:
         """Compute generator migration metadata for ADR0097 P4.1 subinterpreter compatibility.
