@@ -355,6 +355,10 @@ class PluginRegistry:
         self._spec_validator = SpecValidator(self.specs)
         self._config_validator = ConfigValidator(self.base_path)
         self._dependency_resolver = DependencyResolver(self.specs)
+        self._snapshot_builder = SnapshotBuilder(
+            self.specs,
+            metadata_provider=self._inject_snapshot_metadata,
+        )
 
     def _get_parallel_executor(self, max_workers: int) -> InterpreterPoolExecutor:
         """Return subinterpreter executor for parallel plugin execution (ADR 0097 Wave 5).
@@ -568,6 +572,19 @@ class PluginRegistry:
         """Delegate to SnapshotBuilder (ADR 0063 Phase 3)."""
         return SnapshotBuilder._declared_consumes(spec)
 
+    def _inject_snapshot_metadata(
+        self, plugin_id: str, config: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Inject plugin-specific metadata into snapshot config (ADR 0063 Phase 3).
+
+        This callback is passed to SnapshotBuilder for metadata injection.
+        """
+        # ADR 0097 P4.1: Inject generator migration metadata for artifact_contract_guard
+        # This replaces direct plugin_registry access, enabling subinterpreter execution.
+        if plugin_id == "base.assembler.artifact_contract_guard":
+            config["generator_migration_metadata"] = self._compute_generator_migration_metadata()
+        return config
+
     def _build_input_snapshot(
         self,
         *,
@@ -577,77 +594,16 @@ class PluginRegistry:
         ctx: PluginContext,
         pipeline_state: PipelineState | None = None,
     ) -> PluginInputSnapshot:
-        """Build immutable plugin input for the envelope-model execution path."""
-        spec = self.specs[plugin_id]
-        base_config = ctx.config.copy()
-        scoped_config = {**spec.config, **base_config}
+        """Build immutable plugin input for the envelope-model execution path.
 
-        # ADR 0097 P4.1: Inject generator migration metadata for artifact_contract_guard
-        # This replaces direct plugin_registry access, enabling subinterpreter execution.
-        if plugin_id == "base.assembler.artifact_contract_guard":
-            scoped_config["generator_migration_metadata"] = self._compute_generator_migration_metadata()
-
-        produced_key_scopes = self._declared_produced_scopes(spec)
-
-        subscriptions: dict[tuple[str, str], Any] = {}
-        if pipeline_state is not None:
-            for consume in spec.consumes:
-                if not isinstance(consume, dict):
-                    continue
-                from_plugin = consume.get("from_plugin")
-                key = consume.get("key")
-                if not isinstance(from_plugin, str) or not from_plugin or not isinstance(key, str) or not key:
-                    continue
-                try:
-                    subscriptions[(from_plugin, key)] = pipeline_state.resolve_subscription(
-                        from_plugin=from_plugin,
-                        key=key,
-                        stage=stage,
-                    )
-                except PluginDataExchangeError:
-                    if consume.get("required", True) is False:
-                        continue
-                    raise
-
-        legacy_published_data: dict[str, dict[str, Any]] = {}
-        if pipeline_state is not None:
-            compatibility_producers = self._compatibility_producer_ids(spec)
-            for producer_id in compatibility_producers:
-                payload = pipeline_state.committed_data.get(producer_id)
-                if isinstance(payload, dict) and payload:
-                    legacy_published_data[producer_id] = payload.copy()
-
-        return PluginInputSnapshot(
+        Delegates to SnapshotBuilder (ADR 0063 Phase 3).
+        """
+        return self._snapshot_builder.build(
             plugin_id=plugin_id,
             stage=stage,
             phase=phase,
-            topology_path=ctx.topology_path,
-            profile=ctx.profile,
-            config=scoped_config,
-            model_lock=dict(ctx.model_lock),
-            raw_yaml=dict(ctx.raw_yaml),
-            instance_bindings=dict(ctx.instance_bindings),
-            compiled_json=dict(ctx.compiled_json),
-            classes=dict(ctx.classes),
-            objects=dict(ctx.objects),
-            capability_catalog=dict(ctx.capability_catalog),
-            effective_capabilities=dict(ctx.effective_capabilities),
-            effective_software=dict(ctx.effective_software),
-            output_dir=ctx.output_dir,
-            workspace_root=ctx.workspace_root,
-            dist_root=ctx.dist_root,
-            assembly_manifest=dict(ctx.assembly_manifest),
-            changed_input_scopes=list(ctx.changed_input_scopes) if ctx.changed_input_scopes else None,
-            signing_backend=ctx.signing_backend,
-            release_tag=ctx.release_tag,
-            sbom_output_dir=ctx.sbom_output_dir,
-            error_catalog=dict(ctx.error_catalog),
-            source_file=ctx.source_file,
-            compiled_file=ctx.compiled_file,
-            subscriptions=subscriptions,
-            legacy_published_data=legacy_published_data,
-            allowed_dependencies=frozenset(spec.depends_on),
-            produced_key_scopes=produced_key_scopes,
+            ctx=ctx,
+            pipeline_state=pipeline_state,
         )
 
     @staticmethod
