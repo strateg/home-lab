@@ -116,104 +116,7 @@ KIND_STAGE_AFFINITY = _KIND_STAGE_AFFINITY
 KIND_ENTRY_FAMILY = _KIND_ENTRY_FAMILY
 ENTRY_FAMILIES = _ENTRY_FAMILIES
 
-
-def _execute_plugin_isolated(
-    snapshot_dict: dict[str, Any],
-    base_path_str: str,
-    serialized_spec_dict: dict[str, Any],
-) -> PluginExecutionEnvelope:
-    """Execute plugin in isolated subinterpreter (ADR 0097).
-
-    This function is submitted to InterpreterPoolExecutor for execution in a separate
-    Python subinterpreter. It reconstructs the minimal runtime environment needed for
-    snapshot-backed plugin execution and returns a proposal envelope to the main
-    interpreter for validation and commit.
-
-    Args:
-        snapshot_dict: PluginInputSnapshot as dict (for pickling)
-        base_path_str: Base path for plugin loading (as string)
-        serialized_spec_dict: SerializablePluginSpec as dict (minimal fields only)
-
-    Returns:
-        PluginExecutionEnvelope from isolated worker execution.
-
-    Note:
-        This function runs in an isolated interpreter with no shared state from the
-        main interpreter. All data is passed via serialized arguments.
-    """
-    import sys
-    from pathlib import Path
-
-    # Add base_path to sys.path for imports
-    base_path = Path(base_path_str)
-    if str(base_path.resolve()) not in sys.path:
-        sys.path.insert(0, str(base_path.resolve()))
-
-    # Import kernel modules in isolated interpreter
-    from kernel.plugin_base import (
-        PluginExecutionEnvelope,
-        PluginInputSnapshot,
-    )
-    from kernel.plugin_registry import PluginRegistry, SerializablePluginSpec
-    from kernel.plugin_runner import run_plugin_once
-
-    # Reconstruct minimal PluginSpec from SerializablePluginSpec
-    serialized_spec = SerializablePluginSpec.from_dict(serialized_spec_dict)
-    snapshot = PluginInputSnapshot(**snapshot_dict)
-    plugin_id = snapshot.plugin_id
-
-    # Create minimal registry in this interpreter with stub PluginSpec
-    registry = PluginRegistry(base_path)
-    # Create stub spec with required fields for loading
-    from kernel.plugin_base import PluginKind
-
-    stub_spec = PluginSpec(
-        id=serialized_spec.id,
-        kind=PluginKind(serialized_spec.kind),
-        entry=serialized_spec.entry,
-        api_version=serialized_spec.api_version,
-        stages=[snapshot.stage],  # Only current stage needed
-        order=0,  # Not used in execution
-        depends_on=serialized_spec.depends_on,
-        config=serialized_spec.config,
-        produces=serialized_spec.produces,
-        consumes=serialized_spec.consumes,
-        manifest_path=Path(serialized_spec.manifest_path),
-    )
-    registry.specs[plugin_id] = stub_spec
-
-    # Load and execute plugin
-    try:
-        plugin = registry.load_plugin(plugin_id)
-        return run_plugin_once(snapshot=snapshot, plugin=plugin)
-    except Exception as e:
-        # Return failed result with traceback
-        import traceback
-
-        from kernel.plugin_base import PluginDiagnostic, PluginResult, PluginStatus
-
-        tb = traceback.format_exc()
-        return PluginExecutionEnvelope(
-            result=PluginResult(
-                plugin_id=plugin_id,
-                api_version=serialized_spec.api_version,
-                status=PluginStatus.FAILED,
-                diagnostics=[
-                    PluginDiagnostic(
-                        code="E4102",
-                        severity="error",
-                        stage=snapshot.stage.value,
-                        phase=snapshot.phase.value,
-                        message=f"Plugin crashed in isolated interpreter: {e}",
-                        path="kernel.subinterpreter",
-                        plugin_id="kernel",
-                    )
-                ],
-                error_traceback=tb,
-            )
-        )
-
-
+# execute_plugin_isolated is imported from .scheduler (ADR 0063 Phase 3)
 # SerializablePluginSpec is imported from .scheduler for backwards compatibility
 
 
@@ -562,58 +465,15 @@ class PluginRegistry:
                 self._load_errors.append(f"Error loading {manifest_path}: {e}")
 
     def _validate_spec(self, spec: PluginSpec) -> None:
-        """Validate plugin specification."""
-        # Check API version compatibility
-        if not self._is_api_compatible(spec.api_version):
-            raise PluginLoadError(
-                spec.id,
-                f"Incompatible API version {spec.api_version}, kernel supports {SUPPORTED_API_VERSIONS}",
-            )
-        allowed_stages = KIND_STAGE_AFFINITY.get(spec.kind, set())
-        for stage in spec.stages:
-            if stage in allowed_stages:
-                continue
-            raise PluginLoadError(
-                spec.id,
-                f"kind '{spec.kind.value}' cannot run in stage '{stage.value}' "
-                f"(allowed stages: {[item.value for item in sorted(allowed_stages, key=lambda s: s.value)]})",
-            )
-        if self._entry_uses_plugins_prefix_without_family(spec.entry):
-            raise PluginLoadError(
-                spec.id,
-                f"entry '{spec.entry}' must include plugin family segment "
-                "(expected plugins/<family>/module.py:ClassName)",
-            )
-        entry_family = self._extract_entry_plugin_family(spec.entry)
-        expected_family = KIND_ENTRY_FAMILY.get(spec.kind)
-        if entry_family and expected_family and entry_family != expected_family:
-            raise PluginLoadError(
-                spec.id,
-                f"entry '{spec.entry}' must use plugins/{expected_family}/ for kind "
-                f"'{spec.kind.value}' (got plugins/{entry_family}/)",
-            )
-        for stage in spec.stages:
-            order_range = STAGE_ORDER_RANGES.get(stage)
-            if order_range is None:
-                continue
-            min_order, max_order = order_range
-            if min_order <= spec.order <= max_order:
-                continue
-            raise PluginLoadError(
-                spec.id,
-                f"order {spec.order} is outside allowed range {min_order}-{max_order} for stage '{stage.value}'",
-            )
-        if spec.compiled_json_owner:
-            for existing in self.specs.values():
-                if not existing.compiled_json_owner or existing.phase != spec.phase:
-                    continue
-                overlapping_stages = sorted({stage.value for stage in spec.stages if stage in existing.stages})
-                if overlapping_stages:
-                    raise PluginLoadError(
-                        spec.id,
-                        "compiled_json_owner conflicts with "
-                        f"'{existing.id}' for phase '{spec.phase.value}' and stages {overlapping_stages}",
-                    )
+        """Validate plugin specification.
+
+        Delegates to SpecValidator (ADR 0063 Phase 3).
+        Converts SpecValidationError to PluginLoadError for backwards compatibility.
+        """
+        try:
+            self._spec_validator.validate(spec)
+        except SpecValidationError as e:
+            raise PluginLoadError(e.plugin_id, str(e).split(": ", 1)[-1]) from e
 
     @staticmethod
     def _extract_entry_plugin_family(entry: str) -> str | None:
@@ -1856,11 +1716,11 @@ class PluginRegistry:
                     # - "subinterpreter" + Python <3.14 → ThreadPoolExecutor parallel
                     # - "main_interpreter" → inline in main interpreter (no cross-interpreter sharing)
                     if spec.execution_mode == "subinterpreter" and HAS_REAL_SUBINTERPRETERS:
-                        # Submit to real subinterpreter pool
+                        # Submit to real subinterpreter pool (ADR 0063 Phase 3: delegate to scheduler)
                         snapshots_by_plugin[plugin_id] = snapshot
                         serialized_spec = SerializablePluginSpec.from_plugin_spec(spec)
                         future = executor.submit(
-                            _execute_plugin_isolated,
+                            execute_plugin_isolated,
                             snapshot.__dict__,
                             str(self.base_path),
                             serialized_spec.to_dict(),
