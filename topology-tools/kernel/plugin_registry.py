@@ -420,7 +420,17 @@ PluginConfigError = ConfigValidationError
 
 
 class PluginRegistry:
-    """Registry for loading, resolving, and managing plugins."""
+    """Registry for loading, resolving, and managing plugins.
+
+    This class is the main facade for plugin management. It delegates to
+    extracted submodules for specific functionality (ADR 0063 Phase 3):
+
+    - ManifestLoader: Manifest loading and schema validation
+    - SpecValidator: Plugin specification validation
+    - ConfigValidator: Plugin config schema validation
+    - ExecutionPlanner: Execution order planning
+    - SnapshotBuilder: Input snapshot building
+    """
 
     def __init__(self, base_path: Path) -> None:
         """Initialize registry with base path for resolving plugin entries."""
@@ -437,6 +447,10 @@ class PluginRegistry:
         self._payload_schema_cache: dict[str, dict[str, Any]] = {}
         self._execution_trace: list[dict[str, Any]] = []
         self._trace_lock = threading.Lock()
+
+        # ADR 0063 Phase 3: Delegate to extracted components
+        self._spec_validator = SpecValidator(self.specs)
+        self._config_validator = ConfigValidator(self.base_path)
 
     def _get_parallel_executor(self, max_workers: int) -> InterpreterPoolExecutor:
         """Return subinterpreter executor for parallel plugin execution (ADR 0097 Wave 5).
@@ -603,59 +617,27 @@ class PluginRegistry:
 
     @staticmethod
     def _extract_entry_plugin_family(entry: str) -> str | None:
-        """Return entry family for supported entry layouts, if present.
-
-        Supported layouts:
-        1. plugins/<family>/module.py
-        2. <family>/module.py
-        """
-        entry_path = entry.split(":", 1)[0].replace("\\", "/")
-        if "/plugins/" in entry_path:
-            tail = entry_path.split("/plugins/", 1)[1]
-        elif entry_path.startswith("plugins/"):
-            tail = entry_path[len("plugins/") :]
-        else:
-            if "/" not in entry_path:
-                return None
-            head = entry_path.split("/", 1)[0].strip()
-            return head if head in ENTRY_FAMILIES else None
-        if "/" not in tail:
-            return None
-        family = tail.split("/", 1)[0].strip()
-        return family or None
+        """Delegate to SpecValidator (ADR 0063 Phase 3)."""
+        return SpecValidator._extract_entry_plugin_family(entry)
 
     @staticmethod
     def _entry_uses_plugins_prefix_without_family(entry: str) -> bool:
-        """Detect deprecated flat plugins/<file>.py entries."""
-        entry_path = entry.split(":", 1)[0].replace("\\", "/")
-        if "/plugins/" in entry_path:
-            tail = entry_path.split("/plugins/", 1)[1]
-        elif entry_path.startswith("plugins/"):
-            tail = entry_path[len("plugins/") :]
-        else:
-            return False
-        return "/" not in tail
+        """Delegate to SpecValidator (ADR 0063 Phase 3)."""
+        return SpecValidator._entry_uses_plugins_prefix_without_family(entry)
 
     def _is_api_compatible(self, plugin_api: str) -> bool:
-        """Check if plugin API version is compatible with kernel.
-
-        A plugin with api_version "1.x" is compatible with kernel supporting "1.x".
-        Major version must match.
-        """
-        plugin_major = plugin_api.split(".")[0]
-        for supported in SUPPORTED_API_VERSIONS:
-            kernel_major = supported.split(".")[0]
-            if plugin_major == kernel_major:
-                return True
-        return False
+        """Delegate to SpecValidator (ADR 0063 Phase 3)."""
+        return SpecValidator._is_api_compatible(plugin_api)
 
     @staticmethod
     def _stage_rank(stage: Stage) -> int:
-        return STAGE_ORDER.index(stage)
+        """Delegate to SpecValidator (ADR 0063 Phase 3)."""
+        return SpecValidator.stage_rank(stage)
 
     @staticmethod
     def _phase_rank(phase: Phase) -> int:
-        return PHASE_ORDER.index(phase)
+        """Delegate to SpecValidator (ADR 0063 Phase 3)."""
+        return SpecValidator.phase_rank(phase)
 
     @staticmethod
     def _string_list(value: Any) -> list[str]:
@@ -1250,74 +1232,20 @@ class PluginRegistry:
             result.status = PluginStatus.PARTIAL
 
     def _resolve_payload_schema_path(self, spec: PluginSpec, schema_ref: str) -> Path | None:
-        raw = schema_ref.strip()
-        if not raw:
-            return None
-        candidate = Path(raw)
-        if candidate.is_absolute():
-            return candidate if candidate.exists() else None
-
-        manifest_relative = Path(spec.manifest_path).parent / raw
-        if manifest_relative.exists():
-            return manifest_relative
-
-        base_relative = self.base_path / raw
-        if base_relative.exists():
-            return base_relative
-        return None
+        """Delegate to ConfigValidator (ADR 0063 Phase 3)."""
+        return self._config_validator.resolve_schema_path(spec, schema_ref)
 
     def _load_payload_schema(self, spec: PluginSpec, schema_ref: str) -> tuple[dict[str, Any] | None, str | None]:
-        if not HAS_JSONSCHEMA:
-            return None, "jsonschema dependency is required for schema_ref validation."
-
-        schema_path = self._resolve_payload_schema_path(spec, schema_ref)
-        if schema_path is None:
-            return None, f"schema_ref '{schema_ref}' cannot be resolved for plugin '{spec.id}'."
-        cache_key = str(schema_path.resolve())
-        cached = self._payload_schema_cache.get(cache_key)
-        if cached is not None:
-            return cached, None
-
-        try:
-            schema = json.loads(schema_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
-            return None, f"schema_ref '{schema_ref}' failed to load: {exc}"
-        try:
-            jsonschema.validators.validator_for(schema).check_schema(schema)
-        except jsonschema.SchemaError as exc:
-            return None, f"schema_ref '{schema_ref}' is invalid JSON schema: {exc.message}"
-        self._payload_schema_cache[cache_key] = schema
-        return schema, None
+        """Delegate to ConfigValidator (ADR 0063 Phase 3)."""
+        return self._config_validator.load_payload_schema(spec, schema_ref)
 
     def _schema_ref_by_produced_key(self, spec: PluginSpec) -> dict[str, str]:
-        refs: dict[str, str] = {}
-        for entry in spec.produces:
-            if not isinstance(entry, dict):
-                continue
-            key = entry.get("key")
-            schema_ref = entry.get("schema_ref")
-            if isinstance(key, str) and key and isinstance(schema_ref, str) and schema_ref.strip():
-                refs[key] = schema_ref.strip()
-        return refs
+        """Delegate to ConfigValidator (ADR 0063 Phase 3)."""
+        return self._config_validator.schema_ref_by_produced_key(spec)
 
     def _schema_ref_by_consumed_key(self, spec: PluginSpec) -> dict[tuple[str, str], str]:
-        refs: dict[tuple[str, str], str] = {}
-        for entry in spec.consumes:
-            if not isinstance(entry, dict):
-                continue
-            from_plugin = entry.get("from_plugin")
-            key = entry.get("key")
-            schema_ref = entry.get("schema_ref")
-            if (
-                isinstance(from_plugin, str)
-                and from_plugin
-                and isinstance(key, str)
-                and key
-                and isinstance(schema_ref, str)
-                and schema_ref.strip()
-            ):
-                refs[(from_plugin, key)] = schema_ref.strip()
-        return refs
+        """Delegate to ConfigValidator (ADR 0063 Phase 3)."""
+        return self._config_validator.schema_ref_by_consumed_key(spec)
 
     def _append_schema_validation_error(
         self,
@@ -1586,26 +1514,11 @@ class PluginRegistry:
         """Validate plugin config against its config_schema.
 
         Returns list of validation errors (empty if valid).
+        Delegates to ConfigValidator (ADR 0063 Phase 3).
         """
         if plugin_id not in self.specs:
             return [f"Plugin not found: {plugin_id}"]
-
-        spec = self.specs[plugin_id]
-        if not spec.config_schema:
-            return []  # No schema to validate against
-
-        if not HAS_JSONSCHEMA:
-            return []  # Skip validation if jsonschema not available
-
-        errors: list[str] = []
-        try:
-            jsonschema.validate(instance=spec.config, schema=spec.config_schema)
-        except jsonschema.ValidationError as e:
-            errors.append(f"Config validation failed: {e.message}")
-        except jsonschema.SchemaError as e:
-            errors.append(f"Invalid config_schema: {e.message}")
-
-        return errors
+        return self._config_validator.validate(self.specs[plugin_id])
 
     def resolve_dependencies(self) -> list[str]:
         """Resolve plugin dependencies and return execution order.
