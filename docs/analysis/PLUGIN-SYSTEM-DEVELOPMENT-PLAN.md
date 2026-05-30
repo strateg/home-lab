@@ -777,12 +777,12 @@ Document test coverage requirements for different plugin types.
 **Priority:** HIGH
 **Effort:** 40 hours
 **Owner:** TBD
-**Status:** Phase 1 Complete (extraction)
+**Status:** Phase 2c Complete (delegation in progress)
 
 **Description:**
 Split the monolithic plugin_registry.py (2,860 LOC) into focused submodules.
 
-**Current Structure (Phase 1 Complete):**
+**Current Structure (Phase 2c Complete):**
 
 ```
 topology-tools/kernel/
@@ -802,8 +802,17 @@ topology-tools/kernel/
 │   ├── execution_planner.py    # 232 LOC - Plan generation ✓
 │   ├── parallel_executor.py    # 256 LOC - Parallel execution ✓
 │   └── snapshot_builder.py     # 258 LOC - Snapshot creation ✓
-└── plugin_registry.py          # 3000 LOC - Facade + legacy code (Phase 2 pending)
+└── plugin_registry.py          # 2757 LOC - Facade + core execution logic
 ```
+
+**Commit History:**
+
+| Commit | Phase | Description | LOC Change |
+|--------|-------|-------------|------------|
+| `47928de2` | 1 | Extract 8 modules to registry/ and scheduler/ | +1864 |
+| `291ecd56` | 2a | Remove duplicate classes (SerializablePluginSpec, exceptions) | -117 |
+| `8b8005ba` | 2b | Delegate ConfigValidator and SpecValidator methods | -87 |
+| `e638df1d` | 2c | Delegate SnapshotBuilder and ExecutionPlanner methods | -39 |
 
 **Phase 1 Summary:**
 - Extracted 8 modules totaling 1,864 LOC
@@ -811,27 +820,30 @@ topology-tools/kernel/
 - Backwards compatibility maintained via re-exports
 - No circular import issues
 
-**Phase 2 (Pending):** Refactor PluginRegistry to delegate to extracted components
+**Phase 2 Summary (in progress):**
+- Removed duplicate classes: SerializablePluginSpec, PluginLoadError, PluginCycleError, PluginConfigError
+- Re-exported constants from extracted modules
+- Delegated 17 methods to extracted components:
+  - ConfigValidator: validate_plugin_config, _resolve_payload_schema_path, _load_payload_schema, _schema_ref_by_produced_key, _schema_ref_by_consumed_key
+  - SpecValidator: _extract_entry_plugin_family, _entry_uses_plugins_prefix_without_family, _is_api_compatible, _stage_rank, _phase_rank
+  - SnapshotBuilder: _declared_produced_scopes, _declared_consumes, _compatibility_producer_ids
+  - ExecutionPlanner: _string_list
+- **Reduction: 3000 → 2757 LOC (-243 lines, -8.1%)**
 
-**Migration Strategy:**
+**Remaining Work (Phase 3):**
+- Core execution methods (~2400 LOC) require deeper refactoring:
+  - `_build_input_snapshot` (~80 LOC)
+  - `_execute_phase_parallel` (~350 LOC)
+  - `execute_stage` (~350 LOC)
+  - `execute_plugin` (~200 LOC)
+- Target: ~300 LOC facade with full delegation
 
-1. Extract `ManifestLoader` class
-2. Extract `SpecValidator` class
-3. Extract `DependencyResolver` class
-4. Extract `PluginLoader` class
-5. Extract `ConfigValidator` class
-6. Extract `ExecutionPlanner` class
-7. Extract `ParallelExecutor` class
-8. Extract `SnapshotBuilder` class
-9. Refactor `PluginRegistry` as facade
-10. Update all imports
-
-**Files to Create:**
-- `topology-tools/kernel/registry/__init__.py`
-- `topology-tools/kernel/registry/manifest_loader.py`
-- `topology-tools/kernel/registry/spec_validator.py`
-- `topology-tools/kernel/registry/dependency_resolver.py`
-- `topology-tools/kernel/registry/plugin_loader.py`
+**Files Created:**
+- `topology-tools/kernel/registry/__init__.py` ✓
+- `topology-tools/kernel/registry/manifest_loader.py` ✓
+- `topology-tools/kernel/registry/spec_validator.py` ✓
+- `topology-tools/kernel/registry/dependency_resolver.py` ✓
+- `topology-tools/kernel/registry/plugin_loader.py` ✓
 - `topology-tools/kernel/registry/config_validator.py`
 - `topology-tools/kernel/scheduler/__init__.py`
 - `topology-tools/kernel/scheduler/execution_planner.py`
