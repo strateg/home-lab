@@ -81,7 +81,7 @@ Evolve the v5 plugin system to achieve:
 | Plugins with config_schema | 47 (55%) | 85 (100%) |
 | Max dependency depth | 6 | 5 |
 | Kernel LOC | 4,242 | <3,500 |
-| plugin_registry.py LOC | 2,860 | <500/module |
+| plugin_registry.py LOC | 2,473 (-17.6%) | <500/module |
 
 ### 2.2 Main Interpreter Plugins (Migration Candidates)
 
@@ -777,12 +777,12 @@ Document test coverage requirements for different plugin types.
 **Priority:** HIGH
 **Effort:** 40 hours
 **Owner:** TBD
-**Status:** Phase 2c Complete (delegation in progress)
+**Status:** Phase 2f Complete (17.6% reduction achieved)
 
 **Description:**
 Split the monolithic plugin_registry.py (2,860 LOC) into focused submodules.
 
-**Current Structure (Phase 2c Complete):**
+**Current Structure (Phase 2f Complete):**
 
 ```
 topology-tools/kernel/
@@ -802,7 +802,7 @@ topology-tools/kernel/
 │   ├── execution_planner.py    # 232 LOC - Plan generation ✓
 │   ├── parallel_executor.py    # 256 LOC - Parallel execution ✓
 │   └── snapshot_builder.py     # 258 LOC - Snapshot creation ✓
-└── plugin_registry.py          # 2757 LOC - Facade + core execution logic
+└── plugin_registry.py          # 2473 LOC - Facade + core execution logic
 ```
 
 **Commit History:**
@@ -813,6 +813,10 @@ topology-tools/kernel/
 | `291ecd56` | 2a | Remove duplicate classes (SerializablePluginSpec, exceptions) | -117 |
 | `8b8005ba` | 2b | Delegate ConfigValidator and SpecValidator methods | -87 |
 | `e638df1d` | 2c | Delegate SnapshotBuilder and ExecutionPlanner methods | -39 |
+| `4d175e9e` | docs | Comprehensive status update | — |
+| `8ab3af8a` | 2d | Remove _execute_plugin_isolated, delegate _validate_spec | -140 |
+| `f0ec58ea` | 2e | Delegate resolve_dependencies to DependencyResolver | -108 |
+| `a51ce728` | 2f | Delegate _build_input_snapshot to SnapshotBuilder | -67 |
 
 **Phase 1 Summary:**
 - Extracted 8 modules totaling 1,864 LOC
@@ -820,22 +824,25 @@ topology-tools/kernel/
 - Backwards compatibility maintained via re-exports
 - No circular import issues
 
-**Phase 2 Summary (in progress):**
+**Phase 2 Summary (Phases 2a-2f complete):**
 - Removed duplicate classes: SerializablePluginSpec, PluginLoadError, PluginCycleError, PluginConfigError
+- Removed duplicate function: _execute_plugin_isolated (~97 LOC)
 - Re-exported constants from extracted modules
-- Delegated 17 methods to extracted components:
+- Created component instances in __init__: _spec_validator, _config_validator, _dependency_resolver, _snapshot_builder
+- Delegated 20+ methods to extracted components:
   - ConfigValidator: validate_plugin_config, _resolve_payload_schema_path, _load_payload_schema, _schema_ref_by_produced_key, _schema_ref_by_consumed_key
-  - SpecValidator: _extract_entry_plugin_family, _entry_uses_plugins_prefix_without_family, _is_api_compatible, _stage_rank, _phase_rank
-  - SnapshotBuilder: _declared_produced_scopes, _declared_consumes, _compatibility_producer_ids
+  - SpecValidator: _extract_entry_plugin_family, _entry_uses_plugins_prefix_without_family, _is_api_compatible, _stage_rank, _phase_rank, _validate_spec
+  - DependencyResolver: resolve_dependencies, _validate_declared_data_bus_contracts, _is_stage_local_consumption_valid
+  - SnapshotBuilder: _declared_produced_scopes, _declared_consumes, _compatibility_producer_ids, _build_input_snapshot
   - ExecutionPlanner: _string_list
-- **Reduction: 3000 → 2757 LOC (-243 lines, -8.1%)**
+- **Total reduction: 3000 → 2473 LOC (-527 lines, -17.6%)**
 
 **Remaining Work (Phase 3):**
-- Core execution methods (~2400 LOC) require deeper refactoring:
-  - `_build_input_snapshot` (~80 LOC)
+- Core execution methods (~2000 LOC) require deeper refactoring:
   - `_execute_phase_parallel` (~350 LOC)
   - `execute_stage` (~350 LOC)
   - `execute_plugin` (~200 LOC)
+  - `load_plugin` / `_load_entry_point` (~80 LOC) — can delegate to PluginLoader
 - Target: ~300 LOC facade with full delegation
 
 **Files Created:**
