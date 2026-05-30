@@ -1,4 +1,4 @@
-"""Plugin registry submodules.
+"""Plugin registry submodules (ADR 0063 decomposition).
 
 This package provides modular components for the plugin registry:
 
@@ -10,32 +10,51 @@ This package provides modular components for the plugin registry:
 
 Usage:
     from kernel.registry import ManifestLoader, SpecValidator
-    # Or import from main plugin_registry for backwards compatibility
+    from kernel.registry import DependencyResolver, PluginLoader
+    from kernel.registry import ConfigValidator
 """
 
 from __future__ import annotations
 
-# Re-exports for backwards compatibility
-# These will be populated as modules are extracted
+from .config_validator import ConfigValidationError, ConfigValidator
+from .dependency_resolver import DependencyError, DependencyResolver, PluginCycleError
+from .manifest_loader import ManifestLoadError, ManifestLoader, PluginManifest
+from .plugin_loader import PluginLoadError, PluginLoader
+from .spec_validator import (
+    ENTRY_FAMILIES,
+    KIND_ENTRY_FAMILY,
+    KIND_STAGE_AFFINITY,
+    PHASE_ORDER,
+    STAGE_ORDER,
+    STAGE_ORDER_RANGES,
+    SUPPORTED_API_VERSIONS,
+    SpecValidationError,
+    SpecValidator,
+)
 
 __all__ = [
+    # manifest_loader
     "ManifestLoader",
+    "ManifestLoadError",
+    "PluginManifest",
+    # spec_validator
     "SpecValidator",
+    "SpecValidationError",
+    "SUPPORTED_API_VERSIONS",
+    "STAGE_ORDER",
+    "PHASE_ORDER",
+    "STAGE_ORDER_RANGES",
+    "KIND_STAGE_AFFINITY",
+    "KIND_ENTRY_FAMILY",
+    "ENTRY_FAMILIES",
+    # dependency_resolver
     "DependencyResolver",
+    "DependencyError",
+    "PluginCycleError",
+    # plugin_loader
     "PluginLoader",
+    "PluginLoadError",
+    # config_validator
     "ConfigValidator",
+    "ConfigValidationError",
 ]
-
-# Lazy imports - will be implemented as extraction proceeds
-# For now, import from parent module for compatibility
-
-
-def __getattr__(name: str):
-    """Lazy import for backwards compatibility during migration."""
-    if name in __all__:
-        # During migration, classes remain in plugin_registry.py
-        # This will be updated as extraction completes
-        raise ImportError(
-            f"{name} not yet extracted. Import from kernel.plugin_registry instead."
-        )
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

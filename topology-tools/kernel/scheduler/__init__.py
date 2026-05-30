@@ -1,4 +1,4 @@
-"""Plugin scheduler submodules.
+"""Plugin scheduler submodules (ADR 0063 decomposition).
 
 This package provides modular components for plugin execution scheduling:
 
@@ -8,22 +8,28 @@ This package provides modular components for plugin execution scheduling:
 
 Usage:
     from kernel.scheduler import ExecutionPlanner, ParallelExecutor
-    # Or import from main plugin_registry for backwards compatibility
+    from kernel.scheduler import SnapshotBuilder, SerializablePluginSpec
 """
 
 from __future__ import annotations
 
+from .execution_planner import ExecutionPlanner, PlanningError
+from .parallel_executor import (
+    HAS_REAL_SUBINTERPRETERS,
+    ParallelExecutor,
+    execute_plugin_isolated,
+)
+from .snapshot_builder import SerializablePluginSpec, SnapshotBuilder
+
 __all__ = [
+    # execution_planner
     "ExecutionPlanner",
+    "PlanningError",
+    # parallel_executor
     "ParallelExecutor",
+    "execute_plugin_isolated",
+    "HAS_REAL_SUBINTERPRETERS",
+    # snapshot_builder
     "SnapshotBuilder",
+    "SerializablePluginSpec",
 ]
-
-
-def __getattr__(name: str):
-    """Lazy import for backwards compatibility during migration."""
-    if name in __all__:
-        raise ImportError(
-            f"{name} not yet extracted. Import from kernel.plugin_registry instead."
-        )
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

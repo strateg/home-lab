@@ -1,14 +1,12 @@
 """Plugin registry and loader for v5 topology compiler (ADR 0063).
 
-This module handles:
-- Loading plugin manifests from YAML files
-- Resolving plugin entry points to Python classes
-- Building the plugin dependency graph
-- Determining execution order
-- Managing plugin lifecycle
-- Config validation against config_schema
-- Timeout handling
-- Error recovery with traceback capture
+This module is the main facade for plugin management. Internal functionality
+has been decomposed into submodules (ADR 0063 Phase 3):
+
+- kernel.registry: Manifest loading, spec validation, dependency resolution
+- kernel.scheduler: Execution planning, parallel execution, snapshots
+
+This module re-exports classes for backwards compatibility.
 """
 
 from __future__ import annotations
@@ -67,6 +65,38 @@ from .plugin_base import (
     SubscriptionProjection,
 )
 from .plugin_runner import run_plugin_once
+
+# ADR 0063 Phase 3: Import from decomposed submodules
+# These are re-exported for backwards compatibility
+from .registry import (
+    ENTRY_FAMILIES as _ENTRY_FAMILIES,
+    KIND_ENTRY_FAMILY as _KIND_ENTRY_FAMILY,
+    KIND_STAGE_AFFINITY as _KIND_STAGE_AFFINITY,
+    PHASE_ORDER as _PHASE_ORDER,
+    STAGE_ORDER as _STAGE_ORDER,
+    STAGE_ORDER_RANGES as _STAGE_ORDER_RANGES,
+    SUPPORTED_API_VERSIONS as _SUPPORTED_API_VERSIONS,
+    ConfigValidationError,
+    ConfigValidator,
+    DependencyError,
+    DependencyResolver,
+    ManifestLoadError,
+    ManifestLoader,
+    PluginCycleError,
+    PluginLoadError,
+    PluginManifest,
+    SpecValidationError,
+    SpecValidator,
+)
+from .scheduler import (
+    HAS_REAL_SUBINTERPRETERS as _HAS_REAL_SUBINTERPRETERS,
+    ExecutionPlanner,
+    ParallelExecutor,
+    PlanningError,
+    SerializablePluginSpec,
+    SnapshotBuilder,
+    execute_plugin_isolated,
+)
 
 # Kernel version and compatibility matrix
 KERNEL_VERSION = "0.5.0"

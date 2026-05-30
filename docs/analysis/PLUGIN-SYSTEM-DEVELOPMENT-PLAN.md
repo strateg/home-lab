@@ -777,11 +777,12 @@ Document test coverage requirements for different plugin types.
 **Priority:** HIGH
 **Effort:** 40 hours
 **Owner:** TBD
+**Status:** Phase 1 Complete (extraction)
 
 **Description:**
 Split the monolithic plugin_registry.py (2,860 LOC) into focused submodules.
 
-**Target Structure:**
+**Current Structure (Phase 1 Complete):**
 
 ```
 topology-tools/kernel/
@@ -790,19 +791,27 @@ topology-tools/kernel/
 ├── pipeline_runtime.py         # Pipeline state (keep as-is)
 ├── plugin_runner.py            # Execution (keep as-is)
 ├── registry/
-│   ├── __init__.py
-│   ├── manifest_loader.py      # ~300 LOC - Manifest loading
-│   ├── spec_validator.py       # ~400 LOC - Spec validation
-│   ├── dependency_resolver.py  # ~300 LOC - Graph resolution
-│   ├── plugin_loader.py        # ~400 LOC - Class loading
-│   └── config_validator.py     # ~200 LOC - Config validation
+│   ├── __init__.py             # 60 LOC - Re-exports
+│   ├── manifest_loader.py      # 196 LOC - Manifest loading ✓
+│   ├── spec_validator.py       # 228 LOC - Spec validation ✓
+│   ├── dependency_resolver.py  # 213 LOC - Graph resolution ✓
+│   ├── plugin_loader.py        # 173 LOC - Class loading ✓
+│   └── config_validator.py     # 213 LOC - Config validation ✓
 ├── scheduler/
-│   ├── __init__.py
-│   ├── execution_planner.py    # ~300 LOC - Plan generation
-│   ├── parallel_executor.py    # ~400 LOC - Parallel execution
-│   └── snapshot_builder.py     # ~300 LOC - Snapshot creation
-└── plugin_registry.py          # ~300 LOC - Facade only
+│   ├── __init__.py             # 35 LOC - Re-exports
+│   ├── execution_planner.py    # 232 LOC - Plan generation ✓
+│   ├── parallel_executor.py    # 256 LOC - Parallel execution ✓
+│   └── snapshot_builder.py     # 258 LOC - Snapshot creation ✓
+└── plugin_registry.py          # 3000 LOC - Facade + legacy code (Phase 2 pending)
 ```
+
+**Phase 1 Summary:**
+- Extracted 8 modules totaling 1,864 LOC
+- All modules under 300 LOC target
+- Backwards compatibility maintained via re-exports
+- No circular import issues
+
+**Phase 2 (Pending):** Refactor PluginRegistry to delegate to extracted components
 
 **Migration Strategy:**
 
