@@ -121,12 +121,15 @@ class DiagramGenerator(BaseGenerator):
             ("docs/diagrams/diagrams-index.md.j2", "index.md"),
         )
 
+        # Track relative names for _generated_files.txt (deterministic output)
+        generated_relative_names: list[str] = []
         for template_name, output_name in templates:
             output_path = diagrams_root / output_name
             try:
                 content = self.render_template(ctx, template_name, template_ctx)
                 self.write_text_atomic(output_path, content)
-                generated_files.append(str(output_path))
+                generated_files.append(str(output_path))  # Absolute for validation/manifest
+                generated_relative_names.append(output_name)  # Relative for determinism
             except Exception as exc:
                 diagnostics.append(
                     self.emit_diagnostic(
@@ -144,7 +147,9 @@ class DiagramGenerator(BaseGenerator):
             cache_result = icon_manager.cache_svg_assets(icon_ids, diagrams_root / "icons")
             manifest_path = str(cache_result.get("manifest_path", ""))
             if manifest_path:
-                generated_files.append(manifest_path)
+                generated_files.append(manifest_path)  # Absolute for validation
+                manifest_rel = Path(manifest_path).relative_to(diagrams_root)
+                generated_relative_names.append(str(manifest_rel))  # Relative for determinism
             unresolved_count = int(cache_result.get("unresolved_count", 0) or 0)
             fallback_count = int(cache_result.get("resolved_via_fallback", 0) or 0)
             diagnostics.append(
@@ -177,11 +182,11 @@ class DiagramGenerator(BaseGenerator):
                     )
                 )
 
-        if generated_files:
+        if generated_relative_names:
             generated_files_path = diagrams_root / "_generated_files.txt"
             self.write_text_atomic(
                 generated_files_path,
-                "\n".join(sorted(generated_files)) + "\n",
+                "\n".join(sorted(generated_relative_names)) + "\n",
             )
             generated_files.append(str(generated_files_path))
 

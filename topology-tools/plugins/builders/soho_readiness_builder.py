@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -83,6 +84,10 @@ class SohoReadinessBuilder(BuilderPlugin):
 
     @staticmethod
     def _now() -> str:
+        """Return current UTC timestamp, or fixed timestamp for deterministic builds."""
+        fixed = os.environ.get("COMPILE_DETERMINISTIC_TIMESTAMP")
+        if fixed:
+            return fixed
         return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
     @staticmethod

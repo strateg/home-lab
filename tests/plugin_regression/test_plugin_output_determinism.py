@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -21,11 +22,37 @@ COMPILER = REPO_ROOT / "topology-tools" / "compile-topology.py"
 TOPOLOGY = REPO_ROOT / "topology" / "topology.yaml"
 
 
+def _normalize_content(content: bytes, run_dir: Path, repo_root: Path) -> bytes:
+    """Normalize file content by replacing run-specific paths with placeholders.
+
+    This ensures files containing absolute or repo-relative paths
+    (like artifact-manifest.json) can be compared between runs.
+    """
+    result = content
+    # Replace absolute run directory paths with placeholder
+    run_dir_str = str(run_dir)
+    result = result.replace(run_dir_str.encode(), b"<RUN_DIR>")
+    # Also replace repo-relative paths (used in artifact-manifest.json)
+    try:
+        run_dir_rel = str(run_dir.relative_to(repo_root))
+        result = result.replace(run_dir_rel.encode(), b"<RUN_DIR>")
+    except ValueError:
+        pass  # run_dir not relative to repo_root
+    return result
+
+
 def _compile_and_hash(
     run_id: str,
     artifacts_dir: Path,
+    *,
+    deterministic_timestamp: str | None = None,
 ) -> tuple[int, dict[str, str], dict[str, Any]]:
     """Run compiler and return exit code, file hashes, and diagnostics.
+
+    Args:
+        run_id: Unique identifier for this run
+        artifacts_dir: Directory to store artifacts
+        deterministic_timestamp: If set, use this fixed timestamp for reproducibility
 
     Returns:
         Tuple of (exit_code, file_hashes, diagnostics_report)
@@ -54,12 +81,16 @@ def _compile_and_hash(
         "--diagnostics-txt",
         str(diagnostics_txt),
     ]
+    env = dict(os.environ)
+    if deterministic_timestamp:
+        env["COMPILE_DETERMINISTIC_TIMESTAMP"] = deterministic_timestamp
     completed = subprocess.run(
         cmd,
         cwd=REPO_ROOT,
         text=True,
         capture_output=True,
         check=False,
+        env=env,
     )
 
     file_hashes: dict[str, str] = {}
@@ -68,7 +99,9 @@ def _compile_and_hash(
             if path.is_file():
                 rel_path = str(path.relative_to(generated_root))
                 content = path.read_bytes()
-                file_hashes[rel_path] = hashlib.sha256(content).hexdigest()
+                # Normalize content to remove run-specific paths
+                normalized = _normalize_content(content, run_dir, REPO_ROOT)
+                file_hashes[rel_path] = hashlib.sha256(normalized).hexdigest()
 
     diagnostics_report: dict[str, Any] = {}
     if diagnostics_json.exists():
@@ -84,15 +117,20 @@ def test_plugin_output_determinism(tmp_path: Path) -> None:
     1. Both runs complete successfully
     2. All generated files have identical content (SHA256 match)
     3. Plugin execution is reproducible across runs
+
+    Uses COMPILE_DETERMINISTIC_TIMESTAMP to ensure timestamp-containing
+    files are identical between runs.
     """
     artifacts_dir = REPO_ROOT / "build" / "test-artifacts" / tmp_path.name
+    # Fixed timestamp for reproducible builds
+    fixed_timestamp = "2026-01-01T00:00:00+00:00"
 
     # Run 1
-    exit1, hashes1, diag1 = _compile_and_hash("a", artifacts_dir)
+    exit1, hashes1, diag1 = _compile_and_hash("a", artifacts_dir, deterministic_timestamp=fixed_timestamp)
     assert exit1 == 0, f"First compile failed with exit code {exit1}"
 
     # Run 2
-    exit2, hashes2, diag2 = _compile_and_hash("b", artifacts_dir)
+    exit2, hashes2, diag2 = _compile_and_hash("b", artifacts_dir, deterministic_timestamp=fixed_timestamp)
     assert exit2 == 0, f"Second compile failed with exit code {exit2}"
 
     # Compare file sets

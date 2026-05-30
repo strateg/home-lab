@@ -6,6 +6,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import re
 import sys
 import time
@@ -153,6 +154,14 @@ def resolve_topology_path(topology_arg: str) -> Path:
 
 
 def utc_now() -> str:
+    """Return current UTC timestamp, or fixed timestamp for deterministic builds.
+
+    Set COMPILE_DETERMINISTIC_TIMESTAMP env var to a fixed ISO timestamp
+    for reproducible builds in tests.
+    """
+    fixed = os.environ.get("COMPILE_DETERMINISTIC_TIMESTAMP")
+    if fixed:
+        return fixed
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 

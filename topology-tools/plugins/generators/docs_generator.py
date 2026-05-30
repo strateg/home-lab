@@ -76,14 +76,17 @@ class DocsGenerator(BaseGenerator):
             "storage": projection.get("storage", {}),
             "operations": projection.get("operations", {}),
         }
+        # Track relative names for _generated_files.txt (deterministic output)
+        generated_relative_names: list[str] = []
         for template_name, output_name in templates:
             output_path = docs_root / output_name
             content = self.render_template(ctx, template_name, template_ctx)
             self.write_text_atomic(output_path, content)
-            generated_files.append(str(output_path))
+            generated_files.append(str(output_path))  # Absolute for validation/manifest
+            generated_relative_names.append(output_name)  # Relative for determinism
 
         generated_files_path = docs_root / "_generated_files.txt"
-        generated_files_payload = "\n".join(sorted(generated_files)) + "\n"
+        generated_files_payload = "\n".join(sorted(generated_relative_names)) + "\n"
         self.write_text_atomic(generated_files_path, generated_files_payload)
         generated_files.append(str(generated_files_path))
 
