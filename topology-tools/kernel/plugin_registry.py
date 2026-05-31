@@ -361,6 +361,7 @@ class PluginRegistry:
         self._config_validator = ConfigValidator(self.base_path)
         self._envelope_validator = EnvelopeValidator(self._config_validator)
         self._dependency_resolver = DependencyResolver(self.specs)
+        self._execution_planner = ExecutionPlanner(self.specs)
         self._snapshot_builder = SnapshotBuilder(
             self.specs,
             metadata_provider=self._inject_snapshot_metadata,
@@ -505,57 +506,16 @@ class PluginRegistry:
         return ExecutionPlanner._string_list(value)
 
     def _active_changed_input_scopes(self, ctx: PluginContext) -> set[str] | None:
-        if isinstance(ctx.changed_input_scopes, list):
-            return {item for item in ctx.changed_input_scopes if isinstance(item, str) and item}
-        configured_scopes = ctx.config.get("changed_input_scopes")
-        if isinstance(configured_scopes, list):
-            return {item for item in configured_scopes if isinstance(item, str) and item}
-        return None
+        """Delegate to ExecutionPlanner (ADR 0063 Phase 3)."""
+        return self._execution_planner._active_changed_input_scopes(ctx)
 
     def _profile_allows_spec(self, spec: PluginSpec, profile: Optional[str]) -> bool:
-        if profile is None:
-            return True
-        modern = self._string_list(spec.when.get("profiles")) if isinstance(spec.when, dict) else []
-        if modern:
-            return profile in modern
-        return True
+        """Delegate to ExecutionPlanner (ADR 0063 Phase 3)."""
+        return self._execution_planner._profile_allows_spec(spec, profile)
 
     def _when_predicates_allow(self, spec: PluginSpec, ctx: PluginContext) -> bool:
-        if not isinstance(spec.when, dict) or not spec.when:
-            return True
-
-        profiles = self._string_list(spec.when.get("profiles"))
-        if profiles and ctx.profile not in profiles:
-            return False
-
-        capabilities = self._string_list(spec.when.get("capabilities"))
-        if capabilities:
-            available_caps = {key for key in (ctx.capability_catalog or {}).keys() if isinstance(key, str) and key}
-            if not set(capabilities).issubset(available_caps):
-                return False
-
-        pipeline_modes = self._string_list(spec.when.get("pipeline_modes"))
-        if pipeline_modes:
-            current_mode = str(ctx.config.get("pipeline_mode", ""))
-            if current_mode not in pipeline_modes:
-                return False
-
-        changed_scopes = self._string_list(spec.when.get("changed_input_scopes"))
-        if changed_scopes:
-            active_scopes = self._active_changed_input_scopes(ctx)
-            if active_scopes is None:
-                # Runtime has not computed dirty scopes yet; keep non-blocking behavior.
-                return True
-            if not active_scopes:
-                return False
-            if "all" in active_scopes or "*" in active_scopes:
-                return True
-            if "all" in changed_scopes or "*" in changed_scopes:
-                return True
-            if active_scopes.isdisjoint(changed_scopes):
-                return False
-
-        return True
+        """Delegate to ExecutionPlanner (ADR 0063 Phase 3)."""
+        return self._execution_planner._when_predicates_allow(spec, ctx)
 
     @staticmethod
     def _declared_consumes(spec: PluginSpec) -> set[tuple[str, str]]:
@@ -1259,65 +1219,25 @@ class PluginRegistry:
     def get_execution_order(self, stage: Stage, profile: Optional[str] = None, phase: Phase = Phase.RUN) -> list[str]:
         """Get plugins to execute for a stage, in order.
 
+        Validates global dependency graph then delegates to ExecutionPlanner
+        (ADR 0063 Phase 3).
+
         Args:
             stage: Pipeline stage
             profile: Current execution profile (for filtering)
+            phase: Execution phase
 
         Returns:
             List of plugin IDs in execution order
         """
         # Validate dependency graph globally (missing deps / cycles).
-        # Ordering itself is then resolved stage-locally.
+        # Ordering itself is then resolved stage-locally by ExecutionPlanner.
         self.resolve_dependencies()
-
-        # Filter plugins for this stage+phase
-        stage_plugins = {
-            spec.id: spec
-            for spec in self.specs.values()
-            if stage in spec.stages and spec.phase == phase and self._profile_allows_spec(spec, profile)
-        }
-        if not stage_plugins:
-            return []
-
-        # Stage-local topological ordering with deterministic ready-queue policy:
-        # depends_on -> order -> lexical id.
-        indegree: dict[str, int] = {plugin_id: 0 for plugin_id in stage_plugins}
-        outgoing: dict[str, list[str]] = {plugin_id: [] for plugin_id in stage_plugins}
-
-        for plugin_id, spec in stage_plugins.items():
-            for dep_id in spec.depends_on:
-                if dep_id not in stage_plugins:
-                    # Cross-stage dependency: already validated globally; not part of this stage DAG.
-                    continue
-                indegree[plugin_id] += 1
-                outgoing[dep_id].append(plugin_id)
-
-        ready: list[tuple[int, str]] = []
-        for plugin_id, spec in stage_plugins.items():
-            if indegree[plugin_id] == 0:
-                heapq.heappush(ready, (spec.order, plugin_id))
-
-        ordered: list[str] = []
-        while ready:
-            _, plugin_id = heapq.heappop(ready)
-            ordered.append(plugin_id)
-            for dependent_id in outgoing[plugin_id]:
-                indegree[dependent_id] -= 1
-                if indegree[dependent_id] == 0:
-                    dependent_spec = stage_plugins[dependent_id]
-                    heapq.heappush(ready, (dependent_spec.order, dependent_id))
-
-        if len(ordered) != len(stage_plugins):
-            # Should not happen because global cycle check already ran, but keep defensive guard.
-            remaining = sorted(plugin_id for plugin_id, degree in indegree.items() if degree > 0)
-            raise PluginCycleError(remaining)
-
-        return ordered
+        return self._execution_planner.get_execution_order(stage, phase, profile)
 
     def _plugin_sort_key(self, plugin_id: str) -> tuple[int, str]:
-        spec = self.specs.get(plugin_id)
-        order = spec.order if spec is not None else sys.maxsize
-        return order, plugin_id
+        """Delegate to ExecutionPlanner (ADR 0063 Phase 3)."""
+        return self._execution_planner.plugin_sort_key(plugin_id)
 
     def _preload_plugins(self, plugin_ids: list[str]) -> None:
         """Preload plugin classes/instances before optional parallel execution."""

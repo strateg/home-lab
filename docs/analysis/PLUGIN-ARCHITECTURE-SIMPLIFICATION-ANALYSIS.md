@@ -6,6 +6,19 @@
 
 ---
 
+## Implementation Status
+
+| Item | Status | Commit |
+|------|--------|--------|
+| QW1: Remove `subinterpreter_compatible` | ✅ Complete | c4325e10 |
+| QW2: Remove Event Plane API | ✅ Complete | 2adcffeb |
+| QW3: Consolidate `_declared_produced_scopes` | ✅ Complete | 9fadd233 |
+| Extract `_validate_envelope_for_commit` | ✅ Complete | 64aca9f3 |
+
+**Total LOC reduction:** ~200+ lines removed from plugin_registry.py
+
+---
+
 ## Executive Summary
 
 This analysis examines the v5 plugin system architecture to identify simplification opportunities. The current architecture spans **5,877 LOC** across 15 kernel modules, with the main `plugin_registry.py` at 2,455 LOC being the primary complexity concern.
@@ -132,49 +145,38 @@ produced_key_scopes = self._declared_produced_scopes(spec)  # line 1805
 
 ### 4.2 Quick Wins (Low Effort, Immediate Value)
 
-#### QW1: Remove Deprecated `subinterpreter_compatible` Field
+#### QW1: Remove Deprecated `subinterpreter_compatible` Field ✅ COMPLETE
 
-**Current state:**
-- Field defined in `PluginSpec` at line 147
-- Deprecation warning emitted at lines 254-281
-- Still checked in 146 places (mostly tests/docs)
+**Status:** Completed in commit c4325e10
 
-**Action:**
-1. Remove field from `PluginSpec` dataclass
-2. Remove `_resolve_execution_mode` fallback logic
-3. Update tests to use `execution_mode` directly
-4. Update documentation
+- Removed field from `PluginSpec` dataclass
+- Removed `_resolve_execution_mode` fallback logic
+- Updated tests to use `execution_mode` directly
+- Updated manifest YAML files
 
-**Estimated savings:** 30 LOC, reduced cognitive load
+**Actual savings:** ~30 LOC
 
-#### QW2: Mark Event Plane as Experimental or Remove
+#### QW2: Remove Event Plane API ✅ COMPLETE
 
-**Current state:**
-- Full implementation in `plugin_base.py:841-959` (~120 LOC)
-- `PluginContext` methods: `emit()`, `subscribe_topic()`, `poll_events()`, `get_event_history()`
-- Data structures: `EventMessage`, `EmittedEvent`
-- **Zero plugins use it**
+**Status:** Completed in commit 2adcffeb
 
-**Options:**
-1. **Remove entirely:** Saves ~120 LOC, simplifies context
-2. **Mark experimental:** Add `@experimental` decorator, document as not-ready-for-use
-3. **Keep hidden:** Move to separate mixin class
+- Removed `EventMessage` and `EmittedEvent` dataclasses from `plugin_base.py`
+- Removed `emit()`, `subscribe_topic()`, `poll_events()`, `get_event_history()`, `drain_event_outbox()` methods
+- Removed event-related fields from `PluginContext` and `PluginExecutionEnvelope`
+- Updated `PipelineState` to remove event handling
+- Deleted `docs/guides/PLUGIN-EVENT-PATTERNS.md` (438 LOC)
 
-**Recommended:** Option 2 (mark experimental) - preserves optionality without cluttering main paths
+**Actual savings:** ~120 LOC core + 438 LOC documentation
 
-#### QW3: Consolidate `_declared_produced_scopes`
+#### QW3: Consolidate `_declared_produced_scopes` ✅ COMPLETE
 
-**Current state:** Defined in 3 places:
-- `dependency_resolver.py:151-161`
-- `snapshot_builder.py:212-221`
-- `plugin_registry.py:553-555` (delegates to snapshot_builder)
+**Status:** Completed in commit 9fadd233
 
-**Action:**
-1. Keep single canonical implementation in `snapshot_builder.py`
-2. Import in `dependency_resolver.py` instead of duplicating
-3. Keep thin delegation in `plugin_registry.py` for backward compat
+- Added `declared_produced_scopes()` method to `PluginSpec` dataclass
+- Removed duplicate implementations from `dependency_resolver.py`, `snapshot_builder.py`, and `plugin_registry.py`
+- Updated all call sites to use `spec.declared_produced_scopes()`
 
-**Estimated savings:** 15 LOC, reduced divergence risk
+**Actual savings:** ~40 LOC, eliminated divergence risk
 
 ### 4.3 Medium Effort Improvements
 
@@ -248,19 +250,19 @@ The high LOC in `plugin_registry.py` stems from:
 
 ### 6.1 Immediate Actions (This Sprint)
 
-| # | Action | Effort | Owner |
-|---|--------|--------|-------|
-| 1 | Add deprecation warning for `subinterpreter_compatible` (if not already) | 2h | - |
-| 2 | Document event plane as experimental in PLUGIN_AUTHORING_GUIDE.md | 2h | - |
-| 3 | Consolidate `_declared_produced_scopes` to single source | 4h | - |
+| # | Action | Effort | Status |
+|---|--------|--------|--------|
+| 1 | Remove deprecated `subinterpreter_compatible` field | 4h | ✅ Complete (c4325e10) |
+| 2 | Remove unused Event Plane API | 4h | ✅ Complete (2adcffeb) |
+| 3 | Consolidate `_declared_produced_scopes` to single source | 4h | ✅ Complete (9fadd233) |
 
 ### 6.2 Short-Term (Next 2 Weeks)
 
-| # | Action | Effort | Owner |
-|---|--------|--------|-------|
-| 1 | Complete `ExecutionPlanner` delegation | 8h | - |
-| 2 | Remove deprecated `subinterpreter_compatible` in next version | 4h | - |
-| 3 | Extract `_validate_envelope_for_commit` to separate validator class | 4h | - |
+| # | Action | Effort | Status |
+|---|--------|--------|--------|
+| 1 | Complete `ExecutionPlanner` delegation | 8h | Pending |
+| 2 | Remove deprecated `subinterpreter_compatible` in next version | 4h | ✅ Complete (c4325e10) |
+| 3 | Extract `_validate_envelope_for_commit` to separate validator class | 4h | ✅ Complete (64aca9f3) |
 
 ### 6.3 Medium-Term (Next Month)
 
@@ -342,6 +344,7 @@ After any simplification:
 | registry/spec_validator.py | `/home/nixos/workspaces/home-lab/topology-tools/kernel/registry/spec_validator.py` |
 | registry/dependency_resolver.py | `/home/nixos/workspaces/home-lab/topology-tools/kernel/registry/dependency_resolver.py` |
 | registry/config_validator.py | `/home/nixos/workspaces/home-lab/topology-tools/kernel/registry/config_validator.py` |
+| registry/envelope_validator.py | `/home/nixos/workspaces/home-lab/topology-tools/kernel/registry/envelope_validator.py` |
 | registry/manifest_loader.py | `/home/nixos/workspaces/home-lab/topology-tools/kernel/registry/manifest_loader.py` |
 | registry/plugin_loader.py | `/home/nixos/workspaces/home-lab/topology-tools/kernel/registry/plugin_loader.py` |
 | scheduler/__init__.py | `/home/nixos/workspaces/home-lab/topology-tools/kernel/scheduler/__init__.py` |
