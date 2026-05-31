@@ -228,7 +228,7 @@ def test_ansible_inventory_execute_stage_commits_generated_payloads(tmp_path: Pa
                 "phase": "run",
                 "order": 230,
                 "depends_on": ["base.compiler.effective_model"],
-                "subinterpreter_compatible": True,
+                "execution_mode": "subinterpreter",
                 "config": {
                     "inventory_profile": "production",
                     "topology_lane": "v5",
@@ -284,7 +284,7 @@ def test_ansible_inventory_execute_stage_requires_compiled_json(tmp_path: Path) 
                 "phase": "run",
                 "order": 230,
                 "depends_on": ["base.compiler.effective_model"],
-                "subinterpreter_compatible": True,
+                "execution_mode": "subinterpreter",
                 "config": {
                     "inventory_profile": "production",
                     "topology_lane": "v5",

@@ -97,7 +97,7 @@ def test_effective_json_execute_stage_commits_generated_file_payloads(tmp_path):
                 "stages": ["generate"],
                 "phase": "run",
                 "order": 190,
-                "subinterpreter_compatible": True,
+                "execution_mode": "subinterpreter",
                 "produces": [
                     {"key": "generated_files", "scope": "pipeline_shared"},
                     {"key": "effective_json_path", "scope": "pipeline_shared"},
@@ -143,7 +143,7 @@ def test_effective_json_execute_stage_requires_compiled_json(tmp_path):
                 "stages": ["generate"],
                 "phase": "run",
                 "order": 190,
-                "subinterpreter_compatible": True,
+                "execution_mode": "subinterpreter",
                 "produces": [
                     {"key": "generated_files", "scope": "pipeline_shared"},
                     {"key": "effective_json_path", "scope": "pipeline_shared"},

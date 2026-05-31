@@ -173,7 +173,7 @@ def test_docs_execute_stage_commits_generated_payloads(tmp_path: Path) -> None:
                 "phase": "post",
                 "order": 220,
                 "depends_on": ["base.compiler.effective_model"],
-                "subinterpreter_compatible": True,
+                "execution_mode": "subinterpreter",
                 "produces": [
                     {"key": "generated_dir", "scope": "pipeline_shared"},
                     {"key": "generated_files", "scope": "pipeline_shared"},
@@ -222,7 +222,7 @@ def test_docs_execute_stage_requires_compiled_json(tmp_path: Path) -> None:
                 "phase": "post",
                 "order": 220,
                 "depends_on": ["base.compiler.effective_model"],
-                "subinterpreter_compatible": True,
+                "execution_mode": "subinterpreter",
                 "produces": [
                     {"key": "generated_dir", "scope": "pipeline_shared"},
                     {"key": "generated_files", "scope": "pipeline_shared"},

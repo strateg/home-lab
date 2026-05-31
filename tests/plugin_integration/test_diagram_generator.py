@@ -310,7 +310,7 @@ def test_diagram_execute_stage_commits_generated_payloads(tmp_path: Path) -> Non
                 "phase": "post",
                 "order": 225,
                 "depends_on": ["base.compiler.effective_model"],
-                "subinterpreter_compatible": True,
+                "execution_mode": "subinterpreter",
                 "config": {"mermaid_icon_mode": "none"},
                 "produces": [
                     {"key": "diagram_dir", "scope": "pipeline_shared"},
@@ -359,7 +359,7 @@ def test_diagram_execute_stage_requires_compiled_json(tmp_path: Path) -> None:
                 "phase": "post",
                 "order": 225,
                 "depends_on": ["base.compiler.effective_model"],
-                "subinterpreter_compatible": True,
+                "execution_mode": "subinterpreter",
                 "config": {"mermaid_icon_mode": "none"},
                 "produces": [
                     {"key": "diagram_dir", "scope": "pipeline_shared"},

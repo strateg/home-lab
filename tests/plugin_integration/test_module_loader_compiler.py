@@ -88,7 +88,7 @@ def test_module_loader_execute_stage_commits_authoritative_maps(tmp_path):
                 "stages": ["compile"],
                 "phase": "init",
                 "order": 30,
-                "subinterpreter_compatible": True,
+                "execution_mode": "subinterpreter",
                 "produces": [
                     {"key": "class_map", "scope": "pipeline_shared"},
                     {"key": "object_map", "scope": "pipeline_shared"},
