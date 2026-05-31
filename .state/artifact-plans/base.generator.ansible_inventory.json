@@ -93,18 +93,6 @@
       "reason": "base-family",
       "renderer": "structured",
       "required": true
-    },
-    {
-      "path": "generated/home-lab/ansible/inventory/production/host_vars/vps-hetzner-nuremberg.yml",
-      "reason": "base-family",
-      "renderer": "structured",
-      "required": true
-    },
-    {
-      "path": "generated/home-lab/ansible/inventory/production/host_vars/vps-oracle-frankfurt.yml",
-      "reason": "base-family",
-      "renderer": "structured",
-      "required": true
     }
   ],
   "plugin_id": "base.generator.ansible_inventory",

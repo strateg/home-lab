@@ -149,35 +149,6 @@ def test_thread_legacy_mode_calls_mirror() -> None:
     mirror.assert_called_once()
 
 
-# --- Current behavior baseline tests ---
-
-
-def test_current_subinterpreter_compatible_true_uses_commit_envelope() -> None:
-    """Current: subinterpreter_compatible=true uses _commit_envelope_result()."""
-    # This tests current behavior as baseline for PR2 changes
-
-    from kernel.plugin_registry import PluginRegistry
-
-    # The current implementation should:
-    # - Call _build_input_snapshot()
-    # - Execute via envelope path
-    # - Call _commit_envelope_result()
-    # - NOT call _mirror_context_into_pipeline_state()
-
-    # Verification is implicit in the parity tests; this documents expected behavior
-
-
-def test_current_subinterpreter_compatible_false_uses_mirror() -> None:
-    """Current: subinterpreter_compatible=false uses _mirror_context_into_pipeline_state()."""
-    # This tests current behavior as baseline for PR2 changes
-
-    # The current implementation should:
-    # - Call execute_plugin() (legacy path)
-    # - Call _mirror_context_into_pipeline_state() to sync state
-
-    # This is the behavior that PR2 will restrict to thread_legacy only
-
-
 # --- Commit flow integrity tests ---
 
 

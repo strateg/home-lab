@@ -11,7 +11,7 @@ plugins:
     migration_mode: migrating
     depends_on: []
     timeout: 30
-    subinterpreter_compatible: true
+    execution_mode: subinterpreter
     config:
       terraform_version: '>= 1.6.0'
       mikrotik_provider_source: terraform-routeros/routeros
@@ -114,7 +114,6 @@ plugins:
         scope: pipeline_shared
     description: Emits baseline Terraform artifacts for MikroTik from v5 projections
       (Phase 4 bootstrap).
-    execution_mode: subinterpreter
   - id: object.mikrotik.generator.bootstrap
     kind: generator
     entry: plugins/generators/bootstrap_mikrotik_generator.py:BootstrapMikroTikGenerator
@@ -126,7 +125,7 @@ plugins:
     migration_mode: migrating
     depends_on: []
     timeout: 30
-    subinterpreter_compatible: true
+    execution_mode: subinterpreter
     config:
       artifact_obsolete_action: warn
       bootstrap_files:
@@ -181,4 +180,3 @@ plugins:
         scope: pipeline_shared
     description: Emits baseline bootstrap artifacts for MikroTik routers (Phase 6
       bootstrap).
-    execution_mode: subinterpreter

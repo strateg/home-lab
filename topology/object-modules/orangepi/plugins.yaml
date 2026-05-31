@@ -11,7 +11,7 @@ plugins:
     migration_mode: migrating
     depends_on: []
     timeout: 30
-    subinterpreter_compatible: true
+    execution_mode: subinterpreter
     config:
       artifact_obsolete_action: warn
       bootstrap_files:
@@ -64,4 +64,3 @@ plugins:
         scope: pipeline_shared
     description: Emits baseline cloud-init bootstrap artifacts for Orange Pi nodes
       (Phase 6 bootstrap).
-    execution_mode: subinterpreter

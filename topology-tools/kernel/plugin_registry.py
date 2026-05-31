@@ -19,7 +19,6 @@ import sys
 import threading
 import time
 import traceback
-import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Optional, Type
@@ -144,7 +143,6 @@ class PluginSpec:
     migration_mode: str = "legacy"
     manifest_path: str = ""
     timeout: float = DEFAULT_PLUGIN_TIMEOUT
-    subinterpreter_compatible: bool = False  # ADR 0097 Wave 1 (DEPRECATED)
     execution_mode: str = "main_interpreter"  # ADR 0097 PR2: subinterpreter | main_interpreter | thread_legacy
     input_view: InputViewSpec | None = None  # ADR 0097 P4.2: snapshot filtering specification
 
@@ -173,7 +171,6 @@ class PluginSpec:
             migration_mode=str(data.get("migration_mode", "legacy")),
             manifest_path=manifest_path,
             timeout=data.get("timeout", DEFAULT_PLUGIN_TIMEOUT),
-            subinterpreter_compatible=bool(data.get("subinterpreter_compatible", False)),
             execution_mode=cls._resolve_execution_mode(data),
             input_view=cls._parse_input_view(data.get("input_view")),
         )
@@ -253,11 +250,11 @@ class PluginSpec:
 
     @staticmethod
     def _resolve_execution_mode(data: dict[str, Any]) -> str:
-        """Resolve execution_mode with deprecation fallback for subinterpreter_compatible.
+        """Resolve execution_mode from manifest data.
 
         ADR 0097 PR2: execution_mode is the primary routing field.
-        If execution_mode is not set but subinterpreter_compatible=true,
-        infer execution_mode='subinterpreter' for backward compatibility.
+        Valid values: 'subinterpreter', 'main_interpreter', 'thread_legacy'.
+        Default: 'main_interpreter' (envelope path in main interpreter).
         """
         explicit_mode = data.get("execution_mode")
         if explicit_mode is not None:
@@ -267,18 +264,6 @@ class PluginSpec:
                     "Must be 'subinterpreter', 'main_interpreter', or 'thread_legacy'."
                 )
             return explicit_mode
-
-        # Deprecation fallback: infer from subinterpreter_compatible
-        if data.get("subinterpreter_compatible", False):
-            plugin_id = data.get("id", "<unknown>")
-            warnings.warn(
-                f"Plugin '{plugin_id}' uses deprecated 'subinterpreter_compatible' field. "
-                f"Add explicit 'execution_mode: subinterpreter' to manifest. "
-                f"(ADR 0097 PR2 deprecation)",
-                DeprecationWarning,
-                stacklevel=4,
-            )
-            return "subinterpreter"
 
         # Default: main_interpreter (envelope path in main interpreter)
         return "main_interpreter"

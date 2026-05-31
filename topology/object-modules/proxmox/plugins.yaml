@@ -11,7 +11,7 @@ plugins:
     migration_mode: migrating
     depends_on: []
     timeout: 30
-    subinterpreter_compatible: true
+    execution_mode: subinterpreter
     config:
       terraform_version: '>= 1.6.0'
       proxmox_provider_source: bpg/proxmox
@@ -110,7 +110,6 @@ plugins:
         scope: pipeline_shared
     description: Emits baseline Terraform artifacts for Proxmox from v5 projections
       (Phase 3 bootstrap).
-    execution_mode: subinterpreter
   - id: object.proxmox.generator.bootstrap
     kind: generator
     entry: plugins/generators/bootstrap_proxmox_generator.py:BootstrapProxmoxGenerator
@@ -122,7 +121,7 @@ plugins:
     migration_mode: migrating
     depends_on: []
     timeout: 30
-    subinterpreter_compatible: true
+    execution_mode: subinterpreter
     config:
       artifact_obsolete_action: warn
       bootstrap_files:
@@ -177,4 +176,3 @@ plugins:
         scope: pipeline_shared
     description: Emits contract-aware minimal bootstrap artifacts for Proxmox nodes
       (answer.toml + post-install-minimal.sh).
-    execution_mode: subinterpreter

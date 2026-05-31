@@ -56,26 +56,26 @@ class TestExecutorSelection:
 
 
 class TestPluginManifestSchema:
-    """Test that subinterpreter_compatible field is properly parsed."""
+    """Test that execution_mode field is properly parsed."""
 
-    def test_manifest_parsing_compatible_true(self):
-        """Test parsing manifest with subinterpreter_compatible: true."""
+    def test_manifest_parsing_execution_mode_subinterpreter(self):
+        """Test parsing manifest with execution_mode: subinterpreter."""
         manifest_data = {
-            "id": "test.plugin.compatible",
+            "id": "test.plugin.subinterpreter",
             "kind": "validator_json",
             "entry": "validators/test.py:TestPlugin",
             "api_version": "1.x",
             "stages": ["validate"],
             "order": 100,
-            "subinterpreter_compatible": True,
+            "execution_mode": "subinterpreter",
         }
 
         spec = PluginSpec.from_dict(manifest_data, "/path/to/manifest.yaml")
 
-        assert spec.subinterpreter_compatible is True
+        assert spec.execution_mode == "subinterpreter"
 
     def test_manifest_parsing_default_value(self):
-        """Test that subinterpreter_compatible defaults to False when omitted."""
+        """Test that execution_mode defaults to main_interpreter when omitted."""
         manifest_data = {
             "id": "test.plugin.default",
             "kind": "validator_json",
@@ -83,13 +83,13 @@ class TestPluginManifestSchema:
             "api_version": "1.x",
             "stages": ["validate"],
             "order": 100,
-            # subinterpreter_compatible omitted
+            # execution_mode omitted
         }
 
         spec = PluginSpec.from_dict(manifest_data, "/path/to/manifest.yaml")
 
-        # Default should be False for backward compatibility
-        assert spec.subinterpreter_compatible is False
+        # Default should be main_interpreter (ADR 0097 PR2)
+        assert spec.execution_mode == "main_interpreter"
 
 
 class TestNoOpLock:

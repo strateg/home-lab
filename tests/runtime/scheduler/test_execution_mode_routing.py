@@ -100,9 +100,6 @@ def test_plugin_spec_has_execution_mode_field() -> None:
     # PR2 implemented: execution_mode field is now present
     assert "execution_mode" in spec_fields, "PluginSpec must have execution_mode field"
 
-    # subinterpreter_compatible still exists for deprecation compatibility
-    assert "subinterpreter_compatible" in spec_fields
-
 
 def test_execution_mode_default_is_main_interpreter() -> None:
     """Default execution_mode should be 'main_interpreter' for safe migration."""
@@ -271,115 +268,6 @@ def test_thread_legacy_mode_uses_execute_plugin() -> None:
     execute_legacy.assert_called_once()
     mirror.assert_called_once()
     build_snapshot.assert_not_called()
-
-
-# --- subinterpreter_compatible deprecation tests ---
-
-
-def test_subinterpreter_compatible_infers_execution_mode() -> None:
-    """subinterpreter_compatible=true should infer execution_mode='subinterpreter'."""
-    import warnings
-
-    from kernel.plugin_registry import PluginSpec
-
-    # Test _resolve_execution_mode() deprecation fallback
-    data_with_compat = {
-        "id": "test.compat",
-        "kind": "validator_json",
-        "entry": "test.py:Plugin",
-        "api_version": "1.x",
-        "stages": ["validate"],
-        "order": 100,
-        "subinterpreter_compatible": True,
-        # No explicit execution_mode
-    }
-
-    # Should infer subinterpreter mode AND emit deprecation warning
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
-        resolved = PluginSpec._resolve_execution_mode(data_with_compat)
-        assert resolved == "subinterpreter", "subinterpreter_compatible=true should infer subinterpreter mode"
-        # Verify deprecation warning was emitted
-        assert len(w) == 1
-        assert issubclass(w[0].category, DeprecationWarning)
-        assert "test.compat" in str(w[0].message)
-        assert "subinterpreter_compatible" in str(w[0].message)
-
-    # Explicit execution_mode takes precedence (no warning)
-    data_explicit = {
-        "id": "test.explicit",
-        "subinterpreter_compatible": True,
-        "execution_mode": "main_interpreter",
-    }
-    resolved_explicit = PluginSpec._resolve_execution_mode(data_explicit)
-    assert resolved_explicit == "main_interpreter", "Explicit execution_mode takes precedence"
-
-
-def test_subinterpreter_compatible_logs_deprecation_warning() -> None:
-    """Using subinterpreter_compatible without execution_mode should log warning."""
-    import warnings
-
-    from kernel.plugin_registry import PluginSpec
-
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
-        resolved = PluginSpec._resolve_execution_mode({"id": "test.warn", "subinterpreter_compatible": True})
-        assert resolved == "subinterpreter"
-        assert len(w) == 1
-        assert issubclass(w[0].category, DeprecationWarning)
-
-
-# --- current behavior baseline tests ---
-
-
-def test_current_routing_uses_subinterpreter_compatible() -> None:
-    """Current implementation routes based on subinterpreter_compatible flag."""
-    from kernel.plugin_registry import PluginSpec
-
-    # Create a minimal spec with subinterpreter_compatible=False
-    spec = PluginSpec(
-        id="test.legacy",
-        kind=PluginKind.VALIDATOR_JSON,
-        entry="test_plugin.py",
-        api_version="2.0",
-        stages=[Stage.VALIDATE],
-        order=100,
-        depends_on=[],
-        config={},
-        produces=[{"key": "validated", "scope": "pipeline_shared"}],
-        consumes=[],
-        manifest_path="/fake/path",
-        subinterpreter_compatible=False,
-    )
-
-    # Verify the field exists and affects routing decision
-    assert spec.subinterpreter_compatible is False
-
-    # Plugins with subinterpreter_compatible=False should use legacy path
-    # (This is current behavior that PR2 will change to execution_mode)
-
-
-def test_current_routing_subinterpreter_compatible_true() -> None:
-    """Current implementation: subinterpreter_compatible=true uses envelope path."""
-    from kernel.plugin_registry import PluginSpec
-
-    spec = PluginSpec(
-        id="test.modern",
-        kind=PluginKind.VALIDATOR_JSON,
-        entry="test_plugin.py",
-        api_version="2.0",
-        stages=[Stage.VALIDATE],
-        order=100,
-        depends_on=[],
-        config={},
-        produces=[{"key": "validated", "scope": "pipeline_shared"}],
-        consumes=[],
-        manifest_path="/fake/path",
-        subinterpreter_compatible=True,
-    )
-
-    assert spec.subinterpreter_compatible is True
-    # Plugins with subinterpreter_compatible=True use envelope path (current behavior)
 
 
 # --- execution_mode enum validation tests ---
