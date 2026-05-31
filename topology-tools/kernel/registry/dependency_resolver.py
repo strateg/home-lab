@@ -128,7 +128,7 @@ class DependencyResolver:
                     )
 
                 # Check produced scope
-                produced_scopes = self._declared_produced_scopes(producer_spec)
+                produced_scopes = producer_spec.declared_produced_scopes()
                 if produced_scopes and key not in produced_scopes:
                     raise DependencyError(
                         consumer_spec.id,
@@ -146,19 +146,6 @@ class DependencyResolver:
                         f"'{from_plugin}.{key}' from {producer_spec.phase.value}/{[s.value for s in producer_spec.stages]} "
                         f"to {consumer_spec.phase.value}/{[s.value for s in consumer_spec.stages]}",
                     )
-
-    @staticmethod
-    def _declared_produced_scopes(spec: PluginSpec) -> dict[str, str]:
-        """Extract declared produced keys and their scopes."""
-        result: dict[str, str] = {}
-        for item in spec.produces:
-            if isinstance(item, str):
-                result[item] = "pipeline_shared"
-            elif isinstance(item, dict):
-                key = item.get("key")
-                if isinstance(key, str) and key:
-                    result[key] = item.get("scope", "pipeline_shared")
-        return result
 
     def _is_stage_local_consumption_valid(
         self, producer: PluginSpec, consumer: PluginSpec

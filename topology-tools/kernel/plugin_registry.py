@@ -268,6 +268,27 @@ class PluginSpec:
         # Default: main_interpreter (envelope path in main interpreter)
         return "main_interpreter"
 
+    def declared_produced_scopes(self) -> dict[str, str]:
+        """Extract declared produced keys and their scopes.
+
+        Returns a mapping of key -> scope for all entries in self.produces.
+        Handles both legacy string format and dict format:
+          - String: "key_name" -> scope defaults to "pipeline_shared"
+          - Dict: {"key": "key_name", "scope": "stage_local"} -> uses specified scope
+
+        Returns:
+            dict mapping key names to scope strings ("pipeline_shared" or "stage_local")
+        """
+        result: dict[str, str] = {}
+        for item in self.produces:
+            if isinstance(item, str):
+                result[item] = "pipeline_shared"
+            elif isinstance(item, dict):
+                key = item.get("key")
+                if isinstance(key, str) and key:
+                    result[key] = item.get("scope", "pipeline_shared")
+        return result
+
 
 @dataclass
 class PluginManifest:
@@ -535,11 +556,6 @@ class PluginRegistry:
         return True
 
     @staticmethod
-    def _declared_produced_scopes(spec: PluginSpec) -> dict[str, str]:
-        """Delegate to SnapshotBuilder (ADR 0063 Phase 3)."""
-        return SnapshotBuilder._declared_produced_scopes(spec)
-
-    @staticmethod
     def _declared_consumes(spec: PluginSpec) -> set[tuple[str, str]]:
         """Delegate to SnapshotBuilder (ADR 0063 Phase 3)."""
         return SnapshotBuilder._declared_consumes(spec)
@@ -749,7 +765,7 @@ class PluginRegistry:
         undeclared_as_errors: bool,
     ) -> list[PluginDiagnostic]:
         diagnostics: list[PluginDiagnostic] = []
-        declared_produces = {key for key in self._declared_produced_scopes(spec)}
+        declared_produces = {key for key in spec.declared_produced_scopes()}
         published_keys = sorted({message.key for message in envelope.published_messages})
         warning_severity = "error" if undeclared_as_errors else "warning"
         warning_code = "E8004" if undeclared_as_errors else "W8001"
@@ -1146,7 +1162,7 @@ class PluginRegistry:
         consume_schema_refs = self._schema_ref_by_consumed_key(spec)
 
         if publish_events and (emit_warnings or undeclared_as_errors):
-            declared_produces = {key for key in self._declared_produced_scopes(spec)}
+            declared_produces = {key for key in spec.declared_produced_scopes()}
             published_keys = sorted({event.key for event in publish_events})
             warning_severity = "error" if undeclared_as_errors else "warning"
             warning_code = "E8004" if undeclared_as_errors else "W8001"
@@ -1787,7 +1803,7 @@ class PluginRegistry:
         # Runtime config already present in ctx.config takes precedence over manifest defaults.
         base_config = ctx.config.copy()
         scoped_config = {**spec.config, **base_config}
-        produced_key_scopes = self._declared_produced_scopes(spec)
+        produced_key_scopes = spec.declared_produced_scopes()
         scope = PluginExecutionScope(
             plugin_id=plugin_id,
             allowed_dependencies=frozenset(spec.depends_on),

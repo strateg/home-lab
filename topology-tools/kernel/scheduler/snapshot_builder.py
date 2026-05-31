@@ -138,7 +138,7 @@ class SnapshotBuilder:
         if self._metadata_provider:
             scoped_config = self._metadata_provider(plugin_id, scoped_config)
 
-        produced_key_scopes = self._declared_produced_scopes(spec)
+        produced_key_scopes = spec.declared_produced_scopes()
 
         subscriptions: dict[tuple[str, str], Any] = {}
         if pipeline_state is not None:
@@ -207,18 +207,6 @@ class SnapshotBuilder:
             allowed_dependencies=frozenset(spec.depends_on),
             produced_key_scopes=produced_key_scopes,
         )
-
-    @staticmethod
-    def _declared_produced_scopes(spec: PluginSpec) -> dict[str, str]:
-        """Extract declared produced keys and their scopes."""
-        key_scopes: dict[str, str] = {}
-        for entry in spec.produces:
-            if not isinstance(entry, dict):
-                continue
-            key = entry.get("key")
-            if isinstance(key, str) and key:
-                key_scopes[key] = entry.get("scope", "pipeline_shared")
-        return key_scopes
 
     @staticmethod
     def _declared_consumes(spec: PluginSpec) -> set[tuple[str, str]]:
