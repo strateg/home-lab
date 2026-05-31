@@ -1,7 +1,19 @@
 #!/usr/bin/env python3
-"""Integration checks for TUC-0002 Terraform generator onboarding."""
+"""Integration checks for TUC-0002 Terraform generator onboarding.
+
+SUPERSEDED: This module has been replaced by test_tuc0002_terraform_v2.py which
+uses the snapshot/envelope execution model (ADR 0097/0099) for deterministic,
+isolated test execution without subprocess calls.
+"""
 
 from __future__ import annotations
+
+import pytest
+
+# Skip all tests in this module - superseded by v2 tests
+pytestmark = pytest.mark.skip(
+    reason="Superseded by test_tuc0002_terraform_v2.py using snapshot/envelope model"
+)
 
 import copy
 import hashlib
