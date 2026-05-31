@@ -182,7 +182,6 @@ def test_envelope_path_uses_pipeline_state_commit() -> None:
                 phase=Phase.RUN,
             )
         ],
-        emitted_events=[],
     )
 
     # Commit the envelope
@@ -233,7 +232,6 @@ def test_commit_envelope_does_not_mutate_context_directly() -> None:
                 phase=Phase.RUN,
             )
         ],
-        emitted_events=[],
     )
 
     # Commit envelope to PipelineState

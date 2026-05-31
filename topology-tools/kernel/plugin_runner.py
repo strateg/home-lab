@@ -41,7 +41,6 @@ def run_plugin_once(*, snapshot: PluginInputSnapshot, plugin: PluginBase) -> Plu
         return PluginExecutionEnvelope(
             result=result,
             published_messages=ctx.drain_outbox(),
-            emitted_events=ctx.drain_event_outbox(),
         )
     except Exception as exc:  # noqa: BLE001
         duration_ms = (time.perf_counter() - start_time) * 1000
@@ -66,7 +65,6 @@ def run_plugin_once(*, snapshot: PluginInputSnapshot, plugin: PluginBase) -> Plu
         return PluginExecutionEnvelope(
             result=result,
             published_messages=ctx.drain_outbox(),
-            emitted_events=ctx.drain_event_outbox(),
             execution_metadata={"runner_error": str(exc)},
         )
     finally:

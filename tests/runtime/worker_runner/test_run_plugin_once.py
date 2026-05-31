@@ -27,7 +27,6 @@ class PublisherPlugin(ValidatorJsonPlugin):
     def execute(self, ctx, stage):
         payload = ctx.subscribe("producer.input", "rows")
         ctx.publish("ready", {"rows": len(payload)})
-        ctx.emit("validator.ready", {"rows": len(payload)})
         return PluginResult.success(self.plugin_id, self.api_version)
 
 
@@ -79,8 +78,6 @@ def test_run_plugin_once_builds_envelope_from_snapshot() -> None:
     assert len(envelope.published_messages) == 1
     assert envelope.published_messages[0].key == "ready"
     assert envelope.published_messages[0].value == {"rows": 2}
-    assert len(envelope.emitted_events) == 1
-    assert envelope.emitted_events[0].topic == "validator.ready"
 
 
 def test_run_plugin_once_wraps_plugin_crash_in_failed_envelope() -> None:

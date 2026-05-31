@@ -7,7 +7,6 @@ V5_TOOLS = Path(__file__).resolve().parents[2] / "topology-tools"
 sys.path.insert(0, str(V5_TOOLS))
 
 from kernel.plugin_base import (  # noqa: E402
-    EmittedEvent,
     Phase,
     PluginExecutionEnvelope,
     PluginInputSnapshot,
@@ -33,7 +32,7 @@ def test_plugin_input_snapshot_defaults() -> None:
     assert snapshot.produced_key_scopes == {}
 
 
-def test_envelope_contains_result_messages_and_events() -> None:
+def test_envelope_contains_result_and_messages() -> None:
     result = PluginResult.success("test.plugin")
     message = PublishedMessage(
         plugin_id="test.plugin",
@@ -43,18 +42,10 @@ def test_envelope_contains_result_messages_and_events() -> None:
         stage=Stage.VALIDATE,
         phase=Phase.RUN,
     )
-    event = EmittedEvent(
-        plugin_id="test.plugin",
-        topic="test.ready",
-        payload={"ok": True},
-        stage=Stage.VALIDATE,
-        phase=Phase.RUN,
-    )
-    envelope = PluginExecutionEnvelope(result=result, published_messages=[message], emitted_events=[event])
+    envelope = PluginExecutionEnvelope(result=result, published_messages=[message])
 
     assert envelope.result is result
     assert envelope.published_messages == [message]
-    assert envelope.emitted_events == [event]
 
 
 def test_subscription_value_preserves_scope_and_origin() -> None:

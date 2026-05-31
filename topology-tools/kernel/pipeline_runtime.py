@@ -6,7 +6,6 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .plugin_base import (
-    EmittedEvent,
     Phase,
     PluginDataExchangeError,
     PluginExecutionEnvelope,
@@ -18,11 +17,10 @@ from .plugin_base import (
 
 @dataclass
 class PipelineState:
-    """Main-interpreter owner of committed published values and event log."""
+    """Main-interpreter owner of committed published values."""
 
     committed_data: dict[str, dict[str, Any]] = field(default_factory=dict)
     published_meta: dict[tuple[str, str], PublishedDataMeta] = field(default_factory=dict)
-    emitted_events: list[EmittedEvent] = field(default_factory=list)
 
     def commit_envelope(
         self,
@@ -58,14 +56,6 @@ class PipelineState:
                 )
             )
 
-        pending_events: list[EmittedEvent] = []
-        for event in envelope.emitted_events:
-            if event.plugin_id != plugin_id:
-                raise PluginDataExchangeError(
-                    f"Envelope event plugin mismatch: expected '{plugin_id}', got '{event.plugin_id}'."
-                )
-            pending_events.append(event)
-
         plugin_data = dict(self.committed_data.get(plugin_id, {}))
         for key, value, _meta in pending_messages:
             plugin_data[key] = value
@@ -73,7 +63,6 @@ class PipelineState:
         self.committed_data[plugin_id] = plugin_data
         for key, _value, meta in pending_messages:
             self.published_meta[(plugin_id, key)] = meta
-        self.emitted_events.extend(pending_events)
 
     def resolve_subscription(self, *, from_plugin: str, key: str, stage: Stage) -> SubscriptionValue:
         """Resolve a committed published value for snapshot building."""
