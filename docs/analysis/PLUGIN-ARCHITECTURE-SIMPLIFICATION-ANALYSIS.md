@@ -14,8 +14,10 @@
 | QW2: Remove Event Plane API | ✅ Complete | 2adcffeb |
 | QW3: Consolidate `_declared_produced_scopes` | ✅ Complete | 9fadd233 |
 | Extract `_validate_envelope_for_commit` | ✅ Complete | 64aca9f3 |
+| ME1: Complete ExecutionPlanner delegation | ✅ Complete | d5ea713a |
 
-**Total LOC reduction:** ~200+ lines removed from plugin_registry.py
+**Total LOC reduction:** ~330 lines removed from plugin_registry.py (2,455 → 2,328)
+**Documentation removed:** 438 lines (PLUGIN-EVENT-PATTERNS.md)
 
 ---
 
@@ -180,19 +182,18 @@ produced_key_scopes = self._declared_produced_scopes(spec)  # line 1805
 
 ### 4.3 Medium Effort Improvements
 
-#### ME1: Complete ExecutionPlanner Integration
+#### ME1: Complete ExecutionPlanner Integration ✅ COMPLETE
 
-**Current state:**
-- `ExecutionPlanner` exists in `scheduler/execution_planner.py` (232 LOC)
-- `PluginRegistry.get_execution_order()` reimplements similar logic
-- `_when_predicates_allow()` duplicated in both
+**Status:** Completed in commit d5ea713a
 
-**Action:**
-1. Make `ExecutionPlanner` the single source of truth for execution order
-2. `PluginRegistry.get_execution_order()` should delegate fully
-3. Remove duplicated `_when_predicates_allow()` from registry
+- Initialized `_execution_planner` in `PluginRegistry.__init__`
+- Delegated `_when_predicates_allow()` to ExecutionPlanner
+- Delegated `_active_changed_input_scopes()` to ExecutionPlanner
+- Delegated `_profile_allows_spec()` to ExecutionPlanner
+- Delegated `get_execution_order()` to ExecutionPlanner
+- Delegated `_plugin_sort_key()` to ExecutionPlanner
 
-**Estimated savings:** 80-100 LOC
+**Actual savings:** ~90 LOC removed from plugin_registry.py
 
 #### ME2: Extract Parallel Execution Coordination
 
