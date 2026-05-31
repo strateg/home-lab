@@ -7,17 +7,19 @@ This package provides modular components for the plugin registry:
 - dependency_resolver: Resolve plugin dependency graph
 - plugin_loader: Load plugin classes from entry points
 - config_validator: Validate plugin configuration
+- envelope_validator: Validate plugin execution envelopes
 
 Usage:
     from kernel.registry import ManifestLoader, SpecValidator
     from kernel.registry import DependencyResolver, PluginLoader
-    from kernel.registry import ConfigValidator
+    from kernel.registry import ConfigValidator, EnvelopeValidator
 """
 
 from __future__ import annotations
 
 from .config_validator import ConfigValidationError, ConfigValidator
 from .dependency_resolver import DependencyError, DependencyResolver, PluginCycleError
+from .envelope_validator import EnvelopeValidator
 from .manifest_loader import ManifestLoadError, ManifestLoader, PluginManifest
 from .plugin_loader import PluginLoadError, PluginLoader
 from .spec_validator import (
@@ -57,4 +59,6 @@ __all__ = [
     # config_validator
     "ConfigValidator",
     "ConfigValidationError",
+    # envelope_validator
+    "EnvelopeValidator",
 ]

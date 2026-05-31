@@ -77,6 +77,7 @@ from .registry import (
     ConfigValidator,
     DependencyError,
     DependencyResolver,
+    EnvelopeValidator,
     ManifestLoadError,
     ManifestLoader,
     PluginCycleError,
@@ -358,6 +359,7 @@ class PluginRegistry:
         # ADR 0063 Phase 3: Delegate to extracted components
         self._spec_validator = SpecValidator(self.specs)
         self._config_validator = ConfigValidator(self.base_path)
+        self._envelope_validator = EnvelopeValidator(self._config_validator)
         self._dependency_resolver = DependencyResolver(self.specs)
         self._snapshot_builder = SnapshotBuilder(
             self.specs,
@@ -764,65 +766,15 @@ class PluginRegistry:
         emit_warnings: bool,
         undeclared_as_errors: bool,
     ) -> list[PluginDiagnostic]:
-        diagnostics: list[PluginDiagnostic] = []
-        declared_produces = {key for key in spec.declared_produced_scopes()}
-        published_keys = sorted({message.key for message in envelope.published_messages})
-        warning_severity = "error" if undeclared_as_errors else "warning"
-        warning_code = "E8004" if undeclared_as_errors else "W8001"
-        warning_code_undeclared = "E8005" if undeclared_as_errors else "W8002"
-
-        if published_keys and (emit_warnings or undeclared_as_errors):
-            if not declared_produces:
-                diagnostics.append(
-                    PluginDiagnostic(
-                        code=warning_code,
-                        severity=warning_severity,
-                        stage=stage.value,
-                        phase=phase.value,
-                        message=(
-                            f"Plugin '{spec.id}' published keys {published_keys} "
-                            "without manifest produces declaration."
-                        ),
-                        path=f"plugin:{spec.id}",
-                        plugin_id="kernel",
-                    )
-                )
-            else:
-                undeclared_publish = sorted(key for key in published_keys if key not in declared_produces)
-                if undeclared_publish:
-                    diagnostics.append(
-                        PluginDiagnostic(
-                            code=warning_code_undeclared,
-                            severity=warning_severity,
-                            stage=stage.value,
-                            phase=phase.value,
-                            message=(
-                                f"Plugin '{spec.id}' published undeclared keys {undeclared_publish}. "
-                                "Declare them under produces[]."
-                            ),
-                            path=f"plugin:{spec.id}",
-                            plugin_id="kernel",
-                        )
-                    )
-
-        produce_schema_refs = self._schema_ref_by_produced_key(spec)
-        for message in envelope.published_messages:
-            schema_ref = produce_schema_refs.get(message.key)
-            if schema_ref is None:
-                continue
-            probe_result = PluginResult.success(spec.id, spec.api_version)
-            self._validate_schema_ref_payload(
-                result=probe_result,
-                stage=stage,
-                phase=phase,
-                spec=spec,
-                payload=message.value,
-                schema_ref=schema_ref,
-                path_suffix=f"produces.{message.key}",
-            )
-            diagnostics.extend(probe_result.diagnostics)
-
-        return diagnostics
+        """Delegate to EnvelopeValidator (ADR 0063 Phase 3)."""
+        return self._envelope_validator.validate_for_commit(
+            spec=spec,
+            stage=stage,
+            phase=phase,
+            envelope=envelope,
+            emit_warnings=emit_warnings,
+            undeclared_as_errors=undeclared_as_errors,
+        )
 
     def _failed_result_with_diagnostics(
         self,
