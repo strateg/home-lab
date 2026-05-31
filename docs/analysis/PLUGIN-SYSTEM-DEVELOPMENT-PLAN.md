@@ -80,8 +80,8 @@ Evolve the v5 plugin system to achieve:
 | Main interpreter | 1 (1.2%) | 4 (5%) ✓ |
 | Plugins with config_schema | 47 (55%) | 85 (100%) |
 | Max dependency depth | 6 | 5 |
-| Kernel LOC | 4,242 | <3,500 |
-| plugin_registry.py LOC | 2,425 (-19.2%) | <500/module |
+| Kernel LOC | 5,730 | <3,500 |
+| plugin_registry.py LOC | 2,328 (-22.4%) | <500/module |
 
 ### 2.2 Main Interpreter Plugins (Migration Candidates)
 
@@ -777,32 +777,33 @@ Document test coverage requirements for different plugin types.
 **Priority:** HIGH
 **Effort:** 40 hours
 **Owner:** TBD
-**Status:** Phase 2i Complete (19.2% reduction achieved)
+**Status:** Phase 3 Complete (24.7% total reduction achieved)
 
 **Description:**
 Split the monolithic plugin_registry.py (2,860 LOC) into focused submodules.
 
-**Current Structure (Phase 2i Complete):**
+**Current Structure (Phase 3 Complete):**
 
 ```
 topology-tools/kernel/
 ├── __init__.py
-├── plugin_base.py              # Base classes (keep as-is)
-├── pipeline_runtime.py         # Pipeline state (keep as-is)
-├── plugin_runner.py            # Execution (keep as-is)
+├── plugin_base.py              # 1097 LOC - Base classes
+├── pipeline_runtime.py         # 113 LOC - Pipeline state
+├── plugin_runner.py            # 73 LOC - Execution
 ├── registry/
-│   ├── __init__.py             # 60 LOC - Re-exports
+│   ├── __init__.py             # 64 LOC - Re-exports
 │   ├── manifest_loader.py      # 196 LOC - Manifest loading ✓
 │   ├── spec_validator.py       # 228 LOC - Spec validation ✓
-│   ├── dependency_resolver.py  # 213 LOC - Graph resolution ✓
+│   ├── dependency_resolver.py  # 201 LOC - Graph resolution ✓
 │   ├── plugin_loader.py        # 173 LOC - Class loading ✓
-│   └── config_validator.py     # 213 LOC - Config validation ✓
+│   ├── config_validator.py     # 214 LOC - Config validation ✓
+│   └── envelope_validator.py   # 180 LOC - Envelope validation ✓ (NEW)
 ├── scheduler/
-│   ├── __init__.py             # 35 LOC - Re-exports
-│   ├── execution_planner.py    # 232 LOC - Plan generation ✓
-│   ├── parallel_executor.py    # 256 LOC - Parallel execution ✓
-│   └── snapshot_builder.py     # 258 LOC - Snapshot creation ✓
-└── plugin_registry.py          # 2425 LOC - Facade + core execution logic
+│   ├── __init__.py             # 36 LOC - Re-exports
+│   ├── execution_planner.py    # 233 LOC - Plan generation ✓
+│   ├── parallel_executor.py    # 257 LOC - Parallel execution ✓
+│   └── snapshot_builder.py     # 247 LOC - Snapshot creation ✓
+└── plugin_registry.py          # 2328 LOC - Facade + core execution logic
 ```
 
 **Commit History:**
@@ -821,6 +822,11 @@ topology-tools/kernel/
 | `b3f521d1` | 2g | Delegate _load_entry_point to PluginLoader | -34 |
 | `b1c1cee8` | 2h | Delegate manifest loading to ManifestLoader | -13 |
 | `fc14fedf` | 2i | Remove unused json import | -1 |
+| `c4325e10` | 3a | Remove deprecated subinterpreter_compatible field | -30 |
+| `2adcffeb` | 3b | Remove unused Event Plane API | -120 |
+| `9fadd233` | 3c | Consolidate _declared_produced_scopes to PluginSpec | -40 |
+| `64aca9f3` | 3d | Extract _validate_envelope_for_commit to EnvelopeValidator | -50 |
+| `d5ea713a` | 3e | Complete ExecutionPlanner delegation | -90 |
 
 **Phase 1 Summary:**
 - Extracted 8 modules totaling 1,864 LOC
@@ -844,12 +850,22 @@ topology-tools/kernel/
   - ManifestLoader: _get_manifest_schema, _validate_manifest_payload
 - **Total reduction: 3000 → 2425 LOC (-575 lines, -19.2%)**
 
-**Remaining Work (Phase 3):**
-- Core execution methods (~1900 LOC) require deeper refactoring:
-  - `_execute_phase_parallel` (~350 LOC)
+**Phase 3 Summary (Phases 3a-3e complete):**
+- Removed deprecated `subinterpreter_compatible` field and fallback logic
+- Removed unused Event Plane API (~120 LOC + 438 LOC documentation)
+- Consolidated `_declared_produced_scopes` to PluginSpec method
+- Extracted `_validate_envelope_for_commit` to EnvelopeValidator
+- Completed ExecutionPlanner delegation (when predicates, execution order)
+- Created `envelope_validator.py` (180 LOC)
+- **Total reduction: 3000 → 2328 LOC (-672 lines, -22.4%)**
+- **Phase 3 additional: 2425 → 2328 LOC (-97 lines, -4.0%)**
+
+**Remaining Work (Phase 4 - Not Recommended):**
+- Core execution methods (~1900 LOC) require high-risk refactoring:
+  - `_execute_phase_parallel` (~350 LOC) - tightly coupled execution state
   - `execute_stage` (~350 LOC)
   - `execute_plugin` (~200 LOC)
-- Target: ~300 LOC facade with full delegation
+- ME2 task deferred due to high risk/effort ratio
 
 **Files Created:**
 - `topology-tools/kernel/registry/__init__.py` ✓
@@ -857,11 +873,12 @@ topology-tools/kernel/
 - `topology-tools/kernel/registry/spec_validator.py` ✓
 - `topology-tools/kernel/registry/dependency_resolver.py` ✓
 - `topology-tools/kernel/registry/plugin_loader.py` ✓
-- `topology-tools/kernel/registry/config_validator.py`
-- `topology-tools/kernel/scheduler/__init__.py`
-- `topology-tools/kernel/scheduler/execution_planner.py`
-- `topology-tools/kernel/scheduler/parallel_executor.py`
-- `topology-tools/kernel/scheduler/snapshot_builder.py`
+- `topology-tools/kernel/registry/config_validator.py` ✓
+- `topology-tools/kernel/registry/envelope_validator.py` ✓ (Phase 3)
+- `topology-tools/kernel/scheduler/__init__.py` ✓
+- `topology-tools/kernel/scheduler/execution_planner.py` ✓
+- `topology-tools/kernel/scheduler/parallel_executor.py` ✓
+- `topology-tools/kernel/scheduler/snapshot_builder.py` ✓
 
 **Acceptance Criteria:**
 - [ ] Each module <500 LOC
