@@ -1,7 +1,8 @@
 # ADR 0103: Runtime Reconciliation Status Replaces Static Instance Status
 
-- Status: Proposed
+- Status: Proposed (Revised after SPC Analysis)
 - Date: 2026-06-07
+- Revised: 2026-06-07 (SPC Review)
 
 ## Context
 
@@ -42,6 +43,18 @@ Desired State (declarative) + Actual State (queried) → Computed Status (runtim
 
 Terraform never stores "is this deployed?" in `.tf` files. It computes drift by comparing `.tf` (desired) with `.tfstate` (actual).
 
+### Architectural Constraints (from SPC Analysis)
+
+The solution must respect established framework constraints:
+
+| Constraint | Source | Implication |
+|------------|--------|-------------|
+| Stage affinity | ADR 0080, 0086 | Reconciliation ≠ validation |
+| Determinism | ADR 0074 D2 | Pipeline outputs must be reproducible |
+| CI compatibility | Infrastructure | CI cannot reach production devices |
+| Plugin timeout | ADR 0097 | 30 second default limit |
+| Fixed stages | ADR 0080 | discover→compile→validate→generate→assemble→build |
+
 ## Decision
 
 ### D1. Remove `status` field from instance YAML files
@@ -65,76 +78,137 @@ vlan_id: 30
 cidr: 10.0.30.0/24
 ```
 
-### D2. Introduce reconciliation plugin
+**Migration:** Scripted removal of `status:` line from 151 instance files.
 
-A new plugin `base.validator.device_reconciler` will compute status at runtime by comparing topology with actual device state.
+### D2. Dual-Mode Reconciliation Architecture
+
+Reconciliation operates in two distinct modes to satisfy both determinism and drift detection requirements:
+
+#### D2.1 Pipeline Mode: Terraform State Reconciler (Deterministic)
+
+A build-stage plugin computes status by parsing Terraform `.tfstate` files — deterministic, offline-capable, CI-safe.
 
 **Plugin contract:**
 ```yaml
-id: base.validator.device_reconciler
-stage: validate
+id: base.builder.terraform_state_reconciler
+kind: builder
+stage: build
+phase: verify
+order: 520
+execution_mode: subinterpreter
 consumes:
-  - from_plugin: base.compile.instance_index
-    field: instances
+  - from_plugin: base.compiler.instance_rows_prepare
+    key: normalized_rows
+    required: true
 produces:
-  - field: reconciliation_report
-    scope: pipeline
+  - key: terraform_reconciliation_report
+    scope: pipeline_shared
+config:
+  state_paths:
+    mikrotik: generated/home-lab/terraform/mikrotik/terraform.tfstate
+    proxmox: generated/home-lab/terraform/proxmox/terraform.tfstate
+  on_missing_state: warn  # warn | error | skip
 ```
 
-**Reconciliation sources:**
-| Device Type | State Source |
-|-------------|--------------|
-| MikroTik | REST API (`/rest/*`) |
-| Proxmox | Terraform state + API |
-| Docker hosts | Docker API / SSH |
-| Generic | SSH probes |
+**Why build stage (not validate):**
+- Validate stage = structural/domain validation of *source* data
+- Build stage = produce artifacts and reports from *compiled* data
+- Reconciliation produces a report artifact → build stage
+
+**Determinism guarantee:** Terraform state files are artifacts with known content. Same input → same output.
+
+#### D2.2 CLI Mode: Live Device Reconciler (On-Demand)
+
+A standalone CLI command queries live devices via REST API — non-deterministic, requires connectivity, operator-initiated.
+
+```bash
+# Live device reconciliation (not part of compile pipeline)
+./scripts/orchestration/lane.py reconcile --target rtr-mikrotik-chateau
+./scripts/orchestration/lane.py reconcile --all --format json
+```
+
+**Why separate from pipeline:**
+- Live queries are non-deterministic (violates ADR 0074)
+- Requires device connectivity (fails in CI)
+- May exceed plugin timeout (30s) for many devices
+- Operator should explicitly choose when to query devices
 
 ### D3. Define computed status values
 
 | Status | Definition | Action |
 |--------|------------|--------|
-| `synced` | Topology = Device state | None needed |
-| `drift` | Topology ≠ Device state | Review and apply |
-| `missing` | In topology, not on device | Apply to create |
-| `extra` | On device, not in topology | Import or remove |
-| `unreachable` | Device not accessible | Check connectivity |
-| `unmanaged` | No state source configured | Configure or ignore |
+| `synced` | Topology = State source | None needed |
+| `drift` | Topology ≠ State source | Review and apply |
+| `missing` | In topology, not in state | Apply to create |
+| `extra` | In state, not in topology | Import or remove |
+| `unreachable` | Device not accessible (CLI mode only) | Check connectivity |
+| `no_state` | No Terraform state file found | Run terraform apply |
 
-### D4. Add reconciliation CLI command
+### D4. State Source Precedence
 
-```bash
-# Check all devices
-./scripts/orchestration/lane.py reconcile
+When multiple state sources exist, explicit precedence:
 
-# Check specific device
-./scripts/orchestration/lane.py reconcile --target rtr-mikrotik-chateau
+| Priority | Source | Role |
+|----------|--------|------|
+| 1 | Topology YAML | **Intent** — what operator wants |
+| 2 | Terraform state | **Planned** — what Terraform last applied |
+| 3 | Device API | **Actual** — what exists on device |
 
-# Output formats
-./scripts/orchestration/lane.py reconcile --format table
-./scripts/orchestration/lane.py reconcile --format json
-./scripts/orchestration/lane.py reconcile --format summary
+Reconciliation reports show discrepancies between these layers.
+
+### D5. Reconciliation Report Format
+
+**Pipeline mode output (build artifact):**
+```
+generated/home-lab/reports/reconciliation-terraform.json
 ```
 
-**Example output:**
+**CLI mode output:**
 ```
 Reconciliation Report: rtr-mikrotik-chateau
 ═══════════════════════════════════════════
 
-Resource                    Topology    Device      Status
-────────────────────────────────────────────────────────────
-inst.vlan.servers           10.0.30.1   10.0.30.1   synced
-inst.vlan.iot               192.168.40.1 192.168.40.1 synced
-inst.vlan.guest             192.168.30.1 192.168.30.1 synced
-inst.vlan.management        10.0.99.1   10.0.99.1   synced
-bridge.internal             -           172.18.0.1  extra
-container.app-transmission  -           running     extra
+Resource                    Topology    TF State    Device      Status
+──────────────────────────────────────────────────────────────────────────
+inst.vlan.servers           10.0.30.1   10.0.30.1   10.0.30.1   synced
+inst.vlan.iot               192.168.40.1 192.168.40.1 192.168.40.1 synced
+bridge.internal             -           -           172.18.0.1  extra
+container.app-transmission  -           -           running     extra
 
-Summary: 4 synced, 0 drift, 0 missing, 2 extra
+Summary: 4 synced, 0 drift, 0 missing, 2 extra, 0 unreachable
 ```
 
-### D5. Optional: `managed_by` field for state source hints
+### D6. CI/Production Mode Selection
 
-For instances that need explicit state source configuration:
+| Environment | Pipeline Plugin | CLI Command |
+|-------------|-----------------|-------------|
+| CI | ✅ Terraform state only | ❌ Skipped (no device access) |
+| Local dev | ✅ Terraform state | ✅ Available (optional) |
+| Production | ✅ Terraform state | ✅ Available |
+
+**Profile-based configuration:**
+```yaml
+# In plugin config
+when:
+  profiles: [production, development]  # Skip in CI profile
+```
+
+### D7. Credential Integration (CLI Mode)
+
+Live device queries use existing SOPS/age secrets infrastructure:
+
+```python
+# scripts/orchestration/reconcile.py
+from scripts.secrets.sops_decrypt import decrypt_secret
+
+credentials = decrypt_secret("projects/home-lab/secrets/terraform/mikrotik.yaml")
+```
+
+No new credential paths — reuses existing `secrets/terraform/*.yaml` files.
+
+### D8. Optional `managed_by` hint field
+
+For instances requiring explicit state source mapping:
 
 ```yaml
 @instance: inst.vlan.servers
@@ -142,73 +216,79 @@ For instances that need explicit state source configuration:
 managed_by:
   tool: terraform
   state_path: generated/home-lab/terraform/mikrotik
-  resource_address: routeros_interface_vlan.vlan30
+  resource_type: routeros_interface_vlan
+  resource_name: vlan30
 ```
 
-This is optional — the reconciler should auto-discover state sources when possible.
-
-### D6. Deprecation period for `status` field
-
-1. **Phase 1 (immediate)**: Add deprecation warning when `status` field is present
-2. **Phase 2 (30 days)**: Stop reading `status` field, use reconciler only
-3. **Phase 3 (60 days)**: Remove `status` field from all instance files
+Auto-discovery is preferred; this field is for edge cases.
 
 ## Consequences
 
 ### Positive
 
-1. **Single source of truth**: Topology = intent, device = reality, status = computed
-2. **Always accurate**: Status reflects actual device state, not stale manual entries
-3. **Drift detection**: Operators can see divergence before it causes problems
-4. **Reduced maintenance**: No manual status updates after deployments
-5. **Alignment with IaC principles**: Follows Terraform/Kubernetes model
+1. **Single source of truth**: Topology = intent, state files = planned, device = actual
+2. **Deterministic pipeline**: Terraform state parsing is reproducible
+3. **CI compatibility**: No device connectivity required in CI
+4. **Drift detection**: Both state-based (fast) and live (accurate) options
+5. **Reduced maintenance**: No manual status field updates
+6. **Alignment with IaC**: Follows Terraform model
 
 ### Negative
 
-1. **Requires connectivity**: Reconciliation needs device access (REST API, SSH, etc.)
-2. **Performance overhead**: Querying devices adds latency to status checks
-3. **Complexity**: New plugin and CLI command to implement and maintain
-4. **Credential management**: Reconciler needs device credentials
+1. **Dual-mode complexity**: Two reconciliation paths to understand
+2. **State file dependency**: Requires `terraform apply` to have run
+3. **Delayed live detection**: Out-of-band changes only visible in CLI mode
+4. **Implementation effort**: Plugin + CLI + migration
 
-### Migration Impact
+### Trade-offs vs Original ADR 0103
 
-1. **~130 instance files** need `status` field removed
-2. **Validators** that check `status` field need updates
-3. **Documentation** referencing `status: mapped/modeled` needs updates
-4. **CI/CD pipelines** may need reconciliation step added
-
-### Risks
-
-1. **Device unavailability**: Reconciler must handle offline devices gracefully
-2. **API rate limits**: Batch queries to avoid overwhelming device APIs
-3. **State source ambiguity**: Some resources may have multiple potential state sources
+| Aspect | Original | Revised |
+|--------|----------|---------|
+| Stage | validate | build |
+| Mode | Single (live) | Dual (state + live) |
+| CI | Would fail | Works |
+| Determinism | Violated | Preserved |
+| Drift detection | Full | Partial (state) + Full (CLI) |
 
 ## Implementation Plan
 
-### Wave 1: Foundation (Week 1-2)
-- [ ] Create `base.validator.device_reconciler` plugin skeleton
-- [ ] Implement MikroTik REST API state fetcher
-- [ ] Add `reconcile` subcommand to `lane.py`
+### Wave 1: Foundation
+- [ ] Create `base.builder.terraform_state_reconciler` plugin
+- [ ] Implement Terraform state JSON parser
+- [ ] Add reconciliation report schema
 
-### Wave 2: Core Reconciliation (Week 3-4)
-- [ ] Implement topology-to-device comparison logic
-- [ ] Add Terraform state reader for managed resources
-- [ ] Create reconciliation report format
+### Wave 2: CLI Tool
+- [ ] Add `lane.py reconcile` subcommand
+- [ ] Implement MikroTik REST API fetcher
+- [ ] Integrate SOPS credential decryption
+- [ ] Create comparison logic (topology vs state vs device)
 
-### Wave 3: Deprecation (Week 5-6)
-- [ ] Add deprecation warnings for `status` field
-- [ ] Update validators to ignore `status` field
-- [ ] Remove `status` from instance files (scripted migration)
+### Wave 3: Migration
+- [ ] Script to remove `status` field from 151 instance files
+- [ ] Update any code referencing `status` field (currently zero)
+- [ ] Update documentation
 
 ### Wave 4: Extended Sources (Future)
 - [ ] Proxmox API state fetcher
 - [ ] Docker API state fetcher
-- [ ] SSH probe fallback for generic devices
+- [ ] Generic SSH probe
+
+## Compliance Matrix
+
+| Constraint | How Satisfied |
+|------------|---------------|
+| ADR 0080 stage affinity | Plugin in build stage (not validate) |
+| ADR 0074 determinism | Terraform state parsing (not live queries) |
+| ADR 0097 timeout | State file parsing < 1 second |
+| CI compatibility | No device connectivity required |
+| ADR 0063 plugin contract | Valid `consumes`/`produces` references |
 
 ## References
 
+- Original ADR 0103: `adr/0103-analysis/ORIGINAL-ADR-0103.md`
+- SPC Analysis: `adr/0103-analysis/SPC-ANALYSIS.md`
 - Terraform state management: https://developer.hashicorp.com/terraform/language/state
-- Kubernetes reconciliation loop: https://kubernetes.io/docs/concepts/architecture/controller/
 - ADR 0063: Plugin microkernel architecture
+- ADR 0074: Generator determinism
 - ADR 0080: Unified build pipeline
-- MikroTik REST API: https://help.mikrotik.com/docs/display/ROS/REST+API
+- ADR 0097: Subinterpreter execution
