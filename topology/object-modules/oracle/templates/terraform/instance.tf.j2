@@ -1,0 +1,54 @@
+{% for instance in instances %}
+resource "oci_core_instance" "{{ instance.resource_name }}" {
+  agent_config {
+    is_management_disabled = "false"
+    is_monitoring_disabled = "false"
+{% for plugin in instance.agent_plugins %}
+    plugins_config {
+      desired_state = "{{ plugin.state }}"
+      name          = "{{ plugin.name }}"
+    }
+{% endfor %}
+  }
+
+  availability_config {
+    recovery_action = "RESTORE_INSTANCE"
+  }
+
+  availability_domain = var.availability_domain
+  compartment_id      = var.compartment_id
+
+  create_vnic_details {
+    assign_ipv6ip             = "false"
+    assign_private_dns_record = "true"
+    assign_public_ip          = "{{ instance.public_ip | lower }}"
+    display_name              = "{{ instance.vnic_name }}"
+    subnet_id                 = var.subnet_id
+  }
+
+  display_name = "{{ instance.display_name }}"
+
+  instance_options {
+    are_legacy_imds_endpoints_disabled = "true"
+  }
+
+  is_pv_encryption_in_transit_enabled = "{{ instance.pv_encryption | lower }}"
+
+  metadata = {
+    "ssh_authorized_keys" = var.ssh_public_key
+  }
+
+  shape = "{{ instance.shape }}"
+
+  shape_config {
+    memory_in_gbs = "{{ instance.memory_gb }}"
+    ocpus         = "{{ instance.ocpus }}"
+  }
+
+  source_details {
+    source_id   = var.image_id
+    source_type = "image"
+  }
+}
+
+{% endfor %}

@@ -1,0 +1,18 @@
+# OCI Terraform Variables
+# Copy this file to terraform.tfvars and fill in your values
+# NEVER commit terraform.tfvars to version control!
+
+# Required: OCID of compartment (root tenancy or child compartment)
+compartment_id = "ocid1.tenancy.oc1..example"
+
+# Required: OCID of subnet in your VCN
+subnet_id = "ocid1.subnet.oc1.{{ region }}.example"
+
+# Required: OCID of the OS image
+image_id = "ocid1.image.oc1.{{ region }}.example"
+
+# Required: SSH public key for instance access
+ssh_public_key = "ssh-rsa AAAA... user@host"
+
+# Optional: Availability domain (defaults to {{ default_availability_domain }})
+# availability_domain = "{{ default_availability_domain }}"

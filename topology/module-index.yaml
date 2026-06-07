@@ -7,6 +7,8 @@ object_modules:
     plugins_manifest: object-modules/mikrotik/plugins.yaml
   - id: network
     plugins_manifest: object-modules/network/plugins.yaml
+  - id: oracle
+    plugins_manifest: object-modules/oracle/plugins.yaml
   - id: orangepi
     plugins_manifest: object-modules/orangepi/plugins.yaml
   - id: proxmox

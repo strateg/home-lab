@@ -2140,6 +2140,7 @@ plugins:
     artifact_manifest_compatibility_producers:
     - object.proxmox.generator.terraform
     - object.mikrotik.generator.terraform
+    - object.oracle.generator.terraform
     - object.proxmox.generator.bootstrap
     - object.mikrotik.generator.bootstrap
     - object.orangepi.generator.bootstrap
@@ -2294,6 +2295,7 @@ plugins:
     artifact_contract_compatibility_producers:
     - object.proxmox.generator.terraform
     - object.mikrotik.generator.terraform
+    - object.oracle.generator.terraform
     - object.proxmox.generator.bootstrap
     - object.mikrotik.generator.bootstrap
     - object.orangepi.generator.bootstrap

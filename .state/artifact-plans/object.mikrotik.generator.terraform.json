@@ -61,6 +61,13 @@
       "action": "warn",
       "ownership_method": "output_prefix_match",
       "ownership_proven": true,
+      "path": "generated/home-lab/terraform/mikrotik/terraform.tfstate.1780818164.backup",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
       "path": "generated/home-lab/terraform/mikrotik/terraform.tfstate.backup",
       "reason": "obsolete-shadowed"
     },

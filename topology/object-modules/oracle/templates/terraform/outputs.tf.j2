@@ -1,0 +1,19 @@
+# OCI Instance Outputs
+
+{% for instance in instances %}
+output "{{ instance.resource_name }}_id" {
+  description = "OCID of the {{ instance.display_name }} instance"
+  value       = oci_core_instance.{{ instance.resource_name }}.id
+}
+
+output "{{ instance.resource_name }}_public_ip" {
+  description = "Public IP of the {{ instance.display_name }} instance"
+  value       = oci_core_instance.{{ instance.resource_name }}.public_ip
+}
+
+output "{{ instance.resource_name }}_private_ip" {
+  description = "Private IP of the {{ instance.display_name }} instance"
+  value       = oci_core_instance.{{ instance.resource_name }}.private_ip
+}
+
+{% endfor %}

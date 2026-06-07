@@ -1,0 +1,49 @@
+{
+  "artifact_family": "terraform.oci",
+  "capabilities": [],
+  "ir_version": "1.0",
+  "obsolete_candidates": [],
+  "planned_outputs": [
+    {
+      "path": "generated/home-lab/terraform/oci/instance.tf",
+      "reason": "base-family",
+      "renderer": "jinja2",
+      "required": true,
+      "template": "terraform/instance.tf.j2"
+    },
+    {
+      "path": "generated/home-lab/terraform/oci/outputs.tf",
+      "reason": "base-family",
+      "renderer": "jinja2",
+      "required": true,
+      "template": "terraform/outputs.tf.j2"
+    },
+    {
+      "path": "generated/home-lab/terraform/oci/provider.tf",
+      "reason": "base-family",
+      "renderer": "jinja2",
+      "required": true,
+      "template": "terraform/provider.tf.j2"
+    },
+    {
+      "path": "generated/home-lab/terraform/oci/terraform.tfvars.example",
+      "reason": "base-family",
+      "renderer": "jinja2",
+      "required": true,
+      "template": "terraform/terraform.tfvars.example.j2"
+    },
+    {
+      "path": "generated/home-lab/terraform/oci/variables.tf",
+      "reason": "base-family",
+      "renderer": "jinja2",
+      "required": true,
+      "template": "terraform/variables.tf.j2"
+    }
+  ],
+  "plugin_id": "object.oracle.generator.terraform",
+  "projection_version": "1.0",
+  "schema_version": "1.0",
+  "validation_profiles": [
+    "production"
+  ]
+}

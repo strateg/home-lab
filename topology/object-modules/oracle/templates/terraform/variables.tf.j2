@@ -1,0 +1,32 @@
+# OCI Infrastructure Variables
+# These should be provided via terraform.tfvars or environment variables
+
+variable "compartment_id" {
+  description = "OCID of the compartment where resources will be created"
+  type        = string
+  sensitive   = true
+}
+
+variable "subnet_id" {
+  description = "OCID of the subnet for the instance VNIC"
+  type        = string
+  sensitive   = true
+}
+
+variable "image_id" {
+  description = "OCID of the image to use for the instance"
+  type        = string
+  sensitive   = true
+}
+
+variable "availability_domain" {
+  description = "Availability domain for the instance"
+  type        = string
+  default     = "{{ default_availability_domain }}"
+}
+
+variable "ssh_public_key" {
+  description = "SSH public key for instance access"
+  type        = string
+  sensitive   = true
+}

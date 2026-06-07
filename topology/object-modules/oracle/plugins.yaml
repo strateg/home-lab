@@ -1,0 +1,55 @@
+schema_version: 1
+plugins:
+  - id: object.oracle.generator.terraform
+    kind: generator
+    entry: plugins/generators/terraform_oci_generator.py:TerraformOCIGenerator
+    api_version: 1.x
+    stages:
+      - generate
+    phase: run
+    order: 215
+    migration_mode: migrating
+    depends_on: []
+    timeout: 30
+    execution_mode: subinterpreter
+    config:
+      terraform_version: '>= 1.6.0'
+      oci_provider_source: oracle/oci
+      oci_provider_version: '>= 5.0'
+      artifact_obsolete_action: warn
+    config_schema:
+      type: object
+      properties:
+        terraform_version:
+          type: string
+          description: Terraform CLI version constraint for versions.tf.
+        oci_provider_source:
+          type: string
+          description: Terraform provider source address for OCI.
+        oci_provider_version:
+          type: string
+          description: Terraform provider version constraint for OCI provider.
+        artifact_obsolete_action:
+          type: string
+          enum:
+            - retain
+            - delete
+            - warn
+          default: warn
+          description: Action for stale files under generator output root (ADR0093
+            safe obsolete protocol).
+      required: []
+    produces:
+      - key: generated_dir
+        scope: pipeline_shared
+      - key: generated_files
+        scope: pipeline_shared
+      - key: terraform_oci_files
+        scope: pipeline_shared
+      - key: artifact_plan
+        scope: pipeline_shared
+      - key: artifact_generation_report
+        scope: pipeline_shared
+      - key: artifact_contract_files
+        scope: pipeline_shared
+    description: Emits baseline Terraform artifacts for Oracle Cloud Infrastructure (OCI) compute instances.
