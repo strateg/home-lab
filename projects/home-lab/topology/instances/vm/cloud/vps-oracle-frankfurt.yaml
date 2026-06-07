@@ -1,10 +1,39 @@
 @instance: vps-oracle-frankfurt
 @extends: obj.oracle.cloud_vm
 @group: vm
-@version: 1.0.0
+@version: 1.1.0
 source_id: vps-oracle-frankfurt
 status: mapped
-notes: module scaffold exists; capability profile tuning pending
+notes: OCI Always Free tier ARM VM in Frankfurt
+
 firmware_ref: inst.firmware.uefi.generic.arm64
 os_refs:
 - inst.os.linux.generic.arm64
+
+# OCI Instance Details (from Terraform)
+oci:
+  display_name: instance-20260416-0744
+  vnic_name: SirinVNIC
+  region: eu-frankfurt-1
+  availability_domain: EU-FRANKFURT-1-AD-2
+  shape: VM.Standard.A1.Flex
+  ocpus: 1
+  memory_gb: 6
+  public_ip: true
+  pv_encryption: true
+
+# Hardware specs (virtual)
+hardware_specs:
+  cpu:
+    architecture: arm64
+    cores: 1
+    vendor: ampere
+    model: Ampere A1
+  memory:
+    size_mb: 6144
+    type: ddr4
+
+# Capabilities from cloud provider
+enabled_capabilities:
+- cap.compute.runtime.container_host
+- cap.compute.workload.linux_base
