@@ -352,6 +352,64 @@ Traffic is prioritized using queue trees:
 
 ---
 
+## Known Issues & Workarounds
+
+### VRF Parameter Not Supported via REST API
+
+**Problem**: При импорте существующих IP addresses в Terraform state, провайдер сохраняет атрибут `vrf: "main"`. При последующих PATCH запросах RouterOS 7.x возвращает ошибку:
+
+```
+Error: PATCH returned response code: 400, details: 'unknown parameter vrf'
+```
+
+**Причина**: VRF (Virtual Routing and Forwarding) — технология виртуализации таблиц маршрутизации. RouterOS поддерживает VRF, но REST API не позволяет изменять этот параметр через PATCH.
+
+**Что такое VRF**:
+| Аспект | Описание |
+|--------|----------|
+| Изоляция | Независимые таблицы маршрутизации на одном роутере |
+| Multi-tenancy | Обслуживание клиентов с пересекающимися IP-адресами |
+| Default | `vrf: "main"` — глобальная таблица (используется по умолчанию) |
+
+**Решение**: В шаблонах добавлен lifecycle block:
+
+```hcl
+resource "routeros_ip_address" "example" {
+  address   = "192.168.88.1/24"
+  interface = "bridge"
+
+  lifecycle {
+    # vrf not supported via REST API in RouterOS 7.x
+    ignore_changes = [vrf]
+  }
+}
+```
+
+**Для home lab**: VRF не нужен, достаточно игнорировать параметр.
+
+---
+
+### DHCP Server Requires dynamic_lease_identifiers
+
+**Problem**: RouterOS 7.x требует параметр `dynamic_lease_identifiers` для DHCP серверов:
+
+```
+Error: PATCH returned response code: 400, details: 'failure: at least one dynamic lease identifier should be specified'
+```
+
+**Решение**: В шаблонах добавлен обязательный параметр:
+
+```hcl
+resource "routeros_ip_dhcp_server" "example" {
+  name                       = "dhcp_server"
+  interface                  = "bridge"
+  address_pool               = "default-dhcp"
+  dynamic_lease_identifiers  = "client-mac,client-id"  # Required!
+}
+```
+
+---
+
 ## Troubleshooting
 
 ### REST API Not Responding
@@ -458,4 +516,4 @@ If locked out:
 
 ---
 
-**Last Updated**: 2026-03-02
+**Last Updated**: 2026-06-07

@@ -14,7 +14,64 @@
     "has_wireguard"
   ],
   "ir_version": "1.0",
-  "obsolete_candidates": [],
+  "obsolete_candidates": [
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/terraform/mikrotik/.terraform.lock.hcl",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/terraform/mikrotik/.terraform/providers/registry.terraform.io/terraform-routeros/routeros/1.99.1/linux_amd64/CHANGELOG.md",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/terraform/mikrotik/.terraform/providers/registry.terraform.io/terraform-routeros/routeros/1.99.1/linux_amd64/LICENSE.md",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/terraform/mikrotik/.terraform/providers/registry.terraform.io/terraform-routeros/routeros/1.99.1/linux_amd64/README.md",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/terraform/mikrotik/.terraform/providers/registry.terraform.io/terraform-routeros/routeros/1.99.1/linux_amd64/terraform-provider-routeros_v1.99.1",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/terraform/mikrotik/terraform.tfstate",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/terraform/mikrotik/terraform.tfstate.backup",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/terraform/mikrotik/terraform.tfvars",
+      "reason": "obsolete-shadowed"
+    }
+  ],
   "planned_outputs": [
     {
       "path": "generated/home-lab/terraform/mikrotik/addresses.tf",
