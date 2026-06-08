@@ -1,36 +1,39 @@
 @instance: vps-oracle-frankfurt
 @extends: obj.oracle.cloud_vm
 @group: vm
-@version: 1.1.0
+@version: 1.2.0
 source_id: vps-oracle-frankfurt
 status: mapped
-notes: OCI Always Free tier ARM VM in Frankfurt
+notes: OCI Always Free tier x86_64 VM in Frankfurt
 
-firmware_ref: inst.firmware.uefi.generic.arm64
+firmware_ref: inst.firmware.uefi.generic.x86_64
 os_refs:
-- inst.os.linux.generic.arm64
+- inst.os.linux.generic.x86_64
 
-# OCI Instance Details (from Terraform)
+# OCI Instance Details (from OCI API 2026-06-08)
 oci:
-  display_name: instance-20260416-0744
-  vnic_name: SirinVNIC
+  instance_id: ocid1.instance.oc1.eu-frankfurt-1.antheljtktcemiacour3ugube5pczalr6qmrumzhp43n47bkgsix3ahtr7da
+  display_name: instance-20260608-1006
+  vnic_name: Main VNIC
   region: eu-frankfurt-1
-  availability_domain: EU-FRANKFURT-1-AD-2
-  shape: VM.Standard.A1.Flex
+  availability_domain: EU-FRANKFURT-1-AD-1
+  shape: VM.Standard.E2.1.Micro
   ocpus: 1
-  memory_gb: 6
+  vcpus: 2
+  memory_gb: 1
   public_ip: true
-  pv_encryption: true
+  image_id: ocid1.image.oc1.eu-frankfurt-1.aaaaaaaaola3pvhd5tx7nnyt3ohx3ef62thau2nuxmbd7geg2u7jxvsruqmq
 
 # Hardware specs (virtual)
 hardware_specs:
   cpu:
-    architecture: arm64
+    architecture: x86_64
     cores: 1
-    vendor: ampere
-    model: Ampere A1
+    threads: 2
+    vendor: amd
+    model: AMD EPYC 7551
   memory:
-    size_mb: 6144
+    size_mb: 1024
     type: ddr4
 
 # Capabilities from cloud provider
