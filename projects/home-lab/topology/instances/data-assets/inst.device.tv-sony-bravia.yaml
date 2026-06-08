@@ -14,8 +14,8 @@ manufacturer: Sony
 model: Bravia AJ9 (XR-55A90J)
 
 # Network configuration
-# TODO: Get actual MAC address from TV network settings
-mac_address: "XX:XX:XX:XX:XX:XX"
+# MAC address stored in secrets/instances/tv-sony-bravia.yaml
+secrets_ref: secrets.instances.tv-sony-bravia
 connection_type: wifi
 
 # Assign to VPN Germany VLAN
@@ -35,7 +35,10 @@ streaming_services:
 
 # Notes for deployment
 deployment_notes: |
-  1. Get MAC address from TV: Settings → Network → About
-  2. Update mac_address field above
-  3. Configure MikroTik DHCP to assign to VLAN 50 based on MAC
-  4. Or configure separate WiFi SSID for VLAN 50
+  MAC address confirmed: F8:89:D2:C4:5C:2D (from MikroTik DHCP lease)
+  Current IP: 192.168.88.252 (default VLAN)
+
+  To move to VPN VLAN:
+  1. Create VLAN 50 on MikroTik bridge
+  2. Option A: DHCP lease with MAC→VLAN binding
+  3. Option B: Separate WiFi SSID for VLAN 50
