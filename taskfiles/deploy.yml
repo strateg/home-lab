@@ -5,6 +5,99 @@ tasks:
   # WireGuard Tunnel Deployment
   # ==========================================================================
 
+  wireguard-extract-vps-key:
+    desc: Extract VPS SSH key from secrets to /tmp/vps-ssh-key.pem
+    cmds:
+      - |
+        sops -d projects/{{.PROJECT_ID}}/secrets/instances/vps-oracle-frankfurt.yaml | \
+          {{.PYTHON}} -c "import sys,yaml; print(yaml.safe_load(sys.stdin)['ssh_private_key'])" \
+          > /tmp/vps-ssh-key.pem
+        chmod 600 /tmp/vps-ssh-key.pem
+        echo "SSH key extracted to /tmp/vps-ssh-key.pem"
+
+  wireguard-full-deploy-vps:
+    desc: Full VPS WireGuard deployment (config + firewall + OCI security + enable service)
+    vars:
+      TUNNEL: '{{default "wg0" .TUNNEL}}'
+      SSH_KEY: '{{default "/tmp/vps-ssh-key.pem" .SSH_KEY}}'
+      OCI_INSTANCE_ID: '{{default "ocid1.instance.oc1.eu-frankfurt-1.antheljtktcemiacour3ugube5pczalr6qmrumzhp43n47bkgsix3ahtr7da" .OCI_INSTANCE_ID}}'
+    cmds:
+      - task: wireguard-extract-vps-key
+      - task: wireguard-deploy-vps
+        vars:
+          SSH_KEY: "{{.SSH_KEY}}"
+          TUNNEL: "{{.TUNNEL}}"
+      - task: wireguard-setup-vps-iptables
+        vars:
+          SSH_KEY: "{{.SSH_KEY}}"
+      - task: wireguard-oci-add-security
+      - |
+        VPS_HOST=$(oci compute instance list-vnics --instance-id {{.OCI_INSTANCE_ID}} --query 'data[0]."public-ip"' --raw-output)
+        ssh -i {{.SSH_KEY}} -o StrictHostKeyChecking=no ubuntu@$VPS_HOST \
+          "sudo systemctl enable --now wg-quick@{{.TUNNEL}} && echo '✓ WireGuard service enabled'"
+      - task: wireguard-status-vps
+        vars:
+          SSH_KEY: "{{.SSH_KEY}}"
+
+  wireguard-deploy-mikrotik-sshpass:
+    desc: Deploy WireGuard to MikroTik via sshpass (reads credentials from secrets)
+    vars:
+      TUNNEL: '{{default "wg0" .TUNNEL}}'
+      MIKROTIK_HOST: '{{default "192.168.88.1" .MIKROTIK_HOST}}'
+      MIKROTIK_USER: '{{default "automator" .MIKROTIK_USER}}'
+      OCI_INSTANCE_ID: '{{default "ocid1.instance.oc1.eu-frankfurt-1.antheljtktcemiacour3ugube5pczalr6qmrumzhp43n47bkgsix3ahtr7da" .OCI_INSTANCE_ID}}'
+    preconditions:
+      - sh: 'command -v sshpass'
+        msg: "sshpass not installed. Install: apt install sshpass / nix-shell -p sshpass"
+      - sh: 'test -f generated/{{.PROJECT_ID}}/wireguard/mikrotik-{{.TUNNEL}}.rsc'
+        msg: "Config not found. Run: task build"
+    cmds:
+      - |
+        # Get MikroTik password from secrets
+        MIKROTIK_PASS=$(sops -d projects/{{.PROJECT_ID}}/secrets/instances/rtr-mikrotik-chateau.yaml | \
+          {{.PYTHON}} -c "import sys,yaml; print(yaml.safe_load(sys.stdin)['automator']['password'])")
+
+        # Get VPS IP from OCI
+        VPS_IP=$(oci compute instance list-vnics --instance-id {{.OCI_INSTANCE_ID}} --query 'data[0]."public-ip"' --raw-output)
+        echo "VPS IP: $VPS_IP"
+
+        # Read secrets for WireGuard keys
+        SECRETS=$(sops -d projects/{{.PROJECT_ID}}/secrets/tunnels/wg-home-to-oci.yaml)
+        MIKROTIK_PRIVKEY=$(echo "$SECRETS" | {{.PYTHON}} -c "import sys,yaml; print(yaml.safe_load(sys.stdin)['mikrotik']['private_key'])")
+        VPS_PUBKEY=$(echo "$SECRETS" | {{.PYTHON}} -c "import sys,yaml; print(yaml.safe_load(sys.stdin)['vps']['public_key'])")
+        PSK=$(echo "$SECRETS" | {{.PYTHON}} -c "import sys,yaml; print(yaml.safe_load(sys.stdin)['preshared_key'])")
+
+        # Read tunnel config for IPs
+        TUNNEL_IP=$(grep -A5 "endpoint_a:" projects/{{.PROJECT_ID}}/topology/instances/network/inst.tunnel.wg-home-to-oci.yaml | grep "tunnel_ip:" | awk '{print $2}')
+        ALLOWED_IPS="10.100.0.2/32,0.0.0.0/0"
+
+        echo "Deploying WireGuard to MikroTik {{.MIKROTIK_HOST}}..."
+
+        sshpass -p "$MIKROTIK_PASS" ssh -o StrictHostKeyChecking=no {{.MIKROTIK_USER}}@{{.MIKROTIK_HOST}} <<EOF
+        # Remove existing config if present
+        /interface wireguard remove [find name={{.TUNNEL}}]
+        /ip address remove [find interface={{.TUNNEL}}]
+        /interface list member remove [find interface={{.TUNNEL}}]
+
+        # Create WireGuard interface
+        /interface wireguard add name={{.TUNNEL}} listen-port=51820 private-key="$MIKROTIK_PRIVKEY" mtu=1420
+
+        # Add peer
+        /interface wireguard peers add interface={{.TUNNEL}} public-key="$VPS_PUBKEY" preshared-key="$PSK" endpoint-address=$VPS_IP endpoint-port=51820 allowed-address=$ALLOWED_IPS persistent-keepalive=25s
+
+        # Assign IP
+        /ip address add address=$TUNNEL_IP interface={{.TUNNEL}}
+
+        # Trust interface
+        /interface list member add interface={{.TUNNEL}} list=LAN
+
+        # Show result
+        /interface wireguard print
+        /interface wireguard peers print
+        EOF
+
+        echo "✓ WireGuard deployed to MikroTik"
+
   wireguard-show:
     desc: Show generated WireGuard configurations
     cmds:
@@ -171,6 +264,40 @@ tasks:
       MIKROTIK_USER: '{{default "admin" .MIKROTIK_USER}}'
     cmds:
       - ssh {{.MIKROTIK_USER}}@{{.MIKROTIK_HOST}} "/interface/wireguard/print; /interface/wireguard/peers/print"
+
+  wireguard-setup-vps-iptables:
+    desc: Set up iptables for WireGuard on VPS (inserts rule before REJECT)
+    vars:
+      VPS_USER: '{{default "ubuntu" .VPS_USER}}'
+      OCI_INSTANCE_ID: '{{default "ocid1.instance.oc1.eu-frankfurt-1.antheljtktcemiacour3ugube5pczalr6qmrumzhp43n47bkgsix3ahtr7da" .OCI_INSTANCE_ID}}'
+      SSH_KEY: '{{default "" .SSH_KEY}}'
+    cmds:
+      - |
+        VPS_HOST=$(oci compute instance list-vnics --instance-id {{.OCI_INSTANCE_ID}} --query 'data[0]."public-ip"' --raw-output)
+        SSH_OPTS="-o StrictHostKeyChecking=no"
+        if [ -n "{{.SSH_KEY}}" ]; then
+          SSH_OPTS="$SSH_OPTS -i {{.SSH_KEY}}"
+        fi
+        echo "VPS: $VPS_HOST"
+        ssh $SSH_OPTS {{.VPS_USER}}@$VPS_HOST bash -s <<'EOF'
+          # Check if UDP 51820 rule already exists
+          if sudo iptables -L INPUT -n | grep -q "udp dpt:51820"; then
+            echo "✓ UDP 51820 rule already present"
+          else
+            # Find REJECT rule position
+            REJECT_POS=$(sudo iptables -L INPUT -n --line-numbers | grep "REJECT" | head -1 | awk '{print $1}')
+            if [ -n "$REJECT_POS" ]; then
+              echo "Inserting UDP 51820 rule at position $REJECT_POS (before REJECT)"
+              sudo iptables -I INPUT $REJECT_POS -p udp --dport 51820 -j ACCEPT
+            else
+              echo "No REJECT rule found, appending UDP 51820 rule"
+              sudo iptables -A INPUT -p udp --dport 51820 -j ACCEPT
+            fi
+            # Save rules
+            sudo iptables-save | sudo tee /etc/iptables/rules.v4 > /dev/null
+            echo "✓ iptables rule added and saved"
+          fi
+        EOF
 
   # ==========================================================================
   # Original Deploy Tasks
