@@ -1,0 +1,31 @@
+@object: obj.device.smart_tv
+@extends: class.device.iot_endpoint
+@title: Smart TV Device
+@description: |
+  Smart TV with streaming capabilities.
+  Typically requires internet access for apps (Netflix, YouTube, etc.)
+  Can be assigned to VPN VLAN for geo-location bypass.
+@version: 1.0.0
+
+# Fixed properties for smart TVs
+device_type: smart_tv
+connection_type: wifi
+
+# Smart TV capabilities
+streaming_services:
+  - netflix
+  - youtube
+  - amazon_prime
+  - disney_plus
+  - local_apps
+
+# Typical network requirements
+network_requirements:
+  bandwidth_mbps: 25  # 4K streaming minimum
+  latency_sensitive: true
+  ports:
+    - 443/tcp   # HTTPS
+    - 80/tcp    # HTTP
+    - 53/udp    # DNS
+
+enabled_capabilities: []

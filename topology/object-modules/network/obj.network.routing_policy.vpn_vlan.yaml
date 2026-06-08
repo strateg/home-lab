@@ -1,0 +1,35 @@
+@object: obj.network.routing_policy.vpn_vlan
+@extends: class.network.routing_policy
+@title: VPN VLAN Routing Policy
+@description: |
+  Policy-based routing for VPN VLAN traffic.
+  Routes all traffic from specified VLAN through VPN tunnel interface.
+  Used for geo-location bypass and privacy.
+@version: 1.0.0
+
+# Default policy configuration
+policy_name: vpn-vlan-routing
+policy_description: Route VPN VLAN traffic through WireGuard tunnel
+
+# Source matching - by VLAN subnet
+source_match:
+  type: subnet
+  # Subnet will be specified in instance
+
+# Target gateway - through tunnel interface
+target_gateway:
+  type: tunnel
+  # Interface will be specified in instance
+
+# Mark for mangle rules
+routing_mark: "0x32"
+priority: 100
+enabled: true
+
+# MikroTik-specific implementation notes
+mikrotik_implementation:
+  mangle_chain: prerouting
+  routing_table: vpn-tunnel
+  connection_mark: vpn-traffic
+
+enabled_capabilities: []

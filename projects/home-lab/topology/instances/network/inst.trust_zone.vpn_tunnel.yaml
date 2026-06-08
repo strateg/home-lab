@@ -1,0 +1,39 @@
+@instance: inst.trust_zone.vpn_tunnel
+@extends: obj.network.trust_zone.user
+@group: network
+@version: 1.0.0
+source_id: zone-vpn-tunnel
+status: planned
+notes: |
+  Trust zone for devices routed through VPN tunnel.
+  - Full internet access (via VPN)
+  - Isolated from main LAN (no access to 192.168.88.0/24)
+  - Can access tunnel endpoint (10.100.0.0/30)
+
+zone_name: vpn-tunnel
+trust_level: 50  # Medium trust - internet access only
+
+# Firewall policy
+firewall_policy:
+  # Allow outbound to internet (via VPN)
+  outbound:
+    - action: accept
+      destination: 0.0.0.0/0
+      comment: "Allow internet via VPN"
+
+  # Allow established/related
+  inbound:
+    - action: accept
+      state: [established, related]
+      comment: "Allow return traffic"
+
+  # Block access to local networks
+  blocked_destinations:
+    - 192.168.88.0/24   # Main LAN
+    - 10.0.10.0/24      # Servers VLAN
+    - 10.0.99.0/24      # Management VLAN
+    - 172.18.0.0/24     # Containers
+
+  # Allow tunnel network
+  allowed_destinations:
+    - 10.100.0.0/30     # WireGuard tunnel

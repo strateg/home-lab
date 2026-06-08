@@ -1,0 +1,66 @@
+@class: class.network.routing_policy
+@title: Routing Policy
+@description: |
+  Policy-Based Routing (PBR) configuration.
+  Routes traffic based on source, destination, or marks
+  rather than traditional destination-only routing.
+@layer: L2
+@version: 1.0.0
+
+properties:
+  required:
+    - policy_name
+    - source_match
+    - target_gateway
+  optional:
+    - description
+    - routing_mark
+    - priority
+    - enabled
+
+property_schemas:
+  policy_name:
+    type: string
+    description: Policy identifier
+  description:
+    type: string
+    description: Human-readable description
+  source_match:
+    type: object
+    description: Traffic matching criteria
+    properties:
+      type:
+        type: string
+        enum: [vlan, subnet, interface, mark]
+      value:
+        type: string
+  target_gateway:
+    type: object
+    description: Where to route matched traffic
+    properties:
+      type:
+        type: string
+        enum: [interface, ip_address, tunnel]
+      value:
+        type: string
+      tunnel_ref:
+        type: string
+        format: instance_ref
+  routing_mark:
+    type: string
+    description: Firewall mark for packet tagging (hex)
+  priority:
+    type: integer
+    minimum: 1
+    maximum: 255
+    default: 100
+    description: Routing table priority
+  enabled:
+    type: boolean
+    default: true
+
+required_capabilities: []
+
+optional_capabilities: []
+
+enabled_capabilities: []

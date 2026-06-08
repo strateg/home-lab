@@ -1,0 +1,31 @@
+@instance: inst.vlan.vpn_germany
+@extends: obj.network.vlan.vpn_tunnel
+@group: network
+@version: 1.0.0
+source_id: net-vpn-germany
+status: planned
+notes: |
+  VLAN for devices requiring German IP address.
+  All traffic routed through WireGuard tunnel to VPS in Frankfurt.
+  Use cases: streaming services (Netflix DE, ARD, ZDF), geo-restricted content.
+
+# VLAN configuration
+vlan_id: 50
+cidr: 192.168.50.0/24
+gateway: 192.168.50.1
+dhcp_range: 192.168.50.100-192.168.50.200
+
+# VPN routing specifics
+vpn_routing:
+  enabled: true
+  tunnel_ref: inst.tunnel.wg-home-to-oci
+  tunnel_interface: wg0
+  routing_mark: "0x32"
+  exit_country: DE
+  exit_location: Frankfurt
+
+# Trust zone - isolated from main LAN
+trust_zone_ref: inst.trust_zone.vpn_tunnel
+
+# Managed by MikroTik Chateau
+managed_by_ref: rtr-mikrotik-chateau

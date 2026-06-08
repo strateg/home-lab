@@ -1,0 +1,66 @@
+@instance: inst.routing_policy.vpn_germany
+@extends: obj.network.routing_policy.vpn_vlan
+@group: network
+@version: 1.0.0
+source_id: policy-vpn-germany
+status: planned
+notes: |
+  Routes all traffic from VLAN 50 (VPN Germany) through WireGuard tunnel wg0.
+  Exit point: VPS in Frankfurt, Germany (92.5.172.16).
+
+# Policy identification
+policy_name: vpn-germany-routing
+policy_description: Route VLAN 50 traffic through WireGuard to Frankfurt VPS
+
+# Source: VLAN 50 subnet
+source_match:
+  type: subnet
+  value: 192.168.50.0/24
+  vlan_ref: inst.vlan.vpn_germany
+
+# Target: WireGuard tunnel
+target_gateway:
+  type: tunnel
+  value: wg0
+  tunnel_ref: inst.tunnel.wg-home-to-oci
+  next_hop: 10.100.0.2
+
+# Routing mark
+routing_mark: "0x32"
+priority: 100
+enabled: true
+
+# MikroTik implementation details
+mikrotik_config:
+  # 1. Mangle rule to mark connections from VLAN 50
+  mangle_rules:
+    - chain: prerouting
+      src_address: 192.168.50.0/24
+      action: mark-connection
+      new_connection_mark: vpn-germany
+      passthrough: true
+    - chain: prerouting
+      connection_mark: vpn-germany
+      action: mark-routing
+      new_routing_mark: to-wg0
+      passthrough: false
+
+  # 2. Routing table for VPN traffic
+  routing_table:
+    name: vpn-tunnel
+    fib: true
+
+  # 3. Route in VPN routing table
+  routes:
+    - dst_address: 0.0.0.0/0
+      gateway: wg0
+      routing_table: vpn-tunnel
+
+  # 4. Routing rule to use VPN table for marked traffic
+  routing_rules:
+    - routing_mark: to-wg0
+      action: lookup
+      table: vpn-tunnel
+
+# Managed by
+managed_by_ref: rtr-mikrotik-chateau

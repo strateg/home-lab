@@ -1,0 +1,41 @@
+@instance: inst.device.tv-sony-bravia
+@extends: obj.device.smart_tv
+@group: data-assets
+@version: 1.0.0
+source_id: tv-sony-bravia-aj9
+status: planned
+notes: |
+  Sony Bravia AJ9 Android TV.
+  Assigned to VPN Germany VLAN for German streaming services.
+
+# Device identification
+device_name: "Sony Bravia AJ9"
+manufacturer: Sony
+model: Bravia AJ9 (XR-55A90J)
+
+# Network configuration
+# TODO: Get actual MAC address from TV network settings
+mac_address: "XX:XX:XX:XX:XX:XX"
+connection_type: wifi
+
+# Assign to VPN Germany VLAN
+vlan_ref: inst.vlan.vpn_germany
+
+# IP assignment (DHCP or static)
+# ip_address: 192.168.50.10  # Uncomment for static IP
+
+# Streaming services used
+streaming_services:
+  - netflix
+  - youtube
+  - amazon_prime
+  - ard_mediathek
+  - zdf_mediathek
+  - arte
+
+# Notes for deployment
+deployment_notes: |
+  1. Get MAC address from TV: Settings → Network → About
+  2. Update mac_address field above
+  3. Configure MikroTik DHCP to assign to VLAN 50 based on MAC
+  4. Or configure separate WiFi SSID for VLAN 50

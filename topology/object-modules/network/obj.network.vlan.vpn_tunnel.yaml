@@ -1,0 +1,29 @@
+@object: obj.network.vlan.vpn_tunnel
+@extends: class.network.vlan
+@title: VPN Tunnel VLAN
+@description: |
+  VLAN for devices that route all traffic through VPN tunnel.
+  Used for geo-location bypass (e.g., streaming services).
+  All traffic from this VLAN is policy-routed through WireGuard tunnel.
+@version: 1.0.0
+
+# Default VLAN ID for VPN tunnel routing (can be overridden in instance)
+properties:
+  vlan_id: 50
+  cidr: 192.168.50.0/24
+  gateway: 192.168.50.1
+  mtu: 1420  # Match WireGuard MTU
+  dhcp_enabled: true
+  dns_servers:
+    - 1.1.1.1   # Cloudflare (avoid local DNS leaks)
+    - 8.8.8.8   # Google
+
+# VPN routing configuration
+vpn_routing:
+  enabled: true
+  tunnel_interface: wg0
+  routing_mark: "0x32"  # Firewall mark for policy routing
+  description: Route all traffic through VPN tunnel
+
+enabled_capabilities:
+  - cap.vlan.tagged

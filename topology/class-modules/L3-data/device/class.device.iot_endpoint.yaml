@@ -1,0 +1,68 @@
+@class: class.device.iot_endpoint
+@title: IoT Endpoint Device
+@description: |
+  Network-connected IoT device (smart TV, speaker, camera, etc.)
+  that connects to home network but doesn't run custom software.
+  Managed through VLAN assignment and firewall policies.
+@layer: L3
+@version: 1.0.0
+
+properties:
+  required:
+    - device_name
+    - device_type
+    - mac_address
+  optional:
+    - manufacturer
+    - model
+    - ip_address
+    - vlan_ref
+    - connection_type
+    - notes
+
+property_schemas:
+  device_name:
+    type: string
+    description: Human-readable device name
+  device_type:
+    type: string
+    enum:
+      - smart_tv
+      - smart_speaker
+      - ip_camera
+      - smart_display
+      - streaming_device
+      - game_console
+      - iot_hub
+      - other
+    description: Type of IoT device
+  mac_address:
+    type: string
+    pattern: "^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$"
+    description: Device MAC address for VLAN assignment
+  manufacturer:
+    type: string
+    description: Device manufacturer
+  model:
+    type: string
+    description: Device model
+  ip_address:
+    type: string
+    format: ipv4
+    description: Static IP (optional, can use DHCP)
+  vlan_ref:
+    type: string
+    format: instance_ref
+    target_class: class.network.vlan
+    description: VLAN assignment for this device
+  connection_type:
+    type: string
+    enum: [wifi, ethernet]
+    default: wifi
+    description: Network connection type
+
+required_capabilities: []
+
+optional_capabilities: []
+
+enabled_capabilities: []

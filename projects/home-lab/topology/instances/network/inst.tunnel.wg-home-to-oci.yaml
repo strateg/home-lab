@@ -25,6 +25,7 @@ endpoint_a:
   allowed_ips:
     - 10.100.0.1/32
     - 192.168.88.0/24      # Default LAN
+    - 192.168.50.0/24      # VPN Germany VLAN
     - 10.0.10.0/24         # Servers VLAN
     - 10.0.99.0/24         # Management VLAN
 
@@ -63,9 +64,21 @@ firewall:
   # Trust tunnel interface on MikroTik
   mikrotik_interface_list: LAN
 
+# NAT configuration on VPS (for VPN VLAN traffic)
+vps_nat:
+  enabled: true
+  masquerade:
+    source_networks:
+      - 192.168.50.0/24    # VPN Germany VLAN
+    out_interface: ens3    # VPS public interface
+  iptables_rules:
+    - "-t nat -A POSTROUTING -s 192.168.50.0/24 -o ens3 -j MASQUERADE"
+  ip_forward: true
+
 # Use cases for this tunnel
 use_cases:
   - Access home network services from VPS
   - Expose home services via VPS public IP (reverse proxy)
   - Backup home data to OCI object storage
   - Monitoring home infrastructure from cloud
+  - Route VPN VLAN traffic through German IP (geo-bypass)
