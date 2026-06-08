@@ -325,6 +325,19 @@ Internet (LTE/WAN)
 - `*.pem`, `*.key`
 - Unencrypted secret files
 
+**Never include in commit messages:**
+- IP addresses (public or private)
+- OCIDs, ARNs, or other cloud resource identifiers
+- Hostnames or FQDNs of infrastructure
+- SSH keys or fingerprints
+- Any data from SOPS-encrypted files in `projects/*/secrets/`
+- Credentials, tokens, or API keys
+
+When writing commit messages for infrastructure changes, use generic descriptions:
+- "updated instance configuration" instead of "changed IP to 1.2.3.4"
+- "replaced cloud instance" instead of "new OCID: ocid1.instance..."
+- "updated secrets" instead of listing secret values
+
 **Use:**
 - SOPS with age for secrets in `projects/home-lab/secrets/`
 - Environment variables for runtime secrets
