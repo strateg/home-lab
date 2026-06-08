@@ -1,0 +1,33 @@
+# WireGuard Configuration for Linux (wg-quick)
+# Tunnel: {{ tunnel.instance_id }}
+# Generated from topology - DO NOT EDIT MANUALLY
+#
+# Deploy:
+#   sudo cp {{ tunnel_name }}.conf /etc/wireguard/{{ tunnel_name }}.conf
+#   sudo chmod 600 /etc/wireguard/{{ tunnel_name }}.conf
+#   sudo systemctl enable --now wg-quick@{{ tunnel_name }}
+
+[Interface]
+# {{ endpoint_b.device_ref }} ({{ endpoint_b.role }})
+Address = {{ endpoint_b.tunnel_ip }}
+ListenPort = {{ endpoint_b.listen_port | default(51820) }}
+PrivateKey = {{ vps_keys.private_key }}
+MTU = {{ mtu }}
+
+# Optional: Enable IP forwarding and NAT
+# PostUp = iptables -A FORWARD -i {{ tunnel_name }} -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+# PostDown = iptables -D FORWARD -i {{ tunnel_name }} -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
+
+[Peer]
+# {{ endpoint_a.device_ref }} ({{ endpoint_a.role }})
+PublicKey = {{ mikrotik_keys.public_key }}
+{% if psk %}
+PresharedKey = {{ psk }}
+{% endif %}
+AllowedIPs = {{ endpoint_a.allowed_ips | join(', ') }}
+{% if endpoint_a.get('public_endpoint') %}
+Endpoint = {{ endpoint_a.public_endpoint }}:{{ endpoint_a.listen_port | default(51820) }}
+{% endif %}
+{% if endpoint_a.role == 'client' %}
+# Client initiates connection, no PersistentKeepalive needed on server
+{% endif %}

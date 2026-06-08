@@ -1,0 +1,108 @@
+# WireGuard Tunnel Configurations
+
+Generated from topology by `base.generator.wireguard`.
+
+## Tunnels
+
+{% for tunnel in tunnels %}
+### {{ tunnel.instance_id }}
+
+| Parameter | Value |
+|-----------|-------|
+| Interface | {{ tunnel.tunnel_name }} |
+| Network | {{ tunnel.tunnel_network }} |
+| MTU | {{ tunnel.mtu }} |
+| Keepalive | {{ tunnel.keepalive_interval }}s |
+
+**Endpoints:**
+
+| Role | Device | Tunnel IP |
+|------|--------|-----------|
+| {{ tunnel.endpoint_a.role }} | {{ tunnel.endpoint_a.device_ref }} | {{ tunnel.endpoint_a.tunnel_ip }} |
+| {{ tunnel.endpoint_b.role }} | {{ tunnel.endpoint_b.device_ref }} | {{ tunnel.endpoint_b.tunnel_ip }} |
+
+{% endfor %}
+
+## Deployment
+
+### Prerequisites
+
+1. **OCI Security List** - Open UDP port 51820:
+   ```bash
+   # Via OCI Console: Networking → VCN → Security Lists → Add Ingress Rule
+   # Protocol: UDP, Port: 51820, Source: 0.0.0.0/0
+   ```
+
+2. **Ubuntu packages**:
+   ```bash
+   sudo apt update && sudo apt install -y wireguard
+   ```
+
+### Deploy to VPS (Linux)
+
+```bash
+# Copy configuration
+sudo cp vps-wg0.conf /etc/wireguard/wg0.conf
+sudo chmod 600 /etc/wireguard/wg0.conf
+
+# Enable IP forwarding (if routing)
+echo 'net.ipv4.ip_forward=1' | sudo tee -a /etc/sysctl.conf
+sudo sysctl -p
+
+# Start WireGuard
+sudo systemctl enable --now wg-quick@wg0
+
+# Verify
+sudo wg show
+```
+
+### Deploy to MikroTik
+
+```bash
+# Upload script
+scp mikrotik-wg0.rsc admin@<MIKROTIK_IP>:/flash/wireguard/
+
+# Execute via SSH
+ssh admin@<MIKROTIK_IP> '/import flash/wireguard/mikrotik-wg0.rsc'
+```
+
+Or via WinBox: Files → Upload → System → Scripts → Run Script
+
+### Verification
+
+**MikroTik:**
+```
+/interface wireguard print
+/interface wireguard peers print
+/ping 10.100.0.2
+```
+
+**VPS:**
+```bash
+sudo wg show
+ping 10.100.0.1
+```
+
+## Troubleshooting
+
+| Issue | Check |
+|-------|-------|
+| No handshake | OCI Security List, VPS firewall, public IP in MikroTik config |
+| Handshake but no traffic | IP forwarding, AllowedIPs, routing |
+| Intermittent drops | PersistentKeepalive, LTE stability |
+
+## Files
+
+| File | Purpose |
+|------|---------|
+{% for tunnel in tunnels %}
+| `mikrotik-{{ tunnel.tunnel_name }}.rsc` | MikroTik RouterOS script |
+| `vps-{{ tunnel.tunnel_name }}.conf` | Linux wg-quick configuration |
+{% endfor %}
+| `README.md` | This documentation |
+
+## Security Notes
+
+- Private keys stored in SOPS-encrypted secrets
+- Pre-shared key provides post-quantum security
+- Tunnel interface trusted on MikroTik firewall

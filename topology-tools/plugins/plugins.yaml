@@ -2110,6 +2110,54 @@ plugins:
     scope: pipeline_shared
   description: Generates docker-compose.yaml files from Docker stack instances (ADR
     0087 Phase 6).
+
+# -----------------------------------------------------------------------------
+# WireGuard Generator
+# -----------------------------------------------------------------------------
+- id: base.generator.wireguard
+  kind: generator
+  entry: generators/wireguard_generator.py:WireguardGenerator
+  api_version: 1.x
+  stages:
+  - generate
+  phase: post
+  order: 240
+  depends_on:
+  - base.compiler.effective_model
+  timeout: 30
+  execution_mode: subinterpreter
+  config:
+    artifact_obsolete_action: warn
+  config_schema:
+    type: object
+    properties:
+      project_root:
+        type: string
+        description: Root path to project for secrets resolution.
+      artifact_obsolete_action:
+        type: string
+        enum:
+        - retain
+        - delete
+        - warn
+        default: warn
+        description: Action for stale files under generator output root.
+    required: []
+  produces:
+  - key: generated_dir
+    scope: pipeline_shared
+  - key: generated_files
+    scope: pipeline_shared
+  - key: wireguard_configs
+    scope: pipeline_shared
+  - key: artifact_plan
+    scope: pipeline_shared
+  - key: artifact_generation_report
+    scope: pipeline_shared
+  - key: artifact_contract_files
+    scope: pipeline_shared
+  description: Generates WireGuard tunnel configurations for MikroTik and Linux endpoints.
+
 - id: base.generator.artifact_manifest
   execution_mode: subinterpreter
   kind: generator
@@ -2127,6 +2175,7 @@ plugins:
   - base.generator.diagrams
   - base.generator.topology_graph
   - base.generator.docker_compose
+  - base.generator.wireguard
   timeout: 30
   config:
     artifact_manifest_producers:
@@ -2137,6 +2186,7 @@ plugins:
     - base.generator.diagrams
     - base.generator.topology_graph
     - base.generator.docker_compose
+    - base.generator.wireguard
     artifact_manifest_compatibility_producers:
     - object.proxmox.generator.terraform
     - object.mikrotik.generator.terraform

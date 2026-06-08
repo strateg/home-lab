@@ -1,0 +1,62 @@
+# WireGuard Configuration for MikroTik
+# Tunnel: {{ tunnel.instance_id }}
+# Generated from topology - DO NOT EDIT MANUALLY
+#
+# Deploy: /import flash/wireguard/{{ tunnel_name }}.rsc
+
+# =============================================================================
+# 1. Create WireGuard Interface
+# =============================================================================
+/interface wireguard
+add name={{ tunnel_name }} \
+    listen-port={{ endpoint_a.listen_port | default(51820) }} \
+    private-key="{{ mikrotik_keys.private_key }}" \
+    mtu={{ mtu }} \
+    comment="Tunnel: {{ tunnel.instance_id }}"
+
+# =============================================================================
+# 2. Add WireGuard Peer (Remote endpoint)
+# =============================================================================
+/interface wireguard peers
+add interface={{ tunnel_name }} \
+    public-key="{{ vps_keys.public_key }}" \
+{% if psk %}
+    preshared-key="{{ psk }}" \
+{% endif %}
+{% if endpoint_b.get('public_endpoint') %}
+    endpoint-address={{ endpoint_b.public_endpoint }} \
+    endpoint-port={{ endpoint_b.listen_port | default(51820) }} \
+{% endif %}
+    allowed-address={{ endpoint_b.allowed_ips | join(',') }} \
+{% if keepalive > 0 %}
+    persistent-keepalive={{ keepalive }}s \
+{% endif %}
+    comment="Remote: {{ endpoint_b.device_ref }}"
+
+# =============================================================================
+# 3. Assign IP Address to WireGuard Interface
+# =============================================================================
+/ip address
+add address={{ endpoint_a.tunnel_ip }} interface={{ tunnel_name }} \
+    comment="WireGuard tunnel IP"
+
+# =============================================================================
+# 4. Add Interface to LAN List (firewall trust)
+# =============================================================================
+/interface list member
+add interface={{ tunnel_name }} list=LAN \
+    comment="Trust WireGuard tunnel"
+
+# =============================================================================
+# 5. Static Routes (optional - uncomment if needed)
+# =============================================================================
+{% for network in tunnel.routing.allowed_networks | default([]) %}
+# /ip route add dst-address={{ network }} gateway={{ tunnel_name }}
+{% endfor %}
+
+# =============================================================================
+# VERIFICATION
+# =============================================================================
+# /interface wireguard print
+# /interface wireguard peers print
+# /ping {{ endpoint_b.tunnel_ip.split('/')[0] }}

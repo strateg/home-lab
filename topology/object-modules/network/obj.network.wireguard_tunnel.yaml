@@ -1,0 +1,138 @@
+@object: obj.network.wireguard_tunnel
+@extends: class.network.tunnel_link
+@title: WireGuard Site-to-Site Tunnel
+@description: |
+  WireGuard point-to-point tunnel for site-to-site connectivity.
+  Provides encrypted L3 overlay between two endpoints with automatic
+  key exchange and minimal configuration overhead.
+@version: 1.0.0
+
+# Fixed properties for WireGuard
+tunnel_type: wireguard
+encapsulation: udp
+encryption: chacha20_poly1305
+mtu: 1420
+keepalive_interval: 25
+topology: point_to_point
+
+# WireGuard-specific configuration schema
+wireguard_config:
+  listen_port:
+    type: integer
+    minimum: 1024
+    maximum: 65535
+    default: 51820
+    description: UDP port for WireGuard listener
+
+  persistent_keepalive:
+    type: integer
+    minimum: 0
+    maximum: 3600
+    default: 25
+    description: Keepalive interval for NAT traversal (0 = disabled)
+
+# Instance schema for tunnel endpoints
+instance_schema:
+  required:
+    - tunnel_name
+    - endpoint_a
+    - endpoint_b
+    - tunnel_network
+  properties:
+    tunnel_name:
+      type: string
+      pattern: "^wg[0-9]+$"
+      description: Interface name (e.g., wg0, wg1)
+
+    endpoint_a:
+      type: object
+      description: First tunnel endpoint (typically initiator/client side)
+      required:
+        - device_ref
+        - role
+        - tunnel_ip
+      properties:
+        device_ref:
+          type: string
+          format: instance_ref
+          description: Reference to device instance
+        role:
+          type: string
+          enum: [server, client, peer]
+          description: WireGuard role on this endpoint
+        tunnel_ip:
+          type: string
+          format: ipv4_cidr
+          description: IP address on tunnel interface
+        listen_port:
+          type: integer
+          description: UDP listen port (required for server role)
+        public_endpoint:
+          type: string
+          description: Public IP or hostname for incoming connections
+        allowed_ips:
+          type: array
+          items:
+            type: string
+            format: ipv4_cidr
+          description: Networks routed through this peer
+
+    endpoint_b:
+      type: object
+      description: Second tunnel endpoint (typically responder/server side)
+      required:
+        - device_ref
+        - role
+        - tunnel_ip
+      properties:
+        device_ref:
+          type: string
+          format: instance_ref
+        role:
+          type: string
+          enum: [server, client, peer]
+        tunnel_ip:
+          type: string
+          format: ipv4_cidr
+        listen_port:
+          type: integer
+        public_endpoint:
+          type: string
+        allowed_ips:
+          type: array
+          items:
+            type: string
+            format: ipv4_cidr
+
+    tunnel_network:
+      type: string
+      format: ipv4_cidr
+      description: Tunnel subnet (e.g., 10.100.0.0/30)
+
+    routing:
+      type: object
+      description: Routing configuration for tunnel
+      properties:
+        propagate_routes:
+          type: boolean
+          default: true
+        route_all_traffic:
+          type: boolean
+          default: false
+        allowed_networks:
+          type: array
+          items:
+            type: string
+            format: ipv4_cidr
+
+enabled_capabilities:
+  - cap.net.overlay.vpn.wireguard.server
+  - cap.net.overlay.vpn.wireguard.client
+
+vendor_capabilities: []
+
+use_cases:
+  - Site-to-site VPN between home router and cloud VPS
+  - Secure tunnel for remote network access
+  - Integration of cloud resources into home network
+  - Bypass NAT/CGNAT for incoming connections via VPS relay

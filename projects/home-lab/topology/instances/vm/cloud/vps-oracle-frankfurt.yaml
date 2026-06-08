@@ -8,7 +8,7 @@ notes: OCI Always Free tier x86_64 VM in Frankfurt
 
 firmware_ref: inst.firmware.uefi.generic.x86_64
 os_refs:
-- inst.os.linux.generic.x86_64
+- inst.os.ubuntu.2404.x86_64.oci
 
 # OCI Instance Details (from OCI API 2026-06-08)
 oci:

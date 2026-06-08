@@ -2,7 +2,57 @@
   "artifact_family": "terraform.oci",
   "capabilities": [],
   "ir_version": "1.0",
-  "obsolete_candidates": [],
+  "obsolete_candidates": [
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/terraform/oci/.terraform.lock.hcl",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/terraform/oci/.terraform/providers/registry.terraform.io/oracle/oci/8.17.0/linux_amd64/terraform-provider-oci_v8.17.0",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/terraform/oci/auth_check.tf",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/terraform/oci/terraform.tfstate",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/terraform/oci/terraform.tfstate.1780852715.backup",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/terraform/oci/terraform.tfstate.backup",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/terraform/oci/terraform.tfvars",
+      "reason": "obsolete-shadowed"
+    }
+  ],
   "planned_outputs": [
     {
       "path": "generated/home-lab/terraform/oci/instance.tf",

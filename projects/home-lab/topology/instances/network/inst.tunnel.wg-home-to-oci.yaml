@@ -1,0 +1,71 @@
+@instance: inst.tunnel.wg-home-to-oci
+@extends: obj.network.wireguard_tunnel
+@group: network
+@version: 1.0.0
+source_id: inst.tunnel.wg-home-to-oci
+status: planned
+notes: |
+  WireGuard site-to-site tunnel between home MikroTik router and
+  Oracle Cloud VPS for integrating cloud resources into home network.
+
+# Tunnel interface name
+tunnel_name: wg0
+
+# Tunnel network (point-to-point /30)
+tunnel_network: 10.100.0.0/30
+
+# Endpoint A: MikroTik Chateau (client/initiator)
+# Behind LTE/NAT, initiates connection to VPS
+endpoint_a:
+  device_ref: rtr-mikrotik-chateau
+  role: client
+  tunnel_ip: 10.100.0.1/30
+  persistent_keepalive: 25
+  # Networks that MikroTik will advertise through tunnel
+  allowed_ips:
+    - 10.100.0.1/32
+    - 192.168.88.0/24      # Default LAN
+    - 10.0.10.0/24         # Servers VLAN
+    - 10.0.99.0/24         # Management VLAN
+
+# Endpoint B: Oracle Cloud VPS (server/responder)
+# Has public IP, accepts incoming connections
+endpoint_b:
+  device_ref: vps-oracle-frankfurt
+  role: server
+  tunnel_ip: 10.100.0.2/30
+  listen_port: 51820
+  # public_endpoint loaded from secrets
+  # Networks accessible through VPS
+  allowed_ips:
+    - 10.100.0.2/32
+    - 0.0.0.0/0            # Can route all traffic if needed
+
+# Routing configuration
+routing:
+  propagate_routes: true
+  route_all_traffic: false
+  # Networks to route through tunnel from home side
+  allowed_networks:
+    - 10.100.0.0/30        # Tunnel network itself
+
+# WireGuard keys stored in secrets
+# Reference: projects/home-lab/secrets/tunnels/wg-home-to-oci.yaml
+secrets_ref: secrets.tunnels.wg-home-to-oci
+
+# Firewall integration
+firewall:
+  # Allow WireGuard UDP on VPS
+  vps_allow_inbound:
+    protocol: udp
+    port: 51820
+    source: any
+  # Trust tunnel interface on MikroTik
+  mikrotik_interface_list: LAN
+
+# Use cases for this tunnel
+use_cases:
+  - Access home network services from VPS
+  - Expose home services via VPS public IP (reverse proxy)
+  - Backup home data to OCI object storage
+  - Monitoring home infrastructure from cloud

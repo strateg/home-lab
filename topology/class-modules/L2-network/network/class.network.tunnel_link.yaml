@@ -1,0 +1,67 @@
+@class: class.network.tunnel_link
+@title: Network Tunnel Link
+@description: |
+  Encrypted overlay tunnel link between two endpoints over L3 network.
+  Supports point-to-point and hub-spoke topologies for site-to-site VPN,
+  remote access, and network extension use cases.
+@layer: L2
+@version: 1.0.0
+
+properties:
+  required:
+    - tunnel_type
+    - mtu
+  optional:
+    - encapsulation
+    - encryption
+    - keepalive_interval
+    - topology
+
+property_schemas:
+  tunnel_type:
+    type: string
+    enum: [wireguard, ipsec, gre, gre_ipsec, openvpn, vxlan]
+    description: Type of tunnel protocol
+  mtu:
+    type: integer
+    minimum: 1280
+    maximum: 9000
+    default: 1420
+    description: Maximum transmission unit for tunnel interface (typically 1420 for WireGuard)
+  encapsulation:
+    type: string
+    enum: [udp, esp, tcp]
+    default: udp
+    description: Transport encapsulation protocol
+  encryption:
+    type: string
+    enum: [chacha20_poly1305, aes_gcm_256, aes_cbc_256, none]
+    default: chacha20_poly1305
+    description: Encryption algorithm for tunnel payload
+  keepalive_interval:
+    type: integer
+    minimum: 0
+    maximum: 3600
+    default: 25
+    description: Keepalive interval in seconds (0 = disabled)
+  topology:
+    type: string
+    enum: [point_to_point, hub_spoke, mesh]
+    default: point_to_point
+    description: Tunnel topology type
+
+required_capabilities:
+  - cap.net.overlay.vpn.wireguard.server
+  - cap.net.overlay.vpn.wireguard.client
+
+optional_capabilities:
+  - cap.net.overlay.vpn.ipsec
+  - cap.net.overlay.vpn.openvpn.server
+  - cap.net.overlay.vpn.openvpn.client
+  - cap.net.overlay.vpn.multi_instance
+
+enabled_capabilities: []
+
+invariants:
+  - tunnel endpoints must have compatible tunnel_type capability
+  - mtu must be less than underlying link mtu minus encapsulation overhead

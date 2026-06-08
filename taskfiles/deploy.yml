@@ -1,6 +1,108 @@
 version: "3"
 
 tasks:
+  # ==========================================================================
+  # WireGuard Tunnel Deployment
+  # ==========================================================================
+
+  wireguard-show:
+    desc: Show generated WireGuard configurations
+    cmds:
+      - "ls -la generated/{{.PROJECT_ID}}/wireguard/ 2>/dev/null || echo 'No WireGuard configs found. Run: task generate:all'"
+
+  wireguard-deploy-vps:
+    desc: Deploy WireGuard config to VPS (requires VPS_HOST=<ip>, TUNNEL=<name>)
+    requires:
+      vars:
+        - VPS_HOST
+    vars:
+      TUNNEL: '{{default "wg0" .TUNNEL}}'
+      VPS_USER: '{{default "ubuntu" .VPS_USER}}'
+      CONF_FILE: 'generated/{{.PROJECT_ID}}/wireguard/vps-{{.TUNNEL}}.conf'
+    preconditions:
+      - sh: 'test -f {{.CONF_FILE}}'
+        msg: "Config file not found: {{.CONF_FILE}}. Run: task generate:all"
+    cmds:
+      - echo "Deploying WireGuard config to {{.VPS_USER}}@{{.VPS_HOST}}..."
+      - scp {{.CONF_FILE}} {{.VPS_USER}}@{{.VPS_HOST}}:/tmp/{{.TUNNEL}}.conf
+      - ssh {{.VPS_USER}}@{{.VPS_HOST}} "sudo cp /tmp/{{.TUNNEL}}.conf /etc/wireguard/{{.TUNNEL}}.conf && sudo chmod 600 /etc/wireguard/{{.TUNNEL}}.conf"
+      - 'echo "Config deployed. To activate: ssh {{.VPS_USER}}@{{.VPS_HOST}} sudo systemctl enable --now wg-quick@{{.TUNNEL}}"'
+
+  wireguard-get-vps-ip:
+    desc: Get current VPS public IP from OCI API
+    vars:
+      OCI_INSTANCE_ID: '{{default "ocid1.instance.oc1.eu-frankfurt-1.antheljtktcemiacour3ugube5pczalr6qmrumzhp43n47bkgsix3ahtr7da" .OCI_INSTANCE_ID}}'
+    cmds:
+      - oci compute instance list-vnics --instance-id {{.OCI_INSTANCE_ID}} --query 'data[0]."public-ip"' --raw-output
+
+  wireguard-deploy-mikrotik:
+    desc: Deploy WireGuard config to MikroTik with dynamic VPS IP (requires MIKROTIK_HOST)
+    requires:
+      vars:
+        - MIKROTIK_HOST
+    vars:
+      TUNNEL: '{{default "wg0" .TUNNEL}}'
+      MIKROTIK_USER: '{{default "admin" .MIKROTIK_USER}}'
+      RSC_FILE: 'generated/{{.PROJECT_ID}}/wireguard/mikrotik-{{.TUNNEL}}.rsc'
+      OCI_INSTANCE_ID: '{{default "ocid1.instance.oc1.eu-frankfurt-1.antheljtktcemiacour3ugube5pczalr6qmrumzhp43n47bkgsix3ahtr7da" .OCI_INSTANCE_ID}}'
+    preconditions:
+      - sh: 'test -f {{.RSC_FILE}}'
+        msg: "Config file not found: {{.RSC_FILE}}. Run: task generate:all"
+      - sh: 'command -v oci'
+        msg: "OCI CLI not installed. Install: https://docs.oracle.com/en-us/iaas/Content/API/SDKDocs/cliinstall.htm"
+    cmds:
+      - |
+        echo "Querying OCI for VPS public IP..."
+        VPS_IP=$(oci compute instance list-vnics --instance-id {{.OCI_INSTANCE_ID}} --query 'data[0]."public-ip"' --raw-output)
+        if [ -z "$VPS_IP" ] || [ "$VPS_IP" = "null" ]; then
+          echo "ERROR: Could not get VPS public IP from OCI"
+          exit 1
+        fi
+        echo "VPS public IP: $VPS_IP"
+
+        echo "Preparing config with endpoint..."
+        TMP_RSC="/tmp/mikrotik-{{.TUNNEL}}-deploy.rsc"
+
+        # Check if config already has endpoint-address
+        if grep -q "endpoint-address=" {{.RSC_FILE}}; then
+          # Replace existing endpoint-address
+          sed "s/endpoint-address=[^ ]*/endpoint-address=$VPS_IP/" {{.RSC_FILE}} > "$TMP_RSC"
+        else
+          # Add endpoint-address after public-key line
+          sed "/public-key=/a\\    endpoint-address=$VPS_IP \\\\" {{.RSC_FILE}} > "$TMP_RSC"
+        fi
+
+        echo "Deploying to {{.MIKROTIK_USER}}@{{.MIKROTIK_HOST}}..."
+        scp "$TMP_RSC" {{.MIKROTIK_USER}}@{{.MIKROTIK_HOST}}:/flash/wireguard-{{.TUNNEL}}.rsc
+        rm -f "$TMP_RSC"
+
+        echo "Config uploaded with endpoint $VPS_IP"
+        echo "To apply: ssh {{.MIKROTIK_USER}}@{{.MIKROTIK_HOST}} /import flash/wireguard-{{.TUNNEL}}.rsc"
+
+  wireguard-status-vps:
+    desc: Check WireGuard status on VPS (requires VPS_HOST=<ip>)
+    requires:
+      vars:
+        - VPS_HOST
+    vars:
+      VPS_USER: '{{default "ubuntu" .VPS_USER}}'
+    cmds:
+      - ssh {{.VPS_USER}}@{{.VPS_HOST}} "sudo wg show"
+
+  wireguard-status-mikrotik:
+    desc: Check WireGuard status on MikroTik (requires MIKROTIK_HOST=<ip>)
+    requires:
+      vars:
+        - MIKROTIK_HOST
+    vars:
+      MIKROTIK_USER: '{{default "admin" .MIKROTIK_USER}}'
+    cmds:
+      - ssh {{.MIKROTIK_USER}}@{{.MIKROTIK_HOST}} "/interface/wireguard/print; /interface/wireguard/peers/print"
+
+  # ==========================================================================
+  # Original Deploy Tasks
+  # ==========================================================================
+
   _init-node:
     internal: true
     desc: Internal helper for init-node.py invocations
