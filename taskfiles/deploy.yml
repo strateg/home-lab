@@ -11,22 +11,36 @@ tasks:
       - "ls -la generated/{{.PROJECT_ID}}/wireguard/ 2>/dev/null || echo 'No WireGuard configs found. Run: task generate:all'"
 
   wireguard-deploy-vps:
-    desc: Deploy WireGuard config to VPS (requires VPS_HOST=<ip>, TUNNEL=<name>)
-    requires:
-      vars:
-        - VPS_HOST
+    desc: Deploy WireGuard config to VPS (auto-discovers IP from OCI)
     vars:
       TUNNEL: '{{default "wg0" .TUNNEL}}'
       VPS_USER: '{{default "ubuntu" .VPS_USER}}'
       CONF_FILE: 'generated/{{.PROJECT_ID}}/wireguard/vps-{{.TUNNEL}}.conf'
+      OCI_INSTANCE_ID: '{{default "ocid1.instance.oc1.eu-frankfurt-1.antheljtktcemiacour3ugube5pczalr6qmrumzhp43n47bkgsix3ahtr7da" .OCI_INSTANCE_ID}}'
+      SSH_KEY: '{{default "" .SSH_KEY}}'
     preconditions:
       - sh: 'test -f {{.CONF_FILE}}'
         msg: "Config file not found: {{.CONF_FILE}}. Run: task generate:all"
+      - sh: 'command -v oci'
+        msg: "OCI CLI not installed"
     cmds:
-      - echo "Deploying WireGuard config to {{.VPS_USER}}@{{.VPS_HOST}}..."
-      - scp {{.CONF_FILE}} {{.VPS_USER}}@{{.VPS_HOST}}:/tmp/{{.TUNNEL}}.conf
-      - ssh {{.VPS_USER}}@{{.VPS_HOST}} "sudo cp /tmp/{{.TUNNEL}}.conf /etc/wireguard/{{.TUNNEL}}.conf && sudo chmod 600 /etc/wireguard/{{.TUNNEL}}.conf"
-      - 'echo "Config deployed. To activate: ssh {{.VPS_USER}}@{{.VPS_HOST}} sudo systemctl enable --now wg-quick@{{.TUNNEL}}"'
+      - |
+        VPS_HOST=$(oci compute instance list-vnics --instance-id {{.OCI_INSTANCE_ID}} --query 'data[0]."public-ip"' --raw-output)
+        if [ -z "$VPS_HOST" ] || [ "$VPS_HOST" = "null" ]; then
+          echo "ERROR: Could not get VPS public IP from OCI"
+          exit 1
+        fi
+        echo "VPS public IP: $VPS_HOST"
+
+        SSH_OPTS="-o StrictHostKeyChecking=no"
+        if [ -n "{{.SSH_KEY}}" ]; then
+          SSH_OPTS="$SSH_OPTS -i {{.SSH_KEY}}"
+        fi
+
+        echo "Deploying WireGuard config to {{.VPS_USER}}@$VPS_HOST..."
+        scp $SSH_OPTS {{.CONF_FILE}} {{.VPS_USER}}@$VPS_HOST:/tmp/{{.TUNNEL}}.conf
+        ssh $SSH_OPTS {{.VPS_USER}}@$VPS_HOST "sudo cp /tmp/{{.TUNNEL}}.conf /etc/wireguard/{{.TUNNEL}}.conf && sudo chmod 600 /etc/wireguard/{{.TUNNEL}}.conf"
+        echo "Config deployed. To activate: ssh {{.VPS_USER}}@$VPS_HOST sudo systemctl enable --now wg-quick@{{.TUNNEL}}"
 
   wireguard-get-vps-ip:
     desc: Get current VPS public IP from OCI API
@@ -34,6 +48,59 @@ tasks:
       OCI_INSTANCE_ID: '{{default "ocid1.instance.oc1.eu-frankfurt-1.antheljtktcemiacour3ugube5pczalr6qmrumzhp43n47bkgsix3ahtr7da" .OCI_INSTANCE_ID}}'
     cmds:
       - oci compute instance list-vnics --instance-id {{.OCI_INSTANCE_ID}} --query 'data[0]."public-ip"' --raw-output
+
+  wireguard-oci-check-security:
+    desc: Check if OCI Security List allows WireGuard port (UDP 51820)
+    vars:
+      OCI_INSTANCE_ID: '{{default "ocid1.instance.oc1.eu-frankfurt-1.antheljtktcemiacour3ugube5pczalr6qmrumzhp43n47bkgsix3ahtr7da" .OCI_INSTANCE_ID}}'
+    cmds:
+      - |
+        VNIC_ID=$(oci compute instance list-vnics --instance-id {{.OCI_INSTANCE_ID}} --query 'data[0].id' --raw-output)
+        SUBNET_ID=$(oci network vnic get --vnic-id $VNIC_ID --query 'data."subnet-id"' --raw-output)
+        SL_ID=$(oci network subnet get --subnet-id $SUBNET_ID --query 'data."security-list-ids"[0]' --raw-output)
+
+        HAS_WG=$(oci network security-list get --security-list-id "$SL_ID" --query 'data."ingress-security-rules"' --raw-output | grep -c '"min": 51820' || true)
+        if [ "$HAS_WG" = "0" ]; then
+          echo "❌ UDP 51820 NOT allowed in Security List"
+          echo "   Run: task deploy:wireguard-oci-add-security"
+        else
+          echo "✓ UDP 51820 allowed in Security List"
+        fi
+
+  wireguard-oci-add-security:
+    desc: Add WireGuard UDP 51820 rule to OCI Security List
+    vars:
+      OCI_INSTANCE_ID: '{{default "ocid1.instance.oc1.eu-frankfurt-1.antheljtktcemiacour3ugube5pczalr6qmrumzhp43n47bkgsix3ahtr7da" .OCI_INSTANCE_ID}}'
+    cmds:
+      - |
+        VNIC_ID=$(oci compute instance list-vnics --instance-id {{.OCI_INSTANCE_ID}} --query 'data[0].id' --raw-output)
+        SUBNET_ID=$(oci network vnic get --vnic-id $VNIC_ID --query 'data."subnet-id"' --raw-output)
+        SL_ID=$(oci network subnet get --subnet-id $SUBNET_ID --query 'data."security-list-ids"[0]' --raw-output)
+
+        echo "Security List: $SL_ID"
+
+        # Get current rules and add WireGuard
+        CURRENT=$(oci network security-list get --security-list-id "$SL_ID" --query 'data."ingress-security-rules"' --raw-output)
+
+        # Check if rule already exists
+        if echo "$CURRENT" | grep -q '"protocol": "17"'; then
+          echo "UDP rule already exists, checking port..."
+          if echo "$CURRENT" | grep -q '"min": 51820'; then
+            echo "✓ WireGuard rule already present"
+            exit 0
+          fi
+        fi
+
+        # Build new rules JSON with WireGuard added
+        echo "$CURRENT" | python3 scripts/wireguard/convert-oci-rules.py > /tmp/new-ingress-rules.json
+
+        echo "Adding WireGuard UDP 51820 rule..."
+        oci network security-list update \
+          --security-list-id "$SL_ID" \
+          --ingress-security-rules file:///tmp/new-ingress-rules.json \
+          --force > /dev/null
+
+        echo "✓ WireGuard rule added to Security List"
 
   wireguard-deploy-mikrotik:
     desc: Deploy WireGuard config to MikroTik with dynamic VPS IP (requires MIKROTIK_HOST)
@@ -80,14 +147,20 @@ tasks:
         echo "To apply: ssh {{.MIKROTIK_USER}}@{{.MIKROTIK_HOST}} /import flash/wireguard-{{.TUNNEL}}.rsc"
 
   wireguard-status-vps:
-    desc: Check WireGuard status on VPS (requires VPS_HOST=<ip>)
-    requires:
-      vars:
-        - VPS_HOST
+    desc: Check WireGuard status on VPS (auto-discovers IP from OCI)
     vars:
       VPS_USER: '{{default "ubuntu" .VPS_USER}}'
+      OCI_INSTANCE_ID: '{{default "ocid1.instance.oc1.eu-frankfurt-1.antheljtktcemiacour3ugube5pczalr6qmrumzhp43n47bkgsix3ahtr7da" .OCI_INSTANCE_ID}}'
+      SSH_KEY: '{{default "" .SSH_KEY}}'
     cmds:
-      - ssh {{.VPS_USER}}@{{.VPS_HOST}} "sudo wg show"
+      - |
+        VPS_HOST=$(oci compute instance list-vnics --instance-id {{.OCI_INSTANCE_ID}} --query 'data[0]."public-ip"' --raw-output)
+        SSH_OPTS="-o StrictHostKeyChecking=no"
+        if [ -n "{{.SSH_KEY}}" ]; then
+          SSH_OPTS="$SSH_OPTS -i {{.SSH_KEY}}"
+        fi
+        echo "VPS: $VPS_HOST"
+        ssh $SSH_OPTS {{.VPS_USER}}@$VPS_HOST "sudo wg show"
 
   wireguard-status-mikrotik:
     desc: Check WireGuard status on MikroTik (requires MIKROTIK_HOST=<ip>)
