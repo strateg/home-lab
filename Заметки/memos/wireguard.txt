@@ -1,0 +1,241 @@
+
+● Создана полная инфраструктура для WireGuard туннелей. Вот итог:
+
+  Созданные файлы
+
+  Топология
+  ┌──────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────┐
+  │                                     Файл                                     │           Назначение            │
+  ├──────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────┤
+  │ topology/class-modules/L2-network/network/class.network.tunnel_link.yaml     │ Класс для туннельных соединений │
+  ├──────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────┤
+  │ topology/object-modules/network/obj.network.wireguard_tunnel.yaml            │ Объект WireGuard туннеля        │
+  ├──────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────┤
+  │ projects/home-lab/topology/instances/network/inst.tunnel.wg-home-to-oci.yaml │ Инстанс туннеля MikroTik↔VPS    │
+  ├──────────────────────────────────────────────────────────────────────────────┼─────────────────────────────────┤
+  │ projects/home-lab/secrets/tunnels/wg-home-to-oci.yaml                        │ SOPS-зашифрованные ключи        │
+  └──────────────────────────────────────────────────────────────────────────────┴─────────────────────────────────┘
+  Генератор
+  ┌──────────────────────────────────────────────────────────┬────────────────────────┐
+  │                           Файл                           │       Назначение       │
+  ├──────────────────────────────────────────────────────────┼────────────────────────┤
+  │ topology-tools/plugins/generators/wireguard_generator.py │ Plugin генератора      │
+  ├──────────────────────────────────────────────────────────┼────────────────────────┤
+  │ topology-tools/templates/wireguard/mikrotik.rsc.j2       │ Шаблон MikroTik        │
+  ├──────────────────────────────────────────────────────────┼────────────────────────┤
+  │ topology-tools/templates/wireguard/linux.conf.j2         │ Шаблон Ubuntu          │
+  ├──────────────────────────────────────────────────────────┼────────────────────────┤
+  │ topology-tools/templates/wireguard/README.md.j2          │ Шаблон документации    │
+  ├──────────────────────────────────────────────────────────┼────────────────────────┤
+  │ topology-tools/plugins/plugins.yaml                      │ Регистрация генератора │
+  └──────────────────────────────────────────────────────────┴────────────────────────┘
+  Deploy
+  ┌──────────────────────┬─────────────────────────┐
+  │         Файл         │       Назначение        │
+  ├──────────────────────┼─────────────────────────┤
+  │ taskfiles/deploy.yml │ Task команды для deploy │
+  └──────────────────────┴─────────────────────────┘
+  Использование
+
+  # 1. Сгенерировать конфигурации из топологии
+  task generate:all
+
+  # 2. Посмотреть сгенерированные файлы
+  task deploy:wireguard-show
+
+  # 3. Deploy на VPS
+  task deploy:wireguard-deploy-vps VPS_HOST=<IP>
+
+  # 4. Deploy на MikroTik
+  task deploy:wireguard-deploy-mikrotik MIKROTIK_HOST=<IP>
+
+  # 5. Проверить статус
+  task deploy:wireguard-status-vps VPS_HOST=<IP>
+  task deploy:wireguard-status-mikrotik MIKROTIK_HOST=<IP>
+
+  Что осталось
+
+  1. Тестирование - запустить task generate:all и проверить что генератор работает
+  2. OCI Security List - открыть UDP 51820 в VCN
+  3. Deploy - выполнить deploy на оба устройства
+
+  Хотите протестировать генерацию?
+
+
+   Bash(task framework:lock-refresh && .venv/bin/python topology-tools/compile-topology.py 2>&1 | grep -E 'ERROR|Compile' | head -5)
+  ⎿  Generated framework lock: /home/nixos/workspaces/home-lab/projects/home-lab/framework.lock.yaml
+     Compile summary: total=109 errors=0 warnings=2 infos=107
+     task: [framework:lock-refresh] .venv/bin/python topology-tools/generate-framework-lock.py --topology topology/topology.yaml --force
+
+● The WireGuard generator is now fully working. Here's what was generated:
+
+  Generated files:
+  - generated/home-lab/wireguard/mikrotik-wg0.rsc - MikroTik RouterOS script
+  - generated/home-lab/wireguard/vps-wg0.conf - Linux wg-quick configuration
+  - generated/home-lab/wireguard/README.md - Deployment documentation
+
+  Fixes applied:
+  1. Fixed projection logic to use _instance_groups() and _group_rows() helpers
+  2. Fixed data access to use instance_data field instead of top-level fields
+  3. Fixed project_root path resolution (was doubled)
+  4. Fixed template regex_replace filter usage with split()
+  5. Fixed template undefined attribute access with dict.get()
+  6. Fixed artifact contract renderer from template to jinja2
+  7. Fixed artifact contract reason values to valid enum (base-family)
+
+  MikroTik config summary:
+  - Interface: wg0 with MTU 1420
+  - IP: 10.100.0.1/30
+  - Peer: VPS with preshared key
+  - AllowedIPs: 10.100.0.2/32, 0.0.0.0/0
+
+  VPS config summary:
+  - Interface: wg0 listening on port 51820
+  - IP: 10.100.0.2/30
+  - Peer: MikroTik with AllowedIPs for home networks (192.168.88.0/24, 10.0.10.0/24, 10.0.99.0/24)
+
+  The configurations can be deployed using:
+  - task wireguard-deploy-vps - Deploy to VPS
+  - task wireguard-deploy-mikrotik - Deploy to MikroTik
+
+   протестируй деплой на vps
+
+● Read(taskfiles/deploy.yml)
+  ⎿  Read 100 lines
+
+● Let me get the VPS IP address from secrets first.
+
+● Bash(sops -d /home/nixos/workspaces/home-lab/projects/home-lab/secrets/instances/vps-oracle-frankfurt.yaml 2>/dev/null | grep -E 'public_ip|ssh' | head
+      -5)
+  ⎿  ssh_public_key: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEioBmQD5AKxPh+7Y3xsTqOZKj0ErRcKX5E3BUigYbQK vps-oracle-frankfurt
+     ssh_private_key: |
+
+● Bash(cd /home/nixos/workspaces/home-lab/generated/home-lab/terraform/oci && terraform output -raw instance_public_ip 2>/dev/null || echo "Terraform not
+      initialized")
+  ⎿  Terraform not initialized
+
+● Bash(oci compute instance list-vnics --instance-id ocid1.instance.oc1.eu-frankfurt-1.antheljtktcemiacour3ugube5pczalr6qmrumzhp43n47bkgsix3ahtr7da
+      2>/dev/null | pytho…)
+  ⎿  <VPS-IP>
+
+● Got the VPS IP: <VPS-IP>. Let me first test SSH connectivity, then deploy.
+
+● Bash(ssh -o ConnectTimeout=10 -o BatchMode=yes ubuntu@<VPS-IP> "echo 'SSH connection successful'; uname -a; which wg || echo 'WireGuard     timeout:
+      tools not installed'")                                                                                                                     30s
+  ⎿  Error: Exit code 255
+     ubuntu@<VPS-IP>: Permission denied (publickey).
+
+● Need to use the correct SSH key. Let me extract it from secrets.
+
+● Bash(sops -d /home/nixos/workspaces/home-lab/projects/home-lab/secrets/instances/vps-oracle-frankfurt.yaml 2>/dev/null | grep -A 20 "ssh_private_key" |
+      tail -n +2 |…)
+  ⎿      -----BEGIN OPENSSH PRIVATE KEY----- <REDACTED>
+         <REDACTED>
+
+● Bash(sops -d /home/nixos/workspaces/home-lab/projects/home-lab/secrets/instances/vps-oracle-frankfurt.yaml 2>/dev/null | python3 -c "
+      import sys, yaml…)
+  ⎿  Error: Exit code 1
+     Traceback (most recent call last):
+       File "<string>", line 2, in <module>
+         import sys, yaml
+     ModuleNotFoundError: No module named 'yaml'
+
+● Bash(sops -d /home/nixos/workspaces/home-lab/projects/home-lab/secrets/instances/vps-oracle-frankfurt.yaml 2>/dev/null | .venv/bin/python -c "
+      import sys, yaml…)
+  ⎿  Error: Exit code 127
+     /run/current-system/sw/bin/bash: line 1: .venv/bin/python: No such file or directory
+
+● Bash(cd /home/nixos/workspaces/home-lab && sops -d projects/home-lab/secrets/instances/vps-oracle-frankfurt.yaml 2>/dev/null | .venv/bin/python -c "
+      import sys, yaml…)
+  ⎿  -----BEGIN OPENSSH PRIVATE KEY----- <REDACTED>
+         <REDACTED>
+
+● Bash(ssh -i /tmp/vps-ssh-key.pem -o ConnectTimeout=10 -o StrictHostKeyChecking=no ubuntu@<VPS-IP> "echo 'SSH connection successful'; uname  timeout:
+      -a; which wg || echo 'W…)                                                                                                                  30s
+  ⎿  SSH connection successful
+     Linux main-vnic 6.17.0-1011-oracle #11~24.04.1-Ubuntu SMP Fri Apr 10 02:28:06 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+     WireGuard tools not installed
+
+● SSH works but WireGuard tools not installed. Let me install them first.
+
+● Bash(ssh -i /tmp/vps-ssh-key.pem -o StrictHostKeyChecking=no ubuntu@<VPS-IP> "sudo apt-get update && sudo apt-get install -y wireguard-tools")
+  ⎿  Get:1 http://security.ubuntu.com/ubuntu noble-security InRelease [126 kB]
+     Get:2 http://eu-frankfurt-1-ad-3.clouds.archive.ubuntu.com/ubuntu noble InRelease [256 kB]
+     Get:3 http://eu-frankfurt-1-ad-3.clouds.archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]
+     … +54 lines (ctrl+o to expand)
+
+● WireGuard tools installed. Now deploying the configuration.
+
+● Bash(# Copy config to VPS                                                                                                                     timeout:
+      scp -i /tmp/vps-ssh-key.pem -o StrictHostKeyChecking=no /home/nixos/workspaces/home-lab/generated/home-lab/wireguard/vps-wg0.conf         30s
+      ubuntu@92…)
+  ⎿  Config installed successfully
+     # WireGuard Configuration for Linux (wg-quick)
+     # Tunnel: inst.tunnel.wg-home-to-oci
+     … +8 lines (ctrl+o to expand)
+
+● Configuration deployed. Now enabling and starting WireGuard service.
+
+● Bash(ssh -i /tmp/vps-ssh-key.pem ubuntu@<VPS-IP> "sudo systemctl enable --now wg-quick@wg0 && sleep 2 && sudo wg show") timeout: 30s
+  ⎿  interface: wg0
+       public key: <VPS-PUBLIC-KEY>
+       private key: (hidden)
+     … +6 lines (ctrl+o to expand)
+
+● WireGuard is running on the VPS. Let me verify the interface.
+
+● Bash(ssh -i /tmp/vps-ssh-key.pem ubuntu@<VPS-IP> "ip addr show wg0; echo '---'; sudo systemctl status wg-quick@wg0 --no-pager | head -10") timeout: 15s
+  ⎿  3: wg0: <POINTOPOINT,NOARP,UP,LOWER_UP> mtu 1420 qdisc noqueue state UNKNOWN group default qlen 1000
+         link/none
+         inet 10.100.0.2/30 scope global wg0
+     … +12 lines (ctrl+o to expand)
+
+● Let me also open the firewall for WireGuard port 51820.
+
+● Bash(ssh -i /tmp/vps-ssh-key.pem ubuntu@<VPS-IP> "sudo iptables -L INPUT -n | grep 51820 || (sudo iptables -A INPUT -p udp --dport 51820 -j timeout:
+      ACCEPT && echo 'Firewa…)                                                                                                                   15s
+
+  ⎿  Firewall rule added
+     Chain INPUT (policy ACCEPT)
+     ACCEPT     17   --  0.0.0.0/0            0.0.0.0/0            udp dpt:51820
+
+● Deployment to VPS completed successfully.
+
+  Summary:
+  - WireGuard tools installed on VPS
+  - Configuration deployed to /etc/wireguard/wg0.conf
+  - Service enabled and running (wg-quick@wg0.service)
+  - Interface wg0 is up with IP 10.100.0.2/30
+  - Local iptables rule added for UDP port 51820
+
+  VPS status:
+  interface: wg0
+    public key: <VPS-PUBLIC-KEY>
+    listening port: 51820
+
+  peer: <MIKROTIK-PUBLIC-KEY>
+    allowed ips: 10.100.0.1/32, 192.168.88.0/24, 10.0.10.0/24, 10.0.99.0/24
+
+  Note: You also need to:
+  1. Add UDP 51820 ingress rule to OCI VCN Security List
+  2. Deploy MikroTik configuration: task wireguard-deploy-mikrotik MIKROTIK_HOST=<router-ip>
+
+  Should I add the public IP to the VPS secrets file for the generator to include in the MikroTik config (endpoint-address)?
+
+  MIKROTIK_PASS=$(sops -d /home/nixos/workspaces/home-lab/projects/home-lab/secrets/instances/rtr-mikrotik-chateau.yaml 2>/dev/null | grep -A2
+   "automator:" | grep "password:" | awk '{print $2}')
+   MIKROTIK_USER="automator"
+   MIKROTIK_HOST="192.168.88.1"
+   VPS_IP="<VPS-IP>"
+
+   # Получим ключи
+   WG_SECRETS=$(sops -d /home/nixos/workspaces/home-lab/projects/home-lab/secrets/tunnels/wg-home-to-oci.yaml 2>/dev/null)
+   MIKROTIK_PRIVKEY=$(echo "$WG_SECRETS" | grep -A2 "mikrotik:" | grep "private_key:" | awk '{print $2}')
+   VPS_PUBKEY=$(echo "$WG_SECRETS" | grep -A2 "vps:" | grep "public_key:" | awk '{print $2}')
+   PSK=$(echo "$WG_SECRETS" | grep "preshared_key:" | awk '{print $2}')
+
+   echo "Creating WireGuard interface..."
+   sshpass -p "$MIKROTIK_PASS" ssh -o StrictHostKeyChecking=no ${MIKROTIK_USER}@${MIKROTIK_HOST} \
+     "/interface wireguard add name=wg0 listen-port=51820 private-key=\"$MIKROTIK_PRIVKEY\" mtu=1420 comment=\"Tunnel: inst.tunnel.wg-home-to-oci\"" 2>&1
+    | grep -v "WARNING"
+   Create WireGuard interface
