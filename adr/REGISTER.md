@@ -104,3 +104,4 @@
 | [0101](0101-layer-harmonization-os-runtime-and-foundation-boundaries.md) | Layer Harmonization for OS Runtime and Foundation Boundaries | Implemented (Mode H active) | 2026-04-23 | - | - |
 | [0102](0102-derived-instance-layer-semantics-and-path-decoupling.md) | Derived Instance Layer Semantics and Path-Decoupled Instance Layout | Implemented | 2026-04-23 | - | - |
 | [0103](0103-runtime-reconciliation-status-replaces-static-instance-status.md) | Runtime Reconciliation Status Replaces Static Instance Status | Proposed | 2026-06-07 | - | - |
+| [0104](0104-ansible-role-generation-from-topology.md) | Ansible Role Generation from Topology | Proposed | 2026-06-09 | - | - |
