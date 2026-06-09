@@ -45,9 +45,15 @@ from compiler_runtime import (
     load_core_compile_inputs,
     resolve_manifest_paths,
 )
-from framework_lock import default_framework_manifest_path
+from framework_lock import (
+    compute_framework_integrity,
+    default_framework_manifest_path,
+    verify_framework_lock,
+)
+from framework_lock import _git_remote as framework_lock_git_remote
+from framework_lock import _git_revision as framework_lock_git_revision
+from framework_lock import _load_yaml as framework_lock_load_yaml
 from framework_lock import resolve_paths as resolve_framework_lock_paths
-from framework_lock import verify_framework_lock
 from kernel import (
     KERNEL_VERSION,
     STAGE_ORDER,
@@ -73,7 +79,7 @@ DEFAULT_DIST_ROOT = REPO_ROOT / "dist"
 DEFAULT_ERROR_CATALOG = TOPOLOGY_TOOLS / "data" / "error-catalog.yaml"
 DEFAULT_PLUGINS_MANIFEST = TOPOLOGY_TOOLS / "plugins" / "plugins.yaml"
 
-SUPPORTED_RUNTIME_PROFILES = ("production", "modeled", "test-real")
+SUPPORTED_RUNTIME_PROFILES = ("production", "modeled", "test-real", "dev")
 SUPPORTED_INSTANCE_SOURCE_MODES = ("auto", "sharded-only")
 SUPPORTED_SECRETS_MODES = ("inject", "passthrough", "strict")
 FRAMEWORK_LOCK_LOAD_CODES = {"E7821", "E7822"}
@@ -826,6 +832,31 @@ class V5Compiler:
             )
             return False
 
+        # Dev profile: auto-regenerate lock on integrity mismatch (E7824)
+        if not verification.ok and self.runtime_profile == "dev":
+            has_integrity_mismatch = any(item.code == "E7824" for item in verification.diagnostics)
+            if has_integrity_mismatch:
+                try:
+                    self._regenerate_framework_lock(lock_paths)
+                    self.add_diag(
+                        code="I7829",
+                        severity="info",
+                        stage="validate",
+                        message=f"dev profile: auto-regenerated framework.lock.yaml for {project_id}",
+                        path=self._path_for_diag(lock_paths.lock_path),
+                    )
+                    # Retry verification after regeneration
+                    verification = verify_framework_lock(paths=lock_paths, strict=True)
+                except (OSError, ValueError) as exc:
+                    self.add_diag(
+                        code="E7827",
+                        severity="error",
+                        stage="validate",
+                        message=f"dev profile: framework lock auto-regeneration failed: {exc}",
+                        path=self._path_for_diag(lock_paths.lock_path),
+                    )
+                    return False
+
         for item in verification.diagnostics:
             stage = "load" if item.code in FRAMEWORK_LOCK_LOAD_CODES else "validate"
             self.add_diag(
@@ -836,6 +867,45 @@ class V5Compiler:
                 path=item.path,
             )
         return verification.ok
+
+    def _regenerate_framework_lock(self, lock_paths: Any) -> None:
+        """Regenerate framework.lock.yaml in place (dev profile only)."""
+        from datetime import UTC, datetime
+
+        framework_manifest = framework_lock_load_yaml(lock_paths.framework_manifest_path)
+        project_manifest = framework_lock_load_yaml(lock_paths.project_manifest_path)
+        integrity = compute_framework_integrity(
+            framework_root=lock_paths.framework_root,
+            framework_manifest=framework_manifest,
+        )
+        revision = framework_lock_git_revision(lock_paths.framework_root)
+        repository = framework_lock_git_remote(lock_paths.framework_root)
+
+        framework_id = str(framework_manifest.get("framework_id", "")).strip()
+        framework_version = str(framework_manifest.get("framework_api_version", "")).strip()
+        project_schema_version = str(project_manifest.get("project_schema_version", "")).strip()
+        project_contract_revision = project_manifest.get("project_contract_revision", 0)
+
+        payload: dict[str, Any] = {
+            "schema_version": 1,
+            "project_schema_version": project_schema_version,
+            "project_contract_revision": project_contract_revision if isinstance(project_contract_revision, int) else 0,
+            "framework": {
+                "id": framework_id,
+                "version": framework_version,
+                "source": "git",
+                "repository": repository or "",
+                "revision": revision or "UNKNOWN",
+                "integrity": integrity,
+            },
+            "locked_at": datetime.now(UTC).isoformat(),
+        }
+
+        lock_paths.lock_path.parent.mkdir(parents=True, exist_ok=True)
+        lock_paths.lock_path.write_text(
+            yaml.safe_dump(payload, sort_keys=False, allow_unicode=False),
+            encoding="utf-8",
+        )
 
     @staticmethod
     def _advisory_payload_hash(payload: dict[str, Any]) -> str:

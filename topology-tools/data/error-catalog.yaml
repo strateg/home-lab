@@ -736,6 +736,11 @@ codes:
     stage: validate
     title: Framework SBOM Missing
     hint: Provide SBOM metadata for package-based framework source.
+  I7829:
+    severity: info
+    stage: validate
+    title: Framework Lock Auto-Regenerated
+    hint: Dev profile automatically regenerated framework.lock.yaml due to integrity mismatch.
   # ADR 0089/0091 SOHO product profile and readiness contracts
   E7941:
     severity: error

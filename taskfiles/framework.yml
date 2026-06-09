@@ -12,6 +12,18 @@ tasks:
     cmds:
       - "{{.PYTHON}} topology-tools/generate-framework-lock.py --topology topology/topology.yaml --force"
 
+  lock-refresh-all:
+    desc: Regenerate framework.lock for ALL discovered projects
+    cmds:
+      - |
+        echo "Discovering projects..."
+        projects=$({{.PYTHON}} topology-tools/multi_project_runner.py --list-projects 2>/dev/null | grep "^  - " | sed 's/  - //')
+        for project in $projects; do
+          echo "Regenerating lock for: $project"
+          {{.PYTHON}} topology-tools/generate-framework-lock.py --project "$project" --force
+        done
+        echo "Done. All project locks refreshed."
+
   verify-lock:
     desc: Verify framework.lock in strict mode
     cmds:
