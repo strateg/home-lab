@@ -3,17 +3,17 @@
 @group: network
 @version: 1.0.0
 source_id: net-vpn-germany
-status: planned
+status: active
 notes: |
   VLAN for devices requiring German IP address.
   All traffic routed through WireGuard tunnel to VPS in Frankfurt.
   Use cases: streaming services (Netflix DE, ARD, ZDF), geo-restricted content.
 
-# VLAN configuration
-vlan_id: 50
-cidr: 192.168.50.0/24
-gateway: 192.168.50.1
-dhcp_range: 192.168.50.100-192.168.50.200
+# VLAN configuration (VLAN 50 taken by guest, using 55)
+vlan_id: 55
+cidr: 192.168.55.0/24
+gateway: 192.168.55.1
+dhcp_range: 192.168.55.100-192.168.55.200
 
 # VPN routing specifics
 vpn_routing:

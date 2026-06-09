@@ -3,7 +3,7 @@
 @group: network
 @version: 1.0.0
 source_id: inst.tunnel.wg-home-to-oci
-status: planned
+status: active
 notes: |
   WireGuard site-to-site tunnel between home MikroTik router and
   Oracle Cloud VPS for integrating cloud resources into home network.
@@ -25,7 +25,7 @@ endpoint_a:
   allowed_ips:
     - 10.100.0.1/32
     - 192.168.88.0/24      # Default LAN
-    - 192.168.50.0/24      # VPN Germany VLAN
+    - 192.168.55.0/24      # VPN Germany VLAN
     - 10.0.10.0/24         # Servers VLAN
     - 10.0.99.0/24         # Management VLAN
 
@@ -69,10 +69,13 @@ vps_nat:
   enabled: true
   masquerade:
     source_networks:
-      - 192.168.50.0/24    # VPN Germany VLAN
+      - 192.168.55.0/24    # VPN Germany VLAN
     out_interface: ens3    # VPS public interface
+  # Required iptables rules (added via wg0.conf PostUp)
   iptables_rules:
-    - "-t nat -A POSTROUTING -s 192.168.50.0/24 -o ens3 -j MASQUERADE"
+    - "-I FORWARD 1 -i wg0 -o ens3 -j ACCEPT"
+    - "-I FORWARD 2 -i ens3 -o wg0 -m state --state RELATED,ESTABLISHED -j ACCEPT"
+    - "-t nat -A POSTROUTING -s 192.168.55.0/24 -o ens3 -j MASQUERADE"
   ip_forward: true
 
 # Use cases for this tunnel

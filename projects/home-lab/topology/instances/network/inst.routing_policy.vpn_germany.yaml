@@ -3,7 +3,7 @@
 @group: network
 @version: 1.0.0
 source_id: policy-vpn-germany
-status: planned
+status: active
 notes: |
   Routes all traffic from VLAN 50 (VPN Germany) through WireGuard tunnel wg0.
   Exit point: VPS in Frankfurt, Germany (92.5.172.16).
@@ -15,7 +15,7 @@ policy_description: Route VLAN 50 traffic through WireGuard to Frankfurt VPS
 # Source: VLAN 50 subnet
 source_match:
   type: subnet
-  value: 192.168.50.0/24
+  value: 192.168.55.0/24
   vlan_ref: inst.vlan.vpn_germany
 
 # Target: WireGuard tunnel
@@ -35,7 +35,7 @@ mikrotik_config:
   # 1. Mangle rule to mark connections from VLAN 50
   mangle_rules:
     - chain: prerouting
-      src_address: 192.168.50.0/24
+      src_address: 192.168.55.0/24
       action: mark-connection
       new_connection_mark: vpn-germany
       passthrough: true
