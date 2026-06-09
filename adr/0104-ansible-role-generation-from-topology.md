@@ -93,13 +93,58 @@ enabled_capabilities:
 
 The generator scans for capability markers and generates appropriate host_vars:
 
+**Capability → Role Mapping:**
+
+| Capability | Ansible Role | Template |
+|------------|--------------|----------|
+| `cap.network.vpn_gateway` | `wireguard_gateway` | `wireguard_gateway.yml.j2` |
+| `cap.compute.runtime.container_host` | `docker_host` | (future) |
+| `cap.monitoring.prometheus_target` | `prometheus_node_exporter` | (future) |
+
+**Projection Builder:**
+
 ```python
-def build_ansible_role_projection(compiled: dict) -> dict:
-    """Build role projection based on capabilities."""
-    for inst in instances:
-        capabilities = inst.get("enabled_capabilities", [])
-        if "cap.network.vpn_gateway" in capabilities:
-            yield wireguard_gateway_vars(inst)
+from typing import Any
+
+CAPABILITY_ROLE_MAP = {
+    "cap.network.vpn_gateway": "wireguard_gateway",
+    # Future capabilities added here
+}
+
+def build_ansible_role_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
+    """Build projection for Ansible role-based host_vars generation.
+
+    Scans instances for capability markers and yields role-specific
+    variable sets for each matching instance.
+
+    Returns:
+        dict with 'role_assignments' list and 'counts' summary.
+    """
+    instances = compiled_json.get("instances", {})
+    role_assignments: list[dict[str, Any]] = []
+
+    for group_name, group_instances in instances.items():
+        if not isinstance(group_instances, list):
+            continue
+        for inst in group_instances:
+            if not isinstance(inst, dict):
+                continue
+            instance_id = inst.get("instance_id", "")
+            capabilities = inst.get("enabled_capabilities", [])
+
+            for cap in capabilities:
+                if cap in CAPABILITY_ROLE_MAP:
+                    role_assignments.append({
+                        "instance_id": instance_id,
+                        "capability": cap,
+                        "role": CAPABILITY_ROLE_MAP[cap],
+                        "instance_data": inst,
+                    })
+
+    return {
+        "role_assignments": role_assignments,
+        "counts": {"total_assignments": len(role_assignments)},
+    }
 ```
 
 ### 4. Template-Based Generation
@@ -132,6 +177,26 @@ secrets:
   set_fact:
     wireguard_secrets: "{{ lookup('community.sops.sops',
       secrets_root + '/' + secrets.tunnel) | from_yaml }}"
+```
+
+#### 5.1 Secrets Path Derivation Algorithm
+
+Secrets paths are derived deterministically from topology references:
+
+| Secret Type | Source Field | Derivation Rule | Example |
+|-------------|--------------|-----------------|---------|
+| Tunnel secrets | `tunnel.secrets_ref` | Remove `secrets.` prefix, replace `.` with `/`, append `.yaml` | `secrets.tunnels.wg-home-to-oci` → `tunnels/wg-home-to-oci.yaml` |
+| Instance secrets | `instance_id` | Prefix with `instances/`, append `.yaml` | `vps-oracle-frankfurt` → `instances/vps-oracle-frankfurt.yaml` |
+
+**Derivation function:**
+
+```python
+def derive_secrets_path(secrets_ref: str) -> str:
+    """Convert topology secrets_ref to relative file path."""
+    # secrets.tunnels.wg-home-to-oci -> tunnels/wg-home-to-oci.yaml
+    if secrets_ref.startswith("secrets."):
+        secrets_ref = secrets_ref[8:]  # Remove "secrets." prefix
+    return secrets_ref.replace(".", "/") + ".yaml"
 ```
 
 ### 6. Output Structure
@@ -169,6 +234,60 @@ COMPILE → GENERATE → ASSEMBLE → EXECUTE
    → .work/deploy/ansible-runtime/
 
 4. ansible-playbook execution
+```
+
+#### 7.1 Taskfile Integration
+
+Runtime assembly is automated via Taskfile:
+
+```yaml
+# taskfiles/ansible.yaml
+
+ansible:role-runtime:
+  desc: Assemble runtime Ansible directory with generated + static artifacts
+  deps:
+    - task: compile:topology
+  cmds:
+    - mkdir -p .work/deploy/ansible-runtime/{{.PROFILE}}/inventory
+    - mkdir -p .work/deploy/ansible-runtime/{{.PROFILE}}/playbooks
+    # Copy generated inventory (host_vars, group_vars, hosts.yml)
+    - cp -r generated/home-lab/ansible/inventory/{{.PROFILE}}/*
+        .work/deploy/ansible-runtime/{{.PROFILE}}/inventory/
+    # Copy generated playbooks
+    - cp -r generated/home-lab/ansible/playbooks/*
+        .work/deploy/ansible-runtime/{{.PROFILE}}/playbooks/
+    # Copy static roles
+    - cp -r projects/home-lab/ansible/roles
+        .work/deploy/ansible-runtime/{{.PROFILE}}/
+    # Symlink secrets (not copied for security)
+    - ln -sf $(pwd)/projects/home-lab/secrets
+        .work/deploy/ansible-runtime/{{.PROFILE}}/secrets
+  vars:
+    PROFILE: '{{.PROFILE | default "production"}}'
+
+ansible:role-check:
+  desc: Validate assembled playbook with --check mode
+  deps:
+    - task: ansible:role-runtime
+  cmds:
+    - ansible-playbook
+        -i .work/deploy/ansible-runtime/{{.PROFILE}}/inventory/hosts.yml
+        .work/deploy/ansible-runtime/{{.PROFILE}}/playbooks/vpn-gateway.yml
+        --check --diff
+  vars:
+    PROFILE: '{{.PROFILE | default "production"}}'
+```
+
+#### 7.2 Execution Commands
+
+```bash
+# Full workflow
+task compile:topology
+task ansible:role-runtime
+task ansible:role-check
+
+# Or combined
+task ansible:role-check  # Deps handle compilation and assembly
 ```
 
 ## Consequences
@@ -219,5 +338,7 @@ COMPILE → GENERATE → ASSEMBLE → EXECUTE
 - ADR 0074: Generator architecture and projection contract
 - ADR 0075: Framework/project separation
 - ADR 0086: Plugin contract and stage affinity
+- ADR 0097: Subinterpreter parallel plugin execution
 - Commit: 726810e3 (manual Ansible role creation)
 - Docs: `docs/guides/VPN-GATEWAY-ANSIBLE.md`
+- Analysis: `adr/0104-analysis/` (SWOT analysis, implementation plan)
