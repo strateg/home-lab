@@ -156,6 +156,22 @@ codes:
     stage: generate
     title: Artifact Manifest Generated
     hint: No action required.
+  # Ansible Role Generator (ADR 0104)
+  I3101:
+    severity: info
+    stage: generate
+    title: Ansible Role Assignment Found
+    hint: No action required.
+  I3102:
+    severity: info
+    stage: generate
+    title: Ansible Role Artifacts Generated
+    hint: No action required.
+  I3103:
+    severity: info
+    stage: generate
+    title: Ansible Role Generation Summary
+    hint: No action required.
   I9001:
     severity: info
     stage: emit

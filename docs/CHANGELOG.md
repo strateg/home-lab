@@ -2,6 +2,54 @@
 
 All notable changes to the home lab infrastructure configuration.
 
+## [3.1.0] - 2026-06-09
+
+### Ansible Role Generation from Topology (ADR 0104)
+
+**Feature**: Automatic generation of Ansible host_vars and playbooks from topology capability markers.
+
+### Added
+
+#### AnsibleRoleGenerator Plugin
+- **`topology-tools/plugins/generators/ansible_role_generator.py`**: New generator plugin
+  - Scans instances for capability markers (e.g., `cap.network.vpn_gateway`)
+  - Generates role-specific host_vars from topology data
+  - Generates playbooks that apply appropriate roles
+  - Follows projection-first contract (ADR 0074)
+  - Executes in subinterpreter mode (ADR 0097)
+
+#### Projection Builders
+- **`topology-tools/plugins/generators/ansible_role_projections.py`**: Role-specific projection builders
+  - `build_wireguard_gateway_vars()` - transforms topology to WireGuard role variables
+  - `derive_secrets_path()` - converts topology secrets refs to file paths
+  - `resolve_tunnel_instance()` / `resolve_vlan_instance()` - topology lookups
+
+#### Jinja2 Templates
+- **`topology-tools/templates/ansible/host_vars/wireguard_gateway.yml.j2`**: Host variables template
+- **`topology-tools/templates/ansible/playbooks/vpn-gateway.yml.j2`**: Playbook template
+
+### Changed
+
+#### Directory Structure
+- `projects/home-lab/ansible/inventory/production/hosts.yml` → `cloud-hosts.yml` (connection params only)
+- Legacy playbooks moved to `archive/ansible-manual/playbooks/`
+- Roles remain in `projects/home-lab/ansible/roles/` (implementation code)
+
+#### Generated Outputs
+- `generated/home-lab/ansible/inventory/production/host_vars/vps-oracle-frankfurt.yml`
+- `generated/home-lab/ansible/playbooks/vpn-gateway.yml`
+
+### Improvements
+- **Single source of truth**: Configuration data derived from topology only
+- **Drift elimination**: Changes propagate automatically via compilation
+- **PersistentKeepalive**: Added from topology (was missing in manual version)
+
+### References
+- ADR 0104: Ansible Role Generation from Topology
+- Commits: 4e940a0c, 94d68025, f14c24a1, 566efafc, a2f7a07c, 9ea77d7d
+
+---
+
 ## [3.0.0] - 2026-02-17
 
 ### MikroTik Terraform Automation

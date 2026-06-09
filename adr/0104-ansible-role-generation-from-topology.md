@@ -1,7 +1,8 @@
 # ADR 0104: Ansible Role Generation from Topology
 
-- Status: Proposed
+- Status: **Accepted** (Implemented)
 - Date: 2026-06-09
+- Implemented: 2026-06-09
 
 ## Context
 
@@ -323,14 +324,48 @@ task ansible:role-check  # Deps handle compilation and assembly
 
 ## Implementation Checklist
 
-- [ ] Create `ansible_role_generator.py` plugin
-- [ ] Add plugin manifest to `plugins.yaml`
-- [ ] Create Jinja2 templates for `wireguard_gateway`
-- [ ] Add capability class `cls.capability.vpn_gateway`
+- [x] Create `ansible_role_generator.py` plugin
+- [x] Add plugin manifest to `plugins.yaml`
+- [x] Create Jinja2 templates for `wireguard_gateway`
+- [x] Add capability class `cls.capability.vpn_gateway`
 - [ ] Update deploy workflow for runtime assembly
 - [ ] Add CI validation for generated Ansible
-- [ ] Archive manual inventory files
-- [ ] Update documentation
+- [x] Archive manual inventory files
+- [x] Update documentation
+
+### Implementation Notes (2026-06-09)
+
+**Created files:**
+- `topology-tools/plugins/generators/ansible_role_generator.py` (302 lines)
+- `topology-tools/plugins/generators/ansible_role_projections.py` (209 lines)
+- `topology-tools/templates/ansible/host_vars/wireguard_gateway.yml.j2`
+- `topology-tools/templates/ansible/playbooks/vpn-gateway.yml.j2`
+
+**Modified files:**
+- `topology-tools/plugins/generators/projections.py` - added `CAPABILITY_ROLE_MAP` and `build_ansible_role_projection()`
+- `topology-tools/plugins/plugins.yaml` - added manifest entry
+
+**Archived to `archive/ansible-manual/`:**
+- `inventory/production/host_vars/vps-oracle-frankfurt.yml`
+- `playbooks/vpn-gateway.yml`
+- `playbooks/common.yml`, `monitoring.yml`, `nextcloud.yml`, `postgresql.yml`, `redis.yml`, `site.yml`
+
+**Directory restructure:**
+- `projects/home-lab/ansible/inventory/production/hosts.yml` → `cloud-hosts.yml`
+- `projects/home-lab/ansible/playbooks/` → archived (now generated)
+- `projects/home-lab/ansible/roles/` → kept (implementation code)
+
+**Execution command:**
+```bash
+export VPS_ORACLE_FRANKFURT_IP=$(oci compute instance list-vnics ... --query 'data[0]."public-ip"')
+export VPS_SSH_KEY_PATH=/tmp/ansible-test/vps-key
+export ANSIBLE_ROLES_PATH=projects/home-lab/ansible/roles
+
+ansible-playbook \
+  -i projects/home-lab/ansible/inventory/production/cloud-hosts.yml \
+  -e @generated/home-lab/ansible/inventory/production/host_vars/vps-oracle-frankfurt.yml \
+  generated/home-lab/ansible/playbooks/vpn-gateway.yml
+```
 
 ## References
 

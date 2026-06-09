@@ -27,6 +27,7 @@ For exact titles/hints/severity, always use:
 
 ## Reserved Family Ranges
 
+- `I31xx`: Ansible role generator (ADR 0104)
 - `E91xx`: Terraform Proxmox generator
 - `E92xx`: Terraform MikroTik generator
 - `E93xx`: Ansible inventory generator
