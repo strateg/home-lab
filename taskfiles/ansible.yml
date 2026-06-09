@@ -3,8 +3,14 @@ version: "3"
 vars:
   PROJECT_ID: '{{default "home-lab" .PROJECT_ID}}'
   ENV: '{{default "production" .ENV}}'
-  PLAYBOOK_ROOT: "projects/{{.PROJECT_ID}}/ansible/playbooks"
+  # Generated playbooks (ADR 0104)
+  PLAYBOOK_ROOT: "generated/{{.PROJECT_ID}}/ansible/playbooks"
+  # Static roles remain in projects/
   PROJECT_ANSIBLE_ROOT: "projects/{{.PROJECT_ID}}/ansible"
+  # Cloud hosts connection params
+  CLOUD_HOSTS_INVENTORY: "projects/{{.PROJECT_ID}}/ansible/inventory/production/cloud-hosts.yml"
+  # Generated host_vars
+  GENERATED_HOST_VARS: "generated/{{.PROJECT_ID}}/ansible/inventory/production/host_vars"
   INVENTORY_RUNTIME: "generated/{{.PROJECT_ID}}/ansible/runtime/{{.ENV}}/hosts.yml"
   ANSIBLE_PLAYBOOK:
     sh: |

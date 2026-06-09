@@ -12,6 +12,39 @@ Topology Definition → Secrets → Compilation → Generation → Deployment
      (YAML)          (SOPS)     (plugins)    (templates)   (tasks)
 ```
 
+## Deployment Methods
+
+| Method | Use Case | Tasks |
+|--------|----------|-------|
+| **Ansible-based (ADR 0104)** | VPN gateway role with full config management | `vpn-gateway-*` |
+| **Direct WireGuard** | Quick tunnel setup, config file deployment | `wireguard-*` |
+
+### Ansible-based Deployment (Recommended)
+
+Uses generated playbooks and host_vars from topology. Manages full VPN gateway configuration including WireGuard, iptables, IP forwarding.
+
+```bash
+# Full deployment (single command)
+task deploy:vpn-gateway-full
+
+# Or step-by-step
+task deploy:vpn-gateway-check    # Check mode
+task deploy:vpn-gateway-apply    # Apply changes
+```
+
+**What it does:**
+1. Extracts SSH key from secrets
+2. Gets VPS public IP from OCI API
+3. Runs Ansible playbook with generated host_vars
+4. Applies WireGuard role (config, firewall, service)
+
+**Source files:**
+- Playbook: `generated/home-lab/ansible/playbooks/vpn-gateway.yml`
+- Host vars: `generated/home-lab/ansible/inventory/production/host_vars/vps-oracle-frankfurt.yml`
+- Role: `projects/home-lab/ansible/roles/wireguard_gateway/`
+
+---
+
 ## Quick Start (Task Commands)
 
 For an existing tunnel definition, the complete deployment workflow:
@@ -416,7 +449,15 @@ ssh ubuntu@<vps> "sudo apt install -y iptables-persistent"
 
 ## Task Reference
 
-### High-Level Tasks (Recommended)
+### Ansible-based Tasks (ADR 0104) - Recommended
+
+| Task | Description |
+|------|-------------|
+| `deploy:vpn-gateway-full` | Full deployment: OCI security + Ansible apply + MikroTik |
+| `deploy:vpn-gateway-check` | Run playbook in check mode (dry-run) |
+| `deploy:vpn-gateway-apply` | Apply playbook (actual deployment) |
+
+### Direct WireGuard Tasks
 
 | Task | Description |
 |------|-------------|

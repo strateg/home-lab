@@ -300,6 +300,65 @@ tasks:
         EOF
 
   # ==========================================================================
+  # Ansible-based VPN Gateway Deployment (ADR 0104)
+  # ==========================================================================
+
+  vpn-gateway-check:
+    desc: Run VPN gateway playbook in check mode (generated from topology)
+    vars:
+      OCI_INSTANCE_ID: '{{default "ocid1.instance.oc1.eu-frankfurt-1.antheljtktcemiacour3ugube5pczalr6qmrumzhp43n47bkgsix3ahtr7da" .OCI_INSTANCE_ID}}'
+    preconditions:
+      - sh: 'test -f generated/{{.PROJECT_ID}}/ansible/playbooks/vpn-gateway.yml'
+        msg: "Playbook not found. Run: task compile"
+      - sh: 'test -f generated/{{.PROJECT_ID}}/ansible/inventory/production/host_vars/vps-oracle-frankfurt.yml'
+        msg: "Host vars not found. Run: task compile"
+    cmds:
+      - task: wireguard-extract-vps-key
+      - |
+        export VPS_ORACLE_FRANKFURT_IP=$(oci compute instance list-vnics --instance-id {{.OCI_INSTANCE_ID}} --query 'data[0]."public-ip"' --raw-output)
+        export VPS_SSH_KEY_PATH=/tmp/vps-ssh-key.pem
+        export ANSIBLE_ROLES_PATH=projects/{{.PROJECT_ID}}/ansible/roles
+
+        ansible-playbook \
+          -i projects/{{.PROJECT_ID}}/ansible/inventory/production/cloud-hosts.yml \
+          -e @generated/{{.PROJECT_ID}}/ansible/inventory/production/host_vars/vps-oracle-frankfurt.yml \
+          generated/{{.PROJECT_ID}}/ansible/playbooks/vpn-gateway.yml \
+          --check --diff
+
+  vpn-gateway-apply:
+    desc: Apply VPN gateway playbook (generated from topology)
+    vars:
+      OCI_INSTANCE_ID: '{{default "ocid1.instance.oc1.eu-frankfurt-1.antheljtktcemiacour3ugube5pczalr6qmrumzhp43n47bkgsix3ahtr7da" .OCI_INSTANCE_ID}}'
+    preconditions:
+      - sh: 'test -f generated/{{.PROJECT_ID}}/ansible/playbooks/vpn-gateway.yml'
+        msg: "Playbook not found. Run: task compile"
+      - sh: 'test -f generated/{{.PROJECT_ID}}/ansible/inventory/production/host_vars/vps-oracle-frankfurt.yml'
+        msg: "Host vars not found. Run: task compile"
+    cmds:
+      - task: wireguard-extract-vps-key
+      - |
+        export VPS_ORACLE_FRANKFURT_IP=$(oci compute instance list-vnics --instance-id {{.OCI_INSTANCE_ID}} --query 'data[0]."public-ip"' --raw-output)
+        export VPS_SSH_KEY_PATH=/tmp/vps-ssh-key.pem
+        export ANSIBLE_ROLES_PATH=projects/{{.PROJECT_ID}}/ansible/roles
+
+        echo "VPS IP: $VPS_ORACLE_FRANKFURT_IP"
+        ansible-playbook \
+          -i projects/{{.PROJECT_ID}}/ansible/inventory/production/cloud-hosts.yml \
+          -e @generated/{{.PROJECT_ID}}/ansible/inventory/production/host_vars/vps-oracle-frankfurt.yml \
+          generated/{{.PROJECT_ID}}/ansible/playbooks/vpn-gateway.yml \
+          --diff
+
+  vpn-gateway-full:
+    desc: Full VPN gateway setup (OCI security + Ansible apply + MikroTik deploy)
+    cmds:
+      - task: wireguard-oci-add-security
+      - task: vpn-gateway-apply
+      - task: wireguard-deploy-mikrotik-sshpass
+      - task: wireguard-status-vps
+        vars:
+          SSH_KEY: /tmp/vps-ssh-key.pem
+
+  # ==========================================================================
   # Original Deploy Tasks
   # ==========================================================================
 
