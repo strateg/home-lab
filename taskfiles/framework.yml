@@ -44,6 +44,35 @@ tasks:
     cmds:
       - "{{.PYTHON}} topology-tools/verify-framework-lock.py --strict --enforce-package-trust --verify-package-artifact-files --verify-package-signature"
 
+  security-status:
+    desc: Show supply chain security status for all projects
+    cmds:
+      - |
+        echo "=== Supply Chain Security Status ==="
+        echo ""
+        projects=$({{.PYTHON}} topology-tools/multi_project_runner.py --list-projects 2>/dev/null | grep "^  - " | sed 's/  - //')
+        for project in $projects; do
+          echo "Project: $project"
+          lock_file="projects/$project/framework.lock.yaml"
+          if [ -f "$lock_file" ]; then
+            source=$(grep "source:" "$lock_file" | head -1 | awk '{print $2}')
+            integrity=$(grep "integrity:" "$lock_file" | head -1 | awk '{print $2}' | cut -c1-20)...
+            echo "  Lock: $lock_file"
+            echo "  Source: $source"
+            echo "  Integrity: $integrity"
+            if {{.PYTHON}} topology-tools/verify-framework-lock.py --project "$project" --strict 2>/dev/null; then
+              echo "  Status: OK (Level 1: Integrity)"
+            else
+              echo "  Status: FAILED"
+            fi
+          else
+            echo "  Lock: NOT FOUND"
+            echo "  Status: MISSING"
+          fi
+          echo ""
+        done
+        echo "Security levels: 1=Integrity, 2=PackageTrust, 3=Artifacts, 4=Signature"
+
   compile:
     desc: Compile topology with strict model lock and passthrough secrets
     cmds:
