@@ -177,6 +177,26 @@ home-lab/
 python scripts/orchestration/lane.py build-v5
 ```
 
+### 1.1 Development Profile (framework.lock handling)
+
+During development, framework file changes invalidate `framework.lock.yaml` integrity hashes.
+Two solutions are available:
+
+```bash
+# Option 1: Auto-regenerate with dev profile
+# Automatically regenerates lock on E7824 integrity mismatch
+.venv/bin/python topology-tools/compile-topology.py --profile dev
+
+# Option 2: Manual batch regeneration for all projects
+task framework:lock-refresh-all
+```
+
+**Runtime profiles:**
+- `production` (default) — strict validation, E7824 blocks compilation
+- `dev` — auto-regenerates framework.lock.yaml on integrity mismatch (I7829 info)
+- `modeled` — for model testing scenarios
+- `test-real` — for integration tests with real data
+
 ### 2. Using Lane Orchestrator
 
 ```bash

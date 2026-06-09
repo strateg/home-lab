@@ -66,6 +66,10 @@ Reserved range `E7821..E7828` for framework dependency/lock hard errors:
 - `E7827`: lock contract violation
 - `E7828`: SBOM missing
 
+Info code for dev profile:
+
+- `I7829`: framework.lock.yaml auto-regenerated (dev profile only, triggered by E7824 mismatch)
+
 Note: These codes are reserved; runtime implementation is staged per `adr/plan/0076-multi-repo-extraction-plan.md`.
 
 ---

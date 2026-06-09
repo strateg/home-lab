@@ -54,6 +54,25 @@ python topology-tools/verify-framework-lock.py --strict
 2. Lock фиксируется только в момент подготовки к `merge`/`release`.
 3. Перед финальным коммитом lock обязательно регенерируется и проходит `verify-framework-lock --strict`.
 
+### Development Profile (dev)
+
+Для ускорения dev-итераций доступен профиль `dev`, который автоматически регенерирует lock при integrity mismatch:
+
+```powershell
+# Автоматическая регенерация при E7824
+python topology-tools/compile-topology.py --profile dev
+
+# Ручная batch-регенерация для всех проектов
+task framework:lock-refresh-all
+```
+
+При использовании `--profile dev`:
+- E7824 (integrity mismatch) не блокирует компиляцию
+- Lock автоматически перегенерируется на лету
+- Эмитируется I7829 info-диагностика
+
+**Важно:** Production/CI всегда используют `--profile production` (default), где E7824 остаётся blocking error.
+
 ---
 
 ## Rollback Flow
