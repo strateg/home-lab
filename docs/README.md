@@ -106,11 +106,83 @@ docs/
 | [NETINSTALL-CLI-INDEX.md](NETINSTALL-CLI-INDEX.md) | Netinstall documentation index |
 | [guides/MIKROTIK-TERRAFORM.md](guides/MIKROTIK-TERRAFORM.md) | Terraform automation guide |
 
-### Framework (ADR 0075-0081)
+### Framework & Multi-Project (ADR 0075-0081)
 
 | Document | Description |
 |----------|-------------|
 | [framework/FRAMEWORK-V5.md](framework/FRAMEWORK-V5.md) | Framework/project contract |
+| [framework/PROJECT-BOOTSTRAP-AND-FRAMEWORK-INTEGRATION.md](framework/PROJECT-BOOTSTRAP-AND-FRAMEWORK-INTEGRATION.md) | New project setup guide |
+| [framework/OPERATOR-WORKFLOWS.md](framework/OPERATOR-WORKFLOWS.md) | Framework lock and update workflows |
+| [framework/SUPPLY-CHAIN-SECURITY.md](framework/SUPPLY-CHAIN-SECURITY.md) | Supply chain security (signatures, SBOM, provenance) |
+| [framework/FRAMEWORK-RELEASE-GUIDE.md](framework/FRAMEWORK-RELEASE-GUIDE.md) | Framework release process |
+
+---
+
+## For External Adopters (New Projects)
+
+Quick path to create a new project using the framework:
+
+### Option 1: Using Distribution Artifact (Recommended)
+
+```bash
+# Initialize new project from framework zip
+python topology-tools/utils/init-project-repo.py \
+  --output-root /path/to/new-project \
+  --project-id my-home-lab \
+  --framework-dist-zip /path/to/infra-topology-framework-1.0.8.zip \
+  --framework-dist-version 1.0.8 \
+  --force
+
+# Verify and compile
+cd /path/to/new-project
+python framework/topology-tools/verify-framework-lock.py --strict
+python framework/topology-tools/compile-topology.py --secrets-mode passthrough
+```
+
+### Option 2: Using Git Submodule
+
+```bash
+# Create new project
+mkdir my-home-lab && cd my-home-lab
+git init
+
+# Add framework as submodule
+git submodule add https://github.com/<org>/infra-topology-framework.git framework
+git submodule update --init --recursive
+
+# Bootstrap project structure
+python framework/topology-tools/utils/bootstrap-project-repo.py \
+  --framework-root ./framework \
+  --output-root . \
+  --project-id my-home-lab \
+  --force
+```
+
+**Full guide:** [framework/PROJECT-BOOTSTRAP-AND-FRAMEWORK-INTEGRATION.md](framework/PROJECT-BOOTSTRAP-AND-FRAMEWORK-INTEGRATION.md)
+
+---
+
+## Development Workflow
+
+### Quick Commands
+
+| Task | Description |
+|------|-------------|
+| `task build:compile-dev` | Compile with dev profile (auto-regenerates lock) |
+| `task build:compile-validate` | Quick validation only |
+| `task framework:lock-refresh-all` | Regenerate locks for all projects |
+| `task framework:security-status` | Show security status for all projects |
+
+### Runtime Profiles
+
+| Profile | Lock Behavior | Use Case |
+|---------|---------------|----------|
+| `production` | Strict (E7824 blocks) | CI/CD, releases |
+| `dev` | Auto-regenerate | Development iteration |
+| `modeled` | Strict | Model testing |
+| `test-real` | Strict | Integration tests |
+
+**Full guide:** [framework/OPERATOR-WORKFLOWS.md](framework/OPERATOR-WORKFLOWS.md)
 
 ---
 
