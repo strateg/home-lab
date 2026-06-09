@@ -2080,6 +2080,36 @@ plugins:
   description: Emits baseline Ansible inventory artifacts from v5 projections (Phase
     5 bootstrap).
   execution_mode: subinterpreter
+- id: base.generator.ansible_role
+  kind: generator
+  entry: generators/ansible_role_generator.py:AnsibleRoleGenerator
+  api_version: 1.x
+  stages:
+  - generate
+  phase: run
+  order: 235
+  depends_on:
+  - base.generator.ansible_inventory
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.generator.ansible_inventory
+    key: generated_dir
+    required: false
+  produces:
+  - key: ansible_role_files
+    scope: pipeline_shared
+  - key: ansible_role_artifact_plan
+    scope: pipeline_shared
+  - key: ansible_role_generation_report
+    scope: pipeline_shared
+  description: Emits role-based Ansible host_vars and playbooks from topology capabilities
+    (ADR 0104).
+  execution_mode: subinterpreter
 - id: base.generator.docker_compose
   kind: generator
   entry: generators/docker_compose_generator.py:DockerComposeGenerator

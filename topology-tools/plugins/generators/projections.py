@@ -151,6 +151,67 @@ def build_ansible_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# Capability → Role mapping for Ansible role generation (ADR 0104)
+CAPABILITY_ROLE_MAP: dict[str, str] = {
+    "cap.network.vpn_gateway": "wireguard_gateway",
+    # Future capabilities:
+    # "cap.compute.runtime.container_host": "docker_host",
+    # "cap.monitoring.prometheus_target": "prometheus_node_exporter",
+}
+
+
+def build_ansible_role_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
+    """Build projection for Ansible role-based host_vars generation (ADR 0104).
+
+    Scans instances for capability markers and yields role-specific
+    variable sets for each matching instance.
+
+    Returns:
+        dict with 'role_assignments' list and 'counts' summary.
+    """
+    groups = _instance_groups(compiled_json)
+    role_assignments: list[dict[str, Any]] = []
+
+    # Scan all instance groups for capability markers
+    for group_name, group_instances in groups.items():
+        if not isinstance(group_instances, list):
+            continue
+        for inst in group_instances:
+            if not isinstance(inst, dict):
+                continue
+            instance_id = inst.get("instance_id", "")
+            if not instance_id:
+                continue
+
+            # Get capabilities from instance or instance_data
+            capabilities = inst.get("enabled_capabilities", [])
+            if not capabilities:
+                instance_data = inst.get("instance_data", {})
+                if isinstance(instance_data, dict):
+                    capabilities = instance_data.get("enabled_capabilities", [])
+            if not isinstance(capabilities, list):
+                capabilities = []
+
+            # Match capabilities to roles
+            for cap in capabilities:
+                if cap in CAPABILITY_ROLE_MAP:
+                    role_assignments.append({
+                        "instance_id": instance_id,
+                        "capability": cap,
+                        "role": CAPABILITY_ROLE_MAP[cap],
+                        "group": group_name,
+                        "instance_data": deepcopy(inst),
+                    })
+
+    return {
+        "role_assignments": _sorted_rows(role_assignments),
+        "counts": {
+            "total_assignments": len(role_assignments),
+            "roles": list(set(a["role"] for a in role_assignments)),
+        },
+    }
+
+
 def build_docs_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     """Build stable docs view from compiled model groups."""
     groups = _instance_groups(compiled_json)

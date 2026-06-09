@@ -1,0 +1,132 @@
+{
+  "artifact_family": "ansible.role",
+  "capabilities": [],
+  "ir_version": "1.0",
+  "obsolete_candidates": [
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/group_vars/all.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/lxc-docker.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/lxc-gitea.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/lxc-grafana.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/lxc-homeassistant.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/lxc-nextcloud.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/lxc-nginx-proxy.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/lxc-postgresql.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/lxc-prometheus.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/lxc-redis.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/rtr-mikrotik-chateau.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/rtr-slate.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/srv-gamayun.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/srv-orangepi5.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/hosts.yml",
+      "reason": "obsolete-shadowed"
+    }
+  ],
+  "planned_outputs": [
+    {
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/vps-oracle-frankfurt.yml",
+      "reason": "capability-enabled",
+      "renderer": "jinja2",
+      "required": true
+    },
+    {
+      "path": "generated/home-lab/ansible/playbooks/vpn-gateway.yml",
+      "reason": "capability-enabled",
+      "renderer": "jinja2",
+      "required": true
+    }
+  ],
+  "plugin_id": "base.generator.ansible_role",
+  "projection_version": "1.0",
+  "schema_version": "1.0",
+  "validation_profiles": [
+    "production"
+  ]
+}
