@@ -134,10 +134,17 @@ def _build_vlan_entry(row: dict[str, Any], *, managed_by_ref: str) -> dict[str, 
     object_ref = _resolved_object_ref(row)
     inst_data = row.get("instance_data", {}) or {}
 
-    # Load properties from object module file
+    # Load properties from object module file (defaults)
     props = _load_object_properties(object_ref)
 
-    vlan_id = props.get("vlan_id")
+    # Instance data overrides object properties
+    vlan_id = inst_data.get("vlan_id") or props.get("vlan_id")
+    cidr = inst_data.get("cidr") or props.get("cidr")
+    gateway = inst_data.get("gateway") or props.get("gateway")
+    mtu = inst_data.get("mtu") or props.get("mtu", 1500)
+    dhcp_enabled = inst_data.get("dhcp_enabled") if "dhcp_enabled" in inst_data else props.get("dhcp_enabled", False)
+    dns_servers = inst_data.get("dns_servers") or props.get("dns_servers", [])
+
     is_native_lan = int(vlan_id or 0) == 1
     interface_name = "bridge" if is_native_lan else f"vlan{vlan_id}"
 
@@ -145,12 +152,12 @@ def _build_vlan_entry(row: dict[str, Any], *, managed_by_ref: str) -> dict[str, 
         "instance_id": row.get("instance_id", ""),
         "name": row.get("instance_id", "").replace("inst.vlan.", "").replace(".", "_"),
         "vlan_id": vlan_id,
-        "cidr": props.get("cidr"),
-        "gateway": props.get("gateway"),
-        "mtu": props.get("mtu", 1500),
-        "dhcp_enabled": props.get("dhcp_enabled", False),
+        "cidr": cidr,
+        "gateway": gateway,
+        "mtu": mtu,
+        "dhcp_enabled": dhcp_enabled,
         "dhcp_range": inst_data.get("dhcp_range"),
-        "dns_servers": props.get("dns_servers", []),
+        "dns_servers": dns_servers,
         "managed_by_ref": managed_by_ref,
         "trust_zone_ref": inst_data.get("trust_zone_ref"),
         "staged": _is_staged_row(row),
