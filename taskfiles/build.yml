@@ -111,3 +111,35 @@ tasks:
     desc: List discovered projects
     cmds:
       - "{{.PYTHON}} topology-tools/multi_project_runner.py --list-projects"
+
+  multi-project-validate:
+    desc: Validate all projects (no strict model lock)
+    cmds:
+      - "{{.PYTHON}} topology-tools/multi_project_runner.py --no-strict-model-lock"
+
+  # === Simplified compile commands ===
+
+  compile:
+    desc: Full compilation (production profile, strict model lock)
+    cmds:
+      - "{{.PYTHON}} topology-tools/compile-topology.py --strict-model-lock --secrets-mode passthrough"
+
+  compile-dev:
+    desc: Development compilation (auto-regenerates framework.lock on mismatch)
+    cmds:
+      - "{{.PYTHON}} topology-tools/compile-topology.py --profile dev --secrets-mode passthrough"
+
+  compile-validate:
+    desc: Quick validation only (discover → compile → validate stages)
+    cmds:
+      - "{{.PYTHON}} topology-tools/compile-topology.py --stages discover,compile,validate --secrets-mode passthrough"
+
+  compile-validate-dev:
+    desc: Quick validation with dev profile (auto-regenerates lock)
+    cmds:
+      - "{{.PYTHON}} topology-tools/compile-topology.py --profile dev --stages discover,compile,validate --secrets-mode passthrough"
+
+  compile-project:
+    desc: Compile specific project (use PROJECT=name)
+    cmds:
+      - "{{.PYTHON}} topology-tools/compile-topology.py --project {{.PROJECT}} --secrets-mode passthrough {{if .PROFILE}}--profile {{.PROFILE}}{{end}} {{if .STAGES}}--stages {{.STAGES}}{{end}}"
