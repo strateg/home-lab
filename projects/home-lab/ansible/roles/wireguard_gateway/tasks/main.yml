@@ -1,0 +1,14 @@
+---
+# WireGuard Gateway Role - Main Tasks
+
+- name: Include installation tasks
+  ansible.builtin.include_tasks: install.yml
+
+- name: Include configuration tasks
+  ansible.builtin.include_tasks: configure.yml
+
+- name: Include networking tasks
+  ansible.builtin.include_tasks: networking.yml
+
+- name: Include service tasks
+  ansible.builtin.include_tasks: service.yml

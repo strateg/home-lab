@@ -1,0 +1,23 @@
+---
+# WireGuard Gateway Role - Installation Tasks
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  become: true
+
+- name: Install WireGuard packages
+  ansible.builtin.apt:
+    name: "{{ wireguard_packages }}"
+    state: present
+  become: true
+
+- name: Ensure WireGuard directory exists
+  ansible.builtin.file:
+    path: /etc/wireguard
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+  become: true

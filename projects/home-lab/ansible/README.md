@@ -4,10 +4,25 @@ This directory contains project-scoped Ansible assets integrated with v5 invento
 
 ## Structure
 
-- `playbooks/` - service deployment playbooks (`site.yml`, `postgresql.yml`, `redis.yml`, `nextcloud.yml`, `monitoring.yml`)
-- `roles/` - role implementations (`common`, `postgresql`, `redis`, `nextcloud`, `monitoring_stack`)
-- `group_vars/all/` - default and secret-example variables
-- `inventory-overrides/` - operator overrides merged into generated runtime inventory
+```
+ansible/
+├── playbooks/           # Service deployment playbooks
+│   ├── site.yml
+│   ├── vpn-gateway.yml  # VPS WireGuard gateway configuration
+│   └── ...
+├── roles/               # Role implementations
+│   ├── common/
+│   ├── wireguard_gateway/  # WireGuard VPN gateway role
+│   └── ...
+├── inventory/           # Static inventory for cloud hosts
+│   └── production/
+│       ├── hosts.yml
+│       └── host_vars/
+├── group_vars/all/      # Default and secret-example variables
+├── inventory-overrides/ # Operator overrides for generated inventory
+└── scripts/             # Helper scripts
+    └── get-vps-ip.sh    # Dynamic VPS IP discovery
+```
 
 ## Runtime Inventory
 
@@ -32,6 +47,22 @@ To enable monitoring stack container apply:
 ```powershell
 ansible-playbook -i generated/home-lab/ansible/runtime/production/hosts.yml projects/home-lab/ansible/playbooks/monitoring.yml -e monitoring_apply=true
 ```
+
+## VPN Gateway Configuration
+
+Configure OCI VPS as WireGuard gateway for VPN-Germany VLAN:
+
+```bash
+# Via WireGuard tunnel (when tunnel is up)
+ansible-playbook -i inventory/production/hosts.yml playbooks/vpn-gateway.yml
+
+# Via public IP (when tunnel is down)
+export VPS_ORACLE_FRANKFURT_IP=$(./scripts/get-vps-ip.sh)
+ansible-playbook -i inventory/production/hosts.yml playbooks/vpn-gateway.yml \
+  -e "ansible_host=$VPS_ORACLE_FRANKFURT_IP"
+```
+
+See [VPN Gateway Ansible Guide](../../docs/guides/VPN-GATEWAY-ANSIBLE.md) for full documentation.
 
 ## Runtime Note
 

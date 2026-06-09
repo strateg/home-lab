@@ -1,0 +1,24 @@
+---
+# WireGuard Gateway Role Handlers
+
+- name: restart wireguard
+  ansible.builtin.systemd:
+    name: "wg-quick@{{ wireguard.interface }}"
+    state: restarted
+  become: true
+
+- name: reload wireguard
+  ansible.builtin.shell: |
+    wg syncconf {{ wireguard.interface }} <(wg-quick strip {{ wireguard.config_file }})
+  args:
+    executable: /bin/bash
+  become: true
+
+- name: save iptables
+  ansible.builtin.shell: |
+    iptables-save > /etc/iptables/rules.v4
+  become: true
+
+- name: reload sysctl
+  ansible.builtin.command: sysctl -p /etc/sysctl.d/99-wireguard.conf
+  become: true

@@ -2,3 +2,5 @@
 collections:
   - name: community.general
   - name: community.postgresql
+  - name: community.sops
+    version: ">=1.6.0"

@@ -1,0 +1,81 @@
+---
+# VPN Gateway Configuration Playbook
+# Configures OCI VPS as WireGuard gateway for VPN-Germany VLAN geo-bypass
+#
+# Usage:
+#   # Set VPS IP (from SOPS secrets or environment)
+#   export VPS_ORACLE_FRANKFURT_IP=$(sops -d --extract '["public_ip"]' ../secrets/instances/vps-oracle-frankfurt.yaml 2>/dev/null || echo "YOUR_VPS_IP")
+#
+#   # Run playbook
+#   ansible-playbook -i inventory/production/hosts.yml playbooks/vpn-gateway.yml
+#
+# Prerequisites:
+#   - VPS_ORACLE_FRANKFURT_IP environment variable set
+#   - SSH key at secrets/ssh/vps-oracle-frankfurt.key (or extracted from SOPS)
+#   - SOPS + age configured for secret decryption
+#   - WireGuard peer public key from MikroTik
+
+- name: Configure VPN Gateway
+  hosts: vpn_gateways
+  gather_facts: true
+  become: true
+
+  vars:
+    secrets_base_path: "{{ playbook_dir }}/../../secrets"
+
+  pre_tasks:
+    - name: Load WireGuard secrets from SOPS
+      ansible.builtin.set_fact:
+        wireguard_secrets: "{{ lookup('community.sops.sops', secrets_base_path + '/tunnels/wg-home-to-oci.yaml') | from_yaml }}"
+      delegate_to: localhost
+      become: false
+
+    - name: Verify connectivity
+      ansible.builtin.ping:
+
+    - name: Display target host info
+      ansible.builtin.debug:
+        msg: |
+          Configuring VPN Gateway:
+            Host: {{ inventory_hostname }}
+            IP: {{ ansible_host }}
+            Interface: {{ primary_interface }}
+            Tunnel: {{ wireguard.interface }}
+
+  roles:
+    - role: wireguard_gateway
+
+  post_tasks:
+    - name: Verify WireGuard is running
+      ansible.builtin.command: wg show {{ wireguard.interface }}
+      register: wg_final_status
+      changed_when: false
+
+    - name: Verify IP forwarding is enabled
+      ansible.builtin.command: sysctl net.ipv4.ip_forward
+      register: ip_forward_status
+      changed_when: false
+
+    - name: Verify iptables NAT rules
+      ansible.builtin.shell: |
+        iptables -t nat -L POSTROUTING -n -v | grep -E "MASQUERADE|192.168.55"
+      register: nat_rules
+      changed_when: false
+
+    - name: Display final status
+      ansible.builtin.debug:
+        msg: |
+          VPN Gateway Configuration Complete:
+
+          WireGuard Status:
+          {{ wg_final_status.stdout }}
+
+          IP Forwarding: {{ ip_forward_status.stdout }}
+
+          NAT Rules:
+          {{ nat_rules.stdout }}
+
+  tags:
+    - vpn
+    - wireguard
+    - gateway

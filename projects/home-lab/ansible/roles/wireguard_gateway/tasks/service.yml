@@ -1,0 +1,20 @@
+---
+# WireGuard Gateway Role - Service Tasks
+
+- name: Enable and start WireGuard service
+  ansible.builtin.systemd:
+    name: "wg-quick@{{ wireguard.interface }}"
+    enabled: "{{ wireguard_service_enabled }}"
+    state: "{{ wireguard_service_state }}"
+    daemon_reload: true
+  become: true
+
+- name: Verify WireGuard interface is up
+  ansible.builtin.command: wg show {{ wireguard.interface }}
+  register: wg_status
+  changed_when: false
+  become: true
+
+- name: Display WireGuard status
+  ansible.builtin.debug:
+    msg: "{{ wg_status.stdout_lines }}"

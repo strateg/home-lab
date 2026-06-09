@@ -1,0 +1,70 @@
+---
+# WireGuard Gateway Role - Configuration Tasks
+
+- name: Check if private key exists
+  ansible.builtin.stat:
+    path: "{{ wireguard.private_key_file }}"
+  register: wg_private_key
+  become: true
+
+- name: Deploy private key from secrets
+  ansible.builtin.copy:
+    content: "{{ wireguard_secrets.vps.private_key }}"
+    dest: "{{ wireguard.private_key_file }}"
+    owner: root
+    group: root
+    mode: '0600'
+  become: true
+  when:
+    - wireguard_secrets is defined
+    - wireguard_secrets.vps.private_key is defined
+  no_log: true
+  register: deploy_key_result
+
+- name: Generate WireGuard private key (if not from secrets)
+  ansible.builtin.shell: |
+    wg genkey > {{ wireguard.private_key_file }}
+    chmod 600 {{ wireguard.private_key_file }}
+  args:
+    creates: "{{ wireguard.private_key_file }}"
+  become: true
+  when:
+    - not wg_private_key.stat.exists
+    - wireguard_secrets is not defined or wireguard_secrets.vps.private_key is not defined
+
+- name: Set private key content from secrets (for template)
+  ansible.builtin.set_fact:
+    wg_private_key_content:
+      content: "{{ wireguard_secrets.vps.private_key | b64encode }}"
+  when:
+    - wireguard_secrets is defined
+    - wireguard_secrets.vps.private_key is defined
+  no_log: true
+
+- name: Read private key from file (fallback)
+  ansible.builtin.slurp:
+    src: "{{ wireguard.private_key_file }}"
+  register: wg_private_key_content
+  become: true
+  when: wg_private_key_content is not defined
+
+- name: Generate public key
+  ansible.builtin.shell: |
+    cat {{ wireguard.private_key_file }} | wg pubkey
+  register: wg_public_key
+  become: true
+  changed_when: false
+
+- name: Display public key (for peer configuration)
+  ansible.builtin.debug:
+    msg: "WireGuard public key: {{ wg_public_key.stdout }}"
+
+- name: Deploy WireGuard configuration
+  ansible.builtin.template:
+    src: wg0.conf.j2
+    dest: "{{ wireguard.config_file }}"
+    owner: root
+    group: root
+    mode: '0600'
+  become: true
+  notify: restart wireguard

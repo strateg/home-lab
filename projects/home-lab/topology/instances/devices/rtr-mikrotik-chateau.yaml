@@ -4,7 +4,7 @@
 @version: 1.0.0
 source_id: rtr-mikrotik-chateau
 status: mapped
-notes: RouterOS default bridge LAN profile with bootstrap baseline for Terraform/REST; segmented VLAN topology is staged but not active on-device
+notes: RouterOS with WireGuard tunnel to OCI VPS active; VPN-Germany VLAN 55 routes through tunnel for geo-bypass
 firmware_ref: inst.firmware.routeros.7.arm64
 os_refs:
 - inst.os.routeros.7.arm64
@@ -34,6 +34,15 @@ observed_runtime:
     dhcp_pool: 192.168.88.10-192.168.88.254
     dhcp_lease_time: 30m
     interface_list_lan: [bridge]
+  vpn_vlan:
+    vlan_ref: inst.vlan.vpn_germany
+    vlan_id: 55
+    interface: vlan55
+    cidr: 192.168.55.0/24
+    gateway: 192.168.55.1
+    dhcp_pool: 192.168.55.100-192.168.55.200
+    routing_policy_ref: inst.routing_policy.vpn_germany
+    status: active
   containers:
     bridge_interface: containers
     bridge_ip: 172.18.0.1/24
@@ -81,7 +90,13 @@ observed_runtime:
     forward_rules: 12
     notes: defconf + 3 duplicated topology-managed rules (12-17)
   wireguard:
-    configured: false
+    configured: true
+    interfaces:
+      - name: wg0
+        listen_port: null  # Client mode, no listen port
+        tunnel_ref: inst.tunnel.wg-home-to-oci
+        tunnel_ip: 10.100.0.1/30
+        persistent_keepalive: 25
   services:
     webfig_http_port: 80
     webfig_https_enabled: true

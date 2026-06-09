@@ -1,0 +1,49 @@
+---
+# WireGuard Gateway Role - Networking Tasks
+
+- name: Enable IP forwarding
+  ansible.builtin.sysctl:
+    name: net.ipv4.ip_forward
+    value: '1'
+    sysctl_file: /etc/sysctl.d/99-wireguard.conf
+    reload: true
+  become: true
+  when: ip_forwarding | default(true)
+
+- name: Configure iptables FORWARD rules
+  ansible.builtin.iptables:
+    chain: FORWARD
+    in_interface: "{{ item.in_interface | default(omit) }}"
+    out_interface: "{{ item.out_interface | default(omit) }}"
+    ctstate: "{{ item.ctstate | default(omit) }}"
+    jump: ACCEPT
+    action: insert
+    rule_num: "{{ item.rule_num | default(omit) }}"
+  loop:
+    - in_interface: "{{ wireguard.interface }}"
+      out_interface: "{{ primary_interface }}"
+      rule_num: 1
+    - in_interface: "{{ primary_interface }}"
+      out_interface: "{{ wireguard.interface }}"
+      ctstate: "RELATED,ESTABLISHED"
+      rule_num: 2
+  become: true
+  notify: save iptables
+
+- name: Configure iptables NAT/MASQUERADE rules
+  ansible.builtin.iptables:
+    table: nat
+    chain: POSTROUTING
+    source: "{{ item.network }}"
+    out_interface: "{{ primary_interface }}"
+    jump: MASQUERADE
+    comment: "{{ item.comment | default('NAT for WireGuard') }}"
+  loop: "{{ routed_networks }}"
+  become: true
+  notify: save iptables
+
+- name: Ensure iptables rules persist
+  ansible.builtin.shell: |
+    iptables-save > /etc/iptables/rules.v4
+  become: true
+  changed_when: false

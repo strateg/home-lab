@@ -343,6 +343,15 @@ When writing commit messages for infrastructure changes, use generic description
 - Environment variables for runtime secrets
 - `V5_SECRETS_MODE=passthrough` for validation without decryption
 
+**Dynamic IP Rule:**
+- NEVER store cloud VPS public IPs statically in topology or inventory files
+- Public IPs can change when VPS restarts (especially on OCI Always Free tier)
+- Always compute public IP dynamically via:
+  - OCI CLI: `oci network vnic get --vnic-id <id> --query 'data."public-ip"'`
+  - WireGuard tunnel: SSH to `10.100.0.2` and run `curl ifconfig.me`
+  - Environment variable: `VPS_ORACLE_FRANKFURT_IP`
+- See `projects/home-lab/ansible/scripts/get-vps-ip.sh` for reference implementation
+
 ## Common Pitfalls
 
 ### DON'T: Edit generated files

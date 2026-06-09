@@ -1,0 +1,50 @@
+# WireGuard configuration for {{ inventory_hostname }}
+# Managed by Ansible - DO NOT EDIT MANUALLY
+
+[Interface]
+{% if wireguard_secrets is defined and wireguard_secrets.vps.private_key is defined %}
+PrivateKey = {{ wireguard_secrets.vps.private_key }}
+{% else %}
+PrivateKey = {{ wg_private_key_content.content | b64decode | trim }}
+{% endif %}
+Address = {{ wireguard.tunnel_ip }}
+ListenPort = {{ wireguard.listen_port }}
+
+# PostUp rules for forwarding and NAT
+{% for rule in iptables_forward_rules | default([]) %}
+PostUp = iptables {{ rule }}
+{% endfor %}
+{% for rule in iptables_nat_rules | default([]) %}
+PostUp = iptables {{ rule }}
+{% endfor %}
+
+# PostDown rules to clean up
+{% for rule in iptables_forward_rules | default([]) %}
+PostDown = iptables {{ rule | replace('-I FORWARD 1 ', '-D FORWARD ') | replace('-I FORWARD 2 ', '-D FORWARD ') | replace('-I ', '-D ') | replace('-A ', '-D ') }}
+{% endfor %}
+{% for rule in iptables_nat_rules | default([]) %}
+PostDown = iptables {{ rule | replace('-A ', '-D ') }}
+{% endfor %}
+
+{% for peer in wireguard_peers %}
+# Peer: {{ peer.name }}
+[Peer]
+{% if peer.public_key is defined %}
+PublicKey = {{ peer.public_key }}
+{% else %}
+# PublicKey = <loaded from secrets>
+{% endif %}
+{% if wireguard_secrets is defined and wireguard_secrets.preshared_key is defined %}
+PresharedKey = {{ wireguard_secrets.preshared_key }}
+{% elif peer.preshared_key is defined %}
+PresharedKey = {{ peer.preshared_key }}
+{% endif %}
+AllowedIPs = {{ peer.allowed_ips | join(', ') }}
+{% if peer.endpoint is defined %}
+Endpoint = {{ peer.endpoint }}
+{% endif %}
+{% if peer.persistent_keepalive is defined %}
+PersistentKeepalive = {{ peer.persistent_keepalive }}
+{% endif %}
+
+{% endfor %}

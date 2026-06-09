@@ -1,0 +1,63 @@
+---
+# Host variables for vps-oracle-frankfurt
+# OCI Always Free tier VM in Frankfurt
+
+# Instance identification
+instance_ref: vps-oracle-frankfurt
+instance_group: cloud
+instance_role: vpn_gateway
+
+# Network configuration
+primary_interface: ens3
+tunnel_interface: wg0
+
+# WireGuard configuration
+wireguard:
+  interface: wg0
+  listen_port: 51820
+  tunnel_ip: 10.100.0.2/30
+  role: server
+  private_key_file: /etc/wireguard/private.key
+  config_file: /etc/wireguard/wg0.conf
+
+# Secrets references (decrypted at runtime via SOPS)
+# Path relative to project root: projects/home-lab/secrets/
+secrets:
+  tunnel: tunnels/wg-home-to-oci.yaml
+  instance: instances/vps-oracle-frankfurt.yaml
+
+# Peer configuration (MikroTik Chateau)
+# Public key loaded from secrets.tunnel.mikrotik.public_key
+wireguard_peers:
+  - name: rtr-mikrotik-chateau
+    public_key: "{{ wireguard_secrets.mikrotik.public_key }}"
+    allowed_ips:
+      - 10.100.0.1/32
+      - 192.168.88.0/24
+      - 192.168.55.0/24
+      - 10.0.10.0/24
+      - 10.0.99.0/24
+
+# IP forwarding and NAT for VPN gateway
+ip_forwarding: true
+
+# Routed networks (traffic from these networks gets NAT'd)
+routed_networks:
+  - network: 192.168.55.0/24
+    comment: "VPN Germany VLAN"
+    nat: masquerade
+
+# iptables rules for forwarding
+iptables_forward_rules:
+  - "-I FORWARD 1 -i wg0 -o ens3 -j ACCEPT"
+  - "-I FORWARD 2 -i ens3 -o wg0 -m state --state RELATED,ESTABLISHED -j ACCEPT"
+
+iptables_nat_rules:
+  - "-t nat -A POSTROUTING -s 192.168.55.0/24 -o ens3 -j MASQUERADE"
+
+# Packages to install
+packages:
+  - wireguard
+  - wireguard-tools
+  - iptables-persistent
+  - conntrack
