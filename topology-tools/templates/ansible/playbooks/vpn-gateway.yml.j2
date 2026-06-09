@@ -16,7 +16,7 @@
   become: true
 
   vars:
-    secrets_base_path: "{{ '{{' }} playbook_dir {{ '}}' }}/../../../projects/home-lab/secrets"
+    secrets_base_path: "{{ '{{' }} playbook_dir {{ '}}' }}/../../../../projects/home-lab/secrets"
 
   pre_tasks:
     - name: Load WireGuard secrets from SOPS
