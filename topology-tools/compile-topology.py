@@ -194,6 +194,7 @@ class V5Compiler:
         diagnostics_txt: Path,
         artifacts_root: Path | None = None,
         error_catalog_path: Path,
+        project_override: str = "",
         strict_model_lock: bool,
         fail_on_warning: bool,
         require_new_model: bool,
@@ -242,6 +243,7 @@ class V5Compiler:
         self.diagnostics_txt = diagnostics_txt
         self.artifacts_root = artifacts_root or DEFAULT_ARTIFACTS_ROOT
         self.error_catalog_path = error_catalog_path
+        self.project_override = project_override
         self.strict_model_lock = strict_model_lock
         self.fail_on_warning = fail_on_warning
         self.require_new_model = require_new_model
@@ -1460,7 +1462,7 @@ class V5Compiler:
             self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
             return 1
 
-        project_id = str(project_section["active"]).strip()
+        project_id = self.project_override if self.project_override else str(project_section["active"]).strip()
         projects_root_path = resolve_repo_path(str(project_section["projects_root"]).strip())
         project_root = projects_root_path / project_id
         project_manifest_path = project_root / "project.yaml"

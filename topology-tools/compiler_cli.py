@@ -47,6 +47,11 @@ def build_parser(config: CompilerCliDependencies) -> argparse.ArgumentParser:
         help="Path to v5 topology manifest YAML.",
     )
     parser.add_argument(
+        "--project",
+        default="",
+        help="Project ID to compile. Overrides topology.yaml project.active setting for multi-project compilation.",
+    )
+    parser.add_argument(
         "--output-json",
         default=str(config.default_output_json.relative_to(config.repo_root).as_posix()),
         help="Path to effective topology JSON output.",
@@ -313,6 +318,7 @@ def run_cli(config: CompilerCliDependencies, argv: Sequence[str] | None = None) 
         diagnostics_txt=config.resolve_repo_path(args.diagnostics_txt),
         artifacts_root=config.resolve_repo_path(args.artifacts_root),
         error_catalog_path=config.resolve_repo_path(args.error_catalog),
+        project_override=args.project.strip() if args.project else "",
         strict_model_lock=args.strict_model_lock,
         fail_on_warning=args.fail_on_warning,
         require_new_model=args.require_new_model,

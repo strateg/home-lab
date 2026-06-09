@@ -1,0 +1,29 @@
+schema_version: 1
+project_schema_version: 1.0.0
+project: test-lab
+status: validation-fixture
+project_min_framework_version: 5.0.0
+project_contract_revision: 1
+instances_root: topology/instances
+secrets_root: secrets
+generation:
+  output_mode: project-qualified
+product_profile:
+  profile_id: soho.standard.v1
+  deployment_class: starter
+  site_class: single-site
+  user_band: 1-5
+  operator_mode: single-operator
+  release_channel: dev
+  migration_state: migrated-soft
+product_bundles:
+  - bundle.edge-routing
+  - bundle.network-segmentation
+  - bundle.secrets-governance
+  - bundle.remote-access
+  - bundle.operator-workflows
+notes: |
+  Minimal validation fixture for multi-project architecture testing.
+  Created per SWOT analysis recommendation R1.
+  This project validates N>1 compilation behavior.
+generated_at: '2026-06-09T16:00:00+00:00'

@@ -8,4 +8,4 @@ framework:
   repository: git@github.com:strateg/home-lab.git
   revision: a751ae81c75013193748461bf3163b88eda5cd8b
   integrity: sha256-827f4de2e80805a2d7ef40cee2674c25264ac38348d327a6aa5872f601e0656d
-locked_at: '2026-06-09T20:42:38.263999+00:00'
+locked_at: '2026-06-09T20:42:38.492154+00:00'

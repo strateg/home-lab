@@ -1,0 +1,12 @@
+@instance: inst.test.validation.healthcheck
+@extends: obj.observability.healthcheck.service
+@group: observability
+@version: 1.0.0
+source_id: inst.test.validation.healthcheck
+status: validation-fixture
+notes: Minimal instance for multi-project validation testing
+
+# Required by obj.observability.healthcheck.service
+properties:
+  check_types:
+    - http

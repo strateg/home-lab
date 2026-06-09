@@ -1,0 +1,16 @@
+schema_version: 1
+profile_id: soho.test.v1
+title: Test Minimal v1
+summary: Minimal validation profile for multi-project architecture testing.
+core_required_bundles: []
+deployment_classes:
+  starter:
+    required_bundles: []
+supported_dimensions:
+  site_classes: [single-site]
+  user_band_pattern: '^[0-9]+-[0-9]+$'
+  operator_modes: [single-operator]
+  release_channels: [dev]
+validation:
+  skip_directory_structure: true
+  skip_bundle_validation: true
