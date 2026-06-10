@@ -1,0 +1,81 @@
+# backup-before-deploy.yml
+# Pre-deploy backup playbook - ADR 0105 D5
+# Usage: ansible-playbook playbooks/backup-before-deploy.yml -l mikrotik
+#        ansible-playbook playbooks/backup-before-deploy.yml -l proxmox
+#        ansible-playbook playbooks/backup-before-deploy.yml  # all devices
+---
+- name: Backup MikroTik devices
+  hosts: mikrotik
+  gather_facts: false
+  roles:
+    - role: backup_mikrotik
+      vars:
+        backup_mikrotik_export: true
+        backup_mikrotik_binary: false
+
+- name: Backup Proxmox hosts
+  hosts: proxmox
+  gather_facts: true
+  roles:
+    - role: backup_proxmox
+      when: "'backup_proxmox' in ansible_role_names | default([])"
+  tasks:
+    - name: Proxmox backup (inline until role exists)
+      when: "'backup_proxmox' not in ansible_role_names | default([])"
+      block:
+        - name: Create local backup directory
+          ansible.builtin.file:
+            path: "{{ playbook_dir }}/../../../.work/backups/{{ inventory_hostname }}"
+            state: directory
+            mode: '0700'
+          delegate_to: localhost
+          become: false
+
+        - name: Export Proxmox configuration
+          ansible.builtin.command:
+            cmd: "cat /etc/pve/storage.cfg"
+          register: pve_config
+          changed_when: false
+
+        - name: Save PVE config locally
+          ansible.builtin.copy:
+            content: "{{ pve_config.stdout }}"
+            dest: "{{ playbook_dir }}/../../../.work/backups/{{ inventory_hostname }}/storage-{{ ansible_date_time.iso8601_basic_short }}.cfg"
+            mode: '0600'
+          delegate_to: localhost
+          become: false
+
+- name: Backup Linux hosts (OCI, Orange Pi)
+  hosts: linux:!proxmox
+  gather_facts: true
+  tasks:
+    - name: Linux backup (inline until role exists)
+      block:
+        - name: Create local backup directory
+          ansible.builtin.file:
+            path: "{{ playbook_dir }}/../../../.work/backups/{{ inventory_hostname }}"
+            state: directory
+            mode: '0700'
+          delegate_to: localhost
+          become: false
+
+        - name: Archive important configs
+          community.general.archive:
+            path:
+              - /etc/wireguard
+              - /etc/systemd/system
+            dest: "/tmp/config-backup-{{ ansible_date_time.iso8601_basic_short }}.tar.gz"
+            format: gz
+          become: true
+
+        - name: Fetch config archive
+          ansible.builtin.fetch:
+            src: "/tmp/config-backup-{{ ansible_date_time.iso8601_basic_short }}.tar.gz"
+            dest: "{{ playbook_dir }}/../../../.work/backups/{{ inventory_hostname }}/"
+            flat: true
+
+        - name: Cleanup remote archive
+          ansible.builtin.file:
+            path: "/tmp/config-backup-{{ ansible_date_time.iso8601_basic_short }}.tar.gz"
+            state: absent
+          become: true

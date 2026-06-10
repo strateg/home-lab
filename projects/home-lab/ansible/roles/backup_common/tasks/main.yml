@@ -1,0 +1,15 @@
+# backup_common/tasks/main.yml
+# Common backup tasks - typically included by device-specific roles
+---
+# This role is meant to be included via include_role with tasks_from:
+#   - encrypt.yml: Encrypt files with SOPS/age
+#   - cleanup.yml: Remove plaintext files
+#   - transfer.yml: Transfer to remote storage (future)
+
+- name: backup_common info
+  ansible.builtin.debug:
+    msg: |
+      backup_common role provides shared backup utilities:
+      - encrypt.yml: SOPS/age encryption
+      - cleanup.yml: Plaintext removal
+      Use include_role with tasks_from parameter.

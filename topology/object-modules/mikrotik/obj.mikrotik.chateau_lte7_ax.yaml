@@ -329,6 +329,9 @@ vendor_capabilities:
   - vendor.mikrotik.lte_modem         # Built-in LTE modem
   - vendor.mikrotik.capsman           # CAPsMAN WiFi controller
   - vendor.mikrotik.userman           # User manager
+  # Operations capabilities (ADR 0105)
+  - vendor.operations.backup.routeros_export   # Config export backup
+  - vendor.operations.safe_mode                # Safe mode for atomic changes
 
 # ============================================================================
 # DEFAULTS

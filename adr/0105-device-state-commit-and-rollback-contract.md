@@ -133,52 +133,66 @@ Backups MUST be:
 3. Encrypted with SOPS/age
 4. Plaintext deleted (on device and locally)
 
-**Workflow:**
+**Recommended: Ansible Roles (scalable)**
+
+Device-specific backup logic is implemented as Ansible roles for maintainability and reuse:
+
+```
+projects/home-lab/ansible/roles/
+├── backup_common/           # Shared: encrypt + cleanup
+│   └── tasks/
+│       ├── encrypt.yml      # SOPS/age encryption
+│       └── cleanup.yml      # Plaintext removal
+├── backup_mikrotik/         # MikroTik: /export + fetch
+├── backup_proxmox/          # Proxmox: vzdump
+└── backup_linux/            # Generic: config archive
+```
+
+**Usage:**
+
+```bash
+# Backup all devices before deploy
+ansible-playbook playbooks/backup-before-deploy.yml
+
+# Backup specific device type
+ansible-playbook playbooks/backup-before-deploy.yml -l mikrotik
+
+# Backup single device
+ansible-playbook playbooks/backup-before-deploy.yml -l rtr-mikrotik-chateau
+```
+
+**MikroTik backup role example:**
+
+```yaml
+# roles/backup_mikrotik/tasks/main.yml
+- name: Export MikroTik configuration
+  community.routeros.command:
+    commands:
+      - "/export file=backup-{{ backup_timestamp }}"
+
+- name: Fetch export file
+  ansible.builtin.fetch:
+    src: "/backup-{{ backup_timestamp }}.rsc"
+    dest: "{{ backup_local_dir }}/"
+    flat: true
+
+- name: Encrypt with SOPS/age
+  ansible.builtin.include_role:
+    name: backup_common
+    tasks_from: encrypt
+
+- name: Cleanup plaintext
+  ansible.builtin.include_role:
+    name: backup_common
+    tasks_from: cleanup
+```
+
+**Alternative: Bash script (legacy, not recommended for new devices)**
 
 ```bash
 #!/bin/bash
-# scripts/backup-before-apply.sh
-
-DEVICE=$1
-TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-BACKUP_DIR=".work/backups/$DEVICE"
-mkdir -p "$BACKUP_DIR"
-
-case "$DEVICE" in
-  mikrotik)
-    # 1. Export on device
-    ssh admin@192.168.88.1 "/export file=backup-$TIMESTAMP"
-
-    # 2. Transfer to deploy machine
-    scp admin@192.168.88.1:/backup-$TIMESTAMP.rsc "$BACKUP_DIR/"
-
-    # 3. Encrypt with SOPS/age
-    sops --encrypt --age $(cat ~/.age/recipient.txt) \
-      "$BACKUP_DIR/backup-$TIMESTAMP.rsc" > "$BACKUP_DIR/backup-$TIMESTAMP.rsc.enc"
-
-    # 4. Delete plaintext
-    rm "$BACKUP_DIR/backup-$TIMESTAMP.rsc"
-    ssh admin@192.168.88.1 "/file/remove backup-$TIMESTAMP.rsc"
-    ;;
-
-  proxmox)
-    # 1. Create vzdump on Proxmox
-    ssh root@proxmox "vzdump $VMID --storage local --compress zstd"
-
-    # 2. Transfer
-    scp root@proxmox:/var/lib/vz/dump/vzdump-*-$TIMESTAMP.* "$BACKUP_DIR/"
-
-    # 3. Encrypt
-    for f in "$BACKUP_DIR"/vzdump-*-$TIMESTAMP.*; do
-      sops --encrypt --age $(cat ~/.age/recipient.txt) "$f" > "$f.enc"
-      rm "$f"
-    done
-
-    # 4. Cleanup on Proxmox (optional, per retention policy)
-    ;;
-esac
-
-echo "Encrypted backup stored: $BACKUP_DIR"
+# scripts/backup-before-apply.sh (deprecated, use Ansible)
+ansible-playbook playbooks/backup-before-deploy.yml -l "$1"
 ```
 
 **Storage structure:**
@@ -552,6 +566,96 @@ applies:
 
 **Critical rule:** Failed applies are NEVER rollback points, regardless of how many resources succeeded.
 
+### D13. Capability-Driven Backup Role Generation
+
+Backup roles MUST be generated from topology capabilities, not manually maintained per device type. This ensures scalability as new devices are added.
+
+**Capability → Role Mapping:**
+
+| Capability | Ansible Role | Backup Method |
+|------------|--------------|---------------|
+| `cap.operations.backup.routeros_export` | `backup_mikrotik` | RouterOS /export |
+| `vendor.operations.backup.routeros_export` | `backup_mikrotik` | RouterOS /export |
+| `cap.operations.backup.vzdump` | `backup_proxmox` | Proxmox vzdump |
+| `cap.operations.backup.config_archive` | `backup_linux` | tar/gzip config dirs |
+
+**Topology Declaration:**
+
+Device objects declare their backup capabilities:
+
+```yaml
+# obj.mikrotik.chateau_lte7_ax.yaml
+vendor_capabilities:
+  - vendor.operations.backup.routeros_export   # ← Triggers backup_mikrotik role
+  - vendor.operations.safe_mode                # ← Enables D3 safe-mode
+
+# obj.proxmox.ve.yaml
+enabled_capabilities:
+  - cap.operations.backup.vzdump               # ← Triggers backup_proxmox role
+  - cap.operations.backup.snapshot
+
+# obj.orangepi.rk3588.debian.yaml
+enabled_capabilities:
+  - cap.operations.backup.config_archive       # ← Triggers backup_linux role
+```
+
+**Generator Output:**
+
+The `ansible_backup_generator` plugin scans instances for backup capabilities and generates:
+
+```
+generated/home-lab/ansible/
+├── playbooks/
+│   └── backup-all.yml              # Generated: dynamic device list
+└── inventory/production/host_vars/
+    ├── rtr-mikrotik-chateau/
+    │   └── backup.yml              # backup_role: backup_mikrotik
+    ├── hv-proxmox-xps/
+    │   └── backup.yml              # backup_role: backup_proxmox
+    └── docker-orangepi5/
+        └── backup.yml              # backup_role: backup_linux
+```
+
+**Generated playbook structure:**
+
+```yaml
+# generated/home-lab/ansible/playbooks/backup-all.yml
+---
+- name: Backup devices with routeros_export capability
+  hosts: backup_mikrotik
+  roles:
+    - backup_mikrotik
+
+- name: Backup devices with vzdump capability
+  hosts: backup_proxmox
+  roles:
+    - backup_proxmox
+
+- name: Backup devices with config_archive capability
+  hosts: backup_linux
+  roles:
+    - backup_linux
+```
+
+**Static roles (not generated):**
+
+Role implementations remain in `projects/home-lab/ansible/roles/`:
+
+```
+projects/home-lab/ansible/roles/
+├── backup_common/           # Shared: encrypt + cleanup
+├── backup_mikrotik/         # MikroTik /export + fetch
+├── backup_proxmox/          # vzdump + fetch
+└── backup_linux/            # tar config dirs + fetch
+```
+
+**Benefits:**
+
+1. **Scalability** — Adding new device type = add capability + role, no playbook changes
+2. **Single source of truth** — Topology declares capabilities, generator creates playbooks
+3. **Inventory-driven** — Uses existing Ansible inventory from topology
+4. **Testable** — Role logic is static, generation is deterministic
+
 ---
 
 ## Implementation
@@ -561,7 +665,11 @@ applies:
 | Task | Deliverable |
 |------|-------------|
 | Configure remote backend | `backend.tf` per device |
-| Create encrypted backup script | `scripts/backup-before-apply.sh` (with SOPS/age) |
+| Create `backup_common` role | `roles/backup_common/tasks/{encrypt,cleanup}.yml` |
+| Create `backup_mikrotik` role | `roles/backup_mikrotik/tasks/main.yml` |
+| Create `backup_proxmox` role | `roles/backup_proxmox/tasks/main.yml` |
+| Create `backup_linux` role | `roles/backup_linux/tasks/main.yml` |
+| Create backup playbook | `playbooks/backup-before-deploy.yml` |
 | Create safe-apply script | `scripts/mikrotik-safe-apply.sh` |
 | Setup age recipient | `~/.age/recipient.txt`, `.work/backups/.sops.yaml` |
 
@@ -600,6 +708,17 @@ applies:
 | Partial failure detection | Update apply script with failure tracking |
 | Recovery runbook | `docs/guides/DEPLOY-RECOVERY.md` |
 
+### Phase 5: Capability-Driven Backup Generation (D13)
+
+| Task | Deliverable |
+|------|-------------|
+| Add backup capabilities to catalog | `capability-catalog.yaml` (vzdump, config_archive, routeros_export) |
+| Update device objects | Add backup capabilities to MikroTik, Proxmox, OrangePi objects |
+| Create `ansible_backup_generator.py` | `topology-tools/plugins/generators/ansible_backup_generator.py` |
+| Register generator in plugins.yaml | Add to generator plugin list |
+| Create static backup roles | `backup_common`, `backup_mikrotik`, `backup_proxmox`, `backup_linux` |
+| Verify generated output | `generated/home-lab/ansible/playbooks/backup-all.yml` |
+
 ---
 
 ## Consequences
@@ -615,6 +734,7 @@ applies:
 7. **Explicit rollback points** — `rollback_point: true` marks confirmed working states (D7)
 8. **Secure backups** — SOPS/age encryption, transferred to deploy machine (D5)
 9. **Idempotent reproducibility** — topology snapshot = reproducible device state
+10. **Capability-driven backup** — backup roles generated from topology capabilities (D13)
 
 ### Negative
 

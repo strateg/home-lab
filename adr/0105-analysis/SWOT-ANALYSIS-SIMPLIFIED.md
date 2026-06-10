@@ -65,6 +65,7 @@ topology.yaml (git SHA)
 | S10 | **Git as rollback source (D6)** | High | `git checkout <sha> + compile + apply` = rollback |
 | S11 | **Multi-device consistency groups (D11)** | High | Tracks related devices, warns on inconsistent rollback |
 | S12 | **Documented recovery procedures (D12)** | High | Clear paths for partial apply failure recovery |
+| S13 | **Capability-driven backup generation (D13)** | High | Backup roles generated from topology, scales with device count |
 
 ### Weaknesses (Internal Negative Factors)
 
@@ -171,7 +172,8 @@ topology.yaml (git SHA)
 | Phase 2 | Automation (D6-D7) | 8h | Low |
 | Phase 3 | Snapshot Propagation (D8-D10) | 12h | Medium |
 | Phase 4 | Multi-Device & Recovery (D11-D12) | 8h | Medium |
-| **Total** | | **36h** | |
+| Phase 5 | Capability-Driven Backup (D13) | 6h | Low |
+| **Total** | | **42h** | |
 
 ---
 
@@ -187,14 +189,16 @@ The simplified ADR 0105 approach is **architecturally sound** and **fully compli
 5. Per-device snapshot propagation via native metadata
 6. Multi-device consistency groups for coordinated rollback (D11)
 7. Documented recovery procedures for partial failures (D12)
+8. Capability-driven backup role generation from topology (D13)
 
 **Key Differences from Original:**
 1. No custom state machine — use git + Terraform state
 2. No custom snapshot service — use native metadata
 3. No custom rollback coordinator — use safe-mode + VCS revert
-4. 36 hours vs 35 days implementation
+4. Backup roles generated from capabilities — scales with device count
+5. 42 hours vs 35 days implementation
 
-**Recommendation:** Proceed with ADR 0105 implementation in 4 phases.
+**Recommendation:** Proceed with ADR 0105 implementation in 5 phases.
 
 ---
 

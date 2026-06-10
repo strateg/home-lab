@@ -802,6 +802,27 @@ capabilities:
     layer: L7
     stability: stable
 
+  - @capability: cap.operations.backup.vzdump
+    title: VZDump Backup
+    summary: Supports Proxmox vzdump backup mechanism for VMs/LXC.
+    domain: operations
+    layer: L7
+    stability: stable
+
+  - @capability: cap.operations.backup.config_archive
+    title: Config Archive Backup
+    summary: Supports archiving configuration files (tar/gzip).
+    domain: operations
+    layer: L7
+    stability: stable
+
+  - @capability: cap.operations.backup.routeros_export
+    title: RouterOS Export Backup
+    summary: Supports MikroTik RouterOS /export configuration backup.
+    domain: operations
+    layer: L7
+    stability: stable
+
   - @capability: cap.operations.automation.scheduled
     title: Scheduled Automation
     summary: Supports scheduled/cron-based automation.

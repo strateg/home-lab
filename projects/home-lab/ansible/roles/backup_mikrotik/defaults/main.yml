@@ -1,0 +1,20 @@
+# backup_mikrotik defaults
+---
+# Backup settings
+backup_mikrotik_export: true
+backup_mikrotik_binary: false  # Binary backup (includes certificates, user data)
+
+# Paths (on deploy machine)
+backup_local_dir: "{{ playbook_dir }}/../../../.work/backups/{{ inventory_hostname }}"
+backup_timestamp: "{{ ansible_date_time.iso8601_basic_short }}"
+
+# Encryption
+backup_encrypt: true
+backup_age_recipient_file: "~/.age/recipient.txt"
+
+# Cleanup
+backup_cleanup_remote: true
+backup_cleanup_local_plaintext: true
+
+# Retention (optional)
+backup_retention_days: 30

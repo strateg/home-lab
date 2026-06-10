@@ -1,0 +1,41 @@
+# backup_common/tasks/encrypt.yml
+# Encrypt backup files with SOPS/age
+---
+- name: Get age recipient
+  ansible.builtin.slurp:
+    src: "{{ backup_age_recipient_file }}"
+  register: age_recipient_content
+  delegate_to: localhost
+  become: false
+
+- name: Set age recipient fact
+  ansible.builtin.set_fact:
+    age_recipient: "{{ age_recipient_content.content | b64decode | trim }}"
+
+- name: Encrypt backup files with SOPS/age
+  ansible.builtin.command:
+    cmd: >
+      sops --encrypt
+      --age {{ age_recipient }}
+      {{ item }}
+    creates: "{{ item }}{{ backup_encrypted_extension }}"
+  loop: "{{ backup_files | select('ansible.builtin.exists') | list }}"
+  delegate_to: localhost
+  become: false
+  register: encrypt_result
+
+- name: Verify encrypted files exist
+  ansible.builtin.stat:
+    path: "{{ item }}{{ backup_encrypted_extension }}"
+  loop: "{{ backup_files }}"
+  delegate_to: localhost
+  become: false
+  register: encrypted_files_stat
+
+- name: Fail if encryption failed
+  ansible.builtin.fail:
+    msg: "Encryption failed for {{ item.item }}"
+  when: not item.stat.exists
+  loop: "{{ encrypted_files_stat.results }}"
+  loop_control:
+    label: "{{ item.item }}"

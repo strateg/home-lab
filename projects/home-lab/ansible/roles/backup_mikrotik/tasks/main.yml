@@ -1,0 +1,84 @@
+# backup_mikrotik/tasks/main.yml
+# MikroTik configuration backup with encryption and transfer
+---
+- name: Ensure local backup directory exists
+  ansible.builtin.file:
+    path: "{{ backup_local_dir }}"
+    state: directory
+    mode: '0700'
+  delegate_to: localhost
+  become: false
+
+- name: Export MikroTik configuration (text)
+  when: backup_mikrotik_export
+  community.routeros.command:
+    commands:
+      - "/export file=backup-{{ backup_timestamp }}"
+  register: export_result
+
+- name: Wait for export file to be created
+  when: backup_mikrotik_export
+  community.routeros.command:
+    commands:
+      - "/file/print where name=backup-{{ backup_timestamp }}.rsc"
+  register: file_check
+  until: file_check.stdout[0] | length > 0
+  retries: 5
+  delay: 2
+
+- name: Create binary backup (optional)
+  when: backup_mikrotik_binary
+  community.routeros.command:
+    commands:
+      - "/system/backup/save name=backup-{{ backup_timestamp }}"
+
+- name: Fetch export file to deploy machine
+  when: backup_mikrotik_export
+  ansible.builtin.fetch:
+    src: "/backup-{{ backup_timestamp }}.rsc"
+    dest: "{{ backup_local_dir }}/backup-{{ backup_timestamp }}.rsc"
+    flat: true
+  # Note: Uses SSH/SCP, MikroTik must have SSH enabled
+
+- name: Fetch binary backup (optional)
+  when: backup_mikrotik_binary
+  ansible.builtin.fetch:
+    src: "/backup-{{ backup_timestamp }}.backup"
+    dest: "{{ backup_local_dir }}/backup-{{ backup_timestamp }}.backup"
+    flat: true
+
+- name: Include encryption tasks
+  when: backup_encrypt
+  ansible.builtin.include_role:
+    name: backup_common
+    tasks_from: encrypt
+  vars:
+    backup_files:
+      - "{{ backup_local_dir }}/backup-{{ backup_timestamp }}.rsc"
+      - "{{ backup_local_dir }}/backup-{{ backup_timestamp }}.backup"
+
+- name: Cleanup remote backup files
+  when: backup_cleanup_remote
+  community.routeros.command:
+    commands:
+      - "/file/remove backup-{{ backup_timestamp }}.rsc"
+      - "/file/remove backup-{{ backup_timestamp }}.backup"
+  ignore_errors: true  # Files may not exist
+
+- name: Cleanup local plaintext files
+  when: backup_cleanup_local_plaintext and backup_encrypt
+  ansible.builtin.include_role:
+    name: backup_common
+    tasks_from: cleanup
+  vars:
+    backup_files:
+      - "{{ backup_local_dir }}/backup-{{ backup_timestamp }}.rsc"
+      - "{{ backup_local_dir }}/backup-{{ backup_timestamp }}.backup"
+
+- name: Report backup status
+  ansible.builtin.debug:
+    msg: |
+      Backup completed for {{ inventory_hostname }}
+      Location: {{ backup_local_dir }}
+      Files: backup-{{ backup_timestamp }}.rsc.enc
+      Encrypted: {{ backup_encrypt }}

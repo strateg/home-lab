@@ -1,0 +1,10 @@
+# backup_mikrotik/meta/main.yml
+---
+galaxy_info:
+  author: home-lab
+  description: MikroTik configuration backup with SOPS/age encryption
+  license: MIT
+  min_ansible_version: "2.14"
+
+dependencies:
+  - role: backup_common

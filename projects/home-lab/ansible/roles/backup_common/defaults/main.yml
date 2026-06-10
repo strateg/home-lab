@@ -1,0 +1,8 @@
+# backup_common defaults
+---
+# Age encryption settings
+backup_age_recipient_file: "~/.age/recipient.txt"
+backup_sops_config: "{{ playbook_dir }}/../../../.work/backups/.sops.yaml"
+
+# File extension for encrypted files
+backup_encrypted_extension: ".enc"

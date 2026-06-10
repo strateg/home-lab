@@ -1,0 +1,27 @@
+# backup_common/tasks/cleanup.yml
+# Remove plaintext backup files after encryption
+---
+- name: Remove plaintext backup files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ backup_files }}"
+  delegate_to: localhost
+  become: false
+  when: item is ansible.builtin.exists
+
+- name: Verify plaintext files removed
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop: "{{ backup_files }}"
+  delegate_to: localhost
+  become: false
+  register: plaintext_check
+
+- name: Warn if plaintext still exists
+  ansible.builtin.debug:
+    msg: "WARNING: Plaintext file still exists: {{ item.item }}"
+  when: item.stat.exists
+  loop: "{{ plaintext_check.results }}"
+  loop_control:
+    label: "{{ item.item }}"
