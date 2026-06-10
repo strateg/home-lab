@@ -54,6 +54,18 @@ enabled_capabilities:
 - cap.compute.node.edge
 - cap.compute.runtime.container_host
 - cap.compute.workload.linux_base
+
 vendor_capabilities:
 - vendor.arm64.rk3588.sbc
 - vendor.runtime.docker.host
+
+# ============================================================================
+# OPERATIONS CAPABILITIES (ADR 0105)
+# Capabilities for backup, deploy, verify operations
+# ============================================================================
+
+operations_capabilities:
+  - cap.operations.backup.config_archive      # Config archive backup (tar/gzip)
+  - cap.operations.deploy.pre_check           # Pre-deploy verification
+  - cap.operations.deploy.post_verify         # Post-deploy verification
+  - cap.operations.snapshot.propagate         # Snapshot SHA in systemd unit

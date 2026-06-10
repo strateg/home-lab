@@ -660,64 +660,65 @@ projects/home-lab/ansible/roles/
 
 ## Implementation
 
-### Phase 1: Foundation (D1-D5)
+> **Architecture Note:** ALL operations are implemented via Ansible roles. Playbooks are generated
+> from topology using capability-driven generators. Task wrappers call `ansible-playbook` only.
+> See `adr/0105-analysis/MODEL-REBUILD.md` for complete Ansible-based architecture.
+
+### Phase 1: Capability Model (2h)
 
 | Task | Deliverable |
 |------|-------------|
-| Configure remote backend | `backend.tf` per device |
+| Add deploy capabilities to catalog | `capability-catalog.yaml` (deploy.*, rollback.*, snapshot.*) |
+| Update MikroTik object | Add `operations_capabilities` section |
+| Update Proxmox object | Add `operations_capabilities` section |
+| Update OrangePi object | Add `operations_capabilities` section |
+
+### Phase 2: Static Roles (8h)
+
+| Task | Deliverable |
+|------|-------------|
 | Create `backup_common` role | `roles/backup_common/tasks/{encrypt,cleanup}.yml` |
 | Create `backup_mikrotik` role | `roles/backup_mikrotik/tasks/main.yml` |
 | Create `backup_proxmox` role | `roles/backup_proxmox/tasks/main.yml` |
 | Create `backup_linux` role | `roles/backup_linux/tasks/main.yml` |
-| Create backup playbook | `playbooks/backup-before-deploy.yml` |
-| Create safe-apply script | `scripts/mikrotik-safe-apply.sh` |
+| Create `deploy_safe_mode` role | `roles/deploy_safe_mode/tasks/{main,mikrotik}.yml` |
+| Create `deploy_pre_check` role | `roles/deploy_pre_check/tasks/main.yml` |
+| Create `deploy_post_verify` role | `roles/deploy_post_verify/tasks/main.yml` |
+| Create `snapshot_propagate` role | `roles/snapshot_propagate/tasks/{mikrotik,proxmox,oci}.yml` |
+| Create `rollback_restore` role | `roles/rollback_restore/tasks/main.yml` |
+| Create `recovery_partial` role | `roles/recovery_partial/tasks/main.yml` |
+
+### Phase 3: Generators (8h)
+
+| Task | Deliverable |
+|------|-------------|
+| Create `ansible_backup_generator.py` | Generates `backup-all.yml` from backup capabilities |
+| Create `ansible_deploy_generator.py` | Generates `deploy.yml` from deploy capabilities |
+| Create `ansible_verify_generator.py` | Generates `verify-snapshot.yml` from verify capabilities |
+| Create `ansible_recovery_generator.py` | Generates `recovery.yml` from recovery capabilities |
+| Create capability-role mapping | `ansible-role-mapping.yaml` config |
+
+### Phase 4: Templates (4h)
+
+| Task | Deliverable |
+|------|-------------|
+| Create backup playbook template | `backup-playbook.yml.j2` |
+| Create deploy playbook template | `deploy-playbook.yml.j2` |
+| Create verify playbook template | `verify-playbook.yml.j2` |
+| Create recovery playbook template | `recovery-playbook.yml.j2` |
+| Create host_vars templates | Per-device deploy configuration |
+
+### Phase 5: Integration (4h)
+
+| Task | Deliverable |
+|------|-------------|
+| Taskfile deploy commands | `task deploy:{backup,apply,verify,confirm,rollback}` |
+| Configure Terraform backend | `backend.tf` per device |
 | Setup age recipient | `~/.age/recipient.txt`, `.work/backups/.sops.yaml` |
+| Create recovery runbook | `docs/guides/DEPLOY-RECOVERY.md` |
+| Integration tests | `tests/integration/deploy/` |
 
-### Phase 2: Automation (D6-D7)
-
-| Task | Deliverable |
-|------|-------------|
-| Taskfile integration | `task deploy:apply DEVICE=mikrotik` |
-| Health check script | `scripts/health-check.sh` |
-| Apply history logging | `.work/deploy-state/home-lab/history.yaml` |
-| **Operator confirmation script** | `scripts/deploy-confirm.sh` |
-| **Confirmation task** | `task deploy:confirm DEVICE=mikrotik` |
-| Rollback point query | `task deploy:rollback-point` |
-| Rollback task | `task deploy:rollback DEVICE=mikrotik` |
-
-### Phase 3: Snapshot Propagation (D8-D10)
-
-| Task | Deliverable |
-|------|-------------|
-| Add `topology_snapshot_sha` variable | All `variables.tf.j2` templates |
-| Create MikroTik metadata template | `topology_metadata.tf.j2` |
-| Add tags to Proxmox VM/LXC | Update `vms.tf.j2`, `lxc.tf.j2` |
-| Add freeform_tags to OCI | Update `instance.tf.j2` |
-| Update generator render contexts | Pass `topology_snapshot_sha` |
-| Create verification script | `scripts/verify-snapshot-consistency.sh` |
-| Create confirmation script | `scripts/confirm-deployment.sh` |
-| Update safe-apply to pass snapshot | `scripts/mikrotik-safe-apply.sh` |
-
-### Phase 4: Multi-Device and Recovery (D11-D12)
-
-| Task | Deliverable |
-|------|-------------|
-| Consistency group schema | Update `history.yaml` schema |
-| Multi-device apply command | `task deploy:apply -- DEVICES=...` |
-| Group rollback command | `task deploy:rollback -- GROUP=...` |
-| Partial failure detection | Update apply script with failure tracking |
-| Recovery runbook | `docs/guides/DEPLOY-RECOVERY.md` |
-
-### Phase 5: Capability-Driven Backup Generation (D13)
-
-| Task | Deliverable |
-|------|-------------|
-| Add backup capabilities to catalog | `capability-catalog.yaml` (vzdump, config_archive, routeros_export) |
-| Update device objects | Add backup capabilities to MikroTik, Proxmox, OrangePi objects |
-| Create `ansible_backup_generator.py` | `topology-tools/plugins/generators/ansible_backup_generator.py` |
-| Register generator in plugins.yaml | Add to generator plugin list |
-| Create static backup roles | `backup_common`, `backup_mikrotik`, `backup_proxmox`, `backup_linux` |
-| Verify generated output | `generated/home-lab/ansible/playbooks/backup-all.yml` |
+**Total Estimated Effort: 26h**
 
 ---
 
@@ -727,14 +728,15 @@ projects/home-lab/ansible/roles/
 
 1. **No custom systems** — uses proven Terraform/Ansible/RouterOS patterns (C19)
 2. **Per-tool expertise** — follows each tool's best practices
-3. **Simple implementation** — bash scripts + existing tools
+3. **Ansible-only operations** — all deploy operations via generated playbooks
 4. **MikroTik safe-mode** — automatic hardware-level rollback
 5. **Unified snapshot ID** — git SHA propagated to all devices via native metadata (D8)
 6. **Verifiable deployments** — can query any device for its topology lineage (D10)
 7. **Explicit rollback points** — `rollback_point: true` marks confirmed working states (D7)
 8. **Secure backups** — SOPS/age encryption, transferred to deploy machine (D5)
 9. **Idempotent reproducibility** — topology snapshot = reproducible device state
-10. **Capability-driven backup** — backup roles generated from topology capabilities (D13)
+10. **Capability-driven generation** — playbooks generated from topology capabilities (D13)
+11. **Single source of truth** — topology declares capabilities, generators create playbooks
 
 ### Negative
 
@@ -776,8 +778,10 @@ Topology Snapshot (git SHA) ──► Deterministic Generation ──► Idempot
 - [bpg/proxmox Provider](https://registry.terraform.io/providers/bpg/proxmox/latest/docs)
 - [Terraform RouterOS Provider](https://registry.terraform.io/providers/terraform-routeros/routeros/latest/docs)
 - [OCI Tagging Best Practices](https://docs.oracle.com/en-us/iaas/Content/API/SDKDocs/terraformbestpractices_topic-Tagging_Resources.htm)
+- `adr/0105-analysis/MODEL-REBUILD.md` — complete Ansible-based architecture (SPC Step 6)
+- `adr/0105-analysis/SWOT-ANALYSIS-V2.md` — final SWOT analysis (supersedes simplified)
 - `adr/0105-analysis/SIMPLIFIED-BEST-PRACTICES.md` — detailed patterns
 - `adr/0105-analysis/SNAPSHOT-PROPAGATION-DESIGN.md` — D8/D9/D10 implementation details
-- `adr/0105-analysis/SWOT-ANALYSIS-SIMPLIFIED.md` — current SWOT analysis
+- `adr/0105-analysis/SWOT-ANALYSIS-SIMPLIFIED.md` — previous SWOT analysis (superseded)
 - `adr/0105-analysis/SWOT-ANALYSIS.md` — original analysis (archived)
 - `adr/0105-analysis/TECH-LEAD-REVIEW.md` — tech-lead-architect critique and recommendations

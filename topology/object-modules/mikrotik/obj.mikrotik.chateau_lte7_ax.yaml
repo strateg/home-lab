@@ -329,9 +329,23 @@ vendor_capabilities:
   - vendor.mikrotik.lte_modem         # Built-in LTE modem
   - vendor.mikrotik.capsman           # CAPsMAN WiFi controller
   - vendor.mikrotik.userman           # User manager
-  # Operations capabilities (ADR 0105)
+  # Operations capabilities (ADR 0105 - backup)
   - vendor.operations.backup.routeros_export   # Config export backup
   - vendor.operations.safe_mode                # Safe mode for atomic changes
+
+# ============================================================================
+# OPERATIONS CAPABILITIES (ADR 0105)
+# Capabilities for deploy, verify, rollback operations
+# ============================================================================
+
+operations_capabilities:
+  - cap.operations.backup.routeros_export      # Backup via /export
+  - cap.operations.deploy.safe_mode            # Safe-mode deploy with auto-revert
+  - cap.operations.deploy.pre_check            # Pre-deploy API verification
+  - cap.operations.deploy.post_verify          # Post-deploy verification
+  - cap.operations.snapshot.propagate          # Snapshot SHA in RouterOS script
+  - cap.operations.rollback.state_restore      # State restore capability
+  - cap.operations.consistency.group           # Multi-device consistency group
 
 # ============================================================================
 # DEFAULTS

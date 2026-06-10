@@ -865,6 +865,59 @@ capabilities:
     layer: L7
     stability: stable
 
+  # Deploy capabilities (ADR 0105)
+  - @capability: cap.operations.deploy.safe_mode
+    title: Safe Mode Deploy
+    summary: Supports safe-mode deployment with automatic rollback on failure.
+    domain: operations
+    layer: L7
+    stability: stable
+
+  - @capability: cap.operations.deploy.pre_check
+    title: Pre-Deploy Check
+    summary: Supports pre-deployment validation via API query.
+    domain: operations
+    layer: L7
+    stability: stable
+
+  - @capability: cap.operations.deploy.post_verify
+    title: Post-Deploy Verify
+    summary: Supports post-deployment verification of applied state.
+    domain: operations
+    layer: L7
+    stability: stable
+
+  # Rollback capabilities (ADR 0105)
+  - @capability: cap.operations.rollback.state_restore
+    title: State Restore
+    summary: Supports restoring to previous known-good state.
+    domain: operations
+    layer: L7
+    stability: stable
+
+  - @capability: cap.operations.recovery.partial_apply
+    title: Partial Apply Recovery
+    summary: Supports recovery from partial Terraform apply failures.
+    domain: operations
+    layer: L7
+    stability: stable
+
+  # Snapshot capabilities (ADR 0105)
+  - @capability: cap.operations.snapshot.propagate
+    title: Snapshot Propagation
+    summary: Supports propagating topology snapshot SHA to device metadata.
+    domain: operations
+    layer: L7
+    stability: stable
+
+  # Consistency capabilities (ADR 0105)
+  - @capability: cap.operations.consistency.group
+    title: Consistency Group
+    summary: Supports multi-device consistency group tracking.
+    domain: operations
+    layer: L7
+    stability: stable
+
   # ===========================================================================
   # OS - Operating System (Derived capabilities per ADR 0064)
   # Compiler derives these from software.os properties

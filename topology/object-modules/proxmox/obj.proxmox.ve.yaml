@@ -61,11 +61,23 @@ enabled_capabilities:
 - cap.compute.runtime.container_host
 - cap.compute.runtime.vm_host
 - cap.compute.storage.zfs
-# Operations capabilities (ADR 0105)
-- cap.operations.backup.vzdump
-- cap.operations.backup.snapshot
+
 vendor_capabilities:
 - vendor.proxmox.cluster.node
 - vendor.proxmox.storage.zfs
 - vendor.proxmox.runtime.lxc
 - vendor.proxmox.runtime.qemu
+
+# ============================================================================
+# OPERATIONS CAPABILITIES (ADR 0105)
+# Capabilities for backup, deploy, verify, rollback operations
+# ============================================================================
+
+operations_capabilities:
+  - cap.operations.backup.vzdump              # VZDump backup for VMs/LXC
+  - cap.operations.backup.snapshot            # Snapshot-based backup
+  - cap.operations.deploy.pre_check           # Pre-deploy API verification
+  - cap.operations.deploy.post_verify         # Post-deploy verification
+  - cap.operations.snapshot.propagate         # Snapshot SHA in VM/LXC tags
+  - cap.operations.recovery.partial_apply     # Partial apply recovery
+  - cap.operations.consistency.group          # Multi-device consistency group
