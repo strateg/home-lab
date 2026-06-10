@@ -1,0 +1,23 @@
+@object: obj.device.e_reader
+@extends: class.device.iot_endpoint
+@title: E-Ink Reader Device
+@description: |
+  E-ink reader/tablet with Android OS.
+  Used for ebooks, documents, note-taking, and Android apps.
+  Requires WiFi for cloud sync, book downloads, and app updates.
+@version: 1.0.0
+
+# Fixed properties for e-readers
+device_type: other
+connection_type: wifi
+
+# Typical network requirements
+network_requirements:
+  bandwidth_mbps: 10
+  latency_sensitive: false
+  ports:
+    - 443/tcp   # HTTPS
+    - 80/tcp    # HTTP
+    - 53/udp    # DNS
+
+enabled_capabilities: []

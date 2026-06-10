@@ -1,0 +1,18 @@
+@object: obj.os.android.15.arm64
+@extends: class.os
+@title: OS Android 15 ARM64
+@version: 1.0.0
+
+vendor: google
+model: Android 15 ARM64
+properties:
+  family: android
+  distribution: aosp
+  release: '15'
+  release_id: '15'
+  architecture: arm64
+  init_system: init
+  package_manager: apk
+  installation_model: embedded
+enabled_capabilities: []
+enabled_packs: []

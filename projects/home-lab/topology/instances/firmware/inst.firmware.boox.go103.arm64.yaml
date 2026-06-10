@@ -1,0 +1,10 @@
+@instance: inst.firmware.boox.go103.arm64
+@extends: obj.firmware.boox.go103.arm64
+@group: firmware
+@version: 1.0.0
+source_id: inst.firmware.boox.go103.arm64
+status: planned
+notes: |
+  BOOX Go 10.3 Gen II Lumi firmware.
+  Locked bootloader, no custom OS installation possible.
+  Updates via OTA from BOOX servers.

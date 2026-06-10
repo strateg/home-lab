@@ -1,0 +1,21 @@
+@object: obj.firmware.boox.go103.arm64
+@extends: class.firmware
+@title: Firmware BOOX Go 10.3 Gen II ARM64
+@version: 1.0.0
+
+vendor: onyx
+model: BOOX Go 10.3 Gen II Firmware
+properties:
+  vendor: onyx
+  family: boox
+  version: 'gen2'
+  architecture: arm64
+  boot_stack: android
+  virtual: false
+  soc: snapdragon_750g
+  updatable: true
+  update_method: ota
+enabled_capabilities: []
+enabled_packs: []
+vendor_capabilities:
+- vendor.onyx.boox.firmware

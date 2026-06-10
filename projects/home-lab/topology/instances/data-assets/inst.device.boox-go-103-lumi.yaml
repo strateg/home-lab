@@ -1,0 +1,85 @@
+@instance: inst.device.boox-go-103-lumi
+@extends: obj.device.e_reader
+@group: data-assets
+@version: 1.0.0
+source_id: ereader-boox-go-103-lumi
+status: planned
+notes: |
+  BOOX Go 10.3 Gen II Lumi e-ink tablet with Android 15.
+  Front-lit display, stylus support, WiFi/Bluetooth.
+  Locked bootloader - no custom OS installation possible.
+
+# Firmware and OS references (ADR0064)
+firmware_ref: inst.firmware.boox.go103.arm64
+os_refs:
+- inst.os.android.15.arm64.boox
+
+# Device identification
+device_name: "BOOX Go 10.3 Gen II Lumi"
+manufacturer: Onyx BOOX
+model: Go 10.3 Gen II Lumi
+
+# Hardware specifications
+hardware:
+  display:
+    size_inches: 10.3
+    technology: E INK Carta 1200
+    resolution: 2480x1860
+    ppi: 300
+    front_light: true
+    color_temperature: adjustable
+  cpu: Snapdragon 750G (Octa-core)
+  ram_gb: 4
+  storage_gb: 64
+  battery_mah: 3700
+  dimensions_mm: [235, 183, 4.8]
+  weight_g: 364
+  stylus:
+    technology: InkSense Plus
+    pressure_levels: 4096
+    latency_ms: 25
+
+# Connectivity
+connectivity:
+  wifi:
+    - 2.4GHz
+    - 5GHz
+  bluetooth: "5.1"
+  speakers: stereo
+
+# Network configuration
+# MAC address stored in secrets/instances/boox-go-103-lumi.yaml
+secrets_ref: secrets.instances.boox-go-103-lumi
+connection_type: wifi
+
+# VLAN assignment - VPN Germany for geo-bypass
+vlan_ref: inst.vlan.vpn_germany
+
+# Supported formats
+supported_formats:
+  documents:
+    - PDF
+    - EPUB
+    - EPUB3
+    - MOBI
+    - AZW3
+    - DJVU
+    - CBR
+    - CBZ
+    - TXT
+    - DOC
+    - DOCX
+    - FB2
+    - CHM
+    - RTF
+    - HTML
+    - PPT
+    - PPTX
+  images:
+    - PNG
+    - JPG
+    - BMP
+    - TIFF
+  audio:
+    - WAV
+    - MP3

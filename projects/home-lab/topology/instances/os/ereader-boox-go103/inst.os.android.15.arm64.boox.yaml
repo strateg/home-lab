@@ -1,0 +1,11 @@
+@instance: inst.os.android.15.arm64.boox
+@extends: obj.os.android.15.arm64
+@group: os
+@version: 1.0.0
+source_id: inst.os.android.15.arm64.boox
+embedded_in: inst.firmware.boox.go103.arm64
+status: planned
+notes: |
+  Android 15 embedded in BOOX Go 10.3 Gen II firmware.
+  Vendor-customized Android with E-Ink optimizations.
+  Google Play Store available, full Android app compatibility.
