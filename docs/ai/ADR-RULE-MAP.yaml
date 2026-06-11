@@ -80,6 +80,15 @@ rule_packs:
       - "tests/plugin_integration/test_tuc*.py"
       - "scripts/acceptance/**"
       - "taskfiles/acceptance.yml"
+  capability-model:
+    path: docs/ai/rules/capability-model.md
+    source_adr: ["0106"]
+    files_glob:
+      - "topology-tools/plugins/generators/**"
+      - "topology-tools/plugins/validators/**"
+      - "topology/class-modules/capability-catalog.yaml"
+      - "topology/object-modules/**/enabled_capabilities*"
+      - "topology/object-modules/**/initialization_contract*"
 
 rules:
   # === ALWAYS-LOAD CORE RULES ===
@@ -311,3 +320,21 @@ rules:
       - "task acceptance:compile TUC_SLUG=TUC-XXXX-short-name when compile artifacts are part of evidence"
       - "task acceptance:tests-all before release/cutover closure"
     source_adr: ["0070", "0066", "0069", "0071", "0080"]
+
+  - id: CAP-001
+    scope: capability-model
+    trigger: "Any plugin code that detects device type, platform, bootstrap mechanism, or groups devices"
+    rule_pack: capability-model
+    must:
+      - "Use capability checks (has_capability, get_all_capabilities) for device classification."
+      - "Use existing cap.os.* for platform detection (not cap.platform.*)."
+      - "Use existing cap.workload.runtime.* for workload types."
+      - "Emit errors E8020/E8021 when required capabilities are missing."
+    never:
+      - "Do not use object_ref/class_ref string matching for device type detection."
+      - "Do not implement silent fallbacks for missing capabilities."
+      - "Do not create duplicate capability namespaces."
+    validate:
+      - "grep -r 'object_ref.startswith' topology-tools/plugins/ (should return 0)"
+      - "grep -r 'in object_ref.lower()' topology-tools/plugins/ (should return 0)"
+    source_adr: ["0106"]

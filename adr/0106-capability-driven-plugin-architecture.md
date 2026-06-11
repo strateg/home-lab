@@ -2,7 +2,9 @@
 
 - Status: Proposed
 - Date: 2026-06-11
+- Updated: 2026-06-11 (all-in approach, ontology optimization)
 - Analysis: `adr/0106-analysis/`
+- AI Rules: `docs/ai/rules/capability-model.md`
 
 ## Context
 
@@ -48,7 +50,13 @@ The capability system exists (`topology/class-modules/capability-catalog.yaml` w
 
 ## Decision
 
-Implement **Derived Capabilities** model with **two-stage migration**.
+Implement **Derived Capabilities** model with **all-in approach** (no legacy fallbacks).
+
+### Key Principles
+
+1. **ALL-IN**: No legacy fallbacks — strict errors when capabilities are missing
+2. **ONTOLOGY REUSE**: Use existing `cap.os.*` and `cap.workload.runtime.*` instead of creating duplicates
+3. **STRICT ERRORS**: Emit diagnostics E8001-E8021 for missing capabilities
 
 ### D1: Derived Capabilities Compiler
 
@@ -81,42 +89,49 @@ derivation_rules:
     derives: "cap.vendor.{value}"
 ```
 
-### D2: New Derived Capabilities (24 total)
+### D2: Capability Namespaces (Optimized Ontology)
+
+**Reuse existing capabilities** (no duplicates):
+
+| Need | Use Existing | NOT (removed) |
+|------|--------------|---------------|
+| Platform detection | `cap.os.routeros`, `cap.os.debian`, `cap.os.proxmox` | ~~cap.platform.*~~ |
+| Workload type | `cap.workload.runtime.lxc`, `cap.workload.runtime.qemu` | ~~cap.workload.vm/lxc~~ |
+
+**New derived capabilities (13 total):**
 
 ```yaml
-# Platform capabilities (8)
-cap.platform.proxmox:    # Proxmox VE hypervisor
-cap.platform.vbox:       # VirtualBox hypervisor
-cap.platform.hyperv:     # Hyper-V hypervisor
-cap.platform.vmware:     # VMware hypervisor
-cap.platform.xen:        # Xen hypervisor
-cap.platform.routeros:   # RouterOS-based routers
-cap.platform.openwrt:    # OpenWRT-based routers
-cap.platform.debian:     # Debian-based Linux hosts
-
-# Bootstrap capabilities (4)
+# Bootstrap capabilities (4) - derived from initialization_contract.mechanism
 cap.bootstrap.cloud_init:     # Cloud-init mechanism
 cap.bootstrap.netinstall:     # MikroTik netinstall
 cap.bootstrap.unattended:     # Unattended install (Proxmox)
 cap.bootstrap.manual:         # Manual bootstrap
 
-# Role capabilities (5)
+# Role capabilities (5) - derived from enabled_capabilities
 cap.role.hypervisor:     # Hypervisor host
 cap.role.router:         # Network router
 cap.role.edge_node:      # Edge compute node
 cap.role.vpn_endpoint:   # VPN endpoint
 cap.role.container_host: # Container runtime host
 
-# Vendor capabilities (4)
+# Vendor capabilities (4) - derived from vendor field
 cap.vendor.proxmox:      # Proxmox vendor
 cap.vendor.mikrotik:     # MikroTik vendor
 cap.vendor.orangepi:     # Orange Pi vendor
 cap.vendor.oracle:       # Oracle Cloud vendor
+```
 
-# Workload capabilities (3)
-cap.workload.vm:         # Virtual machine workload
-cap.workload.lxc:        # LXC container workload
-cap.workload.container:  # Docker/OCI container workload
+**Required catalog addition:**
+
+```yaml
+# Add to capability-catalog.yaml (missing)
+- @capability: cap.os.proxmox
+  title: Proxmox VE OS
+  summary: Proxmox VE hypervisor operating system.
+  domain: os
+  layer: L0
+  stability: stable
+  derived: true
 ```
 
 ### D3: Capability Helper Functions
@@ -137,67 +152,86 @@ def group_by_capability_prefix(objects: list, prefix: str) -> dict[str, list]:
     """Group objects by capability prefix (e.g., 'cap.bootstrap.')."""
 ```
 
-### D4: Two-Stage Implementation
+### D4: Strict Error Model (ALL-IN)
+
+**No fallbacks — only errors:**
+
+| Code | Stage | Condition | Action |
+|------|-------|-----------|--------|
+| E8001 | Compile | Missing `initialization_contract.mechanism` | Error: add to object |
+| E8002 | Compile | Unknown mechanism value | Error: use known values |
+| E8020 | Generate | Cannot detect platform from `cap.os.*` | Error: ensure OS capability |
+| E8021 | Generate | Missing `cap.bootstrap.*` capability | Error: add initialization_contract |
+
+```python
+# ALL-IN: No fallback, strict error
+def get_bootstrap_capability(obj: dict) -> str:
+    caps = get_all_capabilities(obj)
+    for cap in caps:
+        if cap.startswith("cap.bootstrap."):
+            return cap
+    # NO FALLBACK
+    raise CapabilityError(code="E8021", ...)
+```
+
+### D5: Two-Stage Implementation
 
 **Stage 1: Foundation (this ADR)**
 - Derived capabilities compiler
-- Capability helpers
+- Capability helpers with strict errors
 - Refactor generators to use `has_capability()`
 - Refactor validators to use `filter_by_capability()`
-- Backward compatibility aliases
+- **NO backward compatibility aliases** (all-in)
 
 **Stage 2: Generator Redesign (future ADR)**
 - Unified generator dispatch based on capability matrix
 - Template selection by capability
 - Dynamic role assignment from capability→role mapping
-- Full elimination of legacy patterns
 
-### D5: Migration Pattern
+### D6: Migration Pattern (ALL-IN)
 
-Before (hardcoded):
+**Before (hardcoded + fallback):**
 ```python
-# bootstrap_projections.py
-proxmox_nodes = [d for d in devices if d.get("object_ref", "").startswith("obj.proxmox")]
-mikrotik_nodes = [d for d in devices if d.get("object_ref", "").startswith("obj.mikrotik")]
-orangepi_nodes = [d for d in devices if d.get("object_ref", "").startswith("obj.orangepi")]
+# bootstrap_projections.py - REMOVE THIS
+mechanism = _resolve_initialization_mechanism(row)
+if mechanism == "unattended_install":
+    proxmox_nodes.append(export_row)
+# ... legacy fallback:
+if object_ref.startswith("obj.mikrotik."):  # REMOVE
+    mikrotik_nodes.append(export_row)
 ```
 
-After (capability-driven):
+**After (capability-driven, strict):**
 ```python
-# bootstrap_projections.py
+# bootstrap_projections.py - ALL-IN
 from .capability_helpers import group_by_capability_prefix
 
 bootstrap_groups = group_by_capability_prefix(devices, "cap.bootstrap.")
-# Returns: {
-#   "cap.bootstrap.cloud_init": [...orangepi, ...oracle nodes],
-#   "cap.bootstrap.netinstall": [...mikrotik nodes],
-#   "cap.bootstrap.unattended": [...proxmox nodes],
-# }
 
-# Legacy aliases for backward compatibility (Stage 1)
-proxmox_nodes = bootstrap_groups.get("cap.bootstrap.unattended", [])
-mikrotik_nodes = bootstrap_groups.get("cap.bootstrap.netinstall", [])
-orangepi_nodes = bootstrap_groups.get("cap.bootstrap.cloud_init", [])
+# Strict: if device has no cap.bootstrap.*, it's excluded with error
+for device in devices:
+    caps = get_all_capabilities(device)
+    if not any(c.startswith("cap.bootstrap.") for c in caps):
+        ctx.emit_diagnostic(code="E8021", severity="error", ...)
 ```
 
-### D6: Validator Migration Pattern
+### D7: Validator Migration Pattern
 
-Before:
+**Before:**
 ```python
-# hypervisor_execution_model_validator.py
 if obj.get("class_ref") == "class.compute.hypervisor.proxmox":
-    # validate Proxmox-specific rules
+    # validate
 ```
 
-After:
+**After (use cap.os.*):**
 ```python
-from topology_tools.plugins.generators.capability_helpers import has_capability
+from .capability_helpers import has_capability
 
-if has_capability(obj, "cap.platform.proxmox"):
+if has_capability(obj, "cap.os.proxmox"):
     # validate Proxmox-specific rules
 ```
 
-### D7: Constraint Preservation
+### D8: Constraint Preservation
 
 | Constraint | How Preserved |
 |------------|---------------|
@@ -205,6 +239,7 @@ if has_capability(obj, "cap.platform.proxmox"):
 | C19: No custom systems | Uses native capability checking, no new infrastructure |
 | C22: All operations via Ansible | Not affected |
 | C24: Capability-driven generation | Enhanced by this ADR |
+| **NEW C32: No legacy fallbacks** | Strict errors for missing capabilities |
 
 ## Consequences
 
@@ -219,8 +254,8 @@ if has_capability(obj, "cap.platform.proxmox"):
 ### Trade-offs
 
 1. **Learning curve**: Developers must understand capability model
-2. **Initial effort**: 20h migration across 9 files (3 files remain as structural checks)
-3. **Two-stage process**: Full benefits require Stage 2 completion
+2. **Initial effort**: 18h migration across 9 files
+3. **Breaking change**: All objects MUST have `initialization_contract` (all-in)
 
 ### Risks
 
@@ -228,35 +263,34 @@ if has_capability(obj, "cap.platform.proxmox"):
 |------|----------|------------|
 | Capability explosion | Medium | Strict namespace governance |
 | Performance overhead | Low | Capabilities cached at compile time |
-| Migration breakage | Medium | Backward compatibility aliases |
+| Missing capabilities in objects | High | Pre-migration audit + strict errors guide fixes |
 
 ## Implementation Plan
 
-### Stage 1: Foundation (20h total)
+### Stage 1: Foundation (18h total)
 
 | Wave | Focus | Files | Effort |
 |------|-------|-------|--------|
-| Wave 1 | Derived capability compiler + catalog | 2 | 6h |
-| Wave 2 | Capability accessor helpers | 1 | 2h |
-| Wave 3 | Generator refactoring | 3 | 6h |
-| Wave 4 | Validator refactoring | 4 | 4h |
-| Wave 5 | Backward compat aliases + tests | 2 | 2h |
+| Wave 1 | Add `cap.os.proxmox` + derived capability compiler | 2 | 5h |
+| Wave 2 | Capability accessor helpers with strict errors | 1 | 2h |
+| Wave 3 | Generator refactoring (remove fallbacks) | 3 | 6h |
+| Wave 4 | Validator refactoring + AI rules doc | 5 | 5h |
 
 **Dependency graph:**
 ```
-Wave 1 → Wave 2 → Wave 3 (parallel) → Wave 5
+Wave 1 → Wave 2 → Wave 3 (parallel) → Done
                 → Wave 4 (parallel) ↗
 ```
 
 ### Stage 2: Generator Redesign (future ADR)
 
 - Unified dispatch architecture
-- Template capability matrix
+- Template selection by capability matrix
 - Output path normalization
-- Full legacy pattern removal
 
 ## References
 
+- **AI Agent Rules**: `docs/ai/rules/capability-model.md`
 - SWOT Analysis: `adr/capabilities-analysis/SWOT-CAPABILITIES.md`
 - Detailed Code Analysis: `adr/0106-analysis/DETAILED-CODE-ANALYSIS.md`
 - Implementation Plan: `adr/0106-analysis/IMPLEMENTATION-PLAN.md`

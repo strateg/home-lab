@@ -919,6 +919,125 @@ capabilities:
     stability: stable
 
   # ===========================================================================
+  # L7 - Bootstrap Capabilities (ADR 0106)
+  # Derived from initialization_contract.mechanism
+  # ===========================================================================
+
+  - @capability: cap.bootstrap.cloud_init
+    title: Cloud-Init Bootstrap
+    summary: Bootstrap via cloud-init mechanism.
+    domain: bootstrap
+    layer: L7
+    stability: stable
+    derived: true
+
+  - @capability: cap.bootstrap.netinstall
+    title: Netinstall Bootstrap
+    summary: Bootstrap via MikroTik netinstall mechanism.
+    domain: bootstrap
+    layer: L7
+    stability: stable
+    derived: true
+
+  - @capability: cap.bootstrap.unattended
+    title: Unattended Install Bootstrap
+    summary: Bootstrap via unattended installation (e.g., Proxmox answer file).
+    domain: bootstrap
+    layer: L7
+    stability: stable
+    derived: true
+
+  - @capability: cap.bootstrap.manual
+    title: Manual Bootstrap
+    summary: Manual bootstrap without automation.
+    domain: bootstrap
+    layer: L7
+    stability: stable
+    derived: true
+
+  # ===========================================================================
+  # L7 - Role Capabilities (ADR 0106)
+  # Derived from enabled_capabilities
+  # ===========================================================================
+
+  - @capability: cap.role.hypervisor
+    title: Hypervisor Role
+    summary: Device functions as hypervisor host.
+    domain: role
+    layer: L7
+    stability: stable
+    derived: true
+
+  - @capability: cap.role.router
+    title: Router Role
+    summary: Device functions as network router.
+    domain: role
+    layer: L7
+    stability: stable
+    derived: true
+
+  - @capability: cap.role.edge_node
+    title: Edge Node Role
+    summary: Device functions as edge compute node.
+    domain: role
+    layer: L7
+    stability: stable
+    derived: true
+
+  - @capability: cap.role.vpn_endpoint
+    title: VPN Endpoint Role
+    summary: Device functions as VPN endpoint.
+    domain: role
+    layer: L7
+    stability: stable
+    derived: true
+
+  - @capability: cap.role.container_host
+    title: Container Host Role
+    summary: Device functions as container runtime host.
+    domain: role
+    layer: L7
+    stability: stable
+    derived: true
+
+  # ===========================================================================
+  # L7 - Vendor Capabilities (ADR 0106)
+  # Derived from vendor field
+  # ===========================================================================
+
+  - @capability: cap.vendor.proxmox
+    title: Proxmox Vendor
+    summary: Device from Proxmox vendor.
+    domain: vendor
+    layer: L7
+    stability: stable
+    derived: true
+
+  - @capability: cap.vendor.mikrotik
+    title: MikroTik Vendor
+    summary: Device from MikroTik vendor.
+    domain: vendor
+    layer: L7
+    stability: stable
+    derived: true
+
+  - @capability: cap.vendor.orangepi
+    title: Orange Pi Vendor
+    summary: Device from Orange Pi vendor.
+    domain: vendor
+    layer: L7
+    stability: stable
+    derived: true
+
+  - @capability: cap.vendor.oracle
+    title: Oracle Cloud Vendor
+    summary: Device from Oracle Cloud vendor.
+    domain: vendor
+    layer: L7
+    stability: stable
+    derived: true
+
+  # ===========================================================================
   # OS - Operating System (Derived capabilities per ADR 0064)
   # Compiler derives these from software.os properties
   # ===========================================================================
@@ -1008,6 +1127,14 @@ capabilities:
   - @capability: cap.os.openwrt
     title: OpenWrt
     summary: OpenWrt router distribution.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+
+  - @capability: cap.os.proxmox
+    title: Proxmox VE
+    summary: Proxmox VE hypervisor operating system.
     domain: os
     layer: L0
     stability: stable

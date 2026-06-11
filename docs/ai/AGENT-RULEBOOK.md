@@ -43,6 +43,7 @@
 | ADR governance | `adr/**`, `docs/ai/**`, architecture plans | `docs/ai/rules/adr-governance.md` |
 | Testing/CI | `tests/**`, `taskfiles/**`, `.github/workflows/**` | `docs/ai/rules/testing-ci.md` |
 | Acceptance TUC | `acceptance-testing/**`, `tests/plugin_integration/test_tuc*.py`, `taskfiles/acceptance.yml` | `docs/ai/rules/acceptance-tuc.md` |
+| Capability model | device detection, platform/bootstrap grouping, errors E8001-E8021 | `docs/ai/rules/capability-model.md` |
 
 ---
 
