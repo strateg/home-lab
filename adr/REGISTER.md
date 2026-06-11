@@ -106,3 +106,4 @@
 | [0103](0103-runtime-reconciliation-status-replaces-static-instance-status.md) | Runtime Reconciliation Status Replaces Static Instance Status | Proposed | 2026-06-07 | - | - |
 | [0104](0104-ansible-role-generation-from-topology.md) | Ansible Role Generation from Topology | **Accepted** | 2026-06-09 | - | - |
 | [0105](0105-device-state-commit-and-rollback-contract.md) | Device State Commit and Rollback Contract | **Proposed** | 2026-06-10 | - | - |
+| [0106](0106-capability-driven-plugin-architecture.md) | Capability-Driven Plugin Architecture | **Proposed** | 2026-06-11 | - | - |
