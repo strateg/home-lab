@@ -3,6 +3,30 @@
 **Status**: Stage 1 Ready for Implementation
 **Total Effort**: 20h (Stage 1)
 **Analysis Date**: 2026-06-11
+**Last Updated**: 2026-06-11 (post deep-analysis)
+
+---
+
+## Overview
+
+### Capability Count
+
+| Category | Count | Source |
+|----------|-------|--------|
+| Platform | 8 | class_ref derivation |
+| Bootstrap | 4 | initialization_contract.mechanism |
+| Role | 5 | enabled_capabilities |
+| Vendor | 4 | vendor field |
+| Workload | 3 | class_ref derivation |
+| **Total** | **24** | |
+
+### Files Classification
+
+| Category | Files | Action |
+|----------|-------|--------|
+| Migrate | 9 | Refactor to use capabilities |
+| Keep as-is | 3 | Structural checks (not vendor) |
+| Review | 1 | docker_refs_validator.py |
 
 ---
 
@@ -33,6 +57,23 @@ cap.platform:
     description: Debian-based Linux platform
     derived_from:
       - class_ref: "class.compute.edge_node"
+  # Additional platforms (from deep analysis)
+  vbox:
+    description: VirtualBox hypervisor platform
+    derived_from:
+      - class_ref: "class.compute.hypervisor.vbox"
+  hyperv:
+    description: Hyper-V hypervisor platform
+    derived_from:
+      - class_ref: "class.compute.hypervisor.hyperv"
+  vmware:
+    description: VMware hypervisor platform
+    derived_from:
+      - class_ref: "class.compute.hypervisor.vmware"
+  xen:
+    description: Xen hypervisor platform
+    derived_from:
+      - class_ref: "class.compute.hypervisor.xen"
 
 # L7 Operations - Derived Bootstrap Capabilities
 cap.bootstrap:
@@ -94,6 +135,21 @@ cap.vendor:
     description: Oracle Cloud vendor
     derived_from:
       - vendor: "oracle"
+
+# L7 Operations - Derived Workload Capabilities (from deep analysis)
+cap.workload:
+  vm:
+    description: Virtual machine workload
+    derived_from:
+      - class_ref: "class.compute.workload.vm"
+  lxc:
+    description: LXC container workload
+    derived_from:
+      - class_ref: "class.compute.workload.lxc"
+  container:
+    description: Docker/OCI container workload
+    derived_from:
+      - class_ref: "class.compute.workload.container"
 ```
 
 #### 1.2 Create Derived Capability Compiler
@@ -114,6 +170,10 @@ Automatically derives capabilities from object metadata:
 DERIVATION_RULES = [
     # Platform from class_ref
     {"source": "class_ref", "pattern": "class.compute.hypervisor.proxmox", "derives": "cap.platform.proxmox"},
+    {"source": "class_ref", "pattern": "class.compute.hypervisor.vbox", "derives": "cap.platform.vbox"},
+    {"source": "class_ref", "pattern": "class.compute.hypervisor.hyperv", "derives": "cap.platform.hyperv"},
+    {"source": "class_ref", "pattern": "class.compute.hypervisor.vmware", "derives": "cap.platform.vmware"},
+    {"source": "class_ref", "pattern": "class.compute.hypervisor.xen", "derives": "cap.platform.xen"},
     {"source": "class_ref", "pattern": "class.network.router.mikrotik", "derives": "cap.platform.routeros"},
     {"source": "class_ref", "pattern": "class.network.router.glinet", "derives": "cap.platform.openwrt"},
     {"source": "class_ref", "pattern": "class.compute.edge_node", "derives": "cap.platform.debian"},
@@ -123,6 +183,11 @@ DERIVATION_RULES = [
     {"source": "initialization_contract.mechanism", "pattern": "netinstall", "derives": "cap.bootstrap.netinstall"},
     {"source": "initialization_contract.mechanism", "pattern": "unattended_install", "derives": "cap.bootstrap.unattended"},
     {"source": "initialization_contract.mechanism", "pattern": "manual", "derives": "cap.bootstrap.manual"},
+
+    # Workload from class_ref
+    {"source": "class_ref", "pattern": "class.compute.workload.vm", "derives": "cap.workload.vm"},
+    {"source": "class_ref", "pattern": "class.compute.workload.lxc", "derives": "cap.workload.lxc"},
+    {"source": "class_ref", "pattern": "class.compute.workload.container", "derives": "cap.workload.container"},
 ]
 
 def derive_capabilities(obj: dict) -> set[str]:
@@ -438,3 +503,49 @@ def get_legacy_projection(objects: list[dict], alias: str) -> list[dict]:
 | Wave 3 | Pending | - |
 | Wave 4 | Pending | - |
 | Wave 5 | Pending | - |
+
+---
+
+## Patterns NOT Requiring Migration
+
+Based on deep code analysis, the following patterns should **remain as-is**:
+
+| File | Pattern | Reason |
+|------|---------|--------|
+| `hypervisor_execution_model_validator.py` | `_HYPERVISOR_CLASSES` set | Uses class_ref hierarchy (structural check) |
+| `volume_format_compat_validator.py` | `_HYPERVISOR_FORMAT_COMPAT` dict | Format compatibility matrix (hypervisor type data) |
+| `vm_hypervisor_compat_validator.py` | `_DEFAULT_ALLOWED_*` constants | Hypervisor type defaults |
+
+**Rationale**: These patterns check class-level structural properties, not vendor-specific object_ref strings. They define constraints that are inherent to the class hierarchy and should remain as class_ref-based checks.
+
+---
+
+## Dependency Graph
+
+```
+Wave 1: Foundation (catalog + compiler)
+    │
+    ▼
+Wave 2: Capability Helpers (5 functions)
+    │
+    ├──────────────────┐
+    │                  │
+    ▼                  ▼
+Wave 3: Generators    Wave 4: Validators
+(3 files)             (4 files)
+    │                  │
+    └────────┬─────────┘
+             │
+             ▼
+Wave 5: Backward Compat + Integration Tests
+```
+
+---
+
+## Deep Analysis Reference
+
+See `DETAILED-CODE-ANALYSIS.md` for:
+- Line-by-line code analysis of each file
+- Additional hardcoded patterns discovered
+- Stage 2 recommendations
+- Full risk assessment

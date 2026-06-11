@@ -20,31 +20,27 @@ elif "proxmox" in object_ref:
 
 This violates the Infrastructure-as-Data principle: adding a new device type (e.g., Ubiquiti EdgeRouter) requires modifying plugin source code rather than simply declaring capabilities in topology.
 
-### Affected Files (12 total)
+### Affected Files
 
-**Generators (4 files):**
-| File | Pattern | Lines |
-|------|---------|-------|
-| `bootstrap_projections.py` | `obj.mikrotik.*`, `obj.proxmox.ve`, `obj.orangepi.*` | 43-78 |
-| `wireguard_generator.py` | `if "mikrotik" in object_ref.lower()` | 410-433 |
-| `projections.py` | `CAPABILITY_ROLE_MAP` (only 1 entry) | 155-160 |
-| `capability_helpers.py` | `capability_expression_enabled()` underutilized | 1-50 |
+**Files to Migrate (9 files):**
 
-**Validators (6 files):**
-| File | Pattern | Lines |
-|------|---------|-------|
-| `hypervisor_execution_model_validator.py` | `class.compute.hypervisor.proxmox` | 45-60 |
-| `volume_format_compat_validator.py` | `_HYPERVISOR_FORMAT_COMPAT` dict | 20-35 |
-| `vm_hypervisor_compat_validator.py` | `_DEFAULT_ALLOWED_FORMATS/BUSES` | 25-45 |
-| `vm_refs_validator.py` | `platform != "proxmox"` | 70-85 |
-| `lxc_refs_validator.py` | `platform != "proxmox"` | 55-70 |
-| `router_port_validator.py` | `obj.mikrotik.`, `obj.glinet.` | 30-50 |
+| File | Pattern | Action |
+|------|---------|--------|
+| `bootstrap_projections.py` | `obj.mikrotik.*`, `obj.proxmox.ve` + vendor-named lists | Use `group_by_capability_prefix()` |
+| `wireguard_generator.py` | `if "mikrotik" in object_ref.lower()` | Use `get_platform_type()` |
+| `projections.py` | `CAPABILITY_ROLE_MAP` (only 1 entry) | Expand with platform capabilities |
+| `capability_helpers.py` | Underutilized | Add 5 accessor functions |
+| `vm_refs_validator.py` | `platform != "proxmox"` | Use `has_capability()` |
+| `lxc_refs_validator.py` | `platform != "proxmox"` | Use `has_capability()` |
+| `router_port_validator.py` | `obj.mikrotik.`, `obj.glinet.` prefixes | Use `has_capability()` |
 
-**Projections (2 files):**
-| File | Pattern | Lines |
-|------|---------|-------|
-| `bootstrap_projections.py` | `proxmox_nodes`, `mikrotik_nodes`, `orangepi_nodes` lists | 80-120 |
-| `projections.py` | Hardcoded role assignments | 160-200 |
+**Files to Keep As-Is (3 files, structural checks):**
+
+| File | Pattern | Reason |
+|------|---------|--------|
+| `hypervisor_execution_model_validator.py` | `_HYPERVISOR_CLASSES` set | Class hierarchy check (structural) |
+| `volume_format_compat_validator.py` | `_HYPERVISOR_FORMAT_COMPAT` dict | Format compatibility matrix |
+| `vm_hypervisor_compat_validator.py` | `_DEFAULT_ALLOWED_*` constants | Hypervisor type defaults |
 
 ### Root Cause
 
@@ -85,11 +81,15 @@ derivation_rules:
     derives: "cap.vendor.{value}"
 ```
 
-### D2: New Derived Capabilities (17 total)
+### D2: New Derived Capabilities (24 total)
 
 ```yaml
-# Platform capabilities (4)
+# Platform capabilities (8)
 cap.platform.proxmox:    # Proxmox VE hypervisor
+cap.platform.vbox:       # VirtualBox hypervisor
+cap.platform.hyperv:     # Hyper-V hypervisor
+cap.platform.vmware:     # VMware hypervisor
+cap.platform.xen:        # Xen hypervisor
 cap.platform.routeros:   # RouterOS-based routers
 cap.platform.openwrt:    # OpenWRT-based routers
 cap.platform.debian:     # Debian-based Linux hosts
@@ -112,6 +112,11 @@ cap.vendor.proxmox:      # Proxmox vendor
 cap.vendor.mikrotik:     # MikroTik vendor
 cap.vendor.orangepi:     # Orange Pi vendor
 cap.vendor.oracle:       # Oracle Cloud vendor
+
+# Workload capabilities (3)
+cap.workload.vm:         # Virtual machine workload
+cap.workload.lxc:        # LXC container workload
+cap.workload.container:  # Docker/OCI container workload
 ```
 
 ### D3: Capability Helper Functions
@@ -214,7 +219,7 @@ if has_capability(obj, "cap.platform.proxmox"):
 ### Trade-offs
 
 1. **Learning curve**: Developers must understand capability model
-2. **Initial effort**: 20h migration across 12 files
+2. **Initial effort**: 20h migration across 9 files (3 files remain as structural checks)
 3. **Two-stage process**: Full benefits require Stage 2 completion
 
 ### Risks
@@ -234,18 +239,28 @@ if has_capability(obj, "cap.platform.proxmox"):
 | Wave 1 | Derived capability compiler + catalog | 2 | 6h |
 | Wave 2 | Capability accessor helpers | 1 | 2h |
 | Wave 3 | Generator refactoring | 3 | 6h |
-| Wave 4 | Validator refactoring | 6 | 4h |
-| Wave 5 | Backward compat aliases | 2 | 2h |
+| Wave 4 | Validator refactoring | 4 | 4h |
+| Wave 5 | Backward compat aliases + tests | 2 | 2h |
+
+**Dependency graph:**
+```
+Wave 1 → Wave 2 → Wave 3 (parallel) → Wave 5
+                → Wave 4 (parallel) ↗
+```
 
 ### Stage 2: Generator Redesign (future ADR)
 
 - Unified dispatch architecture
 - Template capability matrix
+- Output path normalization
 - Full legacy pattern removal
 
 ## References
 
-- Analysis: `adr/capabilities-analysis/SWOT-CAPABILITIES.md`
+- SWOT Analysis: `adr/capabilities-analysis/SWOT-CAPABILITIES.md`
+- Detailed Code Analysis: `adr/0106-analysis/DETAILED-CODE-ANALYSIS.md`
+- Implementation Plan: `adr/0106-analysis/IMPLEMENTATION-PLAN.md`
+- Gap Analysis: `adr/0106-analysis/GAP-ANALYSIS.md`
 - Capability catalog: `topology/class-modules/capability-catalog.yaml`
 - ADR 0063: Plugin microkernel architecture
 - ADR 0074: V5 generator architecture
