@@ -32,6 +32,7 @@ build_bootstrap_projection = _BOOTSTRAP_PROJECTIONS.build_bootstrap_projection
 
 
 def _compiled_fixture() -> dict:
+    """Compiled JSON fixture with ADR 0106 initialization_contract requirements."""
     return {
         "instances": {
             "devices": [
@@ -41,6 +42,10 @@ def _compiled_fixture() -> dict:
                         "materializes_object": "obj.mikrotik.chateau_lte7_ax",
                         "materializes_class": "class.network.router",
                     },
+                    # ADR 0106: Required initialization_contract.mechanism for bootstrap
+                    "object": {
+                        "initialization_contract": {"mechanism": "netinstall"},
+                    },
                 },
                 {
                     "instance_id": "srv-gamayun",
@@ -48,12 +53,20 @@ def _compiled_fixture() -> dict:
                         "materializes_object": "obj.proxmox.ve",
                         "materializes_class": "class.compute.hypervisor.proxmox",
                     },
+                    # ADR 0106: Required initialization_contract.mechanism for bootstrap
+                    "object": {
+                        "initialization_contract": {"mechanism": "unattended_install"},
+                    },
                 },
                 {
                     "instance_id": "srv-orangepi5",
                     "instance": {
                         "materializes_object": "obj.orangepi.rk3588.debian",
                         "materializes_class": "class.compute.sbc",
+                    },
+                    # ADR 0106: Required initialization_contract.mechanism for bootstrap
+                    "object": {
+                        "initialization_contract": {"mechanism": "cloud_init"},
                     },
                 },
                 {

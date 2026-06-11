@@ -103,12 +103,25 @@ def _semanticize(compiled_json: dict) -> dict:
 
 
 def _compiled_fixture() -> dict:
+    """Compiled JSON fixture with ADR 0106 initialization_contract requirements."""
     return {
         "instances": {
             "devices": [
-                {"instance_id": "srv-gamayun", "object_ref": "obj.proxmox.ve"},
-                {"instance_id": "rtr-mk", "object_ref": "obj.mikrotik.chateau_lte7_ax"},
-                {"instance_id": "srv-orangepi5", "object_ref": "obj.orangepi.rk3588.debian"},
+                {
+                    "instance_id": "srv-gamayun",
+                    "object_ref": "obj.proxmox.ve",
+                    "object": {"initialization_contract": {"mechanism": "unattended_install"}},
+                },
+                {
+                    "instance_id": "rtr-mk",
+                    "object_ref": "obj.mikrotik.chateau_lte7_ax",
+                    "object": {"initialization_contract": {"mechanism": "netinstall"}},
+                },
+                {
+                    "instance_id": "srv-orangepi5",
+                    "object_ref": "obj.orangepi.rk3588.debian",
+                    "object": {"initialization_contract": {"mechanism": "cloud_init"}},
+                },
             ]
         }
     }

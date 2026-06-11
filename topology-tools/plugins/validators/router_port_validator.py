@@ -1,4 +1,7 @@
-"""Consolidated router port validator (ADR0086 W2-05)."""
+"""Consolidated router port validator (ADR0086 W2-05, ADR0106).
+
+ADR 0106: Uses capability-based vendor detection instead of object_id prefix matching.
+"""
 
 from __future__ import annotations
 
@@ -6,20 +9,24 @@ from dataclasses import dataclass
 from typing import Any
 
 from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage, ValidatorJsonPlugin
+from plugins.generators.capability_helpers import has_capability
 
 
 @dataclass(frozen=True)
 class _VendorRule:
-    object_prefix: str
+    """Vendor-specific validation rule using capability check (ADR 0106)."""
+
+    vendor_capability: str  # e.g., "cap.vendor.mikrotik"
     diagnostic_code: str
 
 
 class RouterPortValidator(ValidatorJsonPlugin):
     """Validate router data-channel contract and vendor router ethernet ports."""
 
+    # ADR 0106: Use capability-based vendor detection
     _VENDOR_RULES: tuple[_VendorRule, ...] = (
-        _VendorRule(object_prefix="obj.mikrotik.", diagnostic_code="E7302"),
-        _VendorRule(object_prefix="obj.glinet.", diagnostic_code="E7303"),
+        _VendorRule(vendor_capability="cap.vendor.mikrotik", diagnostic_code="E7302"),
+        _VendorRule(vendor_capability="cap.vendor.glinet", diagnostic_code="E7303"),
     )
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
@@ -133,11 +140,13 @@ class RouterPortValidator(ValidatorJsonPlugin):
         return diagnostics
 
     def _validate_vendor_ports(self, *, ctx: PluginContext, stage: Stage, rule: _VendorRule) -> list[PluginDiagnostic]:
+        """Validate vendor-specific router ports using capability checks (ADR 0106)."""
         diagnostics: list[PluginDiagnostic] = []
         for object_id, payload in ctx.objects.items():
-            if not (isinstance(object_id, str) and object_id.startswith(rule.object_prefix)):
-                continue
             if not isinstance(payload, dict) or payload.get("class_ref") != "class.router":
+                continue
+            # ADR 0106: Use capability check instead of object_id prefix
+            if not has_capability(payload, rule.vendor_capability):
                 continue
 
             hardware_specs = payload.get("hardware_specs")

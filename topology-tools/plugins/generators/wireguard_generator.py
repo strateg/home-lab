@@ -24,6 +24,7 @@ from plugins.generators.artifact_contract import (
     write_contract_artifacts,
 )
 from plugins.generators.base_generator import BaseGenerator
+from plugins.generators.capability_helpers import get_platform_type
 from plugins.generators.projection_core import (
     GROUP_DEVICES,
     GROUP_NETWORK,
@@ -410,7 +411,10 @@ class WireguardGenerator(BaseGenerator):
     def _detect_platform(
         self, compiled: dict[str, Any], device_ref: str
     ) -> str:
-        """Detect platform type for a device (mikrotik, linux, etc)."""
+        """Detect platform type for a device using capability checks (ADR 0106).
+
+        Uses get_platform_type() from capability_helpers instead of string matching.
+        """
         try:
             groups = _instance_groups(compiled)
         except Exception:
@@ -422,13 +426,12 @@ class WireguardGenerator(BaseGenerator):
                 inst_id = inst.get("instance_id", "")
                 source_id = inst.get("source_id", "")
                 if source_id == device_ref or inst_id == device_ref:
-                    object_ref = _resolved_object_ref(inst)
-                    if "mikrotik" in object_ref.lower():
-                        return "mikrotik"
-                    if "oracle" in object_ref.lower() or "cloud_vm" in object_ref.lower():
-                        return "linux"
-                    if "linux" in object_ref.lower() or "ubuntu" in object_ref.lower():
-                        return "linux"
+                    # ADR 0106: Use capability-based platform detection
+                    obj = inst.get("object", {})
+                    if isinstance(obj, dict):
+                        return get_platform_type(obj)
+                    # Fallback: check instance data for capabilities
+                    return get_platform_type(inst)
 
         return "unknown"
 

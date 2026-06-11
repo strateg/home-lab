@@ -17,18 +17,27 @@
       "instance_id": "rtr-mk",
       "inventory_group": "devices",
       "management_ip": "192.168.88.1",
+      "object": {
+        "initialization_contract": {"mechanism": "netinstall"}
+      },
       "object_ref": "obj.mikrotik.chateau_lte7_ax"
     },
     {
       "instance_id": "srv-gamayun",
       "inventory_group": "devices",
       "management_ip": "10.10.10.2",
+      "object": {
+        "initialization_contract": {"mechanism": "unattended_install"}
+      },
       "object_ref": "obj.proxmox.ve"
     },
     {
       "instance_id": "srv-orangepi5",
       "inventory_group": "devices",
       "management_ip": "10.10.10.22",
+      "object": {
+        "initialization_contract": {"mechanism": "cloud_init"}
+      },
       "object_ref": "obj.orangepi.rk3588.debian"
     }
   ]

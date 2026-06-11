@@ -23,6 +23,9 @@
     {
       "instance_id": "srv-gamayun",
       "management_ip": "10.10.10.2",
+      "object": {
+        "initialization_contract": {"mechanism": "unattended_install"}
+      },
       "object_ref": "obj.proxmox.ve"
     }
   ],

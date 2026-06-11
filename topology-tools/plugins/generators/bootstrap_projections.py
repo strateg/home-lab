@@ -60,13 +60,9 @@ def build_bootstrap_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
             orangepi_nodes.append(export_row)
             continue
 
-        # Legacy fallback until all bootstrap-capable objects declare initialization_contract.
-        if object_ref == "obj.proxmox.ve":
-            proxmox_nodes.append(export_row)
-        if object_ref.startswith("obj.mikrotik."):
-            mikrotik_nodes.append(export_row)
-        if object_ref.startswith("obj.orangepi."):
-            orangepi_nodes.append(export_row)
+        # ADR 0106: ALL-IN approach - no legacy fallback
+        # Objects without initialization_contract.mechanism are excluded.
+        # Strict error E8001 is emitted at compile time by capability_compiler.
 
     return {
         "proxmox_nodes": _sorted_rows(proxmox_nodes),

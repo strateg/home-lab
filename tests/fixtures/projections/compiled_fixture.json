@@ -7,6 +7,9 @@
           "materializes_object": "obj.mikrotik.chateau_lte7_ax",
           "materializes_class": "class.network.router"
         },
+        "object": {
+          "initialization_contract": {"mechanism": "netinstall"}
+        },
         "management_ip": "192.168.88.1"
       },
       {
@@ -15,6 +18,9 @@
           "materializes_object": "obj.proxmox.ve",
           "materializes_class": "class.compute.hypervisor.proxmox"
         },
+        "object": {
+          "initialization_contract": {"mechanism": "unattended_install"}
+        },
         "management_ip": "10.10.10.2"
       },
       {
@@ -22,6 +28,9 @@
         "instance": {
           "materializes_object": "obj.orangepi.rk3588.debian",
           "materializes_class": "class.compute.sbc"
+        },
+        "object": {
+          "initialization_contract": {"mechanism": "cloud_init"}
         },
         "management_ip": "10.10.10.22"
       },
