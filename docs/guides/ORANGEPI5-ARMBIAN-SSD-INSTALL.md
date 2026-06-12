@@ -6,9 +6,10 @@
 
 ## Overview
 
-This guide covers two installation methods:
-1. **Standard Method** — SPI bootloader + Armbian on NVMe (recommended)
+This guide covers three installation methods:
+1. **Standard Method** — SPI bootloader + Armbian on NVMe (recommended for first setup)
 2. **UEFI Method** — EDK2 UEFI firmware + standard ARM64 images
+3. **WSL Method** — Direct write from Windows 11 via WSL (fastest for reinstall)
 
 The Orange Pi 5 has:
 - SPI NOR flash (16MB) for bootloader/UEFI
@@ -213,6 +214,152 @@ wget https://dl.armbian.com/uefi-arm64/Bookworm_current
 | Esc | UEFI Setup |
 | F1 | UEFI Shell |
 | F4 | MaskROM Recovery |
+
+---
+
+## Method 3: WSL on Windows 11 (Quick Reinstall)
+
+**Prerequisites**: SPI bootloader already configured on Orange Pi 5.
+
+This is the fastest method for clean reinstall when you have a Windows 11 laptop with:
+- WSL2 installed (Ubuntu/Debian)
+- USB NVMe enclosure or M.2 to USB adapter
+- SD card reader (optional, for SD card images)
+
+### Step 1: Connect SSD to Windows Laptop
+
+1. Remove NVMe SSD from Orange Pi 5
+2. Connect via USB NVMe enclosure to Windows laptop
+3. Windows will detect but may not mount (no driver for ext4)
+
+### Step 2: Mount Disk in WSL
+
+Open PowerShell as Administrator:
+
+```powershell
+# List available disks
+wmic diskdrive list brief
+
+# Find the Orange Pi SSD (look for size ~256GB)
+# Note the DeviceID, e.g., \\.\PHYSICALDRIVE2
+
+# Mount disk in WSL
+wsl --mount \\.\PHYSICALDRIVE2 --bare
+```
+
+### Step 3: Download Armbian in WSL
+
+Open WSL terminal:
+
+```bash
+# Create working directory
+mkdir -p ~/orangepi && cd ~/orangepi
+
+# Download latest Armbian for Orange Pi 5
+wget https://dl.armbian.com/orangepi5/Trixie_vendor_minimal
+
+# Or use curl
+curl -L -o armbian.img.xz https://dl.armbian.com/orangepi5/Trixie_vendor_minimal
+
+# Decompress
+xz -d *.img.xz
+```
+
+### Step 4: Identify Disk in WSL
+
+```bash
+# List block devices
+lsblk
+
+# The USB-connected SSD appears as /dev/sdX (e.g., /dev/sdc)
+# Verify by size (should be ~256GB)
+sudo fdisk -l /dev/sdc
+```
+
+**Important**: Double-check the device! Wrong device = data loss.
+
+### Step 5: Write Image to SSD
+
+```bash
+# Write Armbian image (replace sdX with your device)
+sudo dd if=Armbian_*.img of=/dev/sdX bs=4M status=progress conv=fsync
+
+# Sync to ensure all data written
+sync
+```
+
+Expected output:
+```
+1887+1 records in
+1887+1 records out
+7918845952 bytes (7.9 GB, 7.4 GiB) copied, 45.2 s, 175 MB/s
+```
+
+### Step 6: Safely Eject
+
+In WSL:
+```bash
+sync
+```
+
+In PowerShell (Admin):
+```powershell
+wsl --unmount \\.\PHYSICALDRIVE2
+```
+
+Then use Windows "Safely Remove Hardware" for the USB enclosure.
+
+### Step 7: Install SSD and Boot
+
+1. Disconnect SSD from laptop
+2. Install NVMe back into Orange Pi 5
+3. Power on — boots from SSD via pre-configured SPI bootloader
+4. First boot: login `root` / `1234`
+
+### Step 8: Expand Filesystem
+
+```bash
+# Check current size
+df -h /
+
+# Expand to full SSD
+sudo armbian-config
+# System → Manage or change RootFS properties → Resize
+```
+
+### WSL Troubleshooting
+
+**Disk not appearing in WSL:**
+```powershell
+# Ensure disk is online in Windows
+diskpart
+> list disk
+> select disk X
+> online disk
+> exit
+
+# Re-mount in WSL
+wsl --mount \\.\PHYSICALDRIVEX --bare
+```
+
+**Permission denied in WSL:**
+```bash
+# Run with sudo
+sudo dd if=image.img of=/dev/sdX ...
+```
+
+**Slow write speed:**
+```bash
+# Use larger block size
+sudo dd if=image.img of=/dev/sdX bs=16M status=progress conv=fsync
+```
+
+**Verify image integrity:**
+```bash
+# After writing, verify
+sudo dd if=/dev/sdX bs=4M count=1887 | sha256sum
+# Compare with original image checksum
+```
 
 ---
 
