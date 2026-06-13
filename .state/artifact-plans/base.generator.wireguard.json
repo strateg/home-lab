@@ -2,20 +2,23 @@
   "artifact_family": "wireguard.configs",
   "capabilities": [],
   "ir_version": "1.0",
-  "obsolete_candidates": [],
-  "planned_outputs": [
+  "obsolete_candidates": [
     {
+      "action": "warn",
+      "ownership_method": "previous_plan_match",
+      "ownership_proven": true,
       "path": "generated/home-lab/wireguard/mikrotik-wg0.rsc",
-      "reason": "base-family",
-      "renderer": "jinja2",
-      "required": true
+      "reason": "obsolete-shadowed"
     },
     {
+      "action": "warn",
+      "ownership_method": "previous_plan_match",
+      "ownership_proven": true,
       "path": "generated/home-lab/wireguard/vps-wg0.conf",
-      "reason": "base-family",
-      "renderer": "jinja2",
-      "required": true
-    },
+      "reason": "obsolete-shadowed"
+    }
+  ],
+  "planned_outputs": [
     {
       "path": "generated/home-lab/wireguard/README.md",
       "reason": "base-family",
@@ -27,6 +30,6 @@
   "projection_version": "1.0",
   "schema_version": "1.0",
   "validation_profiles": [
-    "production"
+    "dev"
   ]
 }
