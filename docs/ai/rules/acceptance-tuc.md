@@ -1,123 +1,69 @@
 # AI Rule Pack: Acceptance TUC
 
-Load when changing:
+> **Version:** 1.0 | **Updated:** 2026-06-15 | **ADRs:** See `ADR-RULE-MAP.yaml` → `acceptance-tuc.source_adr`
+
+## Quick Reference
+
+| Rule | Key Point |
+|------|-----------|
+| One folder per TUC | `acceptance-testing/TUC-XXXX-short-name/` |
+| Use template | Start from `TUC-TEMPLATE/` |
+| Self-contained | All materials inside TUC folder |
+| Pytest coverage | `tests/plugin_integration/test_tuc*.py` |
+| Artifacts dir | Use `artifacts/` (not `artefacts/`) |
+
+## Load When
 
 - `acceptance-testing/**`
 - `tests/plugin_integration/test_tuc*.py`
 - `scripts/acceptance/**`
 - `taskfiles/acceptance.yml`
 
-## Authoritative ADRs
+## TUC Folder Structure
 
-- ADR0070 defines the Testing Use Case (TUC) framework.
-- ADR0066 defines testing and CI strategy.
-- ADR0069 and ADR0080 connect acceptance gates to plugin-first/runtime cutover governance.
-- ADR0071 keeps sharded instance authoring separate from downstream plugin consumption.
-- ADR0089 and ADR0091 connect SOHO product/readiness claims to acceptance evidence.
-
-## Core Rules
-
-1. Each acceptance scenario gets one folder:
-   - `acceptance-testing/TUC-XXXX-short-name/`
-2. `XXXX` is a zero-padded sequence.
-3. `short-name` is lowercase kebab-case.
-4. Use `acceptance-testing/TUC-TEMPLATE/` as the baseline for new TUCs.
-5. Keep all TUC-specific materials inside the TUC folder:
-   - `TUC.md`
-   - `README.md`
-   - `TEST-MATRIX.md`
-   - `HOW-TO.md`
-   - `quality-gate.py`
-   - `analysis/`
-   - artifacts/logs output directory
-6. Keep executable regression coverage in:
-   - `tests/plugin_integration/test_tuc*.py`
-7. Do not scatter TUC evidence into ADR analysis folders.
-8. Do not broaden an existing TUC when a new scenario should get its own TUC number.
-9. Keep TUC status, test matrix, evidence log, and project status report synchronized.
+| File | Purpose |
+|------|---------|
+| `TUC.md` | Use case definition |
+| `README.md` | Quick overview |
+| `TEST-MATRIX.md` | Test scenarios |
+| `HOW-TO.md` | Execution guide |
+| `quality-gate.py` | Automated checks |
+| `analysis/` | Supporting analysis |
+| `artifacts/` | Evidence outputs |
 
 ## Evidence Contract
 
-A TUC should capture enough evidence to prove the scenario:
-
-1. positive compile path when relevant:
-   - effective topology JSON
-   - diagnostics JSON
-   - diagnostics TXT
-2. negative validation path when relevant:
-   - invalid fixture
-   - expected diagnostic code
-   - regression test
-3. determinism when relevant:
-   - repeated compile/generation comparison
-   - stable snapshot or diff policy
-4. regression gate:
-   - targeted `pytest` node/file
-   - quality gate result
-   - full acceptance suite before release/cutover closure
+| Evidence Type | Contents |
+|---------------|----------|
+| Positive compile | topology JSON, diagnostics JSON/TXT |
+| Negative validation | Invalid fixture, expected error code |
+| Determinism | Repeated compile comparison, stable snapshots |
+| Regression gate | pytest node, quality gate result |
 
 ## Commands
 
-List TUCs:
+| Action | Command |
+|--------|---------|
+| List TUCs | `task acceptance:list` |
+| Run one gate | `task acceptance:quality TUC_SLUG=TUC-XXXX-name` |
+| Run all gates | `task acceptance:quality-all` |
+| Run one test | `task acceptance:test TUC_TEST='test_tucXXXX_*.py'` |
+| Run all tests | `task acceptance:tests-all` |
+| Compile evidence | `task acceptance:compile TUC_SLUG=TUC-XXXX-name` |
 
-```bash
-task acceptance:list
-```
+## Anti-Patterns
 
-Run one quality gate:
-
-```bash
-task acceptance:quality TUC_SLUG=TUC-XXXX-short-name
-```
-
-Run all quality gates:
-
-```bash
-task acceptance:quality-all
-```
-
-Run one TUC test file or glob:
-
-```bash
-task acceptance:test TUC_TEST='tests/plugin_integration/test_tucXXXX_*.py'
-```
-
-Run one TUC test case:
-
-```bash
-task acceptance:test-case PYTEST_NODE='tests/plugin_integration/test_tucXXXX_name.py::test_name'
-```
-
-Compile topology into a TUC artifact directory:
-
-```bash
-task acceptance:compile TUC_SLUG=TUC-XXXX-short-name
-```
-
-Run all TUC tests:
-
-```bash
-task acceptance:tests-all
-```
-
-## Artifact Directory Rule
-
-Use `artifacts/` for all TUC evidence outputs. The historical misspelling was a typo and MUST NOT be reintroduced.
+| Pattern | Why Wrong | Fix |
+|---------|-----------|-----|
+| Scatter evidence | Hard to find/maintain | Keep in TUC folder |
+| Broaden existing TUC | Scope creep | Create new TUC number |
+| Skip quality gate | Untested scenarios | Run gate before closure |
+| Use `artefacts/` | Historical typo | Use `artifacts/` |
 
 ## Validation
 
-- `task acceptance:quality TUC_SLUG=<slug>`
-- `task acceptance:test TUC_TEST='<test-file-or-glob>'`
-- `task acceptance:compile TUC_SLUG=<slug>` when compiled artifacts are part of evidence
-- `task acceptance:quality-all`
-- `task acceptance:tests-all`
-
-## ADR Sources
-
-- ADR0066
-- ADR0069
-- ADR0070
-- ADR0071
-- ADR0080
-- ADR0089
-- ADR0091
+```bash
+task acceptance:quality TUC_SLUG=<slug>
+task acceptance:tests-all
+task acceptance:quality-all
+```

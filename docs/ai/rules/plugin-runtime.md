@@ -1,73 +1,71 @@
 # AI Rule Pack: Plugin Runtime
 
-Load when changing:
+> **Version:** 1.0 | **Updated:** 2026-06-15 | **ADRs:** See `ADR-RULE-MAP.yaml` → `plugin-runtime.source_adr`
+
+## Quick Reference
+
+| Rule | Key Point |
+|------|-----------|
+| Lifecycle | `discover → compile → validate → generate → assemble → build` |
+| Stage affinity | Plugin family must match stage (e.g., generators → generate) |
+| Manifests | Declare `depends_on`, `consumes`, `produces` explicitly |
+| Execution mode | Use `subinterpreter` by default (84/85 plugins) |
+| Workers | Must not mutate pipeline-global state |
+
+## Load When
 
 - `topology-tools/plugins/**`
-- `topology/**/plugins.yaml`
 - `topology-tools/kernel/**`
-- plugin manifest discovery or stage ordering
+- `topology/**/plugins.yaml`
+- Plugin manifest discovery or stage ordering
 
-## Rules
+## Stage Affinity Matrix
 
-1. Preserve lifecycle order: `discover -> compile -> validate -> generate -> assemble -> build`.
-2. Preserve stage affinity:
-   - discoverers -> discover
-   - compilers -> compile
-   - validators -> validate
-   - generators -> generate
-   - assemblers -> assemble
-   - builders -> build
-3. Declare dependencies and data exchange through manifests:
-   - `depends_on`
-   - `consumes`
-   - `produces`
-4. Respect discovery order:
-   - framework
-   - class
-   - object
-   - project
-5. Treat class/object module placement as ownership convention, not runtime ACL.
-6. Shared standalone plugins belong in `topology-tools/plugins/<family>/`.
-7. Do not add hidden coupling through filesystem reads when `ctx` or manifest exchange is the intended contract.
+| Stage | Plugin Family | Purpose |
+|-------|---------------|---------|
+| discover | discoverers | Read manifests, populate registry |
+| compile | compilers | Transform topology, resolve references |
+| validate | validators | Check constraints, emit diagnostics |
+| generate | generators | Produce artifacts to `generated/` |
+| assemble | assemblers | Combine artifacts into bundles |
+| build | builders | Create deployable packages |
 
-## Execution Mode (ADR 0097)
+## Discovery Order
 
-8. Declare `execution_mode` explicitly in plugin manifests:
-   - `subinterpreter`: Default for new plugins. Isolated parallel execution on Python 3.14 subinterpreters.
-   - `main_interpreter`: Required for plugins that mutate context fields or access plugin_registry.
-   - `thread_legacy`: Deprecated. Migration-only compatibility mode (do not use for new plugins).
+| Priority | Scope | Location |
+|----------|-------|----------|
+| 1 | Framework | `topology-tools/plugins/` |
+| 2 | Class | `topology/class-modules/**/plugins.yaml` |
+| 3 | Object | `topology/object-modules/**/plugins.yaml` |
+| 4 | Project | `projects/*/plugins/` |
 
-9. Follow envelope semantics for plugin execution:
-   - Plugins receive immutable `PluginInputSnapshot` with resolved consumes.
-   - Plugins return `PluginExecutionEnvelope` with proposed outputs.
-   - Main interpreter validates and commits envelope contents to pipeline state.
-   - Workers must not directly mutate pipeline-global state.
+## Execution Mode (ADR0097)
 
-10. Use `subinterpreter` mode unless plugin requires:
-    - Direct `ctx` field mutation (e.g., `ctx.model_lock`, `ctx.workspace_root`, `ctx.config`)
-    - Access to `ctx.config.get("plugin_registry")`
-    - Dynamic module loading with `importlib.util`
+| Mode | Use When | Constraints |
+|------|----------|-------------|
+| `subinterpreter` | Default for all new plugins | Read from snapshot, write to outbox only |
+| `main_interpreter` | Mutates `ctx` fields, accesses `plugin_registry` | Required for bootstrap plugins |
+| `thread_legacy` | Migration only | Deprecated, do not use for new plugins |
 
-11. Plugins in `subinterpreter` mode must:
-    - Read only from snapshot inputs (`ctx.subscribe()`, `ctx.config`, `ctx.objects`)
-    - Write only to local outbox (`ctx.publish()`, `ctx.emit()`)
-    - Not assume shared mutable state with other plugins
+### Subinterpreter Rules
+
+| Must | Must Not |
+|------|----------|
+| Read from `ctx.subscribe()`, `ctx.config`, `ctx.objects` | Mutate `ctx` fields directly |
+| Write to `ctx.publish()`, `ctx.emit()` | Access `ctx.config.get("plugin_registry")` |
+| Return `PluginExecutionEnvelope` | Use `importlib.util` dynamic loading |
+
+## Anti-Patterns
+
+| Pattern | Why Wrong | Fix |
+|---------|-----------|-----|
+| Hidden filesystem reads | Bypasses manifest contracts | Use `consumes` declaration |
+| Missing `depends_on` | Non-deterministic execution order | Declare dependencies |
+| `thread_legacy` for new plugins | Deprecated mode | Use `subinterpreter` |
 
 ## Validation
 
-- `task validate:plugin-manifests`
-- `task test:plugin-contract`
-- targeted plugin integration tests
-
-## ADR Sources
-
-- ADR0063 — Plugin-based compiler architecture
-- ADR0065 — Plugin manifest contracts
-- ADR0066 — Plugin discovery order
-- ADR0069 — Plugin stage affinity
-- ADR0078 — Plugin validation contracts
-- ADR0080 — Plugin migration patterns
-- ADR0086 — Plugin safety enforcement
-- ADR0097 — Actor-style dataflow execution (subinterpreters)
-- ADR0098 — Python 3.14 platform migration
-- ADR0099 — Test architecture for snapshot/envelope runtime
+```bash
+task validate:plugin-manifests
+task test:plugin-contract
+```

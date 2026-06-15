@@ -1,6 +1,18 @@
-# AI Rule Pack: Capability Model (ADR 0106)
+# AI Rule Pack: Capability Model
 
-Load when:
+> **Version:** 1.0 | **Updated:** 2026-06-15 | **ADRs:** See `ADR-RULE-MAP.yaml` → `capability-model.source_adr`
+
+## Quick Reference
+
+| Rule | Key Point |
+|------|-----------|
+| Detection | Use `has_capability()`, never string matching |
+| Platform | `cap.os.*` capabilities (routeros, debian, proxmox) |
+| Bootstrap | Derived from `initialization_contract.mechanism` |
+| Errors | Emit E8020/E8021, never silent fallbacks |
+| New device | Add `initialization_contract` + `enabled_capabilities` |
+
+## Load When
 
 - Adding new device/platform support
 - Modifying generators that process devices
@@ -109,10 +121,8 @@ groups = group_by_capability_prefix(devices, "cap.bootstrap.")
 
 ## Validation
 
-- `grep -r "object_ref.startswith" topology-tools/plugins/` (should return 0 matches)
-- `grep -r "in object_ref.lower()" topology-tools/plugins/` (should return 0 matches)
-- `task test:capability-model`
-
-## ADR Sources
-
-- ADR0106 — Capability-driven plugin architecture
+```bash
+grep -r "object_ref.startswith" topology-tools/plugins/  # Should return 0
+grep -r "in object_ref.lower()" topology-tools/plugins/  # Should return 0
+task test:capability-model
+```

@@ -1,58 +1,77 @@
 # AI Rule Pack: ADR Governance
 
-Load when changing:
+> **Version:** 1.0 | **Updated:** 2026-06-15 | **ADRs:** See `ADR-RULE-MAP.yaml` → `adr-governance.source_adr`
 
-- `adr/**`
-- `docs/ai/**`
-- `AGENTS.md`
-- `CLAUDE.md`
-- `.github/copilot-instructions.md`
-- architecture plans or rulebook semantics
+## Quick Reference
 
-## Rules
+| Rule | Key Point |
+|------|-----------|
+| One decision = one ADR | Never split or merge arbitrarily |
+| REGISTER.md | Update with every ADR change |
+| Adapters | Reference rulebook only, no divergent content |
+| Conflicts | ADR wins over compact rules |
+| AI commits | Include `AI-Agent` and `AI-Tokens` metadata |
 
-1. One architecture decision should have one ADR.
-2. Update `adr/REGISTER.md` with new or changed ADR status.
-3. Use analysis directories for large supporting work rather than bloating ADR files.
-4. Keep agent-specific instruction files as adapters to the universal rulebook.
-5. Do not create divergent architectural truth in `AGENTS.md`, `CLAUDE.md`, or `.github/copilot-instructions.md`.
-6. When compressing ADRs into rules, preserve source ADR references.
-7. If a compact rule conflicts with an ADR, the ADR wins.
-8. If `docs/ai/ADR-RULE-MAP.yaml` schema semantics change, update `adr/0096-analysis/SCHEMA-VERSION-POLICY.md` in the same change set.
-9. For each AI-assisted commit, include commit metadata lines: `AI-Agent: <agent_name> (<model_name>)` and `AI-Tokens: <tokens_used_for_commit_work>`.
+## Load When
+
+- `adr/**`, `docs/ai/**`
+- `AGENTS.md`, `CLAUDE.md`, `.github/copilot-instructions.md`
+- Architecture plans or rulebook semantics
+
+## ADR Workflow
+
+| Step | Action | Artifact |
+|------|--------|----------|
+| 1 | Create ADR | `adr/NNNN-short-title.md` |
+| 2 | Update register | `adr/REGISTER.md` |
+| 3 | Analysis (if large) | `adr/NNNN-analysis/` directory |
+| 4 | Update rules | `docs/ai/rules/*.md` if affected |
+| 5 | Validate | `task validate:adr-consistency` |
+
+## Rule Priority
+
+| Level | Source | Authority |
+|-------|--------|-----------|
+| 1 | ADRs | Final authority |
+| 2 | AGENT-RULEBOOK.md | Derived from ADRs |
+| 3 | Rule packs | Domain extensions |
+| 4 | Adapters | Hints only |
+
+## Iterative Refinement Process
+
+Add or update rules when:
+
+| Trigger | Action |
+|---------|--------|
+| New ADR accepted | Add to relevant pack `source_adr` |
+| ADR superseded | Update rule pack, mark old rules |
+| AI repeats same mistake | Add specific rule to prevent |
+| Validation drift | Sync rule pack with ADR intent |
+
+## Review Checklist
+
+| Check | Command |
+|-------|---------|
+| ADR consistency | `task validate:adr-consistency` |
+| Agent rules | `task validate:agent-rules` |
+| Strict mode | `task validate:agent-rules-strict` |
+| Coverage | `task validate:agent-rule-coverage` |
+
+## Anti-Patterns
+
+| Pattern | Why Wrong | Fix |
+|---------|-----------|-----|
+| Divergent adapters | Creates multiple truths | Reference rulebook only |
+| Bloated ADR files | Hard to maintain | Use analysis directories |
+| Missing AI metadata | Breaks accountability | Add AI-Agent, AI-Tokens |
+| Rule without source_adr | Untraceable | Link to ADRs |
 
 ## Validation
 
-- `task validate:adr-consistency`
-- `task validate:agent-rules`
-- `task validate:agent-rules-strict` when adapter/rulebook drift must fail on warnings
-- `task validate:agent-rule-coverage` for reverse ADR-to-rule coverage diagnostics
-- `task validate:agent-rule-mcp-export` for MCP-style export catalog generation
-- `task validate:agent-rule-mcp-server` for stdio MCP server smoke checks
+```bash
+task validate:adr-consistency
+task validate:agent-rules
+task validate:agent-rules-strict
+```
 
-## Rulebook Maintenance Review
-
-Review rulebook and rule packs when:
-
-1. New ADR is accepted that affects a rule pack domain.
-2. Existing ADR is superseded or significantly updated.
-3. Validation reveals drift between rule pack content and source ADRs.
-4. Agent behavior suggests rules are incomplete or misleading.
-
-Review checklist:
-
-- [ ] Rule pack `source_adr` includes all relevant ADRs.
-- [ ] Rule `source_adr` aligns with pack `source_adr` where appropriate.
-- [ ] Rule pack markdown accurately summarizes ADR intent.
-- [ ] `files_glob` patterns correctly trigger the rule pack.
-- [ ] Adapter files still route to universal rulebook without divergence.
-- [ ] `task validate:agent-rules` passes.
-- [ ] `task validate:agent-rules-strict` passes (no warnings).
-
-## ADR Sources
-
-- ADR0080
-- ADR0095
-- ADR0096
-
-Template reference: `adr/0000-template.md`
+Template: `adr/0000-template.md`

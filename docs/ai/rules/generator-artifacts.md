@@ -1,42 +1,54 @@
 # AI Rule Pack: Generator Artifacts
 
-Load when changing:
+> **Version:** 1.0 | **Updated:** 2026-06-15 | **ADRs:** See `ADR-RULE-MAP.yaml` → `generator-artifacts.source_adr`
 
-- generator plugins
-- projection helpers
-- templates
-- golden snapshots
-- generated artifact contracts
+## Quick Reference
 
-## Rules
+| Rule | Key Point |
+|------|-----------|
+| Never edit | `generated/` is output-only, edit sources instead |
+| Regenerate | Change generator/projection/template → recompile |
+| Snapshots | Golden tests change only on intentional contract change |
+| Paths | Output under `generated/<project>/` |
+| AI artifacts | Untrusted until approved via ADR0094 |
 
-1. Never hand-edit `generated/` as the source of a fix.
-2. Change generator/projection/template inputs, then regenerate.
-3. Generators should consume stable projections or compiled model contracts, not arbitrary raw internals.
-4. Generated output paths must remain project-qualified under `generated/<project>/`.
-5. Golden snapshots should change only when the output contract intentionally changes.
-6. Obsolete artifact handling must remain dry-run safe unless explicitly approved by contract.
-7. AI-assisted artifacts are untrusted until approved and promoted through ADR0094 mechanisms.
+## Load When
+
+- Generator plugins, projection helpers, templates
+- Golden snapshots, generated artifact contracts
+- `topology-tools/plugins/generators/**`
+
+## Generator Pipeline
+
+| Stage | Input | Output |
+|-------|-------|--------|
+| Compile | Topology sources | Compiled model |
+| Project | Model contracts | Stable projections |
+| Generate | Projections | `generated/<project>/` |
+| Validate | Generated artifacts | Syntax/lint checks |
+
+## Output Structure
+
+| Path | Content |
+|------|---------|
+| `generated/<project>/terraform/` | Terraform configurations |
+| `generated/<project>/ansible/` | Ansible inventory, playbooks |
+| `generated/<project>/bootstrap/` | Bootstrap packages |
+| `generated/<project>/docs/` | Generated documentation |
+
+## Anti-Patterns
+
+| Pattern | Why Wrong | Fix |
+|---------|-----------|-----|
+| Edit `generated/` | Overwritten on compile | Edit sources |
+| Consume raw internals | Unstable contracts | Use stable projections |
+| Change snapshots casually | Hides contract drift | Intentional changes only |
+| Trust AI artifacts | May contain errors | Approve via ADR0094 |
 
 ## Validation
 
-- targeted generator tests
-- projection snapshot tests
-- Terraform/Ansible syntax checks when affected
-- `task validate:default`
-
-## ADR Sources
-
-- ADR0027 (Mermaid rendering strategy)
-- ADR0046 (Generators architecture)
-- ADR0050 (Generated directory restructuring)
-- ADR0055 (Manual Terraform extension)
-- ADR0074 (V5 generator architecture)
-- ADR0075 (Framework/project separation)
-- ADR0078 (Object-module local template layout)
-- ADR0079 (V5 documentation and diagram generation)
-- ADR0092 (Smart artifact generation)
-- ADR0093 (ArtifactPlan schema)
-- ADR0094 (AI advisory mode)
-- ADR0100 (Unified topology graph generator)
-- ADR0104 (Ansible role generation from topology)
+```bash
+task validate:default
+# Targeted generator tests
+# Terraform/Ansible syntax checks
+```
