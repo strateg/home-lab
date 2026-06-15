@@ -1,47 +1,32 @@
 # Codex Agent Configuration
 
-This file is a Codex-specific adapter/bootloader for the repository rule system. It must not become a separate architectural source of truth.
+Load `docs/ai/AGENT-RULEBOOK.md` before any code changes.
 
-## Mandatory Load Order
+## Quick Context
 
-1. Read `docs/ai/AGENT-RULEBOOK.md` as the compact ADR-derived rulebook.
-2. Use `docs/ai/ADR-RULE-MAP.yaml` to select scoped rule packs under `docs/ai/rules/`.
-3. Load `.codex/rules/tech-lead-architect.md` only as a Codex role overlay.
-4. If this adapter conflicts with ADRs or the universal rulebook, ADRs and `docs/ai/AGENT-RULEBOOK.md` win.
+| Aspect | Value |
+|--------|-------|
+| Architecture | Infrastructure-as-Data, Class → Object → Instance |
+| Source of truth | `topology/topology.yaml`, `topology/class-modules/`, `topology/object-modules/` |
+| Project instances | `projects/home-lab/topology/instances/` |
+| Generated outputs | `generated/` (DO NOT EDIT) |
+| Principle | Edit topology → compile → generate → apply |
 
-## Optional SPC Mode
+## Commands
 
-When the user says "SPC MODE", "STRICT MODE", "Use strict process", or "Работай по контракту", load `docs/ai/spc-contract.md` and follow it as the active process protocol until the user exits strict mode.
+```bash
+.venv/bin/python topology-tools/compile-topology.py                                    # Compile
+V5_SECRETS_MODE=passthrough .venv/bin/python scripts/orchestration/lane.py validate-v5 # Validate
+python -m pytest tests -q                                                              # Test
+```
 
-## Role
+## Codex-Specific
 
-Operate as a pragmatic Tech Lead Architect for this infrastructure-as-data repository. Enforce architecture through the universal rulebook, ADRs, and validation evidence rather than through local-only policy.
+- **Role overlay:** `.codex/rules/tech-lead-architect.md`
+- **Priority:** If conflict, ADRs and `docs/ai/AGENT-RULEBOOK.md` win
 
-Intervene when:
+## References
 
-- architectural decisions are being made;
-- infrastructure design is modified;
-- topology, generator, deploy, or validation contracts change;
-- Terraform or Ansible artifact behavior changes;
-- new services are introduced;
-- refactoring is proposed.
-
-## Repository Guardrails
-
-- Active lane is repository root layout: `topology/`, `topology-tools/`, `projects/`, `tests/`, `scripts/`, `taskfiles/`.
-- Legacy `v4` baseline is archived under `archive/v4/` and treated as frozen reference.
-- Do not create or use root `v4/` or root `v5/` directories.
-- Do not create or modify files under `archive/v4/` unless the user explicitly requests a `v4` hotfix/parity check.
-- Do not edit `generated/` as the source of a fix; modify sources and regenerate.
-- Architecture-changing work is not complete until ADR documentation and `adr/REGISTER.md` are updated when required.
-
-## Plugin Runtime Contract
-
-ADR0086 supersedes the old runtime 4-level visibility policy from ADR0063 Section 4B. Runtime safety is enforced by lifecycle stage, manifest contracts, deterministic discovery order, and tests.
-
-- Runtime lifecycle: `discover -> compile -> validate -> generate -> assemble -> build`
-- Stage affinity enforced by manifest contracts (`depends_on`, `consumes`, `produces`)
-- Discovery order: framework -> class -> object -> project
-- **Execution Mode (ADR0097):** Plugins use `subinterpreter` mode by default. Workers must not mutate pipeline-global state.
-
-See `docs/ai/rules/plugin-runtime.md` for full rules.
+- **Full rules:** `docs/ai/AGENT-RULEBOOK.md`
+- **Workflows:** `docs/guides/COMMON-WORKFLOWS.md`
+- **SPC mode:** Say "SPC MODE" for formal analysis. See `docs/ai/spc-contract.md`

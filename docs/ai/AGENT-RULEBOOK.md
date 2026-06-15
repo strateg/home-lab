@@ -9,9 +9,42 @@
 ## How To Use
 
 1. Load this file before making code, topology, task, deploy, or ADR changes.
-2. Use `docs/ai/ADR-RULE-MAP.yaml` to select scoped rule packs.
+2. Use the **Context-Aware Pack Loading** table below to auto-select rule packs.
 3. Read full ADRs only when the compact rules are ambiguous or the change alters architecture.
 4. Treat ADRs as final authority when a rule conflicts with an ADR.
+
+---
+
+## Rule Priority (Conflict Resolution)
+
+| Priority | Source | Description |
+|----------|--------|-------------|
+| 1 (highest) | ADRs | Final authority, always win |
+| 2 | This rulebook | Core rules derived from ADRs |
+| 3 | Rule packs | Domain-specific extensions |
+| 4 (lowest) | Adapters | Agent-specific hints only |
+
+If conflict between levels: **higher priority wins**.
+
+---
+
+## Context-Aware Pack Loading
+
+Load rule packs based on files you're modifying:
+
+| If touching... | Load pack | Quick rule |
+|----------------|-----------|------------|
+| `topology-tools/plugins/**`, `kernel/**` | `plugin-runtime.md` | Preserve stage affinity, declare manifests |
+| `topology/**`, `projects/*/topology/**` | `topology-model.md` | Class → Object → Instance hierarchy |
+| `scripts/orchestration/deploy/**` | `deploy-domain.md` | Immutable bundles, runner backends |
+| `**/generators/**`, `generated/**` | `generator-artifacts.md` | Edit sources, not generated |
+| `projects/*/secrets/**` | `secrets.md` | SOPS/age, never plaintext |
+| `adr/**`, `docs/ai/**` | `adr-governance.md` | Update ADR + REGISTER.md |
+| `tests/**`, `.github/workflows/**` | `testing-ci.md` | Run targeted tests + ci |
+| `acceptance-testing/**` | `acceptance-tuc.md` | TUC folder structure |
+| Device/platform detection | `capability-model.md` | Use capabilities, not string matching |
+
+**Default:** If uncertain which pack to load, start with only this rulebook. Add packs as context clarifies.
 
 ---
 
@@ -45,22 +78,6 @@
 | `adr/` | Architecture Decision Records |
 | `docs/` | Documentation |
 | `archive/v4/` | Frozen v4 reference (do not modify) |
-
----
-
-## Scoped Rule Packs
-
-| Domain | Load When | Rule Pack |
-|---|---|---|
-| Plugin runtime | `topology-tools/plugins/**`, `topology/**/plugins.yaml`, `plugin_manifest*`, kernel contracts | `docs/ai/rules/plugin-runtime.md` |
-| Topology model | `topology/**`, `projects/*/topology/**`, class/object/instance files | `docs/ai/rules/topology-model.md` |
-| Deploy domain | `scripts/orchestration/deploy/**`, `taskfiles/deploy.yml`, bundle/runner/init-node changes | `docs/ai/rules/deploy-domain.md` |
-| Generator artifacts | generators, projections, templates, `generated/` behavior | `docs/ai/rules/generator-artifacts.md` |
-| Secrets | `projects/*/secrets/**`, secret annotations, bundle injection, tfvars generation | `docs/ai/rules/secrets.md` |
-| ADR governance | `adr/**`, `docs/ai/**`, architecture plans | `docs/ai/rules/adr-governance.md` |
-| Testing/CI | `tests/**`, `taskfiles/**`, `.github/workflows/**` | `docs/ai/rules/testing-ci.md` |
-| Acceptance TUC | `acceptance-testing/**`, `tests/plugin_integration/test_tuc*.py`, `taskfiles/acceptance.yml` | `docs/ai/rules/acceptance-tuc.md` |
-| Capability model | device detection, platform/bootstrap grouping, errors E8001-E8021 | `docs/ai/rules/capability-model.md` |
 
 ---
 
