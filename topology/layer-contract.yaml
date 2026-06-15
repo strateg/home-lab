@@ -89,13 +89,19 @@ class_layers:
     allowed_layers: [L2]
   class.network.qos:
     allowed_layers: [L2]
+  class.network.routing_policy:
+    allowed_layers: [L2]
+  class.network.tunnel_link:
+    allowed_layers: [L2]
 
-  # L3 - Storage (pools, volumes, media)
+  # L3 - Storage/Data (pools, volumes, media, data assets)
   class.storage.pool:
     allowed_layers: [L3]
   class.storage.volume:
     allowed_layers: [L3]
   class.storage.data_asset:
+    allowed_layers: [L3]
+  class.device.iot_endpoint:
     allowed_layers: [L3]
 
   # L4 - Platform (workloads)

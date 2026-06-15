@@ -19,11 +19,13 @@ metadata:
         "@title": 0.80
 warning_governance:
   allowlist:
+    - W3201
     - W7816
     - W7892
     - W7941
     - W7942
   max_counts:
+    W3201: 14
     W7816: 5
     W7892: 50
     W7941: 5

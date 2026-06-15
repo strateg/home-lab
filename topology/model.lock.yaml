@@ -25,6 +25,8 @@ classes:
     version: 1.1.0
   class.compute.workload.vm:
     version: 1.2.0
+  class.device.iot_endpoint:
+    version: 1.0.0
   class.firmware:
     version: 1.0.0
   class.network.bridge:
@@ -37,7 +39,11 @@ classes:
     version: 1.0.0
   class.network.qos:
     version: 1.0.0
+  class.network.routing_policy:
+    version: 1.0.0
   class.network.trust_zone:
+    version: 1.0.0
+  class.network.tunnel_link:
     version: 1.0.0
   class.network.vlan:
     version: 1.0.0
@@ -95,6 +101,12 @@ objects:
   obj.apc.backups.650va:
     version: 1.0.0
     class_ref: class.power.ups
+  obj.device.e_reader:
+    version: 1.0.0
+    class_ref: class.device.iot_endpoint
+  obj.device.smart_tv:
+    version: 1.0.0
+    class_ref: class.device.iot_endpoint
   obj.docker.container.generic:
     version: 1.0.0
     class_ref: class.compute.workload.docker
@@ -108,6 +120,9 @@ objects:
     version: 1.0.0
     class_ref: class.compute.workload.docker.stack
   obj.firmware.apc.backups.650va:
+    version: 1.0.0
+    class_ref: class.firmware
+  obj.firmware.boox.go103.arm64:
     version: 1.0.0
     class_ref: class.firmware
   obj.firmware.openwrt.glinet.4x:
@@ -173,6 +188,9 @@ objects:
   obj.network.qos.wan_shaping:
     version: 1.0.0
     class_ref: class.network.qos
+  obj.network.routing_policy.vpn_vlan:
+    version: 1.0.0
+    class_ref: class.network.routing_policy
   obj.network.trust_zone.guest:
     version: 1.0.0
     class_ref: class.network.trust_zone
@@ -206,12 +224,18 @@ objects:
   obj.network.vlan.servers:
     version: 1.0.0
     class_ref: class.network.vlan
+  obj.network.vlan.vpn_tunnel:
+    version: 1.0.0
+    class_ref: class.network.vlan
   obj.network.wan_uplink:
     version: 1.0.0
     class_ref: class.network.data_link
   obj.network.wifi_ap_channel:
     version: 1.0.0
     class_ref: class.network.data_link
+  obj.network.wireguard_tunnel:
+    version: 1.0.0
+    class_ref: class.network.tunnel_link
   obj.observability.alert.application:
     version: 1.0.0
     class_ref: class.observability.alert
@@ -266,6 +290,9 @@ objects:
   obj.orangepi.rk3588.debian:
     version: 1.0.0
     class_ref: class.compute.edge_node
+  obj.os.android.15.arm64:
+    version: 1.0.0
+    class_ref: class.os
   obj.os.debian.12.arm64.container_base:
     version: 1.0.0
     class_ref: class.os

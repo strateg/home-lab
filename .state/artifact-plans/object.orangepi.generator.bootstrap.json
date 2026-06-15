@@ -61,21 +61,21 @@
     },
     {
       "action": "warn",
-      "ownership_method": "previous_plan_match",
+      "ownership_method": "output_prefix_match",
       "ownership_proven": true,
       "path": "generated/home-lab/bootstrap/srv-orangepi5/cloud-init/README.md",
       "reason": "obsolete-shadowed"
     },
     {
       "action": "warn",
-      "ownership_method": "previous_plan_match",
+      "ownership_method": "output_prefix_match",
       "ownership_proven": true,
       "path": "generated/home-lab/bootstrap/srv-orangepi5/cloud-init/meta-data",
       "reason": "obsolete-shadowed"
     },
     {
       "action": "warn",
-      "ownership_method": "previous_plan_match",
+      "ownership_method": "output_prefix_match",
       "ownership_proven": true,
       "path": "generated/home-lab/bootstrap/srv-orangepi5/cloud-init/user-data.example",
       "reason": "obsolete-shadowed"
@@ -86,6 +86,6 @@
   "projection_version": "1.0",
   "schema_version": "1.0",
   "validation_profiles": [
-    "dev"
+    "production"
   ]
 }
