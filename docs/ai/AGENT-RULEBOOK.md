@@ -31,6 +31,23 @@
 
 ---
 
+## Repository Layout
+
+| Path | Purpose |
+|------|---------|
+| `topology/` | V5 topology definitions (topology.yaml, class-modules/, object-modules/) |
+| `topology-tools/` | Plugin runtime, compiler, templates |
+| `projects/home-lab/` | Project-specific data (instances, secrets, framework.lock) |
+| `generated/` | Generated outputs (DO NOT EDIT) |
+| `tests/` | Test suite |
+| `scripts/` | Orchestration scripts |
+| `taskfiles/` | Go-Task definitions |
+| `adr/` | Architecture Decision Records |
+| `docs/` | Documentation |
+| `archive/v4/` | Frozen v4 reference (do not modify) |
+
+---
+
 ## Scoped Rule Packs
 
 | Domain | Load When | Rule Pack |

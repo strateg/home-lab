@@ -38,3 +38,5 @@ Load when changing:
 - ADR0092 (Smart artifact generation)
 - ADR0093 (ArtifactPlan schema)
 - ADR0094 (AI advisory mode)
+- ADR0100 (Unified topology graph generator)
+- ADR0104 (Ansible role generation from topology)

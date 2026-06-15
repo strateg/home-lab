@@ -45,3 +45,5 @@ Load when changing:
 - ADR0071 (Sharded instance files)
 - ADR0087 (Unified container ontology)
 - ADR0088 (Semantic keyword registry)
+- ADR0101 (Layer harmonization for OS runtime)
+- ADR0102 (Derived instance layer semantics)

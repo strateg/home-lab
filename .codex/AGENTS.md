@@ -39,9 +39,9 @@ Intervene when:
 
 ADR0086 supersedes the old runtime 4-level visibility policy from ADR0063 Section 4B. Runtime safety is enforced by lifecycle stage, manifest contracts, deterministic discovery order, and tests.
 
-- Applies to all plugin families (`discoverers`, `compilers`, `validators`, `generators`, `assemblers`, `builders`).
-- Runtime lifecycle has 6 stages: `discover -> compile -> validate -> generate -> assemble -> build`.
-- Stage affinity must be preserved: `discover -> discoverers`, `compile -> compilers`, `validate -> validators`, `generate -> generators`, `assemble -> assemblers`, `build -> builders`.
-- Plugin data exchange must be declared through manifest contracts: `depends_on`, `consumes`, and `produces`.
-- Discovery order remains framework -> class -> object -> project.
-- Class/object module placement is an ownership convention, not a runtime visibility ACL.
+- Runtime lifecycle: `discover -> compile -> validate -> generate -> assemble -> build`
+- Stage affinity enforced by manifest contracts (`depends_on`, `consumes`, `produces`)
+- Discovery order: framework -> class -> object -> project
+- **Execution Mode (ADR0097):** Plugins use `subinterpreter` mode by default. Workers must not mutate pipeline-global state.
+
+See `docs/ai/rules/plugin-runtime.md` for full rules.

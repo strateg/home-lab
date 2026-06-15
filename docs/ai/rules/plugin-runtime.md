@@ -69,3 +69,5 @@ Load when changing:
 - ADR0080 — Plugin migration patterns
 - ADR0086 — Plugin safety enforcement
 - ADR0097 — Actor-style dataflow execution (subinterpreters)
+- ADR0098 — Python 3.14 platform migration
+- ADR0099 — Test architecture for snapshot/envelope runtime

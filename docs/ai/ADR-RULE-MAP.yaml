@@ -16,7 +16,7 @@ adapters:
 rule_packs:
   plugin-runtime:
     path: docs/ai/rules/plugin-runtime.md
-    source_adr: ["0063", "0065", "0066", "0069", "0078", "0080", "0086"]
+    source_adr: ["0063", "0065", "0066", "0069", "0078", "0080", "0086", "0097", "0098", "0099"]
     files_glob:
       - "topology-tools/plugins/**"
       - "topology/**/plugins.yaml"
@@ -26,7 +26,7 @@ rule_packs:
       - "topology-tools/compiler_*.py"
   topology-model:
     path: docs/ai/rules/topology-model.md
-    source_adr: ["0026", "0027", "0029", "0038", "0039", "0040", "0041", "0042", "0043", "0044", "0047", "0062", "0064", "0067", "0068", "0071", "0087", "0088"]
+    source_adr: ["0026", "0027", "0029", "0038", "0039", "0040", "0041", "0042", "0043", "0044", "0047", "0062", "0064", "0067", "0068", "0071", "0087", "0088", "0101", "0102"]
     files_glob:
       - "topology/**"
       - "projects/*/topology/**"
@@ -41,7 +41,7 @@ rule_packs:
       - "schemas/initialization-contract.schema.json"
   generator-artifacts:
     path: docs/ai/rules/generator-artifacts.md
-    source_adr: ["0027", "0046", "0050", "0055", "0074", "0075", "0078", "0079", "0092", "0093"]
+    source_adr: ["0027", "0046", "0050", "0055", "0074", "0075", "0078", "0079", "0092", "0093", "0100", "0104"]
     files_glob:
       - "topology-tools/plugins/generators/**"
       - "topology/**/templates/**"
@@ -67,7 +67,7 @@ rule_packs:
       - ".codex/**"
   testing-ci:
     path: docs/ai/rules/testing-ci.md
-    source_adr: ["0066", "0070", "0077", "0080", "0086"]
+    source_adr: ["0066", "0070", "0077", "0080", "0086", "0099"]
     files_glob:
       - "tests/**"
       - "taskfiles/**"
@@ -211,12 +211,14 @@ rules:
       - "Preserve stage affinity: discover, compile, validate, generate, assemble, build."
       - "Declare depends_on, consumes, and produces explicitly."
       - "Respect framework -> class -> object -> project discovery order."
+      - "Declare execution_mode explicitly (subinterpreter preferred)."
     never:
       - "Do not add hidden plugin coupling outside manifest contracts."
+      - "Do not mutate pipeline-global state from subinterpreter workers."
     validate:
       - "task validate:plugin-manifests"
       - "task test:plugin-contract"
-    source_adr: ["0063", "0065", "0080", "0086"]
+    source_adr: ["0063", "0065", "0080", "0086", "0097"]
 
   - id: TOP-001
     scope: topology-model
@@ -225,11 +227,12 @@ rules:
     must:
       - "Preserve Class -> Object -> Instance modeling."
       - "Use canonical semantic keys and active lane paths."
+      - "Respect layer harmonization boundaries (Mode H)."
     never:
       - "Do not edit generated outputs to represent topology changes."
     validate:
       - "task validate:default"
-    source_adr: ["0062", "0064", "0067", "0068", "0071", "0087", "0088"]
+    source_adr: ["0062", "0064", "0067", "0068", "0071", "0087", "0088", "0101", "0102"]
 
   - id: GEN-001
     scope: generator-artifacts
@@ -238,12 +241,13 @@ rules:
     must:
       - "Change generators, projections, or templates rather than generated/ outputs."
       - "Update golden snapshots only for intentional stable contract changes."
+      - "Use unified graph generator for topology visualizations."
     never:
       - "Do not hand-edit generated/."
     validate:
       - "task test:plugin-integration"
       - "relevant terraform/ansible validation task when outputs change"
-    source_adr: ["0046", "0050", "0074", "0075", "0078", "0079", "0092", "0093", "0094"]
+    source_adr: ["0046", "0050", "0074", "0075", "0078", "0079", "0092", "0093", "0094", "0100", "0104"]
 
   - id: DEP-001
     scope: deploy-domain
@@ -295,12 +299,13 @@ rules:
     must:
       - "Run targeted tests for the touched domain."
       - "Run task ci before integration-level closure when feasible."
+      - "Use snapshot/envelope test patterns for plugin tests."
     never:
       - "Do not claim validation without command evidence."
     validate:
       - "targeted pytest"
       - "task ci"
-    source_adr: ["0066", "0070", "0077", "0080"]
+    source_adr: ["0066", "0070", "0077", "0080", "0099"]
 
   - id: TUC-001
     scope: acceptance-tuc
