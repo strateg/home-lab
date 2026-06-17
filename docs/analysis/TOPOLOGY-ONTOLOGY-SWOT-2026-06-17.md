@@ -3,8 +3,8 @@
 | Field | Value |
 |-------|-------|
 | **Дата** | 2026-06-17 |
-| **Версия** | 1.1.0 |
-| **Статус** | Имплементация завершена (Critical + High) |
+| **Версия** | 1.2.0 |
+| **Статус** | Имплементация завершена (Critical + High + P04) |
 | **Методология** | SPC (Strict Process Compliance) |
 | **Scope** | `topology/*`, `projects/home-lab/topology/*` |
 | **AI-Agent** | Claude Opus 4.5 (claude-opus-4-5-20251101) |
@@ -37,7 +37,7 @@
 |----------|----------|---------|
 | Critical | P03 ✅, P06 ✅ | — |
 | High | P01 ✅, P02 ✅ | — |
-| Medium | P09 ✅ (closed) | P04, P07 |
+| Medium | P04 ✅, P09 ✅ (closed) | P07 |
 | Low | P10 ✅ | P05 |
 
 ---
@@ -612,7 +612,7 @@ Comparison of `lxc-postgresql.yaml` vs `lxc-redis.yaml`:
 
 | # | Problem | Action | Status | Resolution |
 |---|---------|--------|--------|------------|
-| 5 | P04 | Implement host-level profiles | ⏳ PENDING | Requires new ADR for architectural change |
+| 5 | P04 | Implement host-level profiles | ✅ **RESOLVED** | ADR 0107: `@on` directive + `workload_defaults` |
 | 6 | P07 | Evaluate ADR 0106 implementation | ⏳ PENDING | ADR 0106 Proposed, ~20h effort, 9 files to migrate |
 | 7 | P09 | Consolidate namespace prefixes | ✅ **CLOSED** | Analysis: 19 prefixes optimal, consolidation not recommended |
 
@@ -673,6 +673,7 @@ Comparison of `lxc-postgresql.yaml` vs `lxc-redis.yaml`:
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.2.0 | 2026-06-17 | P04 resolved: ADR 0107 `@on` directive + workload_defaults |
 | 1.1.0 | 2026-06-17 | Updated problem status: P01-P03, P06, P09, P10 resolved |
 | 1.0.0 | 2026-06-17 | Initial SWOT analysis via SPC methodology |
 
@@ -680,16 +681,18 @@ Comparison of `lxc-postgresql.yaml` vs `lxc-redis.yaml`:
 
 ## Implementation Summary
 
-| Commit | Problems Resolved | Key Changes |
-|--------|-------------------|-------------|
+| Commit/ADR | Problems Resolved | Key Changes |
+|------------|-------------------|-------------|
 | `c90b574a` | P03, P06 | Consolidated 55 duplicates, fixed class_ref, added 24 firmware/os/arch caps |
 | `1a4d1a4c` | P01, P02 | Namespace boundaries documented, cap.router.* → cap.net.* migration |
+| ADR 0107 | P04 | `@on` directive, `workload_defaults` section, -60% instance boilerplate |
 
 **Validation Results (post-implementation):**
 - Compile: errors=0, warnings=0, infos=111
 - Capability contract: OK
 - ADR0088 governance: PASS
 - Layer derivation: PASS
+- P04 SPC Analysis: 21/21 constraints PASS
 
 ---
 
