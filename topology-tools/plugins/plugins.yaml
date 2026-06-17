@@ -173,6 +173,27 @@ plugins:
   - key: model_lock_loaded
     scope: pipeline_shared
   description: Loads model.lock payload for plugin-first pipeline (ADR 0069).
+- id: base.compiler.instance_host_index
+  kind: compiler
+  entry: compilers/instance_host_index_compiler.py:InstanceHostIndexCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: init
+  order: 35
+  depends_on: []
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  produces:
+  - key: host_workload_defaults_index
+    scope: pipeline_shared
+  description: Builds host_workload_defaults_index for @on directive resolution (ADR
+    0107 D12).
+  execution_mode: main_interpreter
 - id: base.compiler.annotation_resolver
   execution_mode: subinterpreter
   kind: compiler
@@ -347,9 +368,9 @@ plugins:
   description: Resolves class/object refs and builds prepared instance rows before
     shape validation.
   execution_mode: subinterpreter
-- id: base.compiler.instance_rows_validate
+- id: base.compiler.instance_rows_on_prepare
   kind: compiler
-  entry: compilers/instance_rows_validate_compiler.py:InstanceRowsValidateCompiler
+  entry: compilers/instance_rows_on_prepare_compiler.py:InstanceRowsOnPrepareCompiler
   api_version: 1.x
   stages:
   - compile
@@ -357,6 +378,37 @@ plugins:
   order: 42
   depends_on:
   - base.compiler.instance_rows_prepare
+  - base.compiler.instance_host_index
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  produces:
+  - key: on_prepared_rows
+    scope: stage_local
+  consumes:
+  - from_plugin: base.compiler.instance_rows_prepare
+    key: prepared_rows
+    required: true
+  - from_plugin: base.compiler.instance_host_index
+    key: host_workload_defaults_index
+    required: true
+  description: Resolves @on:host.X and @on:root.X directives in prepared instance
+    rows (ADR 0107 D12).
+  execution_mode: main_interpreter
+- id: base.compiler.instance_rows_validate
+  kind: compiler
+  entry: compilers/instance_rows_validate_compiler.py:InstanceRowsValidateCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: run
+  order: 43
+  depends_on:
+  - base.compiler.instance_rows_prepare
+  - base.compiler.instance_rows_on_prepare
   timeout: 30
   config:
     secrets_mode: passthrough
@@ -387,11 +439,14 @@ plugins:
   - key: validated_rows
     scope: stage_local
   consumes:
+  - from_plugin: base.compiler.instance_rows_on_prepare
+    key: on_prepared_rows
+    required: false
   - from_plugin: base.compiler.instance_rows_prepare
     key: prepared_rows
     required: true
   description: Validates prepared instance-row shape and builds stage-local normalized
-    row payloads.
+    row payloads. Consumes on_prepared_rows (ADR 0107) with fallback to prepared_rows.
   execution_mode: subinterpreter
 - id: base.compiler.instance_rows
   kind: compiler
@@ -400,7 +455,7 @@ plugins:
   stages:
   - compile
   phase: run
-  order: 43
+  order: 44
   depends_on:
   - base.compiler.instance_rows_validate
   timeout: 30

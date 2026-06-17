@@ -50,6 +50,9 @@ class InstanceRowsCompiler(CompilerPlugin):
         "sops",
         "_source_file",
         "hardware_identity_secret_ref",
+        # ADR 0107: Host placement defaults
+        "host_ref",
+        "workload_defaults",
     }
 
     _TODO_MARKER_RE = re.compile(r"^<TODO_[A-Z0-9_]+>$")

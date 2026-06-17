@@ -26,10 +26,17 @@ rule_packs:
       - "topology-tools/compiler_*.py"
   topology-model:
     path: docs/ai/rules/topology-model.md
-    source_adr: ["0026", "0027", "0029", "0038", "0039", "0040", "0041", "0042", "0043", "0044", "0047", "0062", "0064", "0067", "0068", "0071", "0087", "0088", "0101", "0102"]
+    source_adr: ["0026", "0027", "0029", "0038", "0039", "0040", "0041", "0042", "0043", "0044", "0047", "0062", "0064", "0067", "0068", "0071", "0087", "0088", "0101", "0102", "0107"]
     files_glob:
       - "topology/**"
       - "projects/*/topology/**"
+  host-placement:
+    path: docs/ai/rules/host-placement.md
+    source_adr: ["0107"]
+    files_glob:
+      - "projects/*/topology/instances/**workload*"
+      - "projects/*/topology/instances/**host*"
+      - "topology/object-modules/**workload*"
   deploy-domain:
     path: docs/ai/rules/deploy-domain.md
     source_adr: ["0051", "0052", "0056", "0057", "0083", "0084", "0085", "0090", "0091"]
@@ -228,11 +235,13 @@ rules:
       - "Preserve Class -> Object -> Instance modeling."
       - "Use canonical semantic keys and active lane paths."
       - "Respect layer harmonization boundaries (Mode H)."
+      - "Use @on:host.X for host-scoped workload defaults (ADR 0107)."
     never:
       - "Do not edit generated outputs to represent topology changes."
+      - "Do not duplicate host-scoped fields across workload instances."
     validate:
       - "task validate:default"
-    source_adr: ["0062", "0064", "0067", "0068", "0071", "0087", "0088", "0101", "0102"]
+    source_adr: ["0062", "0064", "0067", "0068", "0071", "0087", "0088", "0101", "0102", "0107"]
 
   - id: GEN-001
     scope: generator-artifacts

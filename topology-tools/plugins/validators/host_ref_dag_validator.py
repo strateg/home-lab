@@ -1,9 +1,13 @@
-"""Host reference DAG validator - cycle and depth detection (ADR 0087 AC-6)."""
+"""Host reference DAG validator - cycle and depth detection (ADR 0087 AC-6).
+
+Updated for ADR 0107 D11: Uses shared host_chain_utils for cycle detection.
+"""
 
 from __future__ import annotations
 
 from typing import Any
 
+from host_chain_utils import detect_cycle, extract_host_ref
 from kernel.plugin_base import (
     PluginContext,
     PluginDataExchangeError,
@@ -69,8 +73,8 @@ class HostRefDagValidator(ValidatorJsonPlugin):
             if class_ref not in self._WORKLOAD_CLASSES:
                 continue
 
-            # Extract host_ref from extensions or top-level
-            host_ref = self._extract_host_ref(row)
+            # ADR 0107 D9: host_ref now in _RESERVED_ROW_KEYS, read from top-level first
+            host_ref = row.get("host_ref") or extract_host_ref(row)
             host_ref_graph[row_id] = host_ref
 
         # Validate each workload node
@@ -82,8 +86,8 @@ class HostRefDagValidator(ValidatorJsonPlugin):
             group = row_payload.get("group", "workload")
             row_prefix = f"instance:{group}:{node_id}"
 
-            # Check for cycles
-            cycle_path = self._detect_cycle(host_ref_graph, node_id, row_by_id)
+            # Check for cycles using shared utility (ADR 0107 D11)
+            cycle_path = detect_cycle(host_ref_graph, node_id)
             if cycle_path:
                 diagnostics.append(
                     self.emit_diagnostic(
@@ -116,66 +120,6 @@ class HostRefDagValidator(ValidatorJsonPlugin):
                 )
 
         return self.make_result(diagnostics)
-
-    def _extract_host_ref(self, row: dict[str, Any]) -> str | None:
-        """Extract host_ref from row (extensions or top-level)."""
-        extensions = row.get("extensions")
-        if isinstance(extensions, dict):
-            host_ref = extensions.get("host_ref")
-            if host_ref is not None:
-                return str(host_ref) if isinstance(host_ref, str) else None
-            # Also check device_ref as alias for host_ref in some workloads
-            device_ref = extensions.get("device_ref")
-            if device_ref is not None:
-                return str(device_ref) if isinstance(device_ref, str) else None
-
-        # Top-level fallback
-        host_ref = row.get("host_ref")
-        if host_ref is not None:
-            return str(host_ref) if isinstance(host_ref, str) else None
-        device_ref = row.get("device_ref")
-        if device_ref is not None:
-            return str(device_ref) if isinstance(device_ref, str) else None
-
-        return None
-
-    def _detect_cycle(
-        self,
-        graph: dict[str, str | None],
-        start: str,
-        row_by_id: dict[str, dict[str, Any]],
-    ) -> list[str] | None:
-        """DFS-based cycle detection returning cycle path if found.
-
-        Returns the cycle path (list of node IDs) if a cycle is detected,
-        otherwise returns None.
-        """
-        visited: set[str] = set()
-        path: list[str] = []
-
-        def dfs(node: str) -> list[str] | None:
-            if node in visited:
-                # Found cycle - return path from cycle start
-                if node in path:
-                    cycle_start = path.index(node)
-                    return path[cycle_start:] + [node]
-                return None
-
-            visited.add(node)
-            path.append(node)
-
-            # Get next node in chain
-            next_node = graph.get(node)
-            if next_node and next_node in graph:
-                # next_node is also a workload, follow the chain
-                result = dfs(next_node)
-                if result:
-                    return result
-
-            path.pop()
-            return None
-
-        return dfs(start)
 
     def _compute_depth(
         self,
