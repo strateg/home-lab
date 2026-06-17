@@ -18,6 +18,9 @@ ANNOTATION_DEFINITIONS: dict[str, dict[str, bool]] = {
 
 _ANNOTATION_RE = re.compile(r"^@([a-z][a-z0-9_]*)(?::([a-z][a-z0-9_]*))?$")
 
+# ADR 0107: @on directive pattern (handled by instance_rows_on_prepare_compiler)
+_ON_DIRECTIVE_RE = re.compile(r"^@on:(host|root|host\[\d+\])\.")
+
 
 @dataclass(frozen=True)
 class FieldAnnotation:
@@ -37,6 +40,10 @@ def parse_field_annotation(value: str) -> tuple[FieldAnnotation | None, str | No
     - (None, <error>): value looks like annotation but is invalid
     """
     if not isinstance(value, str) or not value.startswith("@"):
+        return None, None
+
+    # ADR 0107: Skip @on directives (handled by instance_rows_on_prepare_compiler)
+    if _ON_DIRECTIVE_RE.match(value):
         return None, None
 
     match = _ANNOTATION_RE.fullmatch(value)

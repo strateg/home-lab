@@ -60,7 +60,7 @@ class InstanceHostIndexCompiler(CompilerPlugin):
         # Topologically sort hosts (leaf-to-root for nested resolution)
         sorted_hosts, cycles = topological_sort_hosts(
             instance_lookup,
-            hosts_with_defaults=hosts_with_defaults,
+            hosts_with_workload_defaults=hosts_with_defaults,
         )
 
         # Report cycles
