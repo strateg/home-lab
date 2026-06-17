@@ -1311,6 +1311,7 @@ class InstanceRowsCompiler(CompilerPlugin):
             "firmware_ref": firmware_ref if isinstance(firmware_ref, str) and firmware_ref else None,
             "os_refs": normalized_os_refs,
             "embedded_in": embedded_in if isinstance(embedded_in, str) and embedded_in else None,
+            "host_ref": row.get("host_ref"),
             "extensions": self._extract_extensions(row),
         }
 
