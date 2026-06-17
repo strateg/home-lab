@@ -1306,3 +1306,1005 @@ capabilities:
     layer: L0
     stability: stable
     derived: true
+
+  # ===========================================================================
+  # COMPUTE CAPABILITIES (from L1 compute classes)
+  # ===========================================================================
+
+  - @capability: cap.compute.node.cloud_vm
+    title: Cloud VM Node
+    summary: Represents a virtual machine node hosted by cloud infrastructure.
+    domain: compute
+    layer: L1
+    stability: stable
+
+  - @capability: cap.compute.node.edge
+    title: Edge Compute Node
+    summary: Represents a low-power edge host for local workloads.
+    domain: compute
+    layer: L1
+    stability: stable
+
+  - @capability: cap.compute.host.hypervisor
+    title: Hypervisor Host
+    summary: Supports hosting of virtualized workloads as a hypervisor node.
+    domain: compute
+    layer: L1
+    stability: stable
+
+  - @capability: cap.compute.runtime.container_host
+    title: Container Host Runtime
+    summary: Supports running containerized workloads on the host.
+    domain: compute
+    layer: L1
+    stability: stable
+
+  - @capability: cap.compute.runtime.vm_host
+    title: VM Host Runtime
+    summary: Supports running virtual machine workloads on the host.
+    domain: compute
+    layer: L1
+    stability: stable
+
+  - @capability: cap.compute.workload.container
+    title: Container Workload Contract
+    summary: Supports container workload semantics (allocation, lifecycle, execution).
+    domain: compute
+    layer: L4
+    stability: stable
+
+  - @capability: cap.compute.workload.linux_base
+    title: Linux Workload Base
+    summary: Supports Linux-based runtime and baseline OS contract expectations.
+    domain: compute
+    layer: L4
+    stability: stable
+
+  - @capability: cap.compute.storage.zfs
+    title: ZFS Storage Substrate
+    summary: Supports ZFS-backed storage substrate for compute workloads.
+    domain: compute
+    layer: L1
+    stability: stable
+
+  # ===========================================================================
+  # POWER CAPABILITIES (from L1 power classes)
+  # ===========================================================================
+
+  - @capability: cap.power.ups.battery_backup
+    title: UPS Battery Backup
+    summary: Provides battery-backed power continuity for connected devices.
+    domain: power
+    layer: L1
+    stability: stable
+
+  - @capability: cap.power.ups.status_telemetry
+    title: UPS Status Telemetry
+    summary: Exposes UPS operational status and health telemetry.
+    domain: power
+    layer: L1
+    stability: stable
+
+  - @capability: cap.power.pdu.telemetry
+    title: Managed PDU Telemetry
+    summary: Exposes PDU load and outlet telemetry for observability and control.
+    domain: power
+    layer: L1
+    stability: stable
+
+  # ===========================================================================
+  # L2 NETWORK CAPABILITIES (bridge, vlan, zone, firewall, qos)
+  # ===========================================================================
+
+  - @capability: cap.bridge.vlan_aware
+    title: VLAN-Aware Bridge
+    summary: Bridge supports VLAN awareness.
+    domain: network
+    layer: L2
+    stability: stable
+
+  - @capability: cap.bridge.vlan_filtering
+    title: VLAN Filtering Bridge
+    summary: Bridge performs VLAN filtering.
+    domain: network
+    layer: L2
+    stability: stable
+
+  - @capability: cap.bridge.stp
+    title: STP Bridge
+    summary: Bridge supports Spanning Tree Protocol.
+    domain: network
+    layer: L2
+    stability: stable
+
+  - @capability: cap.bridge.container_isolation
+    title: Container Isolation Bridge
+    summary: Bridge provides isolated network segment for container endpoints.
+    domain: network
+    layer: L2
+    stability: stable
+
+  - @capability: cap.vlan.tagged
+    title: VLAN 802.1Q Tagged
+    summary: VLAN supports IEEE 802.1Q tagging.
+    domain: network
+    layer: L2
+    stability: stable
+
+  - @capability: cap.vlan.untagged
+    title: VLAN Untagged
+    summary: VLAN operates without tagging (native VLAN).
+    domain: network
+    layer: L2
+    stability: stable
+
+  - @capability: cap.zone.isolated
+    title: Isolated Zone
+    summary: Zone is isolated from other zones.
+    domain: network
+    layer: L2
+    stability: stable
+
+  - @capability: cap.zone.management
+    title: Management Zone
+    summary: Zone is designated for management traffic.
+    domain: network
+    layer: L2
+    stability: stable
+
+  - @capability: cap.zone.dmz
+    title: DMZ Zone
+    summary: Zone is a demilitarized zone.
+    domain: network
+    layer: L2
+    stability: stable
+
+  - @capability: cap.firewall.connection_tracking
+    title: Connection Tracking
+    summary: Firewall tracks connections.
+    domain: network
+    layer: L2
+    stability: stable
+
+  - @capability: cap.qos.htb
+    title: HTB QoS
+    summary: Hierarchical Token Bucket queuing.
+    domain: network
+    layer: L2
+    stability: stable
+
+  - @capability: cap.qos.sfq
+    title: SFQ QoS
+    summary: Stochastic Fair Queuing.
+    domain: network
+    layer: L2
+    stability: stable
+
+  - @capability: cap.qos.fq_codel
+    title: FQ-CoDel QoS
+    summary: Fair Queuing with CoDel.
+    domain: network
+    layer: L2
+    stability: stable
+
+  # ===========================================================================
+  # L3 STORAGE CAPABILITIES (additional pool/volume/asset caps)
+  # ===========================================================================
+
+  - @capability: cap.storage.pool.local
+    title: Local Storage Pool
+    summary: Pool is local to single node.
+    domain: storage
+    layer: L3
+    stability: stable
+
+  - @capability: cap.storage.pool.shared
+    title: Shared Storage Pool
+    summary: Pool is shared across nodes.
+    domain: storage
+    layer: L3
+    stability: stable
+
+  - @capability: cap.storage.pool.thin
+    title: Thin Provisioned Pool
+    summary: Pool supports thin provisioning.
+    domain: storage
+    layer: L3
+    stability: stable
+
+  - @capability: cap.storage.volume.persistent
+    title: Persistent Volume
+    summary: Volume data persists across restarts.
+    domain: storage
+    layer: L3
+    stability: stable
+
+  - @capability: cap.storage.asset.critical
+    title: Critical Data Asset
+    summary: Asset requires priority backup and protection.
+    domain: storage
+    layer: L3
+    stability: stable
+
+  - @capability: cap.storage.asset.encrypted
+    title: Encrypted Data Asset
+    summary: Asset data is encrypted at rest.
+    domain: storage
+    layer: L3
+    stability: stable
+
+  # ===========================================================================
+  # L5 SERVICE CAPABILITIES (service runtime and contract caps)
+  # ===========================================================================
+
+  - @capability: cap.service.alerting.runtime
+    title: Alerting Runtime
+    summary: Runs alert aggregation and delivery workflows.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - @capability: cap.service.alerting.routing
+    title: Alert Routing
+    summary: Supports rule-based alert routing to notification targets.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - @capability: cap.service.cache.runtime
+    title: Cache Runtime
+    summary: Runs in-memory cache service process.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - @capability: cap.service.database.runtime
+    title: Database Runtime
+    summary: Runs relational or document database service process.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - @capability: cap.service.database.persistence
+    title: Database Persistence
+    summary: Supports durable state persistence and recovery for databases.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - @capability: cap.service.dns.runtime
+    title: DNS Runtime
+    summary: Runs DNS resolver/forwarder service process.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - @capability: cap.service.file_storage.runtime
+    title: File Storage Runtime
+    summary: Runs file storage and sharing service process.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - @capability: cap.service.file_storage.persistence
+    title: File Storage Persistence
+    summary: Supports durable storage for file-sharing state and content.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - @capability: cap.service.home_automation.runtime
+    title: Home Automation Runtime
+    summary: Runs home automation control service process.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - @capability: cap.service.home_automation.messaging
+    title: Home Automation Messaging
+    summary: Supports automation event messaging and device integration.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - @capability: cap.service.logging.runtime
+    title: Logging Runtime
+    summary: Runs centralized logging service process.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - @capability: cap.service.logging.forwarding
+    title: Log Forwarding
+    summary: Supports collection and forwarding of logs from upstream targets.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - @capability: cap.service.media_server.runtime
+    title: Media Server Runtime
+    summary: Runs media indexing and serving workloads.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - @capability: cap.service.media_server.streaming
+    title: Media Streaming
+    summary: Supports streaming endpoints and playback session handling.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - @capability: cap.service.monitoring.runtime
+    title: Monitoring Runtime
+    summary: Runs metrics and telemetry monitoring service process.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - @capability: cap.service.proxy.runtime
+    title: Proxy Runtime
+    summary: Runs reverse-proxy or ingress gateway process.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - @capability: cap.service.proxy.ingress
+    title: Ingress Routing
+    summary: Supports host/path-based ingress and upstream routing.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - @capability: cap.service.visualization.runtime
+    title: Visualization Runtime
+    summary: Runs dashboards and data-visualization service process.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - @capability: cap.service.visualization.dashboard
+    title: Dashboard Rendering
+    summary: Supports dashboard rendering and panel composition.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - @capability: cap.service.vpn.runtime
+    title: VPN Service Runtime
+    summary: Runs service-level VPN endpoint process.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - @capability: cap.service.vpn.tunnel
+    title: VPN Tunnel Contract
+    summary: Supports encrypted tunnel establishment and key/session handling.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - @capability: cap.service.web_application.runtime
+    title: Web Application Runtime
+    summary: Runs generic web application service process.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - @capability: cap.service.web_application.http
+    title: Web Application HTTP Contract
+    summary: Supports HTTP(S) request/response service surface.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - @capability: cap.service.web_ui.runtime
+    title: Web UI Runtime
+    summary: Runs administrative web interface process.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - @capability: cap.service.web_ui.management
+    title: Web UI Management Surface
+    summary: Supports authenticated management endpoints over web UI.
+    domain: service
+    layer: L5
+    stability: stable
+
+  # ===========================================================================
+  # L6 OBSERVABILITY CAPABILITIES
+  # ===========================================================================
+
+  - @capability: cap.observability.healthcheck.http
+    title: HTTP Healthcheck
+    summary: HTTP-based health check.
+    domain: observability
+    layer: L6
+    stability: stable
+
+  - @capability: cap.observability.healthcheck.tcp
+    title: TCP Healthcheck
+    summary: TCP port health check.
+    domain: observability
+    layer: L6
+    stability: stable
+
+  - @capability: cap.observability.alert.prometheus
+    title: Prometheus Alert
+    summary: Prometheus-compatible alert rule.
+    domain: observability
+    layer: L6
+    stability: stable
+
+  - @capability: cap.observability.alert.routing
+    title: Alert Routing
+    summary: Supports alert routing rules.
+    domain: observability
+    layer: L6
+    stability: stable
+
+  # ===========================================================================
+  # ROUTER/NETWORK DEVICE CAPABILITIES (cap.net.*)
+  # Consolidated from L1-foundation/router/capability-catalog.yaml
+  # ===========================================================================
+
+  # Routing
+  - @capability: cap.net.l3.routing.static
+    title: Static Routing
+    summary: Supports manual static routes for IPv4/IPv6 traffic forwarding.
+    domain: routing
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.l3.routing.dynamic.rip
+    title: Dynamic Routing (RIP)
+    summary: Supports RIP routing protocol.
+    domain: routing
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.l3.routing.dynamic.bgp
+    title: BGP Routing
+    summary: Supports Border Gateway Protocol peering for AS-level routing.
+    domain: routing
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.l3.routing.dynamic.ospf
+    title: OSPF Routing
+    summary: Supports Open Shortest Path First routing protocol.
+    domain: routing
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.l3.routing.ecmp
+    title: Equal-Cost Multi-Path
+    summary: Supports load balancing across multiple equal-cost routes.
+    domain: routing
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.l3.routing.policy.pcc
+    title: Per-Connection Classifier
+    summary: Supports per-connection load balancing (MikroTik-specific).
+    domain: routing
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.l3.routing.policy.pbr
+    title: Policy-Based Routing
+    summary: Supports routing based on source IP, port, protocol, or other criteria.
+    domain: routing
+    layer: L1
+    stability: stable
+
+  # NAT & Firewall
+  - @capability: cap.net.l3.translation.snat
+    title: Source NAT (Masquerade)
+    summary: Supports source network address translation for WAN access.
+    domain: nat
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.l3.translation.dnat
+    title: Destination NAT (Port Forwarding)
+    summary: Supports destination NAT for inbound port forwarding.
+    domain: nat
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.l3.security.firewall.stateful
+    title: Stateful Firewall (Router)
+    summary: Supports connection tracking and stateful filtering policies.
+    domain: firewall
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.l3.security.firewall.zone_policy
+    title: Zone-Based Firewall
+    summary: Supports zone-based security policies (LAN/WAN/DMZ).
+    domain: firewall
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.l3.security.firewall.l7_filtering
+    title: Layer 7 Filtering
+    summary: Supports application-layer protocol detection and filtering.
+    domain: firewall
+    layer: L1
+    stability: stable
+
+  # VPN
+  - @capability: cap.net.overlay.vpn.wireguard.server
+    title: WireGuard Server
+    summary: Supports WireGuard VPN tunnel endpoint mode.
+    domain: vpn
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.overlay.vpn.wireguard.client
+    title: WireGuard Client
+    summary: Supports WireGuard VPN client mode.
+    domain: vpn
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.overlay.vpn.openvpn.server
+    title: OpenVPN Server
+    summary: Supports OpenVPN server mode.
+    domain: vpn
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.overlay.vpn.openvpn.client
+    title: OpenVPN Client
+    summary: Supports OpenVPN client mode.
+    domain: vpn
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.overlay.vpn.ipsec
+    title: IPsec VPN
+    summary: Supports IPsec/IKEv2 VPN tunnels.
+    domain: vpn
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.overlay.vpn.multi_instance
+    title: VPN Multi-Instance
+    summary: Supports running multiple VPN connections simultaneously.
+    domain: vpn
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.overlay.vpn.policy_routing
+    title: VPN Policy Routing
+    summary: Supports per-client VPN routing by MAC address, domain, or destination IP.
+    domain: vpn
+    layer: L1
+    stability: stable
+
+  # Interfaces
+  - @capability: cap.net.interface.ethernet
+    title: Ethernet Interface
+    summary: Supports Ethernet data interfaces for routed or bridged traffic.
+    domain: interface
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.interface.wifi
+    title: WiFi Interface
+    summary: Supports IEEE 802.11 wireless data interfaces.
+    domain: interface
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.interface.fiber
+    title: Fiber Interface
+    summary: Supports fiber uplink interfaces (SFP/SFP+ or provider handoff).
+    domain: interface
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.interface.wifi.dual_band
+    title: Dual-Band WiFi
+    summary: Supports simultaneous 2.4GHz and 5GHz wireless operation.
+    domain: interface
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.interface.wifi.wifi6
+    title: WiFi 6 (802.11ax)
+    summary: Supports WiFi 6 standard with OFDMA, MU-MIMO, BSS Coloring.
+    domain: interface
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.interface.wifi.mu_mimo
+    title: Multi-User MIMO
+    summary: Supports simultaneous transmission to multiple clients.
+    domain: interface
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.interface.wifi.beamforming
+    title: Beamforming
+    summary: Supports directed signal transmission to specific clients.
+    domain: interface
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.interface.wifi.repeater_mode
+    title: WiFi Repeater/Client Mode
+    summary: Supports connecting to upstream WiFi network as client.
+    domain: interface
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.interface.wifi.mesh
+    title: WiFi Mesh
+    summary: Supports mesh networking for seamless roaming.
+    domain: interface
+    layer: L1
+    stability: experimental
+
+  - @capability: cap.net.interface.lte
+    title: LTE/Cellular Interface
+    summary: Supports LTE/5G cellular data interface.
+    domain: interface
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.interface.pppoe
+    title: PPPoE Interface
+    summary: Supports PPPoE session interfaces over Ethernet uplink.
+    domain: interface
+    layer: L1
+    stability: stable
+
+  # Segmentation
+  - @capability: cap.net.l2.segmentation.guest_isolation
+    title: Guest Isolation Segment
+    summary: Supports isolated guest segment (typically separate VLAN/SSID).
+    domain: segmentation
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.l2.segmentation.vlan.8021q
+    title: VLAN (802.1Q)
+    summary: Supports VLAN tagging and trunk interfaces.
+    domain: segmentation
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.l3.segmentation.vrf
+    title: Virtual Routing & Forwarding (VRF)
+    summary: Supports isolated routing domains on single device.
+    domain: segmentation
+    layer: L1
+    stability: stable
+
+  # Uplink Policy
+  - @capability: cap.net.l3.uplink.multi_uplink
+    title: Multiple WAN Interfaces
+    summary: Supports multiple WAN connections (Ethernet + LTE, dual WAN).
+    domain: uplink
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.l3.uplink.failover
+    title: WAN Failover
+    summary: Supports automatic failover between WAN interfaces.
+    domain: uplink
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.l3.uplink.load_balance
+    title: WAN Load Balancing
+    summary: Supports load balancing traffic across multiple WAN connections.
+    domain: uplink
+    layer: L1
+    stability: stable
+
+  # QoS
+  - @capability: cap.net.l3.qos.basic
+    title: Basic QoS
+    summary: Supports simple traffic priority queues.
+    domain: qos
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.l3.qos.advanced
+    title: Advanced QoS
+    summary: Supports HTB and complex queue trees.
+    domain: qos
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.l3.qos.sqm
+    title: Smart Queue Management (SQM)
+    summary: Supports CAKE or fq_codel algorithms for bufferbloat reduction.
+    domain: qos
+    layer: L1
+    stability: stable
+
+  # Network Services
+  - @capability: cap.net.service.dhcp.server
+    title: DHCP Server
+    summary: Supports DHCP lease management for local subnets.
+    domain: service
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.service.dhcp.relay
+    title: DHCP Relay
+    summary: Supports forwarding DHCP requests to external DHCP server.
+    domain: service
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.service.dns.resolver
+    title: DNS Server/Resolver
+    summary: Supports local DNS resolution and caching.
+    domain: service
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.service.dns.dot
+    title: DNS-over-TLS
+    summary: Supports encrypted DNS queries via TLS.
+    domain: service
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.service.dns.doh
+    title: DNS-over-HTTPS
+    summary: Supports encrypted DNS queries via HTTPS.
+    domain: service
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.service.dns.filtering
+    title: DNS-Based Ad Blocking
+    summary: Supports DNS filtering for ad blocking.
+    domain: service
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.service.ntp.server
+    title: NTP Server
+    summary: Supports Network Time Protocol server for time synchronization.
+    domain: service
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.service.snmp
+    title: SNMP Monitoring
+    summary: Supports SNMP v2c/v3 for remote monitoring.
+    domain: service
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.service.portal.captive
+    title: Hotspot/Captive Portal
+    summary: Supports captive portal for guest authentication.
+    domain: service
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.service.dyndns
+    title: Dynamic DNS Client
+    summary: Supports automatic DNS record updates for dynamic IP addresses.
+    domain: service
+    layer: L1
+    stability: stable
+
+  # Platform & Management
+  - @capability: cap.net.platform.containers
+    title: Container Support
+    summary: Supports running Docker/container workloads on router.
+    domain: platform
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.observability.netflow
+    title: Netflow/IPFIX Export
+    summary: Supports exporting flow data for traffic analysis.
+    domain: observability
+    layer: L1
+    stability: stable
+
+  - @capability: cap.net.management.api.rest
+    title: REST API
+    summary: Supports RESTful API for automation and integration.
+    domain: management
+    layer: L1
+    stability: stable
+
+  # ===========================================================================
+  # FIRMWARE CAPABILITIES (cap.firmware.*)
+  # Architecture, boot mode, and vendor-specific firmware capabilities
+  # ===========================================================================
+
+  # Architecture
+  - @capability: cap.firmware.arch.arm64
+    title: ARM64 Firmware
+    summary: Firmware supports ARM64 (AArch64) architecture.
+    domain: firmware
+    layer: L0
+    stability: stable
+
+  - @capability: cap.firmware.arch.armhf
+    title: ARMhf Firmware
+    summary: Firmware supports ARM hard-float (32-bit ARM) architecture.
+    domain: firmware
+    layer: L0
+    stability: stable
+
+  - @capability: cap.firmware.arch.x86_64
+    title: x86_64 Firmware
+    summary: Firmware supports x86_64 (AMD64) architecture.
+    domain: firmware
+    layer: L0
+    stability: stable
+
+  - @capability: cap.firmware.arch.mipsel
+    title: MIPS Little-Endian Firmware
+    summary: Firmware supports MIPS little-endian architecture.
+    domain: firmware
+    layer: L0
+    stability: stable
+
+  # Boot Mode
+  - @capability: cap.firmware.boot.proprietary
+    title: Proprietary Boot
+    summary: Device uses proprietary boot firmware.
+    domain: firmware
+    layer: L0
+    stability: stable
+
+  - @capability: cap.firmware.boot.android
+    title: Android Boot
+    summary: Device uses Android bootloader.
+    domain: firmware
+    layer: L0
+    stability: stable
+
+  - @capability: cap.firmware.boot.uboot
+    title: U-Boot Bootloader
+    summary: Device uses Das U-Boot bootloader.
+    domain: firmware
+    layer: L0
+    stability: stable
+
+  - @capability: cap.firmware.boot.uefi
+    title: UEFI Boot
+    summary: Device supports UEFI boot mode.
+    domain: firmware
+    layer: L0
+    stability: stable
+
+  # Firmware Types
+  - @capability: cap.firmware.generic
+    title: Generic Firmware
+    summary: Generic/unspecified firmware type.
+    domain: firmware
+    layer: L0
+    stability: stable
+
+  - @capability: cap.firmware.virtual
+    title: Virtual Firmware
+    summary: Virtual machine firmware (QEMU, KVM).
+    domain: firmware
+    layer: L0
+    stability: stable
+
+  - @capability: cap.firmware.uboot
+    title: U-Boot Firmware
+    summary: Device runs U-Boot firmware.
+    domain: firmware
+    layer: L0
+    stability: stable
+
+  - @capability: cap.firmware.uefi
+    title: UEFI Firmware
+    summary: Device runs UEFI firmware.
+    domain: firmware
+    layer: L0
+    stability: stable
+
+  # Vendor-Specific Firmware
+  - @capability: cap.firmware.mikrotik
+    title: MikroTik Firmware
+    summary: MikroTik RouterOS firmware.
+    domain: firmware
+    layer: L0
+    stability: stable
+
+  - @capability: cap.firmware.routeros
+    title: RouterOS Firmware
+    summary: MikroTik RouterOS firmware.
+    domain: firmware
+    layer: L0
+    stability: stable
+
+  - @capability: cap.firmware.openwrt
+    title: OpenWrt Firmware
+    summary: OpenWrt-based firmware.
+    domain: firmware
+    layer: L0
+    stability: stable
+
+  - @capability: cap.firmware.boox
+    title: Boox Firmware
+    summary: Onyx Boox e-reader firmware.
+    domain: firmware
+    layer: L0
+    stability: stable
+
+  - @capability: cap.firmware.onyx
+    title: Onyx Firmware
+    summary: Onyx International firmware.
+    domain: firmware
+    layer: L0
+    stability: stable
+
+  # ===========================================================================
+  # OS CAPABILITIES (cap.os.*)
+  # Operating system type, version, and package manager capabilities
+  # ===========================================================================
+
+  - @capability: cap.os.android
+    title: Android OS
+    summary: Android operating system.
+    domain: os
+    layer: L0
+    stability: stable
+
+  - @capability: cap.os.aosp
+    title: AOSP Based
+    summary: Android Open Source Project based OS.
+    domain: os
+    layer: L0
+    stability: stable
+
+  - @capability: cap.os.aosp.15
+    title: AOSP 15
+    summary: Android 15 (AOSP version).
+    domain: os
+    layer: L0
+    stability: stable
+
+  - @capability: cap.os.routeros.7
+    title: RouterOS 7
+    summary: MikroTik RouterOS version 7.
+    domain: os
+    layer: L0
+    stability: stable
+
+  - @capability: cap.os.init.init
+    title: Init System
+    summary: Generic init system.
+    domain: os
+    layer: L0
+    stability: stable
+
+  - @capability: cap.os.pkg.none
+    title: No Package Manager
+    summary: OS without traditional package manager.
+    domain: os
+    layer: L0
+    stability: stable
+
+  # ===========================================================================
+  # ARCHITECTURE CAPABILITIES (cap.arch.*)
+  # CPU architecture capabilities
+  # ===========================================================================
+
+  - @capability: cap.arch.mipsel
+    title: MIPS Little-Endian
+    summary: MIPS little-endian CPU architecture.
+    domain: arch
+    layer: L0
+    stability: stable

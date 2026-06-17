@@ -13,7 +13,7 @@ packs:
   - id: pack.router.home
     title: Home Router
     summary: Standard home router capabilities with VPN and QoS.
-    class_ref: class.network.router
+    class_ref: class.router
     capabilities:
       - cap.router.routing.static
       - cap.router.nat
@@ -28,7 +28,7 @@ packs:
   - id: pack.router.edge
     title: Edge Router
     summary: Edge router with LTE failover and basic routing.
-    class_ref: class.network.router
+    class_ref: class.router
     capabilities:
       - cap.router.routing.static
       - cap.router.nat
@@ -40,7 +40,7 @@ packs:
   - id: pack.router.infra
     title: Infrastructure Router
     summary: Enterprise router with BGP and VRF support.
-    class_ref: class.network.router
+    class_ref: class.router
     capabilities:
       - cap.router.routing.static
       - cap.router.routing.dynamic
@@ -54,13 +54,78 @@ packs:
   - id: pack.router.vpn_hub
     title: VPN Hub Router
     summary: VPN concentrator with multi-peer WireGuard support.
-    class_ref: class.network.router
+    class_ref: class.router
     capabilities:
       - cap.router.routing.static
       - cap.router.nat
       - cap.router.firewall.stateful
       - cap.router.wireguard.hub
       - cap.router.qos.advanced
+
+  - id: pack.router.home_gateway
+    title: Home Gateway Router
+    summary: Full-featured home gateway with VPN, WiFi, and advanced features (MikroTik-style).
+    class_ref: class.router
+    capabilities:
+      - cap.net.interface.ethernet
+      - cap.net.l3.routing.static
+      - cap.net.l3.translation.snat
+      - cap.net.l3.translation.dnat
+      - cap.net.l3.security.firewall.stateful
+      - cap.net.service.dhcp.server
+      - cap.net.service.dns.resolver
+      - cap.net.service.dns.filtering
+      - cap.net.overlay.vpn.wireguard.server
+      - cap.net.overlay.vpn.wireguard.client
+      - cap.net.interface.wifi
+      - cap.net.interface.wifi.dual_band
+      - cap.net.interface.wifi.wifi6
+      - cap.net.l2.segmentation.vlan.8021q
+      - cap.net.l3.uplink.multi_uplink
+      - cap.net.l3.uplink.failover
+      - cap.net.l3.qos.advanced
+
+  - id: pack.router.travel_vpn
+    title: Travel VPN Router
+    summary: Compact travel router with VPN client and WiFi repeater (GL.iNet-style).
+    class_ref: class.router
+    capabilities:
+      - cap.net.interface.ethernet
+      - cap.net.l3.routing.static
+      - cap.net.l3.translation.snat
+      - cap.net.l3.security.firewall.stateful
+      - cap.net.service.dhcp.server
+      - cap.net.service.dns.resolver
+      - cap.net.overlay.vpn.wireguard.client
+      - cap.net.overlay.vpn.openvpn.client
+      - cap.net.interface.wifi
+      - cap.net.interface.wifi.repeater_mode
+      - cap.net.l3.qos.basic
+
+  - id: pack.router.enterprise
+    title: Enterprise Router
+    summary: Enterprise-grade router with BGP, OSPF, VRF, and advanced features.
+    class_ref: class.router
+    capabilities:
+      - cap.net.interface.ethernet
+      - cap.net.l3.routing.static
+      - cap.net.l3.routing.dynamic.bgp
+      - cap.net.l3.routing.dynamic.ospf
+      - cap.net.l3.routing.ecmp
+      - cap.net.l3.translation.snat
+      - cap.net.l3.translation.dnat
+      - cap.net.l3.security.firewall.stateful
+      - cap.net.l3.security.firewall.zone_policy
+      - cap.net.service.dhcp.server
+      - cap.net.service.dns.resolver
+      - cap.net.l2.segmentation.vlan.8021q
+      - cap.net.l3.segmentation.vrf
+      - cap.net.l3.uplink.multi_uplink
+      - cap.net.l3.uplink.load_balance
+      - cap.net.l3.qos.advanced
+      - cap.net.observability.netflow
+      - cap.net.service.snmp
+      - cap.net.management.api.rest
 
   # ===========================================================================
   # L1 - Compute Packs
@@ -261,7 +326,7 @@ packs:
   - id: pack.observability.metrics
     title: Metrics Observability
     summary: Pull-based metrics collection with dashboards.
-    class_ref: class.observability.dashboard
+    class_ref: class.service.visualization
     capabilities:
       - cap.observability.collection.pull
       - cap.observability.alerting.threshold
@@ -271,7 +336,7 @@ packs:
   - id: pack.observability.logs
     title: Log Observability
     summary: Push-based log collection.
-    class_ref: class.observability.dashboard
+    class_ref: class.service.visualization
     capabilities:
       - cap.observability.collection.push
       - cap.observability.alerting.threshold
