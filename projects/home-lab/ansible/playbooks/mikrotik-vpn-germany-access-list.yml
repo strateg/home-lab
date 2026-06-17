@@ -1,0 +1,80 @@
+---
+# Ansible playbook for MikroTik WiFi access-list with MAC-based VLAN assignment
+# Configures devices to be assigned to VPN Germany VLAN (55) when connecting to main WiFi
+#
+# Usage:
+#   ansible-playbook -i inventory playbooks/mikrotik-vpn-germany-access-list.yml
+#
+# Requirements:
+#   - community.routeros collection
+#   - community.sops collection (>= 1.6.0)
+#   - MikroTik with RouterOS 7.x and WiFi package
+#
+# MAC addresses are loaded at runtime from SOPS-encrypted secrets:
+#   projects/home-lab/secrets/instances/tv-sony-bravia.yaml
+#   projects/home-lab/secrets/instances/boox-go-103-lumi.yaml
+# ansible_host is resolved from generated inventory host_vars/rtr-mikrotik-chateau.yml
+
+- name: Configure VPN Germany WiFi access list
+  hosts: rtr-mikrotik-chateau
+  gather_facts: false
+
+  vars:
+    mikrotik_user: "automator"
+    # Password via env var or Ansible vault
+    mikrotik_password: "{{ lookup('env', 'MIKROTIK_PASSWORD') }}"
+
+    # VPN Germany VLAN ID — topology ref: inst.vlan.vpn_germany
+    vpn_germany_vlan_id: 55
+
+  pre_tasks:
+    - name: Load Sony Bravia device secrets
+      community.sops.load_vars:
+        file: "{{ playbook_dir }}/../../secrets/instances/tv-sony-bravia.yaml"
+        name: tv_sony_bravia
+
+    - name: Load BOOX Go 10.3 device secrets
+      community.sops.load_vars:
+        file: "{{ playbook_dir }}/../../secrets/instances/boox-go-103-lumi.yaml"
+        name: boox_go103
+
+    - name: Build VPN Germany device list from topology secrets
+      ansible.builtin.set_fact:
+        vpn_germany_devices:
+          - name: "BOOX Go 10.3 Gen II Lumi"
+            mac: "{{ boox_go103.mac_address }}"
+            comment: "E-reader - route to VPN Germany"
+          - name: "Sony Bravia AJ9"
+            mac: "{{ tv_sony_bravia.mac_address }}"
+            comment: "Smart TV - route to VPN Germany"
+
+  tasks:
+    - name: Create WiFi access-list entries for VPN Germany devices
+      community.routeros.api:
+        hostname: "{{ ansible_host }}"
+        username: "{{ mikrotik_user }}"
+        password: "{{ mikrotik_password }}"
+        tls: true
+        validate_certs: false
+        path: interface wifi access-list
+        add: "{{ item.mac }}"
+        query: ".id mac-address"
+      loop: "{{ vpn_germany_devices }}"
+      register: existing_entries
+
+    - name: Configure access-list with VLAN assignment
+      community.routeros.api:
+        hostname: "{{ ansible_host }}"
+        username: "{{ mikrotik_user }}"
+        password: "{{ mikrotik_password }}"
+        tls: true
+        validate_certs: false
+        path: interface wifi access-list
+        cmd: add
+        add:
+          mac-address: "{{ item.mac }}"
+          vlan-id: "{{ vpn_germany_vlan_id }}"
+          comment: "{{ item.comment }}"
+          action: accept
+      loop: "{{ vpn_germany_devices }}"
+      when: item.mac not in (existing_entries.results | map(attribute='msg') | select('defined') | list | join(','))
