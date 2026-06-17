@@ -26,7 +26,7 @@ observed_runtime:
     interface_list_wan: [ether1, lte1]
   lan:
     bridge_interface: bridge
-    bridge_admin_mac: D0:EA:11:4E:C0:4E
+    bridge_admin_mac: "{{ secrets.mac_addresses.bridge }}"  # stored in secrets/instances/rtr-mikrotik-chateau.yaml
     bridge_vlan_filtering: false
     bridge_ports: [ether2, ether3, ether4, ether5, wifi1, wifi2]
     gateway_ref: inst.vlan.lan

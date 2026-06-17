@@ -35,8 +35,8 @@ streaming_services:
 
 # Notes for deployment
 deployment_notes: |
-  MAC address confirmed: F8:89:D2:C4:5C:2D (from MikroTik DHCP lease)
-  Current IP: 192.168.88.252 (default VLAN)
+  MAC address stored in secrets/instances/tv-sony-bravia.yaml (SOPS/age encrypted).
+  Current IP: 192.168.88.252 (default VLAN, before VLAN migration)
 
   To move to VPN VLAN:
   1. Create VLAN 50 on MikroTik bridge
