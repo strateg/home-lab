@@ -3,8 +3,8 @@
 | Field | Value |
 |-------|-------|
 | **Дата** | 2026-06-17 |
-| **Версия** | 1.0.0 |
-| **Статус** | Завершён |
+| **Версия** | 1.1.0 |
+| **Статус** | Имплементация завершена (Critical + High) |
 | **Методология** | SPC (Strict Process Compliance) |
 | **Scope** | `topology/*`, `projects/home-lab/topology/*` |
 | **AI-Agent** | Claude Opus 4.5 (claude-opus-4-5-20251101) |
@@ -15,10 +15,10 @@
 
 Проведён формальный SWOT-анализ онтологии топологии проекта home-lab по методологии SPC (7 шагов). Анализ охватывает:
 
-- **51 класс** в иерархии L0-L7
-- **120 объектов** (шаблоны устройств и сервисов)
-- **151 instance** (конкретные развёртывания)
-- **188 capabilities** в каталоге
+- **48 классов** в иерархии L0-L7
+- **123 объекта** (шаблоны устройств и сервисов)
+- **159 instances** (конкретные развёртывания)
+- **285 capabilities** в каталоге (consolidated)
 - **106 ADR** документов
 
 ### Ключевые выводы
@@ -26,15 +26,19 @@
 | Категория | Оценка | Комментарий |
 |-----------|--------|-------------|
 | Архитектура | ★★★★★ | Class-Object-Instance + 8-layer model — индустриальный best practice |
-| Capability система | ★★★★☆ | Богатая таксономия, требует консолидации namespaces |
+| Capability система | ★★★★★ | Консолидирована: единый каталог, 19 namespace prefixes |
 | Governance | ★★★★★ | 106 ADR, semantic keywords, model.lock |
-| Операционная эффективность | ★★★☆☆ | 70% повторений в instances, требует host profiles |
+| Операционная эффективность | ★★★☆☆ | 70% повторений в instances, требует host profiles (P04) |
 | Соответствие best practices | 9/9 | Полное соответствие индустриальным практикам |
 
-### Критические действия
+### Статус имплементации
 
-1. **P03:** Устранить дублирование capability IDs (нарушение ADR 0088 §6)
-2. **P06:** Исправить устаревшие class_ref в capability packs
+| Priority | Resolved | Pending |
+|----------|----------|---------|
+| Critical | P03 ✅, P06 ✅ | — |
+| High | P01 ✅, P02 ✅ | — |
+| Medium | P09 ✅ (closed) | P04, P07 |
+| Low | P10 ✅ | P05 |
 
 ---
 
@@ -592,33 +596,33 @@ Comparison of `lxc-postgresql.yaml` vs `lxc-redis.yaml`:
 
 ### 10.1 Приоритет: Critical
 
-| # | Problem | Action | Rationale |
-|---|---------|--------|-----------|
-| 1 | P03 | Resolve duplicate capability IDs | Violates ADR 0088 §6 |
-| 2 | P06 | Fix outdated class_ref in packs | Data integrity risk |
+| # | Problem | Action | Status | Resolution |
+|---|---------|--------|--------|------------|
+| 1 | P03 | Resolve duplicate capability IDs | ✅ **RESOLVED** | Removed 55 duplicates, consolidated to central catalog |
+| 2 | P06 | Fix outdated class_ref in packs | ✅ **RESOLVED** | Fixed 6 class_ref, added 3 missing packs |
 
 ### 10.2 Приоритет: High
 
-| # | Problem | Action | Rationale |
-|---|---------|--------|-----------|
-| 3 | P02 | Define namespace boundary rules | Prevents semantic drift (T2) |
-| 4 | P01 | Consolidate or cross-validate catalogs | Prevents conflicts (T5) |
+| # | Problem | Action | Status | Resolution |
+|---|---------|--------|--------|------------|
+| 3 | P02 | Define namespace boundary rules | ✅ **RESOLVED** | Documented in capability-catalog.yaml, migrated cap.router.* → cap.net.* |
+| 4 | P01 | Consolidate or cross-validate catalogs | ✅ **RESOLVED** | Single source of truth: 285 capabilities in central catalog |
 
 ### 10.3 Приоритет: Medium
 
-| # | Problem | Action | Rationale |
-|---|---------|--------|-----------|
-| 5 | P04 | Implement host-level profiles | Reduces boilerplate (T4) |
-| 6 | P07 | Evaluate ADR 0106 implementation | Enables capability-driven plugins |
-| 7 | P09 | Consolidate namespace prefixes | Reduces complexity (T6) |
+| # | Problem | Action | Status | Resolution |
+|---|---------|--------|--------|------------|
+| 5 | P04 | Implement host-level profiles | ⏳ PENDING | Requires new ADR for architectural change |
+| 6 | P07 | Evaluate ADR 0106 implementation | ⏳ PENDING | ADR 0106 Proposed, ~20h effort, 9 files to migrate |
+| 7 | P09 | Consolidate namespace prefixes | ✅ **CLOSED** | Analysis: 19 prefixes optimal, consolidation not recommended |
 
 ### 10.4 Приоритет: Low
 
-| # | Problem | Action | Rationale |
-|---|---------|--------|-----------|
-| 8 | P05 | Add L6/L7 classes incrementally | Completes model |
-| 9 | P10 | Add cross-catalog validation | Quality gate |
-| 10 | — | Document industry alignment | Knowledge capture |
+| # | Problem | Action | Status | Resolution |
+|---|---------|--------|--------|------------|
+| 8 | P05 | Add L6/L7 classes incrementally | ⏳ PENDING | — |
+| 9 | P10 | Add cross-catalog validation | ✅ **RESOLVED** | Implicit via P01 consolidation |
+| 10 | — | Document industry alignment | ⏳ PENDING | — |
 
 ---
 
@@ -669,7 +673,23 @@ Comparison of `lxc-postgresql.yaml` vs `lxc-redis.yaml`:
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.1.0 | 2026-06-17 | Updated problem status: P01-P03, P06, P09, P10 resolved |
 | 1.0.0 | 2026-06-17 | Initial SWOT analysis via SPC methodology |
+
+---
+
+## Implementation Summary
+
+| Commit | Problems Resolved | Key Changes |
+|--------|-------------------|-------------|
+| `c90b574a` | P03, P06 | Consolidated 55 duplicates, fixed class_ref, added 24 firmware/os/arch caps |
+| `1a4d1a4c` | P01, P02 | Namespace boundaries documented, cap.router.* → cap.net.* migration |
+
+**Validation Results (post-implementation):**
+- Compile: errors=0, warnings=0, infos=111
+- Capability contract: OK
+- ADR0088 governance: PASS
+- Layer derivation: PASS
 
 ---
 
