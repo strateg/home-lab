@@ -10,57 +10,61 @@ packs:
   # L1 - Router Packs
   # ===========================================================================
 
+  # NOTE: Legacy packs migrated from cap.router.* to cap.net.* namespace (2026-06-17)
+  # See class.router.yaml for canonical capability definitions
+
   - id: pack.router.home
     title: Home Router
     summary: Standard home router capabilities with VPN and QoS.
     class_ref: class.router
     capabilities:
-      - cap.router.routing.static
-      - cap.router.nat
-      - cap.router.firewall.stateful
-      - cap.router.dhcp.server
-      - cap.router.dns.resolver
-      - cap.router.wireguard.endpoint
-      - cap.router.qos.basic
-      - cap.router.vlan
-      - cap.router.wifi.ap
+      - cap.net.l3.routing.static
+      - cap.net.l3.translation.snat
+      - cap.net.l3.security.firewall.stateful
+      - cap.net.service.dhcp.server
+      - cap.net.service.dns.resolver
+      - cap.net.overlay.vpn.wireguard.server
+      - cap.net.l3.qos.basic
+      - cap.net.l2.segmentation.vlan.8021q
+      - cap.net.interface.wifi
 
   - id: pack.router.edge
     title: Edge Router
     summary: Edge router with LTE failover and basic routing.
     class_ref: class.router
     capabilities:
-      - cap.router.routing.static
-      - cap.router.nat
-      - cap.router.firewall.stateful
-      - cap.router.dhcp.server
-      - cap.router.lte
-      - cap.router.vlan
+      - cap.net.l3.routing.static
+      - cap.net.l3.translation.snat
+      - cap.net.l3.security.firewall.stateful
+      - cap.net.service.dhcp.server
+      - cap.net.interface.lte
+      - cap.net.l2.segmentation.vlan.8021q
 
   - id: pack.router.infra
     title: Infrastructure Router
     summary: Enterprise router with BGP and VRF support.
     class_ref: class.router
     capabilities:
-      - cap.router.routing.static
-      - cap.router.routing.dynamic
-      - cap.router.nat
-      - cap.router.firewall.stateful
-      - cap.router.firewall.zones
-      - cap.router.vlan
-      - cap.router.bgp
-      - cap.router.vrf
+      - cap.net.l3.routing.static
+      - cap.net.l3.routing.dynamic.bgp
+      - cap.net.l3.routing.dynamic.ospf
+      - cap.net.l3.translation.snat
+      - cap.net.l3.security.firewall.stateful
+      - cap.net.l3.security.firewall.zone_policy
+      - cap.net.l2.segmentation.vlan.8021q
+      - cap.net.l3.segmentation.vrf
 
   - id: pack.router.vpn_hub
     title: VPN Hub Router
     summary: VPN concentrator with multi-peer WireGuard support.
     class_ref: class.router
     capabilities:
-      - cap.router.routing.static
-      - cap.router.nat
-      - cap.router.firewall.stateful
-      - cap.router.wireguard.hub
-      - cap.router.qos.advanced
+      - cap.net.l3.routing.static
+      - cap.net.l3.translation.snat
+      - cap.net.l3.security.firewall.stateful
+      - cap.net.overlay.vpn.wireguard.server
+      - cap.net.overlay.vpn.multi_instance
+      - cap.net.l3.qos.advanced
 
   - id: pack.router.home_gateway
     title: Home Gateway Router

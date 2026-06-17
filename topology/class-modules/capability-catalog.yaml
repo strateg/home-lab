@@ -1,9 +1,49 @@
 version: 2
 schema: capability-catalog
 
-# Capability Catalog - Central registry of all standard capabilities
-# Namespace: cap.<domain>.<subdomain>.<capability>
-# Vendor capabilities (vendor.*) are NOT registered here - they are documented in object modules
+# =============================================================================
+# CAPABILITY CATALOG - Central registry of all standard capabilities
+# =============================================================================
+#
+# Namespace Convention: cap.<domain>.<subdomain>.<capability>
+#
+# NAMESPACE BOUNDARY RULES (P02 Resolution - 2026-06-17)
+# =============================================================================
+#
+# | Layer | Namespace Prefix     | Semantic Domain                    |
+# |-------|---------------------|------------------------------------|
+# | L0    | cap.arch.*          | CPU architecture                   |
+# | L0    | cap.os.*            | Operating system type/version      |
+# | L0    | cap.firmware.*      | Firmware type, boot mode, vendor   |
+# | L1    | cap.compute.*       | Hypervisor/host compute features   |
+# | L1    | cap.power.*         | UPS, PDU capabilities              |
+# | L1    | cap.net.*           | Router/network device features     |
+# | L2    | cap.bridge.*        | Bridge configuration               |
+# | L2    | cap.vlan.*          | VLAN tagging modes                 |
+# | L2    | cap.zone.*          | Trust zone policies                |
+# | L2    | cap.firewall.*      | Abstract firewall policies (L2)    |
+# | L2    | cap.qos.*           | Abstract QoS policies (L2)         |
+# | L3    | cap.storage.*       | Storage pools, volumes             |
+# | L4    | cap.workload.*      | VM/LXC/container workload specs    |
+# | L5    | cap.service.*       | Application services               |
+# | L6    | cap.observability.* | Metrics, logs, healthchecks        |
+# | L7    | cap.operations.*    | Backup, automation, policies       |
+# | L7    | cap.bootstrap.*     | Initialization mechanisms          |
+# | L7    | cap.role.*          | Ansible/operational roles          |
+# | Any   | cap.vendor.*        | Vendor-specific extensions         |
+#
+# DEPRECATED NAMESPACES:
+# - cap.router.* → migrated to cap.net.* (2026-06-17)
+#
+# SEMANTIC BOUNDARIES:
+# - cap.net.* = Device-level network features (routers, L1)
+# - cap.firewall.*/cap.qos.* = Abstract L2 network policies
+# - cap.net.l3.security.firewall.* = Router firewall (device feature)
+# - cap.firewall.* = Firewall policy object capabilities (L2)
+#
+# Vendor capabilities (vendor.*) are NOT registered here.
+# They are documented in object modules per ADR 0106.
+# =============================================================================
 
 capabilities:
 
@@ -86,133 +126,10 @@ capabilities:
 
   # ===========================================================================
   # L1 - Foundation: Network (Router)
+  # DEPRECATED: cap.router.* namespace removed (2026-06-17)
+  # All router capabilities migrated to cap.net.* namespace.
+  # See: ROUTER/NETWORK DEVICE CAPABILITIES section below.
   # ===========================================================================
-
-  - @capability: cap.router.routing.static
-    title: Static Routing
-    summary: Supports static routes for IPv4/IPv6 traffic forwarding.
-    domain: network
-    layer: L1
-    stability: stable
-
-  - @capability: cap.router.routing.dynamic
-    title: Dynamic Routing
-    summary: Supports dynamic routing protocols (OSPF, RIP).
-    domain: network
-    layer: L1
-    stability: stable
-
-  - @capability: cap.router.nat
-    title: NAT
-    summary: Supports source/destination network address translation.
-    domain: network
-    layer: L1
-    stability: stable
-
-  - @capability: cap.router.firewall.stateful
-    title: Stateful Firewall
-    summary: Supports stateful filtering policies.
-    domain: network
-    layer: L1
-    stability: stable
-
-  - @capability: cap.router.firewall.zones
-    title: Firewall Zones
-    summary: Supports zone-based firewall policies.
-    domain: network
-    layer: L1
-    stability: stable
-
-  - @capability: cap.router.dhcp.server
-    title: DHCP Server
-    summary: Supports DHCP lease management for local subnets.
-    domain: network
-    layer: L1
-    stability: stable
-
-  - @capability: cap.router.dhcp.relay
-    title: DHCP Relay
-    summary: Supports DHCP relay agent functionality.
-    domain: network
-    layer: L1
-    stability: stable
-
-  - @capability: cap.router.dns.resolver
-    title: DNS Resolver
-    summary: Supports recursive DNS resolution.
-    domain: network
-    layer: L1
-    stability: stable
-
-  - @capability: cap.router.dns.cache
-    title: DNS Cache
-    summary: Supports DNS response caching.
-    domain: network
-    layer: L1
-    stability: stable
-
-  - @capability: cap.router.wireguard.endpoint
-    title: WireGuard Endpoint
-    summary: Supports WireGuard tunnel endpoint mode.
-    domain: network
-    layer: L1
-    stability: stable
-
-  - @capability: cap.router.wireguard.hub
-    title: WireGuard Hub
-    summary: Supports WireGuard hub mode with multiple peers.
-    domain: network
-    layer: L1
-    stability: stable
-
-  - @capability: cap.router.qos.basic
-    title: Basic QoS
-    summary: Supports traffic priority and simple shaping.
-    domain: network
-    layer: L1
-    stability: stable
-
-  - @capability: cap.router.qos.advanced
-    title: Advanced QoS
-    summary: Supports HTB, queuing disciplines, and traffic classes.
-    domain: network
-    layer: L1
-    stability: stable
-
-  - @capability: cap.router.vlan
-    title: VLAN
-    summary: Supports 802.1Q VLAN interfaces and tagging.
-    domain: network
-    layer: L1
-    stability: stable
-
-  - @capability: cap.router.bgp
-    title: BGP
-    summary: Supports Border Gateway Protocol peering.
-    domain: network
-    layer: L1
-    stability: experimental
-
-  - @capability: cap.router.vrf
-    title: VRF
-    summary: Supports virtual routing and forwarding domains.
-    domain: network
-    layer: L1
-    stability: experimental
-
-  - @capability: cap.router.lte
-    title: LTE Connectivity
-    summary: Supports LTE/4G WAN connectivity.
-    domain: network
-    layer: L1
-    stability: stable
-
-  - @capability: cap.router.wifi.ap
-    title: WiFi Access Point
-    summary: Supports WiFi access point mode.
-    domain: network
-    layer: L1
-    stability: stable
 
   # ===========================================================================
   # L1 - Foundation: Power
