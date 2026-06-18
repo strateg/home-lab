@@ -26,7 +26,6 @@ class HostOsRefsValidator(ValidatorJsonPlugin):
     }
     _SERVICE_PREFIX = "class.service."
     _DEVICE_RUNTIME_TYPES = {"docker", "baremetal"}
-    _ACTIVE_STATUSES = {"active", "mapped", "modeled", "pending"}
     _INSTALL_REQUIRED_HOST_TYPES = {"baremetal", "hypervisor"}
     _ARCH_ALIASES = {
         "x86_64": "x86_64",
@@ -502,7 +501,5 @@ class HostOsRefsValidator(ValidatorJsonPlugin):
                 continue
             if os_row.get("class_ref") != "class.os":
                 continue
-            status = str(os_row.get("status") or "").strip().lower()
-            if not status or status in self._ACTIVE_STATUSES:
-                return True
+            return True
         return False

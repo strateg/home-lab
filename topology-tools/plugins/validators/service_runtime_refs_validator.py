@@ -28,7 +28,6 @@ class ServiceRuntimeRefsValidator(ValidatorJsonPlugin):
     }
     _DOCKER_CAPABILITIES = {"docker", "container"}
     _BAREMETAL_ALLOWED_HOST_TYPES = {"baremetal", "embedded", "hypervisor"}
-    _ACTIVE_OS_STATUSES = {"active", "mapped", "modeled", "pending"}
     _LXC_CLASSES = {"class.compute.workload.lxc"}
     _VM_CLASSES = {"class.compute.workload.vm"}
     _ROUTEROS_CONTAINER_CLASSES = {"class.compute.workload.routeros_container"}
@@ -79,9 +78,6 @@ class ServiceRuntimeRefsValidator(ValidatorJsonPlugin):
                     continue
                 os_row = row_by_id.get(os_ref)
                 if not isinstance(os_row, dict) or os_row.get("class_ref") != "class.os":
-                    continue
-                status = str(os_row.get("status") or "").strip().lower()
-                if status and status not in self._ACTIVE_OS_STATUSES:
                     continue
                 active_host_os_by_device.setdefault(device_id, []).append(os_row)
 
