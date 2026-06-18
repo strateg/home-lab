@@ -14,6 +14,7 @@ properties:
     - isolated
     - reserved
     - default_firewall_policy_ref
+    - vlan_ids
     - allowed_inbound
     - allowed_outbound
 
@@ -42,6 +43,13 @@ property_schemas:
     type: string
     format: instance_ref
     target_class: class.network.firewall_policy
+  vlan_ids:
+    type: array
+    items:
+      type: integer
+      minimum: 1
+      maximum: 4094
+    description: VLAN IDs belonging to this trust zone
   allowed_inbound:
     type: array
     items:

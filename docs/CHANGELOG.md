@@ -2,6 +2,35 @@
 
 All notable changes to the home lab infrastructure configuration.
 
+## [3.2.0] - 2026-06-18
+
+### L2 Network Layer Enhancements (ADR 0030)
+
+**Feature**: Completed L2 network layer improvements from ADR 0030.
+
+### Changed
+
+#### Trust Zone Schema
+- **`topology/class-modules/L2-network/network/class.network.trust_zone.yaml`**: Added `vlan_ids` property
+  - Type: array of integers (1-4094)
+  - Links VLANs to their trust zones
+  - Enables validation of VLAN-zone consistency
+
+### Implementation Status
+
+| Enhancement | Status | Notes |
+|-------------|--------|-------|
+| Syntax fix | ✅ | Resolved in v5 migration |
+| MTU fields | ✅ | In `class.network.vlan` |
+| vlan_ids | ✅ | Added to `class.network.trust_zone` |
+| reserved_ranges | ✅ | In `class.network.vlan` |
+| default_firewall_policy_ref | ⚠️ | Schema ready, awaits firewall_policy instances |
+
+### References
+- ADR 0030: L2 Network Layer Enhancements (now Implemented)
+
+---
+
 ## [3.1.0] - 2026-06-09
 
 ### Ansible Role Generation from Topology (ADR 0104)

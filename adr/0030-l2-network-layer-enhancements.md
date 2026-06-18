@@ -1,7 +1,8 @@
 # ADR 0030: L2 Network Layer Enhancements
 
-- Status: Proposed
+- Status: Implemented
 - Date: 2026-02-22
+- Implemented: 2026-06-18 (v5 migration + vlan_ids schema)
 
 ## Context
 
@@ -110,9 +111,23 @@ Validation: referenced policy must exist in `firewall_policies`.
 - Fix baseline.yaml syntax immediately
 - Run `regenerate-all.py` after changes
 
+## Implementation Notes (2026-06-18)
+
+v5 migration resolved most issues through schema-validator decoupling:
+
+| Enhancement | Status | Notes |
+|-------------|--------|-------|
+| 1. Syntax fix | ✅ Resolved | File structure changed in v5 |
+| 2. MTU fields | ✅ Implemented | `class.network.vlan` has `mtu` property |
+| 3. vlan_ids | ✅ Implemented | Added to `class.network.trust_zone` |
+| 4. reserved_ranges | ✅ Implemented | `class.network.vlan` has `reserved_ranges` |
+| 5. default_firewall_policy_ref | ⚠️ Schema ready | Awaits `firewall_policy` instances |
+
+**Remaining work**: Create `inst.network.firewall_policy.*` instances for isolated zones, then populate `default_firewall_policy_ref` in trust zone instances.
+
 ## References
 
-- Schema: `topology-tools/schemas/topology-v4-schema.json`
-- Validator: `topology-tools/scripts/validators/checks/network.py`
-- Trust zones: `topology/L2-network/trust-zones/baseline.yaml`
-- Networks: `topology/L2-network/networks/*.yaml`
+- Class schemas: `topology/class-modules/L2-network/network/`
+- Trust zone class: `class.network.trust_zone.yaml`
+- Firewall policy class: `class.network.firewall_policy.yaml`
+- Trust zone instances: `projects/home-lab/topology/instances/network/inst.trust_zone.*.yaml`
