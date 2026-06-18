@@ -1,10 +1,32 @@
 @object: obj.proxmox.lxc.debian12.base
 @extends: class.compute.workload.lxc
 @title: Proxmox LXC Debian12 Base
-@version: 1.0.0
+@version: 1.1.0
 
 model: LXC Debian 12 Base
 vendor: proxmox
+
+# ADR 0107: Host placement defaults via @on directive
+defaults:
+  trust_zone_ref: "@on:host.trust_zone_ref?"
+  network:
+    interface: "@on:host.network.interface?:eth0"
+    bridge_ref: "@on:host.network.bridge_ref?"
+    vlan_ref: "@on:host.network.vlan_ref?"
+    gateway: "@on:host.network.gateway?"
+    firewall: "@on:host.network.firewall?:false"
+  dns:
+    nameserver: "@on:host.dns.nameserver?"
+    searchdomain: "@on:host.dns.searchdomain?"
+  storage:
+    rootfs:
+      pool_ref: "@on:host.storage.default_pool_ref?"
+  cloudinit:
+    enabled: "@on:host.cloudinit.enabled?:true"
+  ansible:
+    enabled: "@on:host.ansible.enabled?:true"
+  boot:
+    onboot: "@on:host.boot.onboot?:true"
 software_contract:
   os_obj_refs:
   - obj.os.debian.12.proxmox.lxc

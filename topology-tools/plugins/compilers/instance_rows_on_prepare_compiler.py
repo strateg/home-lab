@@ -156,8 +156,10 @@ class InstanceRowsOnPrepareCompiler(CompilerPlugin):
     ) -> dict[str, Any]:
         """Resolve @on markers in a prepared row.
 
-        Processes the 'row' field within prepared_row, resolving any
-        @on directives found in the object template defaults.
+        Processes both object template defaults and instance row data,
+        resolving any @on directives found. Object defaults are resolved
+        first (lower priority), then instance data (higher priority),
+        and results are deep merged.
         """
         resolved_row = copy.deepcopy(prepared_row)
         instance_id = prepared_row.get("instance")
@@ -167,11 +169,28 @@ class InstanceRowsOnPrepareCompiler(CompilerPlugin):
         if not isinstance(instance_id, str) or not isinstance(row_data, dict):
             return resolved_row
 
-        # Get object_ref to check object template for @on markers
+        # Step 1: Resolve @on in object template defaults (lower priority base)
         object_ref = prepared_row.get("object_ref")
+        resolved_obj_defaults: dict[str, Any] = {}
 
-        # Check for @on markers in the row and resolve them
-        resolved_data = self._resolve_values_recursive(
+        if isinstance(object_ref, str) and object_ref:
+            obj_payload = ctx.objects.get(object_ref)
+            if isinstance(obj_payload, dict):
+                obj_defaults = obj_payload.get("defaults", {})
+                if isinstance(obj_defaults, dict) and obj_defaults:
+                    resolved_obj_defaults = self._resolve_values_recursive(
+                        data=obj_defaults,
+                        instance_id=instance_id,
+                        host_index=host_index,
+                        instance_lookup=instance_lookup,
+                        path="",
+                        row_path=f"{row_path}[object:{object_ref}]",
+                        stage=stage,
+                        diagnostics=diagnostics,
+                    )
+
+        # Step 2: Resolve @on in instance row data (higher priority)
+        resolved_instance_data = self._resolve_values_recursive(
             data=row_data,
             instance_id=instance_id,
             host_index=host_index,
@@ -182,8 +201,28 @@ class InstanceRowsOnPrepareCompiler(CompilerPlugin):
             diagnostics=diagnostics,
         )
 
-        resolved_row["row"] = resolved_data
+        # Step 3: Deep merge (instance data wins over object defaults)
+        final_data = self._deep_merge(resolved_obj_defaults, resolved_instance_data)
+
+        resolved_row["row"] = final_data
         return resolved_row
+
+    @staticmethod
+    def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+        """Deep merge two dicts, override wins for conflicts."""
+        result = copy.deepcopy(base)
+        for key, value in override.items():
+            if (
+                key in result
+                and isinstance(result[key], dict)
+                and isinstance(value, dict)
+            ):
+                result[key] = InstanceRowsOnPrepareCompiler._deep_merge(
+                    result[key], value
+                )
+            else:
+                result[key] = copy.deepcopy(value)
+        return result
 
     def _resolve_values_recursive(
         self,
