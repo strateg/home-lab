@@ -3,7 +3,6 @@
 @group: services
 @version: 1.0.0
 source_id: svc-postgresql
-status: mapped
 notes: PostgreSQL database server
 
 port: 5432

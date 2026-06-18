@@ -3,7 +3,6 @@
 @group: services
 @version: 1.0.0
 source_id: svc-alertmanager
-status: mapped
 notes: Alert routing and notifications (Docker on Orange Pi 5)
 
 port: 9093

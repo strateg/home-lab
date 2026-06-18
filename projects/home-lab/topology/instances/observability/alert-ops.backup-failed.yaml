@@ -3,7 +3,6 @@
 @group: observability
 @version: 1.0.0
 source_id: alert-ops.backup-failed
-status: mapped
 notes: Warning alert for backup failure
 
 name: Backup Failed

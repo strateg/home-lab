@@ -3,5 +3,4 @@
 @group: network
 @version: 1.0.0
 source_id: trust-zone-iot
-status: mapped
 notes: Isolated IoT zone for smart home devices

@@ -1,8 +1,9 @@
 # ADR 0103 SPC Analysis
 
 **Date:** 2026-06-07
+**Revised:** 2026-06-18 (Step 7 complete, SWOT analysis)
 **Mode:** Strict Process Compliance (SPC)
-**Outcome:** ADR 0103 Revised
+**Outcome:** ADR 0103 Revised + SWOT Analysis + Amendments D9-D12
 
 ---
 
@@ -26,13 +27,13 @@ Original ADR 0103 proposed a `base.validator.device_reconciler` plugin in the va
 | Step | Name | Status |
 |------|------|--------|
 | 0 | Read First | ✅ Completed |
-| 1 | Document Map | ✅ 11 documents mapped |
+| 1 | Document Map | ✅ 12 documents mapped |
 | 2 | Constraints Register | ✅ 15 constraints identified |
 | 3 | Diagnostic Analysis | ✅ Quantitative analysis |
-| 4 | Problem Classification | ✅ 8 problems classified |
-| 5 | Admissible Solution Space | ✅ 5 combinations evaluated |
-| 6 | Model Rebuild | ✅ ADR 0103 revised |
-| 7 | Validation & Compliance | Pending |
+| 4 | Problem Classification | ✅ 10 problems classified |
+| 5 | Admissible Solution Space | ✅ 6 combinations evaluated |
+| 6 | Model Rebuild | ✅ ADR 0103 revised + D9-D12 |
+| 7 | Validation & Compliance | ✅ Completed (2026-06-18) |
 
 ---
 
@@ -105,8 +106,49 @@ Original ADR 0103 proposed a `base.validator.device_reconciler` plugin in the va
 
 ---
 
-## Pending
+## 2026-06-18 Update: SWOT Analysis & Amendments
 
-- Step 7: Validation & Compliance (user approval)
-- Commit of revised ADR
-- Implementation (Wave 1-4)
+### New Decisions Added
+
+| Decision | Title | Purpose |
+|----------|-------|---------|
+| D9 | Reconciliation Report Schema | Formal JSON schema for pipeline output |
+| D10 | Diagnostic Code Allocation | E83xx range for reconciliation errors |
+| D11 | Convention-Based Resource Discovery | Auto-match instance → TF resource |
+| D12 | State Source Expansion Roadmap | Coverage improvement phases |
+
+### SWOT Analysis Results
+
+Full analysis: `adr/0103-analysis/SWOT-ANALYSIS.md`
+
+| Category | Summary |
+|----------|---------|
+| Strengths | Dual-mode architecture; Wave 3 complete; SOPS reuse |
+| Weaknesses | 15% tfstate coverage; no Proxmox state |
+| Opportunities | Proxmox TF; Docker snapshots; Ansible facts |
+| Threats | State staleness; TF version changes |
+
+### Implementation Status
+
+| Wave | Status | Notes |
+|------|--------|-------|
+| Phase 0 | Pending | Pre-flight verification |
+| Wave 1 | Pending | TF State plugin (17h) |
+| Wave 2 | Pending | CLI command (17h) |
+| Wave 3 | ✅ **Complete** | 151 status fields removed |
+| Wave 4 | Future | Coverage expansion (24h) |
+
+---
+
+## Completed
+
+- ✅ Step 7: Validation & Compliance
+- ✅ SWOT Analysis
+- ✅ Amendments D9-D12 applied
+- ✅ Wave 3 migration (151 files)
+
+## Remaining
+
+- Implementation: Phase 0, Wave 1, Wave 2
+- ✅ E83xx codes allocated in error-catalog.yaml
+- Report schema file creation (Phase 0 task 0.3)

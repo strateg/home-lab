@@ -3,7 +3,6 @@
 @group: observability
 @version: 1.0.0
 source_id: health-srv-orangepi5
-status: mapped
 notes: Orange Pi 5 application server health monitoring
 
 name: Orange Pi 5 Health

@@ -3,7 +3,6 @@
 @group: services
 @version: 1.0.0
 source_id: svc-grafana
-status: mapped
 notes: Grafana observability dashboards running on LXC container
 
 port: 3000

@@ -3,7 +3,6 @@
 @group: data-assets
 @version: 1.0.0
 source_id: data-redis-db
-status: mapped
 notes: Redis data volume
 host_ref: srv-gamayun
 criticality: high

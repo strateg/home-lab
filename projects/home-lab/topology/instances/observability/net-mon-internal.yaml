@@ -3,7 +3,6 @@
 @group: observability
 @version: 1.0.0
 source_id: net-mon-internal
-status: mapped
 notes: Internal network connectivity monitoring
 
 name: Internal Network Connectivity

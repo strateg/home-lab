@@ -3,7 +3,6 @@
 @group: operations
 @version: 1.0.0
 source_id: backup-daily-redis
-status: mapped
 notes: Daily Redis LXC vzdump snapshot backup
 
 name: Daily Redis Backup

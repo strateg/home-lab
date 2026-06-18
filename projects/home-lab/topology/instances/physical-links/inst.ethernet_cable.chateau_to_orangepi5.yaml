@@ -3,7 +3,6 @@
 @group: physical-links
 @version: 1.0.0
 source_id: link-rtr-mikrotik-srv-orangepi5
-status: mapped
 notes: Wired uplink carrying management and server VLANs between Chateau and Orange
   Pi 5
 endpoint_a:

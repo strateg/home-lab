@@ -3,6 +3,5 @@
 @group: network
 @version: 1.0.0
 source_id: bridge-vmbr0
-status: mapped
 notes: Primary Proxmox VLAN-aware bridge
 host_ref: srv-gamayun

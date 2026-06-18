@@ -3,7 +3,6 @@
 @group: docker
 @version: 1.1.0
 source_id: docker-nextcloud
-status: modeled
 notes: ADR 0107 cleanup - inherits os_refs, network_ref, gateway from host
 host_ref: srv-orangepi5
 network:

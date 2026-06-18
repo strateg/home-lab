@@ -3,7 +3,6 @@
 @group: network
 @version: 1.0.0
 source_id: net-servers
-status: modeled
 notes: Server VLAN is staged in topology; currently not configured on rtr-mikrotik-chateau
 bridge_ref: inst.bridge.vmbr0
 trust_zone_ref: inst.trust_zone.servers

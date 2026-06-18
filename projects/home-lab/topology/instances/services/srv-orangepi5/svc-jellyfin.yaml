@@ -3,7 +3,6 @@
 @group: services
 @version: 1.0.0
 source_id: svc-jellyfin
-status: mapped
 notes: Jellyfin media server with hardware transcoding (Docker on Orange Pi 5)
 
 port: 8096

@@ -3,7 +3,6 @@
 @group: data-assets
 @version: 1.0.0
 source_id: data-postgresql-db
-status: mapped
 notes: Primary PostgreSQL data volume
 host_ref: srv-gamayun
 criticality: critical

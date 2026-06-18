@@ -3,7 +3,6 @@
 @group: observability
 @version: 1.0.0
 source_id: health-ups
-status: mapped
 notes: UPS health and power monitoring
 
 name: UPS Health

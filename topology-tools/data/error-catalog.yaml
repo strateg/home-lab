@@ -802,3 +802,54 @@ codes:
     stage: validate
     title: Pipeline Mode Activated
     hint: Plugin-first effective model source is active.
+  # ADR 0103 Terraform State Reconciliation
+  E8300:
+    severity: error
+    stage: build
+    title: Terraform State File Not Found
+    hint: Ensure terraform.tfstate exists at configured path or run terraform apply.
+  E8301:
+    severity: error
+    stage: build
+    title: Terraform State File Unreadable
+    hint: Check file permissions and path validity for tfstate file.
+  E8310:
+    severity: error
+    stage: build
+    title: Invalid Terraform State JSON
+    hint: Verify tfstate file is valid JSON; may be corrupted or truncated.
+  E8311:
+    severity: error
+    stage: build
+    title: Unsupported Terraform Version
+    hint: Reconciler requires Terraform state version 4; upgrade or downgrade TF.
+  E8320:
+    severity: error
+    stage: build
+    title: No Resource Match for Instance
+    hint: Add managed_by field to instance or verify naming convention matches.
+  E8321:
+    severity: error
+    stage: build
+    title: Ambiguous Resource Match
+    hint: Multiple TF resources match instance; add explicit managed_by to disambiguate.
+  W8350:
+    severity: warning
+    stage: build
+    title: Terraform State File Stale
+    hint: State file is older than 24 hours; consider running terraform refresh.
+  W8351:
+    severity: warning
+    stage: build
+    title: Partial Reconciliation Coverage
+    hint: Some instances have no matching Terraform state; use CLI mode for full reconciliation.
+  I8380:
+    severity: info
+    stage: build
+    title: Reconciliation Complete
+    hint: No action required.
+  I8381:
+    severity: info
+    stage: build
+    title: Resources Matched
+    hint: No action required.

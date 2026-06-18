@@ -3,7 +3,6 @@
 @group: data-assets
 @version: 1.0.0
 source_id: data-prometheus
-status: mapped
 notes: Prometheus TSDB
 host_ref: srv-orangepi5
 criticality: high

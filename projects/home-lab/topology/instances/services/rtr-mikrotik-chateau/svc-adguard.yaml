@@ -3,7 +3,6 @@
 @group: services
 @version: 1.0.0
 source_id: svc-adguard
-status: mapped
 notes: AdGuard Home DNS filtering and ad blocking
 
 ports:

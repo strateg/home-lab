@@ -3,7 +3,6 @@
 @group: observability
 @version: 1.0.0
 source_id: alert-power.ups-battery
-status: mapped
 notes: Warning alert for power outage
 
 name: UPS On Battery

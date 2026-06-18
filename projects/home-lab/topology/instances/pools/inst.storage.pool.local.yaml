@@ -4,6 +4,5 @@
 @group: pools
 @version: 1.0.0
 source_id: se-local
-status: mapped
 notes: Local directory storage on Proxmox
 host_ref: srv-gamayun

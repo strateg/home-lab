@@ -3,7 +3,6 @@
 @group: observability
 @version: 1.0.0
 source_id: health-mikrotik
-status: mapped
 notes: MikroTik central router health monitoring
 
 name: MikroTik Router Health

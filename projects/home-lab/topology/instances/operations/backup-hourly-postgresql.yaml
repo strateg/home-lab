@@ -3,7 +3,6 @@
 @group: operations
 @version: 1.0.0
 source_id: backup-hourly-postgresql
-status: mapped
 notes: Hourly PostgreSQL dump for critical databases
 
 name: Hourly PostgreSQL Backups

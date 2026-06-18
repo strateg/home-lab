@@ -3,7 +3,6 @@
 @group: services
 @version: 1.0.0
 source_id: svc-loki
-status: mapped
 notes: Loki centralized log aggregation (Docker on Orange Pi 5)
 
 port: 3100

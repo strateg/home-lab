@@ -3,7 +3,6 @@
 @group: operations
 @version: 1.0.0
 source_id: backup-daily-postgresql-lxc
-status: mapped
 notes: Daily PostgreSQL LXC vzdump snapshot for disaster recovery
 
 name: Daily PostgreSQL LXC Snapshot

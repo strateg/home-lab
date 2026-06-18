@@ -3,7 +3,6 @@
 @group: services
 @version: 1.0.0
 source_id: svc-grafana
-status: mapped
 notes: Grafana dashboards and visualization (Docker on Orange Pi 5)
 
 port: 3000

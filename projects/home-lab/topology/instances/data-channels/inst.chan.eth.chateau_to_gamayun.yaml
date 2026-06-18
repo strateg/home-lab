@@ -3,7 +3,6 @@
 @group: data-channels
 @version: 1.0.0
 source_id: link-rtr-mikrotik-srv-gamayun
-status: mapped
 notes: Logical ethernet channel for Chateau to Proxmox trunk uplink
 endpoint_a:
   device_ref: rtr-mikrotik-chateau

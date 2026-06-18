@@ -3,7 +3,6 @@
 @group: firewall
 @version: 1.0.0
 source_id: fw-established-related
-status: mapped
 notes: Allow established and related connections
 managed_by_ref: rtr-mikrotik-chateau
 chain: forward

@@ -3,7 +3,6 @@
 @group: data-channels
 @version: 1.0.0
 source_id: link-lte-backhaul
-status: mapped
 notes: LTE backhaul used as WAN failover path
 endpoint_a:
   device_ref: rtr-mikrotik-chateau

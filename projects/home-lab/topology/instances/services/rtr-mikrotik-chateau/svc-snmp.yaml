@@ -3,7 +3,6 @@
 @group: services
 @version: 1.0.0
 source_id: svc-snmp
-status: mapped
 notes: SNMP agent for Prometheus monitoring (native RouterOS)
 
 port: 161

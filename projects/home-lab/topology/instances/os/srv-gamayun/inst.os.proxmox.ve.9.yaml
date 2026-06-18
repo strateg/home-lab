@@ -3,5 +3,4 @@
 @group: os
 @version: 1.0.0
 source_id: inst.os.proxmox.ve.9
-status: mapped
 notes: ADR0064 os instance

@@ -3,7 +3,6 @@
 @group: docker
 @version: 1.0.0
 source_id: stack-monitoring
-status: modeled
 notes: Observability stack on Orange Pi 5
 
 host_ref: srv-orangepi5

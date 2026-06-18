@@ -3,7 +3,6 @@
 @group: services
 @version: 1.0.0
 source_id: svc-proxmox-ui
-status: mapped
 notes: Proxmox VE management interface
 
 port: 8006

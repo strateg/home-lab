@@ -3,7 +3,6 @@
 @group: routeros_container
 @version: 1.2.0
 source_id: docker-tailscale
-status: modeled
 notes: RouterOS container Tailscale on LAN (MikroTik runtime)
 host_ref: rtr-mikrotik-chateau
 network:

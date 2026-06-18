@@ -3,7 +3,6 @@
 @group: observability
 @version: 1.0.0
 source_id: health-nextcloud
-status: mapped
 notes: Nextcloud application health monitoring
 
 name: Nextcloud Application Health

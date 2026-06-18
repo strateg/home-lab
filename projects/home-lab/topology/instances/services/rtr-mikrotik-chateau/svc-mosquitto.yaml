@@ -3,7 +3,6 @@
 @group: services
 @version: 1.0.0
 source_id: svc-mosquitto
-status: mapped
 notes: Mosquitto MQTT broker for IoT devices (container on MikroTik)
 
 ports:

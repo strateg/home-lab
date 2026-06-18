@@ -3,7 +3,6 @@
 @group: services
 @version: 1.0.0
 source_id: svc-tailscale
-status: mapped
 notes: Tailscale mesh VPN (container on MikroTik)
 
 trust_zone_ref: inst.trust_zone.user

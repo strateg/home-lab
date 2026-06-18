@@ -3,7 +3,6 @@
 @group: services
 @version: 1.0.0
 source_id: svc-ntp
-status: mapped
 notes: Network Time Protocol server (native RouterOS)
 
 port: 123

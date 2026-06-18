@@ -3,7 +3,6 @@
 @group: routeros_container
 @version: 1.2.0
 source_id: docker-nginx
-status: mapped
 notes: RouterOS container (MikroTik runtime, not Docker Engine)
 host_ref: rtr-mikrotik-chateau
 network:

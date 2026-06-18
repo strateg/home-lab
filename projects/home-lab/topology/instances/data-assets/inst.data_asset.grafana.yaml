@@ -3,7 +3,6 @@
 @group: data-assets
 @version: 1.0.0
 source_id: data-grafana
-status: mapped
 notes: Grafana dashboards and data
 host_ref: srv-orangepi5
 criticality: medium

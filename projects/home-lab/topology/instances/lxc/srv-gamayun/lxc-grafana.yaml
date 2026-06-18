@@ -3,7 +3,6 @@
 @group: lxc
 @version: 1.1.0
 source_id: lxc-grafana
-status: mapped
 notes: Grafana observability dashboards
 
 vmid: 205

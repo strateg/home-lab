@@ -3,7 +3,6 @@
 @group: data-assets
 @version: 1.0.0
 source_id: data-jellyfin-config
-status: mapped
 notes: Jellyfin configuration
 host_ref: srv-orangepi5
 criticality: medium

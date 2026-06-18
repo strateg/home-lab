@@ -3,7 +3,6 @@
 @group: power
 @version: 1.0.0
 source_id: ups-main
-status: mapped
 notes: module scaffold exists; capability profile tuning pending
 firmware_ref: inst.firmware.apc.backups.650va
 os_refs: []

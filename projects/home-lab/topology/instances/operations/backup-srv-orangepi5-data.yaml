@@ -3,7 +3,6 @@
 @group: operations
 @version: 1.0.0
 source_id: backup-srv-orangepi5-data
-status: mapped
 notes: Orange Pi 5 Docker volumes and NVMe data backup to Proxmox HDD
 
 name: Orange Pi 5 Data Backup

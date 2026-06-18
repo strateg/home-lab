@@ -3,5 +3,4 @@
 @group: network
 @version: 1.0.0
 source_id: trust-zone-user
-status: mapped
 notes: End-user devices zone (WiFi, LAN, VPN)

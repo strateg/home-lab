@@ -3,7 +3,6 @@
 @group: lxc
 @version: 1.1.0
 source_id: lxc-nginx-proxy
-status: mapped
 notes: Nginx reverse proxy
 
 vmid: 207

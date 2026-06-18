@@ -3,7 +3,6 @@
 @group: services
 @version: 1.0.0
 source_id: svc-gitea
-status: mapped
 notes: Gitea git server running on LXC container
 
 port: 3000

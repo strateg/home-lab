@@ -3,7 +3,6 @@
 @group: services
 @version: 1.0.0
 source_id: svc-docker-host
-status: mapped
 notes: Docker container host running on LXC container
 
 port: 2375

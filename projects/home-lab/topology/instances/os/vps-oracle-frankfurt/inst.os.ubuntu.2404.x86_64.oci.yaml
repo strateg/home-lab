@@ -3,5 +3,4 @@
 @group: os
 @version: 1.0.0
 source_id: inst.os.ubuntu.2404.x86_64.oci
-status: mapped
 notes: Ubuntu 24.04 LTS on OCI Always Free x86_64

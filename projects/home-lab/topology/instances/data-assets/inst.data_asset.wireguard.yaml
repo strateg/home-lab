@@ -3,7 +3,6 @@
 @group: data-assets
 @version: 1.0.0
 source_id: data-wireguard
-status: mapped
 notes: WireGuard keys and peer configuration (stored in RouterOS)
 host_ref: mikrotik-chateau
 criticality: critical

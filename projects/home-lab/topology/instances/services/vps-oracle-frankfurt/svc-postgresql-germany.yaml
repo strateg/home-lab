@@ -3,7 +3,6 @@
 @group: services
 @version: 1.0.0
 source_id: svc-postgresql-germany
-status: modeled
 notes: |
   PostgreSQL on OCI Frankfurt for Germany geo-specific services.
   W7844 warning expected: VPS attaches to vpn_germany via WireGuard tunnel routing,

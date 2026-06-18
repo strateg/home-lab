@@ -3,7 +3,6 @@
 @group: services
 @version: 1.0.0
 source_id: svc-prometheus
-status: mapped
 notes: Prometheus metrics collection (Docker on Orange Pi 5)
 
 port: 9090

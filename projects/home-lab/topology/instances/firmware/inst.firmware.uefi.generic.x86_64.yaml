@@ -3,5 +3,4 @@
 @group: firmware
 @version: 1.0.0
 source_id: inst.firmware.uefi.generic.x86_64
-status: mapped
 notes: ADR0064 firmware instance

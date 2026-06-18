@@ -3,7 +3,6 @@
 @group: services
 @version: 1.0.0
 source_id: svc-nginx-proxy
-status: mapped
 notes: Nginx reverse proxy running on LXC container
 
 port: 80

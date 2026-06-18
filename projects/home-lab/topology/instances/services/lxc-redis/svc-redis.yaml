@@ -3,7 +3,6 @@
 @group: services
 @version: 1.0.0
 source_id: svc-redis
-status: mapped
 notes: Redis cache server
 
 port: 6379

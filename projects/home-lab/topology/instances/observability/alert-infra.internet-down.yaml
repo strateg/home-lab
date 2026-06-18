@@ -3,7 +3,6 @@
 @group: observability
 @version: 1.0.0
 source_id: alert-infra.internet-down
-status: mapped
 notes: Critical alert for internet connectivity loss
 
 name: Internet Down

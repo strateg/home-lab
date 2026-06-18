@@ -3,7 +3,6 @@
 @group: docker
 @version: 1.0.0
 source_id: stack-network
-status: modeled
 notes: Network services stack on MikroTik
 
 host_ref: rtr-mikrotik-chateau

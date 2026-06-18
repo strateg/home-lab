@@ -3,7 +3,6 @@
 @group: operations
 @version: 1.0.0
 source_id: backup-offsite-weekly
-status: mapped
 notes: Weekly encrypted offsite backup to cloud storage (Backblaze B2)
 
 name: Weekly Offsite Backup

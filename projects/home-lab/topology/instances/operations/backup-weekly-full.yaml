@@ -3,7 +3,6 @@
 @group: operations
 @version: 1.0.0
 source_id: backup-weekly-full
-status: mapped
 notes: Complete weekly vzdump backup of all LXC containers
 
 name: Weekly Full Infrastructure Backup

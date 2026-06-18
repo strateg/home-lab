@@ -3,7 +3,6 @@
 @group: observability
 @version: 1.0.0
 source_id: alert-infra.disk-critical
-status: mapped
 notes: Critical alert for disk space
 
 name: Disk Space Critical

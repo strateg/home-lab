@@ -3,7 +3,6 @@
 @group: data-assets
 @version: 1.0.0
 source_id: data-alertmanager
-status: mapped
 notes: Alertmanager silences and notification state
 host_ref: srv-orangepi5
 criticality: medium

@@ -3,7 +3,6 @@
 @group: lxc
 @version: 1.1.0
 source_id: lxc-gitea
-status: mapped
 notes: Gitea self-hosted Git service
 
 vmid: 203

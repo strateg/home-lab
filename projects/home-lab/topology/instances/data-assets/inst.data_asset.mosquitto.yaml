@@ -3,7 +3,6 @@
 @group: data-assets
 @version: 1.0.0
 source_id: data-mosquitto
-status: mapped
 notes: Mosquitto MQTT broker configuration and persistence (USB storage)
 host_ref: mikrotik-chateau
 criticality: medium

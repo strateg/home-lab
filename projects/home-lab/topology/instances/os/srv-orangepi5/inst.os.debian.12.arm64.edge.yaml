@@ -3,5 +3,4 @@
 @group: os
 @version: 1.0.0
 source_id: inst.os.debian.12.arm64.edge
-status: mapped
 notes: ADR0064 os instance

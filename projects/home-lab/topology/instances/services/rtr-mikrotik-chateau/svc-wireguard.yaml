@@ -3,7 +3,6 @@
 @group: services
 @version: 1.0.0
 source_id: svc-wireguard
-status: modeled
 notes: WireGuard VPN server (native RouterOS); not yet configured on device as of 2026-04-04
 
 port: 51820

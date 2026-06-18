@@ -3,7 +3,6 @@
 @group: services
 @version: 1.0.0
 source_id: svc-mikrotik-ui
-status: mapped
 notes: MikroTik RouterOS management endpoints observed on bootstrap baseline (REST/WebFig HTTPS on 8443)
 
 ports:

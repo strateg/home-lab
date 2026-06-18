@@ -3,7 +3,6 @@
 @group: observability
 @version: 1.0.0
 source_id: alert-infra.temperature-high
-status: mapped
 notes: Warning alert for high temperature
 
 name: High Temperature

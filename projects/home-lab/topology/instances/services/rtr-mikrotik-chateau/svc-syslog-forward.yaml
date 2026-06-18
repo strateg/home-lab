@@ -3,7 +3,6 @@
 @group: services
 @version: 1.0.0
 source_id: svc-syslog-forward
-status: mapped
 notes: Syslog forwarding to Loki (native RouterOS)
 
 protocol: udp

@@ -1,8 +1,9 @@
 # ADR 0103: Runtime Reconciliation Status Replaces Static Instance Status
 
-- Status: Proposed (Revised after SPC Analysis)
+- Status: Partially Implemented (Wave 3 complete, SWOT analyzed)
 - Date: 2026-06-07
-- Revised: 2026-06-07 (SPC Review)
+- Revised: 2026-06-18 (Wave 3 complete, SWOT analysis, D9-D12 added)
+- SWOT Analysis: `adr/0103-analysis/SWOT-ANALYSIS.md`
 
 ## Context
 
@@ -222,6 +223,95 @@ managed_by:
 
 Auto-discovery is preferred; this field is for edge cases.
 
+### D9. Reconciliation Report Schema
+
+Pipeline mode produces `generated/{project}/reports/reconciliation-terraform.json` with formal schema:
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "generated_at": { "type": "string", "format": "date-time" },
+    "state_sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string" },
+          "modified_at": { "type": "string", "format": "date-time" },
+          "terraform_version": { "type": "string" },
+          "resource_count": { "type": "integer" }
+        }
+      }
+    },
+    "reconciliation": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "instance_id": { "type": "string" },
+          "resource_address": { "type": "string" },
+          "status": { "enum": ["synced", "drift", "missing", "extra", "no_state"] },
+          "topology_value": { "type": "object" },
+          "state_value": { "type": "object" },
+          "diff": { "type": "array" }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "properties": {
+        "total": { "type": "integer" },
+        "synced": { "type": "integer" },
+        "drift": { "type": "integer" },
+        "missing": { "type": "integer" },
+        "extra": { "type": "integer" },
+        "no_state": { "type": "integer" }
+      }
+    }
+  }
+}
+```
+
+### D10. Diagnostic Code Allocation
+
+**Note:** E81xx is reserved for assembly stage (ADR 0080). Reconciliation uses E83xx.
+
+| Range | Domain | Examples |
+|-------|--------|----------|
+| E8300-E8309 | State file errors | E8300: State file not found, E8301: State file unreadable |
+| E8310-E8319 | Parse errors | E8310: Invalid tfstate JSON, E8311: Unsupported TF version |
+| E8320-E8329 | Mapping errors | E8320: No resource match for instance, E8321: Ambiguous match |
+| W8350-W8359 | Warnings | W8350: State file older than 24h, W8351: Partial coverage |
+| I8380-I8389 | Info | I8380: Reconciliation complete, I8381: N resources matched |
+
+### D11. Convention-Based Resource Discovery
+
+When `managed_by` is not specified, the reconciler uses naming conventions:
+
+| Instance Pattern | Terraform Resource Pattern | Example |
+|------------------|---------------------------|---------|
+| `inst.vlan.{name}` | `routeros_interface_vlan.{name}` | inst.vlan.servers → routeros_interface_vlan.servers |
+| `lxc-{name}` | `proxmox_lxc.{name}` | lxc-grafana → proxmox_lxc.grafana |
+| `docker-{name}` | `docker_container.{name}` | docker-nginx → docker_container.nginx |
+| `rtr-{name}` | `routeros_system_identity.{name}` | rtr-mikrotik-chateau → routeros_system_identity.main |
+
+Fallback: If no match found, status = `no_state` with diagnostic hint to add `managed_by`.
+
+### D12. State Source Expansion Roadmap
+
+Current coverage is ~15% of instances. Expansion phases:
+
+| Phase | State Source | Coverage Delta | Total Coverage | Prerequisite |
+|-------|--------------|----------------|----------------|--------------|
+| Current | MikroTik tfstate | baseline | ~5% | None |
+| Phase 1 | + OCI tfstate | +5% | ~10% | None (exists) |
+| Phase 2 | + Proxmox tfstate | +30% | ~40% | Create Proxmox TF config |
+| Phase 3 | + Docker snapshots | +20% | ~60% | Snapshot capture script |
+| Phase 4 | + Ansible fact cache | +20% | ~80% | Fact gathering playbook |
+
+This roadmap is informational; each phase requires separate implementation effort.
+
 ## Consequences
 
 ### Positive
@@ -252,36 +342,109 @@ Auto-discovery is preferred; this field is for edge cases.
 
 ## Implementation Plan
 
-### Wave 1: Foundation
-- [ ] Create `base.builder.terraform_state_reconciler` plugin
-- [ ] Implement Terraform state JSON parser
-- [ ] Add reconciliation report schema
+**Total estimated effort: 39h** (Phases 0-2) + 24h (Wave 4, future)
 
-### Wave 2: CLI Tool
-- [ ] Add `lane.py reconcile` subcommand
-- [ ] Implement MikroTik REST API fetcher
-- [ ] Integrate SOPS credential decryption
-- [ ] Create comparison logic (topology vs state vs device)
+### Phase 0: Pre-flight (5h)
 
-### Wave 3: Migration
-- [ ] Script to remove `status` field from 151 instance files
-- [ ] Update any code referencing `status` field (currently zero)
-- [ ] Update documentation
+| Task | Description | Effort | Status |
+|------|-------------|--------|--------|
+| 0.1 | Verify build stage runtime readiness | 2h | Pending |
+| 0.2 | Allocate E81xx diagnostic codes in error-catalog.yaml | 1h | Pending |
+| 0.3 | Create reconciliation report JSON schema file | 2h | Pending |
 
-### Wave 4: Extended Sources (Future)
-- [ ] Proxmox API state fetcher
-- [ ] Docker API state fetcher
-- [ ] Generic SSH probe
+### Wave 1: Terraform State Reconciler Plugin (17h)
+
+| Task | Description | Effort | Status |
+|------|-------------|--------|--------|
+| 1.1 | Create `base.builder.terraform_state_reconciler` skeleton | 2h | Pending |
+| 1.2 | Implement tfstate JSON parser | 3h | Pending |
+| 1.3 | Implement instance-to-resource matcher (D11 conventions) | 4h | Pending |
+| 1.4 | Generate reconciliation report (D9 schema) | 3h | Pending |
+| 1.5 | Add plugin contract tests | 3h | Pending |
+| 1.6 | Integration test with real tfstate | 2h | Pending |
+
+### Wave 2: CLI Reconcile Command (17h)
+
+| Task | Description | Effort | Status |
+|------|-------------|--------|--------|
+| 2.1 | Add `reconcile` subcommand to lane.py | 2h | Pending |
+| 2.2 | Implement MikroTik REST client (or use routeros-api) | 4h | Pending |
+| 2.3 | Implement comparison logic (topology vs state vs device) | 4h | Pending |
+| 2.4 | Implement table/json output formatters | 2h | Pending |
+| 2.5 | Integrate SOPS credential decryption | 2h | Pending |
+| 2.6 | Add CLI tests | 3h | Pending |
+
+### Wave 3: Migration ✅ COMPLETE
+
+| Task | Description | Effort | Status |
+|------|-------------|--------|--------|
+| 3.1 | Script to remove `status` field from 151 instance files | - | ✅ Done (2026-06-18) |
+| 3.2 | Update any code referencing `status` field | - | ✅ N/A (zero refs) |
+| 3.3 | Update documentation | - | ✅ Done |
+
+### Wave 4: State Source Expansion (24h, Future)
+
+| Task | Description | Effort | Status |
+|------|-------------|--------|--------|
+| 4.1 | Create Proxmox Terraform configuration | 8h | Future |
+| 4.2 | Docker inspect snapshot script | 4h | Future |
+| 4.3 | Ansible fact cache integration | 6h | Future |
+| 4.4 | Proxmox API live reconciler | 6h | Future |
+
+### Dependency Graph
+
+```
+Phase 0 (Pre-flight) ──┬── 0.1 Verify build stage
+                       ├── 0.2 Allocate E81xx
+                       └── 0.3 Report schema
+                              │
+                              ▼
+Wave 1 (Plugin) ───────────────────────┐
+       │                               │
+       ├── 1.1 Plugin skeleton         │
+       ├── 1.2 tfstate parser          │
+       ├── 1.3 Instance matcher ◄──────┤ Uses D11
+       ├── 1.4 Report generator ◄──────┤ Uses D9
+       ├── 1.5 Contract tests          │
+       └── 1.6 Integration tests       │
+              │                        │
+              ▼                        │
+Wave 2 (CLI) ◄─────────────────────────┘ Shares core logic
+       │
+       ├── 2.1 CLI skeleton
+       ├── 2.2 MikroTik client
+       ├── 2.3 Comparison logic
+       ├── 2.4 Formatters
+       ├── 2.5 SOPS integration
+       └── 2.6 CLI tests
+              │
+              ▼
+Wave 4 (Expansion) ── Future scope
+```
 
 ## Compliance Matrix
 
-| Constraint | How Satisfied |
-|------------|---------------|
-| ADR 0080 stage affinity | Plugin in build stage (not validate) |
-| ADR 0074 determinism | Terraform state parsing (not live queries) |
-| ADR 0097 timeout | State file parsing < 1 second |
-| CI compatibility | No device connectivity required |
-| ADR 0063 plugin contract | Valid `consumes`/`produces` references |
+| Constraint | Source | How Satisfied | Decision |
+|------------|--------|---------------|----------|
+| Stage affinity | ADR 0080, 0086 | Plugin in build stage (not validate) | D2.1 |
+| Determinism | ADR 0074 D2 | Terraform state parsing (not live queries) | D2.1 |
+| Plugin timeout | ADR 0097 | State file parsing < 1 second | D2.1 |
+| CI compatibility | Infrastructure | No device connectivity required in pipeline | D6 |
+| Plugin contract | ADR 0063 | Valid `consumes`/`produces` references | D2.1, D9 |
+| Topology = intent | This ADR | No status field in instance YAML | D1 |
+| Credentials | ADR 0072, 0073 | SOPS/age integration for CLI mode | D7 |
+| Diagnostics | ADR 0065 | E81xx range allocated | D10 |
+
+## SWOT Summary
+
+| Category | Key Points |
+|----------|------------|
+| **Strengths** | Dual-mode architecture; deterministic pipeline; SOPS reuse; Wave 3 complete |
+| **Weaknesses** | 15% tfstate coverage; no Proxmox state; dual-mode complexity |
+| **Opportunities** | Proxmox TF provider; Docker snapshots; unified dashboards; Ansible facts |
+| **Threats** | Stale state files; TF version changes; out-of-band changes invisible |
+
+Full analysis: `adr/0103-analysis/SWOT-ANALYSIS.md`
 
 ## References
 

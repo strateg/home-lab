@@ -3,7 +3,6 @@
 @group: operations
 @version: 1.0.0
 source_id: backup-mikrotik-config
-status: mapped
 notes: MikroTik RouterOS configuration export to Git repository
 
 name: MikroTik Config Backup

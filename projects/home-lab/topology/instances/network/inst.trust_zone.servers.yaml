@@ -3,5 +3,4 @@
 @group: network
 @version: 1.0.0
 source_id: trust-zone-servers
-status: mapped
 notes: Server zone for infrastructure services

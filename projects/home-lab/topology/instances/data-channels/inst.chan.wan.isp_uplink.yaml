@@ -3,7 +3,6 @@
 @group: data-channels
 @version: 1.0.0
 source_id: link-wan-isp
-status: mapped
 notes: Primary WAN uplink from router to ISP edge/ONT
 endpoint_a:
   device_ref: rtr-mikrotik-chateau

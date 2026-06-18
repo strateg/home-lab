@@ -3,7 +3,6 @@
 @group: data-assets
 @version: 1.0.0
 source_id: data-loki
-status: mapped
 notes: Loki log storage chunks and index
 host_ref: srv-orangepi5
 criticality: medium

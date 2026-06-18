@@ -3,7 +3,6 @@
 @group: observability
 @version: 1.0.0
 source_id: alert-security.cert-expiry
-status: mapped
 notes: Warning alert for certificate expiry
 
 name: Certificate Expiring

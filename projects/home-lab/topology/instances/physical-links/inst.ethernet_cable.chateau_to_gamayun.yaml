@@ -3,7 +3,6 @@
 @group: physical-links
 @version: 1.0.0
 source_id: link-rtr-mikrotik-srv-gamayun
-status: mapped
 notes: Wired trunk link carrying management and server VLANs between Chateau and Proxmox
 endpoint_a:
   device_ref: rtr-mikrotik-chateau

@@ -3,7 +3,6 @@
 @group: firewall
 @version: 1.0.0
 source_id: fw-default-deny
-status: mapped
 notes: Default deny policy for unsolicited WAN traffic (!dstnat); does not block LAN to WAN forwarding
 managed_by_ref: rtr-mikrotik-chateau
 chain: forward

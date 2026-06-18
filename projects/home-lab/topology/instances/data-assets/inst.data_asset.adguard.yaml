@@ -3,7 +3,6 @@
 @group: data-assets
 @version: 1.0.0
 source_id: data-adguard
-status: mapped
 notes: AdGuard Home configuration and work data (USB storage)
 host_ref: mikrotik-chateau
 criticality: high

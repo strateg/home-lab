@@ -3,7 +3,6 @@
 @group: data-assets
 @version: 1.0.0
 source_id: data-homeassistant
-status: mapped
 notes: Home Assistant config
 host_ref: srv-orangepi5
 criticality: medium

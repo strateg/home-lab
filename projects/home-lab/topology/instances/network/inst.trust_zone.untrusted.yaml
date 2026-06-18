@@ -3,5 +3,4 @@
 @group: network
 @version: 1.0.0
 source_id: trust-zone-untrusted
-status: mapped
 notes: External untrusted zone (ISP, Internet, LTE)

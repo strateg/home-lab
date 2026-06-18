@@ -3,7 +3,6 @@
 @group: network
 @version: 1.0.0
 source_id: bridge-containers
-status: mapped
 notes: RouterOS container bridge on rtr-mikrotik-chateau; hosts veth1 for Docker workloads
 host_ref: rtr-mikrotik-chateau
 ip: 172.18.0.1/24

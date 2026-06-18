@@ -3,7 +3,6 @@
 @group: services
 @version: 1.0.0
 source_id: svc-adguard-secondary
-status: mapped
 notes: Secondary AdGuard Home DNS for redundancy (Docker on Orange Pi 5)
 
 ports:

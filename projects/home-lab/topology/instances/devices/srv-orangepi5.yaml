@@ -3,7 +3,6 @@
 @group: devices
 @version: 1.1.0
 source_id: srv-orangepi5
-status: mapped
 notes: ADR 0107 workload_defaults applied
 firmware_ref: inst.firmware.uboot.generic.arm64
 os_refs:

@@ -3,7 +3,6 @@
 @group: data-assets
 @version: 1.0.0
 source_id: data-adguard-secondary
-status: mapped
 notes: Secondary AdGuard configuration and query logs
 host_ref: srv-orangepi5
 criticality: low

@@ -3,7 +3,6 @@
 @group: observability
 @version: 1.0.0
 source_id: alert-power.ups-low
-status: mapped
 notes: Critical alert for low UPS battery
 
 name: UPS Low Battery
