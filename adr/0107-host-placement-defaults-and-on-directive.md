@@ -455,12 +455,14 @@ ADR-0107:
 | `instance_rows_compiler.py` | 907a5cc3 | ✅ host_ref in normalized rows |
 | `field_annotations.py` | 77e4a85e | ✅ Skip @on in annotation parsing |
 | srv-gamayun workload_defaults | 77e4a85e | ✅ 11 host-scoped fields |
-| srv-orangepi5 workload_defaults | (pending) | ✅ Docker host defaults |
-| rtr-mikrotik-chateau workload_defaults | (pending) | ✅ RouterOS Docker host defaults |
-| Docker object template | (pending) | ✅ @on directives in defaults |
-| Strip None values in @on merge | (pending) | ✅ Prevents validator errors for host-specific fields |
+| srv-orangepi5 workload_defaults | 42c85dae | ✅ Docker host defaults |
+| rtr-mikrotik-chateau workload_defaults | b7c43823 | ✅ RouterOS container host defaults |
+| Docker object template | 42c85dae | ✅ @on directives in defaults |
+| RouterOS container object template | b7c43823 | ✅ obj.routeros.container.generic |
+| Strip None values in @on merge | 42c85dae | ✅ Prevents validator errors for host-specific fields |
 | LXC object templates (10 files) | c54fb4f2 | ✅ @on directives in defaults |
 | LXC instances simplified | 77e4a85e | ✅ ~77% field reduction |
+| Docker instances simplified | b7c43823 | ✅ Removed redundant os_refs, network, gateway |
 | Integration tests | c54fb4f2 | ✅ 5 test cases |
 | AI rules (D14) | 7dc516e4 | ✅ host-placement.md v1.1, HPL-001 |
 

@@ -712,6 +712,33 @@ plugins:
   description: Validates optional object initialization_contract payloads for compute/router
     objects (ADR 0083).
   execution_mode: subinterpreter
+- id: base.compiler.workload_defaults_redundancy
+  kind: compiler
+  entry: compilers/workload_defaults_redundancy_compiler.py:WorkloadDefaultsRedundancyCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: run
+  order: 46
+  depends_on:
+  - base.compiler.instance_rows_prepare
+  - base.compiler.instance_host_index
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows_prepare
+    key: prepared_rows
+    required: true
+  - from_plugin: base.compiler.instance_host_index
+    key: host_workload_defaults_index
+    required: true
+  description: Warns on redundant instance fields that duplicate workload_defaults
+    values (ADR 0107 Phase 1).
+  execution_mode: subinterpreter
 - id: base.validator.model_lock
   kind: validator_json
   entry: validators/model_lock_validator.py:ModelLockValidator
