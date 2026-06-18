@@ -1,7 +1,8 @@
 # ADR 0107: Host Placement Defaults with `@on` Directive
 
-- Status: Accepted
+- Status: **Implemented**
 - Date: 2026-06-17
+- Implemented: 2026-06-18
 - Extends: ADR 0068 (Object YAML Template with Typed Instance Placeholders)
 - Related: ADR 0062 (C-O-I Architecture), ADR 0071 (Sharded Instances), ADR 0086 (Plugin Runtime Contract), ADR 0087 (host_ref DAG Validator)
 - Analysis: SWOT P04 (Host-level repetition), SPC Protocol
@@ -441,3 +442,37 @@ ADR-0107:
 - SWOT Analysis: P04 (Host-level repetition)
 - SPC Analysis: `docs/analysis/TOPOLOGY-ONTOLOGY-SWOT-2026-06-17.md`
 - AI Rules: `docs/ai/rules/topology-model.md`, `docs/ai/rules/host-placement.md` (D14)
+
+## Implementation Status
+
+### Completed (2026-06-18)
+
+| Component | Commit | Status |
+|-----------|--------|--------|
+| `instance_host_index_compiler.py` | ab197807 | ✅ Builds host_workload_defaults_index |
+| `instance_rows_on_prepare_compiler.py` | ab197807, c54fb4f2 | ✅ Resolves @on in instance + object defaults |
+| `host_chain_utils.py` | ab197807 | ✅ Shared host_ref chain traversal |
+| `instance_rows_compiler.py` | 907a5cc3 | ✅ host_ref in normalized rows |
+| `field_annotations.py` | 77e4a85e | ✅ Skip @on in annotation parsing |
+| srv-gamayun workload_defaults | 77e4a85e | ✅ 11 host-scoped fields |
+| LXC object templates (10 files) | c54fb4f2 | ✅ @on directives in defaults |
+| LXC instances simplified | 77e4a85e | ✅ ~77% field reduction |
+| Integration tests | c54fb4f2 | ✅ 5 test cases |
+| AI rules (D14) | 7dc516e4 | ✅ host-placement.md v1.1, HPL-001 |
+
+### Measured Impact
+
+| Metric | Before | After | Delta |
+|--------|--------|-------|-------|
+| Compilation errors | 12 | 0 | **-100%** |
+| Compilation warnings | 9 | 0 | **-100%** |
+| Avg LXC instance lines | ~50 | ~25 | **-50%** |
+| Redundant field declarations | 117 | 0 | **-100%** |
+
+### Remaining Work
+
+| Item | Priority | Notes |
+|------|----------|-------|
+| srv-orangepi5 workload_defaults | Medium | Docker host |
+| rtr-mikrotik-chateau workload_defaults | Medium | RouterOS Docker host |
+| Phase 1 redundancy warnings | Low | Optional diagnostic |

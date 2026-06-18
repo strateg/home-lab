@@ -89,8 +89,42 @@ task ci
 | `.work/deploy-state/<project>/nodes/` | Initialization state |
 | `.work/deploy-state/<project>/logs/` | Audit logs (JSONL) |
 
+## Add LXC Instance (ADR 0107)
+
+New LXC instances inherit host-scoped defaults via `@on` directive:
+
+```yaml
+# projects/home-lab/topology/instances/lxc/srv-gamayun/lxc-myapp.yaml
+@instance: lxc-myapp
+@extends: obj.proxmox.lxc.debian12.base
+@version: 1.0.0
+
+host_ref: srv-gamayun           # Required for @on resolution
+vmid: 210
+hostname: myapp
+
+# Instance-specific values (not inherited)
+network:
+  ip: 10.0.30.50/24
+storage:
+  rootfs:
+    size_gb: 10
+cloudinit:
+  user: myapp
+ansible:
+  playbook: myapp.yml
+```
+
+**Inherited from host via @on** (defined in object template):
+- `trust_zone_ref`, `network.vlan_ref`, `network.bridge_ref`, `network.gateway`
+- `dns.nameserver`, `dns.searchdomain`
+- `storage.rootfs.pool_ref`, `cloudinit.enabled`, `ansible.enabled`, `boot.onboot`
+
+See `docs/ai/rules/host-placement.md` for full @on directive reference.
+
 ## References
 
 - `docs/guides/DEPLOY-BUNDLE-WORKFLOW.md`
 - `docs/guides/NODE-INITIALIZATION.md`
 - `docs/guides/OPERATOR-ENVIRONMENT-SETUP.md`
+- `docs/ai/rules/host-placement.md` (ADR 0107)
