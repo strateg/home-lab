@@ -26,7 +26,7 @@ class HostOsRefsValidator(ValidatorJsonPlugin):
     }
     _SERVICE_PREFIX = "class.service."
     _DEVICE_RUNTIME_TYPES = {"docker", "baremetal"}
-    _ACTIVE_STATUSES = {"active", "mapped", "modeled"}
+    _ACTIVE_STATUSES = {"active", "mapped", "modeled", "pending"}
     _INSTALL_REQUIRED_HOST_TYPES = {"baremetal", "hypervisor"}
     _ARCH_ALIASES = {
         "x86_64": "x86_64",

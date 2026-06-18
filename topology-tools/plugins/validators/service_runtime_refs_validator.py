@@ -28,7 +28,7 @@ class ServiceRuntimeRefsValidator(ValidatorJsonPlugin):
     }
     _DOCKER_CAPABILITIES = {"docker", "container"}
     _BAREMETAL_ALLOWED_HOST_TYPES = {"baremetal", "embedded", "hypervisor"}
-    _ACTIVE_OS_STATUSES = {"active", "mapped", "modeled"}
+    _ACTIVE_OS_STATUSES = {"active", "mapped", "modeled", "pending"}
     _LXC_CLASSES = {"class.compute.workload.lxc"}
     _VM_CLASSES = {"class.compute.workload.vm"}
     _ROUTEROS_CONTAINER_CLASSES = {"class.compute.workload.routeros_container"}
