@@ -283,8 +283,9 @@ def test_optional_on_with_default_value():
     # Default value used
     assert resolved_row["dns"]["searchdomain"] == "local"
 
-    # No default, optional returns None
-    assert resolved_row["dns"]["nameserver"] is None
+    # No default, optional @on paths are stripped (not merged as None)
+    # This prevents validator errors for fields that don't apply to all hosts
+    assert "nameserver" not in resolved_row["dns"]
 
 
 # =============================================================================

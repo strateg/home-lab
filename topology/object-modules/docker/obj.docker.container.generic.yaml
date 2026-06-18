@@ -17,3 +17,12 @@ enabled_capabilities:
 - cap.compute.workload.linux_base
 vendor_capabilities:
 - vendor.runtime.docker.container
+
+# ADR 0107: Host placement defaults via @on directive
+defaults:
+  trust_zone_ref: "@on:host.trust_zone_ref?"
+  os_refs: "@on:host.os_refs?"
+  network:
+    network_ref: "@on:host.network.network_ref?"
+    bridge_ref: "@on:host.network.bridge_ref?"
+    gateway: "@on:host.network.gateway?"

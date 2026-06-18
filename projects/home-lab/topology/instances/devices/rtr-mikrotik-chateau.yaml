@@ -1,10 +1,10 @@
 @instance: rtr-mikrotik-chateau
 @extends: obj.mikrotik.chateau_lte7_ax
 @group: devices
-@version: 1.0.0
+@version: 1.1.0
 source_id: rtr-mikrotik-chateau
 status: mapped
-notes: RouterOS with WireGuard tunnel to OCI VPS active; VPN-Germany VLAN 55 routes through tunnel for geo-bypass
+notes: ADR 0107 workload_defaults applied; WireGuard tunnel to OCI VPS active
 firmware_ref: inst.firmware.routeros.7.arm64
 os_refs:
 - inst.os.routeros.7.arm64
@@ -106,6 +106,15 @@ observed_runtime:
   users:
     - name: admin
       group: full
+
+# ADR 0107: Host-level workload defaults for RouterOS containers
+workload_defaults:
+  trust_zone_ref: inst.trust_zone.lan
+  os_refs:
+    - inst.os.debian.12.arm64.container_base
+  network:
+    bridge_ref: inst.bridge.containers
+    gateway: 172.18.0.1
 
 # ADR 0087: Docker host capability declaration
 # RouterOS v7 containers are Docker-compatible (containerD engine)

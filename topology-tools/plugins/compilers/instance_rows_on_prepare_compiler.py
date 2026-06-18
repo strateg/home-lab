@@ -201,11 +201,35 @@ class InstanceRowsOnPrepareCompiler(CompilerPlugin):
             diagnostics=diagnostics,
         )
 
-        # Step 3: Deep merge (instance data wins over object defaults)
-        final_data = self._deep_merge(resolved_obj_defaults, resolved_instance_data)
+        # Step 3: Strip None values from object defaults (unresolved optional @on paths)
+        # These should not be merged into the final result
+        stripped_obj_defaults = self._strip_none_values(resolved_obj_defaults)
+
+        # Step 4: Deep merge (instance data wins over object defaults)
+        final_data = self._deep_merge(stripped_obj_defaults, resolved_instance_data)
 
         resolved_row["row"] = final_data
         return resolved_row
+
+    @staticmethod
+    def _strip_none_values(data: dict[str, Any]) -> dict[str, Any]:
+        """Recursively remove keys with None values from a dict.
+
+        This ensures that unresolved optional @on paths (which return None)
+        are not merged into the final result, preventing validator errors
+        for fields like network.bridge_ref that may not apply to all hosts.
+        """
+        result: dict[str, Any] = {}
+        for key, value in data.items():
+            if value is None:
+                continue
+            if isinstance(value, dict):
+                stripped = InstanceRowsOnPrepareCompiler._strip_none_values(value)
+                if stripped:  # Only include non-empty dicts
+                    result[key] = stripped
+            else:
+                result[key] = value
+        return result
 
     @staticmethod
     def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:

@@ -455,6 +455,10 @@ ADR-0107:
 | `instance_rows_compiler.py` | 907a5cc3 | ✅ host_ref in normalized rows |
 | `field_annotations.py` | 77e4a85e | ✅ Skip @on in annotation parsing |
 | srv-gamayun workload_defaults | 77e4a85e | ✅ 11 host-scoped fields |
+| srv-orangepi5 workload_defaults | (pending) | ✅ Docker host defaults |
+| rtr-mikrotik-chateau workload_defaults | (pending) | ✅ RouterOS Docker host defaults |
+| Docker object template | (pending) | ✅ @on directives in defaults |
+| Strip None values in @on merge | (pending) | ✅ Prevents validator errors for host-specific fields |
 | LXC object templates (10 files) | c54fb4f2 | ✅ @on directives in defaults |
 | LXC instances simplified | 77e4a85e | ✅ ~77% field reduction |
 | Integration tests | c54fb4f2 | ✅ 5 test cases |
@@ -473,6 +477,4 @@ ADR-0107:
 
 | Item | Priority | Notes |
 |------|----------|-------|
-| srv-orangepi5 workload_defaults | Medium | Docker host |
-| rtr-mikrotik-chateau workload_defaults | Medium | RouterOS Docker host |
-| Phase 1 redundancy warnings | Low | Optional diagnostic |
+| Phase 1 redundancy warnings | Low | Optional diagnostic for detecting duplicate fields in instances |
