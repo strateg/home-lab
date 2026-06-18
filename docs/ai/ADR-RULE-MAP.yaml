@@ -352,3 +352,22 @@ rules:
       - "grep -r 'object_ref.startswith' topology-tools/plugins/ (should return 0)"
       - "grep -r 'in object_ref.lower()' topology-tools/plugins/ (should return 0)"
     source_adr: ["0106"]
+
+  - id: HPL-001
+    scope: host-placement
+    trigger: "Adding workload instances, modifying host workload_defaults, or using @on directives"
+    rule_pack: host-placement
+    must:
+      - "Define workload_defaults in host instance (not in object template)."
+      - "Use @on:host.X in object template defaults section for host-inherited fields."
+      - "Quote @on values in YAML: \"@on:host.X\" to prevent parsing issues."
+      - "Always set host_ref for workload instances."
+      - "Use optional modifier (?) for fields that may not exist in all hosts."
+    never:
+      - "Do not put @on markers in instance files (only in object templates)."
+      - "Do not duplicate host-scoped fields across workload instances."
+      - "Do not put @on markers outside the defaults: section of object templates."
+    validate:
+      - "task compile:default (0 E6810-E6815 errors)"
+      - "pytest tests/plugin_integration/test_on_directive_object_defaults.py"
+    source_adr: ["0107"]

@@ -1,16 +1,18 @@
 # AI Rule Pack: Host Placement Defaults
 
-> **Version:** 1.0 | **Updated:** 2026-06-17 | **ADRs:** 0107
+> **Version:** 1.1 | **Updated:** 2026-06-18 | **ADRs:** 0107
 
 ## Quick Reference
 
 | Rule | Key Point |
 |------|-----------|
 | workload_defaults | Define in host instance, NOT in object |
+| @on in object defaults | Put @on markers in object template `defaults:` section |
 | @on:host.X | Inherit from immediate host_ref |
 | @on:root.X | Inherit from physical device at chain root |
 | Nested hosts | LXC/VM can define own workload_defaults |
 | Instance override | Explicit value overrides @on resolution |
+| Deep merge | Object defaults merged with instance data |
 
 ## Load When
 
@@ -61,19 +63,42 @@ workload_defaults:
 
 ## Object Template Usage
 
-Use @on markers in object templates to inherit from host:
+Use @on markers in object `defaults:` section to inherit from host:
 
 ```yaml
-# obj.proxmox.lxc.debian12.yaml
+# obj.proxmox.lxc.debian12.base.yaml
+@object: obj.proxmox.lxc.debian12.base
+@version: 1.1.0
+
 defaults:
-  trust_zone_ref: @on:host.trust_zone_ref
+  trust_zone_ref: "@on:host.trust_zone_ref?"
   network:
-    bridge_ref: @on:host.network.bridge_ref
-    gateway: @on:host.network.gateway
+    interface: "@on:host.network.interface?:eth0"
+    bridge_ref: "@on:host.network.bridge_ref?"
+    vlan_ref: "@on:host.network.vlan_ref?"
+    gateway: "@on:host.network.gateway?"
+    firewall: "@on:host.network.firewall?:false"
   dns:
-    nameserver: @on:host.dns.nameserver?
-    searchdomain: @on:host.dns.searchdomain?:local
+    nameserver: "@on:host.dns.nameserver?"
+    searchdomain: "@on:host.dns.searchdomain?:local"
+  storage:
+    rootfs:
+      pool_ref: "@on:host.storage.default_pool_ref?"
+  cloudinit:
+    enabled: "@on:host.cloudinit.enabled?:true"
+  ansible:
+    enabled: "@on:host.ansible.enabled?:true"
+  boot:
+    onboot: "@on:host.boot.onboot?:true"
 ```
+
+**Important:** Quote @on values in YAML (`"@on:host.X"`) to prevent parsing issues.
+
+## Resolution Order
+
+1. Object template `defaults:` section is resolved first (lower priority)
+2. Instance row data is resolved second (higher priority)
+3. Results are deep merged (instance values override object defaults)
 
 ## Nested Host Resolution
 
@@ -109,10 +134,22 @@ dns:
 
 | Pattern | Why Wrong | Fix |
 |---------|-----------|-----|
-| Define defaults in object | Breaks host locality | Use workload_defaults in host |
+| Static values in object defaults | Breaks host locality | Use @on:host.X in defaults |
 | @on in instance file | Invalid context | Use only in object templates |
-| Duplicate fields | Redundant, error-prone | Let @on inherit from host |
+| Duplicate fields in instances | Redundant, error-prone | Let @on inherit from host |
 | Skip host_ref for workloads | Breaks @on resolution | Always set host_ref |
+| @on outside defaults section | Won't resolve | Put @on in `defaults:` only |
+
+## Testing
+
+Integration tests: `tests/plugin_integration/test_on_directive_object_defaults.py`
+
+Test cases:
+1. Basic @on resolution from object defaults
+2. Instance values override object defaults
+3. Optional @on with default value
+4. Deep merge of nested structures
+5. No object defaults passes through
 
 ## Validation
 
