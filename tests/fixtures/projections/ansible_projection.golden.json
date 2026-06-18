@@ -18,6 +18,7 @@
       "inventory_group": "devices",
       "management_ip": "192.168.88.1",
       "object": {
+        "derived_capabilities": ["cap.bootstrap.netinstall"],
         "initialization_contract": {"mechanism": "netinstall"}
       },
       "object_ref": "obj.mikrotik.chateau_lte7_ax"
@@ -27,6 +28,7 @@
       "inventory_group": "devices",
       "management_ip": "10.10.10.2",
       "object": {
+        "derived_capabilities": ["cap.bootstrap.unattended"],
         "initialization_contract": {"mechanism": "unattended_install"}
       },
       "object_ref": "obj.proxmox.ve"
@@ -36,6 +38,7 @@
       "inventory_group": "devices",
       "management_ip": "10.10.10.22",
       "object": {
+        "derived_capabilities": ["cap.bootstrap.cloud_init"],
         "initialization_contract": {"mechanism": "cloud_init"}
       },
       "object_ref": "obj.orangepi.rk3588.debian"

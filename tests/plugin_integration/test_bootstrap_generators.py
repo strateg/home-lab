@@ -103,24 +103,33 @@ def _semanticize(compiled_json: dict) -> dict:
 
 
 def _compiled_fixture() -> dict:
-    """Compiled JSON fixture with ADR 0106 initialization_contract requirements."""
+    """Compiled JSON fixture with ADR 0106 initialization_contract + derived capabilities."""
     return {
         "instances": {
             "devices": [
                 {
                     "instance_id": "srv-gamayun",
                     "object_ref": "obj.proxmox.ve",
-                    "object": {"initialization_contract": {"mechanism": "unattended_install"}},
+                    "object": {
+                        "initialization_contract": {"mechanism": "unattended_install"},
+                        "derived_capabilities": ["cap.bootstrap.unattended"],
+                    },
                 },
                 {
                     "instance_id": "rtr-mk",
                     "object_ref": "obj.mikrotik.chateau_lte7_ax",
-                    "object": {"initialization_contract": {"mechanism": "netinstall"}},
+                    "object": {
+                        "initialization_contract": {"mechanism": "netinstall"},
+                        "derived_capabilities": ["cap.bootstrap.netinstall"],
+                    },
                 },
                 {
                     "instance_id": "srv-orangepi5",
                     "object_ref": "obj.orangepi.rk3588.debian",
-                    "object": {"initialization_contract": {"mechanism": "cloud_init"}},
+                    "object": {
+                        "initialization_contract": {"mechanism": "cloud_init"},
+                        "derived_capabilities": ["cap.bootstrap.cloud_init"],
+                    },
                 },
             ]
         }
@@ -139,7 +148,8 @@ def _compiled_fixture_with_contract_mechanism() -> dict:
                             "version": "1.0.0",
                             "mechanism": "netinstall",
                             "bootstrap": {"template": "bootstrap/init-terraform.rsc.j2"},
-                        }
+                        },
+                        "derived_capabilities": ["cap.bootstrap.netinstall"],
                     },
                 }
             ]
@@ -162,7 +172,8 @@ def _compiled_fixture_with_proxmox_contract_mechanism() -> dict:
                                 "template": "bootstrap/answer.toml.j2",
                                 "post_install": "bootstrap/post-install-minimal.sh.j2",
                             },
-                        }
+                        },
+                        "derived_capabilities": ["cap.bootstrap.unattended"],
                     },
                 }
             ]
@@ -188,7 +199,8 @@ def _compiled_fixture_with_orangepi_contract_mechanism() -> dict:
                                     "meta_data": "meta-data",
                                 },
                             },
-                        }
+                        },
+                        "derived_capabilities": ["cap.bootstrap.cloud_init"],
                     },
                 }
             ]

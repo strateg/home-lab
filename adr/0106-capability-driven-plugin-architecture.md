@@ -1,8 +1,8 @@
 # ADR 0106: Capability-Driven Plugin Architecture
 
-- Status: Proposed
+- Status: Implemented
 - Date: 2026-06-11
-- Updated: 2026-06-11 (all-in approach, ontology optimization)
+- Updated: 2026-06-18 (Stage 1 implementation complete)
 - Analysis: `adr/0106-analysis/`
 - AI Rules: `docs/ai/rules/capability-model.md`
 

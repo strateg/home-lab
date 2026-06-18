@@ -37,6 +37,7 @@
       "instance_id": "rtr-mk",
       "management_ip": "192.168.88.1",
       "object": {
+        "derived_capabilities": ["cap.bootstrap.netinstall"],
         "initialization_contract": {"mechanism": "netinstall"}
       },
       "object_ref": "obj.mikrotik.chateau_lte7_ax"

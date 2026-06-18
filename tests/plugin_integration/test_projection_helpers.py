@@ -42,9 +42,10 @@ def _compiled_fixture() -> dict:
                         "materializes_object": "obj.mikrotik.chateau_lte7_ax",
                         "materializes_class": "class.network.router",
                     },
-                    # ADR 0106: Required initialization_contract.mechanism for bootstrap
+                    # ADR 0106: initialization_contract + derived capabilities
                     "object": {
                         "initialization_contract": {"mechanism": "netinstall"},
+                        "derived_capabilities": ["cap.bootstrap.netinstall"],
                     },
                 },
                 {
@@ -53,9 +54,10 @@ def _compiled_fixture() -> dict:
                         "materializes_object": "obj.proxmox.ve",
                         "materializes_class": "class.compute.hypervisor.proxmox",
                     },
-                    # ADR 0106: Required initialization_contract.mechanism for bootstrap
+                    # ADR 0106: initialization_contract + derived capabilities
                     "object": {
                         "initialization_contract": {"mechanism": "unattended_install"},
+                        "derived_capabilities": ["cap.bootstrap.unattended"],
                     },
                 },
                 {
@@ -64,9 +66,10 @@ def _compiled_fixture() -> dict:
                         "materializes_object": "obj.orangepi.rk3588.debian",
                         "materializes_class": "class.compute.sbc",
                     },
-                    # ADR 0106: Required initialization_contract.mechanism for bootstrap
+                    # ADR 0106: initialization_contract + derived capabilities
                     "object": {
                         "initialization_contract": {"mechanism": "cloud_init"},
+                        "derived_capabilities": ["cap.bootstrap.cloud_init"],
                     },
                 },
                 {

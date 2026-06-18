@@ -24,6 +24,7 @@
       "instance_id": "srv-gamayun",
       "management_ip": "10.10.10.2",
       "object": {
+        "derived_capabilities": ["cap.bootstrap.unattended"],
         "initialization_contract": {"mechanism": "unattended_install"}
       },
       "object_ref": "obj.proxmox.ve"

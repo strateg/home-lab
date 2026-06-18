@@ -151,12 +151,18 @@ def build_ansible_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-# Capability → Role mapping for Ansible role generation (ADR 0104)
+# Capability → Role mapping for Ansible role generation (ADR 0104, ADR 0106)
 CAPABILITY_ROLE_MAP: dict[str, str] = {
+    # Network capabilities
     "cap.network.vpn_gateway": "wireguard_gateway",
-    # Future capabilities:
-    # "cap.compute.runtime.container_host": "docker_host",
-    # "cap.monitoring.prometheus_target": "prometheus_node_exporter",
+    # Role capabilities (ADR 0106 derived from enabled_capabilities)
+    "cap.role.hypervisor": "hypervisor",
+    "cap.role.router": "router",
+    "cap.role.container_host": "container_host",
+    "cap.role.edge_node": "edge_node",
+    "cap.role.vpn_endpoint": "vpn_endpoint",
+    # Compute capabilities
+    "cap.compute.runtime.container_host": "docker_host",
 }
 
 

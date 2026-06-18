@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from capability_derivation import extract_architecture as shared_extract_architecture
+from plugins.generators.capability_helpers import has_capability
 from kernel.plugin_base import (
     PluginContext,
     PluginDataExchangeError,
@@ -464,16 +465,17 @@ class LxcRefsValidator(ValidatorJsonPlugin):
             return
         if storage_target.get("class_ref") != "class.storage.storage_endpoint":
             return
-        platform = self._storage_platform(storage_target)
-        if isinstance(platform, str) and platform.strip() and platform.strip().lower() != "proxmox":
+        # ADR 0106: Use capability-based platform check
+        if not has_capability(storage_target, "cap.os.proxmox"):
+            platform = self._storage_platform(storage_target)
             diagnostics.append(
                 self.emit_diagnostic(
                     code=code,
                     severity="error",
                     stage=stage,
                     message=(
-                        f"LXC '{row_id}' storage reference '{storage_ref}' has platform '{platform}', "
-                        "expected 'proxmox'."
+                        f"LXC '{row_id}' storage reference '{storage_ref}' lacks "
+                        f"cap.os.proxmox capability (platform='{platform or 'unknown'}')."
                     ),
                     path=path,
                 )

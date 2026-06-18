@@ -6,6 +6,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from plugins.generators.capability_helpers import has_capability
 from plugins.generators.projection_core import (  # ADR0078 WP-006: Group canonical name constants
     GROUP_DEVICES,
     ProjectionError,
@@ -36,42 +37,45 @@ class BootstrapDevice:
 
 
 def build_bootstrap_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
-    """Build stable view for bootstrap generators."""
+    """Build stable view for bootstrap generators.
+
+    ADR 0106: Uses capability-based grouping via cap.bootstrap.* capabilities.
+    Output keys remain vendor-specific for backward compatibility.
+    """
     groups = _instance_groups(compiled_json)
     devices = _group_rows(groups, canonical=GROUP_DEVICES)
 
-    proxmox_nodes: list[dict[str, Any]] = []
-    mikrotik_nodes: list[dict[str, Any]] = []
-    orangepi_nodes: list[dict[str, Any]] = []
+    # ADR 0106: Group by bootstrap capability instead of mechanism string
+    unattended_nodes: list[dict[str, Any]] = []  # cap.bootstrap.unattended → proxmox
+    netinstall_nodes: list[dict[str, Any]] = []  # cap.bootstrap.netinstall → mikrotik
+    cloud_init_nodes: list[dict[str, Any]] = []  # cap.bootstrap.cloud_init → orangepi/generic
 
     for idx, row in enumerate(devices):
-        object_ref = _require_object_ref(row, path=f"compiled_json.instances.devices[{idx}]")
+        _require_object_ref(row, path=f"compiled_json.instances.devices[{idx}]")
         _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.devices[{idx}]")
         export_row = dict(row)
         export_row.pop("instance", None)
-        mechanism = _resolve_initialization_mechanism(row)
-        if mechanism == "unattended_install":
-            proxmox_nodes.append(export_row)
-            continue
-        if mechanism == "netinstall":
-            mikrotik_nodes.append(export_row)
-            continue
-        if mechanism == "cloud_init":
-            orangepi_nodes.append(export_row)
-            continue
 
-        # ADR 0106: ALL-IN approach - no legacy fallback
-        # Objects without initialization_contract.mechanism are excluded.
+        # ADR 0106: Use capability checks instead of mechanism string
+        obj = row.get("object", {})
+        if has_capability(obj, "cap.bootstrap.unattended"):
+            unattended_nodes.append(export_row)
+        elif has_capability(obj, "cap.bootstrap.netinstall"):
+            netinstall_nodes.append(export_row)
+        elif has_capability(obj, "cap.bootstrap.cloud_init"):
+            cloud_init_nodes.append(export_row)
+        # ADR 0106 ALL-IN: Objects without cap.bootstrap.* are excluded.
         # Strict error E8001 is emitted at compile time by capability_compiler.
 
     return {
-        "proxmox_nodes": _sorted_rows(proxmox_nodes),
-        "mikrotik_nodes": _sorted_rows(mikrotik_nodes),
-        "orangepi_nodes": _sorted_rows(orangepi_nodes),
+        # Output keys remain vendor-specific for backward compatibility
+        "proxmox_nodes": _sorted_rows(unattended_nodes),
+        "mikrotik_nodes": _sorted_rows(netinstall_nodes),
+        "orangepi_nodes": _sorted_rows(cloud_init_nodes),
         "counts": {
-            "proxmox_nodes": len(proxmox_nodes),
-            "mikrotik_nodes": len(mikrotik_nodes),
-            "orangepi_nodes": len(orangepi_nodes),
+            "proxmox_nodes": len(unattended_nodes),
+            "mikrotik_nodes": len(netinstall_nodes),
+            "orangepi_nodes": len(cloud_init_nodes),
         },
     }
 

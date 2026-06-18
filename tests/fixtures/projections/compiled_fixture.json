@@ -8,7 +8,8 @@
           "materializes_class": "class.network.router"
         },
         "object": {
-          "initialization_contract": {"mechanism": "netinstall"}
+          "initialization_contract": {"mechanism": "netinstall"},
+          "derived_capabilities": ["cap.bootstrap.netinstall"]
         },
         "management_ip": "192.168.88.1"
       },
@@ -19,7 +20,8 @@
           "materializes_class": "class.compute.hypervisor.proxmox"
         },
         "object": {
-          "initialization_contract": {"mechanism": "unattended_install"}
+          "initialization_contract": {"mechanism": "unattended_install"},
+          "derived_capabilities": ["cap.bootstrap.unattended"]
         },
         "management_ip": "10.10.10.2"
       },
@@ -30,7 +32,8 @@
           "materializes_class": "class.compute.sbc"
         },
         "object": {
-          "initialization_contract": {"mechanism": "cloud_init"}
+          "initialization_contract": {"mechanism": "cloud_init"},
+          "derived_capabilities": ["cap.bootstrap.cloud_init"]
         },
         "management_ip": "10.10.10.22"
       },

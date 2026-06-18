@@ -62,6 +62,8 @@ def _base_rows() -> list[dict]:
             "instance": "endpoint-a",
             "class_ref": "class.storage.storage_endpoint",
             "layer": "L3",
+            # ADR 0106: Storage endpoint needs cap.os.proxmox for VM storage validation
+            "derived_capabilities": ["cap.os.proxmox"],
         },
         {
             "group": "vm",
@@ -205,6 +207,8 @@ def test_vm_refs_validator_rejects_storage_endpoint_with_non_proxmox_platform():
     ctx = _context()
     rows = _base_rows()
     rows[4]["extensions"] = {"platform": "ceph"}  # type: ignore[index]
+    # ADR 0106: Remove proxmox capability to trigger validation failure
+    rows[4].pop("derived_capabilities", None)  # type: ignore[union-attr]
     _publish_rows(ctx, rows)
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
@@ -217,6 +221,8 @@ def test_vm_refs_validator_rejects_storage_endpoint_with_non_proxmox_top_level_p
     ctx = _context()
     rows = _base_rows()
     rows[4]["platform"] = "ceph"  # type: ignore[index]
+    # ADR 0106: Remove proxmox capability to trigger validation failure
+    rows[4].pop("derived_capabilities", None)  # type: ignore[union-attr]
     _publish_rows(ctx, rows)
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
