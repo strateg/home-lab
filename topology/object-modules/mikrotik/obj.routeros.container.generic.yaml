@@ -1,0 +1,33 @@
+@object: obj.routeros.container.generic
+@extends: class.compute.workload.routeros_container
+@title: RouterOS Container Generic
+@version: 1.0.0
+
+model: Generic RouterOS Container Workload
+vendor: mikrotik
+notes: |
+  RouterOS containers use MikroTik's container package, not Docker Engine.
+  Compatible with OCI/Docker images from Docker Hub and other registries.
+  Runs on RouterOS 7.4+ devices with container support.
+
+# RouterOS containers don't require traditional OS binding
+# The container image contains its own minimal Linux environment
+software_contract:
+  os_obj_refs: []
+  os_cardinality:
+    min: 0
+    max: 0
+  multi_boot: false
+
+enabled_capabilities:
+- cap.compute.workload.container
+vendor_capabilities:
+- vendor.runtime.routeros.container
+
+# ADR 0107: Host placement defaults via @on directive
+# RouterOS containers don't inherit os_refs (not applicable)
+defaults:
+  trust_zone_ref: "@on:host.trust_zone_ref?"
+  network:
+    bridge_ref: "@on:host.network.bridge_ref?"
+    gateway: "@on:host.network.gateway?"

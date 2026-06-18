@@ -16,7 +16,7 @@ trust_zone_ref: inst.trust_zone.servers
 critical: true
 
 runtime:
-  type: docker
+  type: routeros_container
   target_ref: docker-adguard
   network_binding_ref: inst.vlan.lan
   image: adguard/adguardhome

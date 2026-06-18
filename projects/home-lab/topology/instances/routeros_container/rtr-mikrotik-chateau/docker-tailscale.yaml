@@ -1,13 +1,11 @@
 @instance: docker-tailscale
-@extends: obj.docker.container.generic
-@group: docker
-@version: 1.0.0
+@extends: obj.routeros.container.generic
+@group: routeros_container
+@version: 1.2.0
 source_id: docker-tailscale
 status: modeled
-notes: ADR0087 docker workload target
+notes: RouterOS container Tailscale on LAN (MikroTik runtime)
 host_ref: rtr-mikrotik-chateau
-os_refs:
-- inst.os.debian.12.arm64.container_base
 network:
   network_ref: inst.vlan.lan
   ip: 192.168.88.212/24

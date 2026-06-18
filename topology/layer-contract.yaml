@@ -38,6 +38,7 @@ group_layers:
   vm: L4
   lxc: L4
   docker: L4
+  routeros_container: L4
   services: L5
   observability: L6
   operations: L7
@@ -112,6 +113,8 @@ class_layers:
   class.compute.workload.docker:
     allowed_layers: [L4]
   class.compute.workload.docker.stack:
+    allowed_layers: [L4]
+  class.compute.workload.routeros_container:
     allowed_layers: [L4]
   class.compute.workload.vm:
     allowed_layers: [L4]

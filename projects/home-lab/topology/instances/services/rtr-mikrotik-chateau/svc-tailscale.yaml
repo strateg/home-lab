@@ -12,7 +12,7 @@ vpn_type: tailscale
 critical: true
 
 runtime:
-  type: docker
+  type: routeros_container
   target_ref: docker-tailscale
   image: tailscale/tailscale
   resources:

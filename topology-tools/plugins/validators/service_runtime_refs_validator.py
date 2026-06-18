@@ -20,7 +20,7 @@ class ServiceRuntimeRefsValidator(ValidatorJsonPlugin):
     _ROWS_PLUGIN_ID = "base.compiler.instance_rows"
     _ROWS_KEY = "normalized_rows"
     _SERVICE_PREFIX = "class.service."
-    _RUNTIME_TYPES = {"lxc", "vm", "docker", "baremetal"}
+    _RUNTIME_TYPES = {"lxc", "vm", "docker", "baremetal", "routeros_container"}
     _LEGACY_RUNTIME_HINTS = {
         "container": "runtime.type=docker",
         "native": "runtime.type=baremetal",
@@ -31,6 +31,7 @@ class ServiceRuntimeRefsValidator(ValidatorJsonPlugin):
     _ACTIVE_OS_STATUSES = {"active", "mapped", "modeled"}
     _LXC_CLASSES = {"class.compute.workload.lxc"}
     _VM_CLASSES = {"class.compute.workload.vm"}
+    _ROUTEROS_CONTAINER_CLASSES = {"class.compute.workload.routeros_container"}
     _EXTERNAL_SERVICES_DEPRECATION = (
         "L5_application.external_services is deprecated; " "model Docker/Baremetal workloads via services[].runtime."
     )
@@ -187,6 +188,20 @@ class ServiceRuntimeRefsValidator(ValidatorJsonPlugin):
                             message=(
                                 f"Service '{row_id}' runtime type vm requires target class "
                                 f"in {sorted(self._VM_CLASSES)}, got '{target_class}'."
+                            ),
+                            path=f"{row_prefix}.runtime.target_ref",
+                        )
+                    )
+            elif runtime_type == "routeros_container":
+                if target_class not in self._ROUTEROS_CONTAINER_CLASSES:
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E7841",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"Service '{row_id}' runtime type routeros_container requires target class "
+                                f"in {sorted(self._ROUTEROS_CONTAINER_CLASSES)}, got '{target_class}'."
                             ),
                             path=f"{row_prefix}.runtime.target_ref",
                         )

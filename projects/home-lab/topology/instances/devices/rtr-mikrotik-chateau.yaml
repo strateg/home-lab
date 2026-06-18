@@ -108,16 +108,14 @@ observed_runtime:
       group: full
 
 # ADR 0107: Host-level workload defaults for RouterOS containers
+# Note: RouterOS containers don't require os_refs - they run OCI images directly
 workload_defaults:
   trust_zone_ref: inst.trust_zone.lan
-  os_refs:
-    - inst.os.debian.12.arm64.container_base
   network:
     bridge_ref: inst.bridge.containers
     gateway: 172.18.0.1
 
-# ADR 0087: Docker host capability declaration
-# RouterOS v7 containers are Docker-compatible (containerD engine)
+# RouterOS v7 container support (MikroTik container package, not Docker Engine)
 capabilities:
 - cap.compute.runtime.container_host
-- vendor.runtime.docker.host
+- vendor.runtime.routeros.container

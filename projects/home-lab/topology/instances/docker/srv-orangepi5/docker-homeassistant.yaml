@@ -1,16 +1,12 @@
 @instance: docker-homeassistant
 @extends: obj.docker.container.generic
 @group: docker
-@version: 1.0.0
+@version: 1.1.0
 source_id: docker-homeassistant
 status: modeled
-notes: ADR0087 docker workload target
+notes: ADR 0107 cleanup - inherits os_refs, network_ref, gateway from host
 host_ref: srv-orangepi5
-os_refs:
-- inst.os.debian.12.arm64.container_base
 network:
-  network_ref: inst.vlan.servers
   ip: 10.0.30.213/24
-  gateway: 10.0.30.1
 runtime:
   image: ghcr.io/home-assistant/home-assistant:stable

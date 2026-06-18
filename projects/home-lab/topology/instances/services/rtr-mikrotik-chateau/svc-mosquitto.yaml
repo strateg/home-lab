@@ -34,7 +34,7 @@ security:
     - inst.vlan.servers
 
 runtime:
-  type: docker
+  type: routeros_container
   target_ref: docker-mosquitto
   network_binding_ref: inst.vlan.lan
   image: eclipse-mosquitto:2
