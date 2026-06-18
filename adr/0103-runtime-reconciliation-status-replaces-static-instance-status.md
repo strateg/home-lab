@@ -1,8 +1,8 @@
 # ADR 0103: Runtime Reconciliation Status Replaces Static Instance Status
 
-- Status: Partially Implemented (Wave 3 complete, SWOT analyzed)
+- Status: Partially Implemented — Wave 3 only (Waves 1/2/4 Cancelled)
 - Date: 2026-06-07
-- Revised: 2026-06-18 (Wave 3 complete, SWOT analysis, D9-D12 added)
+- Revised: 2026-06-18 (Wave 3 complete; Waves 1/2/4 cancelled)
 - SWOT Analysis: `adr/0103-analysis/SWOT-ANALYSIS.md`
 
 ## Context
@@ -342,6 +342,8 @@ This roadmap is informational; each phase requires separate implementation effor
 
 ## Implementation Plan
 
+> **Decision 2026-06-18:** Waves 1, 2, and 4 are **cancelled**. Wave 3 (status field removal) delivered the core architectural value. `terraform plan` already solves drift detection for this single-operator home-lab. 63h of additional implementation does not justify the complexity for a non-production environment.
+
 **Total estimated effort: 39h** (Phases 0-2) + 24h (Wave 4, future)
 
 ### Phase 0: Pre-flight (5h)
@@ -445,6 +447,40 @@ Wave 4 (Expansion) ── Future scope
 | **Threats** | Stale state files; TF version changes; out-of-band changes invisible |
 
 Full analysis: `adr/0103-analysis/SWOT-ANALYSIS.md`
+
+---
+
+## Cancellation Record (2026-06-18)
+
+**Cancelled: Waves 1, 2, 4 (Phase 0 + ~63h of implementation work)**
+
+### Decision
+
+Waves 1 (Terraform State Reconciler Plugin), 2 (CLI Reconcile Command), and 4 (State Source Expansion) are permanently cancelled. Wave 3 is the sole deliverable of this ADR.
+
+### Rationale
+
+1. **Core goal achieved.** The primary motivation was removing stale `status:` fields from instance YAML to make topology purely declarative. Wave 3 completed this. The remaining waves address a separate concern (state visibility) that was not the original architectural problem.
+
+2. **Terraform is the reconciliation engine.** `terraform plan` already computes drift between topology intent and Terraform state. `terraform show` exposes current applied state. Building a custom reconciliation layer duplicates mature tooling already in the stack.
+
+3. **Economics do not justify the cost.** 63h of development produces a JSON report with ~5% instance coverage (MikroTik tfstate only) for a single operator who knows what is deployed because they deployed it. Raising coverage to ~40% first requires creating Proxmox Terraform configuration — a separate large effort outside this ADR's scope.
+
+4. **Dual-mode architecture is overengineered for home-lab.** Build-stage plugin + CLI command = two independent execution paths, two test suites, two failure modes. This is appropriate for multi-operator production systems, not a single-operator home laboratory.
+
+5. **No risk from cancellation.** No SLA, no audit trail requirement, no dashboard consumers. The only missing artifact (`generated/home-lab/reports/reconciliation-terraform.json`) provides no value that `terraform plan` does not already provide in a more readable form.
+
+### What Remains Valid
+
+- **D1** (Remove `status` from instance YAML) — implemented, permanent, correct.
+- The architectural principle: topology = intent only; Terraform state = actual state.
+- Native workflow: `terraform plan` for drift detection, `terraform show` for state inspection.
+
+### Decisions Cancelled
+
+D2 through D12 are cancelled. No implementation required.
+
+---
 
 ## References
 
