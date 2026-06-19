@@ -160,3 +160,85 @@ tasks:
       - task: _run-playbook
         vars:
           PLAYBOOK_NAME: "site"
+
+  # =========================================================================
+  # ADR 0104: Capability-Driven Role Playbooks
+  # =========================================================================
+
+  role-syntax:
+    desc: Syntax-check all capability-driven role playbooks (common, docker_host, etc.)
+    deps:
+      - runtime
+    cmds:
+      - task: _run-playbook
+        vars:
+          PLAYBOOK_NAME: "common"
+          PLAYBOOK_ARGS: "--syntax-check"
+      - task: _run-playbook
+        vars:
+          PLAYBOOK_NAME: "docker_host"
+          PLAYBOOK_ARGS: "--syntax-check"
+
+  role-check:
+    desc: Run all capability-driven role playbooks in check mode
+    deps:
+      - runtime
+    cmds:
+      - task: _run-playbook
+        vars:
+          PLAYBOOK_NAME: "common"
+          PLAYBOOK_ARGS: "--check --diff"
+      - task: _run-playbook
+        vars:
+          PLAYBOOK_NAME: "docker_host"
+          PLAYBOOK_ARGS: "--check --diff"
+
+  role-check-common:
+    desc: Run common role playbook in check mode (cap.role.linux_host)
+    deps:
+      - runtime
+    cmds:
+      - task: _run-playbook
+        vars:
+          PLAYBOOK_NAME: "common"
+          PLAYBOOK_ARGS: "--check --diff"
+
+  role-check-docker:
+    desc: Run docker_host role playbook in check mode (cap.compute.runtime.container_host)
+    deps:
+      - runtime
+    cmds:
+      - task: _run-playbook
+        vars:
+          PLAYBOOK_NAME: "docker_host"
+          PLAYBOOK_ARGS: "--check --diff"
+
+  role-apply:
+    desc: Apply all capability-driven role playbooks
+    deps:
+      - runtime
+    cmds:
+      - task: _run-playbook
+        vars:
+          PLAYBOOK_NAME: "common"
+      - task: _run-playbook
+        vars:
+          PLAYBOOK_NAME: "docker_host"
+
+  role-apply-common:
+    desc: Apply common role playbook (cap.role.linux_host)
+    deps:
+      - runtime
+    cmds:
+      - task: _run-playbook
+        vars:
+          PLAYBOOK_NAME: "common"
+
+  role-apply-docker:
+    desc: Apply docker_host role playbook (cap.compute.runtime.container_host)
+    deps:
+      - runtime
+    cmds:
+      - task: _run-playbook
+        vars:
+          PLAYBOOK_NAME: "docker_host"
