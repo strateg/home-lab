@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ADR: 0078, 0088
 """Contract checks for capability-template config externalization (ADR0078 WP9)."""
 
 from __future__ import annotations

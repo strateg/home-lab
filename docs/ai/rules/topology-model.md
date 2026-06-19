@@ -1,6 +1,11 @@
-# AI Rule Pack: Topology Model
+---
+@pack: topology-model
+@version: 1.1
+@tokens: ~500
+@adr: [0062, 0071, 0088, 0107]
+---
 
-> **Version:** 1.1 | **Updated:** 2026-06-17 | **ADRs:** See `ADR-RULE-MAP.yaml` → `topology-model.source_adr`
+# AI Rule Pack: Topology Model
 
 ## Quick Reference
 

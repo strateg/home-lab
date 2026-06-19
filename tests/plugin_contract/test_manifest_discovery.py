@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ADR: 0063
 """Contract tests for module-level plugin manifest discovery policy (ADR 0063)."""
 
 from __future__ import annotations

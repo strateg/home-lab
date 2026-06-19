@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ADR: 0063, 0065, 0066
 """Tests for plugin manifest loading and validation (ADR 0066 - Contract Tests).
 
 Tests cover:

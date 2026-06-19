@@ -1,6 +1,11 @@
-# AI Rule Pack: Secrets
+---
+@pack: secrets
+@version: 1.0
+@tokens: ~375
+@adr: [0072, 0073, 0085]
+---
 
-> **Version:** 1.0 | **Updated:** 2026-06-15 | **ADRs:** See `ADR-RULE-MAP.yaml` → `secrets.source_adr`
+# AI Rule Pack: Secrets
 
 ## Quick Reference
 

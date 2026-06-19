@@ -1,0 +1,52 @@
+version: "3"
+
+# ADR 0108: Specification-Driven Development Contract validation tasks
+
+tasks:
+  validate:
+    desc: Validate specification contracts (rule pack frontmatter, test ADR markers)
+    cmds:
+      - echo "=== Specification Contract Validation ==="
+      - echo ""
+      - echo "Checking rule pack frontmatter (@tokens)..."
+      - |
+        count=$(grep -l "@tokens:" docs/ai/rules/*.md 2>/dev/null | wc -l)
+        total=$(ls docs/ai/rules/*.md 2>/dev/null | wc -l)
+        echo "  Rule packs with @tokens: $count / $total"
+        if [ "$count" -lt "$total" ]; then
+          echo "  WARNING: Some rule packs missing @tokens frontmatter"
+          grep -L "@tokens:" docs/ai/rules/*.md 2>/dev/null | sed 's/^/    - /'
+        fi
+      - echo ""
+      - echo "Checking test-to-ADR markers..."
+      - |
+        count=$(grep -r "^# ADR:" tests/plugin_contract tests/plugin_integration 2>/dev/null | wc -l)
+        echo "  Tests with ADR markers: $count"
+      - echo ""
+      - echo "Specification validation complete."
+
+  frontmatter:
+    desc: Check rule pack frontmatter compliance
+    cmds:
+      - |
+        echo "Rule pack frontmatter audit:"
+        for f in docs/ai/rules/*.md; do
+          pack=$(basename "$f" .md)
+          tokens=$(grep "@tokens:" "$f" 2>/dev/null | head -1 || echo "MISSING")
+          adr=$(grep "@adr:" "$f" 2>/dev/null | head -1 || echo "MISSING")
+          echo "  $pack: $tokens | $adr"
+        done
+
+  adr-coverage:
+    desc: Show test-to-ADR coverage summary
+    cmds:
+      - |
+        echo "Test-to-ADR marker coverage:"
+        echo ""
+        echo "plugin_contract:"
+        grep -l "^# ADR:" tests/plugin_contract/*.py 2>/dev/null | wc -l | xargs -I{} echo "  Files with markers: {}"
+        ls tests/plugin_contract/test_*.py 2>/dev/null | wc -l | xargs -I{} echo "  Total test files: {}"
+        echo ""
+        echo "plugin_integration:"
+        grep -l "^# ADR:" tests/plugin_integration/*.py 2>/dev/null | wc -l | xargs -I{} echo "  Files with markers: {}"
+        ls tests/plugin_integration/test_*.py 2>/dev/null | wc -l | xargs -I{} echo "  Total test files: {}"

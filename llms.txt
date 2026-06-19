@@ -1,0 +1,18 @@
+# Home-Lab Infrastructure-as-Data Project
+
+> Entry point: CLAUDE.md | Full rules: docs/ai/AGENT-RULEBOOK.md
+
+## Architecture
+- Source of truth: topology/topology.yaml
+- Pattern: Class → Object → Instance
+- Generated outputs: generated/ (DO NOT EDIT)
+
+## Specifications
+- ADR Register: adr/REGISTER.md (118 decisions)
+- Rule Map: docs/ai/ADR-RULE-MAP.yaml
+- Capabilities: topology/class-modules/capability-catalog.yaml
+
+## Commands
+- Compile: .venv/bin/python topology-tools/compile-topology.py
+- Test: python -m pytest tests -q
+- Validate: task ci:local

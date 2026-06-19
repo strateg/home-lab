@@ -1,6 +1,11 @@
-# AI Rule Pack: ADR Governance
+---
+@pack: adr-governance
+@version: 1.0
+@tokens: ~525
+@adr: [0080, 0095, 0096]
+---
 
-> **Version:** 1.0 | **Updated:** 2026-06-15 | **ADRs:** See `ADR-RULE-MAP.yaml` → `adr-governance.source_adr`
+# AI Rule Pack: ADR Governance
 
 ## Quick Reference
 

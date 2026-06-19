@@ -1,6 +1,11 @@
-# AI Rule Pack: Plugin Runtime
+---
+@pack: plugin-runtime
+@version: 1.0
+@tokens: ~450
+@adr: [0063, 0065, 0080, 0097]
+---
 
-> **Version:** 1.0 | **Updated:** 2026-06-15 | **ADRs:** See `ADR-RULE-MAP.yaml` → `plugin-runtime.source_adr`
+# AI Rule Pack: Plugin Runtime
 
 ## Quick Reference
 

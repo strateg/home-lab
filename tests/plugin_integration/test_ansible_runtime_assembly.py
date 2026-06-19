@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ADR: 0104
 """Tests for Ansible runtime inventory assembly."""
 
 from __future__ import annotations

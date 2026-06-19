@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ADR: 0087, 0107
 """Integration tests for host_ref DAG validator plugin (ADR 0087 AC-6)."""
 
 from __future__ import annotations

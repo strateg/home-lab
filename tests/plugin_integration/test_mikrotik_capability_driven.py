@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ADR: 0106
 """Tests for capability-driven MikroTik Terraform generation."""
 
 from __future__ import annotations

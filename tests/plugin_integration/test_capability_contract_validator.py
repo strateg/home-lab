@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ADR: 0106
 """Integration tests for capability contract validator plugin ownership/cutover."""
 
 from __future__ import annotations

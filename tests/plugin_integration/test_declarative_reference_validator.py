@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ADR: 0062, 0088
 """Integration tests for DeclarativeReferenceValidator (Wave 2 baseline)."""
 
 from __future__ import annotations

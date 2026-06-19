@@ -1,6 +1,11 @@
-# AI Rule Pack: Deploy Domain
+---
+@pack: deploy-domain
+@version: 1.0
+@tokens: ~400
+@adr: [0083, 0084, 0085, 0090]
+---
 
-> **Version:** 1.0 | **Updated:** 2026-06-15 | **ADRs:** See `ADR-RULE-MAP.yaml` → `deploy-domain.source_adr`
+# AI Rule Pack: Deploy Domain
 
 ## Quick Reference
 

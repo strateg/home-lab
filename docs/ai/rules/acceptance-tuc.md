@@ -1,6 +1,11 @@
-# AI Rule Pack: Acceptance TUC
+---
+@pack: acceptance-tuc
+@version: 1.0
+@tokens: ~500
+@adr: [0066, 0070, 0080, 0089]
+---
 
-> **Version:** 1.0 | **Updated:** 2026-06-15 | **ADRs:** See `ADR-RULE-MAP.yaml` → `acceptance-tuc.source_adr`
+# AI Rule Pack: Acceptance TUC
 
 ## Quick Reference
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ADR: 0062
 """Contract guard for ADR0062 cross-layer relation ownership and diagnostics."""
 
 from __future__ import annotations

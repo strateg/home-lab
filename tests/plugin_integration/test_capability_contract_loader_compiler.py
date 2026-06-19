@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ADR: 0088, 0106
 """Integration tests for capability contract loader compiler plugin."""
 
 from __future__ import annotations

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ADR: 0076, 0081
 """Tests for framework lock generation and verification utilities."""
 
 from __future__ import annotations

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ADR: 0074, 0075
 """Generators must consume projection contract, not compiled_json internals."""
 
 from __future__ import annotations

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ADR: 0062, 0069
 """Contract checks for ADR0069 compiled model metadata."""
 
 from __future__ import annotations

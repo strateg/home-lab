@@ -1,6 +1,11 @@
-# AI Rule Pack: Capability Model
+---
+@pack: capability-model
+@version: 1.0
+@tokens: ~800
+@adr: [0088, 0106]
+---
 
-> **Version:** 1.0 | **Updated:** 2026-06-15 | **ADRs:** See `ADR-RULE-MAP.yaml` → `capability-model.source_adr`
+# AI Rule Pack: Capability Model
 
 ## Quick Reference
 

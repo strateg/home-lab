@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ADR: 0074, 0093
 """Contract checks for ADR0093 artifact planning/report schemas."""
 
 from __future__ import annotations

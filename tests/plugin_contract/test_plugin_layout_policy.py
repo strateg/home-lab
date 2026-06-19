@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ADR: 0080, 0086
 """Contract checks for ADR0086 Wave 3 plugin layout policy."""
 
 from __future__ import annotations

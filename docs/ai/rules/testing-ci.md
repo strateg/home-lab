@@ -1,6 +1,11 @@
-# AI Rule Pack: Testing and CI
+---
+@pack: testing-ci
+@version: 1.0
+@tokens: ~425
+@adr: [0066, 0070, 0077, 0080]
+---
 
-> **Version:** 1.0 | **Updated:** 2026-06-15 | **ADRs:** See `ADR-RULE-MAP.yaml` → `testing-ci.source_adr`
+# AI Rule Pack: Testing and CI
 
 ## Quick Reference
 

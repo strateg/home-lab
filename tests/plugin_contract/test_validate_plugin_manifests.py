@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ADR: 0063, 0065
 """Targeted tests for plugin manifest validation warnings."""
 
 from __future__ import annotations

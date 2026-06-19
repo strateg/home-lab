@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ADR: 0074, 0078
 """Integration checks for Terraform Proxmox generator plugin."""
 
 from __future__ import annotations

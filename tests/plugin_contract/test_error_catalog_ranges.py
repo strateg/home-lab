@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ADR: 0080
 """Contract tests for ADR0080 diagnostic range allocations."""
 
 from __future__ import annotations

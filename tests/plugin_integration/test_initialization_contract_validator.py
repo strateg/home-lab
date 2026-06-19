@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ADR: 0106
 """Integration tests for initialization contract validator plugin."""
 
 from __future__ import annotations

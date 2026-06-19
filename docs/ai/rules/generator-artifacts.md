@@ -1,6 +1,11 @@
-# AI Rule Pack: Generator Artifacts
+---
+@pack: generator-artifacts
+@version: 1.0
+@tokens: ~375
+@adr: [0074, 0075, 0078, 0104]
+---
 
-> **Version:** 1.0 | **Updated:** 2026-06-15 | **ADRs:** See `ADR-RULE-MAP.yaml` → `generator-artifacts.source_adr`
+# AI Rule Pack: Generator Artifacts
 
 ## Quick Reference
 

@@ -1,6 +1,11 @@
-# AI Rule Pack: Host Placement Defaults
+---
+@pack: host-placement
+@version: 1.1
+@tokens: ~800
+@adr: [0107]
+---
 
-> **Version:** 1.1 | **Updated:** 2026-06-18 | **ADRs:** 0107
+# AI Rule Pack: Host Placement Defaults
 
 ## Quick Reference
 

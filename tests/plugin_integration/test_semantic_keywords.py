@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ADR: 0088
 """Integration tests for semantic keyword registry defaults."""
 
 from __future__ import annotations
