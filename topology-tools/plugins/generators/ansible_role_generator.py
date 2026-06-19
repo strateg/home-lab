@@ -5,9 +5,13 @@ This generator scans instances for capability markers and produces:
 - playbook files for role application
 
 Static role content (tasks, handlers, templates) remains in projects/*/ansible/roles/.
+
+ADR 0106 Integration: Uses capability-driven role assignment via CAPABILITY_ROLE_MAP.
 """
 
 from __future__ import annotations
+
+from typing import Any
 
 from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage
 from plugins.generators.ansible_role_projections import (
@@ -24,7 +28,35 @@ from plugins.generators.artifact_contract import (
     write_contract_artifacts,
 )
 from plugins.generators.base_generator import BaseGenerator
-from plugins.generators.projections import ProjectionError, build_ansible_role_projection
+from plugins.generators.projections import (
+    ProjectionError,
+    build_ansible_role_projection,
+    build_host_vars_for_role,
+)
+
+
+# Role → template path mapping (ADR 0104 + ADR 0106)
+ROLE_TEMPLATE_MAP: dict[str, dict[str, str]] = {
+    "common": {
+        "host_vars": "ansible/host_vars/common.yml.j2",
+        "playbook": "ansible/playbooks/common.yml.j2",
+    },
+    "docker_host": {
+        "host_vars": "ansible/host_vars/docker_host.yml.j2",
+        "playbook": "ansible/playbooks/docker.yml.j2",
+    },
+    "node_exporter": {
+        "host_vars": "ansible/host_vars/node_exporter.yml.j2",
+        "playbook": "ansible/playbooks/node_exporter.yml.j2",
+    },
+    "wireguard_gateway": {
+        "host_vars": "ansible/host_vars/wireguard_gateway.yml.j2",
+        "playbook": "ansible/playbooks/vpn-gateway.yml.j2",
+    },
+}
+
+# Roles that use shared playbook (one playbook for all instances)
+SHARED_PLAYBOOK_ROLES = {"common", "docker_host", "node_exporter"}
 
 
 class AnsibleRoleGenerator(BaseGenerator):
@@ -83,80 +115,87 @@ class AnsibleRoleGenerator(BaseGenerator):
 
         written: list[str] = []
         planned_outputs: list[dict[str, object]] = []
+        generated_playbooks: set[str] = set()
         write_text = getattr(self, "write_text_atomic", self._fallback_write)
 
         # Process each role assignment
         for assignment in role_assignments:
             instance_id = assignment.get("instance_id", "")
             role_name = assignment.get("role", "")
+            group_name = assignment.get("group", "")
             instance_data = assignment.get("instance_data", {})
 
             if not instance_id or not role_name:
                 continue
 
-            if role_name == "wireguard_gateway":
-                # Resolve related topology objects
-                wg_gateway = instance_data.get("wireguard_gateway", {})
-                if not wg_gateway:
-                    inst_data_inner = instance_data.get("instance_data", {})
-                    wg_gateway = inst_data_inner.get("wireguard_gateway", {})
-
-                tunnel_ref = wg_gateway.get("tunnel_ref", "")
-                tunnel = resolve_tunnel_instance(payload, tunnel_ref) if tunnel_ref else {}
-
-                # Get VLAN ref from routed_networks
-                vlan_ref = ""
-                routed_networks = wg_gateway.get("routed_networks", [])
-                if routed_networks:
-                    vlan_ref = routed_networks[0].get("vlan_ref", "")
-                vlan = resolve_vlan_instance(payload, vlan_ref) if vlan_ref else {}
-
-                # Build role variables
-                try:
-                    role_vars = build_wireguard_gateway_vars(instance_data, tunnel, vlan)
-                except Exception as exc:
-                    diagnostics.append(
-                        self.emit_diagnostic(
-                            code="E3103",
-                            severity="error",
-                            stage=stage,
-                            message=f"failed to build wireguard_gateway vars for {instance_id}: {exc}",
-                            path=f"generator:ansible_role:{instance_id}",
-                        )
-                    )
-                    continue
-
-                # Generate host_vars file
-                host_vars_path = host_vars_dir / f"{instance_id}.yml"
-                planned_outputs.append(
-                    build_planned_output(
-                        path=str(host_vars_path),
-                        renderer="jinja2",
-                        reason="capability-enabled",
+            # Skip roles without templates
+            if role_name not in ROLE_TEMPLATE_MAP:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="I3104",
+                        severity="info",
+                        stage=stage,
+                        message=f"No template for role '{role_name}'; skipping {instance_id}.",
+                        path=f"generator:ansible_role:{instance_id}",
                     )
                 )
-                try:
-                    host_vars_content = self.render_template(
-                        ctx,
-                        "ansible/host_vars/wireguard_gateway.yml.j2",
-                        role_vars,
-                    )
-                    write_text(host_vars_path, host_vars_content)
-                    written.append(str(host_vars_path))
-                except Exception as exc:
-                    diagnostics.append(
-                        self.emit_diagnostic(
-                            code="E3104",
-                            severity="error",
-                            stage=stage,
-                            message=f"failed to render host_vars for {instance_id}: {exc}",
-                            path=str(host_vars_path),
-                        )
-                    )
-                    continue
+                continue
 
-                # Generate playbook file
-                playbook_path = playbooks_dir / "vpn-gateway.yml"
+            # Build role variables using capability-driven builder
+            role_vars = self._build_role_vars(
+                ctx=ctx,
+                payload=payload,
+                role_name=role_name,
+                instance_id=instance_id,
+                group_name=group_name,
+                instance_data=instance_data,
+                diagnostics=diagnostics,
+                stage=stage,
+            )
+            if role_vars is None:
+                continue
+
+            templates = ROLE_TEMPLATE_MAP[role_name]
+
+            # Generate host_vars file
+            host_vars_path = host_vars_dir / f"{instance_id}.{role_name}.yml"
+            planned_outputs.append(
+                build_planned_output(
+                    path=str(host_vars_path),
+                    renderer="jinja2",
+                    reason="capability-enabled",
+                )
+            )
+            try:
+                host_vars_content = self.render_template(
+                    ctx,
+                    templates["host_vars"],
+                    role_vars,
+                )
+                write_text(host_vars_path, host_vars_content)
+                written.append(str(host_vars_path))
+            except Exception as exc:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E3104",
+                        severity="error",
+                        stage=stage,
+                        message=f"failed to render host_vars for {instance_id}: {exc}",
+                        path=str(host_vars_path),
+                    )
+                )
+                continue
+
+            # Generate playbook file (shared or per-instance)
+            if role_name in SHARED_PLAYBOOK_ROLES:
+                playbook_filename = f"{role_name}.yml"
+            else:
+                playbook_filename = f"{role_name}-{instance_id}.yml"
+
+            playbook_path = playbooks_dir / playbook_filename
+
+            # Only generate shared playbooks once
+            if str(playbook_path) not in generated_playbooks:
                 planned_outputs.append(
                     build_planned_output(
                         path=str(playbook_path),
@@ -167,12 +206,13 @@ class AnsibleRoleGenerator(BaseGenerator):
                 try:
                     playbook_content = self.render_template(
                         ctx,
-                        "ansible/playbooks/vpn-gateway.yml.j2",
+                        templates["playbook"],
                         role_vars,
                     )
                     write_text(playbook_path, playbook_content)
                     if str(playbook_path) not in written:
                         written.append(str(playbook_path))
+                    generated_playbooks.add(str(playbook_path))
                 except Exception as exc:
                     diagnostics.append(
                         self.emit_diagnostic(
@@ -185,15 +225,15 @@ class AnsibleRoleGenerator(BaseGenerator):
                     )
                     continue
 
-                diagnostics.append(
-                    self.emit_diagnostic(
-                        code="I3102",
-                        severity="info",
-                        stage=stage,
-                        message=f"generated wireguard_gateway artifacts for {instance_id}",
-                        path=str(host_vars_path),
-                    )
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="I3102",
+                    severity="info",
+                    stage=stage,
+                    message=f"generated {role_name} artifacts for {instance_id}",
+                    path=str(host_vars_path),
                 )
+            )
 
         if not written:
             diagnostics.append(
@@ -293,6 +333,96 @@ class AnsibleRoleGenerator(BaseGenerator):
                 "artifact_contract_files": sorted(contract_paths.values()) if contract_paths else [],
             },
         )
+
+    def _build_role_vars(
+        self,
+        *,
+        ctx: PluginContext,
+        payload: dict[str, Any],
+        role_name: str,
+        instance_id: str,
+        group_name: str,
+        instance_data: dict[str, Any],
+        diagnostics: list[PluginDiagnostic],
+        stage: Stage,
+    ) -> dict[str, Any] | None:
+        """Build role variables using the appropriate builder.
+
+        Uses capability-driven builders for standard roles (ADR 0104 + ADR 0106).
+        Falls back to legacy builders for specialized roles like wireguard_gateway.
+
+        Returns:
+            Role variables dict, or None if building failed.
+        """
+        if role_name == "wireguard_gateway":
+            # Legacy builder for wireguard_gateway (requires topology resolution)
+            return self._build_wireguard_vars(
+                payload=payload,
+                instance_id=instance_id,
+                instance_data=instance_data,
+                diagnostics=diagnostics,
+                stage=stage,
+            )
+
+        # Standard roles use capability-driven builders
+        role_vars = build_host_vars_for_role(
+            role=role_name,
+            instance_id=instance_id,
+            group=group_name,
+            instance_data=instance_data,
+        )
+        if role_vars is None:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="W3102",
+                    severity="warning",
+                    stage=stage,
+                    message=f"No builder registered for role '{role_name}'; skipping {instance_id}.",
+                    path=f"generator:ansible_role:{instance_id}",
+                )
+            )
+        return role_vars
+
+    def _build_wireguard_vars(
+        self,
+        *,
+        payload: dict[str, Any],
+        instance_id: str,
+        instance_data: dict[str, Any],
+        diagnostics: list[PluginDiagnostic],
+        stage: Stage,
+    ) -> dict[str, Any] | None:
+        """Build wireguard_gateway role variables (legacy builder).
+
+        Requires topology resolution for tunnel and VLAN references.
+        """
+        wg_gateway = instance_data.get("wireguard_gateway", {})
+        if not wg_gateway:
+            inst_data_inner = instance_data.get("instance_data", {})
+            wg_gateway = inst_data_inner.get("wireguard_gateway", {})
+
+        tunnel_ref = wg_gateway.get("tunnel_ref", "")
+        tunnel = resolve_tunnel_instance(payload, tunnel_ref) if tunnel_ref else {}
+
+        vlan_ref = ""
+        routed_networks = wg_gateway.get("routed_networks", [])
+        if routed_networks:
+            vlan_ref = routed_networks[0].get("vlan_ref", "")
+        vlan = resolve_vlan_instance(payload, vlan_ref) if vlan_ref else {}
+
+        try:
+            return build_wireguard_gateway_vars(instance_data, tunnel, vlan)
+        except Exception as exc:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E3103",
+                    severity="error",
+                    stage=stage,
+                    message=f"failed to build wireguard_gateway vars for {instance_id}: {exc}",
+                    path=f"generator:ansible_role:{instance_id}",
+                )
+            )
+            return None
 
     def _fallback_write(self, path, content: str) -> None:
         """Fallback write method if write_text_atomic not available."""
