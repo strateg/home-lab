@@ -247,6 +247,11 @@ class EffectiveModelCompiler(CompilerPlugin):
                 if isinstance(os_instance_id, str):
                     resolved_os_refs.append(os_instance_id)
 
+            # ADR 0104: Derive cap.role.linux_host from OS capabilities at instance level
+            linux_os_caps = {"cap.os.debian", "cap.os.ubuntu", "cap.os.linux", "cap.os.nixos", "cap.os.alpine"}
+            if derived_caps & linux_os_caps:
+                derived_caps.add("cap.role.linux_host")
+
             instance_derived_caps[row_id] = sorted(derived_caps)
             instance_software_refs[row_id] = {
                 "firmware_ref": firmware_ref if isinstance(firmware_ref, str) else None,
