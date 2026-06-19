@@ -123,8 +123,12 @@ plugins:
     scope: pipeline_shared
   - key: derived_capabilities
     scope: pipeline_shared
+  - key: effective_os_map
+    scope: pipeline_shared
+  - key: effective_firmware_map
+    scope: pipeline_shared
   description: Derives capabilities from class/object definitions (ADR 0063 Phase
-    3 example)
+    3 example). SINGLE SOURCE OF TRUTH for capability derivation (ADR 0106 + ADR 0104).
 - id: base.compiler.module_loader
   kind: compiler
   entry: compilers/module_loader_compiler.py:ModuleLoaderCompiler
@@ -567,7 +571,18 @@ plugins:
   - from_plugin: base.compiler.instance_rows
     key: normalized_rows
     required: true
+  # ADR 0106 + ADR 0104: Subscribe to capability_compiler for derived capabilities
+  - from_plugin: base.compiler.capabilities
+    key: derived_capabilities
+    required: false
+  - from_plugin: base.compiler.capabilities
+    key: effective_os_map
+    required: false
+  - from_plugin: base.compiler.capabilities
+    key: effective_firmware_map
+    required: false
   description: Assembles candidate effective model in compile stage (ADR 0069 WS2).
+    Subscribes to capability_compiler for derived capabilities (ADR 0106 + ADR 0104).
   execution_mode: subinterpreter
 - id: base.validator.governance_contract
   kind: validator_yaml

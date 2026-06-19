@@ -3,6 +3,10 @@
 Builds a parity-focused candidate compiled model from loaded class/object
 modules and instance bindings. During migration, this mirrors legacy effective
 assembly so parity gate can compare equivalent payloads.
+
+ADR 0106 + ADR 0104 integration: Subscribes to capability_compiler for derived
+capabilities instead of deriving independently. This eliminates code duplication
+and ensures consistent capability derivation across the pipeline.
 """
 
 from __future__ import annotations
@@ -39,6 +43,9 @@ def _manifest_digest(payload: dict[str, Any]) -> str:
 
 class EffectiveModelCompiler(CompilerPlugin):
     """Assemble candidate effective model in compile stage."""
+
+    # ADR 0106 + ADR 0104: Subscribe to capability_compiler for derived capabilities
+    _CAPABILITY_PLUGIN_ID = "base.compiler.capabilities"
 
     @staticmethod
     def _normalize_release_token(value: str) -> str:
@@ -86,6 +93,14 @@ class EffectiveModelCompiler(CompilerPlugin):
             raise PluginDataExchangeError(f"Missing required published key '{key}' from '{plugin_id}': {exc}") from exc
 
     @staticmethod
+    def _subscribe_optional(ctx: PluginContext, *, plugin_id: str, key: str, default: Any = None) -> Any:
+        """Subscribe to optional published data with graceful fallback."""
+        try:
+            return ctx.subscribe(plugin_id, key)
+        except PluginDataExchangeError:
+            return default
+
+    @staticmethod
     def _build_class_lineage_map(*, classes: dict[str, Any]) -> dict[str, list[str]]:
         class_lineage: dict[str, list[str]] = {}
         class_ids = {class_id for class_id in classes if isinstance(class_id, str)}
@@ -105,21 +120,16 @@ class EffectiveModelCompiler(CompilerPlugin):
             class_lineage[class_id] = list(reversed(chain))
         return class_lineage
 
-    def _derive_object_effective(
-        self, *, objects: dict[str, Any]
-    ) -> tuple[dict[str, list[str]], dict[str, dict[str, Any]]]:
-        object_derived_caps: dict[str, list[str]] = {}
-        object_effective_os: dict[str, dict[str, Any]] = {}
-        for object_id, payload in objects.items():
-            object_payload = payload if isinstance(payload, dict) else {}
-            os_caps, effective_os = self._derive_os_capabilities(object_payload=object_payload)
-            object_derived_caps[object_id] = sorted(os_caps)
-            if effective_os:
-                object_effective_os[object_id] = effective_os
-        return object_derived_caps, object_effective_os
+    # NOTE: _derive_object_effective removed (ADR 0106 + ADR 0104)
+    # Object-level capabilities now come from capability_compiler via subscribe()
 
     def _derive_instance_effective(
-        self, *, rows: list[dict[str, Any]], objects: dict[str, Any]
+        self,
+        *,
+        rows: list[dict[str, Any]],
+        objects: dict[str, Any],
+        subscribed_effective_os: dict[str, dict[str, Any]] | None = None,
+        subscribed_effective_firmware: dict[str, dict[str, Any]] | None = None,
     ) -> tuple[dict[str, list[str]], dict[str, dict[str, Any]]]:
         row_by_id: dict[str, dict[str, Any]] = {}
         for row in rows:
@@ -149,15 +159,38 @@ class EffectiveModelCompiler(CompilerPlugin):
                 if isinstance(candidate, dict):
                     firmware_row = candidate
 
+            # ADR 0106 + ADR 0104: Use subscribed data when available, fallback to local derivation
             if isinstance(firmware_row, dict):
                 firmware_object_ref = firmware_row.get("object_ref")
                 if isinstance(firmware_object_ref, str):
-                    firmware_object_payload = objects.get(firmware_object_ref, {})
-                    if not isinstance(firmware_object_payload, dict):
-                        firmware_object_payload = {}
-                    fw_caps, fw_effective = self._derive_firmware_capabilities(object_payload=firmware_object_payload)
-                    derived_caps.update(fw_caps)
-                    firmware_effective = fw_effective
+                    # Try to use subscribed firmware effective data
+                    if subscribed_effective_firmware and firmware_object_ref in subscribed_effective_firmware:
+                        firmware_effective = subscribed_effective_firmware[firmware_object_ref]
+                        # Derive capabilities from effective firmware
+                        if firmware_effective:
+                            vendor = firmware_effective.get("vendor")
+                            family = firmware_effective.get("family")
+                            if isinstance(vendor, str) and vendor:
+                                derived_caps.add(f"cap.firmware.{vendor}")
+                            if isinstance(family, str) and family:
+                                derived_caps.add(f"cap.firmware.{family}")
+                            arch = firmware_effective.get("architecture")
+                            if isinstance(arch, str) and arch:
+                                derived_caps.add(f"cap.firmware.arch.{arch}")
+                                derived_caps.add(f"cap.arch.{arch}")
+                            boot_stack = firmware_effective.get("boot_stack")
+                            if isinstance(boot_stack, str) and boot_stack:
+                                derived_caps.add(f"cap.firmware.boot.{boot_stack}")
+                            if firmware_effective.get("virtual"):
+                                derived_caps.add("cap.firmware.virtual")
+                    else:
+                        # Fallback to local derivation
+                        firmware_object_payload = objects.get(firmware_object_ref, {})
+                        if not isinstance(firmware_object_payload, dict):
+                            firmware_object_payload = {}
+                        fw_caps, fw_effective = self._derive_firmware_capabilities(object_payload=firmware_object_payload)
+                        derived_caps.update(fw_caps)
+                        firmware_effective = fw_effective
 
             resolved_os_refs: list[str] = []
             resolved_os_effective: list[dict[str, Any]] = []
@@ -170,13 +203,46 @@ class EffectiveModelCompiler(CompilerPlugin):
                 os_object_ref = os_row.get("object_ref")
                 if not isinstance(os_object_ref, str):
                     continue
-                os_object_payload = objects.get(os_object_ref, {})
-                if not isinstance(os_object_payload, dict):
-                    os_object_payload = {}
-                os_caps, os_effective = self._derive_os_capabilities(object_payload=os_object_payload)
-                derived_caps.update(os_caps)
-                if isinstance(os_effective, dict):
-                    resolved_os_effective.append(os_effective)
+
+                # ADR 0106 + ADR 0104: Use subscribed OS effective data when available
+                if subscribed_effective_os and os_object_ref in subscribed_effective_os:
+                    os_effective = subscribed_effective_os[os_object_ref]
+                    if os_effective:
+                        # Derive capabilities from effective OS
+                        family = os_effective.get("family")
+                        distribution = os_effective.get("distribution")
+                        release_id = os_effective.get("release_id")
+                        codename = os_effective.get("codename")
+                        init_system = os_effective.get("init_system")
+                        package_manager = os_effective.get("package_manager")
+                        architecture = os_effective.get("architecture")
+
+                        if isinstance(family, str) and family:
+                            derived_caps.add(f"cap.os.{family}")
+                        if isinstance(distribution, str) and distribution:
+                            derived_caps.add(f"cap.os.{distribution}")
+                        if isinstance(distribution, str) and isinstance(release_id, str) and distribution and release_id:
+                            derived_caps.add(f"cap.os.{distribution}.{release_id}")
+                        if isinstance(distribution, str) and isinstance(codename, str) and distribution and codename:
+                            derived_caps.add(f"cap.os.{distribution}.{codename}")
+                        if isinstance(init_system, str) and init_system:
+                            derived_caps.add(f"cap.os.init.{init_system}")
+                        if isinstance(package_manager, str) and package_manager:
+                            derived_caps.add(f"cap.os.pkg.{package_manager}")
+                        if isinstance(architecture, str) and architecture:
+                            derived_caps.add(f"cap.arch.{architecture}")
+
+                        resolved_os_effective.append(os_effective)
+                else:
+                    # Fallback to local derivation
+                    os_object_payload = objects.get(os_object_ref, {})
+                    if not isinstance(os_object_payload, dict):
+                        os_object_payload = {}
+                    os_caps, os_effective = self._derive_os_capabilities(object_payload=os_object_payload)
+                    derived_caps.update(os_caps)
+                    if isinstance(os_effective, dict):
+                        resolved_os_effective.append(os_effective)
+
                 os_instance_id = os_row.get("instance")
                 if isinstance(os_instance_id, str):
                     resolved_os_refs.append(os_instance_id)
@@ -218,8 +284,45 @@ class EffectiveModelCompiler(CompilerPlugin):
             rows = [row for row in plugin_rows if isinstance(row, dict)]
         else:
             rows = []
-        object_derived_caps, object_effective_os = self._derive_object_effective(objects=ctx.objects)
-        instance_derived_caps, instance_software_refs = self._derive_instance_effective(rows=rows, objects=ctx.objects)
+
+        # ADR 0106 + ADR 0104: Subscribe to capability_compiler for derived capabilities
+        # This eliminates duplication and ensures consistent derivation
+        subscribed_derived_caps = self._subscribe_optional(
+            ctx,
+            plugin_id=self._CAPABILITY_PLUGIN_ID,
+            key="derived_capabilities",
+            default={},
+        )
+        subscribed_effective_os = self._subscribe_optional(
+            ctx,
+            plugin_id=self._CAPABILITY_PLUGIN_ID,
+            key="effective_os_map",
+            default={},
+        )
+        subscribed_effective_firmware = self._subscribe_optional(
+            ctx,
+            plugin_id=self._CAPABILITY_PLUGIN_ID,
+            key="effective_firmware_map",
+            default={},
+        )
+
+        # Use subscribed data for object-level capabilities; instance-level still needs local derivation
+        object_derived_caps: dict[str, list[str]] = (
+            subscribed_derived_caps if isinstance(subscribed_derived_caps, dict) else {}
+        )
+        object_effective_os: dict[str, dict[str, Any]] = (
+            subscribed_effective_os if isinstance(subscribed_effective_os, dict) else {}
+        )
+
+        # Instance-level derivation still needs to follow firmware_ref/os_refs chains
+        instance_derived_caps, instance_software_refs = self._derive_instance_effective(
+            rows=rows,
+            objects=ctx.objects,
+            subscribed_effective_os=object_effective_os,
+            subscribed_effective_firmware=(
+                subscribed_effective_firmware if isinstance(subscribed_effective_firmware, dict) else {}
+            ),
+        )
         class_lineage_map = self._build_class_lineage_map(classes=ctx.classes)
 
         classes_index: dict[str, Any] = {}

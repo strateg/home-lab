@@ -34,7 +34,13 @@ def test_effective_model_manifest_requires_normalized_rows():
     registry = _registry()
 
     consumes = registry.specs[PLUGIN_ID].consumes
-    assert consumes == [{"from_plugin": "base.compiler.instance_rows", "key": "normalized_rows", "required": True}]
+    # ADR 0106 + ADR 0104: Now also consumes from capability_compiler
+    assert consumes == [
+        {"from_plugin": "base.compiler.instance_rows", "key": "normalized_rows", "required": True},
+        {"from_plugin": "base.compiler.capabilities", "key": "derived_capabilities", "required": False},
+        {"from_plugin": "base.compiler.capabilities", "key": "effective_os_map", "required": False},
+        {"from_plugin": "base.compiler.capabilities", "key": "effective_firmware_map", "required": False},
+    ]
 
 
 def test_effective_model_compiler_publishes_candidate():

@@ -4,6 +4,7 @@ This plugin implements capability-driven architecture:
 - Runs in COMPILE stage before validators
 - Derives capabilities from class/object definitions
 - Publishes derived data for validators/generators to consume via subscribe()
+- SINGLE SOURCE OF TRUTH for capability derivation (ADR 0106 + ADR 0104 integration)
 
 ADR 0106 capability namespaces:
 - cap.os.* — Platform/OS capabilities (derived from OS family/distribution)
@@ -11,16 +12,20 @@ ADR 0106 capability namespaces:
 - cap.vendor.* — Vendor identity capabilities (derived from vendor field)
 - cap.role.* — Device role capabilities (derived from enabled_capabilities)
 - cap.arch.* — Architecture capabilities (derived from hardware/OS architecture)
+- cap.firmware.* — Firmware capabilities (derived from firmware properties)
 
 Example of inter-plugin data exchange:
 1. This plugin publishes "derived_capabilities"
-2. Validators/generators subscribe to use this data
+2. effective_model_compiler subscribes to use this data
+3. Generators access derived capabilities via compiled_json
 """
 
 from __future__ import annotations
 
 from typing import Any
 
+from capability_derivation import derive_firmware_capabilities as shared_derive_firmware
+from capability_derivation import derive_os_capabilities as shared_derive_os
 from kernel.plugin_base import CompilerPlugin, PluginContext, PluginDiagnostic, PluginResult, Stage
 
 
@@ -70,11 +75,19 @@ class CapabilityCompiler(CompilerPlugin):
     }
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
-        """Derive capabilities from objects and publish for validators/generators."""
+        """Derive capabilities from objects and publish for validators/generators.
+
+        ADR 0106 + ADR 0104 integration: This is the SINGLE SOURCE OF TRUTH for
+        capability derivation. effective_model_compiler subscribes to these results
+        instead of deriving independently.
+        """
         diagnostics: list[PluginDiagnostic] = []
 
         # Derived capability sets per object
         derived_caps: dict[str, list[str]] = {}
+        # Effective OS/firmware metadata per object (for compiled output)
+        effective_os_map: dict[str, dict[str, Any]] = {}
+        effective_firmware_map: dict[str, dict[str, Any]] = {}
 
         # Process each object
         for object_id, object_data in ctx.objects.items():
@@ -96,16 +109,43 @@ class CapabilityCompiler(CompilerPlugin):
                 diagnostics=diagnostics,
             )
 
-            # D2: Derive cap.os.* from OS family/distribution
-            self._derive_os_capabilities(
-                properties=properties,
-                caps=caps,
-            )
+            # D2: Derive cap.os.* using shared module (ADR 0106 + ADR 0104)
+            # This uses the comprehensive derivation from capability_derivation.py
+            class_ref = object_data.get("class_ref")
+            if class_ref != "class.firmware":
+                effective_os = self._derive_os_capabilities_shared(
+                    object_id=object_id,
+                    object_data=object_data,
+                    caps=caps,
+                    path=path,
+                    stage=stage,
+                    diagnostics=diagnostics,
+                )
+                if effective_os:
+                    effective_os_map[object_id] = effective_os
+            else:
+                # Firmware objects: derive firmware capabilities
+                effective_fw = self._derive_firmware_capabilities_shared(
+                    object_id=object_id,
+                    object_data=object_data,
+                    caps=caps,
+                    path=path,
+                    stage=stage,
+                    diagnostics=diagnostics,
+                )
+                if effective_fw:
+                    effective_firmware_map[object_id] = effective_fw
 
-            # D2: Derive cap.arch.* from architecture
-            architecture = properties.get("architecture")
-            if isinstance(architecture, str) and architecture in self._ARCH_CAPS:
-                caps.update(self._ARCH_CAPS[architecture])
+            # Fallback: simple OS/arch derivation for objects without software.os
+            if not any(c.startswith("cap.os.") for c in caps):
+                self._derive_os_capabilities(
+                    properties=properties,
+                    caps=caps,
+                )
+                # D2: Derive cap.arch.* from architecture
+                architecture = properties.get("architecture")
+                if isinstance(architecture, str) and architecture in self._ARCH_CAPS:
+                    caps.update(self._ARCH_CAPS[architecture])
 
             # D2: Derive cap.vendor.* from vendor field
             vendor = object_data.get("vendor")
@@ -117,6 +157,9 @@ class CapabilityCompiler(CompilerPlugin):
                 object_data=object_data,
                 caps=caps,
             )
+
+            # D2: Derive cap.role.linux_host from OS capabilities (ADR 0104)
+            self._derive_linux_host_capability(caps=caps)
 
             # Store derived capabilities
             if caps:
@@ -132,7 +175,10 @@ class CapabilityCompiler(CompilerPlugin):
                 )
 
         # Publish derived capabilities for validators/generators to consume
+        # effective_model_compiler subscribes to this data
         ctx.publish("derived_capabilities", derived_caps)
+        ctx.publish("effective_os_map", effective_os_map)
+        ctx.publish("effective_firmware_map", effective_firmware_map)
         ctx.publish(
             "capability_stats",
             {
@@ -146,6 +192,8 @@ class CapabilityCompiler(CompilerPlugin):
             diagnostics=diagnostics,
             output_data={
                 "derived_capabilities": derived_caps,
+                "effective_os_map": effective_os_map,
+                "effective_firmware_map": effective_firmware_map,
                 "stats": {
                     "objects_processed": len(ctx.objects),
                     "objects_with_caps": len(derived_caps),
@@ -205,13 +253,81 @@ class CapabilityCompiler(CompilerPlugin):
         # Add bootstrap capability
         caps.add(self._BOOTSTRAP_MECHANISM_CAPS[mechanism_normalized])
 
+    def _derive_os_capabilities_shared(
+        self,
+        *,
+        object_id: str,
+        object_data: dict[str, Any],
+        caps: set[str],
+        path: str,
+        stage: Stage,
+        diagnostics: list[PluginDiagnostic],
+    ) -> dict[str, Any] | None:
+        """Derive cap.os.* using shared derivation module (ADR 0106 + ADR 0104).
+
+        Uses capability_derivation.derive_os_capabilities for consistent derivation
+        across the pipeline. Returns effective OS metadata for compiled output.
+        """
+        os_caps, effective_os = shared_derive_os(
+            object_id=object_id,
+            object_payload=object_data,
+            catalog_ids=set(),  # Catalog validation done by capability_contract_validator
+            path=path,
+            add_diag=lambda **kwargs: diagnostics.append(
+                self.emit_diagnostic(
+                    code=kwargs.get("code", "W3201"),
+                    severity=kwargs.get("severity", "warning"),
+                    stage=stage,
+                    message=kwargs.get("message", ""),
+                    path=kwargs.get("path", path),
+                )
+            ),
+            emit_diagnostics=True,
+        )
+        caps.update(os_caps)
+        return effective_os
+
+    def _derive_firmware_capabilities_shared(
+        self,
+        *,
+        object_id: str,
+        object_data: dict[str, Any],
+        caps: set[str],
+        path: str,
+        stage: Stage,
+        diagnostics: list[PluginDiagnostic],
+    ) -> dict[str, Any] | None:
+        """Derive cap.firmware.* using shared derivation module (ADR 0106 + ADR 0104).
+
+        Uses capability_derivation.derive_firmware_capabilities for consistent derivation
+        across the pipeline. Returns effective firmware metadata for compiled output.
+        """
+        fw_caps, effective_fw = shared_derive_firmware(
+            object_id=object_id,
+            object_payload=object_data,
+            catalog_ids=set(),  # Catalog validation done by capability_contract_validator
+            path=path,
+            add_diag=lambda **kwargs: diagnostics.append(
+                self.emit_diagnostic(
+                    code=kwargs.get("code", "W3201"),
+                    severity=kwargs.get("severity", "warning"),
+                    stage=stage,
+                    message=kwargs.get("message", ""),
+                    path=kwargs.get("path", path),
+                )
+            ),
+            emit_diagnostics=True,
+        )
+        caps.update(fw_caps)
+        return effective_fw
+
     def _derive_os_capabilities(
         self,
         *,
         properties: dict[str, Any],
         caps: set[str],
     ) -> None:
-        """Derive cap.os.* from OS family and distribution."""
+        """Derive cap.os.* from OS family and distribution (legacy fallback)."""
         family = properties.get("family")
         if isinstance(family, str) and family in self._OS_FAMILY_CAPS:
             caps.update(self._OS_FAMILY_CAPS[family])
@@ -240,3 +356,13 @@ class CapabilityCompiler(CompilerPlugin):
                 if role_keyword in cap_lower:
                     caps.add(role_cap)
                     break
+
+    @staticmethod
+    def _derive_linux_host_capability(*, caps: set[str]) -> None:
+        """Derive cap.role.linux_host from OS capabilities (ADR 0104 Amendment A7).
+
+        Linux hosts require common Ansible role configuration.
+        """
+        linux_os_caps = {"cap.os.debian", "cap.os.ubuntu", "cap.os.linux", "cap.os.nixos", "cap.os.alpine"}
+        if caps & linux_os_caps:
+            caps.add("cap.role.linux_host")
