@@ -163,7 +163,11 @@ def build_wireguard_projection(
         # Resolve public endpoints
         if isinstance(endpoint_b, dict) and endpoint_b.get("role") == "server":
             device_ref = endpoint_b.get("device_ref", "")
+            # First try device-level secrets
             public_ip = _resolve_device_public_ip(compiled, device_ref, secrets_root)
+            # Fallback to tunnel secrets (vps.public_ip)
+            if not public_ip and secrets:
+                public_ip = secrets.get("vps", {}).get("public_ip")
             if public_ip:
                 endpoint_b = {**endpoint_b, "public_endpoint": public_ip}
 

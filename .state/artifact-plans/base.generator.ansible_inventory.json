@@ -7,6 +7,223 @@
       "action": "warn",
       "ownership_method": "output_prefix_match",
       "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/docker-adguard-secondary.common.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/docker-alertmanager.common.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/docker-grafana.common.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/docker-homeassistant.common.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/docker-jellyfin.common.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/docker-loki.common.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/docker-nextcloud.common.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/docker-prometheus.common.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/inst.os.debian.12.arm64.container_base.common.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/inst.os.debian.12.arm64.edge.common.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/inst.os.debian.12.proxmox.lxc.common.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/inst.os.linux.generic.x86_64.common.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/inst.os.openwrt.glinet.4x.common.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/inst.os.proxmox.ve.9.common.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/inst.os.ubuntu.2404.x86_64.oci.common.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/lxc-docker.common.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/lxc-gitea.common.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/lxc-grafana.common.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/lxc-homeassistant.common.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/lxc-nextcloud.common.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/lxc-nginx-proxy.common.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/lxc-postgresql.common.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/lxc-prometheus.common.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/lxc-redis.common.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/rtr-slate.common.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/srv-gamayun.common.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/srv-gamayun.docker_host.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/srv-orangepi5.common.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/srv-orangepi5.docker_host.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/vps-hetzner-nuremberg.common.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/vps-oracle-frankfurt.common.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
       "path": "generated/home-lab/ansible/inventory/production/host_vars/vps-oracle-frankfurt.yml",
       "reason": "obsolete-shadowed"
     }

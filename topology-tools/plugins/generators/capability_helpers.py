@@ -183,9 +183,9 @@ def get_platform_type(obj: dict[str, Any]) -> str:
     """Get platform type string from object capabilities (ADR 0106).
 
     Returns platform type suitable for generator dispatch:
-    - 'mikrotik' if has cap.os.routeros
+    - 'mikrotik' if has cap.os.routeros or cap.vendor.mikrotik
     - 'proxmox' if has cap.os.proxmox
-    - 'linux' if has cap.os.linux
+    - 'linux' if has cap.os.linux or cap.compute.workload.linux_base
     - 'unknown' if no platform capability
 
     This is a convenience wrapper that does not raise errors.
@@ -199,6 +199,7 @@ def get_platform_type(obj: dict[str, Any]) -> str:
     caps = get_all_capabilities(obj)
 
     # Priority order for platform detection
+    # Primary: cap.os.* (strict ADR 0106)
     if "cap.os.routeros" in caps:
         return "mikrotik"
     if "cap.os.proxmox" in caps:
@@ -211,6 +212,12 @@ def get_platform_type(obj: dict[str, Any]) -> str:
         return "bsd"
     if "cap.os.windows" in caps:
         return "windows"
+
+    # Fallback: cap.vendor.* and cap.compute.workload.* (pragmatic extension)
+    if "cap.vendor.mikrotik" in caps:
+        return "mikrotik"
+    if "cap.compute.workload.linux_base" in caps:
+        return "linux"
 
     return "unknown"
 
