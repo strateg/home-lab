@@ -115,6 +115,24 @@ Then diagnostic E8020 is emitted with severity "error"
 ```
 ```
 
+### 2b. EARS Requirement Templates
+
+For formal, unambiguous requirements use **EARS (Easy Approach to Requirements Syntax)** patterns. EARS reduces AI clarification cycles by making triggers, conditions, and responses explicit.
+
+| Pattern | Template | Example |
+|---------|----------|---------|
+| **Ubiquitous** | The [system] shall [action] | The compiler shall emit E8020 for missing capabilities |
+| **Event-Driven** | When [trigger], the [system] shall [action] | When a plugin declares `execution_mode: subinterpreter`, the kernel shall isolate its state |
+| **State-Driven** | While [state], the [system] shall [action] | While in strict mode, the agent shall refuse unvalidated changes |
+| **Optional** | Where [condition], the [system] shall [action] | Where `host_ref` is set, the compiler shall resolve `@on:host.*` markers |
+| **Complex** | If [condition] then [action], otherwise [alternative] | If capability is missing, emit E8021; otherwise proceed with generation |
+| **Unwanted** | The [system] shall not [action] | The generator shall not use string matching on object_ref |
+
+**Usage Guidelines:**
+- EARS for **formal requirements** in ADRs (Decision section)
+- Gherkin for **behavioral acceptance criteria** (testable scenarios)
+- Both formats are optional; use when precision matters
+
 ### 3. llms.txt Index File
 
 Create `/llms.txt` for AI agent discoverability:
@@ -235,6 +253,57 @@ tasks:
       - "{{.PYTHON}} scripts/check-token-budgets.py"
 ```
 
+### 8. Specification Effectiveness Metrics
+
+Track specification quality with measurable metrics:
+
+```yaml
+specification_metrics:
+  # Token efficiency
+  token_efficiency:
+    description: "Rule pack token consumption"
+    soft_target: 500
+    maximum: 800
+    measurement: "tiktoken cl100k_base encoding"
+    validation: "scripts/check-token-budgets.py"
+
+  # Specification coverage
+  specification_coverage:
+    description: "Percentage of plugins with governing ADR"
+    target: ">90%"
+    measurement: "Count plugins with ADR reference / total plugins"
+    validation: "scripts/adr-plugin-coverage.py"
+
+  # Agent success rate
+  agent_success_rate:
+    description: "AI agent tasks completing without clarification requests"
+    target: ">80%"
+    measurement: "Manual tracking in development sessions"
+    tracking: "ADR analysis documents"
+
+  # Test traceability
+  test_traceability:
+    description: "Tests with explicit ADR marker"
+    target: ">70% for priority 1-2 tests"
+    measurement: "grep -r '# ADR:' tests/ | wc -l"
+    validation: "scripts/adr-test-coverage.py --threshold 70"
+
+  # Schema coverage
+  schema_coverage:
+    description: "Core YAML structures with JSON Schema validation"
+    target: ">80%"
+    measurement: "schemas/*.schema.json coverage"
+    validation: "scripts/schema-coverage.py"
+
+  # Rule pack freshness
+  rule_pack_freshness:
+    description: "Rule packs updated within last 90 days"
+    target: ">80%"
+    measurement: "git log --since='90 days ago' docs/ai/rules/"
+```
+
+**Metrics Dashboard:** Implement via `task spec:metrics` for CI visibility.
+
 ## Consequences
 
 ### Positive
@@ -274,14 +343,15 @@ Rejected: Designed for APIs, not infrastructure topology.
 
 | Phase | Scope | Effort |
 |-------|-------|--------|
-| P1 | Create llms.txt, add frontmatter to rule packs | 2h |
+| P1 | Create llms.txt + llms-full.txt, add frontmatter to rule packs | 3h |
 | P2 | Add ADR markers to key tests (~50 files) | 1h |
 | P3 | Create capability JSON Schema | 2h |
-| P4 | Convert 5 key ADRs to Gherkin acceptance | 4h |
-| P5 | Add spec validation tasks | 4h |
+| P4 | Convert 5 key ADRs to Gherkin + EARS | 5h |
+| P5 | Add spec validation tasks + CI workflow | 4h |
 | P6 | Document specification contract | 2h |
+| P7 | Implement specification metrics dashboard | 1h |
 
-**Total: ~15 hours**
+**Total: ~18 hours**
 
 ### Key ADRs for Gherkin Conversion (P4)
 
@@ -316,9 +386,18 @@ Rejected: Designed for APIs, not infrastructure topology.
 
 ### Revised Metrics
 
-| Metric | Original | Revised |
-|--------|----------|---------|
-| Total effort | 22h | 15h |
-| Test files to mark | 248 | ~50 |
-| ADRs to convert | 10 | 5 |
-| Token budget | 500 | 800 (soft 500) |
+| Metric | Original | Revised | Final |
+|--------|----------|---------|-------|
+| Total effort | 22h | 15h | 18h |
+| Test files to mark | 248 | ~50 | ~50 |
+| ADRs to convert | 10 | 5 | 5 |
+| Token budget | 500 | 800 (soft 500) | 800 (soft 500) |
+
+### Industry Enhancements Added
+
+| Enhancement | Source | Value |
+|-------------|--------|-------|
+| EARS templates | GitHub Spec Kit 2026 | Unambiguous requirements syntax |
+| Specification metrics | Confident AI framework | Measurable effectiveness |
+| llms-full.txt | llmstxt.org standard | Deep context for AI agents |
+| CI workflow | Industry SDD practices | Automated validation |
