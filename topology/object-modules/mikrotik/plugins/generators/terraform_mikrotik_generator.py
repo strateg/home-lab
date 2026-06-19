@@ -90,6 +90,7 @@ class TerraformMikroTikGenerator(BaseGenerator):
         vlans = projection.get("vlans", [])
         firewall_policies = projection.get("firewall_policies", [])
         runtime_baseline = projection.get("runtime_baseline", {})
+        wireguard = projection.get("wireguard", {})
         if not isinstance(runtime_baseline, dict):
             runtime_baseline = {}
         runtime_baseline.setdefault("dhcp", {})
@@ -115,6 +116,12 @@ class TerraformMikroTikGenerator(BaseGenerator):
             "has_qos": has_qos,
         }
 
+        # Extract WireGuard configuration from projection
+        wireguard_peers = wireguard.get("wireguard_peers", [])
+        wireguard_address = wireguard.get("wireguard_address", "10.100.0.1/30")
+        wireguard_listen_port = wireguard.get("wireguard_listen_port", 51820)
+        wireguard_mtu = wireguard.get("wireguard_mtu", 1420)
+
         render_context = {
             "terraform_version": str(ctx.config.get("terraform_version", ">= 1.6.0")),
             "mikrotik_provider_source": str(ctx.config.get("mikrotik_provider_source", "terraform-routeros/routeros")),
@@ -132,6 +139,11 @@ class TerraformMikroTikGenerator(BaseGenerator):
             "firewall_policies": firewall_policies,
             "runtime_baseline": runtime_baseline,
             "mikrotik_host": mikrotik_host,
+            # WireGuard configuration
+            "wireguard_peers": wireguard_peers,
+            "wireguard_address": wireguard_address,
+            "wireguard_listen_port": wireguard_listen_port,
+            "wireguard_mtu": wireguard_mtu,
             # Capability flags for conditional blocks in templates
             **normalized_caps,
         }
@@ -144,6 +156,7 @@ class TerraformMikroTikGenerator(BaseGenerator):
             "dhcp.tf": "terraform/dhcp.tf.j2",
             "dns.tf": "terraform/dns.tf.j2",
             "addresses.tf": "terraform/addresses.tf.j2",
+            "vpn.tf": "terraform/vpn.tf.j2",
             "variables.tf": "terraform/variables.tf.j2",
             "outputs.tf": "terraform/outputs.tf.j2",
             "terraform.tfvars.example": "terraform/terraform.tfvars.example.j2",

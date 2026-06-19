@@ -219,13 +219,6 @@
       "ownership_proven": true,
       "path": "generated/home-lab/ansible/inventory/production/host_vars/vps-oracle-frankfurt.common.yml",
       "reason": "obsolete-shadowed"
-    },
-    {
-      "action": "warn",
-      "ownership_method": "output_prefix_match",
-      "ownership_proven": true,
-      "path": "generated/home-lab/ansible/inventory/production/host_vars/vps-oracle-frankfurt.yml",
-      "reason": "obsolete-shadowed"
     }
   ],
   "planned_outputs": [
@@ -315,6 +308,18 @@
     },
     {
       "path": "generated/home-lab/ansible/inventory/production/host_vars/srv-orangepi5.yml",
+      "reason": "base-family",
+      "renderer": "structured",
+      "required": true
+    },
+    {
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/vps-hetzner-nuremberg.yml",
+      "reason": "base-family",
+      "renderer": "structured",
+      "required": true
+    },
+    {
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/vps-oracle-frankfurt.yml",
       "reason": "base-family",
       "renderer": "structured",
       "required": true

@@ -58,6 +58,7 @@ class AnsibleInventoryGenerator(BaseGenerator):
         hosts_rows = projection.get("hosts", [])
         device_hosts = [row for row in hosts_rows if row.get("inventory_group") == "devices"]
         lxc_hosts = [row for row in hosts_rows if row.get("inventory_group") == "lxc"]
+        vm_hosts = [row for row in hosts_rows if row.get("inventory_group") == "vm"]
 
         written: list[str] = []
         planned_outputs: list[dict[str, object]] = []
@@ -74,7 +75,7 @@ class AnsibleInventoryGenerator(BaseGenerator):
         hosts_yml_content = self.render_template(
             ctx,
             "ansible/inventory/hosts.yml.j2",
-            {"device_hosts": device_hosts, "lxc_hosts": lxc_hosts},
+            {"device_hosts": device_hosts, "lxc_hosts": lxc_hosts, "vm_hosts": vm_hosts},
         )
         write_text(hosts_path, hosts_yml_content)
         written.append(str(hosts_path))

@@ -138,7 +138,7 @@ curl -k --netrc-file local/terraform/mikrotik/api.netrc https://192.168.88.1:844
 ### 1. Configure terraform.tfvars
 
 ```bash
-cd .work/native/terraform/mikrotik
+cd generated/home-lab/terraform/mikrotik
 cp terraform.tfvars.example terraform.tfvars
 ```
 
@@ -154,19 +154,23 @@ mikrotik_insecure = true  # For self-signed certificate
 # WireGuard VPN
 wireguard_private_key = "generated_with_wg_genkey"
 
-# WireGuard Peers
+# WireGuard Peers (supports site-to-site and road-warrior)
 wireguard_peers = [
+  {
+    name                 = "vps-oracle-frankfurt"
+    public_key           = "peer_public_key_here"
+    preshared_key        = "optional_psk_for_extra_security"
+    endpoint_address     = "92.5.172.16"      # Server public IP
+    endpoint_port        = 51820
+    allowed_ips          = ["10.100.0.2/32", "0.0.0.0/0"]
+    persistent_keepalive = "25s"              # Required for NAT traversal
+    comment              = "Remote: vps-oracle-frankfurt"
+  },
   {
     name        = "phone"
     public_key  = "peer_public_key_here"
     allowed_ips = ["10.0.200.10/32"]
     comment     = "My Phone"
-  },
-  {
-    name        = "laptop"
-    public_key  = "peer_public_key_here"
-    allowed_ips = ["10.0.200.11/32"]
-    comment     = "My Laptop"
   }
 ]
 
@@ -175,7 +179,45 @@ adguard_password  = ""  # bcrypt hash
 tailscale_authkey = ""  # From Tailscale admin console
 ```
 
-### 2. Generate WireGuard Keys
+### 2. Load Secrets from SOPS (Recommended)
+
+Instead of manually editing `terraform.tfvars`, use SOPS-encrypted secrets:
+
+```bash
+cd generated/home-lab/terraform/mikrotik
+
+# Extract MikroTik credentials
+sops -d ../../../../projects/home-lab/secrets/terraform/mikrotik.yaml > terraform.tfvars
+
+# Append WireGuard tunnel secrets
+cat >> terraform.tfvars << 'EOF'
+
+# WireGuard Configuration
+EOF
+
+# Extract WireGuard keys
+sops -d ../../../../projects/home-lab/secrets/tunnels/wg-home-to-oci.yaml | \
+  python3 -c "
+import sys, yaml
+data = yaml.safe_load(sys.stdin)
+print(f'wireguard_private_key = \"{data[\"mikrotik\"][\"private_key\"]}\"')
+print()
+print('wireguard_peers = [')
+print('  {')
+print(f'    name                 = \"vps-oracle-frankfurt\"')
+print(f'    public_key           = \"{data[\"vps\"][\"public_key\"]}\"')
+print(f'    preshared_key        = \"{data[\"preshared_key\"]}\"')
+print(f'    endpoint_address     = \"{data[\"vps\"][\"public_ip\"]}\"')
+print(f'    endpoint_port        = 51820')
+print(f'    allowed_ips          = [\"10.100.0.2/32\", \"0.0.0.0/0\"]')
+print(f'    persistent_keepalive = \"25s\"')
+print(f'    comment              = \"Remote: vps-oracle-frankfurt\"')
+print('  }')
+print(']')
+" >> terraform.tfvars
+```
+
+### 3. Generate WireGuard Keys
 
 ```bash
 # Generate server private key
@@ -186,6 +228,9 @@ cat server_private.key | wg pubkey > server_public.key
 
 # Generate client keys
 wg genkey | tee phone_private.key | wg pubkey > phone_public.key
+
+# Generate preshared key (optional, for extra security)
+wg genpsk > preshared.key
 ```
 
 ---
@@ -273,21 +318,46 @@ resource "routeros_ip_firewall_nat" "masquerade" {
 
 ### vpn.tf
 
+Generated from topology WireGuard tunnel instances:
+
 ```hcl
-# WireGuard interface
-resource "routeros_interface_wireguard" "wg_home" {
-  name        = "wireguard1"
-  listen_port = 51820
-  private_key = var.wireguard_private_key
+locals {
+  wireguard_interface_name = "wg0"
 }
 
-# Dynamic peers from variable
-resource "routeros_interface_wireguard_peer" "peers" {
-  for_each = { for peer in var.wireguard_peers : peer.name => peer }
+# WireGuard interface
+resource "routeros_interface_wireguard" "wg0" {
+  name        = local.wireguard_interface_name
+  listen_port = 51820
+  private_key = var.wireguard_private_key
+  mtu         = 1420
+  comment     = "WireGuard tunnel - managed by topology"
+}
 
-  interface       = routeros_interface_wireguard.wg_home.name
-  public_key      = each.value.public_key
-  allowed_address = each.value.allowed_ips
+# WireGuard peer (site-to-site example)
+resource "routeros_interface_wireguard_peer" "vps_oracle_frankfurt" {
+  interface            = routeros_interface_wireguard.wg0.name
+  public_key           = var.wireguard_peers[0].public_key
+  preshared_key        = var.wireguard_peers[0].preshared_key
+  endpoint_address     = var.wireguard_peers[0].endpoint_address
+  endpoint_port        = var.wireguard_peers[0].endpoint_port
+  allowed_address      = var.wireguard_peers[0].allowed_ips
+  persistent_keepalive = var.wireguard_peers[0].persistent_keepalive
+  comment              = "Remote: vps-oracle-frankfurt"
+}
+
+# WireGuard interface IP address
+resource "routeros_ip_address" "wg0" {
+  address   = "10.100.0.1/30"
+  interface = routeros_interface_wireguard.wg0.name
+  comment   = "WireGuard tunnel IP - managed by topology"
+}
+
+# Add WireGuard to LAN interface list (firewall trust)
+resource "routeros_interface_list_member" "wg0_lan" {
+  interface = routeros_interface_wireguard.wg0.name
+  list      = "LAN"
+  comment   = "Trust WireGuard tunnel - managed by topology"
 }
 ```
 
@@ -349,6 +419,61 @@ Traffic is prioritized using queue trees:
 | 5 | Web | 15% | 80% | General web |
 | 6 | Bulk | 10% | 100% | Downloads, updates |
 | 7 | Downloads | 5% | 100% | P2P, large transfers |
+
+---
+
+## Importing Existing Resources
+
+If WireGuard is already configured on the router (e.g., via RSC script), import resources into Terraform state:
+
+### 1. Find Resource IDs
+
+```bash
+# Get WireGuard interface ID
+curl -sk -u terraform:PASSWORD https://192.168.88.1:8443/rest/interface/wireguard
+# Example: [{".id":"*19", "name":"wg0", ...}]
+
+# Get peer ID
+curl -sk -u terraform:PASSWORD https://192.168.88.1:8443/rest/interface/wireguard/peers
+# Example: [{".id":"*1", "interface":"wg0", ...}]
+
+# Get IP address ID (filter by interface)
+curl -sk -u terraform:PASSWORD https://192.168.88.1:8443/rest/ip/address | grep wg0
+# Example: {".id":"*C", "address":"10.100.0.1/30", "interface":"wg0", ...}
+
+# Get interface list member ID
+curl -sk -u terraform:PASSWORD https://192.168.88.1:8443/rest/interface/list/member | grep wg0
+# Example: {".id":"*4", "interface":"wg0", "list":"LAN", ...}
+```
+
+### 2. Import Resources
+
+```bash
+cd generated/home-lab/terraform/mikrotik
+
+# Import WireGuard interface
+terraform import routeros_interface_wireguard.wg0 "*19"
+
+# Import peer
+terraform import routeros_interface_wireguard_peer.vps_oracle_frankfurt "*1"
+
+# Import IP address
+terraform import routeros_ip_address.wg0 "*C"
+
+# Import interface list member
+terraform import routeros_interface_list_member.wg0_lan "*4"
+```
+
+### 3. Verify State
+
+```bash
+terraform plan -target=routeros_interface_wireguard.wg0 \
+  -target=routeros_interface_wireguard_peer.vps_oracle_frankfurt \
+  -target=routeros_ip_address.wg0 \
+  -target=routeros_interface_list_member.wg0_lan
+
+# Should show only minor changes (comments)
+```
 
 ---
 
@@ -516,4 +641,4 @@ If locked out:
 
 ---
 
-**Last Updated**: 2026-06-07
+**Last Updated**: 2026-06-19

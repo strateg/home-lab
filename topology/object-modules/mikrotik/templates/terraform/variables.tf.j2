@@ -31,10 +31,14 @@ variable "wireguard_private_key" {
 variable "wireguard_peers" {
   description = "WireGuard peers list"
   type = list(object({
-    name        = string
-    public_key  = string
-    allowed_ips = list(string)
-    comment     = optional(string)
+    name             = string
+    public_key       = string
+    preshared_key    = optional(string)
+    endpoint_address = optional(string)
+    endpoint_port    = optional(number)
+    allowed_ips      = list(string)
+    persistent_keepalive = optional(string)
+    comment          = optional(string)
   }))
   default = []
 }

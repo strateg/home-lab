@@ -1,4 +1,47 @@
-# Baseline projection output; WireGuard resources are added in parity phase.
+# MikroTik WireGuard VPN configuration
+# Generated from topology - DO NOT EDIT MANUALLY
+
 locals {
-  wireguard_interface_name = "wg_home"
+  wireguard_interface_name = "wg0"
 }
+
+{% if has_wireguard %}
+# WireGuard Interface
+resource "routeros_interface_wireguard" "wg0" {
+  name        = local.wireguard_interface_name
+  listen_port = {{ wireguard_listen_port | default(51820) }}
+  private_key = var.wireguard_private_key
+  mtu         = {{ wireguard_mtu | default(1420) }}
+  comment     = "WireGuard tunnel - managed by topology"
+}
+
+# WireGuard Peers
+{% for peer in wireguard_peers %}
+resource "routeros_interface_wireguard_peer" "{{ peer.name | replace('-', '_') }}" {
+  interface            = routeros_interface_wireguard.wg0.name
+  public_key           = var.wireguard_peers[{{ loop.index0 }}].public_key
+  preshared_key        = var.wireguard_peers[{{ loop.index0 }}].preshared_key
+  endpoint_address     = var.wireguard_peers[{{ loop.index0 }}].endpoint_address
+  endpoint_port        = var.wireguard_peers[{{ loop.index0 }}].endpoint_port
+  allowed_address      = var.wireguard_peers[{{ loop.index0 }}].allowed_ips
+  persistent_keepalive = var.wireguard_peers[{{ loop.index0 }}].persistent_keepalive
+  comment              = {{ peer.comment | default("Remote: " + peer.name) | tojson }}
+}
+
+{% endfor %}
+# WireGuard Interface IP Address
+resource "routeros_ip_address" "wg0" {
+  address   = "{{ wireguard_address | default('10.100.0.1/30') }}"
+  interface = routeros_interface_wireguard.wg0.name
+  comment   = "WireGuard tunnel IP - managed by topology"
+}
+
+# Add WireGuard to LAN interface list (firewall trust)
+resource "routeros_interface_list_member" "wg0_lan" {
+  interface = routeros_interface_wireguard.wg0.name
+  list      = "LAN"
+  comment   = "Trust WireGuard tunnel - managed by topology"
+}
+{% else %}
+# WireGuard capability not enabled - no resources generated
+{% endif %}

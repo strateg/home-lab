@@ -210,6 +210,139 @@ def _build_firewall_entry(row: dict[str, Any], *, managed_by_ref: str) -> dict[s
     }
 
 
+def _extract_wireguard_tunnels(
+    network_rows: list[dict[str, Any]],
+    router_ids: set[str],
+) -> dict[str, Any]:
+    """Extract WireGuard tunnels where MikroTik router is an endpoint.
+
+    Returns:
+        {
+            "tunnels": [...],  # List of tunnel configs for this router
+            "wireguard_address": "10.100.0.1/30",  # Interface address
+            "wireguard_listen_port": 51820,
+            "wireguard_mtu": 1420,
+            "wireguard_peers": [...],  # Peer configurations
+        }
+    """
+    tunnels: list[dict[str, Any]] = []
+    peers: list[dict[str, Any]] = []
+    interface_address = ""
+    listen_port = 51820
+    mtu = 1420
+
+    for row in network_rows:
+        object_ref = _resolved_object_ref(row)
+        if "wireguard_tunnel" not in object_ref:
+            continue
+
+        inst_data = row.get("instance_data", {})
+        if not isinstance(inst_data, dict):
+            continue
+
+        # Check if MikroTik router is endpoint_a (typically client/initiator)
+        endpoint_a = inst_data.get("endpoint_a", {})
+        endpoint_b = inst_data.get("endpoint_b", {})
+
+        local_endpoint = None
+        remote_endpoint = None
+
+        # Find which endpoint is our MikroTik router
+        if isinstance(endpoint_a, dict):
+            device_ref = str(endpoint_a.get("device_ref", "")).strip()
+            if device_ref in router_ids:
+                local_endpoint = endpoint_a
+                remote_endpoint = endpoint_b
+
+        if not local_endpoint and isinstance(endpoint_b, dict):
+            device_ref = str(endpoint_b.get("device_ref", "")).strip()
+            if device_ref in router_ids:
+                local_endpoint = endpoint_b
+                remote_endpoint = endpoint_a
+
+        if not local_endpoint or not isinstance(remote_endpoint, dict):
+            continue
+
+        # Extract local interface config
+        local_ip = str(local_endpoint.get("tunnel_ip", "")).strip()
+        tunnel_network = str(inst_data.get("tunnel_network", "")).strip()
+        if local_ip:
+            # Check if IP already includes prefix
+            if "/" in local_ip:
+                interface_address = local_ip
+            elif tunnel_network:
+                # Combine IP with network prefix from tunnel_network
+                try:
+                    prefix = tunnel_network.split("/")[1] if "/" in tunnel_network else "30"
+                    interface_address = f"{local_ip}/{prefix}"
+                except (IndexError, ValueError):
+                    interface_address = f"{local_ip}/30"
+            else:
+                interface_address = f"{local_ip}/30"
+
+        listen_port = int(local_endpoint.get("listen_port", 51820) or 51820)
+        mtu = int(inst_data.get("mtu", 1420) or 1420)
+
+        # Build peer config for remote endpoint
+        remote_name = str(remote_endpoint.get("device_ref", "unknown")).strip()
+        remote_role = str(remote_endpoint.get("role", "")).strip()
+
+        # Allowed IPs from the remote endpoint's configuration
+        # This is what the remote peer is allowed to send through the tunnel
+        remote_allowed_ips = remote_endpoint.get("allowed_ips", [])
+        allowed_ips: list[str] = []
+        if isinstance(remote_allowed_ips, list):
+            for ip in remote_allowed_ips:
+                if isinstance(ip, str) and ip:
+                    allowed_ips.append(ip)
+
+        # If allowed_ips is empty, at least add remote tunnel IP
+        if not allowed_ips:
+            remote_ip = str(remote_endpoint.get("tunnel_ip", "")).strip()
+            if remote_ip:
+                # Strip prefix if present and add /32
+                base_ip = remote_ip.split("/")[0] if "/" in remote_ip else remote_ip
+                allowed_ips.append(f"{base_ip}/32")
+
+        peer_config: dict[str, Any] = {
+            "name": remote_name,
+            "allowed_ips": allowed_ips,
+            "comment": f"Remote: {remote_name}",
+        }
+
+        # Server endpoint info (for client-initiated connections)
+        if remote_role == "server":
+            public_endpoint = remote_endpoint.get("public_endpoint", "")
+            if public_endpoint:
+                peer_config["endpoint_address"] = public_endpoint
+                peer_config["endpoint_port"] = int(
+                    remote_endpoint.get("listen_port", 51820) or 51820
+                )
+            # Client needs keepalive
+            keepalive = inst_data.get("keepalive_interval", 25)
+            if keepalive:
+                peer_config["persistent_keepalive"] = f"{keepalive}s"
+
+        # Mark that secrets are needed (not stored in projection)
+        peer_config["preshared_key"] = True  # Indicates preshared key is used
+
+        peers.append(peer_config)
+        tunnels.append({
+            "instance_id": row.get("instance_id", ""),
+            "tunnel_name": inst_data.get("tunnel_name", "wg0"),
+            "local_endpoint": local_endpoint,
+            "remote_endpoint": remote_endpoint,
+        })
+
+    return {
+        "tunnels": tunnels,
+        "wireguard_address": interface_address,
+        "wireguard_listen_port": listen_port,
+        "wireguard_mtu": mtu,
+        "wireguard_peers": peers,
+    }
+
+
 def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     """Build stable view for MikroTik Terraform generator."""
     groups = _instance_groups(compiled_json)
@@ -390,6 +523,9 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
                 if bridge_ip:
                     runtime_baseline["addresses"].append({"address": bridge_ip, "interface": bridge_if})
 
+    # Extract WireGuard tunnel configurations for MikroTik routers
+    wireguard_data = _extract_wireguard_tunnels(network, router_ids)
+
     capability_flags = _derive_mikrotik_capability_flags(routers)
     return {
         "routers": _sorted_rows(routers),
@@ -404,6 +540,8 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
         "runtime_baseline": runtime_baseline,
         "services": _sorted_rows(selected_services),
         "capabilities": capability_flags,
+        # WireGuard tunnel data for Terraform generation
+        "wireguard": wireguard_data,
         "counts": {
             "routers": len(routers),
             "networks": len(networks),
@@ -411,5 +549,6 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
             "vlans": len(vlans),
             "firewall_policies": len(firewall_policies),
             "services": len(selected_services),
+            "wireguard_tunnels": len(wireguard_data.get("tunnels", [])),
         },
     }

@@ -84,20 +84,6 @@
       "ownership_proven": true,
       "path": "generated/home-lab/terraform/mikrotik/terraform.tfvars",
       "reason": "obsolete-shadowed"
-    },
-    {
-      "action": "warn",
-      "ownership_method": "output_prefix_match",
-      "ownership_proven": true,
-      "path": "generated/home-lab/terraform/mikrotik/vpn_germany_devices.tf",
-      "reason": "obsolete-shadowed"
-    },
-    {
-      "action": "warn",
-      "ownership_method": "output_prefix_match",
-      "ownership_proven": true,
-      "path": "generated/home-lab/terraform/mikrotik/vpn_germany_mac_vlan.tf",
-      "reason": "obsolete-shadowed"
     }
   ],
   "planned_outputs": [

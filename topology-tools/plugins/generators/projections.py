@@ -124,6 +124,7 @@ def build_ansible_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     groups = _instance_groups(compiled_json)
     devices = _group_rows(groups, canonical=GROUP_DEVICES)
     lxc = _group_rows(groups, canonical=GROUP_LXC)
+    vm = _group_rows(groups, canonical=GROUP_VM)
 
     hosts: list[dict[str, Any]] = []
     for idx, row in enumerate(devices):
@@ -141,6 +142,15 @@ def build_ansible_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
         host = deepcopy(row)
         host.pop("instance", None)
         host["inventory_group"] = "lxc"
+        hosts.append(host)
+    for idx, row in enumerate(vm):
+        _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.vm[{idx}]")
+        _require_object_ref(row, path=f"compiled_json.instances.vm[{idx}]")
+        if not _is_ansible_host_candidate(row):
+            continue
+        host = deepcopy(row)
+        host.pop("instance", None)
+        host["inventory_group"] = "vm"
         hosts.append(host)
 
     return {
