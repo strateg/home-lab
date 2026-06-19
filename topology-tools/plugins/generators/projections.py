@@ -161,9 +161,50 @@ CAPABILITY_ROLE_MAP: dict[str, str] = {
     "cap.role.container_host": "container_host",
     "cap.role.edge_node": "edge_node",
     "cap.role.vpn_endpoint": "vpn_endpoint",
+    # ADR 0104: Linux host role for common configuration
+    "cap.role.linux_host": "common",
+    # ADR 0104: Operations roles
+    "cap.role.monitoring_target": "node_exporter",
+    "cap.role.backup_target": "backup_client",
     # Compute capabilities
     "cap.compute.runtime.container_host": "docker_host",
 }
+
+
+def _get_instance_capabilities(inst: dict[str, Any]) -> set[str]:
+    """Get all capabilities for a compiled instance (ADR 0106 + ADR 0104).
+
+    Collects capabilities from:
+    - inst.object.enabled_capabilities (declared in object)
+    - inst.object.derived_capabilities (derived by capability_compiler)
+    - inst.instance.derived_capabilities (derived from firmware_ref/os_refs)
+
+    Args:
+        inst: Compiled instance dict from effective-topology.json
+
+    Returns:
+        Set of all capability strings
+    """
+    caps: set[str] = set()
+
+    # Object-level capabilities
+    obj = inst.get("object", {})
+    if isinstance(obj, dict):
+        enabled = obj.get("enabled_capabilities", [])
+        if isinstance(enabled, list):
+            caps.update(c for c in enabled if isinstance(c, str))
+        derived = obj.get("derived_capabilities", [])
+        if isinstance(derived, list):
+            caps.update(c for c in derived if isinstance(c, str))
+
+    # Instance-level derived capabilities (from firmware_ref/os_refs)
+    instance = inst.get("instance", {})
+    if isinstance(instance, dict):
+        derived = instance.get("derived_capabilities", [])
+        if isinstance(derived, list):
+            caps.update(c for c in derived if isinstance(c, str))
+
+    return caps
 
 
 def build_ansible_role_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
@@ -171,6 +212,9 @@ def build_ansible_role_projection(compiled_json: dict[str, Any]) -> dict[str, An
 
     Scans instances for capability markers and yields role-specific
     variable sets for each matching instance.
+
+    ADR 0106 + ADR 0104: Uses get_all_capabilities to include derived capabilities
+    from both object-level (capability_compiler) and instance-level (firmware/OS refs).
 
     Returns:
         dict with 'role_assignments' list and 'counts' summary.
@@ -189,14 +233,8 @@ def build_ansible_role_projection(compiled_json: dict[str, Any]) -> dict[str, An
             if not instance_id:
                 continue
 
-            # Get capabilities from instance or instance_data
-            capabilities = inst.get("enabled_capabilities", [])
-            if not capabilities:
-                instance_data = inst.get("instance_data", {})
-                if isinstance(instance_data, dict):
-                    capabilities = instance_data.get("enabled_capabilities", [])
-            if not isinstance(capabilities, list):
-                capabilities = []
+            # ADR 0106 + ADR 0104: Get ALL capabilities including derived
+            capabilities = _get_instance_capabilities(inst)
 
             # Match capabilities to roles
             for cap in capabilities:

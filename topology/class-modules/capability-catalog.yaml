@@ -917,6 +917,28 @@ capabilities:
     stability: stable
     derived: true
 
+  - @capability: cap.role.linux_host
+    title: Linux Host Role
+    summary: Device functions as managed Linux host requiring common configuration.
+    domain: role
+    layer: L7
+    stability: stable
+    derived: true
+
+  - @capability: cap.role.monitoring_target
+    title: Monitoring Target Role
+    summary: Device should expose monitoring metrics via node_exporter.
+    domain: role
+    layer: L7
+    stability: stable
+
+  - @capability: cap.role.backup_target
+    title: Backup Target Role
+    summary: Device should have backup agent installed.
+    domain: role
+    layer: L7
+    stability: stable
+
   # ===========================================================================
   # L7 - Vendor Capabilities (ADR 0106)
   # Derived from vendor field
