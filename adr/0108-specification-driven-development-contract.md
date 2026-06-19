@@ -86,36 +86,7 @@ specification_contract:
       links_to: L1_decision via "# ADR: 0xxx" marker
 ```
 
-### 2. ADR Acceptance Criteria Format
-
-Adopt Gherkin-style acceptance criteria for **new and key ADRs** (optional adoption model):
-
-**REQUIRED:** New ADRs with behavioral acceptance criteria
-**RECOMMENDED:** Key architectural ADRs (0062, 0080, 0088, 0106, 0108)
-**OPTIONAL:** Legacy ADRs, simple decision ADRs
-
-Example Gherkin-style executable acceptance criteria:
-
-```markdown
-## Acceptance Criteria
-
-### AC1: Capability query replaces string matching
-```gherkin
-Given an instance with class_ref "router/mikrotik-chateau-ax"
-When the generator queries has_capability("cap.os.routeros")
-Then it returns True
-And no string matching on object_ref is performed
-```
-
-### AC2: Missing capability emits diagnostic
-```gherkin
-Given an instance without required capability "cap.bootstrap.netinstall"
-When the initialization plugin executes
-Then diagnostic E8020 is emitted with severity "error"
-```
-```
-
-### 2b. EARS Requirement Templates
+### 2. EARS Requirement Templates (Optional)
 
 For formal, unambiguous requirements use **EARS (Easy Approach to Requirements Syntax)** patterns. EARS reduces AI clarification cycles by making triggers, conditions, and responses explicit.
 
@@ -125,13 +96,9 @@ For formal, unambiguous requirements use **EARS (Easy Approach to Requirements S
 | **Event-Driven** | When [trigger], the [system] shall [action] | When a plugin declares `execution_mode: subinterpreter`, the kernel shall isolate its state |
 | **State-Driven** | While [state], the [system] shall [action] | While in strict mode, the agent shall refuse unvalidated changes |
 | **Optional** | Where [condition], the [system] shall [action] | Where `host_ref` is set, the compiler shall resolve `@on:host.*` markers |
-| **Complex** | If [condition] then [action], otherwise [alternative] | If capability is missing, emit E8021; otherwise proceed with generation |
 | **Unwanted** | The [system] shall not [action] | The generator shall not use string matching on object_ref |
 
-**Usage Guidelines:**
-- EARS for **formal requirements** in ADRs (Decision section)
-- Gherkin for **behavioral acceptance criteria** (testable scenarios)
-- Both formats are optional; use when precision matters
+**Usage:** EARS for formal requirements when precision matters. Adoption is optional.
 
 ### 3. llms.txt Index File
 
@@ -190,9 +157,9 @@ def test_has_capability_returns_true_for_routeros():
 
 **Scope:** ~50 key tests initially, expanding organically.
 
-### 6. JSON Schema for Capabilities
+### 6. JSON Schema for Capabilities (Phase 2 — Deferred)
 
-Create `schemas/capability.schema.json`:
+Create `schemas/capability.schema.json` when schema violations occur in production:
 
 ```json
 {
@@ -224,106 +191,44 @@ Create `schemas/capability.schema.json`:
 }
 ```
 
-### 7. Validation Tasks
+### 7. Validation (Simplified)
+
+Single consolidated validation task using grep-based checks (no custom scripts):
 
 ```yaml
 # taskfiles/spec.yml
 tasks:
   validate:
-    desc: Validate all specification contracts
+    desc: Validate specification contracts
     cmds:
-      - task spec:schemas
-      - task spec:frontmatter
-      - task spec:adr-coverage
-      - task spec:token-budgets
-
-  schemas:
-    desc: Validate YAML against JSON schemas
-    cmds:
-      - "{{.PYTHON}} scripts/validate-schemas.py"
-
-  adr-coverage:
-    desc: Check test-to-ADR traceability
-    cmds:
-      - "{{.PYTHON}} scripts/adr-test-coverage.py"
-
-  token-budgets:
-    desc: Verify rule packs within token limits
-    cmds:
-      - "{{.PYTHON}} scripts/check-token-budgets.py"
+      - echo "Checking rule pack frontmatter..."
+      - grep -l "@tokens:" docs/ai/rules/*.md || echo "WARN: Missing @tokens in rule packs"
+      - echo "Checking test-to-ADR markers..."
+      - grep -r "# ADR:" tests/plugin_contract tests/plugin_integration | wc -l
+      - echo "Specification validation complete"
 ```
 
-### 8. Specification Effectiveness Metrics
-
-Track specification quality with measurable metrics:
-
-```yaml
-specification_metrics:
-  # Token efficiency
-  token_efficiency:
-    description: "Rule pack token consumption"
-    soft_target: 500
-    maximum: 800
-    measurement: "tiktoken cl100k_base encoding"
-    validation: "scripts/check-token-budgets.py"
-
-  # Specification coverage
-  specification_coverage:
-    description: "Percentage of plugins with governing ADR"
-    target: ">90%"
-    measurement: "Count plugins with ADR reference / total plugins"
-    validation: "scripts/adr-plugin-coverage.py"
-
-  # Agent success rate
-  agent_success_rate:
-    description: "AI agent tasks completing without clarification requests"
-    target: ">80%"
-    measurement: "Manual tracking in development sessions"
-    tracking: "ADR analysis documents"
-
-  # Test traceability
-  test_traceability:
-    description: "Tests with explicit ADR marker"
-    target: ">70% for priority 1-2 tests"
-    measurement: "grep -r '# ADR:' tests/ | wc -l"
-    validation: "scripts/adr-test-coverage.py --threshold 70"
-
-  # Schema coverage
-  schema_coverage:
-    description: "Core YAML structures with JSON Schema validation"
-    target: ">80%"
-    measurement: "schemas/*.schema.json coverage"
-    validation: "scripts/schema-coverage.py"
-
-  # Rule pack freshness
-  rule_pack_freshness:
-    description: "Rule packs updated within last 90 days"
-    target: ">80%"
-    measurement: "git log --since='90 days ago' docs/ai/rules/"
-```
-
-**Metrics Dashboard:** Implement via `task spec:metrics` for CI visibility.
+**Metrics (Phase 2):** Token budgets and coverage metrics deferred until Phase 1 proves value.
 
 ## Consequences
 
 ### Positive
 
-1. **Formal traceability**: ADR → Rule → Schema → Test chain is explicit
-2. **AI efficiency**: llms.txt + frontmatter enable optimal context loading
-3. **Executable specs**: Gherkin criteria can be automated with pytest-bdd
-4. **Schema validation**: Structural errors caught before runtime
-5. **Token predictability**: Rule packs have declared budgets
+1. **Formal traceability**: ADR → Rule → Test chain is explicit via markers
+2. **AI efficiency**: llms.txt + frontmatter enable optimal context loading (~130 tokens/session)
+3. **Token predictability**: Rule packs have declared budgets in frontmatter
+4. **Minimal overhead**: grep-based validation, no custom scripts
+5. **Low barrier**: 3h implementation, immediate value
 
 ### Negative
 
-1. **Migration effort**: 5 key ADRs need acceptance criteria conversion (reduced scope)
-2. **Maintenance overhead**: More artifacts to keep synchronized
-3. **Learning curve**: Gherkin syntax is optional, reducing barrier
+1. **Deferred features**: JSON Schema, metrics dashboard not in Phase 1
+2. **Manual tracking**: Some metrics require manual observation until Phase 2
 
 ### Neutral
 
-1. **Tooling**: May require pytest-bdd or similar for full BDD
-2. **CI time**: Additional validation steps increase pipeline duration
+1. **Extensible**: Phase 2 components can be activated when triggers occur
+2. **CI impact**: Minimal — grep-based validation adds <5s to pipeline
 
 ## Alternatives Considered
 
@@ -339,27 +244,38 @@ Rejected: Overkill for infrastructure project; ADRs are sufficient for decisions
 
 Rejected: Designed for APIs, not infrastructure topology.
 
-## Implementation Plan
+## Implementation Plan (Optimized)
 
-| Phase | Scope | Effort |
-|-------|-------|--------|
-| P1 | Create llms.txt + llms-full.txt, add frontmatter to rule packs | 3h |
-| P2 | Add ADR markers to key tests (~50 files) | 1h |
-| P3 | Create capability JSON Schema | 2h |
-| P4 | Convert 5 key ADRs to Gherkin + EARS | 5h |
-| P5 | Add spec validation tasks + CI workflow | 4h |
-| P6 | Document specification contract | 2h |
-| P7 | Implement specification metrics dashboard | 1h |
+**SWOT-optimized plan focusing on high-ROI components:**
 
-**Total: ~18 hours**
+### Phase 1: Core (HIGH ROI) — 3h
 
-### Key ADRs for Gherkin Conversion (P4)
+| Task | Effort | ROI |
+|------|--------|-----|
+| Create `/llms.txt` (10-line quick start) | 30min | HIGH |
+| Add `@tokens` + `@adr` frontmatter to 10 rule packs | 1h | HIGH |
+| Add `# ADR:` markers to ~50 key tests | 1h | MEDIUM |
+| Add `task spec:validate` (grep-based) | 30min | MEDIUM |
 
-1. **ADR 0062** — Modular topology architecture (foundational)
-2. **ADR 0080** — Unified build pipeline (plugin runtime)
-3. **ADR 0088** — Semantic keyword registry (data model)
-4. **ADR 0106** — Capability-driven plugins (recent, active)
-5. **ADR 0108** — This ADR (self-documenting)
+### Phase 2: Extended (DEFERRED) — When Needed
+
+| Task | Trigger | ROI |
+|------|---------|-----|
+| JSON Schema for capabilities | Schema violations in production | MEDIUM |
+| Token budget validation script | Rule packs exceed 800 tokens | MEDIUM |
+| Metrics dashboard | Management reporting need | LOW |
+| EARS conversion for key ADRs | Requirement ambiguity issues | LOW |
+
+**Total Phase 1: ~3h** (was 18h, 83% reduction)
+
+### Eliminated from Original Plan
+
+| Item | Reason |
+|------|--------|
+| llms-full.txt | CLAUDE.md + llms.txt sufficient |
+| Gherkin syntax | EARS covers formal requirements |
+| 6 validation scripts | grep-based check sufficient |
+| Metrics dashboard | Premature optimization |
 
 ## References
 
@@ -373,31 +289,45 @@ Rejected: Designed for APIs, not infrastructure topology.
 ## SPC Analysis Complete
 
 **Date:** 2026-06-19
-**Mode:** Strict Process Compliance (SPC)
+**Mode:** Strict Process Compliance (SPC) + SWOT Optimization
 
-### Decisions Made
+### SWOT Analysis Summary
 
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| D1: Token budget | 800 (soft 500) | Accommodates complex domains |
-| D2: Test marker scope | Key tests (~50) | Effort reduction 4h→1h |
-| D3: Gherkin adoption | Optional | Gradual, low barrier |
-| D4: ADR conversion | 5 key ADRs | Effort reduction 8h→4h |
+| **Strengths** | **Weaknesses** |
+|---------------|----------------|
+| Clear 5-level hierarchy (L1-L5) | Original 18h effort excessive |
+| Token budgets defined (800/500) | Multiple validation scripts |
+| Existing capability catalog | Metrics require manual tracking |
 
-### Revised Metrics
+| **Opportunities** | **Threats** |
+|-------------------|-------------|
+| AI agent efficiency gain | Over-engineering risk |
+| Test traceability automation | Maintenance burden |
+| Schema validation | Scope creep |
 
-| Metric | Original | Revised | Final |
-|--------|----------|---------|-------|
-| Total effort | 22h | 15h | 18h |
-| Test files to mark | 248 | ~50 | ~50 |
-| ADRs to convert | 10 | 5 | 5 |
-| Token budget | 500 | 800 (soft 500) | 800 (soft 500) |
+### Optimization Decisions
 
-### Industry Enhancements Added
+| Decision | Original | Optimized | Savings |
+|----------|----------|-----------|---------|
+| Implementation effort | 18h | 3h | 83% |
+| Validation scripts | 6 scripts | grep-based | 100% |
+| llms files | 2 (txt + full) | 1 (txt only) | 50% |
+| Requirement syntax | Gherkin + EARS | EARS only | 50% |
 
-| Enhancement | Source | Value |
-|-------------|--------|-------|
-| EARS templates | GitHub Spec Kit 2026 | Unambiguous requirements syntax |
-| Specification metrics | Confident AI framework | Measurable effectiveness |
-| llms-full.txt | llmstxt.org standard | Deep context for AI agents |
-| CI workflow | Industry SDD practices | Automated validation |
+### High-ROI Components (Keep)
+
+| Component | Tokens | Frequency | Value |
+|-----------|--------|-----------|-------|
+| llms.txt | ~100 | Every session | AI discoverability |
+| Rule pack frontmatter | ~30/pack | Auto-selected | Token predictability |
+| ADR-RULE-MAP | ~200 | On-demand | Context routing |
+| Test ADR markers | 0 | grep-based | Traceability |
+
+### Deferred Components (Phase 2)
+
+| Component | Trigger for Activation |
+|-----------|------------------------|
+| JSON Schema | Schema violations in production |
+| Metrics dashboard | Management reporting need |
+| EARS ADR conversion | Requirement ambiguity |
+| Token budget scripts | Rule packs exceed 800 tokens |
