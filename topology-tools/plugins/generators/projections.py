@@ -168,6 +168,8 @@ CAPABILITY_ROLE_MAP: dict[str, str] = {
     "cap.role.backup_target": "backup_client",
     # Compute capabilities
     "cap.compute.runtime.container_host": "docker_host",
+    # Platform-specific container support
+    "cap.net.platform.containers": "mikrotik_containers",
 }
 
 
