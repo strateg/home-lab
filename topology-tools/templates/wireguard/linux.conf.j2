@@ -13,10 +13,23 @@ Address = {{ endpoint_b.tunnel_ip }}
 ListenPort = {{ endpoint_b.listen_port | default(51820) }}
 PrivateKey = {{ vps_keys.private_key }}
 MTU = {{ mtu }}
+{% if vps_nat.enabled | default(false) %}
 
-# Optional: Enable IP forwarding and NAT
-# PostUp = iptables -A FORWARD -i {{ tunnel_name }} -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
-# PostDown = iptables -D FORWARD -i {{ tunnel_name }} -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
+# PostUp rules for forwarding and NAT (from topology vps_nat)
+{% if vps_nat.ip_forward | default(false) %}
+PostUp = sysctl -w net.ipv4.ip_forward=1
+{% endif %}
+{% for rule in vps_nat.iptables_rules | default([]) %}
+PostUp = iptables {{ rule }}
+{% endfor %}
+
+# PostDown rules to clean up
+{% for rule in vps_nat.iptables_rules | default([]) %}
+{# Convert -I/-A to -D for deletion #}
+{% set delete_rule = rule | replace('-I FORWARD 1 ', '-D FORWARD ') | replace('-I FORWARD 2 ', '-D FORWARD ') | replace('-A ', '-D ') %}
+PostDown = iptables {{ delete_rule }}
+{% endfor %}
+{% endif %}
 
 [Peer]
 # {{ endpoint_a.device_ref }} ({{ endpoint_a.role }})
