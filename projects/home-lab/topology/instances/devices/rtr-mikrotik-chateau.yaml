@@ -26,7 +26,7 @@ observed_runtime:
   lan:
     bridge_interface: bridge
     bridge_admin_mac: "{{ secrets.mac_addresses.bridge }}"  # stored in secrets/instances/rtr-mikrotik-chateau.yaml
-    bridge_vlan_filtering: false
+    bridge_vlan_filtering: true  # Required for WiFi VLAN tagging
     bridge_ports: [ether2, ether3, ether4, ether5, wifi1, wifi2]
     gateway_ref: inst.vlan.lan
     dhcp_server: defconf
@@ -65,6 +65,18 @@ observed_runtime:
       ssid: "Chateau"
       mode: ap
       channel_width: 20/40mhz
+      status: bound
+    wifi_vpn_germany:
+      name: wifi-vpn-germany
+      master_interface: wifi1
+      ssid: "VPN-Germany"
+      mode: ap
+      security: wpa2-psk
+      vlan_id: 55
+      datapath:
+        name: dp-vpn-germany
+        bridge: bridge
+        vlan_id: 55
       status: bound
   dns:
     servers: [1.1.1.1, 8.8.8.8]

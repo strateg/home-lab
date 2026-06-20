@@ -9,7 +9,37 @@ locals {
 # Bridge interfaces managed by topology
 {% for bridge in bridges %}
 resource "routeros_interface_bridge" "{{ bridge.name }}" {
-  name = "{{ bridge.bridge_name }}"
+  name           = "{{ bridge.bridge_name }}"
+{% if bridge.vlan_filtering is defined %}
+  vlan_filtering = {{ bridge.vlan_filtering | lower }}
+{% endif %}
+  comment        = "{{ bridge.comment | default('managed by topology') }}"
+
+  lifecycle {
+    create_before_destroy = false
+  }
+}
+
+{% endfor %}
+{% endif %}
+
+{% if bridge_vlans %}
+# Bridge VLAN entries for tagged/untagged ports
+{% for bv in bridge_vlans %}
+resource "routeros_interface_bridge_vlan" "vlan_{{ bv.vlan_id }}" {
+  bridge   = "{{ bv.bridge }}"
+  vlan_ids = ["{{ bv.vlan_id }}"]
+{% if bv.tagged %}
+  tagged   = [{% for t in bv.tagged %}"{{ t }}"{% if not loop.last %}, {% endif %}{% endfor %}]
+{% endif %}
+{% if bv.untagged %}
+  untagged = [{% for u in bv.untagged %}"{{ u }}"{% if not loop.last %}, {% endif %}{% endfor %}]
+{% endif %}
+  comment  = "VLAN {{ bv.vlan_id }} - managed by topology"
+
+  lifecycle {
+    create_before_destroy = false
+  }
 }
 
 {% endfor %}
@@ -17,6 +47,7 @@ resource "routeros_interface_bridge" "{{ bridge.name }}" {
 
 {% if vlans %}
 # VLAN interfaces on bridge
+# Note: Run scripts/deploy/mikrotik_terraform_import.sh before first apply
 {% for vlan in vlans %}
 {% if vlan.vlan_id and not vlan.is_native_lan %}
 resource "routeros_interface_vlan" "{{ vlan.name }}" {
@@ -25,6 +56,10 @@ resource "routeros_interface_vlan" "{{ vlan.name }}" {
   interface = "bridge"
   mtu       = {{ vlan.mtu | default(1500) }}
   comment   = "{{ vlan.instance_id }} - managed by topology"
+
+  lifecycle {
+    create_before_destroy = false
+  }
 }
 
 {% endif %}

@@ -75,6 +75,27 @@
       "action": "warn",
       "ownership_method": "output_prefix_match",
       "ownership_proven": true,
+      "path": "generated/home-lab/terraform/mikrotik/terraform.tfstate.1781942382.backup",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/terraform/mikrotik/terraform.tfstate.1781942489.backup",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/terraform/mikrotik/terraform.tfstate.1781942513.backup",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
       "path": "generated/home-lab/terraform/mikrotik/terraform.tfstate.backup",
       "reason": "obsolete-shadowed"
     },
@@ -170,6 +191,13 @@
       "renderer": "jinja2",
       "required": true,
       "template": "terraform/vpn.tf.j2"
+    },
+    {
+      "path": "generated/home-lab/terraform/mikrotik/wifi.tf",
+      "reason": "base-family",
+      "renderer": "jinja2",
+      "required": true,
+      "template": "terraform/wifi.tf.j2"
     }
   ],
   "plugin_id": "object.mikrotik.generator.terraform",

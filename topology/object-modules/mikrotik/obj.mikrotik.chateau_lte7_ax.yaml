@@ -204,7 +204,7 @@ initialization_contract:
   handover:
     checks:
     - type: api_reachable
-      target: https://{{ node.management_ip }}:8443
+      target: https://{{ node.management_ip }}:443
     - type: ssh_reachable
       target: '{{ node.management_ip }}'
       port: 22
@@ -369,7 +369,7 @@ defaults:
       port: 22
     rest_api:
       enabled: true
-      port: 8443
+      port: 443
 
   networking:
     wan_interface: ether1

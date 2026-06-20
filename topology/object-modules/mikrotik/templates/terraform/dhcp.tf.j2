@@ -1,10 +1,17 @@
 # MikroTik DHCP server configuration generated from topology
+# Note: Run scripts/deploy/mikrotik_terraform_import.sh before first apply
+# to import existing resources and ensure idempotent deployments.
 
 {% if runtime_baseline.dhcp.enabled %}
 # Baseline LAN DHCP from router profile
 resource "routeros_ip_pool" "lan_pool" {
   name   = "default-dhcp"
   ranges = ["{{ runtime_baseline.dhcp.pool_range }}"]
+
+  lifecycle {
+    # Prevent recreation if pool already exists with same name
+    create_before_destroy = false
+  }
 }
 
 resource "routeros_ip_dhcp_server" "lan_dhcp" {
@@ -39,6 +46,10 @@ resource "routeros_ip_dhcp_server_network" "lan_network" {
 resource "routeros_ip_pool" "{{ pool_name }}" {
   name   = "{{ pool_name }}"
   ranges = ["{{ range_parts[0] }}-{{ range_parts[1] }}"]
+
+  lifecycle {
+    create_before_destroy = false
+  }
 }
 
 resource "routeros_ip_dhcp_server" "{{ server_name }}" {
@@ -52,6 +63,10 @@ resource "routeros_ip_dhcp_server" "{{ server_name }}" {
   disabled                   = false
   comment                    = "{{ vlan.instance_id }} DHCP - managed by topology"
   dynamic_lease_identifiers  = "client-mac,client-id"
+
+  lifecycle {
+    create_before_destroy = false
+  }
 }
 
 resource "routeros_ip_dhcp_server_network" "{{ vlan.name }}" {

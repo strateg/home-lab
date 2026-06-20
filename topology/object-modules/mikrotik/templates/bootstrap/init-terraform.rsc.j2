@@ -4,7 +4,7 @@
 # Node: {{ instance_id }}
 #
 # This script prepares RouterOS for Terraform handover:
-# - enables REST API on https://<router>:8443
+# - enables REST API on https://<router>:443
 # - provisions terraform automation user/group
 # - applies baseline firewall input allows for REST API
 #
@@ -57,7 +57,7 @@
 # Services required for Terraform REST provider
 # ---------------------------------------------------------------------------
 /ip service set www disabled=no
-/ip service set www-ssl disabled=no port=8443
+/ip service set www-ssl disabled=no port=443
 :do {
     /ip service set www-ssl certificate=local-cert
 } on-error={
@@ -88,15 +88,15 @@
 # Firewall input allows for REST API handover
 # ---------------------------------------------------------------------------
 :if ([:len [/ip firewall filter find where comment="Allow REST API from management network"]] = 0) do={
-    /ip firewall filter add chain=input action=accept protocol=tcp dst-port=8443 src-address=10.0.99.0/24 comment="Allow REST API from management network" place-before=0
+    /ip firewall filter add chain=input action=accept protocol=tcp dst-port=443 src-address=10.0.99.0/24 comment="Allow REST API from management network" place-before=0
 }
 
 :if ([:len [/ip firewall filter find where comment="Allow REST API from LAN (temp)"]] = 0) do={
-    /ip firewall filter add chain=input action=accept protocol=tcp dst-port=8443 src-address=192.168.88.0/24 comment="Allow REST API from LAN (temp)" place-before=1
+    /ip firewall filter add chain=input action=accept protocol=tcp dst-port=443 src-address=192.168.88.0/24 comment="Allow REST API from LAN (temp)" place-before=1
 }
 
 :log info "bootstrap(terraform): complete"
-:put "REST API (HTTPS): https://192.168.88.1:8443"
+:put "REST API (HTTPS): https://192.168.88.1:443"
 :put "REST API (HTTP): http://192.168.88.1/rest/system/resource"
 :put "User: terraform"
 :put "Set terraform password manually and enable user before Terraform run."

@@ -26,7 +26,7 @@ class TerraformMikroTikGenerator(BaseGenerator):
     """Emit baseline Terraform files from mikrotik projection."""
 
     _DEFAULT_MIKROTIK_HOST = "mikrotik.invalid"
-    _DEFAULT_MIKROTIK_PORT = 8443
+    _DEFAULT_MIKROTIK_PORT = 443
 
     def template_root(self, ctx: PluginContext) -> Path:
         return self.object_template_root(ctx, object_id="mikrotik")
@@ -122,6 +122,13 @@ class TerraformMikroTikGenerator(BaseGenerator):
         wireguard_listen_port = wireguard.get("wireguard_listen_port", 51820)
         wireguard_mtu = wireguard.get("wireguard_mtu", 1420)
 
+        # Extract WiFi and bridge VLAN configuration from projection
+        wifi = projection.get("wifi", {})
+        wifi_datapaths = wifi.get("datapaths", [])
+        wifi_configurations = wifi.get("configurations", [])
+        wifi_securities = wifi.get("securities", [])
+        bridge_vlans = projection.get("bridge_vlans", [])
+
         render_context = {
             "terraform_version": str(ctx.config.get("terraform_version", ">= 1.6.0")),
             "mikrotik_provider_source": str(ctx.config.get("mikrotik_provider_source", "terraform-routeros/routeros")),
@@ -144,6 +151,12 @@ class TerraformMikroTikGenerator(BaseGenerator):
             "wireguard_address": wireguard_address,
             "wireguard_listen_port": wireguard_listen_port,
             "wireguard_mtu": wireguard_mtu,
+            # WiFi configuration
+            "wifi_datapaths": wifi_datapaths,
+            "wifi_configurations": wifi_configurations,
+            "wifi_securities": wifi_securities,
+            # Bridge VLAN entries
+            "bridge_vlans": bridge_vlans,
             # Capability flags for conditional blocks in templates
             **normalized_caps,
         }
@@ -157,6 +170,7 @@ class TerraformMikroTikGenerator(BaseGenerator):
             "dns.tf": "terraform/dns.tf.j2",
             "addresses.tf": "terraform/addresses.tf.j2",
             "vpn.tf": "terraform/vpn.tf.j2",
+            "wifi.tf": "terraform/wifi.tf.j2",
             "variables.tf": "terraform/variables.tf.j2",
             "outputs.tf": "terraform/outputs.tf.j2",
             "terraform.tfvars.example": "terraform/terraform.tfvars.example.j2",

@@ -10,6 +10,7 @@ resource "routeros_ip_address" "{{ bridge.name }}" {
   comment   = "{{ bridge.instance_id }} address - managed by topology"
 
   lifecycle {
+    create_before_destroy = false
     # vrf not supported via REST API in RouterOS 7.x
     ignore_changes = [vrf]
   }
@@ -34,6 +35,7 @@ resource "routeros_ip_address" "{{ vlan.name }}" {
   comment   = "{{ vlan.instance_id }} gateway - managed by topology"
 
   lifecycle {
+    create_before_destroy = false
     # vrf not supported via REST API in RouterOS 7.x
     ignore_changes = [vrf]
   }

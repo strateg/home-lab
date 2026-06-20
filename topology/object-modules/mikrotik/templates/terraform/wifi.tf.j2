@@ -1,0 +1,62 @@
+# MikroTik WiFi configuration generated from topology
+# RouterOS 7 WiFi (wave2) with VLAN datapath support
+# Note: Requires routeros provider >= 1.40 for WiFi resources
+
+{% if wifi_datapaths %}
+# WiFi Datapaths for VLAN tagging
+{% for dp in wifi_datapaths %}
+resource "routeros_interface_wifi_datapath" "{{ dp.name | replace('-', '_') }}" {
+  name    = "{{ dp.name }}"
+  bridge  = "{{ dp.bridge }}"
+  vlan_id = {{ dp.vlan_id }}
+  comment = "{{ dp.comment | default('managed by topology') }}"
+
+  lifecycle {
+    create_before_destroy = false
+  }
+}
+
+{% endfor %}
+{% endif %}
+
+{% if wifi_configurations %}
+# WiFi Configurations (SSIDs)
+{% for cfg in wifi_configurations %}
+resource "routeros_interface_wifi_configuration" "{{ cfg.name | replace('-', '_') }}" {
+  name     = "{{ cfg.name }}"
+  ssid     = "{{ cfg.ssid }}"
+  mode     = "{{ cfg.mode | default('ap') }}"
+{% if cfg.security %}
+  security = "{{ cfg.security }}"
+{% endif %}
+{% if cfg.datapath %}
+  datapath = routeros_interface_wifi_datapath.{{ cfg.datapath | replace('-', '_') }}.name
+{% endif %}
+  comment  = "{{ cfg.comment | default('managed by topology') }}"
+
+  lifecycle {
+    create_before_destroy = false
+  }
+}
+
+{% endfor %}
+{% endif %}
+
+{% if wifi_securities %}
+# WiFi Security profiles
+{% for sec in wifi_securities %}
+resource "routeros_interface_wifi_security" "{{ sec.name | replace('-', '_') }}" {
+  name                   = "{{ sec.name }}"
+  authentication_types   = {{ sec.authentication_types | default('["wpa2-psk"]') | tojson }}
+{% if sec.passphrase %}
+  passphrase             = var.wifi_{{ sec.name | replace('-', '_') }}_passphrase
+{% endif %}
+  comment                = "{{ sec.comment | default('managed by topology') }}"
+
+  lifecycle {
+    create_before_destroy = false
+  }
+}
+
+{% endfor %}
+{% endif %}
