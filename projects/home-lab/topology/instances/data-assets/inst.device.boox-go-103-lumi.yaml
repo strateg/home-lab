@@ -8,6 +8,7 @@ notes: |
   BOOX Go 10.3 Gen II Lumi e-ink tablet with Android 15.
   Front-lit display, stylus support, WiFi/Bluetooth.
   Locked bootloader - no custom OS installation possible.
+  Static IP: 192.168.55.49 (VPN Germany VLAN)
 
 # Firmware and OS references (ADR0064)
 firmware_ref: inst.firmware.boox.go103.arm64
@@ -54,6 +55,9 @@ connection_type: wifi
 
 # VLAN assignment - VPN Germany for geo-bypass
 vlan_ref: inst.vlan.vpn_germany
+
+# Static IP assignment (DHCP reservation on MikroTik)
+static_ip: 192.168.55.49
 
 # Supported formats
 supported_formats:
