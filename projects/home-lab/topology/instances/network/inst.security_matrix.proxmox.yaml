@@ -1,0 +1,63 @@
+@instance: inst.security_matrix.proxmox
+@extends: obj.network.security_matrix.proxmox_servers
+@group: network
+@version: 1.0.0
+source_id: security-matrix-proxmox
+notes: |
+  Internal enforcement matrix for srv-gamayun Proxmox VE.
+  Manages LXC/VM isolation within the servers zone via Proxmox Firewall CT-level rules.
+  Scope: intra-zone only. Inter-zone policies belong to inst.security_matrix.mikrotik.
+  Generated output: generated/home-lab/terraform/proxmox/firewall.tf (planned)
+
+# ADR-0110 M1-B: one matrix = one enforcer
+managed_by_ref: srv-gamayun
+
+zone_refs:
+  - inst.trust_zone.servers
+
+# Canonical address space for the servers (Proxmox-internal) plane.
+# inst.vlan.servers.cidr = 10.0.30.0/24 is the single source of truth.
+# All LXC/VM host IPs are derived: vlan_ref + host number (ADR-0110 sec 1.5).
+address_space:
+  vlan_refs:
+    - inst.vlan.servers
+
+# Intra-zone policy overrides.
+# Default: deny all lateral movement between containers.
+# Explicit overrides required for inter-container communication.
+policy_overrides:
+  - name: prometheus-scrape
+    from_zone_ref: inst.trust_zone.servers
+    to_zone_ref: inst.trust_zone.servers
+    action: accept
+    ports:
+      tcp: [9090, 9100, 9187, 9121, 9150]
+    log: false
+    comment: Prometheus scrape targets within servers zone (lxc-prometheus → all)
+
+  - name: nginx-proxy-to-backends
+    from_zone_ref: inst.trust_zone.servers
+    to_zone_ref: inst.trust_zone.servers
+    action: accept
+    ports:
+      tcp: [80, 443, 3000, 8080, 8443, 8096]
+    log: false
+    comment: Nginx reverse proxy (lxc-nginx-proxy) to backend service containers
+
+  - name: app-to-postgresql
+    from_zone_ref: inst.trust_zone.servers
+    to_zone_ref: inst.trust_zone.servers
+    action: accept
+    ports:
+      tcp: [5432]
+    log: false
+    comment: Application containers to PostgreSQL
+
+  - name: app-to-redis
+    from_zone_ref: inst.trust_zone.servers
+    to_zone_ref: inst.trust_zone.servers
+    action: accept
+    ports:
+      tcp: [6379]
+    log: false
+    comment: Application containers to Redis

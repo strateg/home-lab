@@ -49,6 +49,8 @@ classes:
     version: 1.0.0
   class.network.vlan:
     version: 1.0.0
+  class.network.security_matrix:
+    version: 1.0.0
   class.observability.alert:
     version: 1.0.0
   class.observability.healthcheck:
@@ -224,11 +226,17 @@ objects:
     version: 1.0.0
     class_ref: class.network.vlan
   obj.network.vlan.servers:
-    version: 1.0.1
+    version: 1.1.0
     class_ref: class.network.vlan
   obj.network.vlan.user:
     version: 1.0.0
     class_ref: class.network.vlan
+  obj.network.security_matrix.soho:
+    version: 1.0.0
+    class_ref: class.network.security_matrix
+  obj.network.security_matrix.proxmox_servers:
+    version: 1.0.0
+    class_ref: class.network.security_matrix
   obj.network.vlan.vpn_tunnel:
     version: 1.0.0
     class_ref: class.network.vlan

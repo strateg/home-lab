@@ -1,0 +1,68 @@
+@instance: inst.security_matrix.mikrotik
+@extends: obj.network.security_matrix.soho
+@group: network
+@version: 1.0.0
+source_id: security-matrix-mikrotik
+notes: |
+  Perimeter enforcement matrix for rtr-mikrotik-chateau.
+  Manages inter-VLAN routing, WAN access, and zone isolation policies.
+  Generated output: generated/home-lab/terraform/mikrotik/firewall.tf
+
+# ADR-0110 M1-B: one matrix = one enforcer
+managed_by_ref: rtr-mikrotik-chateau
+
+# Project-specific zone instances (override object-level refs)
+zone_refs:
+  - inst.trust_zone.untrusted
+  - inst.trust_zone.guest
+  - inst.trust_zone.iot
+  - inst.trust_zone.vpn_tunnel
+  - inst.trust_zone.user
+  - inst.trust_zone.servers
+  - inst.trust_zone.management
+
+# Canonical address space for this enforcement plane.
+# VLAN instance cidr is the single source of truth for all IP derivation.
+address_space:
+  vlan_refs:
+    - inst.vlan.lan
+    - inst.vlan.user
+    - inst.vlan.guest
+    - inst.vlan.iot
+    - inst.vlan.vpn_germany
+    - inst.vlan.management
+    - inst.vlan.servers
+
+defaults:
+  dns_servers:
+    - 192.168.88.1
+  dhcp_lease_time: "30m"
+
+# Extends policy_overrides from obj.network.security_matrix.soho
+policy_overrides:
+  # Inherited from object:
+  # - user-to-servers-http (tcp 80, 443)
+
+  # Project-specific additions:
+  - name: user-to-servers-db
+    from_zone_ref: inst.trust_zone.user
+    to_zone_ref: inst.trust_zone.servers
+    action: accept
+    ports:
+      tcp: [5432, 6379]
+    log: false
+    comment: PostgreSQL and Redis access from user zone
+
+  - name: management-to-servers-full
+    from_zone_ref: inst.trust_zone.management
+    to_zone_ref: inst.trust_zone.servers
+    action: accept
+    log: false
+    comment: Management plane has full access to servers zone
+
+  - name: servers-to-management-deny
+    from_zone_ref: inst.trust_zone.servers
+    to_zone_ref: inst.trust_zone.management
+    action: drop
+    log: true
+    comment: Servers cannot initiate to management (uphill, R4)

@@ -42,38 +42,8 @@ observed_runtime:
     dhcp_pool: 192.168.55.100-192.168.55.200
     routing_policy_ref: inst.routing_policy.vpn_germany
     status: active
-  # ADR-0109: Zone-based network segmentation
-  # VLAN ID = CIDR 3rd octet for user-facing zones
-  vlans:
-    user:
-      vlan_ref: inst.vlan.user
-      vlan_id: 10
-      interface: vlan10
-      cidr: 192.168.10.0/24
-      gateway: 192.168.10.1
-      dhcp_pool: 192.168.10.100-192.168.10.254
-      trust_zone_ref: inst.trust_zone.user
-      status: staged  # Phase 1: add interface
-    guest:
-      vlan_ref: inst.vlan.guest
-      vlan_id: 20
-      interface: vlan20
-      cidr: 192.168.20.0/24
-      gateway: 192.168.20.1
-      dhcp_pool: 192.168.20.100-192.168.20.200
-      trust_zone_ref: inst.trust_zone.guest
-      isolated: true  # internet only
-      status: staged
-    iot:
-      vlan_ref: inst.vlan.iot
-      vlan_id: 30
-      interface: vlan30
-      cidr: 192.168.30.0/24
-      gateway: 192.168.30.1
-      dhcp_pool: 192.168.30.100-192.168.30.200
-      trust_zone_ref: inst.trust_zone.iot
-      isolated: true  # cannot initiate to user/management
-      status: staged
+  # ADR-0109/0110: VLANs now managed via inst.vlan.* instances
+  # Security matrix rules generated from inst.security_matrix.mikrotik
   containers:
     bridge_interface: containers
     bridge_ip: 172.18.0.1/24
@@ -173,40 +143,9 @@ observed_runtime:
       to_ports: 80
   firewall:
     input_rules: 5
-    forward_rules: 12
-    notes: defconf + 3 duplicated topology-managed rules (12-17)
-    # ADR-0109: Zone-based inter-zone policies (deny-by-default)
-    zone_policies:
-      # Guest isolation — internet only, deny all internal zones
-      - from: guest
-        to: [user, iot, servers, management]
-        action: drop
-        log: true
-        comment: Guest cannot access internal networks
-      # IoT isolation — cannot initiate to user or management
-      - from: iot
-        to: [user, management]
-        action: drop
-        log: true
-        comment: IoT isolated from user and management
-      # User cannot access management plane
-      - from: user
-        to: management
-        action: drop
-        log: true
-        comment: User cannot access management zone
-      # VPN tunnel isolation — internet only via WireGuard
-      - from: vpn_tunnel
-        to: [user, iot, guest, servers, management]
-        action: drop
-        log: true
-        comment: VPN tunnel isolated from all internal zones
-      # Allow established/related return traffic (implicit, but explicit for clarity)
-      - from: any
-        to: any
-        state: [established, related]
-        action: accept
-        comment: Allow established and related connections
+    forward_rules: 24
+    notes: ADR-0110 zone firewall rules managed via security_matrix
+    # Zone policies now auto-generated from inst.security_matrix.mikrotik
   wireguard:
     configured: true
     interfaces:

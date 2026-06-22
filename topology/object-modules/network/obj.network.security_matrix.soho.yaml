@@ -1,0 +1,37 @@
+@object: obj.network.security_matrix.soho
+@extends: class.network.security_matrix
+@title: SOHO Perimeter Security Matrix
+@description: |
+  Standard perimeter security matrix for SOHO networks.
+  Manages inter-VLAN routing and firewall policies on the edge router.
+  Based on 6-zone architecture from ADR-0109.
+@version: 1.0.0
+
+name: soho-perimeter
+enforcement_plane: perimeter
+
+# Standard SOHO zone references (resolved to instances per project)
+zone_refs:
+  - obj.network.trust_zone.untrusted
+  - obj.network.trust_zone.guest
+  - obj.network.trust_zone.iot
+  - obj.network.trust_zone.user
+  - obj.network.trust_zone.servers
+  - obj.network.trust_zone.management
+
+defaults:
+  dns_servers: [1.1.1.1, 8.8.8.8]
+  mtu: 1500
+  dhcp_lease_time: "30m"
+
+# Standard SOHO policy overrides (exceptions to implicit matrix rules)
+# Override user→servers: partial access by port (R6 overrides R4 uphill default)
+policy_overrides:
+  - name: user-to-servers-http
+    from_zone_ref: obj.network.trust_zone.user
+    to_zone_ref: obj.network.trust_zone.servers
+    action: accept
+    ports:
+      tcp: [80, 443]
+    log: false
+    comment: User HTTP/HTTPS to server zone

@@ -1,0 +1,21 @@
+@object: obj.network.security_matrix.proxmox_servers
+@extends: class.network.security_matrix
+@title: Proxmox Servers Zone Internal Security Matrix
+@description: |
+  Internal security matrix for Proxmox VE hypervisor.
+  Manages LXC/VM isolation within the servers zone via Proxmox Firewall CT-level rules.
+  Scope: intra-zone only (servers zone). Inter-zone policies are the perimeter matrix's responsibility.
+@version: 1.0.0
+
+name: proxmox-servers-internal
+enforcement_plane: internal
+
+zone_refs:
+  - obj.network.trust_zone.servers
+
+defaults:
+  mtu: 1500
+
+# Proxmox intra-zone defaults: deny all lateral by default.
+# policy_overrides must be explicit for any cross-container communication.
+policy_overrides: []

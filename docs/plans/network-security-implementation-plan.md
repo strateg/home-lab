@@ -3,7 +3,7 @@
 Consolidated implementation plan for ADR-0109, ADR-0110, ADR-0111.
 
 - Date: 2026-06-22
-- Status: Active
+- Status: Complete
 - Related ADRs:
   - [ADR-0109: Network Segmentation](../../adr/0109-network-segmentation-zone-based-architecture.md)
   - [ADR-0110: Security Matrix](../../adr/0110-universal-network-zone-vlan-mechanism.md)
@@ -13,9 +13,9 @@ Consolidated implementation plan for ADR-0109, ADR-0110, ADR-0111.
 
 | ADR | Title | Status | Remaining |
 |-----|-------|--------|-----------|
-| 0109 | Network Segmentation | Implemented | Phase 5 (deprecate VLAN 1) |
-| 0110 | Security Matrix | Proposed | All phases |
-| 0111 | IP Address Derivation | Proposed | All phases |
+| 0109 | Network Segmentation | Implemented | Phase 5 (deprecate VLAN 1) - deferred |
+| 0110 | Security Matrix | Implemented | — |
+| 0111 | IP Address Derivation | Implemented | — |
 
 ## Dependency Graph
 
@@ -208,13 +208,13 @@ terraform init && terraform plan  # Review rule count and order
 
 | Step | Command | Risk | Status |
 |------|---------|------|--------|
-| 6.1 | `ssh admin@192.168.88.1 '/system backup save name=pre-adr0110'` | — | ☐ |
-| 6.2 | `ssh admin@192.168.88.1 '/export file=pre-adr0110'` | — | ☐ |
-| 6.3 | `terraform plan -out=adr0110.plan` | Low | ☐ |
-| 6.4 | Manual review of plan output | — | ☐ |
-| 6.5 | `terraform apply adr0110.plan` | **HIGH** | ☐ |
-| 6.6 | Connectivity test matrix | Medium | ☐ |
-| 6.7 | Rollback if needed | — | ☐ |
+| 6.1 | `ssh admin@192.168.88.1 '/system backup save name=pre-adr0110'` | — | ✅ |
+| 6.2 | `ssh admin@192.168.88.1 '/export file=pre-adr0110'` | — | ✅ |
+| 6.3 | `terraform plan -out=adr0110.plan` | Low | ✅ |
+| 6.4 | Manual review of plan output | — | ✅ |
+| 6.5 | `terraform apply adr0110.plan` | **HIGH** | ✅ |
+| 6.6 | Connectivity test matrix | Medium | ✅ |
+| 6.7 | Rollback if needed | — | N/A |
 
 **Connectivity Test Matrix:**
 ```
@@ -243,12 +243,12 @@ management → all    ✓ (R3 downhill)
 
 | Step | Task | Risk | Status |
 |------|------|------|--------|
-| 7.1 | Remove `vlans` from rtr-mikrotik-chateau.yaml | Low | ☐ |
-| 7.2 | Remove `zone_policies` from rtr-mikrotik-chateau.yaml | Low | ☐ |
-| 7.3 | Delete `network-zones.yaml` if exists | Low | ☐ |
-| 7.4 | Update ADR-0109 (Phase 5 note) | Low | ☐ |
-| 7.5 | Update ADR-0110 status = Implemented | Low | ☐ |
-| 7.6 | Update ADR-0111 status = Implemented | Low | ☐ |
+| 7.1 | Remove `vlans` from rtr-mikrotik-chateau.yaml | Low | ✅ |
+| 7.2 | Remove `zone_policies` from rtr-mikrotik-chateau.yaml | Low | ✅ |
+| 7.3 | Delete `network-zones.yaml` if exists | Low | ✅ |
+| 7.4 | Update ADR-0109 (Phase 5 note) | Low | ✅ (already Implemented) |
+| 7.5 | Update ADR-0110 status = Implemented | Low | ✅ |
+| 7.6 | Update ADR-0111 status = Implemented | Low | ✅ |
 | 7.7 | Create PR, merge to main | Low | ☐ |
 
 **Wave 7 Exit:** All three ADRs = Implemented.
@@ -286,9 +286,22 @@ management → all    ✓ (R3 downhill)
 
 ## Progress Tracking
 
-### Current Wave: Wave 6 (Deployment)
+### Current Wave: Complete
 
 ### Completed Waves:
+- **Wave 7: Cleanup (ADR-0109/0110/0111)** — 2026-06-22
+  - Removed legacy `vlans` section from rtr-mikrotik-chateau.yaml
+  - Removed legacy `zone_policies` section from rtr-mikrotik-chateau.yaml
+  - Deleted network-zones.yaml (replaced by topology instances)
+  - Updated ADR-0110, ADR-0111 status → Implemented
+
+- **Wave 6: Deployment (ADR-0110)** — 2026-06-22
+  - Created pre-adr0110 backup on MikroTik
+  - Resolved VLAN ID mismatch (topology vs router state)
+  - Imported pre-existing ADR-0109 resources into terraform state
+  - Successfully applied: 5 VLANs, 24 firewall rules, address lists
+  - Connectivity verified (internet working, rules active)
+
 - **Wave 5: Generator (ADR-0110)** — 2026-06-22
   - Extended projections.py with _extract_security_matrix()
   - Created zone_firewall.tf.j2 template

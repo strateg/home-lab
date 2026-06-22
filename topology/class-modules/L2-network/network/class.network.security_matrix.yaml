@@ -1,0 +1,106 @@
+@class: class.network.security_matrix
+@title: Network Security Matrix
+@description: |
+  Zone-to-zone security policy matrix with automatic rule derivation.
+  One matrix per enforcement plane (M1-B: one matrix = one enforcer).
+  Perimeter matrices manage inter-VLAN/WAN policies (e.g. MikroTik).
+  Internal matrices manage intra-zone workload isolation (e.g. Proxmox VE).
+@layer: L2
+@version: 1.0.0
+
+properties:
+  required:
+    - name
+    - enforcement_plane
+    - zone_refs
+    - managed_by_ref
+  optional:
+    - description
+    - address_space
+    - defaults
+    - policy_overrides
+
+property_schemas:
+  name:
+    type: string
+    description: Matrix identifier
+
+  enforcement_plane:
+    type: string
+    enum: [perimeter, internal]
+    description: |
+      perimeter — inter-VLAN / WAN enforcement on an edge router (RouterOS, OpenWrt, VyOS)
+      internal  — intra-zone workload enforcement on a hypervisor (Proxmox VE, KVM)
+
+  zone_refs:
+    type: array
+    items:
+      type: string
+      format: instance_ref
+      target_class: class.network.trust_zone
+    description: Trust zone instances participating in this matrix
+
+  managed_by_ref:
+    type: string
+    format: instance_ref
+    description: Single enforcement device responsible for this matrix (router or hypervisor)
+
+  address_space:
+    type: object
+    description: |
+      VLANs whose address space this matrix controls.
+      VLAN instance CIDR is the canonical source for all derived host IPs (ADR-0110 sec 1.5).
+    properties:
+      vlan_refs:
+        type: array
+        items:
+          type: string
+          format: instance_ref
+          target_class: class.network.vlan
+        description: VLAN instances whose cidr field is authoritative for this plane
+
+  defaults:
+    type: object
+    properties:
+      dns_servers:
+        type: array
+        items: { type: string, format: ipv4 }
+      mtu:
+        type: integer
+        default: 1500
+      dhcp_lease_time:
+        type: string
+        default: "30m"
+
+  policy_overrides:
+    type: array
+    description: |
+      Explicit exceptions to matrix-derived rules (R6 in evaluation order).
+      Evaluated FIRST — short-circuit all implicit rules.
+    items:
+      type: object
+      required: [name, from_zone_ref, to_zone_ref, action]
+      properties:
+        name:
+          type: string
+        from_zone_ref:
+          type: string
+          format: instance_ref
+          target_class: class.network.trust_zone
+        to_zone_ref:
+          type: string
+          format: instance_ref
+          target_class: class.network.trust_zone
+        action:
+          type: string
+          enum: [accept, drop]
+        ports:
+          type: object
+          properties:
+            tcp: { type: array, items: { type: integer } }
+            udp: { type: array, items: { type: integer } }
+        log:
+          type: boolean
+          default: false
+        comment:
+          type: string

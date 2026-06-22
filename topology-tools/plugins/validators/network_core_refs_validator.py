@@ -27,6 +27,7 @@ class NetworkCoreRefsValidator(ValidatorJsonPlugin):
         "class.network.data_link",
         "class.network.physical_link",
         "class.network.qos",
+        "class.network.security_matrix",  # ADR-0110: managed_by_ref may be router OR hypervisor
     }
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:

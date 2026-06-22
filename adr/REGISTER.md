@@ -111,3 +111,4 @@
 | [0107](0107-host-placement-defaults-and-on-directive.md) | Host Placement Defaults with `@on` Directive | **Implemented** | 2026-06-17 | 2026-06-18 | - |
 | [0108](0108-specification-driven-development-contract.md) | Specification-Driven Development Contract | **Proposed** | 2026-06-19 | - | - |
 | [0109](0109-network-segmentation-zone-based-architecture.md) | Network Segmentation with Zone-Based Architecture | **Implemented** | 2026-06-22 | - | - |
+| [0110](0110-universal-network-zone-vlan-mechanism.md) | Universal Network Zone and VLAN Configuration Mechanism | **Proposed** | 2026-06-22 | - | - |

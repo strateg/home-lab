@@ -1,6 +1,6 @@
 # ADR 0110: Security Matrix and Trust Zone Configuration
 
-- Status: Proposed
+- Status: Implemented
 - Date: 2026-06-22
 - Revised: 2026-06-22 (SPC analysis + Class→Object→Instance + Multi-platform adapters)
 - Revised: 2026-06-22 (SPC Step 6 — M1-B two-matrix + Trust Zone/VLAN separation)

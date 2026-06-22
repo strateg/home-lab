@@ -54,6 +54,27 @@
       "action": "warn",
       "ownership_method": "output_prefix_match",
       "ownership_proven": true,
+      "path": "generated/home-lab/terraform/mikrotik/adr0110-final.plan",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/terraform/mikrotik/adr0110-fix.plan",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/terraform/mikrotik/adr0110.plan",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
       "path": "generated/home-lab/terraform/mikrotik/pbr_vpn_germany.tf",
       "reason": "obsolete-shadowed"
     },
@@ -90,6 +111,27 @@
       "ownership_method": "output_prefix_match",
       "ownership_proven": true,
       "path": "generated/home-lab/terraform/mikrotik/terraform.tfstate.1781942513.backup",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/terraform/mikrotik/terraform.tfstate.1782157230.backup",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/terraform/mikrotik/terraform.tfstate.1782157298.backup",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/terraform/mikrotik/terraform.tfstate.1782157347.backup",
       "reason": "obsolete-shadowed"
     },
     {
@@ -198,6 +240,13 @@
       "renderer": "jinja2",
       "required": true,
       "template": "terraform/wifi.tf.j2"
+    },
+    {
+      "path": "generated/home-lab/terraform/mikrotik/zone_firewall.tf",
+      "reason": "base-family",
+      "renderer": "jinja2",
+      "required": true,
+      "template": "terraform/zone_firewall.tf.j2"
     },
     {
       "path": "generated/home-lab/terraform/mikrotik/wifi-config.rsc",

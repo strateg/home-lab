@@ -54,6 +54,7 @@ class DeclarativeReferenceValidator(ValidatorJsonPlugin):
         "class.network.data_link",
         "class.network.physical_link",
         "class.network.qos",
+        "class.network.security_matrix",  # ADR-0110: managed_by_ref may be router OR hypervisor
     }
     _POWER_ALLOWED_SOURCE_LAYER = "L1"
     _POWER_ALLOWED_TARGET_LAYER = "L1"

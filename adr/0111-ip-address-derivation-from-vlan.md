@@ -1,6 +1,6 @@
 # ADR 0111: IP Address Derivation from VLAN Instances
 
-- Status: Proposed
+- Status: Implemented
 - Date: 2026-06-22
 - Related: ADR-0110 (Security Matrix), ADR-0044 (Instance References), ADR-0109 (Network Segmentation)
 - Implementation: [Network Security Implementation Plan](../docs/plans/network-security-implementation-plan.md)
