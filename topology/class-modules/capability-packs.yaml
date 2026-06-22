@@ -368,3 +368,128 @@ packs:
       - cap.operations.backup.snapshot
       - cap.operations.automation.scheduled
       - cap.operations.policy.lifecycle
+
+  # ===========================================================================
+  # L2 - Network Security Packs (ADR-0109, ADR-0110, ADR-0111)
+  # ===========================================================================
+
+  - id: pack.zone.security_matrix.soho
+    title: SOHO Security Matrix
+    summary: Zone-based security for small office/home office with 7 trust zones.
+    class_ref: class.network.security_matrix
+    capabilities:
+      - cap.zone.security_matrix
+      - cap.zone.security_matrix.r1_r6
+      - cap.firewall.zone_policy
+      - cap.firewall.address_lists
+      - cap.firewall.logging
+    adr_refs:
+      - "0109"
+      - "0110"
+
+  - id: pack.zone.security_matrix.routeros
+    title: RouterOS Security Matrix
+    summary: MikroTik RouterOS-specific security matrix enforcement.
+    class_ref: class.network.security_matrix
+    capabilities:
+      - cap.zone.security_matrix
+      - cap.zone.security_matrix.r1_r6
+      - cap.zone.security_matrix.routeros
+      - cap.firewall.zone_policy
+      - cap.firewall.address_lists
+      - cap.firewall.stateful
+      - cap.firewall.logging
+    adr_refs:
+      - "0110"
+
+  - id: pack.zone.security_matrix.proxmox
+    title: Proxmox Security Matrix
+    summary: Proxmox pve-firewall security matrix enforcement.
+    class_ref: class.network.security_matrix
+    capabilities:
+      - cap.zone.security_matrix
+      - cap.zone.security_matrix.r1_r6
+      - cap.zone.security_matrix.pve_firewall
+      - cap.firewall.zone_policy
+      - cap.firewall.stateful
+      - cap.firewall.logging
+    adr_refs:
+      - "0110"
+
+  - id: pack.vlan.zone_aware
+    title: Zone-Aware VLAN
+    summary: VLAN with trust zone association and IP derivation support.
+    class_ref: class.network.vlan
+    capabilities:
+      - cap.vlan.trust_zone_ref
+      - cap.vlan.ip_derivation
+      - cap.vlan.tagging
+    adr_refs:
+      - "0110"
+      - "0111"
+
+  - id: pack.zone.trust.management
+    title: Management Trust Zone
+    summary: Highest trust zone for infrastructure management.
+    class_ref: class.network.trust_zone
+    capabilities:
+      - cap.zone.trust_level.5
+      - cap.zone.management
+    adr_refs:
+      - "0109"
+
+  - id: pack.zone.trust.servers
+    title: Servers Trust Zone
+    summary: High trust zone for server workloads.
+    class_ref: class.network.trust_zone
+    capabilities:
+      - cap.zone.trust_level.4
+    adr_refs:
+      - "0109"
+
+  - id: pack.zone.trust.user
+    title: User Trust Zone
+    summary: Medium trust zone for end-user devices.
+    class_ref: class.network.trust_zone
+    capabilities:
+      - cap.zone.trust_level.3
+    adr_refs:
+      - "0109"
+
+  - id: pack.zone.trust.vpn_tunnel
+    title: VPN Tunnel Trust Zone
+    summary: Medium-low trust zone for VPN tunneled traffic.
+    class_ref: class.network.trust_zone
+    capabilities:
+      - cap.zone.trust_level.2
+    adr_refs:
+      - "0109"
+
+  - id: pack.zone.trust.iot
+    title: IoT Trust Zone
+    summary: Low trust zone for IoT devices (isolated).
+    class_ref: class.network.trust_zone
+    capabilities:
+      - cap.zone.trust_level.1
+      - cap.zone.isolated
+    adr_refs:
+      - "0109"
+
+  - id: pack.zone.trust.guest
+    title: Guest Trust Zone
+    summary: Lowest trust zone for guest networks (isolated).
+    class_ref: class.network.trust_zone
+    capabilities:
+      - cap.zone.trust_level.0
+      - cap.zone.isolated
+    adr_refs:
+      - "0109"
+
+  - id: pack.zone.trust.untrusted
+    title: Untrusted Zone
+    summary: External/internet zone with no trust.
+    class_ref: class.network.trust_zone
+    capabilities:
+      - cap.zone.trust_level.0
+    adr_refs:
+      - "0109"
