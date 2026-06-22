@@ -1,14 +1,15 @@
-# ADR 0110: Universal Network Zone and VLAN Configuration Mechanism
+# ADR 0110: Security Matrix and Trust Zone Configuration
 
 - Status: Proposed
 - Date: 2026-06-22
 - Revised: 2026-06-22 (SPC analysis + Class→Object→Instance + Multi-platform adapters)
-- Revised: 2026-06-22 (SPC Step 6 — M1-B two-matrix + Trust Zone/VLAN separation + IP derivation)
-- Related: ADR-0109 (Network Segmentation), ADR-0063 (Plugin Microkernel), ADR-0074 (V5 Generator Architecture)
+- Revised: 2026-06-22 (SPC Step 6 — M1-B two-matrix + Trust Zone/VLAN separation)
+- Revised: 2026-06-22 (Split: IP derivation moved to ADR-0111)
+- Related: ADR-0109 (Network Segmentation), ADR-0111 (IP Address Derivation), ADR-0063 (Plugin Microkernel), ADR-0074 (V5 Generator Architecture)
 
 ## SPC Revision Note (2026-06-22)
 
-SPC Step 6 incorporates three architectural decisions:
+SPC Step 6 incorporates two architectural decisions (IP derivation moved to ADR-0111):
 
 **M1-B — One matrix per enforcer:**
 The `managed_by_ref` field remains a single reference. Each enforcement plane
@@ -20,10 +21,6 @@ gets its own `inst.security_matrix.*` instance:
 Trust Zone and VLAN are separate entities. Multiple VLANs can belong to one Trust Zone.
 Security matrix operates on Zones; firewall rules are generated for all VLAN CIDRs
 within each zone. See Section 1.5.
-
-**IP Address Derivation (ADR-0044 extension):**
-IP addresses are NOT stored as raw values in workload instances (LXC, VM, container).
-They are derived from `vlan_ref + host` at compile time. See Section 1.6.
 
 ## Context
 
@@ -360,57 +357,13 @@ ctx.publish("zone_vlans", {
 
 #### 1.6 IP Address Derivation
 
-**Problem (PC-2, SPC Step 3):** IP addresses were hardcoded in workload instances
-(LXC, VM, container). Changing a subnet required updating every file individually.
-
-**Solution (M2a-C + M2b-C + M2c-A):** IP is derived from `vlan_ref + host` at
-compile time. The VLAN instance CIDR is the single source of truth.
-
-**Pattern in workload instances:**
-
-```yaml
-# BEFORE (hardcoded — forbidden after ADR-0110):
-network:
-  ip: 10.0.30.10/24
-
-# AFTER (derived — ADR-0110 canonical pattern):
-network:
-  vlan_ref: inst.vlan.servers
-  host: 10
-# Compiler resolves: inst.vlan.servers.cidr = 10.0.30.0/24 → 10.0.30.10/24
-```
-
-**Resolution algorithm (compiler):**
-
-```
-1. Resolve vlan_ref → VLAN instance
-2. Read instance.cidr (e.g., "10.0.30.0/24")
-3. Extract network base: "10.0.30"
-4. Compose host IP: base + "." + host = "10.0.30.10"
-5. Append prefix: "10.0.30.10/24"
-6. Gateway = base + ".1" (always host 1 — matches VLAN object convention)
-```
-
-**Centralization guarantee:**
-To renumber the entire servers subnet from `10.0.30.0/24` to `10.0.50.0/24`,
-change **one field** in `inst.vlan.servers` (or `obj.network.vlan.servers`).
-All derived host IPs follow automatically at next compilation.
-
-**Servers zone inventory (current):**
-
-| host | Workload | Derived IP |
-|------|----------|-----------|
-| 1 | gateway (vmbr0) | 10.0.30.1 |
-| 5 | srv-orangepi5 | 10.0.30.5 |
-| 10 | lxc-postgresql | 10.0.30.10 |
-| 20 | lxc-redis | 10.0.30.20 |
-| 30 | lxc-nextcloud | 10.0.30.30 |
-| 40 | lxc-gitea | 10.0.30.40 |
-| 60 | lxc-grafana | 10.0.30.60 |
-| 70 | lxc-prometheus | 10.0.30.70 |
-| 80 | lxc-nginx-proxy | 10.0.30.80 |
-| 90 | lxc-docker | 10.0.30.90 |
-| 100 | lxc-homeassistant | 10.0.30.100 |
+> **See ADR-0111:** IP Address Derivation from VLAN Instances
+>
+> IP addresses in workload instances use `vlan_ref + host` pattern.
+> The VLAN CIDR is the single source of truth. ADR-0111 defines:
+> - Resolution algorithm (vlan_ref + host → full IP)
+> - Validation rules (E7861-E7865)
+> - Migration plan for existing hardcoded IPs
 
 #### 1.4 Multi-Platform Target Devices
 
@@ -781,14 +734,7 @@ resource "routeros_ip_firewall_filter" "drop_all_forward" {
 | E7853 | Error | policy_override from/to must reference existing zones |
 | W7860 | Warning | Zone referenced in matrix has no VLANs assigned (empty zone) |
 
-**IP Address Derivation Validation:**
-
-| Code | Severity | Rule |
-|------|----------|------|
-| E7861 | Error | Duplicate host number within same vlan_ref |
-| E7862 | Error | host: 1 is reserved for VLAN gateway |
-| E7863 | Error | host number exceeds VLAN CIDR host range |
-| W7864 | Warning | Workload has hardcoded IP instead of vlan_ref + host pattern |
+**IP Address Derivation Validation:** See ADR-0111 (E7861-E7865)
 
 **Firewall Generation Validation:**
 
@@ -971,32 +917,9 @@ task build && task validate  # Must pass
 ```
 
 ### Phase 2: IP Address Derivation Migration
-**Goal:** Eliminate hardcoded IPs, use vlan_ref + host pattern.
-**Exit Criteria:** No W7864 warnings after compilation.
 
-| Task | Status | Files Count |
-|------|--------|-------------|
-| Migrate LXC instances to `{vlan_ref, host}` | ☐ | 9 files |
-| Migrate srv-gamayun gateway reference | ☐ | 1 file |
-| Migrate srv-orangepi5 gateway reference | ☐ | 1 file |
-| Delete `network-zones.yaml` if exists | ☐ | 1 file |
-
-**Migration Script (one-liner per file):**
-```yaml
-# BEFORE:
-network:
-  ip: 10.0.30.10/24
-
-# AFTER:
-network:
-  vlan_ref: inst.vlan.servers
-  host: 10
-```
-
-**Acceptance Test:**
-```bash
-task validate 2>&1 | grep -c W7864  # Must be 0
-```
+> **See ADR-0111** for IP derivation implementation plan.
+> This phase migrates 9 LXC + 2 server instances to `vlan_ref + host` pattern.
 
 ### Phase 3: Compiler Plugin
 **Goal:** Build security matrix at compile time.
@@ -1174,7 +1097,7 @@ management → all    ✓ (R3 downhill)
 | S2 | Automatic policy derivation (R1-R6) — no manual firewall writing |
 | S3 | M1-B multi-enforcer — perimeter (MikroTik) + internal (Proxmox) |
 | S4 | Trust Zone vs VLAN separation — many VLANs per zone |
-| S5 | IP derivation (vlan_ref + host) — single source for subnets |
+| S5 | IP derivation (vlan_ref + host) — see ADR-0111 |
 | S6 | Multi-platform adapters — RouterOS, OpenWrt, Proxmox |
 | S7 | Cisco-aligned implicit deny — final drop-all rule |
 | S8 | Intra-zone micro-segmentation — R1a/R1b enforcement_plane |
@@ -1189,7 +1112,7 @@ management → all    ✓ (R3 downhill)
 | W2 | No rollback automation | Add rollback playbook |
 | W3 | Two compilers needed | Could combine |
 | W4 | No CI integration | Add to lane.py |
-| W5 | Migration burden (9 files) | Script migration |
+| W5 | Migration burden (9 files) | See ADR-0111 |
 | W6 | No unit tests yet | Add pytest fixtures |
 | W7 | Documentation spread | Single entry point |
 | W8 | No dry-run mode | Add --dry-run flag |
@@ -1234,5 +1157,5 @@ management → all    ✓ (R3 downhill)
 | F8: Two matrices per project | ✅ Added Section 1.3 M1-B (perimeter + internal) |
 | F9: Trust Zone vs VLAN separation | ✅ Added Section 1.5 (many VLANs → one zone) |
 | F10: Intra-zone micro-segmentation | ✅ Added Section 2.4 R1a/R1b (enforcement_plane) |
-| F11: IP address derivation | ✅ Added Section 1.6 (vlan_ref + host pattern) |
-| F12: Host uniqueness validation | ✅ Added E7861, E7862, E7863 validation rules |
+| F11: IP address derivation | ✅ Moved to ADR-0111 (vlan_ref + host pattern) |
+| F12: Host uniqueness validation | ✅ Moved to ADR-0111 (E7861-E7865 validation rules) |
