@@ -101,6 +101,9 @@ class TerraformMikroTikGenerator(BaseGenerator):
         runtime_baseline["dhcp"].setdefault("enabled", False)
         mikrotik_host = self._resolve_mikrotik_host(ctx=ctx, routers=routers)
 
+        # Extract security matrix from projection (ADR 0110)
+        router_matrix = projection.get("security_matrix", {})
+
         # Extract capability flags from projection
         caps = projection.get("capabilities", {})
         # Normalize has_qos for backwards compatibility (can be basic or advanced)
@@ -157,6 +160,9 @@ class TerraformMikroTikGenerator(BaseGenerator):
             "wifi_securities": wifi_securities,
             # Bridge VLAN entries
             "bridge_vlans": bridge_vlans,
+            # Security matrix data (ADR 0110)
+            "security_matrix": router_matrix,
+            "has_security_matrix": bool(router_matrix and router_matrix.get("zones")),
             # Capability flags for conditional blocks in templates
             **normalized_caps,
         }
@@ -166,6 +172,7 @@ class TerraformMikroTikGenerator(BaseGenerator):
             "provider.tf": "terraform/provider.tf.j2",
             "interfaces.tf": "terraform/interfaces.tf.j2",
             "firewall.tf": "terraform/firewall.tf.j2",
+            "zone_firewall.tf": "terraform/zone_firewall.tf.j2",
             "dhcp.tf": "terraform/dhcp.tf.j2",
             "dns.tf": "terraform/dns.tf.j2",
             "addresses.tf": "terraform/addresses.tf.j2",

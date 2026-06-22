@@ -173,13 +173,13 @@ task validate 2>&1 | grep E7850
 
 | Step | Task | Files | Risk | Status |
 |------|------|-------|------|--------|
-| 5.1 | Extend `projections.py` for matrix | 1 | Medium | ☐ |
-| 5.2 | Create `zone_firewall.tf.j2` template | 1 | Medium | ☐ |
-| 5.3 | Address lists per zone | (in 5.2) | Low | ☐ |
-| 5.4 | Established/related rule | (in 5.2) | Low | ☐ |
-| 5.5 | Policy override ACCEPT rules | (in 5.2) | Low | ☐ |
-| 5.6 | Matrix DENY rules (place_before) | (in 5.2) | **High** | ☐ |
-| 5.7 | Final drop-all rule | (in 5.2) | Low | ☐ |
+| 5.1 | Extend `projections.py` for matrix | 1 | Medium | ✅ |
+| 5.2 | Create `zone_firewall.tf.j2` template | 1 | Medium | ✅ |
+| 5.3 | Address lists per zone | (in 5.2) | Low | ✅ |
+| 5.4 | Established/related rule | (in 5.2) | Low | ✅ |
+| 5.5 | Policy override ACCEPT rules | (in 5.2) | Low | ✅ |
+| 5.6 | Matrix DENY rules (place_before) | (in 5.2) | **High** | ✅ |
+| 5.7 | Final drop-all rule | (in 5.2) | Low | ✅ |
 
 **Rule Ordering (CRITICAL):**
 ```
@@ -286,9 +286,16 @@ management → all    ✓ (R3 downhill)
 
 ## Progress Tracking
 
-### Current Wave: Wave 5 (Generator)
+### Current Wave: Wave 6 (Deployment)
 
 ### Completed Waves:
+- **Wave 5: Generator (ADR-0110)** — 2026-06-22
+  - Extended projections.py with _extract_security_matrix()
+  - Created zone_firewall.tf.j2 template
+  - Generated: 7 zone address lists, established/related rule,
+    2 policy overrides, 20 DENY rules, final DROP-ALL
+  - Generator updated to pass security_matrix to templates
+
 - **Wave 4: Validators (ADR-0110+0111)** — 2026-06-22
   - Created network_security_validator.py with E7850, E7851, E7853, W7855, W7856, W7860
   - E7861-E7865, W7864 already in ip_derivation_compiler.py
@@ -325,6 +332,7 @@ management → all    ✓ (R3 downhill)
 
 | Date | Change |
 |------|--------|
+| 2026-06-22 | Wave 5 completed: zone_firewall.tf.j2 generator |
 | 2026-06-22 | Wave 4 completed: network_security_validator.py |
 | 2026-06-22 | Wave 3 completed: security_matrix_compiler.py with R1-R6 rules |
 | 2026-06-22 | Wave 2 verified complete: all security_matrix files exist |

@@ -1,0 +1,159 @@
+# MikroTik Zone-Based Firewall Rules (ADR 0110)
+# Generated from security_matrix: {{ security_matrix.get('instance_id', 'unknown') }}
+#
+# Rule Order (CRITICAL - MikroTik default-allow requires explicit deny):
+# 1. Established/related → accept
+# 2. Policy override ACCEPTs → accept
+# 3. Matrix DENY (isolated) → drop + log
+# 4. Matrix DENY (uphill) → drop + log
+# 5. Matrix ALLOW (downhill) → accept
+# 6. FINAL DROP-ALL → drop + log
+
+{% if has_security_matrix %}
+{% set zones = security_matrix.get('zones', {}) %}
+{% set matrix = security_matrix.get('matrix', {}) %}
+{% set policy_overrides = security_matrix.get('policy_overrides', []) %}
+
+# ==============================================================================
+# Zone Address Lists
+# ==============================================================================
+{% for zone_ref, zone_data in zones.items() %}
+{% set zone_name = zone_ref.replace('inst.trust_zone.', '').replace('.', '_') %}
+{% set zone_cidrs = zone_data.get('cidrs', []) %}
+{% if zone_cidrs %}
+{% for cidr in zone_cidrs %}
+resource "routeros_ip_firewall_addr_list" "zone_{{ zone_name }}_{{ loop.index }}" {
+  list    = "zone-{{ zone_name }}"
+  address = "{{ cidr }}"
+  comment = "Zone: {{ zone_data.get('name', zone_name) }} (level={{ zone_data.get('security_level', 0) }}{% if zone_data.get('isolated') %}, isolated{% endif %}) - managed by topology"
+}
+
+{% endfor %}
+{% endif %}
+{% endfor %}
+
+# ==============================================================================
+# 1. Established/Related Rule (FIRST)
+# ==============================================================================
+resource "routeros_ip_firewall_filter" "zone_established_related" {
+  chain            = "forward"
+  action           = "accept"
+  connection_state = "established,related"
+  comment          = "ADR-0110: Accept established/related - managed by topology"
+}
+
+# ==============================================================================
+# 2. Policy Override ACCEPT Rules
+# ==============================================================================
+{% for override in policy_overrides %}
+{% if override.get('action') == 'accept' %}
+{% set override_name = override.get('name', 'unnamed').replace('-', '_').replace('.', '_') %}
+{% set from_zone = override.get('from_zone_ref', '').replace('inst.trust_zone.', '').replace('.', '_') %}
+{% set to_zone = override.get('to_zone_ref', '').replace('inst.trust_zone.', '').replace('.', '_') %}
+{% set ports = override.get('ports', {}) %}
+{% if ports.get('tcp') %}
+resource "routeros_ip_firewall_filter" "zone_override_{{ override_name }}_tcp" {
+  chain            = "forward"
+  action           = "accept"
+  src_address_list = "zone-{{ from_zone }}"
+  dst_address_list = "zone-{{ to_zone }}"
+  protocol         = "tcp"
+  dst_port         = "{{ ports.get('tcp') | join(',') }}"
+  comment          = "ADR-0110 R6: {{ override.get('comment', override.get('name', 'override')) }} - managed by topology"
+  depends_on       = [routeros_ip_firewall_filter.zone_established_related]
+}
+
+{% endif %}
+{% if ports.get('udp') %}
+resource "routeros_ip_firewall_filter" "zone_override_{{ override_name }}_udp" {
+  chain            = "forward"
+  action           = "accept"
+  src_address_list = "zone-{{ from_zone }}"
+  dst_address_list = "zone-{{ to_zone }}"
+  protocol         = "udp"
+  dst_port         = "{{ ports.get('udp') | join(',') }}"
+  comment          = "ADR-0110 R6: {{ override.get('comment', override.get('name', 'override')) }} - managed by topology"
+  depends_on       = [routeros_ip_firewall_filter.zone_established_related]
+}
+
+{% endif %}
+{% if not ports %}
+resource "routeros_ip_firewall_filter" "zone_override_{{ override_name }}" {
+  chain            = "forward"
+  action           = "accept"
+  src_address_list = "zone-{{ from_zone }}"
+  dst_address_list = "zone-{{ to_zone }}"
+  comment          = "ADR-0110 R6: {{ override.get('comment', override.get('name', 'override')) }} - managed by topology"
+  depends_on       = [routeros_ip_firewall_filter.zone_established_related]
+}
+
+{% endif %}
+{% endif %}
+{% endfor %}
+
+# ==============================================================================
+# 3-4. Matrix DENY Rules (isolated and uphill)
+# ==============================================================================
+{% for from_zone, to_zones in matrix.items() %}
+{% for to_zone, cell in to_zones.items() %}
+{% if cell.get('action') == 'deny' %}
+{% set from_name = from_zone.replace('inst.trust_zone.', '').replace('.', '_') %}
+{% set to_name = to_zone.replace('inst.trust_zone.', '').replace('.', '_') %}
+{% set rule = cell.get('rule', '') %}
+{% set reason = cell.get('reason', '') %}
+resource "routeros_ip_firewall_filter" "zone_deny_{{ from_name }}_to_{{ to_name }}" {
+  chain            = "forward"
+  action           = "drop"
+  src_address_list = "zone-{{ from_name }}"
+  dst_address_list = "zone-{{ to_name }}"
+{% if cell.get('log', true) %}
+  log              = true
+  log_prefix       = "DENY:{{ from_name }}→{{ to_name }}"
+{% endif %}
+  comment          = "ADR-0110 {{ rule }}: {{ reason }} - managed by topology"
+  depends_on       = [routeros_ip_firewall_filter.zone_established_related]
+}
+
+{% endif %}
+{% endfor %}
+{% endfor %}
+
+# ==============================================================================
+# 5. Matrix ALLOW Rules (downhill - optional, implicit in MikroTik default-allow)
+# ==============================================================================
+# Note: MikroTik has default-allow, so ALLOW rules are optional.
+# Uncomment if you want explicit ALLOW rules for audit/logging.
+{% for from_zone, to_zones in matrix.items() %}
+{% for to_zone, cell in to_zones.items() %}
+{% if cell.get('action') == 'allow' and from_zone != to_zone %}
+{% set from_name = from_zone.replace('inst.trust_zone.', '').replace('.', '_') %}
+{% set to_name = to_zone.replace('inst.trust_zone.', '').replace('.', '_') %}
+{% set rule = cell.get('rule', '') %}
+# resource "routeros_ip_firewall_filter" "zone_allow_{{ from_name }}_to_{{ to_name }}" {
+#   chain            = "forward"
+#   action           = "accept"
+#   src_address_list = "zone-{{ from_name }}"
+#   dst_address_list = "zone-{{ to_name }}"
+#   comment          = "ADR-0110 {{ rule }}: {{ cell.get('reason', '') }} - managed by topology"
+# }
+
+{% endif %}
+{% endfor %}
+{% endfor %}
+
+# ==============================================================================
+# 6. FINAL DROP-ALL Rule (MANDATORY)
+# ==============================================================================
+resource "routeros_ip_firewall_filter" "zone_drop_all_forward" {
+  chain      = "forward"
+  action     = "drop"
+  log        = true
+  log_prefix = "DROP:final"
+  comment    = "ADR-0110: Final drop-all (implicit deny policy) - managed by topology"
+  depends_on = [routeros_ip_firewall_filter.zone_established_related]
+}
+
+{% else %}
+# Security matrix not configured for this router.
+# Using fallback firewall rules from firewall.tf
+{% endif %}

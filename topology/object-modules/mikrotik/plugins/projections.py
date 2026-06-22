@@ -296,6 +296,204 @@ def _extract_wifi_config(routers: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def _extract_security_matrix(
+    network_rows: list[dict[str, Any]],
+    router_ids: set[str],
+) -> dict[str, Any]:
+    """Extract security matrix configuration for MikroTik routers.
+
+    Returns:
+        {
+            "zones": {...},  # Zone definitions with security_level, isolated, cidrs
+            "matrix": {...},  # Zone-to-zone policy matrix
+            "policy_overrides": [...],  # Explicit policy overrides
+            "instance_id": "inst.security_matrix.mikrotik",
+        }
+    """
+    for row in network_rows:
+        object_ref = _resolved_object_ref(row)
+        if "security_matrix" not in object_ref:
+            continue
+
+        inst_data = row.get("instance_data", {})
+        if not isinstance(inst_data, dict):
+            continue
+
+        # Check if this matrix is managed by one of our MikroTik routers
+        managed_by = str(inst_data.get("managed_by_ref", "")).strip()
+        if managed_by not in router_ids:
+            continue
+
+        instance_id = str(row.get("instance_id", "")).strip()
+
+        # Extract zone_refs and build zone index
+        zone_refs = inst_data.get("zone_refs", [])
+        if not isinstance(zone_refs, list):
+            zone_refs = []
+
+        # Get VLAN->Zone mapping from network rows
+        vlan_zone_map: dict[str, str] = {}  # vlan instance -> zone ref
+        vlan_cidr_map: dict[str, str] = {}  # vlan instance -> cidr
+        for net_row in network_rows:
+            net_object_ref = _resolved_object_ref(net_row)
+            if "vlan" not in net_object_ref:
+                continue
+            net_inst_data = net_row.get("instance_data", {})
+            if not isinstance(net_inst_data, dict):
+                continue
+            vlan_instance = str(net_row.get("instance_id", "")).strip()
+            trust_zone_ref = str(net_inst_data.get("trust_zone_ref", "")).strip()
+            cidr = str(net_inst_data.get("cidr", "")).strip()
+            # Fallback to object properties for CIDR
+            if not cidr:
+                props = _load_object_properties(net_object_ref)
+                cidr = str(props.get("cidr", "")).strip()
+            if trust_zone_ref:
+                vlan_zone_map[vlan_instance] = trust_zone_ref
+            if cidr:
+                vlan_cidr_map[vlan_instance] = cidr
+
+        # Build zone_vlans: zone_ref -> [vlan_refs]
+        zone_vlans: dict[str, list[str]] = {}
+        for vlan_ref, zone_ref in vlan_zone_map.items():
+            if zone_ref not in zone_vlans:
+                zone_vlans[zone_ref] = []
+            zone_vlans[zone_ref].append(vlan_ref)
+
+        # Get zone security levels from network rows (trust_zone instances)
+        zone_data: dict[str, dict[str, Any]] = {}
+        for net_row in network_rows:
+            net_object_ref = _resolved_object_ref(net_row)
+            if "trust_zone" not in net_object_ref:
+                continue
+            zone_instance = str(net_row.get("instance_id", "")).strip()
+            if zone_instance not in zone_refs:
+                continue
+            # Load properties from object
+            props = _load_object_properties(net_object_ref)
+            net_inst_data = net_row.get("instance_data", {})
+            if not isinstance(net_inst_data, dict):
+                net_inst_data = {}
+            security_level = net_inst_data.get("security_level") or props.get("security_level", 0)
+            isolated = net_inst_data.get("isolated") or props.get("isolated", False)
+            name = net_inst_data.get("name") or props.get("name", zone_instance)
+            zone_data[zone_instance] = {
+                "name": name,
+                "security_level": int(security_level) if security_level is not None else 0,
+                "isolated": bool(isolated),
+                "vlans": zone_vlans.get(zone_instance, []),
+                "cidrs": [vlan_cidr_map[v] for v in zone_vlans.get(zone_instance, []) if v in vlan_cidr_map],
+            }
+
+        # Calculate matrix cells using R1-R6 rules
+        matrix: dict[str, dict[str, dict[str, Any]]] = {}
+        for from_zone in zone_refs:
+            matrix[from_zone] = {}
+            from_data = zone_data.get(from_zone, {})
+            from_level = from_data.get("security_level", 0)
+            from_isolated = from_data.get("isolated", False)
+
+            for to_zone in zone_refs:
+                to_data = zone_data.get(to_zone, {})
+                to_level = to_data.get("security_level", 0)
+                to_name = to_data.get("name", "")
+
+                # R1: Same zone = ALLOW
+                if from_zone == to_zone:
+                    matrix[from_zone][to_zone] = {
+                        "action": "allow",
+                        "rule": "R1",
+                        "reason": "same zone",
+                        "log": False,
+                    }
+                    continue
+
+                # R2: Isolated zones
+                if from_isolated:
+                    is_untrusted = "untrusted" in to_zone.lower() or (to_level == 0 and "untrusted" in to_name.lower())
+                    if is_untrusted:
+                        matrix[from_zone][to_zone] = {
+                            "action": "allow",
+                            "rule": "R2",
+                            "reason": "isolated zone can reach untrusted",
+                            "log": False,
+                        }
+                    else:
+                        matrix[from_zone][to_zone] = {
+                            "action": "deny",
+                            "rule": "R2",
+                            "reason": f"isolated zone cannot reach {to_zone}",
+                            "log": True,
+                        }
+                    continue
+
+                # R3/R4/R5: Security level comparison
+                if from_level > to_level:
+                    matrix[from_zone][to_zone] = {
+                        "action": "allow",
+                        "rule": "R3",
+                        "reason": f"downhill: level {from_level} → {to_level}",
+                        "log": False,
+                    }
+                elif from_level < to_level:
+                    matrix[from_zone][to_zone] = {
+                        "action": "deny",
+                        "rule": "R4",
+                        "reason": f"uphill: level {from_level} → {to_level}",
+                        "log": True,
+                    }
+                else:
+                    matrix[from_zone][to_zone] = {
+                        "action": "deny",
+                        "rule": "R5",
+                        "reason": f"same level {from_level}, no override",
+                        "log": True,
+                    }
+
+        # Extract policy_overrides
+        policy_overrides = inst_data.get("policy_overrides", [])
+        if not isinstance(policy_overrides, list):
+            policy_overrides = []
+        # Also get object-level overrides
+        props = _load_object_properties(object_ref)
+        obj_overrides = props.get("policy_overrides", [])
+        if isinstance(obj_overrides, list):
+            policy_overrides = obj_overrides + policy_overrides
+
+        # Apply R6 overrides to matrix
+        for override in policy_overrides:
+            if not isinstance(override, dict):
+                continue
+            from_ref = str(override.get("from_zone_ref", "")).strip()
+            to_ref = str(override.get("to_zone_ref", "")).strip()
+            action = str(override.get("action", "accept")).strip()
+            name = override.get("name", "unnamed")
+
+            # Find matching zones
+            for from_zone in zone_refs:
+                if from_ref == from_zone or from_ref.split(".")[-1] == from_zone.split(".")[-1]:
+                    for to_zone in zone_refs:
+                        if to_ref == to_zone or to_ref.split(".")[-1] == to_zone.split(".")[-1]:
+                            matrix[from_zone][to_zone] = {
+                                "action": action,
+                                "rule": "R6",
+                                "reason": f"policy_override: {name}",
+                                "log": override.get("log", False),
+                                "ports": override.get("ports"),
+                                "override_name": name,
+                            }
+
+        return {
+            "instance_id": instance_id,
+            "managed_by_ref": managed_by,
+            "zones": zone_data,
+            "matrix": matrix,
+            "policy_overrides": policy_overrides,
+        }
+
+    return {}
+
+
 def _extract_wireguard_tunnels(
     network_rows: list[dict[str, Any]],
     router_ids: set[str],
@@ -615,6 +813,9 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     # Extract WiFi configurations from router instances
     wifi_data = _extract_wifi_config(routers)
 
+    # Extract security matrix for zone-based firewall (ADR 0110)
+    security_matrix = _extract_security_matrix(network, router_ids)
+
     capability_flags = _derive_mikrotik_capability_flags(routers)
     return {
         "routers": _sorted_rows(routers),
@@ -633,6 +834,8 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
         "wireguard": wireguard_data,
         # WiFi configuration data for Terraform generation
         "wifi": wifi_data,
+        # Security matrix for zone-based firewall (ADR 0110)
+        "security_matrix": security_matrix,
         "counts": {
             "routers": len(routers),
             "networks": len(networks),
