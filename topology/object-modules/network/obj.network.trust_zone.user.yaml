@@ -6,7 +6,7 @@
 
 properties:
   name: User Zone
-  security_level: 1
+  security_level: 3
   color: "#ffcc00"
   description: End-user devices (WiFi, LAN, VPN clients)
   isolated: false

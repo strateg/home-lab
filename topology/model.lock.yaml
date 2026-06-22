@@ -229,6 +229,9 @@ objects:
   obj.network.vlan.servers:
     version: 1.0.0
     class_ref: class.network.vlan
+  obj.network.vlan.user:
+    version: 1.0.0
+    class_ref: class.network.vlan
   obj.network.vlan.vpn_tunnel:
     version: 1.0.0
     class_ref: class.network.vlan

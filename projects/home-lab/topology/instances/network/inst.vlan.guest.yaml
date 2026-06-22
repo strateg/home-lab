@@ -5,4 +5,4 @@
 source_id: net-guest
 notes: Guest WiFi segment is staged in topology; currently not configured on rtr-mikrotik-chateau
 trust_zone_ref: inst.trust_zone.guest
-dhcp_range: 192.168.30.100-192.168.30.200
+dhcp_range: 192.168.20.100-192.168.20.200

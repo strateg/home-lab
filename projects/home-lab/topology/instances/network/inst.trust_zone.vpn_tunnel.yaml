@@ -11,7 +11,7 @@ notes: |
   - Can access tunnel endpoint (10.100.0.0/30)
 
 zone_name: vpn-tunnel
-trust_level: 50  # Medium trust - internet access only
+security_level: 2  # VPN: medium trust — internet access only, isolated from LAN
 
 # Firewall policy
 firewall_policy:
@@ -29,8 +29,10 @@ firewall_policy:
 
   # Block access to local networks
   blocked_destinations:
-    - 192.168.88.0/24   # Main LAN
-    - 10.0.10.0/24      # Servers VLAN
+    - 192.168.10.0/24   # User VLAN
+    - 192.168.20.0/24   # Guest VLAN
+    - 192.168.30.0/24   # IoT VLAN
+    - 10.0.0.0/24       # Servers VLAN
     - 10.0.99.0/24      # Management VLAN
     - 172.18.0.0/24     # Containers
 

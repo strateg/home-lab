@@ -1,0 +1,9 @@
+@instance: inst.vlan.user
+@extends: obj.network.vlan.user
+@group: network
+@version: 1.0.0
+source_id: net-user
+notes: User VLAN for end-user devices; staged — migrate devices from legacy VLAN 1 (192.168.88.0/24) in Phase 3
+trust_zone_ref: inst.trust_zone.user
+dhcp_range: 192.168.10.100-192.168.10.254
+managed_by_ref: rtr-mikrotik-chateau

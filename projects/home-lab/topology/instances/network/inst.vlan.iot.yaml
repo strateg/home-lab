@@ -5,4 +5,4 @@
 source_id: net-iot
 notes: IoT segment is staged in topology; currently not configured on rtr-mikrotik-chateau
 trust_zone_ref: inst.trust_zone.iot
-dhcp_range: 192.168.40.100-192.168.40.200
+dhcp_range: 192.168.30.100-192.168.30.200

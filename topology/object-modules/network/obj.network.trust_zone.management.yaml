@@ -6,7 +6,7 @@
 
 properties:
   name: Management Zone
-  security_level: 3
+  security_level: 5
   color: "#0066cc"
   description: Infrastructure management (Proxmox UI, MikroTik UI)
   isolated: false

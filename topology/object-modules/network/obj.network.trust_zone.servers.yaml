@@ -6,7 +6,7 @@
 
 properties:
   name: Servers Zone
-  security_level: 2
+  security_level: 4
   color: "#00cc00"
   description: Server network for Proxmox LXC and edge devices
   isolated: false

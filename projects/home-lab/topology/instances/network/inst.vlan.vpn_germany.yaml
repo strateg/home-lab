@@ -9,7 +9,7 @@ notes: |
   All traffic routed through WireGuard tunnel to VPS in Frankfurt.
   Use cases: streaming services (Netflix DE, ARD, ZDF), geo-restricted content.
 
-# VLAN configuration (VLAN 50 taken by guest, using 55)
+# VLAN configuration (VLAN 55 ∈ VPN block 50-59)
 vlan_id: 55
 cidr: 192.168.55.0/24
 gateway: 192.168.55.1

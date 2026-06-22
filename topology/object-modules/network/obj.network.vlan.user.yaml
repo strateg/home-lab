@@ -1,0 +1,17 @@
+@object: obj.network.vlan.user
+@extends: class.network.vlan
+@title: Network Vlan User
+@description: User network for end-user devices (WiFi, LAN, VPN clients)
+@version: 1.0.0
+
+properties:
+  vlan_id: 10
+  cidr: 192.168.10.0/24
+  gateway: 192.168.10.1
+  mtu: 1500
+  dhcp_enabled: true
+  dns_servers:
+    - 192.168.10.1
+
+enabled_capabilities:
+  - cap.vlan.tagged
