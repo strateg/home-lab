@@ -2,7 +2,8 @@
 
 - Status: Proposed
 - Date: 2026-06-22
-- Related: ADR-0110 (Security Matrix), ADR-0044 (Instance References)
+- Related: ADR-0110 (Security Matrix), ADR-0044 (Instance References), ADR-0109 (Network Segmentation)
+- Implementation: [Network Security Implementation Plan](../docs/plans/network-security-implementation-plan.md)
 
 ## Context
 

@@ -6,6 +6,7 @@
 - Revised: 2026-06-22 (SPC Step 6 — M1-B two-matrix + Trust Zone/VLAN separation)
 - Revised: 2026-06-22 (Split: IP derivation moved to ADR-0111)
 - Related: ADR-0109 (Network Segmentation), ADR-0111 (IP Address Derivation), ADR-0063 (Plugin Microkernel), ADR-0074 (V5 Generator Architecture)
+- Implementation: [Network Security Implementation Plan](../docs/plans/network-security-implementation-plan.md)
 
 ## SPC Revision Note (2026-06-22)
 

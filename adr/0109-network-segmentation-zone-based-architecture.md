@@ -4,7 +4,8 @@
 - Date: 2026-06-22
 - Revised: 2026-06-22 (SPC analysis — aligned with existing topology objects)
 - Deployed: 2026-06-22 (Phase 1 VLANs + Phase 4 Firewall)
-- Related: ADR-0004 (Firewall Policy References)
+- Related: ADR-0004 (Firewall Policy References), ADR-0110, ADR-0111
+- Implementation: [Network Security Implementation Plan](../docs/plans/network-security-implementation-plan.md)
 
 ## Context
 
