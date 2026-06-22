@@ -1,8 +1,9 @@
 # ADR 0109: Network Segmentation with Zone-Based Architecture
 
-- Status: Accepted
+- Status: Implemented
 - Date: 2026-06-22
 - Revised: 2026-06-22 (SPC analysis — aligned with existing topology objects)
+- Deployed: 2026-06-22 (Phase 1 VLANs + Phase 4 Firewall)
 - Related: ADR-0004 (Firewall Policy References)
 
 ## Context
@@ -187,8 +188,9 @@ Add to `rtr-mikrotik-chateau.yaml`:
 - [x] Add WiFi SSID definitions for Guest (VLAN 20) and IoT (VLAN 30)
 - [x] Write Ansible playbook for zone policy deployment
 - [x] Validate topology compilation after all changes
-- [ ] Test in isolated environment before production (Phase 4)
-- [ ] Execute migration Phases 1–5 per plan above
+- [x] Test in isolated environment before production (Phase 4)
+- [x] Execute migration Phases 1–4 (VLANs + Firewall deployed 2026-06-22)
+- [ ] Phase 5: Deprecate legacy VLAN 1 after device migration
 
 ## References
 
