@@ -21,10 +21,10 @@ classes:
     version: 1.1.0
   class.compute.workload.docker.stack:
     version: 1.0.0
-  class.compute.workload.routeros_container:
-    version: 1.0.0
   class.compute.workload.lxc:
     version: 1.1.0
+  class.compute.workload.routeros_container:
+    version: 1.0.0
   class.compute.workload.vm:
     version: 1.2.0
   class.device.iot_endpoint:
@@ -112,9 +112,6 @@ objects:
   obj.docker.container.generic:
     version: 1.0.0
     class_ref: class.compute.workload.docker
-  obj.routeros.container.generic:
-    version: 1.0.0
-    class_ref: class.compute.workload.routeros_container
   obj.docker.stack.media:
     version: 1.0.0
     class_ref: class.compute.workload.docker.stack
@@ -227,7 +224,7 @@ objects:
     version: 1.0.0
     class_ref: class.network.vlan
   obj.network.vlan.servers:
-    version: 1.0.0
+    version: 1.0.1
     class_ref: class.network.vlan
   obj.network.vlan.user:
     version: 1.0.0
@@ -332,7 +329,7 @@ objects:
     version: 1.0.0
     class_ref: class.power.pdu
   obj.proxmox.lxc.debian12.base:
-    version: 1.0.0
+    version: 1.1.0
     class_ref: class.compute.workload.lxc
   obj.proxmox.lxc.debian12.docker:
     version: 1.0.0
@@ -364,6 +361,9 @@ objects:
   obj.proxmox.ve:
     version: 1.0.0
     class_ref: class.compute.hypervisor.proxmox
+  obj.routeros.container.generic:
+    version: 1.0.0
+    class_ref: class.compute.workload.routeros_container
   obj.service.adguard:
     version: 1.0.0
     class_ref: class.service.dns

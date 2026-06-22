@@ -1,11 +1,13 @@
 @object: obj.network.vlan.servers
 @extends: class.network.vlan
 @title: Network Vlan Servers
-@description: Server VLAN for Proxmox LXC and edge devices
-@version: 1.0.0
+@description: Server network for Proxmox LXC containers (Proxmox-internal, not MikroTik VLAN)
+@version: 1.0.1
 
 properties:
-  vlan_id: 30
+  # vlan_id is null because Servers zone is managed by Proxmox vmbr0 bridge directly,
+  # not tagged through MikroTik. See ADR-0109 Section 1 "Out-of-scope".
+  vlan_id: null
   cidr: 10.0.0.0/24
   gateway: 10.0.0.1
   mtu: 1500
