@@ -100,7 +100,7 @@ task build && task validate  # Must pass
 | 3.3 | Implement R1-R6 matrix calculation | (in 3.1) | Medium | ✅ |
 | 3.4 | Implement policy_overrides merge | (in 3.1) | Low | ✅ |
 | 3.5 | Register plugin (order: 55) | 1 | Low | ✅ |
-| 3.6 | Add unit tests | 1 | Low | ☐ (deferred) |
+| 3.6 | Add unit tests | 1 | Low | ✅ |
 
 **Matrix Calculation Rules:**
 ```

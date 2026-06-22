@@ -176,3 +176,40 @@ plugins:
         scope: pipeline_shared
     description: Emits contract-aware minimal bootstrap artifacts for Proxmox nodes
       (answer.toml + post-install-minimal.sh).
+  - id: object.proxmox.generator.firewall
+    kind: generator
+    entry: plugins/generators/firewall_proxmox_generator.py:FirewallProxmoxGenerator
+    api_version: 1.x
+    stages:
+      - generate
+    phase: run
+    order: 215
+    migration_mode: legacy
+    depends_on: []
+    timeout: 30
+    execution_mode: subinterpreter
+    config:
+      artifact_obsolete_action: warn
+    config_schema:
+      type: object
+      properties:
+        artifact_obsolete_action:
+          type: string
+          enum:
+            - retain
+            - delete
+            - warn
+          default: warn
+          description: Action for stale files under generator output root.
+      required: []
+    produces:
+      - key: firewall_proxmox_files
+        scope: pipeline_shared
+      - key: artifact_plan
+        scope: pipeline_shared
+      - key: artifact_generation_report
+        scope: pipeline_shared
+      - key: artifact_contract_files
+        scope: pipeline_shared
+    description: STUB - Emits Proxmox pve-firewall rules from security matrix (ADR
+      0110). Not yet implemented.
