@@ -384,15 +384,19 @@ resource "routeros_container" "adguard" {
 
 ## Network Topology
 
-### VLANs
+### VLANs (ADR-0109)
 
-| VLAN ID | Name | CIDR | Purpose |
-|---------|------|------|---------|
-| 1 | LAN | 192.168.88.0/24 | Main LAN (untagged) |
-| 30 | Servers | 10.0.30.0/24 | Server network |
-| 40 | IoT | 192.168.40.0/24 | IoT devices (isolated) |
-| 50 | Guest | 192.168.30.0/24 | Guest WiFi (isolated) |
-| 99 | Management | 10.0.99.0/24 | Management access |
+| VLAN ID | Name | CIDR | Trust Zone | Purpose |
+|---------|------|------|------------|---------|
+| 1 | LAN | 192.168.88.0/24 | — | Legacy LAN (untagged, deprecating) |
+| 10 | User | 192.168.10.0/24 | user | End-user devices (laptops, phones) |
+| 20 | Guest | 192.168.20.0/24 | guest (isolated) | Guest WiFi |
+| 30 | IoT | 192.168.30.0/24 | iot (isolated) | Smart home devices |
+| 55 | VPN-Germany | 192.168.55.0/24 | vpn_tunnel | VPN routed traffic (German exit) |
+| 99 | Management | 10.0.99.0/24 | management | Infrastructure admin |
+| — | Servers | 10.0.30.0/24 | servers | Proxmox LXC (Proxmox bridge, not MikroTik VLAN) |
+
+**Note**: Servers zone uses Proxmox `vmbr0` bridge directly, not MikroTik VLAN tagging.
 
 ### Port Assignments
 
@@ -419,6 +423,56 @@ Traffic is prioritized using queue trees:
 | 5 | Web | 15% | 80% | General web |
 | 6 | Bulk | 10% | 100% | Downloads, updates |
 | 7 | Downloads | 5% | 100% | P2P, large transfers |
+
+---
+
+## Security Matrix (ADR-0110)
+
+Zone-based firewall rules are automatically generated from the security matrix topology. See [NETWORK-SECURITY-MATRIX.md](./NETWORK-SECURITY-MATRIX.md) for full details.
+
+### Generated Files
+
+| File | Purpose |
+|------|---------|
+| `zone_firewall.tf` | Address lists, firewall rules |
+| `zone_firewall_dhcp.tf` | DHCP servers per zone |
+
+### Trust Zones and Security Levels
+
+| Zone | Level | Isolated | Direction Rules |
+|------|-------|----------|-----------------|
+| management | 5 | No | Can reach all zones (downhill) |
+| servers | 4 | No | Can reach user, iot, guest, vpn_tunnel |
+| user | 3 | No | Can reach iot, guest (with policy_overrides to servers) |
+| vpn_tunnel | 2 | No | Can reach iot, guest |
+| iot | 1 | **Yes** | Internet only (isolated) |
+| guest | 0 | **Yes** | Internet only (isolated) |
+
+### R1-R6 Matrix Rules
+
+Rules are evaluated in order:
+
+1. **R6**: Explicit `policy_override` → use override action
+2. **R1**: Same zone → ALLOW
+3. **R2**: Isolated source → DENY (except to internet)
+4. **R3**: Downhill (higher→lower level) → ALLOW
+5. **R4**: Uphill (lower→higher level) → DENY
+6. **R5**: Same security_level → DENY
+
+### Example: Adding Policy Override
+
+To allow user zone to reach servers on specific ports:
+
+```yaml
+# projects/home-lab/topology/instances/network/inst.security_matrix.mikrotik.yaml
+policy_overrides:
+  - from_zone_ref: inst.trust_zone.user
+    to_zone_ref: inst.trust_zone.servers
+    action: allow
+    ports: [443, 5432]
+    protocol: tcp
+    description: HTTPS and PostgreSQL access
+```
 
 ---
 
@@ -634,6 +688,15 @@ If locked out:
 
 ## References
 
+### Internal Documentation
+
+- [Network Security Matrix Guide](./NETWORK-SECURITY-MATRIX.md) — Zone-based firewall rules
+- [ADR-0109: Network Segmentation](../../adr/0109-network-segmentation-zone-based-architecture.md)
+- [ADR-0110: Security Matrix](../../adr/0110-universal-network-zone-vlan-mechanism.md)
+- [ADR-0111: IP Address Derivation](../../adr/0111-ip-address-derivation-from-vlan.md)
+
+### External Documentation
+
 - [terraform-routeros Provider](https://registry.terraform.io/providers/terraform-routeros/routeros/latest/docs)
 - [RouterOS REST API](https://help.mikrotik.com/docs/display/ROS/REST+API)
 - [RouterOS Container](https://help.mikrotik.com/docs/display/ROS/Container)
@@ -641,4 +704,4 @@ If locked out:
 
 ---
 
-**Last Updated**: 2026-06-19
+**Last Updated**: 2026-06-22
