@@ -59,13 +59,21 @@ observed_runtime:
       ssid: "Chateau*"
       mode: ap
       channel_width: 20/40/80mhz
+      security: wpa2-psk
+      datapath:
+        name: dp-main-lan
+        bridge: bridge
       status: running
     wifi2:
       band: 2.4ghz-ax
       ssid: "Chateau"
       mode: ap
       channel_width: 20/40mhz
-      status: bound
+      security: wpa2-psk
+      datapath:
+        name: dp-main-lan
+        bridge: bridge
+      status: running
     wifi_vpn_germany:
       name: wifi-vpn-germany
       master_interface: wifi1
@@ -77,6 +85,14 @@ observed_runtime:
         name: dp-vpn-germany
         bridge: bridge
         vlan_id: 55
+      # MAC whitelist - only these devices can connect to VPN-Germany
+      # Access-list is bound to this interface only (not global)
+      access_list:
+        mode: whitelist  # only MACs in list can connect
+        interface_binding: true  # rules apply only to this SSID
+        devices_refs:
+          - inst.device.boox_go103_lumi      # BOOX e-reader
+          - inst.device.laptop_katana        # Laptop KATANA WiFi
       status: bound
   dns:
     servers: [1.1.1.1, 8.8.8.8]

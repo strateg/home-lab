@@ -61,6 +61,7 @@ Load rule packs based on files you're modifying:
 | CORE-007 | Any architectural change | Add or update ADR/register/analysis artifacts | Do not treat architecture changes as complete without ADR governance | `task validate:adr-consistency` | ADR policy, ADR0080 |
 | CORE-008 | Any substantial code change | Run targeted tests plus the narrowest relevant task gate; run `task ci` before integration-level closure when feasible | Do not claim validation without command evidence | targeted pytest, `task ci` | ADR0066, ADR0077 |
 | CORE-009 | Any AI-assisted commit | Include commit metadata: `AI-Agent: <agent_name> (<model_name>)` and `AI-Tokens: <tokens_used_for_commit_work>` | Do not finalize AI-assisted commits without model-qualified `AI-Agent` and `AI-Tokens` metadata fields | `git log -1 --pretty=%B` | ADR0096 |
+| CORE-010 | Need credentials for devices/services | Look up credentials in SOPS-encrypted secrets: `sops -d projects/home-lab/secrets/instances/<device>.yaml` or `secrets/terraform/*.yaml`, `secrets/ansible/*.yaml` | Do not hardcode credentials; do not ask user for passwords that exist in secrets | `sops -d <file>` succeeds | ADR0072 |
 
 ---
 

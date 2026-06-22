@@ -1,6 +1,9 @@
 ---
 # Ansible playbook for MikroTik WiFi access-list with MAC-based VLAN assignment
-# Configures devices to be assigned to VPN Germany VLAN (55) when connecting to main WiFi
+# Configures devices to be assigned to VPN Germany VLAN (55) when connecting to VPN-Germany WiFi
+#
+# IMPORTANT: Access-list rules are bound to wifi-vpn-germany interface only.
+# This ensures MAC filtering applies ONLY to VPN-Germany SSID, not to Chateau/Chateau* SSIDs.
 #
 # Usage:
 #   ansible-playbook -i inventory playbooks/mikrotik-vpn-germany-access-list.yml
@@ -10,9 +13,9 @@
 #   - community.sops collection (>= 1.6.0)
 #   - MikroTik with RouterOS 7.x and WiFi package
 #
-# MAC addresses are loaded at runtime from SOPS-encrypted secrets:
-#   projects/home-lab/secrets/instances/tv-sony-bravia.yaml
+# MAC addresses are loaded at runtime from device-specific SOPS-encrypted secrets:
 #   projects/home-lab/secrets/instances/boox-go-103-lumi.yaml
+#   projects/home-lab/secrets/instances/laptop-katana.yaml
 # ansible_host is resolved from generated inventory host_vars/rtr-mikrotik-chateau.yml
 
 - name: Configure VPN Germany WiFi access list
@@ -27,29 +30,32 @@
     # VPN Germany VLAN ID — topology ref: inst.vlan.vpn_germany
     vpn_germany_vlan_id: 55
 
-  pre_tasks:
-    - name: Load Sony Bravia device secrets
-      community.sops.load_vars:
-        file: "{{ playbook_dir }}/../../secrets/instances/tv-sony-bravia.yaml"
-        name: tv_sony_bravia
+    # WiFi interface for VPN Germany - access-list rules bound to this interface only
+    vpn_germany_wifi_interface: "wifi-vpn-germany"
 
+  pre_tasks:
     - name: Load BOOX Go 10.3 device secrets
       community.sops.load_vars:
         file: "{{ playbook_dir }}/../../secrets/instances/boox-go-103-lumi.yaml"
         name: boox_go103
 
-    - name: Build VPN Germany device list from topology secrets
+    - name: Load Laptop KATANA device secrets
+      community.sops.load_vars:
+        file: "{{ playbook_dir }}/../../secrets/instances/laptop-katana.yaml"
+        name: laptop_katana
+
+    - name: Build VPN Germany device list from device secrets
       ansible.builtin.set_fact:
         vpn_germany_devices:
           - name: "BOOX Go 10.3 Gen II Lumi"
             mac: "{{ boox_go103.mac_address }}"
-            comment: "E-reader - route to VPN Germany"
-          - name: "Sony Bravia AJ9"
-            mac: "{{ tv_sony_bravia.mac_address }}"
-            comment: "Smart TV - route to VPN Germany"
+            comment: "BOOX Go 10.3 - VPN Germany"
+          - name: "Laptop KATANA WiFi"
+            mac: "{{ laptop_katana.wifi_mac_address }}"
+            comment: "Laptop WiFi - VPN Germany"
 
   tasks:
-    - name: Create WiFi access-list entries for VPN Germany devices
+    - name: Get existing access-list entries
       community.routeros.api:
         hostname: "{{ ansible_host }}"
         username: "{{ mikrotik_user }}"
@@ -57,12 +63,10 @@
         tls: true
         validate_certs: false
         path: interface wifi access-list
-        add: "{{ item.mac }}"
         query: ".id mac-address"
-      loop: "{{ vpn_germany_devices }}"
       register: existing_entries
 
-    - name: Configure access-list with VLAN assignment
+    - name: Configure access-list with interface binding
       community.routeros.api:
         hostname: "{{ ansible_host }}"
         username: "{{ mikrotik_user }}"
@@ -73,8 +77,26 @@
         cmd: add
         add:
           mac-address: "{{ item.mac }}"
+          interface: "{{ vpn_germany_wifi_interface }}"
           vlan-id: "{{ vpn_germany_vlan_id }}"
           comment: "{{ item.comment }}"
           action: accept
       loop: "{{ vpn_germany_devices }}"
-      when: item.mac not in (existing_entries.results | map(attribute='msg') | select('defined') | list | join(','))
+      when: item.mac not in (existing_entries.msg | default([]) | map(attribute='mac-address') | list)
+
+    - name: Update existing entries to add interface binding
+      community.routeros.api:
+        hostname: "{{ ansible_host }}"
+        username: "{{ mikrotik_user }}"
+        password: "{{ mikrotik_password }}"
+        tls: true
+        validate_certs: false
+        path: interface wifi access-list
+        cmd: set
+        query: ".id mac-address interface"
+        where:
+          mac-address: "{{ item.mac }}"
+        set:
+          interface: "{{ vpn_germany_wifi_interface }}"
+      loop: "{{ vpn_germany_devices }}"
+      when: item.mac in (existing_entries.msg | default([]) | map(attribute='mac-address') | list)
