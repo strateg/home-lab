@@ -5,12 +5,15 @@
 # IMPORTANT: Access-list rules are bound to wifi-vpn-germany interface only.
 # This ensures MAC filtering applies ONLY to VPN-Germany SSID, not to Chateau/Chateau* SSIDs.
 #
+# IDEMPOTENCY: This playbook is fully idempotent:
+#   - Adds missing entries
+#   - Updates existing entries with correct parameters
+#   - Removes stale entries (managed by this playbook, identified by comment pattern)
+#
 # Usage:
 #   ansible-playbook -i inventory playbooks/mikrotik-vpn-germany-access-list.yml
 #
 # Requirements:
-#   - community.routeros collection
-#   - community.sops collection (>= 1.6.0)
 #   - MikroTik with RouterOS 7.x and WiFi package
 #
 # MAC addresses are loaded at runtime from device-specific SOPS-encrypted secrets:
@@ -22,17 +25,21 @@
 - name: Configure VPN Germany WiFi access list
   hosts: rtr-mikrotik-chateau
   gather_facts: false
+  connection: local  # Uses REST API, no SSH needed
 
   vars:
     mikrotik_user: "automator"
-    # Password via env var or Ansible vault
     mikrotik_password: "{{ lookup('env', 'MIKROTIK_PASSWORD') }}"
+    # mikrotik_api_port comes from inventory host_vars (default 443)
 
     # VPN Germany VLAN ID — topology ref: inst.vlan.vpn_germany
-    vpn_germany_vlan_id: 55
+    vpn_germany_vlan_id: "55"
 
     # WiFi interface for VPN Germany - access-list rules bound to this interface only
     vpn_germany_wifi_interface: "wifi-vpn-germany"
+
+    # Comment suffix to identify managed entries
+    managed_comment_suffix: "- VPN Germany"
 
   pre_tasks:
     - name: Load BOOX Go 10.3 device secrets
@@ -53,59 +60,137 @@
     - name: Build VPN Germany device list from device secrets
       ansible.builtin.set_fact:
         vpn_germany_devices:
-          - name: "BOOX Go 10.3 Gen II Lumi"
-            mac: "{{ boox_go103.mac_address }}"
+          - mac: "{{ boox_go103.mac_address | upper }}"
             comment: "BOOX Go 10.3 - VPN Germany"
-          - name: "Laptop KATANA WiFi"
-            mac: "{{ laptop_katana.wifi_mac_address }}"
+          - mac: "{{ laptop_katana.wifi_mac_address | upper }}"
             comment: "Laptop WiFi - VPN Germany"
-          - name: "Sony Bravia AJ9"
-            mac: "{{ tv_bravia.mac_address }}"
+          - mac: "{{ tv_bravia.mac_address | upper }}"
             comment: "Sony Bravia AJ9 - VPN Germany"
 
+    - name: Build desired MAC list
+      ansible.builtin.set_fact:
+        desired_macs: "{{ vpn_germany_devices | map(attribute='mac') | list }}"
+
   tasks:
+    # =========================================================================
+    # Get current state
+    # =========================================================================
     - name: Get existing access-list entries
-      community.routeros.api:
-        hostname: "{{ ansible_host }}"
-        username: "{{ mikrotik_user }}"
+      ansible.builtin.uri:
+        url: "https://{{ ansible_host }}:{{ mikrotik_api_port }}/rest/interface/wifi/access-list"
+        method: GET
+        user: "{{ mikrotik_user }}"
         password: "{{ mikrotik_password }}"
-        tls: true
+        force_basic_auth: true
         validate_certs: false
-        path: interface wifi access-list
-        query: ".id mac-address"
+        return_content: true
       register: existing_entries
 
-    - name: Configure access-list with interface binding
-      community.routeros.api:
-        hostname: "{{ ansible_host }}"
-        username: "{{ mikrotik_user }}"
+    - name: Parse existing entries
+      ansible.builtin.set_fact:
+        existing_list: "{{ existing_entries.json | default([]) }}"
+        existing_macs: "{{ existing_entries.json | default([]) | map(attribute='mac-address') | map('upper') | list }}"
+
+    # =========================================================================
+    # Add missing entries
+    # =========================================================================
+    - name: Add missing access-list entries
+      ansible.builtin.uri:
+        url: "https://{{ ansible_host }}:{{ mikrotik_api_port }}/rest/interface/wifi/access-list/add"
+        method: POST
+        user: "{{ mikrotik_user }}"
         password: "{{ mikrotik_password }}"
-        tls: true
+        force_basic_auth: true
         validate_certs: false
-        path: interface wifi access-list
-        cmd: add
-        add:
+        body_format: json
+        body:
           mac-address: "{{ item.mac }}"
           interface: "{{ vpn_germany_wifi_interface }}"
           vlan-id: "{{ vpn_germany_vlan_id }}"
+          action: "accept"
           comment: "{{ item.comment }}"
-          action: accept
+        status_code: [200, 201]
       loop: "{{ vpn_germany_devices }}"
-      when: item.mac not in (existing_entries.msg | default([]) | map(attribute='mac-address') | list)
+      when: item.mac not in existing_macs
+      register: added_entries
+      changed_when: added_entries.status in [200, 201]
 
-    - name: Update existing entries to add interface binding
-      community.routeros.api:
-        hostname: "{{ ansible_host }}"
-        username: "{{ mikrotik_user }}"
+    # =========================================================================
+    # Update existing entries (ensure correct interface/vlan binding)
+    # =========================================================================
+    - name: Find entries needing update
+      ansible.builtin.set_fact:
+        entries_to_update: >-
+          {{
+            existing_list | selectattr('mac-address', 'in', desired_macs | map('upper') | list + desired_macs | map('lower') | list)
+            | rejectattr('interface', 'defined')
+            | list
+            +
+            existing_list | selectattr('mac-address', 'in', desired_macs | map('upper') | list + desired_macs | map('lower') | list)
+            | selectattr('interface', 'defined')
+            | rejectattr('interface', 'equalto', vpn_germany_wifi_interface)
+            | list
+          }}
+
+    - name: Update entries with correct interface binding
+      ansible.builtin.uri:
+        url: "https://{{ ansible_host }}:{{ mikrotik_api_port }}/rest/interface/wifi/access-list/set"
+        method: POST
+        user: "{{ mikrotik_user }}"
         password: "{{ mikrotik_password }}"
-        tls: true
+        force_basic_auth: true
         validate_certs: false
-        path: interface wifi access-list
-        cmd: set
-        query: ".id mac-address interface"
-        where:
-          mac-address: "{{ item.mac }}"
-        set:
+        body_format: json
+        body:
+          .id: "{{ item['.id'] }}"
           interface: "{{ vpn_germany_wifi_interface }}"
-      loop: "{{ vpn_germany_devices }}"
-      when: item.mac in (existing_entries.msg | default([]) | map(attribute='mac-address') | list)
+          vlan-id: "{{ vpn_germany_vlan_id }}"
+          action: "accept"
+        status_code: [200, 201]
+      loop: "{{ entries_to_update }}"
+      when: entries_to_update | length > 0
+      register: updated_entries
+      changed_when: updated_entries.status in [200, 201]
+
+    # =========================================================================
+    # Remove stale entries (managed entries not in desired list)
+    # =========================================================================
+    - name: Find stale managed entries
+      ansible.builtin.set_fact:
+        stale_entries: >-
+          {{
+            existing_list
+            | selectattr('comment', 'defined')
+            | selectattr('comment', 'search', managed_comment_suffix)
+            | rejectattr('mac-address', 'in', desired_macs | map('upper') | list + desired_macs | map('lower') | list)
+            | list
+          }}
+
+    - name: Remove stale access-list entries
+      ansible.builtin.uri:
+        url: "https://{{ ansible_host }}:{{ mikrotik_api_port }}/rest/interface/wifi/access-list/remove"
+        method: POST
+        user: "{{ mikrotik_user }}"
+        password: "{{ mikrotik_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        body_format: json
+        body:
+          .id: "{{ item['.id'] }}"
+        status_code: [200, 201]
+      loop: "{{ stale_entries }}"
+      when: stale_entries | length > 0
+      register: removed_entries
+      changed_when: removed_entries.status in [200, 201]
+
+    # =========================================================================
+    # Summary
+    # =========================================================================
+    - name: Summary
+      ansible.builtin.debug:
+        msg: |
+          VPN Germany Access List:
+            Added: {{ added_entries.results | default([]) | selectattr('changed', 'defined') | selectattr('changed') | list | length }}
+            Updated: {{ entries_to_update | length }}
+            Removed: {{ stale_entries | length }}
+            Total desired: {{ vpn_germany_devices | length }}
