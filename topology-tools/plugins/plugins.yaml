@@ -545,6 +545,38 @@ plugins:
     scope: pipeline_shared
   description: Resolves ADR0089 canonical SOHO profile contract and effective required
     bundle set.
+- id: base.compiler.security_matrix
+  execution_mode: subinterpreter
+  kind: compiler
+  entry: compilers/security_matrix_compiler.py:SecurityMatrixCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: run
+  order: 55
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  produces:
+  - key: security_matrices
+    scope: pipeline_shared
+  - key: zone_vlans
+    scope: pipeline_shared
+  - key: matrix_by_enforcer
+    scope: pipeline_shared
+  - key: vlan_cidr_map
+    scope: pipeline_shared
+  description: Computes zone-to-zone security matrices from inst.security_matrix.*
+    instances (ADR 0110). Implements R1-R6 matrix calculation rules.
 - id: base.compiler.ip_derivation
   execution_mode: subinterpreter
   kind: compiler
@@ -1166,6 +1198,37 @@ plugins:
     key: normalized_rows
     required: true
   description: Warns when runtime target cannot reach runtime.network_binding_ref.
+  execution_mode: subinterpreter
+- id: base.validator.network_security
+  kind: validator_json
+  entry: validators/network_security_validator.py:NetworkSecurityValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 131
+  depends_on:
+  - base.compiler.instance_rows
+  - base.compiler.security_matrix
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  - from_plugin: base.compiler.security_matrix
+    key: security_matrices
+    required: false
+  - from_plugin: base.compiler.security_matrix
+    key: zone_vlans
+    required: false
+  description: Validates network security configuration (ADR 0110 + ADR 0111). Checks
+    VLAN ID collision (E7850), CIDR overlap (E7851), policy_override refs (E7853),
+    and security matrix completeness warnings (W7855, W7856, W7860).
   execution_mode: subinterpreter
 - id: base.validator.service_dependency_refs
   kind: validator_json

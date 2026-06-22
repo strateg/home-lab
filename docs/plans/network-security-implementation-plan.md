@@ -52,11 +52,11 @@ ADR-0109 (DONE) ───┬───► ADR-0110 (Security Matrix)
 
 | Step | Task | Files | Risk | Status |
 |------|------|-------|------|--------|
-| 1.1 | Create `ip_derivation_compiler.py` | 1 | Low | ☐ |
-| 1.2 | Add validation codes E7861-E7865 | (in compiler) | Low | ☐ |
-| 1.3 | Migrate 9 LXC files to `{vlan_ref, host}` | 9 | Low | ☐ |
-| 1.4 | Migrate srv-gamayun, srv-orangepi5 | 2 | Low | ☐ |
-| 1.5 | Verify: `task build` without W7864 warnings | — | Low | ☐ |
+| 1.1 | Create `ip_derivation_compiler.py` | 1 | Low | ✅ |
+| 1.2 | Add validation codes E7861-E7865 | (in compiler) | Low | ✅ |
+| 1.3 | Migrate 9 LXC files to `{vlan_ref, host}` | 9 | Low | ✅ |
+| 1.4 | Migrate srv-gamayun, srv-orangepi5 | 2 | Low | ✅ |
+| 1.5 | Verify: `task build` without W7864 warnings | — | Low | ✅ (LXC only) |
 
 **Acceptance Test:**
 ```bash
@@ -74,11 +74,11 @@ task build 2>&1 | grep -c W7864  # Must be 0
 
 | Step | Task | Files | Risk | Status |
 |------|------|-------|------|--------|
-| 2.1 | Create `class.network.security_matrix.yaml` | 1 | Low | ☐ |
-| 2.2 | Create `obj.network.security_matrix.soho.yaml` | 1 | Low | ☐ |
-| 2.3 | Create `inst.security_matrix.mikrotik.yaml` | 1 | Low | ☐ |
-| 2.4 | Add `trust_zone_ref` to inst.vlan.*.yaml | 6 | Low | ☐ |
-| 2.5 | Run `task framework:lock-refresh` | — | Low | ☐ |
+| 2.1 | Create `class.network.security_matrix.yaml` | 1 | Low | ✅ |
+| 2.2 | Create `obj.network.security_matrix.soho.yaml` | 1 | Low | ✅ |
+| 2.3 | Create `inst.security_matrix.mikrotik.yaml` | 1 | Low | ✅ |
+| 2.4 | Add `trust_zone_ref` to inst.vlan.*.yaml | 7 | Low | ✅ |
+| 2.5 | Run `task framework:lock-refresh` | — | Low | ✅ |
 
 **Acceptance Test:**
 ```bash
@@ -95,12 +95,12 @@ task build && task validate  # Must pass
 
 | Step | Task | Files | Risk | Status |
 |------|------|-------|------|--------|
-| 3.1 | Create `security_matrix_compiler.py` | 1 | Medium | ☐ |
-| 3.2 | Implement zone_vlans resolution | (in 3.1) | Low | ☐ |
-| 3.3 | Implement R1-R6 matrix calculation | (in 3.1) | Medium | ☐ |
-| 3.4 | Implement policy_overrides merge | (in 3.1) | Low | ☐ |
-| 3.5 | Register plugin (order: 55) | 1 | Low | ☐ |
-| 3.6 | Add unit tests | 1 | Low | ☐ |
+| 3.1 | Create `security_matrix_compiler.py` | 1 | Medium | ✅ |
+| 3.2 | Implement zone_vlans resolution | (in 3.1) | Low | ✅ |
+| 3.3 | Implement R1-R6 matrix calculation | (in 3.1) | Medium | ✅ |
+| 3.4 | Implement policy_overrides merge | (in 3.1) | Low | ✅ |
+| 3.5 | Register plugin (order: 55) | 1 | Low | ✅ |
+| 3.6 | Add unit tests | 1 | Low | ☐ (deferred) |
 
 **Matrix Calculation Rules:**
 ```
@@ -129,13 +129,13 @@ python -c "import json; m=json.load(open('generated/home-lab/compiled.json')); p
 
 | Step | Task | Codes | Risk | Status |
 |------|------|-------|------|--------|
-| 4.1 | Create `network_security_validator.py` (combined) | E7850-E7865 | Low | ☐ |
-| 4.2 | VLAN ID collision | E7850 | Low | ☐ |
-| 4.3 | CIDR overlap | E7851 | Low | ☐ |
-| 4.4 | Zone reference check | E7852, E7853 | Low | ☐ |
-| 4.5 | Host uniqueness | E7861 | Low | ☐ |
-| 4.6 | Gateway reserved | E7862 | Low | ☐ |
-| 4.7 | Policy completeness warnings | W7855, W7856, W7860 | Low | ☐ |
+| 4.1 | Create `network_security_validator.py` (combined) | E7850-E7865 | Low | ✅ |
+| 4.2 | VLAN ID collision | E7850 | Low | ✅ |
+| 4.3 | CIDR overlap | E7851 | Low | ✅ |
+| 4.4 | Zone reference check | E7852, E7853 | Low | ✅ |
+| 4.5 | Host uniqueness | E7861 | Low | ✅ (in ip_derivation) |
+| 4.6 | Gateway reserved | E7862 | Low | ✅ (in ip_derivation) |
+| 4.7 | Policy completeness warnings | W7855, W7856, W7860 | Low | ✅ |
 
 **Validation Codes Summary:**
 
@@ -286,10 +286,35 @@ management → all    ✓ (R3 downhill)
 
 ## Progress Tracking
 
-### Current Wave: Not Started
+### Current Wave: Wave 5 (Generator)
 
 ### Completed Waves:
-- (none yet)
+- **Wave 4: Validators (ADR-0110+0111)** — 2026-06-22
+  - Created network_security_validator.py with E7850, E7851, E7853, W7855, W7856, W7860
+  - E7861-E7865, W7864 already in ip_derivation_compiler.py
+  - E7852 already in security_matrix_compiler.py
+  - All validators registered and passing
+
+- **Wave 3: Matrix Compiler (ADR-0110)** — 2026-06-22
+  - Created security_matrix_compiler.py with R1-R6 matrix calculation
+  - Implemented zone_vlans resolution (VLAN trust_zone_ref → zone mapping)
+  - Implemented policy_overrides merge (object + instance levels)
+  - Fixed R2 logic: isolated zones CAN reach untrusted (internet)
+  - Registered plugin at order 55 (before ip_derivation)
+  - Published: security_matrices, zone_vlans, matrix_by_enforcer, vlan_cidr_map
+
+- **Wave 2: Security Matrix Schema (ADR-0110)** — 2026-06-22
+  - Verified class.network.security_matrix.yaml exists with full property schema
+  - Verified obj.network.security_matrix.soho.yaml with SOHO zone refs
+  - Verified inst.security_matrix.mikrotik.yaml with project-specific config
+  - All 7 VLAN instances have trust_zone_ref
+  - Build passes with 0 errors
+
+- **Wave 1: IP Derivation (ADR-0111)** — 2026-06-22
+  - Created ip_derivation_compiler.py with E7861-E7866, W7864
+  - Migrated 9 LXC instances to vlan_ref + host pattern
+  - Updated inst.vlan.servers ip_allocations
+  - Remaining: 12 Docker containers (future scope)
 
 ### Blockers:
 - (none)
@@ -300,4 +325,8 @@ management → all    ✓ (R3 downhill)
 
 | Date | Change |
 |------|--------|
+| 2026-06-22 | Wave 4 completed: network_security_validator.py |
+| 2026-06-22 | Wave 3 completed: security_matrix_compiler.py with R1-R6 rules |
+| 2026-06-22 | Wave 2 verified complete: all security_matrix files exist |
+| 2026-06-22 | Wave 1 completed: ip_derivation_compiler.py, 9 LXC migrations |
 | 2026-06-22 | Initial plan created from ADR-0109, ADR-0110, ADR-0111 analysis |
