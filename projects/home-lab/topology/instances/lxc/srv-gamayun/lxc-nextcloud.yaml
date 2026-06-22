@@ -28,7 +28,8 @@ storage:
     size_gb: 20
 
 network:
-  ip: 10.0.30.30/24
+  vlan_ref: inst.vlan.servers
+  host: 30
 
 cloudinit:
   user: root

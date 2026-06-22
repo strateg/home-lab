@@ -37,7 +37,8 @@ storage:
       data_asset_ref: inst.data_asset.postgresql_dumps
 
 network:
-  ip: 10.0.30.10/24
+  vlan_ref: inst.vlan.servers
+  host: 10
 
 cloudinit:
   user: postgres

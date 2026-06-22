@@ -545,6 +545,32 @@ plugins:
     scope: pipeline_shared
   description: Resolves ADR0089 canonical SOHO profile contract and effective required
     bundle set.
+- id: base.compiler.ip_derivation
+  execution_mode: subinterpreter
+  kind: compiler
+  entry: compilers/ip_derivation_compiler.py:IpDerivationCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: run
+  order: 56
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  produces:
+  - key: ip_derivation_stats
+    scope: pipeline_shared
+  description: Derives IP addresses from vlan_ref + host pattern (ADR 0111). Validates
+    host uniqueness and emits warnings for deprecated hardcoded IPs.
 - id: base.compiler.effective_model
   kind: compiler
   entry: compilers/effective_model_compiler.py:EffectiveModelCompiler

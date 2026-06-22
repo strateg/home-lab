@@ -33,7 +33,8 @@ storage:
       data_asset_ref: inst.data_asset.redis
 
 network:
-  ip: 10.0.30.20/24
+  vlan_ref: inst.vlan.servers
+  host: 20
 
 cloudinit:
   user: redis
