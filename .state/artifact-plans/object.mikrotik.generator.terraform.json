@@ -198,6 +198,13 @@
       "renderer": "jinja2",
       "required": true,
       "template": "terraform/wifi.tf.j2"
+    },
+    {
+      "path": "generated/home-lab/terraform/mikrotik/wifi-config.rsc",
+      "reason": "capability-enabled",
+      "renderer": "jinja2",
+      "required": true,
+      "template": "mikrotik/wifi-config.rsc.j2"
     }
   ],
   "plugin_id": "object.mikrotik.generator.terraform",

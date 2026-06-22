@@ -1,0 +1,177 @@
+# mikrotik_wifi/tasks/main.yml
+# MikroTik WiFi configuration via REST API
+# Uses uri module instead of community.routeros.api (port 8728/8729)
+---
+- name: Get existing WiFi datapaths
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}:{{ mikrotik_api_port }}/rest/interface/wifi/datapath"
+    method: GET
+    user: "{{ mikrotik_user }}"
+    password: "{{ mikrotik_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    return_content: true
+  register: existing_datapaths
+
+- name: Create WiFi datapaths
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}:{{ mikrotik_api_port }}/rest/interface/wifi/datapath/add"
+    method: POST
+    user: "{{ mikrotik_user }}"
+    password: "{{ mikrotik_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    body_format: json
+    body:
+      name: "{{ item.name }}"
+      bridge: "{{ item.bridge }}"
+      vlan-id: "{{ item.vlan_id | default(omit) }}"
+      comment: "managed-by-ansible"
+    status_code: [200, 201]
+  loop: "{{ mikrotik_wifi_datapaths }}"
+  when: item.name not in (existing_datapaths.json | default([]) | map(attribute='name') | list)
+
+- name: Update existing WiFi datapaths
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}:{{ mikrotik_api_port }}/rest/interface/wifi/datapath/set"
+    method: POST
+    user: "{{ mikrotik_user }}"
+    password: "{{ mikrotik_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    body_format: json
+    body:
+      .id: "{{ (existing_datapaths.json | selectattr('name', 'equalto', item.name) | first)['.id'] }}"
+      bridge: "{{ item.bridge }}"
+      vlan-id: "{{ item.vlan_id | default(omit) }}"
+    status_code: [200, 201]
+  loop: "{{ mikrotik_wifi_datapaths }}"
+  when: item.name in (existing_datapaths.json | default([]) | map(attribute='name') | list)
+
+- name: Get existing security profiles
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}:{{ mikrotik_api_port }}/rest/interface/wifi/security"
+    method: GET
+    user: "{{ mikrotik_user }}"
+    password: "{{ mikrotik_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    return_content: true
+  register: existing_securities
+
+- name: Create WiFi security profiles
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}:{{ mikrotik_api_port }}/rest/interface/wifi/security/add"
+    method: POST
+    user: "{{ mikrotik_user }}"
+    password: "{{ mikrotik_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    body_format: json
+    body:
+      name: "{{ item.name }}"
+      authentication-types: "{{ item.authentication_types | default('wpa2-psk') }}"
+      passphrase: "{{ item.passphrase }}"
+      wps: "disable"
+      comment: "managed-by-ansible"
+    status_code: [200, 201]
+  loop: "{{ mikrotik_wifi_securities }}"
+  when:
+    - item.passphrase is defined
+    - item.name not in (existing_securities.json | default([]) | map(attribute='name') | list)
+  no_log: true
+
+- name: Update existing security profiles
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}:{{ mikrotik_api_port }}/rest/interface/wifi/security/set"
+    method: POST
+    user: "{{ mikrotik_user }}"
+    password: "{{ mikrotik_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    body_format: json
+    body:
+      .id: "{{ (existing_securities.json | selectattr('name', 'equalto', item.name) | first)['.id'] }}"
+      passphrase: "{{ item.passphrase }}"
+    status_code: [200, 201]
+  loop: "{{ mikrotik_wifi_securities }}"
+  when:
+    - item.passphrase is defined
+    - item.name in (existing_securities.json | default([]) | map(attribute='name') | list)
+  no_log: true
+
+- name: Get existing WiFi configurations
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}:{{ mikrotik_api_port }}/rest/interface/wifi/configuration"
+    method: GET
+    user: "{{ mikrotik_user }}"
+    password: "{{ mikrotik_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    return_content: true
+  register: existing_configurations
+
+- name: Create WiFi configurations
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}:{{ mikrotik_api_port }}/rest/interface/wifi/configuration/add"
+    method: POST
+    user: "{{ mikrotik_user }}"
+    password: "{{ mikrotik_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    body_format: json
+    body:
+      name: "{{ item.name }}"
+      ssid: "{{ item.ssid }}"
+      mode: "{{ item.mode | default('ap') }}"
+      security: "{{ item.security | default(omit) }}"
+      datapath: "{{ item.datapath | default(omit) }}"
+      comment: "managed-by-ansible"
+    status_code: [200, 201]
+  loop: "{{ mikrotik_wifi_configurations }}"
+  when: item.name not in (existing_configurations.json | default([]) | map(attribute='name') | list)
+
+- name: Update existing WiFi configurations
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}:{{ mikrotik_api_port }}/rest/interface/wifi/configuration/set"
+    method: POST
+    user: "{{ mikrotik_user }}"
+    password: "{{ mikrotik_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    body_format: json
+    body:
+      .id: "{{ (existing_configurations.json | selectattr('name', 'equalto', item.name) | first)['.id'] }}"
+      security: "{{ item.security | default(omit) }}"
+      datapath: "{{ item.datapath | default(omit) }}"
+    status_code: [200, 201]
+  loop: "{{ mikrotik_wifi_configurations }}"
+  when: item.name in (existing_configurations.json | default([]) | map(attribute='name') | list)
+
+- name: Get existing WiFi interfaces
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}:{{ mikrotik_api_port }}/rest/interface/wifi"
+    method: GET
+    user: "{{ mikrotik_user }}"
+    password: "{{ mikrotik_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    return_content: true
+  register: existing_wifi_interfaces
+
+- name: Apply configurations to WiFi interfaces
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}:{{ mikrotik_api_port }}/rest/interface/wifi/set"
+    method: POST
+    user: "{{ mikrotik_user }}"
+    password: "{{ mikrotik_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    body_format: json
+    body:
+      .id: "{{ (existing_wifi_interfaces.json | selectattr('name', 'equalto', item.name) | first)['.id'] }}"
+      configuration: "{{ item.configuration }}"
+      disabled: "false"
+    status_code: [200, 201]
+  loop: "{{ mikrotik_wifi_interfaces }}"
+  when: mikrotik_wifi_interfaces | length > 0

@@ -77,6 +77,13 @@
       "action": "warn",
       "ownership_method": "output_prefix_match",
       "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/rtr-mikrotik-chateau.wifi.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
       "path": "generated/home-lab/ansible/inventory/production/host_vars/rtr-mikrotik-chateau.yml",
       "reason": "obsolete-shadowed"
     },

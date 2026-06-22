@@ -1,0 +1,82 @@
+---
+# Ansible playbook for MikroTik WiFi configuration deployment
+# Configures WiFi datapaths, security profiles, and SSIDs from topology
+#
+# Usage:
+#   # Load WiFi secrets and deploy
+#   ansible-playbook -i inventory playbooks/mikrotik-wifi-deploy.yml \
+#     -e @../../secrets/wifi/chateau.yaml
+#
+#   # Or with SOPS decryption
+#   ansible-playbook -i inventory playbooks/mikrotik-wifi-deploy.yml
+#
+# Requirements:
+#   - community.routeros collection
+#   - community.sops collection (>= 1.6.0)
+#   - MikroTik with RouterOS 7.x and WiFi package
+#   - WiFi passphrases in secrets/wifi/chateau.yaml (SOPS encrypted)
+#
+# Variables loaded from:
+#   - generated/home-lab/ansible/inventory/production/host_vars/rtr-mikrotik-chateau.wifi.yml
+
+- name: Deploy MikroTik WiFi configuration
+  hosts: rtr-mikrotik-chateau
+  gather_facts: false
+  connection: local
+
+  vars_files:
+    - "{{ playbook_dir }}/../../../generated/home-lab/ansible/inventory/production/host_vars/{{ inventory_hostname }}.wifi.yml"
+
+  pre_tasks:
+    - name: Load MikroTik API credentials from SOPS
+      community.sops.load_vars:
+        file: "{{ playbook_dir }}/../../secrets/terraform/mikrotik.yaml"
+        name: mikrotik_secrets
+      delegate_to: localhost
+
+    - name: Set MikroTik API credentials
+      ansible.builtin.set_fact:
+        mikrotik_user: "{{ mikrotik_secrets.mikrotik_username }}"
+        mikrotik_password: "{{ mikrotik_secrets.mikrotik_password }}"
+
+    - name: Load WiFi secrets from SOPS
+      community.sops.load_vars:
+        file: "{{ playbook_dir }}/../../secrets/wifi/chateau.yaml"
+        name: wifi_secrets
+      delegate_to: localhost
+      ignore_errors: true
+      register: sops_load
+
+    - name: Set WiFi passphrases from secrets
+      ansible.builtin.set_fact:
+        wifi_main_passphrase: "{{ wifi_secrets.main_passphrase | default(lookup('env', 'WIFI_MAIN_PASSPHRASE')) }}"
+        wifi_vpn_germany_passphrase: "{{ wifi_secrets.vpn_germany_passphrase | default(lookup('env', 'WIFI_VPN_GERMANY_PASSPHRASE')) }}"
+      when: sops_load is succeeded or lookup('env', 'WIFI_MAIN_PASSPHRASE') != ''
+
+    - name: Fail if WiFi passphrases not available
+      ansible.builtin.fail:
+        msg: |
+          WiFi passphrases not found. Provide them via:
+          1. SOPS encrypted file: secrets/wifi/chateau.yaml
+          2. Environment variables: WIFI_MAIN_PASSPHRASE, WIFI_VPN_GERMANY_PASSPHRASE
+          3. Command line: -e wifi_main_passphrase=... -e wifi_vpn_germany_passphrase=...
+      when:
+        - wifi_main_passphrase is not defined or wifi_main_passphrase == ''
+
+  roles:
+    - role: mikrotik_wifi
+      vars:
+        mikrotik_wifi_datapaths: "{{ mikrotik_wifi.datapaths | default([]) }}"
+        mikrotik_wifi_securities: "{{ mikrotik_wifi.securities | default([]) }}"
+        mikrotik_wifi_configurations: "{{ mikrotik_wifi.configurations | default([]) }}"
+        mikrotik_wifi_interfaces: "{{ mikrotik_wifi.interfaces | default([]) }}"
+
+  post_tasks:
+    - name: WiFi deployment summary
+      ansible.builtin.debug:
+        msg: |
+          WiFi configuration deployed to {{ inventory_hostname }}
+          Datapaths: {{ mikrotik_wifi.datapaths | default([]) | length }}
+          Security profiles: {{ mikrotik_wifi.securities | default([]) | length }}
+          Configurations: {{ mikrotik_wifi.configurations | default([]) | length }}
+          Interfaces: {{ mikrotik_wifi.interfaces | default([]) | length }}

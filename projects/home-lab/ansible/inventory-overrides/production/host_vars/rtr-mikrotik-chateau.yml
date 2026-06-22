@@ -1,0 +1,6 @@
+# MikroTik Chateau connection override
+# Operator-managed file for local network access
+# Using SSH tunnel via VPS: ssh -L 9443:192.168.88.1:443 ubuntu@vps
+---
+ansible_host: 127.0.0.1
+mikrotik_api_port: 9443

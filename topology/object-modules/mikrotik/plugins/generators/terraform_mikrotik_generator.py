@@ -227,6 +227,35 @@ class TerraformMikroTikGenerator(BaseGenerator):
                 content = self.render_template(ctx, template_name, render_context)
             self.write_text_atomic(output_path, content)
             written.append(str(output_path))
+
+        # Generate WiFi RSC script (WiFi resources not supported by Terraform provider)
+        if wifi_datapaths or wifi_configurations:
+            wifi_rsc_path = out_dir / "wifi-config.rsc"
+            wifi_rsc_content = self.render_template(ctx, "mikrotik/wifi-config.rsc.j2", render_context)
+            self.write_text_atomic(wifi_rsc_path, wifi_rsc_content)
+            written.append(str(wifi_rsc_path))
+            planned_outputs.append(
+                build_planned_output(
+                    path=str(wifi_rsc_path),
+                    renderer="jinja2",
+                    template="mikrotik/wifi-config.rsc.j2",
+                    reason="capability-enabled",
+                )
+            )
+
+        # Generate Ansible host_vars for WiFi (automated deployment)
+        if wifi_datapaths or wifi_configurations:
+            ansible_out_dir = self.resolve_output_path(
+                ctx, "ansible", "inventory", "production", "host_vars"
+            )
+            for router_id in routers:
+                wifi_vars_path = ansible_out_dir / f"{router_id}.wifi.yml"
+                wifi_vars_content = self.render_template(
+                    ctx, "ansible/host_vars_wifi.yml.j2", render_context
+                )
+                self.write_text_atomic(wifi_vars_path, wifi_vars_content)
+                written.append(str(wifi_vars_path))
+
         obsolete_entries, obsolete_errors = compute_obsolete_entries(
             ctx=ctx,
             plugin_id=self.plugin_id,

@@ -1,0 +1,66 @@
+# WiFi configuration generated from topology
+# Apply via: ssh admin@192.168.88.1 "/import wifi-config.rsc"
+# Generated at: {{ now | default('N/A') }}
+
+:put "Applying WiFi configuration from topology..."
+
+{% if wifi_datapaths %}
+# ============================================================================
+# WiFi Datapaths
+# ============================================================================
+/interface/wifi/datapath
+{% for dp in wifi_datapaths %}
+:if ([:len [find name="{{ dp.name }}"]] = 0) do={
+    add name="{{ dp.name }}" bridge="{{ dp.bridge }}"{% if dp.vlan_id is defined and dp.vlan_id %} vlan-id={{ dp.vlan_id }}{% endif %} comment="{{ dp.comment | default('managed by topology') }}"
+    :put "  Created datapath: {{ dp.name }}"
+} else={
+    set [find name="{{ dp.name }}"] bridge="{{ dp.bridge }}"{% if dp.vlan_id is defined and dp.vlan_id %} vlan-id={{ dp.vlan_id }}{% endif %}
+
+    :put "  Updated datapath: {{ dp.name }}"
+}
+{% endfor %}
+{% endif %}
+
+{% if wifi_securities %}
+# ============================================================================
+# WiFi Security Profiles
+# ============================================================================
+/interface/wifi/security
+{% for sec in wifi_securities %}
+:if ([:len [find name="{{ sec.name }}"]] = 0) do={
+    add name="{{ sec.name }}" authentication-types={{ sec.authentication_types | join(',') }} wps=disable comment="{{ sec.comment | default('managed by topology') }}"
+    :put "  Created security profile: {{ sec.name }} (SET PASSPHRASE!)"
+} else={
+    :put "  Security profile exists: {{ sec.name }}"
+}
+{% endfor %}
+{% endif %}
+
+{% if wifi_configurations %}
+# ============================================================================
+# WiFi Configurations (SSIDs)
+# ============================================================================
+/interface/wifi/configuration
+{% for cfg in wifi_configurations %}
+:if ([:len [find name="{{ cfg.name }}"]] = 0) do={
+    add name="{{ cfg.name }}" ssid="{{ cfg.ssid }}" mode={{ cfg.mode | default('ap') }}{% if cfg.security %} security={{ cfg.security }}{% endif %}{% if cfg.datapath %} datapath={{ cfg.datapath }}{% endif %} comment="{{ cfg.comment | default('managed by topology') }}"
+    :put "  Created configuration: {{ cfg.name }}"
+} else={
+    set [find name="{{ cfg.name }}"]{% if cfg.security %} security={{ cfg.security }}{% endif %}{% if cfg.datapath %} datapath={{ cfg.datapath }}{% endif %}
+
+    :put "  Updated configuration: {{ cfg.name }}"
+}
+{% endfor %}
+{% endif %}
+
+:put ""
+:put "=== WiFi Configuration Complete ==="
+:put ""
+:put "To set WiFi passphrases:"
+{% for sec in wifi_securities %}
+:put "/interface/wifi/security/set {{ sec.name }} passphrase=YOUR_PASSWORD"
+{% endfor %}
+:put ""
+:put "To apply configuration to interfaces:"
+:put "/interface/wifi/set wifi1 configuration=cfg-wifi1"
+:put "/interface/wifi/set wifi2 configuration=cfg-wifi2"

@@ -1,0 +1,60 @@
+# MikroTik WiFi configuration for Ansible
+# Generated from topology - DO NOT EDIT
+# Apply via: ansible-playbook playbooks/mikrotik-wifi-deploy.yml
+---
+mikrotik_wifi:
+{% if wifi_datapaths %}
+  datapaths:
+{% for dp in wifi_datapaths %}
+    - name: {{ dp.name }}
+      bridge: {{ dp.bridge }}
+{% if dp.vlan_id is defined and dp.vlan_id %}
+      vlan_id: {{ dp.vlan_id }}
+{% endif %}
+{% endfor %}
+{% else %}
+  datapaths: []
+{% endif %}
+
+{% if wifi_securities %}
+  securities:
+{% for sec in wifi_securities %}
+    - name: {{ sec.name }}
+      authentication_types: {{ sec.authentication_types | first | default('wpa2-psk') }}
+      # Passphrase: use wifi_main_passphrase for main networks, wifi_vpn_germany_passphrase for VPN
+{% if 'vpn' in sec.name or 'germany' in sec.name %}
+      passphrase: "{% raw %}{{ wifi_vpn_germany_passphrase }}{% endraw %}"
+{% else %}
+      passphrase: "{% raw %}{{ wifi_main_passphrase }}{% endraw %}"
+{% endif %}
+{% endfor %}
+{% else %}
+  securities: []
+{% endif %}
+
+{% if wifi_configurations %}
+  configurations:
+{% for cfg in wifi_configurations %}
+    - name: {{ cfg.name }}
+      ssid: "{{ cfg.ssid }}"
+      mode: {{ cfg.mode | default('ap') }}
+{% if cfg.security is defined %}
+      security: {{ cfg.security }}
+{% endif %}
+{% if cfg.datapath is defined %}
+      datapath: {{ cfg.datapath }}
+{% endif %}
+{% endfor %}
+{% else %}
+  configurations: []
+{% endif %}
+
+  # Physical WiFi interfaces only (wifi1=5GHz, wifi2=2.4GHz)
+  # Virtual APs (like wifi_vpn_germany) are created automatically when datapath has vlan_id
+  interfaces:
+{% for cfg in wifi_configurations %}
+{% if cfg.name in ['cfg-wifi1', 'cfg-wifi2'] %}
+    - name: {{ cfg.name | replace('cfg-', '') }}
+      configuration: {{ cfg.name }}
+{% endif %}
+{% endfor %}

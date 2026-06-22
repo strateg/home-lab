@@ -1,0 +1,48 @@
+# mikrotik_wifi/defaults/main.yml
+# Default variables for MikroTik WiFi configuration role
+---
+# MikroTik REST API connection settings
+mikrotik_user: "automator"
+mikrotik_password: "{{ lookup('env', 'MIKROTIK_PASSWORD') }}"
+mikrotik_api_port: 443
+
+# WiFi datapaths - bridging WiFi to network
+mikrotik_wifi_datapaths: []
+# Example:
+#   - name: dp-main-lan
+#     bridge: bridge
+#   - name: dp-vpn-germany
+#     bridge: bridge
+#     vlan_id: 55
+
+# WiFi security profiles
+mikrotik_wifi_securities: []
+# Example:
+#   - name: sec-wifi1
+#     authentication_types: wpa2-psk
+#     passphrase: "{{ wifi_main_passphrase }}"
+#   - name: sec-wifi2
+#     authentication_types: wpa2-psk
+#     passphrase: "{{ wifi_main_passphrase }}"
+
+# WiFi configurations (SSIDs)
+mikrotik_wifi_configurations: []
+# Example:
+#   - name: cfg-wifi1
+#     ssid: "Chateau*"
+#     mode: ap
+#     security: sec-wifi1
+#     datapath: dp-main-lan
+#   - name: cfg-wifi2
+#     ssid: "Chateau"
+#     mode: ap
+#     security: sec-wifi2
+#     datapath: dp-main-lan
+
+# WiFi interface assignments
+mikrotik_wifi_interfaces: []
+# Example:
+#   - name: wifi1
+#     configuration: cfg-wifi1
+#   - name: wifi2
+#     configuration: cfg-wifi2

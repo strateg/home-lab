@@ -210,6 +210,92 @@ def _build_firewall_entry(row: dict[str, Any], *, managed_by_ref: str) -> dict[s
     }
 
 
+def _extract_wifi_config(routers: list[dict[str, Any]]) -> dict[str, Any]:
+    """Extract WiFi configuration from router instances.
+
+    Returns:
+        {
+            "datapaths": [...],      # Unique datapath configurations
+            "configurations": [...], # WiFi configurations (SSIDs)
+            "securities": [...],     # Security profiles
+        }
+    """
+    datapaths: dict[str, dict[str, Any]] = {}  # keyed by name to dedupe
+    configurations: list[dict[str, Any]] = []
+    securities: dict[str, dict[str, Any]] = {}  # keyed by name to dedupe
+
+    for router in routers:
+        instance_data = router.get("instance_data", {})
+        if not isinstance(instance_data, dict):
+            continue
+
+        observed = instance_data.get("observed_runtime", {})
+        if not isinstance(observed, dict):
+            continue
+
+        wifi_config = observed.get("wifi", {})
+        if not isinstance(wifi_config, dict):
+            continue
+
+        for iface_name, iface_data in wifi_config.items():
+            if not isinstance(iface_data, dict):
+                continue
+
+            ssid = iface_data.get("ssid")
+            if not ssid:
+                continue
+
+            # Extract datapath
+            datapath = iface_data.get("datapath")
+            if isinstance(datapath, dict):
+                dp_name = datapath.get("name", "")
+                if dp_name and dp_name not in datapaths:
+                    dp_entry: dict[str, Any] = {
+                        "name": dp_name,
+                        "bridge": datapath.get("bridge", "bridge"),
+                        "comment": f"{ssid} datapath - managed by topology",
+                    }
+                    # Only include vlan_id if present and non-zero
+                    vlan_id = datapath.get("vlan_id")
+                    if vlan_id:
+                        dp_entry["vlan_id"] = int(vlan_id)
+                    datapaths[dp_name] = dp_entry
+
+            # Extract security profile
+            security = iface_data.get("security")
+            sec_name = None
+            if isinstance(security, str) and security:
+                sec_name = f"sec-{iface_name}"
+                if sec_name not in securities:
+                    securities[sec_name] = {
+                        "name": sec_name,
+                        "authentication_types": [security],
+                        "passphrase": True,  # indicates variable needed
+                        "comment": f"{ssid} security - managed by topology",
+                    }
+
+            # Build configuration entry
+            cfg_name = f"cfg-{iface_name}"
+            cfg_entry: dict[str, Any] = {
+                "name": cfg_name,
+                "ssid": ssid,
+                "mode": iface_data.get("mode", "ap"),
+                "comment": f"{ssid} - managed by topology",
+            }
+            if sec_name:
+                cfg_entry["security"] = sec_name
+            if isinstance(datapath, dict) and datapath.get("name"):
+                cfg_entry["datapath"] = datapath.get("name")
+
+            configurations.append(cfg_entry)
+
+    return {
+        "datapaths": list(datapaths.values()),
+        "configurations": configurations,
+        "securities": list(securities.values()),
+    }
+
+
 def _extract_wireguard_tunnels(
     network_rows: list[dict[str, Any]],
     router_ids: set[str],
@@ -526,6 +612,9 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     # Extract WireGuard tunnel configurations for MikroTik routers
     wireguard_data = _extract_wireguard_tunnels(network, router_ids)
 
+    # Extract WiFi configurations from router instances
+    wifi_data = _extract_wifi_config(routers)
+
     capability_flags = _derive_mikrotik_capability_flags(routers)
     return {
         "routers": _sorted_rows(routers),
@@ -542,6 +631,8 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
         "capabilities": capability_flags,
         # WireGuard tunnel data for Terraform generation
         "wireguard": wireguard_data,
+        # WiFi configuration data for Terraform generation
+        "wifi": wifi_data,
         "counts": {
             "routers": len(routers),
             "networks": len(networks),

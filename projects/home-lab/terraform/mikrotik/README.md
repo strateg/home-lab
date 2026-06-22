@@ -25,27 +25,36 @@ curl -sk -u user:pass "https://192.168.0.17:443/rest/system/resource"
 ## WiFi Configuration
 
 **Note:** The `routeros` Terraform provider does not support WiFi resources
-(`routeros_interface_wifi_*`). WiFi configuration must be managed via SSH/RSC.
+(`routeros_interface_wifi_*`). WiFi configuration is generated as an RSC script
+and must be applied via SSH.
 
-The files in this directory (`vpn_germany_wifi.tf`, `variables_wifi.tf`) are
-kept for reference but cannot be applied via Terraform.
+WiFi configuration is defined in topology at:
+`projects/home-lab/topology/instances/devices/rtr-mikrotik-chateau.yaml`
 
-### Manual WiFi Setup (VPN Germany)
+### Applying WiFi Configuration
 
-```routeros
-# WiFi datapath with VLAN tagging
-/interface/wifi/datapath/add name=dp-vpn-germany bridge=bridge vlan-id=55
+After compiling topology, the RSC script is generated at:
+`generated/home-lab/terraform/mikrotik/wifi-config.rsc`
 
-# WiFi security profile
-/interface/wifi/security/add name=sec-vpn-germany authentication-types=wpa2-psk wps=disable
+**Apply:**
+```bash
+scp generated/home-lab/terraform/mikrotik/wifi-config.rsc admin@192.168.88.1:
+ssh admin@192.168.88.1 "/import wifi-config.rsc"
 
-# WiFi configuration
-/interface/wifi/configuration/add name=cfg-vpn-germany ssid="VPN-Germany" mode=ap \
-    security=sec-vpn-germany datapath=dp-vpn-germany
+# Set WiFi passphrases
+ssh admin@192.168.88.1 '/interface/wifi/security/set sec-wifi1 passphrase="YOUR_PASSWORD"'
+ssh admin@192.168.88.1 '/interface/wifi/security/set sec-wifi2 passphrase="YOUR_PASSWORD"'
 
-# Apply to interface
-/interface/wifi/set wifi1 configuration=cfg-vpn-germany
+# Apply configurations to interfaces
+ssh admin@192.168.88.1 '/interface/wifi/set wifi1 configuration=cfg-wifi1'
+ssh admin@192.168.88.1 '/interface/wifi/set wifi2 configuration=cfg-wifi2'
 ```
+
+The generated script creates:
+- `dp-main-lan` datapath (bridges WiFi to main bridge, no VLAN)
+- `dp-vpn-germany` datapath (bridges WiFi to bridge with VLAN 55)
+- Security profiles for each SSID
+- WiFi configurations for Chateau*, Chateau, VPN-Germany
 
 ## Terraform Usage
 

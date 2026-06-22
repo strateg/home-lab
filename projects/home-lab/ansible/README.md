@@ -48,6 +48,31 @@ To enable monitoring stack container apply:
 ansible-playbook -i generated/home-lab/ansible/runtime/production/hosts.yml projects/home-lab/ansible/playbooks/monitoring.yml -e monitoring_apply=true
 ```
 
+## MikroTik WiFi Configuration
+
+Deploy WiFi configuration (datapaths, security profiles, SSIDs) to MikroTik router:
+
+```bash
+# First time: edit WiFi passphrases in secrets file
+sops projects/home-lab/secrets/wifi/chateau.yaml
+# Set main_passphrase and vpn_germany_passphrase
+
+# Deploy WiFi configuration (run from machine with router access)
+cd projects/home-lab/ansible
+ansible-playbook \
+  -i ../../../generated/home-lab/ansible/inventory/production/hosts.yml \
+  -i inventory-overrides/production/ \
+  playbooks/mikrotik-wifi-deploy.yml
+```
+
+The playbook automatically loads:
+- MikroTik API credentials from `secrets/terraform/mikrotik.yaml`
+- WiFi passphrases from `secrets/wifi/chateau.yaml`
+- WiFi configuration from `generated/home-lab/ansible/inventory/production/host_vars/rtr-mikrotik-chateau.wifi.yml`
+
+WiFi configuration is defined in topology:
+- `projects/home-lab/topology/instances/devices/rtr-mikrotik-chateau.yaml`
+
 ## VPN Gateway Configuration
 
 Configure OCI VPS as WireGuard gateway for VPN-Germany VLAN:
