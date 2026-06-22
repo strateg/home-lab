@@ -258,6 +258,46 @@ capabilities:
     layer: L2
     stability: stable
 
+  # ---------------------------------------------------------------------------
+  # L2 - Security Matrix Enforcement (ADR-0110)
+  # ---------------------------------------------------------------------------
+
+  - @capability: cap.firewall.security_matrix
+    title: Security Matrix Enforcement
+    summary: Device can enforce zone-to-zone security matrix policies.
+    domain: firewall
+    layer: L2
+    stability: stable
+    adr_refs:
+      - "0110"
+
+  - @capability: cap.firewall.security_matrix.routeros
+    title: RouterOS Matrix Enforcement
+    summary: Enforces security matrix via RouterOS firewall with address-lists.
+    domain: firewall
+    layer: L2
+    stability: stable
+    vendor: mikrotik
+    adr_refs:
+      - "0110"
+
+  - @capability: cap.firewall.security_matrix.pve
+    title: Proxmox Matrix Enforcement
+    summary: Enforces security matrix via Proxmox pve-firewall.
+    domain: firewall
+    layer: L2
+    stability: experimental
+    vendor: proxmox
+    adr_refs:
+      - "0110"
+
+  - @capability: cap.firewall.address_lists
+    title: Address List Support
+    summary: Firewall supports named address lists for zone-based matching.
+    domain: firewall
+    layer: L2
+    stability: stable
+
   - @capability: cap.qos.shaping
     title: Traffic Shaping
     summary: Supports egress traffic shaping.
