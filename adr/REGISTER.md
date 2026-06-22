@@ -109,3 +109,5 @@
 | [0105](0105-device-state-commit-and-rollback-contract.md) | Device State Commit and Rollback Contract | **Proposed** | 2026-06-10 | - | - |
 | [0106](0106-capability-driven-plugin-architecture.md) | Capability-Driven Plugin Architecture | **Proposed** | 2026-06-11 | - | - |
 | [0107](0107-host-placement-defaults-and-on-directive.md) | Host Placement Defaults with `@on` Directive | **Implemented** | 2026-06-17 | 2026-06-18 | - |
+| [0108](0108-specification-driven-development-contract.md) | Specification-Driven Development Contract | **Proposed** | 2026-06-19 | - | - |
+| [0109](0109-network-segmentation-zone-based-architecture.md) | Network Segmentation with Zone-Based Architecture | **Proposed** | 2026-06-22 | - | - |
