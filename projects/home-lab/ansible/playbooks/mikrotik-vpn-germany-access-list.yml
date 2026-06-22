@@ -16,6 +16,7 @@
 # MAC addresses are loaded at runtime from device-specific SOPS-encrypted secrets:
 #   projects/home-lab/secrets/instances/boox-go-103-lumi.yaml
 #   projects/home-lab/secrets/instances/laptop-katana.yaml
+#   projects/home-lab/secrets/instances/tv-sony-bravia.yaml
 # ansible_host is resolved from generated inventory host_vars/rtr-mikrotik-chateau.yml
 
 - name: Configure VPN Germany WiFi access list
@@ -44,6 +45,11 @@
         file: "{{ playbook_dir }}/../../secrets/instances/laptop-katana.yaml"
         name: laptop_katana
 
+    - name: Load Sony Bravia device secrets
+      community.sops.load_vars:
+        file: "{{ playbook_dir }}/../../secrets/instances/tv-sony-bravia.yaml"
+        name: tv_bravia
+
     - name: Build VPN Germany device list from device secrets
       ansible.builtin.set_fact:
         vpn_germany_devices:
@@ -53,6 +59,9 @@
           - name: "Laptop KATANA WiFi"
             mac: "{{ laptop_katana.wifi_mac_address }}"
             comment: "Laptop WiFi - VPN Germany"
+          - name: "Sony Bravia AJ9"
+            mac: "{{ tv_bravia.mac_address }}"
+            comment: "Sony Bravia AJ9 - VPN Germany"
 
   tasks:
     - name: Get existing access-list entries

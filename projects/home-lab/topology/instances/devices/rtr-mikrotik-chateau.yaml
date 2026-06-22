@@ -93,6 +93,7 @@ observed_runtime:
         devices_refs:
           - inst.device.boox_go103_lumi      # BOOX e-reader
           - inst.device.laptop_katana        # Laptop KATANA WiFi
+          - inst.device.tv_sony_bravia       # Sony Bravia AJ9
       status: bound
   dns:
     servers: [1.1.1.1, 8.8.8.8]
