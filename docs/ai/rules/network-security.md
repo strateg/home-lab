@@ -83,6 +83,17 @@ network:
 | E7862 | Error | host: 1 reserved for gateway |
 | W7864 | Warning | Hardcoded IP (migrate to vlan_ref) |
 
+## Device Capabilities
+
+| Capability | Purpose |
+|------------|---------|
+| `cap.firewall.security_matrix` | Device can enforce zone-to-zone policies |
+| `cap.firewall.security_matrix.routeros` | MikroTik RouterOS enforcement |
+| `cap.firewall.security_matrix.pve` | Proxmox pve-firewall enforcement |
+| `cap.firewall.address_lists` | Device supports named address lists |
+
+**Note**: Trust levels and isolated flags are DATA (properties in topology), not capabilities.
+
 ## Generated Artifacts
 
 | Enforcer | Template | Output |

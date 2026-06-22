@@ -79,6 +79,19 @@ Derived from `enabled_capabilities` list in object definition.
 | `cap.role.vpn_endpoint` | VPN endpoint |
 | `cap.role.container_host` | Container runtime host |
 
+### Firewall Capabilities (cap.firewall.*)
+
+Device capabilities for network security enforcement (ADR-0110).
+
+| Capability | Purpose |
+|------------|---------|
+| `cap.firewall.security_matrix` | Device can enforce zone-to-zone policies |
+| `cap.firewall.security_matrix.routeros` | MikroTik RouterOS enforcement |
+| `cap.firewall.security_matrix.pve` | Proxmox pve-firewall enforcement |
+| `cap.firewall.address_lists` | Device supports named address lists |
+
+**Important**: Trust levels (`security_level`) and isolation (`isolated`) are **data properties** in topology files, not capabilities. Capabilities describe what a device CAN DO, not what data exists.
+
 ## Using Capabilities in Plugins
 
 ### Import Helper Functions

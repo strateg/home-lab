@@ -302,6 +302,30 @@ for k, v in data.get('instances', {}).items():
 
 ---
 
+## Device Capabilities
+
+Capabilities for security matrix enforcement (defined in `capability-catalog.yaml`):
+
+| Capability | Purpose |
+|------------|---------|
+| `cap.firewall.security_matrix` | Device can enforce zone-to-zone policies |
+| `cap.firewall.security_matrix.routeros` | MikroTik RouterOS enforcement |
+| `cap.firewall.security_matrix.pve` | Proxmox pve-firewall enforcement |
+| `cap.firewall.address_lists` | Device supports named address lists |
+
+### Data vs Capabilities
+
+| Type | Example | Location |
+|------|---------|----------|
+| **Data** | `security_level: 5` | `inst.trust_zone.*.yaml` |
+| **Data** | `isolated: true` | `inst.trust_zone.*.yaml` |
+| **Data** | `trust_zone_ref: inst.trust_zone.user` | `inst.vlan.*.yaml` |
+| **Capability** | `cap.firewall.security_matrix.routeros` | Device object |
+
+Capabilities describe what devices CAN DO. Data properties describe configuration values.
+
+---
+
 ## Key Files
 
 | File | Purpose |
@@ -311,6 +335,7 @@ for k, v in data.get('instances', {}).items():
 | `topology-tools/plugins/validators/network_security_validator.py` | E7850-E7853 validation |
 | `topology/object-modules/mikrotik/templates/terraform/zone_firewall.tf.j2` | Terraform template |
 | `projects/home-lab/topology/instances/network/inst.security_matrix.mikrotik.yaml` | Active matrix |
+| `topology/class-modules/capability-catalog.yaml` | `cap.firewall.*` definitions |
 
 ---
 
