@@ -1,0 +1,520 @@
+---
+# ADR-0109: MikroTik Zone-Based Network Segmentation Deployment
+#
+# Deploys VLAN interfaces, DHCP pools, and zone firewall policies.
+# This playbook implements the phased migration plan from ADR-0109.
+#
+# PHASES:
+#   Phase 1: VLAN interfaces (vlan10, vlan20, vlan30)
+#   Phase 2: WiFi SSIDs (Guest, IoT) - see mikrotik-wifi-deploy.yml
+#   Phase 3: Device migration (manual, per-device)
+#   Phase 4: Firewall zone policies (this playbook, --tags firewall)
+#
+# Usage:
+#   # Phase 1: Deploy VLAN interfaces only
+#   ansible-playbook -i inventory playbooks/mikrotik-zone-deploy.yml --tags vlans
+#
+#   # Phase 4: Deploy firewall zone policies (AFTER testing!)
+#   ansible-playbook -i inventory playbooks/mikrotik-zone-deploy.yml --tags firewall
+#
+#   # Full deployment (use with caution)
+#   ansible-playbook -i inventory playbooks/mikrotik-zone-deploy.yml
+#
+#   # Dry run (check mode)
+#   ansible-playbook -i inventory playbooks/mikrotik-zone-deploy.yml --check
+#
+# Rollback:
+#   ansible-playbook -i inventory playbooks/mikrotik-zone-deploy.yml --tags firewall-rollback
+#
+# Requirements:
+#   - MikroTik with RouterOS 7.x
+#   - Bridge VLAN filtering enabled (bridge_vlan_filtering: true)
+#   - API credentials in secrets/terraform/mikrotik.yaml
+
+- name: Deploy MikroTik Zone-Based Network Segmentation
+  hosts: rtr-mikrotik-chateau
+  gather_facts: false
+  connection: local
+
+  vars:
+    # API connection
+    mikrotik_api_url: "https://{{ ansible_host }}:{{ mikrotik_api_port | default(443) }}"
+
+    # ADR-0109: Zone VLAN definitions
+    zone_vlans:
+      - name: user
+        vlan_id: 10
+        interface: vlan10
+        cidr: 192.168.10.0/24
+        gateway: 192.168.10.1
+        dhcp_pool_start: 192.168.10.100
+        dhcp_pool_end: 192.168.10.254
+        dhcp_lease_time: 30m
+        comment: "User zone (ADR-0109)"
+
+      - name: guest
+        vlan_id: 20
+        interface: vlan20
+        cidr: 192.168.20.0/24
+        gateway: 192.168.20.1
+        dhcp_pool_start: 192.168.20.100
+        dhcp_pool_end: 192.168.20.200
+        dhcp_lease_time: 1h
+        comment: "Guest zone - internet only (ADR-0109)"
+
+      - name: iot
+        vlan_id: 30
+        interface: vlan30
+        cidr: 192.168.30.0/24
+        gateway: 192.168.30.1
+        dhcp_pool_start: 192.168.30.100
+        dhcp_pool_end: 192.168.30.200
+        dhcp_lease_time: 12h
+        comment: "IoT zone - isolated (ADR-0109)"
+
+    # ADR-0109: Zone firewall policies (deny-by-default)
+    zone_policies:
+      - comment: "Guest cannot access internal networks"
+        chain: forward
+        action: drop
+        src_address: 192.168.20.0/24
+        dst_address_list: internal-zones
+        log: true
+        log_prefix: "ZONE:guest->internal:"
+
+      - comment: "IoT cannot access user zone"
+        chain: forward
+        action: drop
+        src_address: 192.168.30.0/24
+        dst_address: 192.168.10.0/24
+        log: true
+        log_prefix: "ZONE:iot->user:"
+
+      - comment: "IoT cannot access management zone"
+        chain: forward
+        action: drop
+        src_address: 192.168.30.0/24
+        dst_address: 10.0.99.0/24
+        log: true
+        log_prefix: "ZONE:iot->mgmt:"
+
+      - comment: "User cannot access management zone"
+        chain: forward
+        action: drop
+        src_address: 192.168.10.0/24
+        dst_address: 10.0.99.0/24
+        log: true
+        log_prefix: "ZONE:user->mgmt:"
+
+      - comment: "VPN tunnel isolated from internal"
+        chain: forward
+        action: drop
+        src_address: 192.168.55.0/24
+        dst_address_list: internal-zones
+        log: true
+        log_prefix: "ZONE:vpn->internal:"
+
+    # Address list for internal zones (used in firewall rules)
+    internal_zone_addresses:
+      - address: 192.168.10.0/24
+        comment: "User zone"
+      - address: 192.168.20.0/24
+        comment: "Guest zone"
+      - address: 192.168.30.0/24
+        comment: "IoT zone"
+      - address: 192.168.88.0/24
+        comment: "Legacy LAN"
+      - address: 10.0.99.0/24
+        comment: "Management zone"
+
+  pre_tasks:
+    - name: Load MikroTik API credentials from SOPS
+      community.sops.load_vars:
+        file: "{{ playbook_dir }}/../../secrets/terraform/mikrotik.yaml"
+        name: mikrotik_secrets
+      delegate_to: localhost
+
+    - name: Set MikroTik API credentials
+      ansible.builtin.set_fact:
+        mikrotik_user: "{{ mikrotik_secrets.mikrotik_username }}"
+        mikrotik_password: "{{ mikrotik_secrets.mikrotik_password }}"
+
+  tasks:
+    # =========================================================================
+    # PHASE 1: VLAN Interfaces
+    # =========================================================================
+
+    - name: Create VLAN interfaces
+      tags: [vlans, phase1]
+      block:
+        - name: Get existing VLAN interfaces
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/interface/vlan"
+            method: GET
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            return_content: true
+          register: existing_vlans
+
+        - name: Parse existing VLAN names
+          ansible.builtin.set_fact:
+            existing_vlan_names: "{{ existing_vlans.json | default([]) | map(attribute='name') | list }}"
+
+        - name: Create missing VLAN interfaces
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/interface/vlan/add"
+            method: POST
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            body_format: json
+            body:
+              name: "{{ item.interface }}"
+              vlan-id: "{{ item.vlan_id }}"
+              interface: bridge
+              comment: "{{ item.comment }}"
+            status_code: [200, 201]
+          loop: "{{ zone_vlans }}"
+          when: item.interface not in existing_vlan_names
+          register: created_vlans
+          changed_when: created_vlans.status in [200, 201]
+
+    - name: Configure bridge VLAN table
+      tags: [vlans, phase1]
+      block:
+        - name: Get existing bridge VLANs
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/interface/bridge/vlan"
+            method: GET
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            return_content: true
+          register: existing_bridge_vlans
+
+        - name: Parse existing bridge VLAN IDs
+          ansible.builtin.set_fact:
+            existing_bridge_vlan_ids: "{{ existing_bridge_vlans.json | default([]) | map(attribute='vlan-ids') | list }}"
+
+        - name: Add VLANs to bridge VLAN table
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/interface/bridge/vlan/add"
+            method: POST
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            body_format: json
+            body:
+              bridge: bridge
+              vlan-ids: "{{ item.vlan_id }}"
+              tagged: bridge,wifi1,wifi2
+              comment: "{{ item.comment }}"
+            status_code: [200, 201, 400]
+          loop: "{{ zone_vlans }}"
+          when: item.vlan_id | string not in existing_bridge_vlan_ids
+          register: added_bridge_vlans
+
+    - name: Configure IP addresses on VLAN interfaces
+      tags: [vlans, phase1]
+      block:
+        - name: Get existing IP addresses
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/ip/address"
+            method: GET
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            return_content: true
+          register: existing_ips
+
+        - name: Parse existing IP interfaces
+          ansible.builtin.set_fact:
+            existing_ip_interfaces: "{{ existing_ips.json | default([]) | map(attribute='interface') | list }}"
+
+        - name: Add IP addresses to VLAN interfaces
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/ip/address/add"
+            method: POST
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            body_format: json
+            body:
+              address: "{{ item.gateway }}/24"
+              interface: "{{ item.interface }}"
+              comment: "{{ item.comment }}"
+            status_code: [200, 201]
+          loop: "{{ zone_vlans }}"
+          when: item.interface not in existing_ip_interfaces
+          register: added_ips
+          changed_when: added_ips.status in [200, 201]
+
+    - name: Configure DHCP pools
+      tags: [vlans, dhcp, phase1]
+      block:
+        - name: Get existing DHCP pools
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/ip/pool"
+            method: GET
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            return_content: true
+          register: existing_pools
+
+        - name: Parse existing pool names
+          ansible.builtin.set_fact:
+            existing_pool_names: "{{ existing_pools.json | default([]) | map(attribute='name') | list }}"
+
+        - name: Create DHCP pools
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/ip/pool/add"
+            method: POST
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            body_format: json
+            body:
+              name: "pool-{{ item.name }}"
+              ranges: "{{ item.dhcp_pool_start }}-{{ item.dhcp_pool_end }}"
+              comment: "{{ item.comment }}"
+            status_code: [200, 201]
+          loop: "{{ zone_vlans }}"
+          when: "'pool-' + item.name not in existing_pool_names"
+          register: created_pools
+          changed_when: created_pools.status in [200, 201]
+
+        - name: Get existing DHCP servers
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/ip/dhcp-server"
+            method: GET
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            return_content: true
+          register: existing_dhcp_servers
+
+        - name: Parse existing DHCP server names
+          ansible.builtin.set_fact:
+            existing_dhcp_names: "{{ existing_dhcp_servers.json | default([]) | map(attribute='name') | list }}"
+
+        - name: Create DHCP servers
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/ip/dhcp-server/add"
+            method: POST
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            body_format: json
+            body:
+              name: "dhcp-{{ item.name }}"
+              interface: "{{ item.interface }}"
+              address-pool: "pool-{{ item.name }}"
+              lease-time: "{{ item.dhcp_lease_time }}"
+              comment: "{{ item.comment }}"
+            status_code: [200, 201]
+          loop: "{{ zone_vlans }}"
+          when: "'dhcp-' + item.name not in existing_dhcp_names"
+          register: created_dhcp
+          changed_when: created_dhcp.status in [200, 201]
+
+        - name: Get existing DHCP networks
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/ip/dhcp-server/network"
+            method: GET
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            return_content: true
+          register: existing_dhcp_networks
+
+        - name: Parse existing DHCP network addresses
+          ansible.builtin.set_fact:
+            existing_dhcp_cidrs: "{{ existing_dhcp_networks.json | default([]) | map(attribute='address') | list }}"
+
+        - name: Create DHCP networks
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/ip/dhcp-server/network/add"
+            method: POST
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            body_format: json
+            body:
+              address: "{{ item.cidr }}"
+              gateway: "{{ item.gateway }}"
+              dns-server: "{{ item.gateway }}"
+              comment: "{{ item.comment }}"
+            status_code: [200, 201]
+          loop: "{{ zone_vlans }}"
+          when: item.cidr not in existing_dhcp_cidrs
+          register: created_dhcp_networks
+          changed_when: created_dhcp_networks.status in [200, 201]
+
+    # =========================================================================
+    # PHASE 4: Firewall Zone Policies
+    # =========================================================================
+
+    - name: Create firewall address lists
+      tags: [firewall, phase4]
+      block:
+        - name: Get existing address lists
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/ip/firewall/address-list"
+            method: GET
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            return_content: true
+          register: existing_address_lists
+
+        - name: Check if internal-zones list exists
+          ansible.builtin.set_fact:
+            existing_internal_zones: "{{ existing_address_lists.json | default([]) | selectattr('list', 'equalto', 'internal-zones') | map(attribute='address') | list }}"
+
+        - name: Create internal-zones address list entries
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/ip/firewall/address-list/add"
+            method: POST
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            body_format: json
+            body:
+              list: internal-zones
+              address: "{{ item.address }}"
+              comment: "{{ item.comment }} (ADR-0109)"
+            status_code: [200, 201]
+          loop: "{{ internal_zone_addresses }}"
+          when: item.address not in existing_internal_zones
+          register: added_address_list
+          changed_when: added_address_list.status in [200, 201]
+
+    - name: Create firewall zone policies
+      tags: [firewall, phase4]
+      block:
+        - name: Get existing firewall filter rules
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/ip/firewall/filter"
+            method: GET
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            return_content: true
+          register: existing_fw_rules
+
+        - name: Find ADR-0109 managed rules
+          ansible.builtin.set_fact:
+            existing_zone_rules: "{{ existing_fw_rules.json | default([]) | selectattr('comment', 'defined') | selectattr('comment', 'search', 'ADR-0109') | list }}"
+
+        - name: Create zone policy rules
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/ip/firewall/filter/add"
+            method: POST
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            body_format: json
+            body: >-
+              {{
+                {
+                  'chain': item.chain,
+                  'action': item.action,
+                  'src-address': item.src_address | default(omit),
+                  'dst-address': item.dst_address | default(omit),
+                  'dst-address-list': item.dst_address_list | default(omit),
+                  'log': item.log | default(false) | string | lower,
+                  'log-prefix': item.log_prefix | default(omit),
+                  'comment': item.comment + ' (ADR-0109)'
+                } | dict2items | rejectattr('value', 'equalto', omit) | list | items2dict
+              }}
+            status_code: [200, 201]
+          loop: "{{ zone_policies }}"
+          when: existing_zone_rules | selectattr('comment', 'search', item.comment) | list | length == 0
+          register: created_fw_rules
+          changed_when: created_fw_rules.status in [200, 201]
+
+    # =========================================================================
+    # ROLLBACK: Remove zone policies
+    # =========================================================================
+
+    - name: Rollback firewall zone policies
+      tags: [firewall-rollback, never]
+      block:
+        - name: Get existing firewall filter rules
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/ip/firewall/filter"
+            method: GET
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            return_content: true
+          register: existing_fw_rules_rollback
+
+        - name: Find ADR-0109 managed rules for removal
+          ansible.builtin.set_fact:
+            rules_to_remove: "{{ existing_fw_rules_rollback.json | default([]) | selectattr('comment', 'defined') | selectattr('comment', 'search', 'ADR-0109') | list }}"
+
+        - name: Remove zone policy rules
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/ip/firewall/filter/remove"
+            method: POST
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            body_format: json
+            body:
+              .id: "{{ item['.id'] }}"
+            status_code: [200, 201]
+          loop: "{{ rules_to_remove }}"
+          when: rules_to_remove | length > 0
+          register: removed_fw_rules
+          changed_when: removed_fw_rules.status in [200, 201]
+
+        - name: Rollback summary
+          ansible.builtin.debug:
+            msg: "Removed {{ rules_to_remove | length }} ADR-0109 zone policy rules"
+
+    # =========================================================================
+    # Summary
+    # =========================================================================
+
+    - name: Deployment summary
+      tags: [always]
+      ansible.builtin.debug:
+        msg: |
+          ADR-0109 Zone Deployment Summary:
+          =================================
+          VLANs configured: {{ zone_vlans | length }}
+          {% for vlan in zone_vlans %}
+            - {{ vlan.name }}: VLAN {{ vlan.vlan_id }} ({{ vlan.cidr }})
+          {% endfor %}
+
+          Zone policies: {{ zone_policies | length }}
+          {% for policy in zone_policies %}
+            - {{ policy.comment }}
+          {% endfor %}
+
+          Next steps:
+          - Phase 2: Deploy WiFi SSIDs (mikrotik-wifi-deploy.yml)
+          - Phase 3: Migrate devices to proper VLANs
+          - Phase 4: Test zone policies before full deployment

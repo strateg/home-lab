@@ -183,10 +183,10 @@ Add to `rtr-mikrotik-chateau.yaml`:
 - [x] Create inst.vlan.user.yaml
 - [x] Update inst.vlan.guest.yaml, inst.vlan.iot.yaml, inst.vlan.servers.yaml
 - [x] Fix inst.trust_zone.vpn_tunnel.yaml (security_level, blocked_destinations)
-- [ ] Update rtr-mikrotik-chateau.yaml with vlans section and zone_policies
-- [ ] Add WiFi SSID definitions for Guest (VLAN 20) and IoT (VLAN 30)
-- [ ] Write Ansible playbook for zone policy deployment
-- [ ] Validate topology compilation after all changes
+- [x] Update rtr-mikrotik-chateau.yaml with vlans section and zone_policies
+- [x] Add WiFi SSID definitions for Guest (VLAN 20) and IoT (VLAN 30)
+- [x] Write Ansible playbook for zone policy deployment
+- [x] Validate topology compilation after all changes
 - [ ] Test in isolated environment before production (Phase 4)
 - [ ] Execute migration Phases 1–5 per plan above
 
