@@ -22,12 +22,14 @@ endpoint_a:
   tunnel_ip: 10.100.0.1/30
   persistent_keepalive: 25
   # Networks that MikroTik will advertise through tunnel
+  # ADR-0111: Use VLAN refs instead of hardcoded CIDRs
   allowed_ips:
-    - 10.100.0.1/32
-    - 192.168.88.0/24      # Default LAN
-    - 192.168.55.0/24      # VPN Germany VLAN
-    - 10.0.10.0/24         # Servers VLAN
-    - 10.0.99.0/24         # Management VLAN
+    - 10.100.0.1/32        # Tunnel IP (explicit)
+  allowed_vlan_refs:
+    - inst.vlan.lan        # 192.168.88.0/24 - Default LAN
+    - inst.vlan.vpn_germany  # 192.168.55.0/24 - VPN Germany
+    - inst.vlan.servers    # 10.0.30.0/24 - Servers
+    - inst.vlan.management # 10.0.99.0/24 - Management
 
 # Endpoint B: Oracle Cloud VPS (server/responder)
 # Has public IP, accepts incoming connections
@@ -68,14 +70,11 @@ firewall:
 vps_nat:
   enabled: true
   masquerade:
-    source_networks:
-      - 192.168.55.0/24    # VPN Germany VLAN
-    out_interface: ens3    # VPS public interface
-  # Required iptables rules (added via wg0.conf PostUp)
-  iptables_rules:
-    - "-I FORWARD 1 -i wg0 -o ens3 -j ACCEPT"
-    - "-I FORWARD 2 -i ens3 -o wg0 -m state --state RELATED,ESTABLISHED -j ACCEPT"
-    - "-t nat -A POSTROUTING -s 192.168.55.0/24 -o ens3 -j MASQUERADE"
+    # ADR-0111: Use VLAN refs instead of hardcoded CIDRs
+    source_vlan_refs:
+      - inst.vlan.vpn_germany  # VPN Germany traffic routes through VPS
+    out_interface: ens3        # VPS public interface
+  # iptables rules generated from source_vlan_refs by WireGuard generator
   ip_forward: true
 
 # Use cases for this tunnel

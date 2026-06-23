@@ -106,6 +106,191 @@ def _resolve_device_public_ip(
     return None
 
 
+def _load_object_properties(object_ref: str) -> dict[str, Any]:
+    """Load properties from object module YAML file.
+
+    Args:
+        object_ref: Object reference (e.g., "obj.network.vlan.servers")
+
+    Returns:
+        Properties dict from object module, or empty dict if not found.
+    """
+    import yaml
+
+    # Determine repo root from this file's location
+    this_file = Path(__file__).resolve()
+    # This file is at topology-tools/plugins/generators/wireguard_generator.py
+    # Object modules are at topology/object-modules/<domain>/obj.<domain>.<name>.yaml
+    repo_root = this_file.parents[3]
+    object_modules_root = repo_root / "topology" / "object-modules"
+
+    # Parse object_ref: obj.network.vlan.servers -> network/obj.network.vlan.servers.yaml
+    parts = object_ref.split(".")
+    if len(parts) < 3:
+        return {}
+
+    domain = parts[1]  # e.g., "network"
+    object_file = object_modules_root / domain / f"{object_ref}.yaml"
+
+    if not object_file.exists():
+        return {}
+
+    try:
+        raw = object_file.read_text(encoding="utf-8")
+        # Topology object modules use @-prefixed metadata keys; normalize before parsing
+        normalized_lines: list[str] = []
+        for line in raw.splitlines():
+            stripped = line.lstrip()
+            indent = line[: len(line) - len(stripped)]
+            if stripped.startswith("@") and ":" in stripped:
+                key, rest = stripped.split(":", 1)
+                normalized_lines.append(f'{indent}"{key}":{rest}')
+            else:
+                normalized_lines.append(line)
+        payload = yaml.safe_load("\n".join(normalized_lines)) or {}
+        if isinstance(payload, dict):
+            props = payload.get("properties", {})
+            if isinstance(props, dict):
+                return props
+        return {}
+    except Exception:
+        return {}
+
+
+def _build_vlan_cidr_index(network_rows: list[dict[str, Any]]) -> dict[str, str]:
+    """Build VLAN instance_id -> CIDR index for reference resolution (ADR-0111).
+
+    Args:
+        network_rows: Network instance rows from compiled JSON.
+
+    Returns:
+        Dict mapping instance_id (e.g., "inst.vlan.servers") to CIDR (e.g., "10.0.30.0/24").
+    """
+    index: dict[str, str] = {}
+    for row in network_rows:
+        object_ref = _resolved_object_ref(row)
+        if "vlan" not in object_ref:
+            continue
+
+        instance_id = str(row.get("instance_id", "")).strip()
+        if not instance_id:
+            continue
+
+        # Get CIDR from instance_data first
+        inst_data = row.get("instance_data", {})
+        if not isinstance(inst_data, dict):
+            inst_data = {}
+        cidr = str(inst_data.get("cidr", "")).strip()
+
+        # Fallback to object module properties (load from disk)
+        if not cidr:
+            props = _load_object_properties(object_ref)
+            cidr = str(props.get("cidr", "")).strip()
+
+        if cidr:
+            index[instance_id] = cidr
+
+    return index
+
+
+def _resolve_vlan_refs_to_cidrs(
+    vlan_refs: list[Any],
+    vlan_cidr_index: dict[str, str],
+) -> list[str]:
+    """Resolve VLAN references to their CIDRs (ADR-0111).
+
+    Args:
+        vlan_refs: List of VLAN instance refs (e.g., ["inst.vlan.lan", "inst.vlan.servers"])
+        vlan_cidr_index: Mapping of instance_id -> CIDR
+
+    Returns:
+        List of resolved CIDRs (e.g., ["192.168.88.0/24", "10.0.30.0/24"])
+    """
+    cidrs: list[str] = []
+    for ref in vlan_refs:
+        if not isinstance(ref, str):
+            continue
+        ref = ref.strip()
+        cidr = vlan_cidr_index.get(ref)
+        if cidr:
+            cidrs.append(cidr)
+    return cidrs
+
+
+def _resolve_endpoint_allowed_ips(
+    endpoint: dict[str, Any],
+    vlan_cidr_index: dict[str, str],
+) -> dict[str, Any]:
+    """Resolve allowed_vlan_refs in endpoint to allowed_ips (ADR-0111).
+
+    Merges explicit allowed_ips with resolved allowed_vlan_refs.
+    """
+    if not isinstance(endpoint, dict):
+        return endpoint
+
+    # Start with explicit allowed_ips
+    allowed_ips = list(endpoint.get("allowed_ips", []))
+
+    # Resolve and append allowed_vlan_refs
+    vlan_refs = endpoint.get("allowed_vlan_refs", [])
+    if isinstance(vlan_refs, list):
+        resolved = _resolve_vlan_refs_to_cidrs(vlan_refs, vlan_cidr_index)
+        allowed_ips.extend(resolved)
+
+    # Return updated endpoint
+    return {**endpoint, "allowed_ips": allowed_ips}
+
+
+def _resolve_vps_nat(
+    vps_nat: dict[str, Any],
+    vlan_cidr_index: dict[str, str],
+) -> dict[str, Any]:
+    """Resolve source_vlan_refs in vps_nat to source_networks and generate iptables rules (ADR-0111)."""
+    if not isinstance(vps_nat, dict) or not vps_nat.get("enabled"):
+        return vps_nat
+
+    masquerade = vps_nat.get("masquerade", {})
+    if not isinstance(masquerade, dict):
+        return vps_nat
+
+    # Resolve source_vlan_refs to CIDRs
+    vlan_refs = masquerade.get("source_vlan_refs", [])
+    source_networks: list[str] = []
+    if isinstance(vlan_refs, list):
+        source_networks = _resolve_vlan_refs_to_cidrs(vlan_refs, vlan_cidr_index)
+
+    # Fallback to explicit source_networks if no refs
+    if not source_networks:
+        explicit = masquerade.get("source_networks", [])
+        if isinstance(explicit, list):
+            source_networks = [str(n) for n in explicit if isinstance(n, str)]
+
+    # Generate iptables rules from resolved source_networks
+    out_interface = masquerade.get("out_interface", "ens3")
+    iptables_rules: list[str] = []
+
+    if source_networks:
+        # Forward rules
+        iptables_rules.append(f"-I FORWARD 1 -i wg0 -o {out_interface} -j ACCEPT")
+        iptables_rules.append(
+            f"-I FORWARD 2 -i {out_interface} -o wg0 -m state --state RELATED,ESTABLISHED -j ACCEPT"
+        )
+        # NAT rules for each source network
+        for cidr in source_networks:
+            iptables_rules.append(
+                f"-t nat -A POSTROUTING -s {cidr} -o {out_interface} -j MASQUERADE"
+            )
+
+    return {
+        **vps_nat,
+        "masquerade": {
+            **masquerade,
+            "source_networks": source_networks,
+        },
+        "iptables_rules": iptables_rules,
+    }
+
+
 def build_wireguard_projection(
     compiled: dict[str, Any],
     *,
@@ -129,6 +314,9 @@ def build_wireguard_projection(
     """
     groups = _instance_groups(compiled)
     network_instances = _group_rows(groups, canonical=GROUP_NETWORK)
+
+    # Build VLAN CIDR index for reference resolution (ADR-0111)
+    vlan_cidr_index = _build_vlan_cidr_index(network_instances)
     tunnels: list[dict[str, Any]] = []
 
     for inst in network_instances:
@@ -143,8 +331,13 @@ def build_wireguard_projection(
 
         tunnel_name = inst_data.get("tunnel_name", "wg0")
         tunnel_network = inst_data.get("tunnel_network", "")
-        endpoint_a = inst_data.get("endpoint_a", {})
-        endpoint_b = inst_data.get("endpoint_b", {})
+        # Resolve allowed_vlan_refs to allowed_ips (ADR-0111)
+        endpoint_a = _resolve_endpoint_allowed_ips(
+            inst_data.get("endpoint_a", {}), vlan_cidr_index
+        )
+        endpoint_b = _resolve_endpoint_allowed_ips(
+            inst_data.get("endpoint_b", {}), vlan_cidr_index
+        )
         secrets_ref = inst_data.get("secrets_ref", "")
 
         # Load tunnel secrets
@@ -171,6 +364,9 @@ def build_wireguard_projection(
             if public_ip:
                 endpoint_b = {**endpoint_b, "public_endpoint": public_ip}
 
+        # Resolve source_vlan_refs in vps_nat and generate iptables rules (ADR-0111)
+        vps_nat = _resolve_vps_nat(inst_data.get("vps_nat", {}), vlan_cidr_index)
+
         tunnels.append(
             {
                 "instance_id": inst_id,
@@ -180,7 +376,7 @@ def build_wireguard_projection(
                 "endpoint_b": endpoint_b,
                 "routing": inst_data.get("routing", {}),
                 "firewall": inst_data.get("firewall", {}),
-                "vps_nat": inst_data.get("vps_nat", {}),
+                "vps_nat": vps_nat,
                 "secrets": secrets,
                 "mtu": inst_data.get("mtu", 1420),
                 "keepalive_interval": inst_data.get("keepalive_interval", 25),

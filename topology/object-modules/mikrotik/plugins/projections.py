@@ -494,11 +494,80 @@ def _extract_security_matrix(
     return {}
 
 
+def _build_vlan_cidr_index(network_rows: list[dict[str, Any]]) -> dict[str, str]:
+    """Build VLAN instance_id -> CIDR index for reference resolution (ADR-0111).
+
+    This includes ALL VLANs from network rows, not just MikroTik-managed ones,
+    since WireGuard tunnels may reference VLANs managed by other devices (e.g., Proxmox).
+
+    Args:
+        network_rows: Network instance rows from compiled JSON.
+
+    Returns:
+        Dict mapping instance_id (e.g., "inst.vlan.servers") to CIDR (e.g., "10.0.30.0/24").
+    """
+    index: dict[str, str] = {}
+    for row in network_rows:
+        object_ref = _resolved_object_ref(row)
+        if "vlan" not in object_ref:
+            continue
+
+        instance_id = str(row.get("instance_id", "")).strip()
+        if not instance_id:
+            continue
+
+        # Get CIDR from instance_data first
+        inst_data = row.get("instance_data", {})
+        if not isinstance(inst_data, dict):
+            inst_data = {}
+        cidr = str(inst_data.get("cidr", "")).strip()
+
+        # Fallback to object module properties (load from disk)
+        if not cidr:
+            props = _load_object_properties(object_ref)
+            cidr = str(props.get("cidr", "")).strip()
+
+        if cidr:
+            index[instance_id] = cidr
+
+    return index
+
+
+def _resolve_vlan_refs_to_cidrs(
+    vlan_refs: list[Any],
+    vlan_cidr_index: dict[str, str],
+) -> list[str]:
+    """Resolve VLAN references to their CIDRs (ADR-0111).
+
+    Args:
+        vlan_refs: List of VLAN instance refs (e.g., ["inst.vlan.lan", "inst.vlan.servers"])
+        vlan_cidr_index: Mapping of instance_id -> CIDR
+
+    Returns:
+        List of resolved CIDRs (e.g., ["192.168.88.0/24", "10.0.30.0/24"])
+    """
+    cidrs: list[str] = []
+    for ref in vlan_refs:
+        if not isinstance(ref, str):
+            continue
+        ref = ref.strip()
+        cidr = vlan_cidr_index.get(ref)
+        if cidr:
+            cidrs.append(cidr)
+    return cidrs
+
+
 def _extract_wireguard_tunnels(
     network_rows: list[dict[str, Any]],
     router_ids: set[str],
+    vlan_cidr_index: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Extract WireGuard tunnels where MikroTik router is an endpoint.
+
+    Args:
+        network_rows: Network instance rows from compiled JSON.
+        router_ids: Set of MikroTik router instance IDs.
+        vlan_cidr_index: VLAN instance_id -> CIDR index for resolving allowed_vlan_refs (ADR-0111).
 
     Returns:
         {
@@ -509,6 +578,8 @@ def _extract_wireguard_tunnels(
             "wireguard_peers": [...],  # Peer configurations
         }
     """
+    if vlan_cidr_index is None:
+        vlan_cidr_index = {}
     tunnels: list[dict[str, Any]] = []
     peers: list[dict[str, Any]] = []
     interface_address = ""
@@ -579,6 +650,12 @@ def _extract_wireguard_tunnels(
             for ip in remote_allowed_ips:
                 if isinstance(ip, str) and ip:
                     allowed_ips.append(ip)
+
+        # ADR-0111: Resolve allowed_vlan_refs to CIDRs
+        remote_vlan_refs = remote_endpoint.get("allowed_vlan_refs", [])
+        if isinstance(remote_vlan_refs, list) and vlan_cidr_index:
+            resolved_cidrs = _resolve_vlan_refs_to_cidrs(remote_vlan_refs, vlan_cidr_index)
+            allowed_ips.extend(resolved_cidrs)
 
         # If allowed_ips is empty, at least add remote tunnel IP
         if not allowed_ips:
@@ -807,8 +884,12 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
                 if bridge_ip:
                     runtime_baseline["addresses"].append({"address": bridge_ip, "interface": bridge_if})
 
+    # Build VLAN CIDR index for reference resolution (ADR-0111)
+    # Uses all network rows (not just MikroTik-managed vlans) for cross-device references
+    vlan_cidr_index = _build_vlan_cidr_index(network)
+
     # Extract WireGuard tunnel configurations for MikroTik routers
-    wireguard_data = _extract_wireguard_tunnels(network, router_ids)
+    wireguard_data = _extract_wireguard_tunnels(network, router_ids, vlan_cidr_index)
 
     # Extract WiFi configurations from router instances
     wifi_data = _extract_wifi_config(routers)
