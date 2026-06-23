@@ -1,0 +1,24 @@
+@object: obj.network.trust_zone.vpn_tunnel
+@extends: class.network.trust_zone
+@title: VPN Tunnel Trust Zone
+@description: |
+  Trust zone for devices routed through VPN tunnels.
+  Multiple VLANs can use this zone with different tunnel endpoints.
+  Traffic is isolated from local networks but has full internet access via VPN.
+@version: 1.0.0
+
+properties:
+  name: VPN Tunnel Zone
+  security_level: 2
+  color: "#9966ff"
+  description: Devices routed through VPN tunnels (geo-bypass, privacy)
+  isolated: false
+  reserved: false
+  # Allow outbound to untrusted (internet via VPN)
+  allowed_outbound:
+    - to:untrusted
+  # Only established/related inbound
+  allowed_inbound:
+    - established
+
+enabled_capabilities: []
