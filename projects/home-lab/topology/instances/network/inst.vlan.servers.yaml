@@ -3,11 +3,21 @@
 @group: network
 @version: 1.0.0
 source_id: net-servers
-notes: Server VLAN is staged in topology; currently not configured on rtr-mikrotik-chateau
+status: staged
+notes: |
+  Server VLAN (VLAN 40) for internal services.
+  Higher trust level than IoT/guest per ADR-0110.
+  Currently not configured on rtr-mikrotik-chateau.
+
 bridge_ref: inst.bridge.vmbr0
 trust_zone_ref: inst.trust_zone.servers
+managed_by_ref: rtr-mikrotik-chateau
 
 ip_allocations:
+  - device_ref: rtr-mikrotik-chateau
+    host: 1
+    purpose: gateway
+
   - device_ref: srv-orangepi5
     host: 5
     purpose: docker host

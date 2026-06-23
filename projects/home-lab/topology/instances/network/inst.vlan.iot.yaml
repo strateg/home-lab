@@ -3,6 +3,17 @@
 @group: network
 @version: 1.0.0
 source_id: net-iot
-notes: IoT segment is staged in topology; currently not configured on rtr-mikrotik-chateau
+status: staged
+notes: |
+  IoT segment (VLAN 30) for smart home devices.
+  Isolated from internal networks per ADR-0110.
+  Currently not configured on rtr-mikrotik-chateau.
+
 trust_zone_ref: inst.trust_zone.iot
+managed_by_ref: rtr-mikrotik-chateau
 dhcp_range: 192.168.30.100-192.168.30.200
+
+ip_allocations:
+  - device_ref: rtr-mikrotik-chateau
+    host: 1
+    purpose: gateway, DNS, DHCP

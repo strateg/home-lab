@@ -3,6 +3,17 @@
 @group: network
 @version: 1.0.0
 source_id: net-guest
-notes: Guest WiFi segment is staged in topology; currently not configured on rtr-mikrotik-chateau
+status: staged
+notes: |
+  Guest WiFi segment (VLAN 20) for untrusted visitor devices.
+  Isolated from internal networks per ADR-0110.
+  Currently not configured on rtr-mikrotik-chateau.
+
 trust_zone_ref: inst.trust_zone.guest
+managed_by_ref: rtr-mikrotik-chateau
 dhcp_range: 192.168.20.100-192.168.20.200
+
+ip_allocations:
+  - device_ref: rtr-mikrotik-chateau
+    host: 1
+    purpose: gateway, DNS, DHCP

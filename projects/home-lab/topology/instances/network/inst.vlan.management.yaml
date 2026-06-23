@@ -10,6 +10,7 @@ notes: |
   User zone devices access router services via 192.168.88.1 (DNS, DHCP).
 
 trust_zone_ref: inst.trust_zone.management
+managed_by_ref: rtr-mikrotik-chateau
 
 ip_allocations:
   # Router is gateway for management VLAN
