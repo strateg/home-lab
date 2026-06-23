@@ -153,6 +153,7 @@ def test_ansible_projection_contains_hosts_from_l1_and_l4() -> None:
         "rtr-mk",
         "srv-gamayun",
         "srv-orangepi5",
+        "vm-analytics",
     ]
     assert "inst.ethernet_cable.cat5e" not in [row["instance_id"] for row in projection["hosts"]]
 

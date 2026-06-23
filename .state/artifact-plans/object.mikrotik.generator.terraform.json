@@ -158,6 +158,13 @@
       "template": "terraform/addresses.tf.j2"
     },
     {
+      "path": "generated/home-lab/terraform/mikrotik/bridge_hosts.tf",
+      "reason": "base-family",
+      "renderer": "jinja2",
+      "required": true,
+      "template": "terraform/bridge_hosts.tf.j2"
+    },
+    {
       "path": "generated/home-lab/terraform/mikrotik/containers.tf",
       "reason": "capability-enabled",
       "renderer": "jinja2",

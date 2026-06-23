@@ -14,6 +14,20 @@
       "action": "warn",
       "ownership_method": "output_prefix_match",
       "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/inst.device.boox-go-103-lumi.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/inst.device.tv-sony-bravia.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
       "path": "generated/home-lab/ansible/inventory/production/host_vars/lxc-docker.yml",
       "reason": "obsolete-shadowed"
     },

@@ -28,11 +28,13 @@ def test_error_catalog_codes_are_unique():
 
 def test_adr0080_ranges_are_reserved_without_foreign_overlap():
     codes = _load_codes()
-    adr008x_prefixes = ("E800", "E810", "E820", "E880", "W800")
+    # ADR0080: E80xx, E81xx, E82xx, E88xx, I81xx, I82xx - assembly/validation stages
+    # ADR0103: E83xx, W835x, I838x - runtime reconciliation
+    adr008x_prefixes = ("E800", "E810", "E820", "E830", "E831", "E832", "E880", "W800", "W835", "I810", "I820", "I838")
 
     for code in codes.keys():
-        if code.startswith("E8") or code.startswith("W8"):
-            assert code.startswith(adr008x_prefixes), f"Unexpected code in E8/W8 range: {code}"
+        if code.startswith("E8") or code.startswith("W8") or code.startswith("I8"):
+            assert code.startswith(adr008x_prefixes), f"Unexpected code in E8/W8/I8 range: {code}"
 
     required = {
         "E8001",

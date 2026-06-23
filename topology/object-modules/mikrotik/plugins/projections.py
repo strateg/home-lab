@@ -510,7 +510,7 @@ def _build_vlan_cidr_index(network_rows: list[dict[str, Any]]) -> dict[str, str]
         network_rows: Network instance rows from compiled JSON.
 
     Returns:
-        Dict mapping instance_id (e.g., "inst.vlan.servers") to CIDR (e.g., "10.0.30.0/24").
+        Dict mapping instance_id (e.g., "inst.vlan.servers") to CIDR (e.g., "192.0.2.0/24").
     """
     index: dict[str, str] = {}
     for row in network_rows:
@@ -546,11 +546,11 @@ def _resolve_vlan_refs_to_cidrs(
     """Resolve VLAN references to their CIDRs (ADR-0111).
 
     Args:
-        vlan_refs: List of VLAN instance refs (e.g., ["inst.vlan.lan", "inst.vlan.servers"])
+        vlan_refs: List of VLAN instance refs (e.g., ["inst.vlan.main", "inst.vlan.servers"])
         vlan_cidr_index: Mapping of instance_id -> CIDR
 
     Returns:
-        List of resolved CIDRs (e.g., ["192.168.88.0/24", "10.0.30.0/24"])
+        List of resolved CIDRs (e.g., ["192.0.2.0/24", "198.51.100.0/24"])
     """
     cidrs: list[str] = []
     for ref in vlan_refs:
@@ -578,7 +578,7 @@ def _extract_wireguard_tunnels(
     Returns:
         {
             "tunnels": [...],  # List of tunnel configs for this router
-            "wireguard_address": "10.100.0.1/30",  # Interface address
+            "wireguard_address": "192.0.2.1/30",  # Interface address
             "wireguard_listen_port": 51820,
             "wireguard_mtu": 1420,
             "wireguard_peers": [...],  # Peer configurations

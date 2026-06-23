@@ -1049,7 +1049,7 @@ def test_instance_rows_compiler_rejects_unsafe_identifiers():
     assert any("object_ref 'obj.router?bad'" in message for message in e3201_messages)
 
 
-def test_sidecar_secret_annotations_are_replaced(monkeypatch):
+def test_sidecar_secret_annotations_are_replaced(monkeypatch, tmp_path):
     class FakeResult:
         def __init__(self, returncode: int, stdout: str = "", stderr: str = "") -> None:
             self.returncode = returncode
@@ -1070,6 +1070,11 @@ def test_sidecar_secret_annotations_are_replaced(monkeypatch):
 
     monkeypatch.setattr(instance_rows_module.subprocess, "run", fake_run)
 
+    # Create sidecar file so exists() check passes (content doesn't matter - subprocess is mocked)
+    sidecar_dir = tmp_path / "instances"
+    sidecar_dir.mkdir(parents=True)
+    (sidecar_dir / "rtr-slate.yaml").write_text("placeholder")
+
     registry = _registry()
     ctx = PluginContext(
         topology_path="topology/topology.yaml",
@@ -1078,9 +1083,8 @@ def test_sidecar_secret_annotations_are_replaced(monkeypatch):
         config={
             "compilation_owner_instance_rows": "plugin",
             "secrets_mode": "inject",
-            "secrets_root": "projects/home-lab/secrets",
+            "secrets_root": str(tmp_path),
             "require_unlock": True,
-            "repo_root": str(V5_TOOLS.parent),
         },
         instance_bindings={
             "instance_bindings": {
@@ -1110,7 +1114,7 @@ def test_sidecar_secret_annotations_are_replaced(monkeypatch):
     assert hw_identity.get("mac_addresses", {}).get("wan") == "AA:BB:CC:DD:EE:01"
 
 
-def test_sidecar_plaintext_conflict_emits_error(monkeypatch):
+def test_sidecar_plaintext_conflict_emits_error(monkeypatch, tmp_path):
     class FakeResult:
         def __init__(self, returncode: int, stdout: str = "", stderr: str = "") -> None:
             self.returncode = returncode
@@ -1125,6 +1129,11 @@ def test_sidecar_plaintext_conflict_emits_error(monkeypatch):
 
     monkeypatch.setattr(instance_rows_module.subprocess, "run", fake_run)
 
+    # Create sidecar file so exists() check passes
+    sidecar_dir = tmp_path / "instances"
+    sidecar_dir.mkdir(parents=True)
+    (sidecar_dir / "rtr-slate.yaml").write_text("placeholder")
+
     registry = _registry()
     ctx = PluginContext(
         topology_path="topology/topology.yaml",
@@ -1133,9 +1142,8 @@ def test_sidecar_plaintext_conflict_emits_error(monkeypatch):
         config={
             "compilation_owner_instance_rows": "plugin",
             "secrets_mode": "inject",
-            "secrets_root": "projects/home-lab/secrets",
+            "secrets_root": str(tmp_path),
             "require_unlock": True,
-            "repo_root": str(V5_TOOLS.parent),
         },
         instance_bindings={
             "instance_bindings": {
@@ -1162,7 +1170,7 @@ def test_sidecar_plaintext_conflict_emits_error(monkeypatch):
     assert hw_identity.get("serial_number") == "PLAINTEXT-SN"
 
 
-def test_sidecar_uses_object_secret_annotations_without_instance_mac_duplication(monkeypatch):
+def test_sidecar_uses_object_secret_annotations_without_instance_mac_duplication(monkeypatch, tmp_path):
     class FakeResult:
         def __init__(self, returncode: int, stdout: str = "", stderr: str = "") -> None:
             self.returncode = returncode
@@ -1186,6 +1194,11 @@ def test_sidecar_uses_object_secret_annotations_without_instance_mac_duplication
 
     monkeypatch.setattr(instance_rows_module.subprocess, "run", fake_run)
 
+    # Create sidecar file so exists() check passes
+    sidecar_dir = tmp_path / "instances"
+    sidecar_dir.mkdir(parents=True)
+    (sidecar_dir / "rtr-slate.yaml").write_text("placeholder")
+
     registry = _registry()
     ctx = PluginContext(
         topology_path="topology/topology.yaml",
@@ -1194,9 +1207,8 @@ def test_sidecar_uses_object_secret_annotations_without_instance_mac_duplication
         config={
             "compilation_owner_instance_rows": "plugin",
             "secrets_mode": "inject",
-            "secrets_root": "projects/home-lab/secrets",
+            "secrets_root": str(tmp_path),
             "require_unlock": True,
-            "repo_root": str(V5_TOOLS.parent),
         },
         objects={
             "obj.glinet.slate_ax1800": {
@@ -1245,7 +1257,7 @@ def test_sidecar_uses_object_secret_annotations_without_instance_mac_duplication
     assert macs.get("wlan0_5ghz") == "AA:BB:CC:DD:EE:10"
 
 
-def test_object_interface_mac_annotations_resolve_without_instance_hardware_identity(monkeypatch):
+def test_object_interface_mac_annotations_resolve_without_instance_hardware_identity(monkeypatch, tmp_path):
     class FakeResult:
         def __init__(self, returncode: int, stdout: str = "", stderr: str = "") -> None:
             self.returncode = returncode
@@ -1269,6 +1281,11 @@ def test_object_interface_mac_annotations_resolve_without_instance_hardware_iden
 
     monkeypatch.setattr(instance_rows_module.subprocess, "run", fake_run)
 
+    # Create sidecar file so exists() check passes
+    sidecar_dir = tmp_path / "instances"
+    sidecar_dir.mkdir(parents=True)
+    (sidecar_dir / "rtr-slate.yaml").write_text("placeholder")
+
     registry = _registry()
     ctx = PluginContext(
         topology_path="topology/topology.yaml",
@@ -1277,9 +1294,8 @@ def test_object_interface_mac_annotations_resolve_without_instance_hardware_iden
         config={
             "compilation_owner_instance_rows": "plugin",
             "secrets_mode": "inject",
-            "secrets_root": "projects/home-lab/secrets",
+            "secrets_root": str(tmp_path),
             "require_unlock": True,
-            "repo_root": str(V5_TOOLS.parent),
         },
         objects={
             "obj.glinet.slate_ax1800": {
@@ -1327,7 +1343,7 @@ def test_object_interface_mac_annotations_resolve_without_instance_hardware_iden
     assert macs.get("wlan0_5ghz") == "AA:BB:CC:DD:EE:10"
 
 
-def test_annotation_resolver_formats_validate_secret_values(monkeypatch):
+def test_annotation_resolver_formats_validate_secret_values(monkeypatch, tmp_path):
     class FakeResult:
         def __init__(self, returncode: int, stdout: str = "", stderr: str = "") -> None:
             self.returncode = returncode
@@ -1342,6 +1358,11 @@ def test_annotation_resolver_formats_validate_secret_values(monkeypatch):
 
     monkeypatch.setattr(instance_rows_module.subprocess, "run", fake_run)
 
+    # Create sidecar file so exists() check passes
+    sidecar_dir = tmp_path / "instances"
+    sidecar_dir.mkdir(parents=True)
+    (sidecar_dir / "rtr-slate.yaml").write_text("placeholder")
+
     registry = _registry()
     ctx = PluginContext(
         topology_path="topology/topology.yaml",
@@ -1350,9 +1371,8 @@ def test_annotation_resolver_formats_validate_secret_values(monkeypatch):
         config={
             "compilation_owner_instance_rows": "plugin",
             "secrets_mode": "inject",
-            "secrets_root": "projects/home-lab/secrets",
+            "secrets_root": str(tmp_path),
             "require_unlock": True,
-            "repo_root": str(V5_TOOLS.parent),
         },
         instance_bindings={
             "instance_bindings": {
@@ -1383,7 +1403,7 @@ def test_annotation_resolver_formats_validate_secret_values(monkeypatch):
     assert wan_value == "@optional_secret:mac"
 
 
-def test_object_level_secret_annotation_resolves_serial_without_instance_marker(monkeypatch):
+def test_object_level_secret_annotation_resolves_serial_without_instance_marker(monkeypatch, tmp_path):
     class FakeResult:
         def __init__(self, returncode: int, stdout: str = "", stderr: str = "") -> None:
             self.returncode = returncode
@@ -1398,6 +1418,11 @@ def test_object_level_secret_annotation_resolves_serial_without_instance_marker(
 
     monkeypatch.setattr(instance_rows_module.subprocess, "run", fake_run)
 
+    # Create sidecar file so exists() check passes
+    sidecar_dir = tmp_path / "instances"
+    sidecar_dir.mkdir(parents=True)
+    (sidecar_dir / "rtr-slate.yaml").write_text("placeholder")
+
     registry = _registry()
     ctx = PluginContext(
         topology_path="topology/topology.yaml",
@@ -1406,9 +1431,8 @@ def test_object_level_secret_annotation_resolves_serial_without_instance_marker(
         config={
             "compilation_owner_instance_rows": "plugin",
             "secrets_mode": "inject",
-            "secrets_root": "projects/home-lab/secrets",
+            "secrets_root": str(tmp_path),
             "require_unlock": True,
-            "repo_root": str(V5_TOOLS.parent),
         },
         objects={
             "obj.glinet.slate_ax1800": {
@@ -1442,7 +1466,7 @@ def test_object_level_secret_annotation_resolves_serial_without_instance_marker(
     assert serial == "SECRET-SN-OBJ"
 
 
-def test_object_level_typed_secret_annotation_rejects_invalid_scalar(monkeypatch):
+def test_object_level_typed_secret_annotation_rejects_invalid_scalar(monkeypatch, tmp_path):
     class FakeResult:
         def __init__(self, returncode: int, stdout: str = "", stderr: str = "") -> None:
             self.returncode = returncode
@@ -1457,6 +1481,11 @@ def test_object_level_typed_secret_annotation_rejects_invalid_scalar(monkeypatch
 
     monkeypatch.setattr(instance_rows_module.subprocess, "run", fake_run)
 
+    # Create sidecar file so exists() check passes
+    sidecar_dir = tmp_path / "instances"
+    sidecar_dir.mkdir(parents=True)
+    (sidecar_dir / "rtr-slate.yaml").write_text("placeholder")
+
     registry = _registry()
     ctx = PluginContext(
         topology_path="topology/topology.yaml",
@@ -1465,9 +1494,8 @@ def test_object_level_typed_secret_annotation_rejects_invalid_scalar(monkeypatch
         config={
             "compilation_owner_instance_rows": "plugin",
             "secrets_mode": "inject",
-            "secrets_root": "projects/home-lab/secrets",
+            "secrets_root": str(tmp_path),
             "require_unlock": True,
-            "repo_root": str(V5_TOOLS.parent),
         },
         objects={
             "obj.glinet.slate_ax1800": {

@@ -183,7 +183,7 @@ def test_terraform_mikrotik_generator_derives_host_from_projection(tmp_path: Pat
     tfvars = (tmp_path / "generated" / "terraform" / "mikrotik" / "terraform.tfvars.example").read_text(
         encoding="utf-8"
     )
-    assert 'mikrotik_host = "https://rtr-mk:8443"' in tfvars
+    assert 'mikrotik_host = "https://rtr-mk:443"' in tfvars
 
 
 def test_terraform_mikrotik_generator_prefers_configured_host(tmp_path: Path) -> None:
@@ -386,7 +386,8 @@ def test_terraform_mikrotik_generator_reflects_full_network_topology(tmp_path: P
     assert 'resource "routeros_interface_vlan" "guest"' in interfaces_tf
     assert 'resource "routeros_interface_vlan" "iot"' in interfaces_tf
     assert 'resource "routeros_interface_vlan" "management"' in interfaces_tf
-    assert 'resource "routeros_interface_vlan" "servers"' in interfaces_tf
+    # servers VLAN has vlan_id: null (Proxmox-managed, not MikroTik) - should not be generated
+    assert 'resource "routeros_interface_vlan" "servers"' not in interfaces_tf
     assert 'resource "routeros_interface_vlan" "lan"' not in interfaces_tf
 
     addresses_tf = (target_dir / "addresses.tf").read_text(encoding="utf-8")

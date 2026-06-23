@@ -121,7 +121,8 @@ class TerraformMikroTikGenerator(BaseGenerator):
 
         # Extract WireGuard configuration from projection
         wireguard_peers = wireguard.get("wireguard_peers", [])
-        wireguard_address = wireguard.get("wireguard_address", "10.100.0.1/30")
+        # Default to empty string; actual address comes from projection data
+        wireguard_address = wireguard.get("wireguard_address", "")
         wireguard_listen_port = wireguard.get("wireguard_listen_port", 51820)
         wireguard_mtu = wireguard.get("wireguard_mtu", 1420)
 

@@ -213,6 +213,9 @@ objects:
   obj.network.trust_zone.user:
     version: 1.0.0
     class_ref: class.network.trust_zone
+  obj.network.trust_zone.vpn_tunnel:
+    version: 1.0.0
+    class_ref: class.network.trust_zone
   obj.network.vlan.guest:
     version: 1.0.0
     class_ref: class.network.vlan

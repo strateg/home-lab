@@ -29,11 +29,11 @@ class FirewallProxmoxGenerator(BaseGenerator):
 
     Rule format example:
         [RULES]
-        IN ACCEPT -source 192.168.10.0/24 -dest 10.0.30.0/24 -p tcp -dport 443 -log nolog
+        IN ACCEPT -source 192.0.2.0/24 -dest 198.51.100.0/24 -p tcp -dport 443 -log nolog
 
     Security group format:
         [group zone-user]
-        IN ACCEPT -source 192.168.10.0/24
+        IN ACCEPT -source 192.0.2.0/24
 
     Reference: https://pve.proxmox.com/wiki/Firewall
     """
@@ -128,12 +128,12 @@ class FirewallProxmoxGenerator(BaseGenerator):
 #   policy_out: ACCEPT
 #
 #   [ALIASES]
-#   zone_user = 192.168.10.0/24
-#   zone_servers = 10.0.30.0/24
-#   zone_guest = 192.168.20.0/24
+#   zone_user = 192.0.2.0/24
+#   zone_servers = 198.51.100.0/24
+#   zone_guest = 203.0.113.0/24
 #
 #   [IPSET zone-user]
-#   192.168.10.0/24
+#   192.0.2.0/24
 #
 #   [group zone-user-to-servers]
 #   IN ACCEPT -source zone_user -dest zone_servers -p tcp -dport 443,5432

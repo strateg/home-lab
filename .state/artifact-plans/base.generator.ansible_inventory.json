@@ -242,6 +242,18 @@
       "required": true
     },
     {
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/inst.device.boox-go-103-lumi.yml",
+      "reason": "base-family",
+      "renderer": "structured",
+      "required": true
+    },
+    {
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/inst.device.tv-sony-bravia.yml",
+      "reason": "base-family",
+      "renderer": "structured",
+      "required": true
+    },
+    {
       "path": "generated/home-lab/ansible/inventory/production/host_vars/lxc-docker.yml",
       "reason": "base-family",
       "renderer": "structured",

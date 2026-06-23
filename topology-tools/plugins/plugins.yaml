@@ -2287,6 +2287,8 @@ plugins:
     key: generated_dir
     required: false
   produces:
+  - key: generated_files
+    scope: pipeline_shared
   - key: ansible_role_files
     scope: pipeline_shared
   - key: ansible_role_artifact_plan

@@ -278,7 +278,8 @@ class TestMikroTikGeneratorCapabilityDriven:
         generated_files = [Path(f).name for f in result.output_data.get("terraform_mikrotik_files", [])]
         assert "vpn.tf" in generated_files
 
-    def test_skips_vpn_tf_without_wireguard_capability(self, tmp_path: Path) -> None:
+    def test_vpn_tf_has_no_resources_without_wireguard_capability(self, tmp_path: Path) -> None:
+        """vpn.tf is always generated but contains no resources when WireGuard is disabled."""
         compiled_json = {
             "instances": {
                 "devices": [
@@ -299,7 +300,12 @@ class TestMikroTikGeneratorCapabilityDriven:
 
         assert result.status == PluginStatus.SUCCESS
         generated_files = [Path(f).name for f in result.output_data.get("terraform_mikrotik_files", [])]
-        assert "vpn.tf" not in generated_files
+        # vpn.tf is now a core template, always generated
+        assert "vpn.tf" in generated_files
+        # But it should NOT contain WireGuard resources when capability is disabled
+        vpn_tf = (tmp_path / "generated" / "terraform" / "mikrotik" / "vpn.tf").read_text(encoding="utf-8")
+        assert "routeros_interface_wireguard" not in vpn_tf
+        assert "WireGuard capability not enabled" in vpn_tf
 
     def test_generates_containers_tf_for_chateau(self, tmp_path: Path) -> None:
         """Chateau models should generate containers.tf when capability is present."""

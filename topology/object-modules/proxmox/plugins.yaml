@@ -203,6 +203,8 @@ plugins:
           description: Action for stale files under generator output root.
       required: []
     produces:
+      - key: generated_files
+        scope: pipeline_shared
       - key: firewall_proxmox_files
         scope: pipeline_shared
       - key: artifact_plan
