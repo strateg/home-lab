@@ -15,6 +15,7 @@ zone_refs:
   - obj.network.trust_zone.untrusted
   - obj.network.trust_zone.guest
   - obj.network.trust_zone.iot
+  - obj.network.trust_zone.vpn_tunnel
   - obj.network.trust_zone.user
   - obj.network.trust_zone.servers
   - obj.network.trust_zone.management

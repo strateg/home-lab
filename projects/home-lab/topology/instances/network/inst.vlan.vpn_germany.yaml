@@ -29,3 +29,8 @@ trust_zone_ref: inst.trust_zone.vpn_tunnel
 
 # Managed by MikroTik Chateau
 managed_by_ref: rtr-mikrotik-chateau
+
+ip_allocations:
+  - device_ref: rtr-mikrotik-chateau
+    host: 1
+    purpose: gateway, DNS, DHCP
