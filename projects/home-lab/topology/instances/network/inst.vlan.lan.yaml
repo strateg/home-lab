@@ -3,13 +3,21 @@
 @group: network
 @version: 1.0.0
 source_id: net-lan
-notes: Main flat LAN on MikroTik bridge (manual/default config, not terraform-managed)
+notes: |
+  Main LAN (native VLAN on bridge). User zone - security_level: 3.
+  Router 192.168.88.1 provides user services (DNS, DHCP gateway).
+  Admin access (SSH, WebFig) via management VLAN 10.0.99.1.
+
 trust_zone_ref: inst.trust_zone.user
 dhcp_range: 192.168.88.10-192.168.88.254
+
 ip_allocations:
+  # Router provides user services on LAN (DNS resolver, DHCP gateway)
+  # Management access via inst.vlan.management (10.0.99.1)
   - device_ref: rtr-mikrotik-chateau
-    ip: 192.168.88.1/24
-    purpose: router management and local service plane
+    host: 1
+    purpose: user services (DNS, DHCP gateway)
+
 reserved_ranges:
   - start: 192.168.88.1
     end: 192.168.88.9

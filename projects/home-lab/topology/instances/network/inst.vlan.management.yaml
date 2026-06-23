@@ -3,11 +3,21 @@
 @group: network
 @version: 1.0.0
 source_id: net-management
-notes: Management VLAN is staged in topology; currently not configured on rtr-mikrotik-chateau
-bridge_ref: inst.bridge.vmbr0
+status: staged
+notes: |
+  Management VLAN (VLAN 99) for infrastructure admin access.
+  Dual-homed: router accessible via 10.0.99.1 for SSH/WebFig/API.
+  User zone devices access router services via 192.168.88.1 (DNS, DHCP).
+
 trust_zone_ref: inst.trust_zone.management
 
 ip_allocations:
+  # Router is gateway for management VLAN
+  - device_ref: rtr-mikrotik-chateau
+    host: 1
+    purpose: management gateway (SSH, WebFig, API)
+
+  # Proxmox hypervisor management interface
   - device_ref: srv-gamayun
-    ip: 10.0.99.1/24
-    purpose: hypervisor management
+    host: 10
+    purpose: hypervisor management UI
