@@ -23,13 +23,6 @@ ip_allocations:
     host: 10
     purpose: hypervisor management UI
 
-# MAC-based VLAN assignment: devices with these MACs auto-join management VLAN
-# All other devices on the port stay in their default VLAN (e.g., user/lan)
-mac_assignments:
-  - mac: "AA:BB:CC:DD:EE:01"
-    device_ref: laptop-admin
-    comment: "Admin laptop - auto-assign to management VLAN"
-
-  - mac: "AA:BB:CC:DD:EE:02"
-    device_ref: workstation-admin
-    comment: "Admin workstation"
+# MAC-based VLAN assignment is now automatic via device instances.
+# Devices with vlan_ref pointing to this VLAN and secrets_ref containing
+# mac_address will be auto-assigned. See data-assets/inst.device.*.yaml

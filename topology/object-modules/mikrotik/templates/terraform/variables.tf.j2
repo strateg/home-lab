@@ -58,3 +58,14 @@ variable "tailscale_authkey" {
 }
 # NOTE: WiFi passphrases are managed via RSC scripts, not Terraform variables.
 # The routeros provider does not support WiFi resources.
+
+variable "mac_vlan_assignments" {
+  description = "MAC-based VLAN assignments for bridge host entries"
+  type = list(object({
+    device_id   = string
+    mac_address = string
+    vlan_id     = number
+    comment     = optional(string)
+  }))
+  default = []
+}

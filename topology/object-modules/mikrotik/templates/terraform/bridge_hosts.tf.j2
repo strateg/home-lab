@@ -1,40 +1,30 @@
 # MikroTik Bridge Host entries for MAC-based VLAN assignment
-# Generated from topology mac_assignments
+# Generated from topology device instances with vlan_ref + secrets_ref
 #
 # Devices with specified MAC addresses will be automatically assigned to
 # the target VLAN regardless of port PVID. All other devices use port default.
+#
+# MAC addresses are passed via Terraform variable (from secrets).
 
-{% set mac_entries = [] %}
-{% for vlan in vlans %}
-{% if vlan.mac_assignments %}
-{% for entry in vlan.mac_assignments %}
-{% set _ = mac_entries.append({
-    'mac': entry.mac,
-    'vlan_id': vlan.vlan_id,
-    'vlan_name': vlan.name,
-    'device_ref': entry.device_ref | default(''),
-    'comment': entry.comment | default('')
-}) %}
-{% endfor %}
-{% endif %}
+{% if mac_vlan_assignments %}
+# MAC-based VLAN assignments from device instances:
+{% for entry in mac_vlan_assignments %}
+# - {{ entry.device_name }}: {{ entry.secrets_path }} -> VLAN {{ entry.vlan_id }}
 {% endfor %}
 
-{% if mac_entries %}
-# MAC-based VLAN assignments
-# These entries override port PVID for specific MAC addresses
-{% for entry in mac_entries %}
-resource "routeros_interface_bridge_host" "mac_{{ entry.mac | replace(':', '_') | lower }}" {
+resource "routeros_interface_bridge_host" "mac_vlan" {
+  for_each = { for idx, entry in var.mac_vlan_assignments : entry.device_id => entry }
+
   bridge      = "bridge"
-  mac_address = "{{ entry.mac | upper }}"
-  vid         = {{ entry.vlan_id }}
-  comment     = "{{ entry.comment | default(entry.device_ref ~ ' -> VLAN ' ~ entry.vlan_id) }}"
+  mac_address = each.value.mac_address
+  vid         = each.value.vlan_id
+  comment     = each.value.comment
 
   lifecycle {
     create_before_destroy = false
   }
 }
-
-{% endfor %}
 {% else %}
 # No MAC-based VLAN assignments configured
+# To enable: add vlan_ref and secrets_ref to device instances in data-assets/
 {% endif %}

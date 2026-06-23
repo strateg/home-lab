@@ -163,6 +163,8 @@ class TerraformMikroTikGenerator(BaseGenerator):
             # Security matrix data (ADR 0110)
             "security_matrix": router_matrix,
             "has_security_matrix": bool(router_matrix and router_matrix.get("zones")),
+            # MAC-based VLAN assignments from device instances
+            "mac_vlan_assignments": projection.get("mac_vlan_assignments", []),
             # Capability flags for conditional blocks in templates
             **normalized_caps,
         }

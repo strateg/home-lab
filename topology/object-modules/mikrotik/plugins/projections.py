@@ -710,6 +710,79 @@ def _extract_wireguard_tunnels(
     }
 
 
+def _extract_mac_vlan_assignments(
+    all_groups: dict[str, list[dict[str, Any]]],
+    vlan_id_index: dict[str, int],
+) -> list[dict[str, Any]]:
+    """Extract MAC-based VLAN assignments from device instances.
+
+    Finds devices with both vlan_ref and secrets_ref, then builds
+    assignment entries for bridge host generation.
+
+    Args:
+        all_groups: All instance groups from compiled JSON.
+        vlan_id_index: Mapping of vlan instance_id to vlan_id.
+
+    Returns:
+        List of assignment entries:
+        [
+            {
+                "device_id": "inst.device.tv-sony-bravia",
+                "device_name": "Sony Bravia AJ9",
+                "secrets_ref": "secrets.instances.tv-sony-bravia",
+                "secrets_path": "instances/tv-sony-bravia.yaml",
+                "vlan_ref": "inst.vlan.vpn_germany",
+                "vlan_id": 55,
+                "comment": "Sony Bravia AJ9 -> VLAN 55",
+            }
+        ]
+    """
+    assignments: list[dict[str, Any]] = []
+
+    # Check devices group for device instances with vlan_ref
+    devices = all_groups.get("devices", [])
+
+    for row in devices:
+        instance_id = str(row.get("instance_id", "")).strip()
+        if not instance_id.startswith("inst.device."):
+            continue
+
+        inst_data = row.get("instance_data", {})
+        if not isinstance(inst_data, dict):
+            continue
+
+        vlan_ref = str(inst_data.get("vlan_ref", "")).strip()
+        secrets_ref = str(inst_data.get("secrets_ref", "")).strip()
+
+        if not vlan_ref or not secrets_ref:
+            continue
+
+        vlan_id = vlan_id_index.get(vlan_ref)
+        if not vlan_id:
+            continue
+
+        # Convert secrets_ref to path: secrets.instances.foo -> instances/foo.yaml
+        secrets_path = ""
+        if secrets_ref.startswith("secrets."):
+            secrets_path = secrets_ref[8:].replace(".", "/") + ".yaml"
+
+        device_name = str(inst_data.get("device_name", "")).strip()
+        if not device_name:
+            device_name = instance_id.replace("inst.device.", "")
+
+        assignments.append({
+            "device_id": instance_id,
+            "device_name": device_name,
+            "secrets_ref": secrets_ref,
+            "secrets_path": secrets_path,
+            "vlan_ref": vlan_ref,
+            "vlan_id": vlan_id,
+            "comment": f"{device_name} -> VLAN {vlan_id}",
+        })
+
+    return sorted(assignments, key=lambda x: (x.get("vlan_id", 0), x.get("device_id", "")))
+
+
 def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     """Build stable view for MikroTik Terraform generator."""
     groups = _instance_groups(compiled_json)
@@ -903,6 +976,17 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     # Extract security matrix for zone-based firewall (ADR 0110)
     security_matrix = _extract_security_matrix(network, router_ids)
 
+    # Build VLAN ID index for MAC-based assignments
+    vlan_id_index: dict[str, int] = {}
+    for vlan in vlans:
+        inst_id = str(vlan.get("instance_id", "")).strip()
+        vid = vlan.get("vlan_id")
+        if inst_id and vid:
+            vlan_id_index[inst_id] = int(vid)
+
+    # Extract MAC-based VLAN assignments from device instances
+    mac_vlan_assignments = _extract_mac_vlan_assignments(groups, vlan_id_index)
+
     capability_flags = _derive_mikrotik_capability_flags(routers)
     return {
         "routers": _sorted_rows(routers),
@@ -923,6 +1007,8 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
         "wifi": wifi_data,
         # Security matrix for zone-based firewall (ADR 0110)
         "security_matrix": security_matrix,
+        # MAC-based VLAN assignments from device instances
+        "mac_vlan_assignments": mac_vlan_assignments,
         "counts": {
             "routers": len(routers),
             "networks": len(networks),

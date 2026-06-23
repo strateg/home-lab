@@ -24,12 +24,17 @@
       "instance_id": "srv-gamayun",
       "management_ip": "10.10.10.2",
       "object": {
-        "derived_capabilities": ["cap.bootstrap.unattended"],
-        "initialization_contract": {"mechanism": "unattended_install"}
+        "derived_capabilities": [
+          "cap.bootstrap.unattended"
+        ],
+        "initialization_contract": {
+          "mechanism": "unattended_install"
+        }
       },
       "object_ref": "obj.proxmox.ve"
     }
   ],
+  "security_matrix": {},
   "services": [
     {
       "instance_id": "svc-redis",

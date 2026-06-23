@@ -4,18 +4,20 @@
   Network-connected IoT device (smart TV, speaker, camera, etc.)
   that connects to home network but doesn't run custom software.
   Managed through VLAN assignment and firewall policies.
-@layer: L3
+@layer: L1
 @version: 1.0.0
 
 properties:
   required:
     - device_name
     - device_type
-    - mac_address
   optional:
     - manufacturer
     - model
+    - mac_address
+    - secrets_ref
     - ip_address
+    - static_ip
     - vlan_ref
     - connection_type
     - notes
@@ -39,7 +41,15 @@ property_schemas:
   mac_address:
     type: string
     pattern: "^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$"
-    description: Device MAC address for VLAN assignment
+    description: Device MAC address (prefer secrets_ref for encrypted storage)
+  secrets_ref:
+    type: string
+    format: secrets_ref
+    description: Reference to secrets file containing mac_address (e.g., secrets.instances.device-name)
+  static_ip:
+    type: string
+    format: ipv4
+    description: Static IP for DHCP reservation
   manufacturer:
     type: string
     description: Device manufacturer

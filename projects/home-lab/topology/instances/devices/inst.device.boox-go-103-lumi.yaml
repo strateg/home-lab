@@ -1,6 +1,6 @@
 @instance: inst.device.boox-go-103-lumi
 @extends: obj.device.e_reader
-@group: data-assets
+@group: devices
 @version: 1.0.0
 source_id: ereader-boox-go-103-lumi
 status: planned

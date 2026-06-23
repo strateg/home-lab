@@ -1,6 +1,6 @@
 @instance: inst.device.tv-sony-bravia
 @extends: obj.device.smart_tv
-@group: data-assets
+@group: devices
 @version: 1.0.0
 source_id: tv-sony-bravia-aj9
 status: planned

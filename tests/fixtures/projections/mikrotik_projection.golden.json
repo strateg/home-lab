@@ -19,9 +19,11 @@
     "networks": 2,
     "routers": 1,
     "services": 1,
-    "vlans": 0
+    "vlans": 0,
+    "wireguard_tunnels": 0
   },
   "firewall_policies": [],
+  "mac_vlan_assignments": [],
   "networks": [
     {
       "instance_id": "inst.net.lan",
@@ -37,8 +39,12 @@
       "instance_id": "rtr-mk",
       "management_ip": "192.168.88.1",
       "object": {
-        "derived_capabilities": ["cap.bootstrap.netinstall"],
-        "initialization_contract": {"mechanism": "netinstall"}
+        "derived_capabilities": [
+          "cap.bootstrap.netinstall"
+        ],
+        "initialization_contract": {
+          "mechanism": "netinstall"
+        }
       },
       "object_ref": "obj.mikrotik.chateau_lte7_ax"
     }
@@ -57,6 +63,7 @@
     "dns_servers": [],
     "nat": []
   },
+  "security_matrix": {},
   "services": [
     {
       "instance_id": "svc-snmp",
@@ -66,5 +73,17 @@
     }
   ],
   "trust_zone_cidrs": {},
-  "vlans": []
+  "vlans": [],
+  "wifi": {
+    "configurations": [],
+    "datapaths": [],
+    "securities": []
+  },
+  "wireguard": {
+    "tunnels": [],
+    "wireguard_address": "",
+    "wireguard_listen_port": 51820,
+    "wireguard_mtu": 1420,
+    "wireguard_peers": []
+  }
 }

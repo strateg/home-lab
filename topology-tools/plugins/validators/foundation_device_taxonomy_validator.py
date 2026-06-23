@@ -49,14 +49,19 @@ class FoundationDeviceTaxonomyValidator(ValidatorJsonPlugin):
                 continue
 
             if group == "devices":
-                if not (class_ref == "class.router" or class_ref.startswith("class.compute.")):
+                valid_device_class = (
+                    class_ref == "class.router"
+                    or class_ref.startswith("class.compute.")
+                    or class_ref.startswith("class.device.")
+                )
+                if not valid_device_class:
                     diagnostics.append(
                         self.emit_diagnostic(
                             code="E7851",
                             severity="error",
                             stage=stage,
                             message=(
-                                f"L1 group 'devices' expects compute/router classes, got '{class_ref}' "
+                                f"L1 group 'devices' expects compute/router/device classes, got '{class_ref}' "
                                 f"for instance '{row_id}'."
                             ),
                             path=path,
