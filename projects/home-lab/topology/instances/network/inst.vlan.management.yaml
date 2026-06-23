@@ -22,3 +22,14 @@ ip_allocations:
   - device_ref: srv-gamayun
     host: 10
     purpose: hypervisor management UI
+
+# MAC-based VLAN assignment: devices with these MACs auto-join management VLAN
+# All other devices on the port stay in their default VLAN (e.g., user/lan)
+mac_assignments:
+  - mac: "AA:BB:CC:DD:EE:01"
+    device_ref: laptop-admin
+    comment: "Admin laptop - auto-assign to management VLAN"
+
+  - mac: "AA:BB:CC:DD:EE:02"
+    device_ref: workstation-admin
+    comment: "Admin workstation"

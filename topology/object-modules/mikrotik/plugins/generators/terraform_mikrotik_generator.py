@@ -171,6 +171,7 @@ class TerraformMikroTikGenerator(BaseGenerator):
         templates: dict[str, str] = {
             "provider.tf": "terraform/provider.tf.j2",
             "interfaces.tf": "terraform/interfaces.tf.j2",
+            "bridge_hosts.tf": "terraform/bridge_hosts.tf.j2",
             "firewall.tf": "terraform/firewall.tf.j2",
             "zone_firewall.tf": "terraform/zone_firewall.tf.j2",
             "dhcp.tf": "terraform/dhcp.tf.j2",

@@ -1,0 +1,40 @@
+# MikroTik Bridge Host entries for MAC-based VLAN assignment
+# Generated from topology mac_assignments
+#
+# Devices with specified MAC addresses will be automatically assigned to
+# the target VLAN regardless of port PVID. All other devices use port default.
+
+{% set mac_entries = [] %}
+{% for vlan in vlans %}
+{% if vlan.mac_assignments %}
+{% for entry in vlan.mac_assignments %}
+{% set _ = mac_entries.append({
+    'mac': entry.mac,
+    'vlan_id': vlan.vlan_id,
+    'vlan_name': vlan.name,
+    'device_ref': entry.device_ref | default(''),
+    'comment': entry.comment | default('')
+}) %}
+{% endfor %}
+{% endif %}
+{% endfor %}
+
+{% if mac_entries %}
+# MAC-based VLAN assignments
+# These entries override port PVID for specific MAC addresses
+{% for entry in mac_entries %}
+resource "routeros_interface_bridge_host" "mac_{{ entry.mac | replace(':', '_') | lower }}" {
+  bridge      = "bridge"
+  mac_address = "{{ entry.mac | upper }}"
+  vid         = {{ entry.vlan_id }}
+  comment     = "{{ entry.comment | default(entry.device_ref ~ ' -> VLAN ' ~ entry.vlan_id) }}"
+
+  lifecycle {
+    create_before_destroy = false
+  }
+}
+
+{% endfor %}
+{% else %}
+# No MAC-based VLAN assignments configured
+{% endif %}

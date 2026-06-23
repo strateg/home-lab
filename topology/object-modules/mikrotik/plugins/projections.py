@@ -148,6 +148,11 @@ def _build_vlan_entry(row: dict[str, Any], *, managed_by_ref: str) -> dict[str, 
     is_native_lan = int(vlan_id or 0) == 1
     interface_name = "bridge" if is_native_lan else f"vlan{vlan_id}"
 
+    # Extract MAC assignments for bridge host entries
+    mac_assignments = inst_data.get("mac_assignments") or props.get("mac_assignments", [])
+    if not isinstance(mac_assignments, list):
+        mac_assignments = []
+
     return {
         "instance_id": row.get("instance_id", ""),
         "name": row.get("instance_id", "").replace("inst.vlan.", "").replace(".", "_"),
@@ -164,6 +169,7 @@ def _build_vlan_entry(row: dict[str, Any], *, managed_by_ref: str) -> dict[str, 
         "is_native_lan": is_native_lan,
         "interface_name": interface_name,
         "interface_is_resource": not is_native_lan,
+        "mac_assignments": mac_assignments,
     }
 
 

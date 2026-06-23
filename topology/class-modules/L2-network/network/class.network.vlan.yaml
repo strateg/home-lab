@@ -58,6 +58,23 @@ property_schemas:
     type: string
     format: instance_ref
     target_class: class.router
+  mac_assignments:
+    type: array
+    description: MAC-based VLAN assignment rules for automatic device placement
+    items:
+      type: object
+      properties:
+        mac:
+          type: string
+          format: mac_address
+          description: Device MAC address (AA:BB:CC:DD:EE:FF format)
+        device_ref:
+          type: string
+          format: instance_ref
+          description: Reference to device instance (optional, for documentation)
+        comment:
+          type: string
+          description: Human-readable description of the device
 
 required_capabilities: []
 
