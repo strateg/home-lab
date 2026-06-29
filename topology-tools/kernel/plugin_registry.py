@@ -437,14 +437,41 @@ class PluginRegistry:
         except ManifestLoadError as e:
             raise PluginLoadError(e.source, str(e).split(": ", 1)[-1]) from e
 
-    def load_manifest(self, manifest_path: Path) -> None:
-        """Load plugins from a manifest file."""
+    def load_manifest(self, manifest_path: Path, *, _loaded_paths: set[Path] | None = None) -> None:
+        """Load plugins from a manifest file.
+
+        Supports 'includes' key for manifest sharding (Phase 2 improvement).
+        Include paths are resolved relative to the manifest file directory.
+        """
+        if _loaded_paths is None:
+            _loaded_paths = set()
+
+        resolved_path = manifest_path.resolve()
+        if resolved_path in _loaded_paths:
+            return  # Skip already-loaded manifests (circular include protection)
+        _loaded_paths.add(resolved_path)
+
         try:
             payload = load_yaml_file(manifest_path) or {}
         except (OSError, yaml.YAMLError) as exc:
             raise PluginLoadError("manifest.load", f"Failed to parse manifest '{manifest_path}': {exc}") from exc
         if not isinstance(payload, dict):
             raise PluginLoadError("manifest.load", f"Manifest root must be mapping/object: {manifest_path}")
+
+        # Process includes first (allows sharding into stage-specific manifests)
+        includes = payload.get("includes", [])
+        if isinstance(includes, list):
+            manifest_dir = manifest_path.parent
+            for include_path in includes:
+                if isinstance(include_path, str) and include_path.strip():
+                    include_resolved = (manifest_dir / include_path.strip()).resolve()
+                    if include_resolved.exists():
+                        try:
+                            self.load_manifest(include_resolved, _loaded_paths=_loaded_paths)
+                        except Exception as e:
+                            self._load_errors.append(f"Error loading included manifest {include_path}: {e}")
+                    else:
+                        self._load_errors.append(f"Included manifest not found: {include_path}")
 
         self._validate_manifest_payload(payload, manifest_path=manifest_path)
         manifest = PluginManifest.from_data(payload, str(manifest_path))
