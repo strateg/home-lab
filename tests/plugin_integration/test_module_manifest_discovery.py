@@ -315,8 +315,10 @@ def test_discover_boundary_rejects_project_manifests_outside_project_plugins_roo
 
 
 def test_discover_stage_plugins_require_committed_upstream_payloads() -> None:
+    # Load from the sharded discoverers manifest (manifest sharding Phase 2)
+    repo_root = Path(__file__).resolve().parents[2]
     plugins = yaml.safe_load(
-        (Path(__file__).resolve().parents[2] / "topology-tools" / "plugins" / "plugins.yaml").read_text()
+        (repo_root / "topology-tools" / "plugins" / "manifests" / "discoverers.yaml").read_text()
     )
     by_id = {plugin["id"]: plugin for plugin in plugins["plugins"]}
 

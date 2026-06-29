@@ -31,3 +31,13 @@ python -m pytest tests -q                                                       
 - **ADR routing:** `docs/ai/ADR-RULE-MAP.yaml`
 - **Workflows:** `docs/guides/COMMON-WORKFLOWS.md`
 - **SPC mode:** Say "SPC MODE" for formal analysis. See `docs/ai/spc-contract.md`
+
+## Plugin Architecture
+
+Applies to all plugin families (`discoverers`, `compilers`, `validators`, `generators`, `assemblers`, `builders`).
+
+Runtime lifecycle has 6 stages: `discover -> compile -> validate -> generate -> assemble -> build`.
+
+Stage affinity must be preserved: `discover -> discoverers`, `compile -> compilers`, `validate -> validators`, `generate -> generators`, `assemble -> assemblers`, `build -> builders`.
+
+See ADR 0063 (Plugin Microkernel), ADR 0080 (6-stage pipeline), ADR 0106 (Capability-driven).

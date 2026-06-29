@@ -4,11 +4,17 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+V5_TOOLS = REPO_ROOT / "topology-tools"
+sys.path.insert(0, str(V5_TOOLS))
+
+from kernel import PluginRegistry
+
 MANIFEST_PATH = REPO_ROOT / "topology-tools" / "plugins" / "plugins.yaml"
 ERROR_CATALOG_PATH = REPO_ROOT / "topology-tools" / "data" / "error-catalog.yaml"
 
@@ -39,11 +45,10 @@ ACCEPTANCE_TARGETS = (
 
 
 def _load_manifest_plugins() -> dict[str, dict]:
-    payload = yaml.safe_load(MANIFEST_PATH.read_text(encoding="utf-8")) or {}
-    plugins = payload.get("plugins", [])
-    return {
-        plugin["id"]: plugin for plugin in plugins if isinstance(plugin, dict) and isinstance(plugin.get("id"), str)
-    }
+    # Use PluginRegistry to load sharded manifests (manifest sharding Phase 2)
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(MANIFEST_PATH)
+    return {spec.id: {"id": spec.id, "kind": spec.kind.value} for spec in registry.specs.values()}
 
 
 def _load_error_codes() -> set[str]:

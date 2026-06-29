@@ -56,7 +56,12 @@ def _iter_manifests(root: Path) -> Iterable[Path]:
 def _iter_all_manifests() -> list[Path]:
     manifests: list[Path] = []
     if BASE_MANIFEST.exists():
+        # Load the root manifest
         manifests.append(BASE_MANIFEST)
+        # Also load the sharded manifests (manifest sharding Phase 2)
+        base_manifest_dir = BASE_MANIFEST.parent / "manifests"
+        if base_manifest_dir.exists():
+            manifests.extend(sorted(path for path in base_manifest_dir.glob("*.yaml") if path.is_file()))
     manifests.extend(_iter_manifests(CLASS_MANIFEST_ROOT))
     manifests.extend(_iter_manifests(OBJECT_MANIFEST_ROOT))
     return manifests

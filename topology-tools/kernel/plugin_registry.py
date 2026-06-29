@@ -150,10 +150,19 @@ class PluginSpec:
     @classmethod
     def from_dict(cls, data: dict[str, Any], manifest_path: str = "") -> PluginSpec:
         """Create PluginSpec from manifest dictionary."""
+        # Normalize entry path if it contains ../ and we have a manifest_path
+        entry = data["entry"]
+        if manifest_path and "../" in entry and ":" in entry:
+            module_path, class_name = entry.rsplit(":", 1)
+            manifest_dir = Path(manifest_path).parent
+            normalized_module_path = (manifest_dir / module_path).resolve()
+            # The entry should just be the normalized path as posix
+            entry = f"{normalized_module_path.as_posix()}:{class_name}"
+
         return cls(
             id=data["id"],
             kind=PluginKind(data["kind"]),
-            entry=data["entry"],
+            entry=entry,
             api_version=data["api_version"],
             stages=[Stage(s) for s in data["stages"]],
             order=data["order"],
@@ -300,12 +309,18 @@ class PluginManifest:
     source_path: str
 
     @classmethod
-    def from_data(cls, data: dict[str, Any], source_path: str) -> PluginManifest:
-        """Load manifest from parsed dictionary."""
+    def from_data(cls, data: dict[str, Any], source_path: str, spec_factory: Any) -> PluginManifest:
+        """Load manifest from parsed dictionary.
+
+        Args:
+            data: Parsed YAML data
+            source_path: Path to manifest file
+            spec_factory: Callable to create PluginSpec from dict (PluginSpec.from_dict)
+        """
         if data.get("schema_version") != 1:
             raise ValueError(f"Unsupported manifest schema_version in {source_path}")
 
-        plugins = [PluginSpec.from_dict(p, source_path) for p in data.get("plugins", [])]
+        plugins = [spec_factory(p, source_path) for p in data.get("plugins", [])]
         return cls(
             schema_version=data["schema_version"],
             plugins=plugins,
@@ -313,10 +328,10 @@ class PluginManifest:
         )
 
     @classmethod
-    def from_file(cls, path: Path) -> PluginManifest:
+    def from_file(cls, path: Path, spec_factory: Any) -> PluginManifest:
         """Load manifest from YAML file."""
         data = load_yaml_file(path) or {}
-        return cls.from_data(data, str(path))
+        return cls.from_data(data, str(path), spec_factory)
 
 
 # Exception classes are imported from .registry for backwards compatibility:
@@ -474,7 +489,7 @@ class PluginRegistry:
                         self._load_errors.append(f"Included manifest not found: {include_path}")
 
         self._validate_manifest_payload(payload, manifest_path=manifest_path)
-        manifest = PluginManifest.from_data(payload, str(manifest_path))
+        manifest = PluginManifest.from_data(payload, str(manifest_path), PluginSpec.from_dict)
         self.manifests.append(str(manifest_path))
 
         for spec in manifest.plugins:

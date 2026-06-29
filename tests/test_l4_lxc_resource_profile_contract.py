@@ -12,6 +12,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 V5_TOOLS = REPO_ROOT / "topology-tools"
 sys.path.insert(0, str(V5_TOOLS))
 
+from kernel import PluginRegistry
 from yaml_loader import load_yaml_file
 
 LXC_ROOT = REPO_ROOT / "projects" / "home-lab" / "topology" / "instances" / "lxc"
@@ -20,20 +21,21 @@ LXC_PLUGIN_ID = "base.validator.lxc_refs"
 
 
 def _load_resource_profiles() -> set[str]:
-    payload = yaml.safe_load(PLUGIN_MANIFEST.read_text(encoding="utf-8")) or {}
-    for plugin in payload.get("plugins", []):
-        if not isinstance(plugin, dict):
-            continue
-        if plugin.get("id") != LXC_PLUGIN_ID:
-            continue
-        config = plugin.get("config", {})
-        if not isinstance(config, dict):
-            return set()
-        profiles = config.get("resource_profiles", {})
-        if not isinstance(profiles, dict):
-            return set()
-        return {str(key) for key, value in profiles.items() if isinstance(key, str) and isinstance(value, dict)}
-    return set()
+    # Use PluginRegistry to load sharded manifests (manifest sharding Phase 2)
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(PLUGIN_MANIFEST)
+
+    if LXC_PLUGIN_ID not in registry.specs:
+        return set()
+
+    spec = registry.specs[LXC_PLUGIN_ID]
+    config = spec.config
+    if not isinstance(config, dict):
+        return set()
+    profiles = config.get("resource_profiles", {})
+    if not isinstance(profiles, dict):
+        return set()
+    return {str(key) for key, value in profiles.items() if isinstance(key, str) and isinstance(value, dict)}
 
 
 def test_l4_lxc_instances_use_known_resource_profile_refs_without_inline_resources() -> None:

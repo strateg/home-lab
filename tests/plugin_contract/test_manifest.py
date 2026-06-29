@@ -43,8 +43,9 @@ from plugin_manifest_discovery import discover_plugin_manifest_paths
 
 def test_manifest_loading():
     """Test loading plugin manifest from YAML."""
-    manifest_path = V5_TOOLS / "plugins" / "plugins.yaml"
-    manifest = PluginManifest.from_file(manifest_path)
+    # Load from the sharded discoverers manifest (manifest sharding Phase 2)
+    manifest_path = V5_TOOLS / "plugins" / "manifests" / "discoverers.yaml"
+    manifest = PluginManifest.from_file(manifest_path, PluginSpec.from_dict)
 
     assert manifest.schema_version == 1
     assert len(manifest.plugins) >= 1
@@ -53,8 +54,12 @@ def test_manifest_loading():
     assert discover_plugin.kind == PluginKind.DISCOVERER
     assert Stage.DISCOVER in discover_plugin.stages
 
+    # Test loading validators manifest
+    validators_manifest_path = V5_TOOLS / "plugins" / "manifests" / "validators.yaml"
+    validators_manifest = PluginManifest.from_file(validators_manifest_path, PluginSpec.from_dict)
+
     # Find the reference validator plugin
-    ref_plugin = next(p for p in manifest.plugins if p.id == "base.validator.references")
+    ref_plugin = next(p for p in validators_manifest.plugins if p.id == "base.validator.references")
     assert ref_plugin.kind == PluginKind.VALIDATOR_JSON
     assert Stage.VALIDATE in ref_plugin.stages
     print("PASS: Manifest loading works")
