@@ -5,7 +5,7 @@ plugins:
 - id: base.builder.bundle
   execution_mode: subinterpreter
   kind: builder
-  entry: builders/release_builder.py:ReleaseBundleBuilder
+  entry: ../builders/release_builder.py:ReleaseBundleBuilder
   api_version: 1.x
   stages:
   - build
@@ -36,7 +36,7 @@ plugins:
 - id: base.builder.sbom
   execution_mode: subinterpreter
   kind: builder
-  entry: builders/release_builder.py:SbomBuilder
+  entry: ../builders/release_builder.py:SbomBuilder
   api_version: 1.x
   stages:
   - build
@@ -66,7 +66,7 @@ plugins:
   description: Generates minimal SBOM document from assembly manifest payload.
 - id: base.builder.artifact_family_summary
   kind: builder
-  entry: builders/release_builder.py:ArtifactFamilySummaryBuilder
+  entry: ../builders/release_builder.py:ArtifactFamilySummaryBuilder
   api_version: 1.x
   stages:
   - build
@@ -96,7 +96,7 @@ plugins:
 - id: base.builder.generator_readiness_evidence
   execution_mode: subinterpreter
   kind: builder
-  entry: builders/release_builder.py:GeneratorReadinessEvidenceBuilder
+  entry: ../builders/release_builder.py:GeneratorReadinessEvidenceBuilder
   api_version: 1.x
   stages:
   - build
@@ -137,7 +137,7 @@ plugins:
 - id: base.builder.readiness_reports
   execution_mode: subinterpreter
   kind: builder
-  entry: builders/release_builder.py:ReadinessReportsBuilder
+  entry: ../builders/release_builder.py:ReadinessReportsBuilder
   api_version: 1.x
   stages:
   - build
@@ -170,7 +170,7 @@ plugins:
 - id: base.builder.soho_readiness_package
   execution_mode: subinterpreter
   kind: builder
-  entry: builders/soho_readiness_builder.py:SohoReadinessBuilder
+  entry: ../builders/soho_readiness_builder.py:SohoReadinessBuilder
   api_version: 1.x
   stages:
   - build
@@ -209,7 +209,7 @@ plugins:
 - id: base.builder.release_manifest
   execution_mode: subinterpreter
   kind: builder
-  entry: builders/release_builder.py:ReleaseManifestBuilder
+  entry: ../builders/release_builder.py:ReleaseManifestBuilder
   api_version: 1.x
   stages:
   - build

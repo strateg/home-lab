@@ -4,7 +4,7 @@ stage: validate
 plugins:
 - id: base.validator.foundation_device_taxonomy
   kind: validator_json
-  entry: validators/foundation_device_taxonomy_validator.py:FoundationDeviceTaxonomyValidator
+  entry: ../validators/foundation_device_taxonomy_validator.py:FoundationDeviceTaxonomyValidator
   api_version: 1.x
   stages:
   - validate
@@ -26,7 +26,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.references
   kind: validator_json
-  entry: validators/reference_validator.py:ReferenceValidator
+  entry: ../validators/reference_validator.py:ReferenceValidator
   api_version: 1.x
   stages:
   - validate
@@ -57,7 +57,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.initialization_contract
   kind: validator_json
-  entry: validators/initialization_contract_validator.py:InitializationContractValidator
+  entry: ../validators/initialization_contract_validator.py:InitializationContractValidator
   api_version: 1.x
   stages:
   - validate
@@ -74,7 +74,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.model_lock
   kind: validator_json
-  entry: validators/model_lock_validator.py:ModelLockValidator
+  entry: ../validators/model_lock_validator.py:ModelLockValidator
   api_version: 1.x
   stages:
   - validate
@@ -109,7 +109,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.power_source_refs
   kind: validator_json
-  entry: validators/declarative_reference_validator.py:DeclarativeReferenceValidator
+  entry: ../validators/declarative_reference_validator.py:DeclarativeReferenceValidator
   api_version: 1.x
   stages:
   - validate
@@ -147,7 +147,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.network_ip_overlap
   kind: validator_json
-  entry: validators/network_ip_overlap_validator.py:NetworkIpOverlapValidator
+  entry: ../validators/network_ip_overlap_validator.py:NetworkIpOverlapValidator
   api_version: 1.x
   stages:
   - validate
@@ -175,7 +175,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.single_active_os
   kind: validator_json
-  entry: validators/single_active_os_validator.py:SingleActiveOsValidator
+  entry: ../validators/single_active_os_validator.py:SingleActiveOsValidator
   api_version: 1.x
   stages:
   - validate
@@ -197,7 +197,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.network_reserved_ranges
   kind: validator_json
-  entry: validators/network_reserved_ranges_validator.py:NetworkReservedRangesValidator
+  entry: ../validators/network_reserved_ranges_validator.py:NetworkReservedRangesValidator
   api_version: 1.x
   stages:
   - validate
@@ -225,7 +225,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.network_trust_zone_firewall_refs
   kind: validator_json
-  entry: validators/network_trust_zone_firewall_refs_validator.py:NetworkTrustZoneFirewallRefsValidator
+  entry: ../validators/network_trust_zone_firewall_refs_validator.py:NetworkTrustZoneFirewallRefsValidator
   api_version: 1.x
   stages:
   - validate
@@ -247,7 +247,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.embedded_in
   kind: validator_json
-  entry: validators/embedded_in_validator.py:EmbeddedInValidator
+  entry: ../validators/embedded_in_validator.py:EmbeddedInValidator
   api_version: 1.x
   stages:
   - validate
@@ -270,7 +270,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.network_firewall_addressability
   kind: validator_json
-  entry: validators/network_firewall_addressability_validator.py:NetworkFirewallAddressabilityValidator
+  entry: ../validators/network_firewall_addressability_validator.py:NetworkFirewallAddressabilityValidator
   api_version: 1.x
   stages:
   - validate
@@ -292,7 +292,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.runtime_target_os_binding
   kind: validator_json
-  entry: validators/runtime_target_os_binding_validator.py:RuntimeTargetOsBindingValidator
+  entry: ../validators/runtime_target_os_binding_validator.py:RuntimeTargetOsBindingValidator
   api_version: 1.x
   stages:
   - validate
@@ -314,7 +314,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.storage_l3_refs
   kind: validator_json
-  entry: validators/storage_l3_refs_validator.py:StorageL3RefsValidator
+  entry: ../validators/storage_l3_refs_validator.py:StorageL3RefsValidator
   api_version: 1.x
   stages:
   - validate
@@ -336,7 +336,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.network_ip_allocation_host_os_refs
   kind: validator_json
-  entry: validators/network_ip_allocation_host_os_refs_validator.py:NetworkIpAllocationHostOsRefsValidator
+  entry: ../validators/network_ip_allocation_host_os_refs_validator.py:NetworkIpAllocationHostOsRefsValidator
   api_version: 1.x
   stages:
   - validate
@@ -358,7 +358,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.network_vlan_zone_consistency
   kind: validator_json
-  entry: validators/network_vlan_zone_consistency_validator.py:NetworkVlanZoneConsistencyValidator
+  entry: ../validators/network_vlan_zone_consistency_validator.py:NetworkVlanZoneConsistencyValidator
   api_version: 1.x
   stages:
   - validate
@@ -380,7 +380,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.ethernet_port_inventory
   kind: validator_json
-  entry: validators/ethernet_port_inventory_validator.py:EthernetPortInventoryValidator
+  entry: ../validators/ethernet_port_inventory_validator.py:EthernetPortInventoryValidator
   api_version: 1.x
   stages:
   - validate
@@ -401,7 +401,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.network_core_refs
   kind: validator_json
-  entry: validators/declarative_reference_validator.py:DeclarativeReferenceValidator
+  entry: ../validators/declarative_reference_validator.py:DeclarativeReferenceValidator
   api_version: 1.x
   stages:
   - validate
@@ -436,7 +436,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.network_vlan_tags
   kind: validator_json
-  entry: validators/network_vlan_tags_validator.py:NetworkVlanTagsValidator
+  entry: ../validators/network_vlan_tags_validator.py:NetworkVlanTagsValidator
   api_version: 1.x
   stages:
   - validate
@@ -458,7 +458,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.network_mtu_consistency
   kind: validator_json
-  entry: validators/network_mtu_consistency_validator.py:NetworkMtuConsistencyValidator
+  entry: ../validators/network_mtu_consistency_validator.py:NetworkMtuConsistencyValidator
   api_version: 1.x
   stages:
   - validate
@@ -480,7 +480,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.service_runtime_refs
   kind: validator_json
-  entry: validators/service_runtime_refs_validator.py:ServiceRuntimeRefsValidator
+  entry: ../validators/service_runtime_refs_validator.py:ServiceRuntimeRefsValidator
   api_version: 1.x
   stages:
   - validate
@@ -502,7 +502,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.network_runtime_reachability
   kind: validator_json
-  entry: validators/network_runtime_reachability_validator.py:NetworkRuntimeReachabilityValidator
+  entry: ../validators/network_runtime_reachability_validator.py:NetworkRuntimeReachabilityValidator
   api_version: 1.x
   stages:
   - validate
@@ -524,7 +524,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.capability_contract
   kind: validator_json
-  entry: validators/capability_contract_validator.py:CapabilityContractValidator
+  entry: ../validators/capability_contract_validator.py:CapabilityContractValidator
   api_version: 1.x
   stages:
   - validate
@@ -556,7 +556,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.network_security
   kind: validator_json
-  entry: validators/network_security_validator.py:NetworkSecurityValidator
+  entry: ../validators/network_security_validator.py:NetworkSecurityValidator
   api_version: 1.x
   stages:
   - validate
@@ -586,7 +586,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.service_dependency_refs
   kind: validator_json
-  entry: validators/declarative_reference_validator.py:DeclarativeReferenceValidator
+  entry: ../validators/declarative_reference_validator.py:DeclarativeReferenceValidator
   api_version: 1.x
   stages:
   - validate
@@ -621,7 +621,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.storage_device_taxonomy
   kind: validator_json
-  entry: validators/storage_device_taxonomy_validator.py:StorageDeviceTaxonomyValidator
+  entry: ../validators/storage_device_taxonomy_validator.py:StorageDeviceTaxonomyValidator
   api_version: 1.x
   stages:
   - validate
@@ -643,7 +643,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.storage_media_inventory
   kind: validator_json
-  entry: validators/storage_media_inventory_validator.py:StorageMediaInventoryValidator
+  entry: ../validators/storage_media_inventory_validator.py:StorageMediaInventoryValidator
   api_version: 1.x
   stages:
   - validate
@@ -665,7 +665,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.dns_refs
   kind: validator_json
-  entry: validators/declarative_reference_validator.py:DeclarativeReferenceValidator
+  entry: ../validators/declarative_reference_validator.py:DeclarativeReferenceValidator
   api_version: 1.x
   stages:
   - validate
@@ -700,7 +700,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.certificate_refs
   kind: validator_json
-  entry: validators/declarative_reference_validator.py:DeclarativeReferenceValidator
+  entry: ../validators/declarative_reference_validator.py:DeclarativeReferenceValidator
   api_version: 1.x
   stages:
   - validate
@@ -735,7 +735,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.backup_refs
   kind: validator_json
-  entry: validators/declarative_reference_validator.py:DeclarativeReferenceValidator
+  entry: ../validators/declarative_reference_validator.py:DeclarativeReferenceValidator
   api_version: 1.x
   stages:
   - validate
@@ -770,7 +770,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.security_policy_refs
   kind: validator_json
-  entry: validators/security_policy_refs_validator.py:SecurityPolicyRefsValidator
+  entry: ../validators/security_policy_refs_validator.py:SecurityPolicyRefsValidator
   api_version: 1.x
   stages:
   - validate
@@ -792,7 +792,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.vm_refs
   kind: validator_json
-  entry: validators/vm_refs_validator.py:VmRefsValidator
+  entry: ../validators/vm_refs_validator.py:VmRefsValidator
   api_version: 1.x
   stages:
   - validate
@@ -814,7 +814,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.lxc_refs
   kind: validator_json
-  entry: validators/lxc_refs_validator.py:LxcRefsValidator
+  entry: ../validators/lxc_refs_validator.py:LxcRefsValidator
   api_version: 1.x
   stages:
   - validate
@@ -872,7 +872,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.instance_placeholders
   kind: validator_json
-  entry: validators/instance_placeholder_validator.py:InstancePlaceholderValidator
+  entry: ../validators/instance_placeholder_validator.py:InstancePlaceholderValidator
   api_version: 1.x
   stages:
   - validate
@@ -913,7 +913,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.host_os_refs
   kind: validator_json
-  entry: validators/host_os_refs_validator.py:HostOsRefsValidator
+  entry: ../validators/host_os_refs_validator.py:HostOsRefsValidator
   api_version: 1.x
   stages:
   - validate
@@ -935,7 +935,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.router_ports
   kind: validator_json
-  entry: validators/router_port_validator.py:RouterPortValidator
+  entry: ../validators/router_port_validator.py:RouterPortValidator
   api_version: 1.x
   stages:
   - validate
@@ -953,7 +953,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.host_ref_dag
   kind: validator_json
-  entry: validators/host_ref_dag_validator.py:HostRefDagValidator
+  entry: ../validators/host_ref_dag_validator.py:HostRefDagValidator
   api_version: 1.x
   stages:
   - validate
@@ -975,7 +975,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.docker_refs
   kind: validator_json
-  entry: validators/docker_refs_validator.py:DockerRefsValidator
+  entry: ../validators/docker_refs_validator.py:DockerRefsValidator
   api_version: 1.x
   stages:
   - validate
@@ -997,7 +997,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.hypervisor_execution_model
   kind: validator_json
-  entry: validators/hypervisor_execution_model_validator.py:HypervisorExecutionModelValidator
+  entry: ../validators/hypervisor_execution_model_validator.py:HypervisorExecutionModelValidator
   api_version: 1.x
   stages:
   - validate
@@ -1019,7 +1019,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.vm_hypervisor_compat
   kind: validator_json
-  entry: validators/vm_hypervisor_compat_validator.py:VmHypervisorCompatValidator
+  entry: ../validators/vm_hypervisor_compat_validator.py:VmHypervisorCompatValidator
   api_version: 1.x
   stages:
   - validate
@@ -1041,7 +1041,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.volume_format_compat
   kind: validator_json
-  entry: validators/volume_format_compat_validator.py:VolumeFormatCompatValidator
+  entry: ../validators/volume_format_compat_validator.py:VolumeFormatCompatValidator
   api_version: 1.x
   stages:
   - validate
@@ -1063,7 +1063,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.nested_topology_scope
   kind: validator_json
-  entry: validators/nested_topology_scope_validator.py:NestedTopologyScopeValidator
+  entry: ../validators/nested_topology_scope_validator.py:NestedTopologyScopeValidator
   api_version: 1.x
   stages:
   - validate
@@ -1085,7 +1085,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.soho_product_profile
   kind: validator_json
-  entry: validators/soho_product_profile_validator.py:SohoProductProfileValidator
+  entry: ../validators/soho_product_profile_validator.py:SohoProductProfileValidator
   api_version: 1.x
   stages:
   - validate
@@ -1124,7 +1124,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.generator_migration_status
   kind: validator_json
-  entry: validators/generator_migration_status_validator.py:GeneratorMigrationStatusValidator
+  entry: ../validators/generator_migration_status_validator.py:GeneratorMigrationStatusValidator
   api_version: 1.x
   stages:
   - validate
@@ -1144,7 +1144,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.generator_sunset
   kind: validator_json
-  entry: validators/generator_sunset_validator.py:GeneratorSunsetValidator
+  entry: ../validators/generator_sunset_validator.py:GeneratorSunsetValidator
   api_version: 1.x
   stages:
   - validate
@@ -1189,7 +1189,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.generator_rollback_escalation
   kind: validator_json
-  entry: validators/generator_rollback_escalation_validator.py:GeneratorRollbackEscalationValidator
+  entry: ../validators/generator_rollback_escalation_validator.py:GeneratorRollbackEscalationValidator
   api_version: 1.x
   stages:
   - validate
@@ -1228,7 +1228,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.governance_contract
   kind: validator_yaml
-  entry: validators/governance_contract_validator.py:GovernanceContractValidator
+  entry: ../validators/governance_contract_validator.py:GovernanceContractValidator
   api_version: 1.x
   stages:
   - validate
@@ -1245,7 +1245,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.foundation_layout
   kind: validator_yaml
-  entry: validators/foundation_layout_validator.py:FoundationLayoutValidator
+  entry: ../validators/foundation_layout_validator.py:FoundationLayoutValidator
   api_version: 1.x
   stages:
   - validate
@@ -1263,7 +1263,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.foundation_include_contract
   kind: validator_yaml
-  entry: validators/foundation_include_contract_validator.py:FoundationIncludeContractValidator
+  entry: ../validators/foundation_include_contract_validator.py:FoundationIncludeContractValidator
   api_version: 1.x
   stages:
   - validate
@@ -1281,7 +1281,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.validator.foundation_file_placement
   kind: validator_yaml
-  entry: validators/foundation_file_placement_validator.py:FoundationFilePlacementValidator
+  entry: ../validators/foundation_file_placement_validator.py:FoundationFilePlacementValidator
   api_version: 1.x
   stages:
   - validate

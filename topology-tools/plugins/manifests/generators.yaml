@@ -4,7 +4,7 @@ stage: generate
 plugins:
 - id: base.generator.effective_json
   kind: generator
-  entry: generators/effective_json_generator.py:EffectiveJsonGenerator
+  entry: ../generators/effective_json_generator.py:EffectiveJsonGenerator
   api_version: 1.x
   stages:
   - generate
@@ -27,7 +27,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.generator.effective_yaml
   kind: generator
-  entry: generators/effective_yaml_generator.py:EffectiveYamlGenerator
+  entry: ../generators/effective_yaml_generator.py:EffectiveYamlGenerator
   api_version: 1.x
   stages:
   - generate
@@ -54,7 +54,7 @@ plugins:
   description: Emits effective topology YAML from main-interpreter-committed compiled model (ADR 0069 WS4 seed).
 - id: base.generator.docs
   kind: generator
-  entry: generators/docs_generator.py:DocsGenerator
+  entry: ../generators/docs_generator.py:DocsGenerator
   api_version: 1.x
   stages:
   - generate
@@ -83,7 +83,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.generator.diagrams
   kind: generator
-  entry: generators/diagram_generator.py:DiagramGenerator
+  entry: ../generators/diagram_generator.py:DiagramGenerator
   api_version: 1.x
   stages:
   - generate
@@ -124,7 +124,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.generator.topology_graph
   kind: generator
-  entry: generators/topology_graph_generator.py:TopologyGraphGenerator
+  entry: ../generators/topology_graph_generator.py:TopologyGraphGenerator
   api_version: 1.x
   stages:
   - generate
@@ -227,7 +227,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.generator.ansible_inventory
   kind: generator
-  entry: generators/ansible_inventory_generator.py:AnsibleInventoryGenerator
+  entry: ../generators/ansible_inventory_generator.py:AnsibleInventoryGenerator
   api_version: 1.x
   stages:
   - generate
@@ -276,7 +276,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.generator.docker_compose
   kind: generator
-  entry: generators/docker_compose_generator.py:DockerComposeGenerator
+  entry: ../generators/docker_compose_generator.py:DockerComposeGenerator
   api_version: 1.x
   stages:
   - generate
@@ -305,7 +305,7 @@ plugins:
   description: Generates docker-compose.yaml files from Docker stack instances (ADR 0087 Phase 6).
 - id: base.generator.ansible_role
   kind: generator
-  entry: generators/ansible_role_generator.py:AnsibleRoleGenerator
+  entry: ../generators/ansible_role_generator.py:AnsibleRoleGenerator
   api_version: 1.x
   stages:
   - generate
@@ -336,7 +336,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.generator.wireguard
   kind: generator
-  entry: generators/wireguard_generator.py:WireguardGenerator
+  entry: ../generators/wireguard_generator.py:WireguardGenerator
   api_version: 1.x
   stages:
   - generate
@@ -380,7 +380,7 @@ plugins:
 - id: base.generator.artifact_manifest
   execution_mode: subinterpreter
   kind: generator
-  entry: generators/artifact_manifest_generator.py:ArtifactManifestGenerator
+  entry: ../generators/artifact_manifest_generator.py:ArtifactManifestGenerator
   api_version: 1.x
   stages:
   - generate

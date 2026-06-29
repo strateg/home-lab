@@ -4,7 +4,7 @@ stage: compile
 plugins:
 - id: base.compiler.module_loader
   kind: compiler
-  entry: compilers/module_loader_compiler.py:ModuleLoaderCompiler
+  entry: ../compilers/module_loader_compiler.py:ModuleLoaderCompiler
   api_version: 1.x
   stages:
   - compile
@@ -31,7 +31,7 @@ plugins:
 - id: base.compiler.model_lock_loader
   execution_mode: subinterpreter
   kind: compiler
-  entry: compilers/model_lock_loader_compiler.py:ModelLockLoaderCompiler
+  entry: ../compilers/model_lock_loader_compiler.py:ModelLockLoaderCompiler
   api_version: 1.x
   stages:
   - compile
@@ -52,7 +52,7 @@ plugins:
   description: Loads model.lock payload for plugin-first pipeline (ADR 0069).
 - id: base.compiler.instance_host_index
   kind: compiler
-  entry: compilers/instance_host_index_compiler.py:InstanceHostIndexCompiler
+  entry: ../compilers/instance_host_index_compiler.py:InstanceHostIndexCompiler
   api_version: 1.x
   stages:
   - compile
@@ -73,7 +73,7 @@ plugins:
 - id: base.compiler.annotation_resolver
   execution_mode: subinterpreter
   kind: compiler
-  entry: compilers/annotation_resolver_compiler.py:AnnotationResolverCompiler
+  entry: ../compilers/annotation_resolver_compiler.py:AnnotationResolverCompiler
   api_version: 1.x
   stages:
   - compile
@@ -102,7 +102,7 @@ plugins:
   description: Parses field annotations once and publishes normalized annotation indexes.
 - id: base.compiler.instance_rows_secret_resolve
   kind: compiler
-  entry: compilers/instance_rows_secret_resolve_compiler.py:InstanceRowsSecretResolveCompiler
+  entry: ../compilers/instance_rows_secret_resolve_compiler.py:InstanceRowsSecretResolveCompiler
   api_version: 1.x
   stages:
   - compile
@@ -152,7 +152,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.compiler.instance_rows_resolve
   kind: compiler
-  entry: compilers/instance_rows_resolve_compiler.py:InstanceRowsResolveCompiler
+  entry: ../compilers/instance_rows_resolve_compiler.py:InstanceRowsResolveCompiler
   api_version: 1.x
   stages:
   - compile
@@ -196,7 +196,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.compiler.instance_rows_prepare
   kind: compiler
-  entry: compilers/instance_rows_prepare_compiler.py:InstanceRowsPrepareCompiler
+  entry: ../compilers/instance_rows_prepare_compiler.py:InstanceRowsPrepareCompiler
   api_version: 1.x
   stages:
   - compile
@@ -240,7 +240,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.compiler.instance_rows_on_prepare
   kind: compiler
-  entry: compilers/instance_rows_on_prepare_compiler.py:InstanceRowsOnPrepareCompiler
+  entry: ../compilers/instance_rows_on_prepare_compiler.py:InstanceRowsOnPrepareCompiler
   api_version: 1.x
   stages:
   - compile
@@ -269,7 +269,7 @@ plugins:
   execution_mode: main_interpreter
 - id: base.compiler.instance_rows_validate
   kind: compiler
-  entry: compilers/instance_rows_validate_compiler.py:InstanceRowsValidateCompiler
+  entry: ../compilers/instance_rows_validate_compiler.py:InstanceRowsValidateCompiler
   api_version: 1.x
   stages:
   - compile
@@ -318,7 +318,7 @@ plugins:
   execution_mode: subinterpreter
 - id: base.compiler.instance_rows
   kind: compiler
-  entry: compilers/instance_rows_compiler.py:InstanceRowsCompiler
+  entry: ../compilers/instance_rows_compiler.py:InstanceRowsCompiler
   api_version: 1.x
   stages:
   - compile
@@ -363,7 +363,7 @@ plugins:
 - id: base.compiler.capability_contract_loader
   execution_mode: subinterpreter
   kind: compiler
-  entry: compilers/capability_contract_loader_compiler.py:CapabilityContractLoaderCompiler
+  entry: ../compilers/capability_contract_loader_compiler.py:CapabilityContractLoaderCompiler
   api_version: 1.x
   stages:
   - compile
@@ -384,7 +384,7 @@ plugins:
   description: Loads capability catalog and packs contract for plugin-first pipeline.
 - id: base.compiler.workload_defaults_redundancy
   kind: compiler
-  entry: compilers/workload_defaults_redundancy_compiler.py:WorkloadDefaultsRedundancyCompiler
+  entry: ../compilers/workload_defaults_redundancy_compiler.py:WorkloadDefaultsRedundancyCompiler
   api_version: 1.x
   stages:
   - compile
@@ -411,7 +411,7 @@ plugins:
 - id: base.compiler.capabilities
   execution_mode: subinterpreter
   kind: compiler
-  entry: compilers/capability_compiler.py:CapabilityCompiler
+  entry: ../compilers/capability_compiler.py:CapabilityCompiler
   api_version: 1.x
   stages:
   - compile
@@ -439,7 +439,7 @@ plugins:
 - id: base.compiler.soho_profile_resolver
   execution_mode: subinterpreter
   kind: compiler
-  entry: compilers/soho_profile_resolver_compiler.py:SohoProfileResolverCompiler
+  entry: ../compilers/soho_profile_resolver_compiler.py:SohoProfileResolverCompiler
   api_version: 1.x
   stages:
   - compile
@@ -463,7 +463,7 @@ plugins:
 - id: base.compiler.security_matrix
   execution_mode: subinterpreter
   kind: compiler
-  entry: compilers/security_matrix_compiler.py:SecurityMatrixCompiler
+  entry: ../compilers/security_matrix_compiler.py:SecurityMatrixCompiler
   api_version: 1.x
   stages:
   - compile
@@ -495,7 +495,7 @@ plugins:
 - id: base.compiler.ip_derivation
   execution_mode: subinterpreter
   kind: compiler
-  entry: compilers/ip_derivation_compiler.py:IpDerivationCompiler
+  entry: ../compilers/ip_derivation_compiler.py:IpDerivationCompiler
   api_version: 1.x
   stages:
   - compile
@@ -520,7 +520,7 @@ plugins:
     for deprecated hardcoded IPs.
 - id: base.compiler.effective_model
   kind: compiler
-  entry: compilers/effective_model_compiler.py:EffectiveModelCompiler
+  entry: ../compilers/effective_model_compiler.py:EffectiveModelCompiler
   api_version: 1.x
   stages:
   - compile

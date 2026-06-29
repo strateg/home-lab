@@ -5,7 +5,7 @@ plugins:
 - id: base.assembler.changed_scopes
   execution_mode: subinterpreter
   kind: assembler
-  entry: assemblers/workspace_assembler.py:ChangedInputScopesAssembler
+  entry: ../assemblers/workspace_assembler.py:ChangedInputScopesAssembler
   api_version: 1.x
   stages:
   - assemble
@@ -33,7 +33,7 @@ plugins:
 - id: base.assembler.workspace
   execution_mode: subinterpreter
   kind: assembler
-  entry: assemblers/workspace_assembler.py:WorkspaceAssembler
+  entry: ../assemblers/workspace_assembler.py:WorkspaceAssembler
   api_version: 1.x
   stages:
   - assemble
@@ -60,7 +60,7 @@ plugins:
 - id: base.assembler.artifact_contract_guard
   execution_mode: subinterpreter
   kind: assembler
-  entry: assemblers/artifact_contract_assembler.py:ArtifactContractAssembler
+  entry: ../assemblers/artifact_contract_assembler.py:ArtifactContractAssembler
   api_version: 1.x
   stages:
   - assemble
@@ -106,7 +106,7 @@ plugins:
 - id: base.assembler.verify
   execution_mode: subinterpreter
   kind: assembler
-  entry: assemblers/workspace_assembler.py:AssemblyVerifyAssembler
+  entry: ../assemblers/workspace_assembler.py:AssemblyVerifyAssembler
   api_version: 1.x
   stages:
   - assemble
@@ -138,7 +138,7 @@ plugins:
 - id: base.assembler.manifest
   execution_mode: subinterpreter
   kind: assembler
-  entry: assemblers/workspace_assembler.py:AssemblyManifestAssembler
+  entry: ../assemblers/workspace_assembler.py:AssemblyManifestAssembler
   api_version: 1.x
   stages:
   - assemble
@@ -172,7 +172,7 @@ plugins:
 - id: base.assembler.deploy_bundle
   execution_mode: subinterpreter
   kind: assembler
-  entry: assemblers/workspace_assembler.py:DeployBundleAssembler
+  entry: ../assemblers/workspace_assembler.py:DeployBundleAssembler
   api_version: 1.x
   stages:
   - assemble

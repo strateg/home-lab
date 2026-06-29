@@ -4,7 +4,7 @@ stage: discover
 plugins:
 - id: base.discover.manifest_loader
   kind: discoverer
-  entry: discoverers/discover_manifest_loader.py:DiscoverManifestLoaderCompiler
+  entry: ../discoverers/discover_manifest_loader.py:DiscoverManifestLoaderCompiler
   api_version: 1.x
   stages:
   - discover
@@ -24,7 +24,7 @@ plugins:
 - id: base.discover.boundary
   execution_mode: subinterpreter
   kind: discoverer
-  entry: discoverers/discover_boundary.py:DiscoverBoundaryCompiler
+  entry: ../discoverers/discover_boundary.py:DiscoverBoundaryCompiler
   api_version: 1.x
   stages:
   - discover
@@ -49,7 +49,7 @@ plugins:
 - id: base.discover.inventory
   execution_mode: subinterpreter
   kind: discoverer
-  entry: discoverers/discover_inventory.py:DiscoverInventoryCompiler
+  entry: ../discoverers/discover_inventory.py:DiscoverInventoryCompiler
   api_version: 1.x
   stages:
   - discover
@@ -74,7 +74,7 @@ plugins:
 - id: base.discover.capability_preflight
   execution_mode: subinterpreter
   kind: discoverer
-  entry: discoverers/discover_capability_preflight.py:DiscoverCapabilityPreflightCompiler
+  entry: ../discoverers/discover_capability_preflight.py:DiscoverCapabilityPreflightCompiler
   api_version: 1.x
   stages:
   - discover

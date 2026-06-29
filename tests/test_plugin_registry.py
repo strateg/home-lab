@@ -56,20 +56,24 @@ def _write_module(path: Path, source: str) -> None:
 
 
 def test_manifest_loading():
-    """Test loading plugin manifest from YAML."""
+    """Test loading plugin manifest from YAML (supports sharded manifests with includes)."""
     manifest_path = V5_TOOLS / "plugins" / "plugins.yaml"
-    manifest = PluginManifest.from_file(manifest_path)
+    # Use registry to load manifest with includes support (sharded manifests)
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest_path)
 
-    assert manifest.schema_version == 1
-    assert len(manifest.plugins) >= 1
+    assert len(registry.specs) >= 1
 
-    discover_plugin = next(p for p in manifest.plugins if p.id == "base.discover.inventory")
+    # Test discoverer plugin
+    discover_plugin = registry.specs.get("base.discover.inventory")
+    assert discover_plugin is not None
     assert discover_plugin.kind == PluginKind.DISCOVERER
     assert Stage.DISCOVER in discover_plugin.stages
     assert discover_plugin.timeout == 30
 
     # Find the reference validator plugin
-    ref_plugin = next(p for p in manifest.plugins if p.id == "base.validator.references")
+    ref_plugin = registry.specs.get("base.validator.references")
+    assert ref_plugin is not None
     assert ref_plugin.kind == PluginKind.VALIDATOR_JSON
     assert Stage.VALIDATE in ref_plugin.stages
     assert ref_plugin.config == {"strict_mode": False}
@@ -241,12 +245,10 @@ def test_execution_order_filters_by_phase(tmp_path: Path):
 def test_base_manifest_run_phase_dispatch_uses_execute():
     """Run-phase dispatch must remain execute()-compatible for all base plugins."""
     manifest_path = V5_TOOLS / "plugins" / "plugins.yaml"
-    payload = yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
-    plugins = payload.get("plugins", []) if isinstance(payload, dict) else []
-    base_plugin_ids = [item.get("id") for item in plugins if isinstance(item, dict) and isinstance(item.get("id"), str)]
-
     registry = PluginRegistry(V5_TOOLS)
     registry.load_manifest(manifest_path)
+    # Get plugin IDs from registry (supports sharded manifests with includes)
+    base_plugin_ids = list(registry.specs.keys())
     ctx = PluginContext(topology_path="test", profile="test-real", model_lock={})
 
     dispatched = 0

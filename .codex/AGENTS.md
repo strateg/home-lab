@@ -28,5 +28,6 @@ python -m pytest tests -q                                                       
 ## References
 
 - **Full rules:** `docs/ai/AGENT-RULEBOOK.md`
+- **ADR routing:** `docs/ai/ADR-RULE-MAP.yaml`
 - **Workflows:** `docs/guides/COMMON-WORKFLOWS.md`
 - **SPC mode:** Say "SPC MODE" for formal analysis. See `docs/ai/spc-contract.md`
