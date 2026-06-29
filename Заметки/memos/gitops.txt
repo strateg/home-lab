@@ -1,0 +1,195 @@
+нет. Давай проанализируем архитектуру всей нашей системы. teach-lead-architect проанализируй предложение по новому adr. ПРоблему которую я решаю "как
+  работать с mikrotik рутером c gjvjom. terraform и ansible, чтобы каждое изменение было воспроизводимо и откатываемо, по типу гит репозитория" есть
+  предложение "Я разложу это как практическую схему GitOps для MikroTik: что держать в Terraform, что в Ansible, как делать backup/diff/rollback и
+  какие ограничения у RouterOS.
+
+  Да, это можно сделать почти как GitOps, но не одним инструментом.
+
+  Лучшая схема:
+
+  Git = источник истины
+  Terraform/OpenTofu = декларативные объекты RouterOS
+  Ansible = bootstrap, backup, проверки, импорт/экспорт, аварийные команды
+  RouterOS export/backup = rollback-страховка
+
+  MikroTik официально поддерживает export/import конфигурации в текстовом виде, а binary backup лучше восстанавливать на том же устройстве и той же
+  версии RouterOS.
+
+  Практическая архитектура репозитория
+  mikrotik-gitops/
+  README.md
+  inventory.yml
+  ansible/
+  bootstrap.yml
+  backup.yml
+  precheck.yml
+  rollback-export.yml
+  terraform/
+  providers.tf
+  main.tf
+  firewall.tf
+  dhcp.tf
+  dns.tf
+  wireguard.tf
+  variables.tf
+  terraform.tfvars.example
+  backups/
+  rtr-mikrotik-chateau/
+  2026-06-10-export.rsc
+  Что чем управлять
+
+  Terraform/OpenTofu — для того, что должно быть декларативным:
+
+  /ip address
+  /ip pool
+  /ip dhcp-server
+  /ip dns
+  /ip firewall filter
+  /ip firewall nat
+  /interface wireguard
+  /interface vlan
+  /routing
+
+  Есть актуальный community provider terraform-routeros/routeros; он работает через RouterOS API/REST API.
+
+  Ansible — для процедурных задач:
+
+  первичная настройка доступа
+  создание пользователя automation
+  включение api-ssl / ssh
+  экспорт текущей конфигурации
+  проверки перед apply
+  аварийный rollback
+  обновление RouterOS
+
+  У Ansible есть коллекция community.routeros с модулями API, facts, command и modify.
+
+  Минимальный flow изменений
+  git checkout -b change/firewall-rule
+
+  ansible-playbook ansible/backup.yml
+
+  cd terraform
+  tofu plan
+  tofu apply
+
+  ansible-playbook ../ansible/precheck.yml
+
+  git add .
+  git commit -m "Add firewall rule for WinBox from LAN only"
+  Важное правило
+
+  Перед каждым изменением делай:
+
+  /export show-sensitive file=before-change
+  /system backup save name=before-change
+
+  .rsc export — человекочитаемый, его можно diff-ить в Git.
+  .backup — аварийный бинарный снимок, лучше только для того же устройства.
+
+  Пример Terraform provider
+  terraform {
+  required_providers {
+  routeros = {
+  source  = "terraform-routeros/routeros"
+  version = "~> 1.99"
+  }
+  }
+  }
+
+  provider "routeros" {
+  hosturl  = "https://192.168.88.1"
+  username = var.routeros_user
+  password = var.routeros_password
+  insecure = true
+  }
+  Пример идеи firewall rule
+  resource "routeros_ip_firewall_filter" "allow_winbox_lan" {
+  chain       = "input"
+  action      = "accept"
+  protocol    = "tcp"
+  dst_port    = "8291"
+  src_address = "192.168.88.0/24"
+  comment     = "managed-by-terraform allow winbox from LAN"
+  }
+  Rollback-стратегия
+
+  Самый безопасный вариант для домашней сети:
+
+  Перед apply сохранить export и backup.
+  Настроить MikroTik Safe Mode вручную в WinBox/SSH перед рискованным изменением.
+  Применить Terraform.
+  Проверить доступ.
+  Если потерял доступ — Safe Mode сам откатит сессию.
+  Если доступ есть, но логика сломана — импортировать прошлый .rsc или восстановить .backup.
+  Мой совет для твоего случая
+
+  Начни не с полной миграции всего MikroTik в Terraform, а так:
+
+  Этап 1: Ansible backup + Git diff
+  Этап 2: Terraform только firewall address-list / NAT / WireGuard
+  Этап 3: Terraform DHCP/DNS/VLAN
+  Этап 4: полный rebuild router from config
+
+  Не пытайся сразу импортировать весь живой MikroTik в Terraform. Лучше постепенно переносить управляемые части и помечать их комментариями
+  managed-by-terraform." покритикуй и предложи приемлемый вариант на основе знаний которые уже заложены в топологию
+
+● tech-lead-architect(Analyze MikroTik GitOps ADR proposal)
+  ⎿  Search(pattern: "topology-tools/plugins/**/*.py")
+     Search(pattern: "topology/object-modules/**/*.yaml")
+     Search(pattern: "projects/home-lab/topology/instances/**/*.yaml")
+     +19 more tool uses (ctrl+o to expand)
+     ctrl+b to run in background
+
+
+Не уверен что нудно так усложнять систему. Возможно ли упростить систему
+
+● Согласен, давай упростим. Вот три уровня сложности:
+
+  Вариант 1: Минимальный (Git = State)
+
+  Git commit SHA = идентификатор состояния
+
+  topology изменение → git commit → terraform apply
+  rollback = git revert → terraform apply
+
+  Что храним:
+  - terraform.tfstate — в .gitignore, локально или remote backend
+  - backups/rtr-mikrotik-chateau.rsc — в git (export перед apply)
+
+  Плюсы: Почти нет нового кода
+  Минусы: Нет автоматического rollback, ручной процесс
+
+  ---
+  Вариант 2: Средний (Git + pre/post hooks)
+
+  Git commit → pre-apply backup → terraform apply → post-apply check
+                                        ↓ fail
+                                   restore backup
+
+  Что добавляем:
+  - task apply:mikrotik — делает backup, apply, check
+  - backups/ директория в git с .rsc файлами
+
+  Плюсы: Автоматический backup/restore, минимум нового кода
+  Минусы: Нет истории состояний отдельно от git
+
+  ---
+  Вариант 3: Текущее предложение (ADR 0105)
+
+  Полная система с отдельными state commits, snapshots, history.
+
+  ---
+  Мой вопрос
+
+  Что тебе реально нужно?
+
+  1. Просто не потерять конфиг при неудачном apply? → Вариант 1
+  2. Автоматический откат при ошибке? → Вариант 2
+  3. Полная история состояний независимо от git? → Вариант 3
+
+  Какой сценарий ближе к твоим потребностям?
+
+❯ Мне кажется не нужно изобретать велосипеды, если я выбираю конкретные инструменты, сейчас это terraform и ansible, они уде должны иметь лучшие
+  практики испольщования в этой сфере. Применимость на различные устройста также, каждое устройство имеет свои лучшие практики в этой сфере. У нас
+  топология построена на плагинах , для каждой группы устройств есть свои лучшие практики и приёмы, их надо отыскать в интернете.

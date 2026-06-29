@@ -1,0 +1,9 @@
+---
+# Redis service playbook
+- name: Redis deployment
+  hosts: redis
+  gather_facts: true
+  tasks:
+    - name: Redis placeholder
+      ansible.builtin.debug:
+        msg: "Redis setup placeholder"

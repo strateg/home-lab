@@ -1,0 +1,9 @@
+---
+# Common setup playbook
+- name: Common configuration
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Ensure common packages
+      ansible.builtin.debug:
+        msg: "Common setup placeholder"

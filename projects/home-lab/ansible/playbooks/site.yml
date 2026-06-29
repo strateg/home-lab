@@ -1,0 +1,15 @@
+---
+# Site-wide playbook - imports all service playbooks
+# ADR 0080: 6-stage pipeline build stage
+
+- name: Common setup
+  import_playbook: common.yml
+
+- name: PostgreSQL services
+  import_playbook: postgresql.yml
+
+- name: Redis services
+  import_playbook: redis.yml
+
+- name: Monitoring stack
+  import_playbook: monitoring.yml

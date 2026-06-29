@@ -1,0 +1,9 @@
+---
+# Nextcloud service playbook
+- name: Nextcloud deployment
+  hosts: nextcloud
+  gather_facts: true
+  tasks:
+    - name: Nextcloud placeholder
+      ansible.builtin.debug:
+        msg: "Nextcloud setup placeholder"

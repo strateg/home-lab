@@ -1,0 +1,962 @@
+
+  │ MEDIUM   │ hypervisor_execution_model_validator.py │ class.compute.hypervisor.proxmox               │ 30, 199   │
+  ├──────────┼─────────────────────────────────────────┼────────────────────────────────────────────────┼───────────┤
+  │ MEDIUM   │ volume_format_compat_validator.py       │ _HYPERVISOR_FORMAT_COMPAT dict                 │ 46-48     │
+  ├──────────┼─────────────────────────────────────────┼────────────────────────────────────────────────┼───────────┤
+  │ MEDIUM   │ vm_hypervisor_compat_validator.py       │ _DEFAULT_ALLOWED_* dicts                       │ 34-52     │
+  ├──────────┼─────────────────────────────────────────┼────────────────────────────────────────────────┼───────────┤
+  │ MEDIUM   │ router_port_validator.py                │ obj.mikrotik., obj.glinet.                     │ 21-22     │
+  ├──────────┼─────────────────────────────────────────┼────────────────────────────────────────────────┼───────────┤
+  │ LOW      │ docker_refs_validator.py                │ class.compute.hypervisor.proxmox               │ 41        │
+  ├──────────┼─────────────────────────────────────────┼────────────────────────────────────────────────┼───────────┤
+  │ LOW      │ plugins.yaml                            │ Generator names with vendor prefixes           │ 2221-2226 │
+  ├──────────┼─────────────────────────────────────────┼────────────────────────────────────────────────┼───────────┤
+  │ LOW      │ icons/mappings.py                       │ si:proxmox                                     │ 13        │
+  └──────────┴─────────────────────────────────────────┴────────────────────────────────────────────────┴───────────┘
+  1.3 Dependency Graph
+
+  capability-catalog.yaml
+         │
+         │ DEFINES capabilities
+         ▼
+  object modules (obj.*.yaml)
+         │
+         │ DECLARES enabled_capabilities
+         ▼
+  compiled_json (runtime)
+         │
+         ├──► generators ──► SHOULD use capabilities for branching
+         │                   CURRENTLY use object_ref/class_ref strings
+         │
+         └──► validators ──► SHOULD use capabilities for rules
+                             CURRENTLY use hardcoded class names
+
+  1.4 Data Flow (Current vs Target)
+
+  CURRENT:
+  instance.object_ref = "obj.mikrotik.chateau_lte7_ax"
+         │
+         ▼
+  if "mikrotik" in object_ref.lower():
+      generate_mikrotik_config()
+
+  TARGET:
+  instance.capabilities = ["cap.os.routeros", "cap.net.overlay.vpn.wireguard.server", ...]
+         │
+         ▼
+  for cap in instance.capabilities:
+      if cap in CAPABILITY_HANDLERS:
+          CAPABILITY_HANDLERS[cap].generate(instance)
+
+  ---
+  STEP 1 — DOCUMENT MAP: COMPLETE
+
+  Affected components:
+  - 2 CRITICAL generators
+  - 6 MEDIUM/HIGH validators
+  - 1 projection helper
+  - 1 plugin config
+  - 1 icon mapping
+
+  Total hardcoded patterns: ~25+ locations across 12 files
+
+  ---
+  GO STEP 2 (Constraints)?
+
+✻ Baked for 43s
+
+❯ Нужно понять является ли текущая система оптимальной и нужно ли переводить всё на использование capabilities. Пока я вижу естественным сосуществование двух плодходов. Мне просто не нравиться хардкод конкретных имен в коде
+
+● Понял. Уточняю фокус анализа.
+
+  STEP 2 — CONSTRAINTS (Уточнённые)
+
+  2.1 Проблема НЕ в подходе, а в хардкоде
+  ┌──────────────────────────┬──────────────────────────────────┬───────────────────────────────────┐
+  │          Аспект          │        Текущее состояние         │             Проблема              │
+  ├──────────────────────────┼──────────────────────────────────┼───────────────────────────────────┤
+  │ Object-based routing     │ obj.mikrotik.*                   │ Нормально — структурный подход    │
+  ├──────────────────────────┼──────────────────────────────────┼───────────────────────────────────┤
+  │ Class-based routing      │ class.compute.hypervisor         │ Нормально — иерархический подход  │
+  ├──────────────────────────┼──────────────────────────────────┼───────────────────────────────────┤
+  │ Capability-based routing │ cap.os.routeros                  │ Нормально — функциональный подход │
+  ├──────────────────────────┼──────────────────────────────────┼───────────────────────────────────┤
+  │ Hardcoded strings        │ "mikrotik" in object_ref.lower() │ ПРОБЛЕМА — хрупкий код            │
+  └──────────────────────────┴──────────────────────────────────┴───────────────────────────────────┘
+  2.2 Что именно плохо
+
+  # ПЛОХО: Magic strings в коде
+  if "mikrotik" in object_ref.lower():
+      return "mikrotik"
+
+  # ПЛОХО: Дублирование списков
+  _HYPERVISOR_CLASSES = {
+      "class.compute.hypervisor.proxmox",  # hardcoded
+      "class.compute.hypervisor.vbox",     # hardcoded
+  }
+
+  # ПЛОХО: Vendor dict без единого источника
+  proxmox_nodes: list = []
+  mikrotik_nodes: list = []
+  orangepi_nodes: list = []
+
+  2.3 Что нормально (coexistence)
+
+  # OK: Object prefix pattern (структурно)
+  if object_ref.startswith("obj.mikrotik."):
+      ...
+
+  # OK: Class hierarchy (иерархически)
+  if class_ref in HYPERVISOR_CLASSES:  # из registry
+      ...
+
+  # OK: Capability check (функционально)
+  if "cap.os.routeros" in capabilities:
+      ...
+
+  2.4 Constraints для решения
+  ┌─────┬───────────────────────────────────────────────┬──────────────────────────────────────────┐
+  │ ID  │                  Constraint                   │                Rationale                 │
+  ├─────┼───────────────────────────────────────────────┼──────────────────────────────────────────┤
+  │ C1  │ Никаких magic strings в plugin code           │ Все идентификаторы из registry/constants │
+  ├─────┼───────────────────────────────────────────────┼──────────────────────────────────────────┤
+  │ C2  │ Single source of truth для vendor/class lists │ Одно место определения, импорт везде     │
+  ├─────┼───────────────────────────────────────────────┼──────────────────────────────────────────┤
+  │ C3  │ Coexistence object-based и capability-based   │ Оба подхода валидны                      │
+  ├─────┼───────────────────────────────────────────────┼──────────────────────────────────────────┤
+  │ C4  │ Новое устройство = только topology changes    │ Код плагинов не меняется                 │
+  ├─────┼───────────────────────────────────────────────┼──────────────────────────────────────────┤
+  │ C5  │ Валидация strings против topology             │ Compile-time проверка                    │
+  ├─────┼───────────────────────────────────────────────┼──────────────────────────────────────────┤
+  │ C6  │ Backward compatible                           │ Существующие плагины продолжают работать │
+  └─────┴───────────────────────────────────────────────┴──────────────────────────────────────────┘
+  ---
+  2.5 Уточняющий вопрос
+
+  Какой подход предпочтительнее для устранения хардкода?
+
+  Option A: Constants Registry
+  # topology-tools/plugins/constants/vendors.py
+  MIKROTIK_OBJECTS = "obj.mikrotik."
+  PROXMOX_CLASS = "class.compute.hypervisor.proxmox"
+
+  # В плагине:
+  if object_ref.startswith(MIKROTIK_OBJECTS):
+
+  Option B: Derived Capabilities (автоматические)
+  # Compiler автоматически добавляет:
+  # obj.mikrotik.* → vendor.platform.mikrotik
+  # class.compute.hypervisor.proxmox → vendor.platform.proxmox
+
+  # В плагине:
+  if "vendor.platform.mikrotik" in capabilities:
+
+  Option C: Platform Metadata в objects
+  # obj.mikrotik.chateau_lte7_ax.yaml
+  platform_family: mikrotik
+  generator_group: routeros
+
+  # В плагине:
+  if obj.get("platform_family") == "mikrotik":
+
+  Option D: Hybrid (Registry + Optional Capabilities)
+  - Constants для structural routing
+  - Capabilities для functional features
+  - Оба подхода валидны в разных контекстах
+
+  Какой вариант ближе к вашему видению?
+
+❯ Вариант B. В классах объектах экземплярах capability являются маркерами, аннотациями нужного функционала, опираясь на которые генераторы знают что делать, и генераторы автоматически находят новые экземпляры и обрабатывают их. Чем меньше харкода, тем лучше. Но не
+  переусложнить.
+
+● Отлично. Option B — Derived Capabilities как маркеры/аннотации.
+
+  STEP 2 — CONSTRAINTS: COMPLETE
+  ┌─────┬────────────────────────────────────────────────────────────────┐
+  │ ID  │                           Constraint                           │
+  ├─────┼────────────────────────────────────────────────────────────────┤
+  │ C1  │ Capabilities = маркеры/аннотации функционала                   │
+  ├─────┼────────────────────────────────────────────────────────────────┤
+  │ C2  │ Генераторы опираются на capabilities, не на object_ref strings │
+  ├─────┼────────────────────────────────────────────────────────────────┤
+  │ C3  │ Новые экземпляры автоматически подхватываются по capabilities  │
+  ├─────┼────────────────────────────────────────────────────────────────┤
+  │ C4  │ Compiler автоматически derives platform capabilities           │
+  ├─────┼────────────────────────────────────────────────────────────────┤
+  │ C5  │ Минимум хардкода, без переусложнения                           │
+  ├─────┼────────────────────────────────────────────────────────────────┤
+  │ C6  │ Backward compatible — постепенная миграция                     │
+  └─────┴────────────────────────────────────────────────────────────────┘
+  ---
+  STEP 3 — DIAGNOSTIC
+
+● 3.1 Derived Capabilities Model
+
+  ┌─────────────────────────────────────────────────────────────────┐
+  │                    DERIVED CAPABILITIES                          │
+  ├─────────────────────────────────────────────────────────────────┤
+  │                                                                  │
+  │  SOURCE                          DERIVED CAPABILITY              │
+  │  ────────────────────────────    ──────────────────────────────  │
+  │                                                                  │
+  │  obj.mikrotik.*                → cap.platform.routeros           │
+  │  obj.proxmox.ve                → cap.platform.proxmox            │
+  │  obj.orangepi.*                → cap.platform.linux.sbc          │
+  │  obj.glinet.*                  → cap.platform.openwrt            │
+  │  obj.oracle.cloud_vm           → cap.platform.linux.cloud        │
+  │                                                                  │
+  │  class.compute.hypervisor.*    → cap.role.hypervisor             │
+  │  class.router                  → cap.role.router                 │
+  │  class.compute.edge_node       → cap.role.edge_node              │
+  │                                                                  │
+  │  vendor: mikrotik              → cap.vendor.mikrotik             │
+  │  vendor: proxmox               → cap.vendor.proxmox              │
+  │                                                                  │
+  │  initialization_contract:                                        │
+  │    mechanism: netinstall       → cap.bootstrap.netinstall        │
+  │    mechanism: unattended_install → cap.bootstrap.unattended      │
+  │    mechanism: cloud_init       → cap.bootstrap.cloud_init        │
+  │                                                                  │
+  └─────────────────────────────────────────────────────────────────┘
+
+  3.2 Migration Pattern Analysis
+  ┌─────────────────────────────────────┬─────────────────────────────┬───────────────────────────────────────┐
+  │           Current Pattern           │          Location           │             Migration To              │
+  ├─────────────────────────────────────┼─────────────────────────────┼───────────────────────────────────────┤
+  │ if "mikrotik" in object_ref.lower() │ wireguard_generator:426     │ if "cap.platform.routeros" in caps    │
+  ├─────────────────────────────────────┼─────────────────────────────┼───────────────────────────────────────┤
+  │ obj.mikrotik.* prefix check         │ bootstrap_projections:66    │ if "cap.bootstrap.netinstall" in caps │
+  ├─────────────────────────────────────┼─────────────────────────────┼───────────────────────────────────────┤
+  │ obj.proxmox.ve exact match          │ bootstrap_projections:64    │ if "cap.bootstrap.unattended" in caps │
+  ├─────────────────────────────────────┼─────────────────────────────┼───────────────────────────────────────┤
+  │ obj.orangepi.* prefix check         │ bootstrap_projections:68    │ if "cap.bootstrap.cloud_init" in caps │
+  ├─────────────────────────────────────┼─────────────────────────────┼───────────────────────────────────────┤
+  │ proxmox_nodes, mikrotik_nodes lists │ bootstrap_projections:43-45 │ nodes_by_capability[cap] dict         │
+  ├─────────────────────────────────────┼─────────────────────────────┼───────────────────────────────────────┤
+  │ _HYPERVISOR_CLASSES set             │ validators                  │ cap.role.hypervisor check             │
+  ├─────────────────────────────────────┼─────────────────────────────┼───────────────────────────────────────┤
+  │ _HYPERVISOR_FORMAT_COMPAT dict      │ validators                  │ Capability metadata                   │
+  ├─────────────────────────────────────┼─────────────────────────────┼───────────────────────────────────────┤
+  │ platform != "proxmox"               │ vm/lxc validators           │ "cap.platform.proxmox" not in caps    │
+  └─────────────────────────────────────┴─────────────────────────────┴───────────────────────────────────────┘
+  3.3 What Compiler Must Derive
+
+  # COMPILER DERIVATION RULES (new)
+  derived_capabilities_rules:
+    # From object_ref prefix
+    - pattern: "obj.mikrotik.*"
+      derives: ["cap.platform.routeros", "cap.vendor.mikrotik"]
+
+    - pattern: "obj.proxmox.*"
+      derives: ["cap.platform.proxmox", "cap.vendor.proxmox"]
+
+    - pattern: "obj.orangepi.*"
+      derives: ["cap.platform.linux.sbc", "cap.vendor.orangepi"]
+
+    - pattern: "obj.glinet.*"
+      derives: ["cap.platform.openwrt", "cap.vendor.glinet"]
+
+    - pattern: "obj.oracle.*"
+      derives: ["cap.platform.linux.cloud", "cap.vendor.oracle"]
+
+    # From class_ref
+    - pattern: "class.compute.hypervisor*"
+      derives: ["cap.role.hypervisor"]
+
+    - pattern: "class.router"
+      derives: ["cap.role.router"]
+
+    - pattern: "class.compute.edge_node"
+      derives: ["cap.role.edge_node"]
+
+    # From initialization_contract.mechanism
+    - field: "initialization_contract.mechanism"
+      value: "netinstall"
+      derives: ["cap.bootstrap.netinstall"]
+
+    - field: "initialization_contract.mechanism"
+      value: "unattended_install"
+      derives: ["cap.bootstrap.unattended"]
+
+    - field: "initialization_contract.mechanism"
+      value: "cloud_init"
+      derives: ["cap.bootstrap.cloud_init"]
+
+  3.4 Generator Refactoring Pattern
+
+  BEFORE (hardcoded):
+  def build_bootstrap_projection(compiled_json):
+      proxmox_nodes = []
+      mikrotik_nodes = []
+      orangepi_nodes = []
+
+      for row in devices:
+          object_ref = row.get("object_ref")
+          if object_ref == "obj.proxmox.ve":
+              proxmox_nodes.append(row)
+          if object_ref.startswith("obj.mikrotik."):
+              mikrotik_nodes.append(row)
+
+  AFTER (capability-driven):
+  def build_bootstrap_projection(compiled_json):
+      nodes_by_bootstrap = defaultdict(list)
+
+      for row in devices:
+          caps = get_all_capabilities(row)  # includes derived
+
+          for cap in caps:
+              if cap.startswith("cap.bootstrap."):
+                  nodes_by_bootstrap[cap].append(row)
+
+      return {
+          "nodes_by_bootstrap": dict(nodes_by_bootstrap),
+          # Legacy aliases for backward compat
+          "proxmox_nodes": nodes_by_bootstrap.get("cap.bootstrap.unattended", []),
+          "mikrotik_nodes": nodes_by_bootstrap.get("cap.bootstrap.netinstall", []),
+          "orangepi_nodes": nodes_by_bootstrap.get("cap.bootstrap.cloud_init", []),
+      }
+
+  3.5 Impact Summary
+  ┌──────────────────────────┬────────────────────────────────────────────────────┐
+  │        Component         │                  Changes Required                  │
+  ├──────────────────────────┼────────────────────────────────────────────────────┤
+  │ Compiler                 │ Add derived_capabilities pass                      │
+  ├──────────────────────────┼────────────────────────────────────────────────────┤
+  │ capability-catalog.yaml  │ Add cap.platform.*, cap.bootstrap.*, cap.role.*    │
+  ├──────────────────────────┼────────────────────────────────────────────────────┤
+  │ bootstrap_projections.py │ Refactor to capability-based grouping              │
+  ├──────────────────────────┼────────────────────────────────────────────────────┤
+  │ wireguard_generator.py   │ Replace string checks with capability checks       │
+  ├──────────────────────────┼────────────────────────────────────────────────────┤
+  │ validators (6)           │ Replace class/object checks with capability checks │
+  ├──────────────────────────┼────────────────────────────────────────────────────┤
+  │ Object modules           │ No changes (capabilities derived automatically)    │
+  └──────────────────────────┴────────────────────────────────────────────────────┘
+  3.6 New Capabilities to Add
+
+  # cap.platform.* - Platform/OS family
+  - cap.platform.routeros      # MikroTik RouterOS
+  - cap.platform.proxmox       # Proxmox VE
+  - cap.platform.openwrt       # OpenWrt-based
+  - cap.platform.linux.sbc     # Linux on SBC
+  - cap.platform.linux.cloud   # Linux on cloud VM
+
+  # cap.bootstrap.* - Bootstrap mechanism
+  - cap.bootstrap.netinstall   # MikroTik netinstall
+  - cap.bootstrap.unattended   # Proxmox unattended
+  - cap.bootstrap.cloud_init   # cloud-init
+
+  # cap.role.* - Functional role
+  - cap.role.hypervisor        # Can host VMs/LXC
+  - cap.role.router            # Network routing
+  - cap.role.edge_node         # Edge compute node
+
+  # cap.vendor.* - Vendor identification
+  - cap.vendor.mikrotik
+  - cap.vendor.proxmox
+  - cap.vendor.orangepi
+  - cap.vendor.glinet
+  - cap.vendor.oracle
+
+  ---
+  STEP 3 — DIAGNOSTIC: COMPLETE
+
+  Ключевой insight: Большинство хардкода можно устранить через derived capabilities, которые compiler автоматически добавляет на основе object_ref, class_ref, и полей типа initialization_contract.mechanism.
+
+  ---
+  GO STEP 4 (Classify)?
+
+✻ Churned for 48s
+
+❯ да
+
+● STEP 4 — CLASSIFY
+
+● 4.1 Problem Classification Matrix
+  ┌─────┬──────────────────────────────────────────────┬────────────┬──────────┬────────────┬──────────────┐
+  │ ID  │                   Problem                    │    Type    │ Priority │ Complexity │ Dependencies │
+  ├─────┼──────────────────────────────────────────────┼────────────┼──────────┼────────────┼──────────────┤
+  │ P1  │ No derived capabilities in compiler          │ Data Model │ CRITICAL │ Medium     │ None         │
+  ├─────┼──────────────────────────────────────────────┼────────────┼──────────┼────────────┼──────────────┤
+  │ P2  │ Missing cap.platform.* capabilities          │ Data Model │ CRITICAL │ Low        │ P1           │
+  ├─────┼──────────────────────────────────────────────┼────────────┼──────────┼────────────┼──────────────┤
+  │ P3  │ Missing cap.bootstrap.* capabilities         │ Data Model │ HIGH     │ Low        │ P1           │
+  ├─────┼──────────────────────────────────────────────┼────────────┼──────────┼────────────┼──────────────┤
+  │ P4  │ Missing cap.role.* capabilities              │ Data Model │ MEDIUM   │ Low        │ P1           │
+  ├─────┼──────────────────────────────────────────────┼────────────┼──────────┼────────────┼──────────────┤
+  │ P5  │ bootstrap_projections.py hardcoded grouping  │ Generator  │ HIGH     │ Medium     │ P1, P3       │
+  ├─────┼──────────────────────────────────────────────┼────────────┼──────────┼────────────┼──────────────┤
+  │ P6  │ wireguard_generator.py platform detection    │ Generator  │ HIGH     │ Low        │ P1, P2       │
+  ├─────┼──────────────────────────────────────────────┼────────────┼──────────┼────────────┼──────────────┤
+  │ P7  │ projections.py CAPABILITY_ROLE_MAP underused │ Generator  │ MEDIUM   │ Low        │ P2           │
+  ├─────┼──────────────────────────────────────────────┼────────────┼──────────┼────────────┼──────────────┤
+  │ P8  │ Validators with hardcoded class lists        │ Validator  │ MEDIUM   │ Medium     │ P1, P4       │
+  ├─────┼──────────────────────────────────────────────┼────────────┼──────────┼────────────┼──────────────┤
+  │ P9  │ No capability accessor helper                │ Tooling    │ HIGH     │ Low        │ P1           │
+  ├─────┼──────────────────────────────────────────────┼────────────┼──────────┼────────────┼──────────────┤
+  │ P10 │ No backward compatibility layer              │ Migration  │ HIGH     │ Low        │ P5, P6       │
+  └─────┴──────────────────────────────────────────────┴────────────┴──────────┴────────────┴──────────────┘
+  4.2 Classification by Domain
+
+  ┌─────────────────────────────────────────────────────────────────┐
+  │                    PROBLEM CLASSIFICATION                        │
+  ├─────────────────────────────────────────────────────────────────┤
+  │                                                                  │
+  │  ┌─────────────────────┐                                        │
+  │  │    DATA MODEL       │  P1: Compiler derived capabilities     │
+  │  │    (Foundation)     │  P2: cap.platform.* definitions        │
+  │  │                     │  P3: cap.bootstrap.* definitions       │
+  │  │    Priority: FIRST  │  P4: cap.role.* definitions            │
+  │  └──────────┬──────────┘                                        │
+  │             │                                                    │
+  │             ▼                                                    │
+  │  ┌─────────────────────┐                                        │
+  │  │     TOOLING         │  P9: get_all_capabilities() helper     │
+  │  │    (Enablers)       │                                        │
+  │  │                     │                                        │
+  │  │   Priority: SECOND  │                                        │
+  │  └──────────┬──────────┘                                        │
+  │             │                                                    │
+  │             ▼                                                    │
+  │  ┌─────────────────────┐  ┌─────────────────────┐               │
+  │  │    GENERATORS       │  │    VALIDATORS       │               │
+  │  │                     │  │                     │               │
+  │  │  P5: bootstrap      │  │  P8: class lists    │               │
+  │  │  P6: wireguard      │  │                     │               │
+  │  │  P7: role mapping   │  │                     │               │
+  │  │                     │  │                     │               │
+  │  │   Priority: THIRD   │  │   Priority: THIRD   │               │
+  │  └──────────┬──────────┘  └──────────┬──────────┘               │
+  │             │                        │                           │
+  │             └────────────┬───────────┘                           │
+  │                          ▼                                       │
+  │             ┌─────────────────────┐                             │
+  │             │    MIGRATION        │  P10: Backward compat       │
+  │             │                     │                             │
+  │             │   Priority: LAST    │                             │
+  │             └─────────────────────┘                             │
+  │                                                                  │
+  └─────────────────────────────────────────────────────────────────┘
+
+  4.3 Implementation Waves
+  ┌────────────────────┬────────────────┬──────────────────────────────────────────────────────┬────────┐
+  │        Wave        │    Problems    │                     Deliverables                     │ Effort │
+  ├────────────────────┼────────────────┼──────────────────────────────────────────────────────┼────────┤
+  │ Wave 1: Foundation │ P1, P2, P3, P4 │ Derived capabilities compiler pass + catalog entries │ 6h     │
+  ├────────────────────┼────────────────┼──────────────────────────────────────────────────────┼────────┤
+  │ Wave 2: Tooling    │ P9             │ get_all_capabilities() helper with derived           │ 2h     │
+  ├────────────────────┼────────────────┼──────────────────────────────────────────────────────┼────────┤
+  │ Wave 3: Generators │ P5, P6, P7     │ Refactored generators using capabilities             │ 6h     │
+  ├────────────────────┼────────────────┼──────────────────────────────────────────────────────┼────────┤
+  │ Wave 4: Validators │ P8             │ Refactored validators using capabilities             │ 4h     │
+  ├────────────────────┼────────────────┼──────────────────────────────────────────────────────┼────────┤
+  │ Wave 5: Migration  │ P10            │ Backward compat aliases + deprecation warnings       │ 2h     │
+  ├────────────────────┼────────────────┼──────────────────────────────────────────────────────┼────────┤
+  │ Total              │                │                                                      │ 20h    │
+  └────────────────────┴────────────────┴──────────────────────────────────────────────────────┴────────┘
+  4.4 Risk Assessment
+  ┌─────────┬───────────────────────────────────────────┬──────────────────────────┐
+  │ Problem │            Risk if Not Solved             │     Risk of Solution     │
+  ├─────────┼───────────────────────────────────────────┼──────────────────────────┤
+  │ P1      │ All other problems blocked                │ Low — compiler extension │
+  ├─────────┼───────────────────────────────────────────┼──────────────────────────┤
+  │ P2-P4   │ Generators can't use capabilities         │ Low — catalog additions  │
+  ├─────────┼───────────────────────────────────────────┼──────────────────────────┤
+  │ P5      │ New bootstrap types require code changes  │ Medium — refactoring     │
+  ├─────────┼───────────────────────────────────────────┼──────────────────────────┤
+  │ P6      │ New VPN platforms require code changes    │ Low — small change       │
+  ├─────────┼───────────────────────────────────────────┼──────────────────────────┤
+  │ P7      │ Role assignments manual                   │ Low — expand map         │
+  ├─────────┼───────────────────────────────────────────┼──────────────────────────┤
+  │ P8      │ New hypervisors require validator changes │ Medium — multiple files  │
+  ├─────────┼───────────────────────────────────────────┼──────────────────────────┤
+  │ P9      │ Inconsistent capability access            │ Low — utility function   │
+  ├─────────┼───────────────────────────────────────────┼──────────────────────────┤
+  │ P10     │ Breaking existing code                    │ Medium — careful design  │
+  └─────────┴───────────────────────────────────────────┴──────────────────────────┘
+  4.5 Non-Problems (Out of Scope)
+  ┌──────────────────────────────┬──────────────────────────────────────────┐
+  │             Item             │            Why Not a Problem             │
+  ├──────────────────────────────┼──────────────────────────────────────────┤
+  │ plugins.yaml generator names │ Structural naming, not runtime branching │
+  ├──────────────────────────────┼──────────────────────────────────────────┤
+  │ icons/mappings.py            │ UI concern, not logic                    │
+  ├──────────────────────────────┼──────────────────────────────────────────┤
+  │ Object module structure      │ Already capability-driven                │
+  ├──────────────────────────────┼──────────────────────────────────────────┤
+  │ Capability packs             │ Already working well                     │
+  └──────────────────────────────┴──────────────────────────────────────────┘
+  ---
+  STEP 4 — CLASSIFY: COMPLETE
+
+  Summary:
+  - 10 problems identified
+  - 5 implementation waves
+  - 20h estimated effort
+  - Foundation (P1-P4) must be done first
+
+  ---
+  GO STEP 5 (Solutions)?
+
+✻ Baked for 35s
+
+❯ да
+
+● STEP 5 — ADMISSIBLE SOLUTION SPACE
+
+● 5.1 Solution Architecture
+
+  ┌─────────────────────────────────────────────────────────────────────────────┐
+  │                         SOLUTION ARCHITECTURE                                │
+  ├─────────────────────────────────────────────────────────────────────────────┤
+  │                                                                              │
+  │  ┌────────────────────────────────────────────────────────────────┐         │
+  │  │                    DERIVATION RULES                             │         │
+  │  │                 (capability-derivation.yaml)                    │         │
+  │  │                                                                 │         │
+  │  │   object_ref: "obj.mikrotik.*"  →  cap.platform.routeros       │         │
+  │  │   class_ref: "class.router"     →  cap.role.router             │         │
+  │  │   vendor: "mikrotik"            →  cap.vendor.mikrotik         │         │
+  │  │   mechanism: "netinstall"       →  cap.bootstrap.netinstall    │         │
+  │  │                                                                 │         │
+  │  └───────────────────────────┬────────────────────────────────────┘         │
+  │                              │                                               │
+  │                              ▼                                               │
+  │  ┌────────────────────────────────────────────────────────────────┐         │
+  │  │              DERIVED CAPABILITY COMPILER                        │         │
+  │  │           (derived_capability_compiler.py)                      │         │
+  │  │                                                                 │         │
+  │  │   Input:  instance with object_ref, class_ref, vendor, etc.    │         │
+  │  │   Output: instance.derived_capabilities[]                      │         │
+  │  │                                                                 │         │
+  │  └───────────────────────────┬────────────────────────────────────┘         │
+  │                              │                                               │
+  │                              ▼                                               │
+  │  ┌────────────────────────────────────────────────────────────────┐         │
+  │  │                 CAPABILITY ACCESSOR                             │         │
+  │  │              (capability_helpers.py)                            │         │
+  │  │                                                                 │         │
+  │  │   get_all_capabilities(row) → enabled + derived + vendor       │         │
+  │  │   has_capability(row, cap) → bool                              │         │
+  │  │   filter_by_capability(rows, cap) → filtered rows              │         │
+  │  │   group_by_capability(rows, prefix) → {cap: [rows]}            │         │
+  │  │                                                                 │         │
+  │  └───────────────────────────┬────────────────────────────────────┘         │
+  │                              │                                               │
+  │                              ▼                                               │
+  │  ┌─────────────────────┐  ┌─────────────────────┐  ┌─────────────────────┐  │
+  │  │     GENERATORS      │  │     VALIDATORS      │  │    PROJECTIONS      │  │
+  │  │                     │  │                     │  │                     │  │
+  │  │  Use has_capability │  │  Use has_capability │  │  Use group_by_cap   │  │
+  │  │  instead of string  │  │  instead of class   │  │  instead of manual  │  │
+  │  │  matching           │  │  lists              │  │  lists              │  │
+  │  │                     │  │                     │  │                     │  │
+  │  └─────────────────────┘  └─────────────────────┘  └─────────────────────┘  │
+  │                                                                              │
+  └─────────────────────────────────────────────────────────────────────────────┘
+
+  5.2 Solution P1: Derived Capability Compiler
+
+  File: topology-tools/plugins/compilers/derived_capability_compiler.py
+
+  """Derives capabilities from object_ref, class_ref, vendor, and other fields."""
+
+  DERIVATION_RULES = [
+      # Object prefix → platform capabilities
+      {"match": {"object_ref": "obj.mikrotik.*"},
+       "derives": ["cap.platform.routeros", "cap.vendor.mikrotik"]},
+      {"match": {"object_ref": "obj.proxmox.*"},
+       "derives": ["cap.platform.proxmox", "cap.vendor.proxmox"]},
+      {"match": {"object_ref": "obj.orangepi.*"},
+       "derives": ["cap.platform.linux.sbc", "cap.vendor.orangepi"]},
+      {"match": {"object_ref": "obj.glinet.*"},
+       "derives": ["cap.platform.openwrt", "cap.vendor.glinet"]},
+      {"match": {"object_ref": "obj.oracle.*"},
+       "derives": ["cap.platform.linux.cloud", "cap.vendor.oracle"]},
+
+      # Class → role capabilities
+      {"match": {"class_ref": "class.compute.hypervisor*"},
+       "derives": ["cap.role.hypervisor"]},
+      {"match": {"class_ref": "class.router"},
+       "derives": ["cap.role.router"]},
+      {"match": {"class_ref": "class.compute.edge_node"},
+       "derives": ["cap.role.edge_node"]},
+
+      # Bootstrap mechanism → bootstrap capabilities
+      {"match": {"initialization_contract.mechanism": "netinstall"},
+       "derives": ["cap.bootstrap.netinstall"]},
+      {"match": {"initialization_contract.mechanism": "unattended_install"},
+       "derives": ["cap.bootstrap.unattended"]},
+      {"match": {"initialization_contract.mechanism": "cloud_init"},
+       "derives": ["cap.bootstrap.cloud_init"]},
+  ]
+
+  def derive_capabilities(row: dict) -> list[str]:
+      """Apply derivation rules to row, return derived capabilities."""
+      derived = []
+      for rule in DERIVATION_RULES:
+          if _matches_rule(row, rule["match"]):
+              derived.extend(rule["derives"])
+      return list(set(derived))
+
+  5.3 Solution P2-P4: Capability Catalog Additions
+
+  File: topology/class-modules/capability-catalog.yaml
+
+    # ===========================================================================
+    # DERIVED - Platform Capabilities (auto-derived from object_ref)
+    # ===========================================================================
+
+    - @capability: cap.platform.routeros
+      title: RouterOS Platform
+      summary: MikroTik RouterOS-based device.
+      domain: platform
+      layer: L0
+      stability: stable
+      derived: true
+
+    - @capability: cap.platform.proxmox
+      title: Proxmox Platform
+      summary: Proxmox VE hypervisor platform.
+      domain: platform
+      layer: L0
+      stability: stable
+      derived: true
+
+    - @capability: cap.platform.openwrt
+      title: OpenWrt Platform
+      summary: OpenWrt-based router/AP.
+      domain: platform
+      layer: L0
+      stability: stable
+      derived: true
+
+    - @capability: cap.platform.linux.sbc
+      title: Linux SBC Platform
+      summary: Linux on single-board computer.
+      domain: platform
+      layer: L0
+      stability: stable
+      derived: true
+
+    - @capability: cap.platform.linux.cloud
+      title: Linux Cloud Platform
+      summary: Linux on cloud VM instance.
+      domain: platform
+      layer: L0
+      stability: stable
+      derived: true
+
+    # ===========================================================================
+    # DERIVED - Bootstrap Capabilities (auto-derived from initialization_contract)
+    # ===========================================================================
+
+    - @capability: cap.bootstrap.netinstall
+      title: NetInstall Bootstrap
+      summary: MikroTik netinstall bootstrap mechanism.
+      domain: bootstrap
+      layer: L0
+      stability: stable
+      derived: true
+
+    - @capability: cap.bootstrap.unattended
+      title: Unattended Install Bootstrap
+      summary: Proxmox unattended installation mechanism.
+      domain: bootstrap
+      layer: L0
+      stability: stable
+      derived: true
+
+    - @capability: cap.bootstrap.cloud_init
+      title: Cloud-Init Bootstrap
+      summary: Cloud-init based bootstrap mechanism.
+      domain: bootstrap
+      layer: L0
+      stability: stable
+      derived: true
+
+    # ===========================================================================
+    # DERIVED - Role Capabilities (auto-derived from class_ref)
+    # ===========================================================================
+
+    - @capability: cap.role.hypervisor
+      title: Hypervisor Role
+      summary: Device can host VMs and/or containers.
+      domain: role
+      layer: L1
+      stability: stable
+      derived: true
+
+    - @capability: cap.role.router
+      title: Router Role
+      summary: Device performs network routing.
+      domain: role
+      layer: L1
+      stability: stable
+      derived: true
+
+    - @capability: cap.role.edge_node
+      title: Edge Node Role
+      summary: Edge compute node.
+      domain: role
+      layer: L1
+      stability: stable
+      derived: true
+
+    # ===========================================================================
+    # DERIVED - Vendor Capabilities (auto-derived from vendor field)
+    # ===========================================================================
+
+    - @capability: cap.vendor.mikrotik
+      title: MikroTik Vendor
+      summary: MikroTik device.
+      domain: vendor
+      layer: L0
+      stability: stable
+      derived: true
+
+    - @capability: cap.vendor.proxmox
+      title: Proxmox Vendor
+      summary: Proxmox device.
+      domain: vendor
+      layer: L0
+      stability: stable
+      derived: true
+
+    - @capability: cap.vendor.orangepi
+      title: Orange Pi Vendor
+      summary: Orange Pi device.
+      domain: vendor
+      layer: L0
+      stability: stable
+      derived: true
+
+    - @capability: cap.vendor.glinet
+      title: GL.iNet Vendor
+      summary: GL.iNet device.
+      domain: vendor
+      layer: L0
+      stability: stable
+      derived: true
+
+    - @capability: cap.vendor.oracle
+      title: Oracle Cloud Vendor
+      summary: Oracle Cloud instance.
+      domain: vendor
+      layer: L0
+      stability: stable
+      derived: true
+
+  5.4 Solution P9: Capability Accessor Helper
+
+  File: topology-tools/plugins/generators/capability_helpers.py (extend)
+
+  def get_all_capabilities(row: dict) -> set[str]:
+      """Get all capabilities: enabled + derived + vendor + operations."""
+      caps = set()
+
+      # Enabled capabilities (declared)
+      enabled = row.get("enabled_capabilities", [])
+      if isinstance(enabled, list):
+          caps.update(enabled)
+
+      # Derived capabilities (computed by compiler)
+      derived = row.get("derived_capabilities", [])
+      if isinstance(derived, list):
+          caps.update(derived)
+
+      # Vendor capabilities
+      vendor = row.get("vendor_capabilities", [])
+      if isinstance(vendor, list):
+          caps.update(vendor)
+
+      # Operations capabilities
+      ops = row.get("operations_capabilities", [])
+      if isinstance(ops, list):
+          caps.update(ops)
+
+      # Also check nested object
+      obj = row.get("object", {})
+      if isinstance(obj, dict):
+          caps.update(get_all_capabilities(obj))
+
+      return caps
+
+
+  def has_capability(row: dict, capability: str) -> bool:
+      """Check if row has specific capability."""
+      return capability in get_all_capabilities(row)
+
+
+  def has_any_capability(row: dict, capabilities: list[str]) -> bool:
+      """Check if row has any of the specified capabilities."""
+      all_caps = get_all_capabilities(row)
+      return bool(all_caps & set(capabilities))
+
+
+  def filter_by_capability(rows: list[dict], capability: str) -> list[dict]:
+      """Filter rows that have specific capability."""
+      return [r for r in rows if has_capability(r, capability)]
+
+
+  def group_by_capability_prefix(
+      rows: list[dict],
+      prefix: str
+  ) -> dict[str, list[dict]]:
+      """Group rows by capabilities matching prefix."""
+      groups = defaultdict(list)
+      for row in rows:
+          for cap in get_all_capabilities(row):
+              if cap.startswith(prefix):
+                  groups[cap].append(row)
+      return dict(groups)
+
+  5.5 Solution P5: Bootstrap Projections Refactoring
+
+  File: topology-tools/plugins/generators/bootstrap_projections.py
+
+  def build_bootstrap_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
+      """Build stable view for bootstrap generators (capability-driven)."""
+      groups = _instance_groups(compiled_json)
+      devices = _group_rows(groups, canonical=GROUP_DEVICES)
+
+      # Group by bootstrap capability
+      nodes_by_bootstrap = group_by_capability_prefix(devices, "cap.bootstrap.")
+
+      # Extract with export_row transformation
+      def export_rows(cap_key):
+          rows = nodes_by_bootstrap.get(cap_key, [])
+          return [_export_row(r) for r in rows]
+
+      return {
+          # Capability-driven (new)
+          "nodes_by_bootstrap": {
+              cap: [_export_row(r) for r in rows]
+              for cap, rows in nodes_by_bootstrap.items()
+          },
+
+          # Legacy aliases (backward compat)
+          "proxmox_nodes": export_rows("cap.bootstrap.unattended"),
+          "mikrotik_nodes": export_rows("cap.bootstrap.netinstall"),
+          "orangepi_nodes": export_rows("cap.bootstrap.cloud_init"),
+
+          "counts": {
+              "by_capability": {cap: len(rows) for cap, rows in nodes_by_bootstrap.items()},
+              # Legacy
+              "proxmox_nodes": len(nodes_by_bootstrap.get("cap.bootstrap.unattended", [])),
+              "mikrotik_nodes": len(nodes_by_bootstrap.get("cap.bootstrap.netinstall", [])),
+              "orangepi_nodes": len(nodes_by_bootstrap.get("cap.bootstrap.cloud_init", [])),
+          },
+      }
+
+  5.6 Solution P6: WireGuard Generator Refactoring
+
+  File: topology-tools/plugins/generators/wireguard_generator.py
+
+  def _detect_platform(self, compiled: dict, device_ref: str) -> str:
+      """Detect platform type using capabilities."""
+      row = self._find_instance_row(compiled, device_ref)
+      if not row:
+          return "unknown"
+
+      caps = get_all_capabilities(row)
+
+      # Platform detection via derived capabilities
+      if "cap.platform.routeros" in caps:
+          return "mikrotik"
+      if "cap.platform.linux.cloud" in caps:
+          return "linux"
+      if "cap.platform.linux.sbc" in caps:
+          return "linux"
+      if "cap.platform.openwrt" in caps:
+          return "linux"  # OpenWrt uses Linux configs
+
+      return "unknown"
+
+  5.7 Solution P8: Validator Refactoring Pattern
+
+  Example: hypervisor_execution_model_validator.py
+
+  # BEFORE
+  _HYPERVISOR_CLASSES = {
+      "class.compute.hypervisor",
+      "class.compute.hypervisor.proxmox",
+      "class.compute.hypervisor.vbox",
+  }
+
+  def _is_hypervisor(self, row):
+      return row.get("class_ref") in self._HYPERVISOR_CLASSES
+
+  # AFTER
+  def _is_hypervisor(self, row):
+      return has_capability(row, "cap.role.hypervisor")
+
+  5.8 Solution Summary
+  ┌─────────┬───────────────────────────────┬─────────────────────────────────────────────┐
+  │ Problem │           Solution            │                File Changes                 │
+  ├─────────┼───────────────────────────────┼─────────────────────────────────────────────┤
+  │ P1      │ Derived capability compiler   │ New: derived_capability_compiler.py         │
+  ├─────────┼───────────────────────────────┼─────────────────────────────────────────────┤
+  │ P2-P4   │ Capability catalog additions  │ Edit: capability-catalog.yaml (+17 entries) │
+  ├─────────┼───────────────────────────────┼─────────────────────────────────────────────┤
+  │ P5      │ Bootstrap projection refactor │ Edit: bootstrap_projections.py              │
+  ├─────────┼───────────────────────────────┼─────────────────────────────────────────────┤
+  │ P6      │ WireGuard generator refactor  │ Edit: wireguard_generator.py                │
+  ├─────────┼───────────────────────────────┼─────────────────────────────────────────────┤
+  │ P7      │ Expand CAPABILITY_ROLE_MAP    │ Edit: projections.py                        │
+  ├─────────┼───────────────────────────────┼─────────────────────────────────────────────┤
+  │ P8      │ Validator capability checks   │ Edit: 6 validators                          │
+  ├─────────┼───────────────────────────────┼─────────────────────────────────────────────┤
+  │ P9      │ Capability accessor helpers   │ Edit: capability_helpers.py                 │
+  ├─────────┼───────────────────────────────┼─────────────────────────────────────────────┤
+  │ P10     │ Legacy aliases in projections │ Included in P5                              │
+  └─────────┴───────────────────────────────┴─────────────────────────────────────────────┘
+  5.9 Constraint Satisfaction
+  ┌────────────────────────────────────┬────────────────────────────────────────────┐
+  │             Constraint             │                  Solution                  │
+  ├────────────────────────────────────┼────────────────────────────────────────────┤
+  │ C1: Capabilities = маркеры         │ ✅ Derived caps as markers                 │
+  ├────────────────────────────────────┼────────────────────────────────────────────┤
+  │ C2: Генераторы → capabilities      │ ✅ has_capability() checks                 │
+  ├────────────────────────────────────┼────────────────────────────────────────────┤
+  │ C3: Авто-подхват новых экземпляров │ ✅ Capability-based grouping               │
+  ├────────────────────────────────────┼────────────────────────────────────────────┤
+  │ C4: Compiler derives capabilities  │ ✅ derived_capability_compiler.py          │
+  ├────────────────────────────────────┼────────────────────────────────────────────┤
+  │ C5: Минимум хардкода               │ ✅ Rules in YAML/dict, not strings in code │
+  ├────────────────────────────────────┼────────────────────────────────────────────┤
+  │ C6: Backward compatible            │ ✅ Legacy aliases preserved                │
+  └────────────────────────────────────┴────────────────────────────────────────────┘
+  ---
+  STEP 5 — ADMISSIBLE SOLUTION SPACE: COMPLETE
+
+  Total Effort: ~20h across 5 waves
+  Files Changed: ~12
+  New Files: 1 (compiler)
+  New Capabilities: 17
+
+  ---
+  GO STEP 6 (Create ADR)?
+
+✻ Crunched for 1m 7s
+
+❯ На первом этапе подходит, но я вижу возможно редезайна некоторых плагинов генераторов на втором этапе
+
+✽ Compacting conversation… (esc to interrupt · ctrl+t to hide todos)
+  ⎿  ☒ STEP 0: Read SWOT analysis and plugin sources
+     ☒ STEP 1: Create document map of affected files
+
+
+
+     
+● Read(~/workspaces/home-lab/adr/0068-object-yaml-as-instance-template-with-explicit-overrides.md)
+  ⎿  Read 80 lines
+
+● ADR 0068 определяет Object→Instance наследование, но не решает проблему host-level repetition.
+
+  P04 требует архитектурного решения:
+  - Новый уровень "host profile" между Object и Instance
+  - Или механизм "placement defaults" в host instance
+  - Требуется отдельный ADR
+
+  Переключусь на P07 (ADR 0106) — более конкретная задача.

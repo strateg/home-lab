@@ -1,0 +1,52 @@
+ Как подключить winbox к Chatea в такой конфигурации?
+
+● Через SSH туннель. Открой порт 8291 через VPS:
+
+  ssh -L 8291:10.100.0.1:8291 -i /tmp/vps-ssh-key.pem ubuntu@92.5.172.16
+
+  Затем в WinBox подключайся к:
+  - Адрес: 127.0.0.1
+  - Login: automator
+  - Password: jZJn9HJYDmdWfAa81VoUabXwhnJA_Ghw
+
+  Туннель должен быть активен пока работаешь в WinBox.
+
+  Альтернатива — добавь в ~/.ssh/config:
+  Host chateau-winbox
+      HostName 92.5.172.16
+      User ubuntu
+      IdentityFile /tmp/vps-ssh-key.pem
+      LocalForward 8291 10.100.0.1:8291
+
+  Тогда просто: ssh chateau-winbox и WinBox на 127.0.0.1.
+
+❯ я запускаю wsl на Windows 11
+
+● В WSL2 запусти туннель с привязкой ко всем интерфейсам:
+
+  ssh -L 0.0.0.0:8291:10.100.0.1:8291 -i /tmp/vps-ssh-key.pem ubuntu@92.5.172.16
+
+  В WinBox на Windows подключайся к:
+  - Адрес: localhost или 127.0.0.1
+  - Port: 8291
+  - Login: automator
+  - Password: jZJn9HJYDmdWfAa81VoUabXwhnJA_Ghw
+
+  Если localhost не работает, узнай IP WSL:
+  hostname -I
+
+  И используй этот IP в WinBox (например 172.x.x.x).
+
+❯ winbox установлен на Windows 11
+
+● Да, это сработает. WSL2 автоматически пробрасывает порты в Windows.
+
+  В WSL выполни:
+  ssh -L 0.0.0.0:8291:10.100.0.1:8291 -i /tmp/vps-ssh-key.pem ubuntu@92.5.172.16
+
+  В WinBox на Windows:
+  - Адрес: 127.0.0.1
+  - Login: automator
+  - Password: jZJn9HJYDmdWfAa81VoUabXwhnJA_Ghw
+
+  Держи терминал WSL открытым пока работаешь в WinBox.

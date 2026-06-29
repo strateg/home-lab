@@ -116,21 +116,21 @@
 
 ● Bash(oci compute instance list-vnics --instance-id ocid1.instance.oc1.eu-frankfurt-1.antheljtktcemiacour3ugube5pczalr6qmrumzhp43n47bkgsix3ahtr7da
       2>/dev/null | pytho…)
-  ⎿  <VPS-IP>
+  ⎿  92.5.172.16
 
-● Got the VPS IP: <VPS-IP>. Let me first test SSH connectivity, then deploy.
+● Got the VPS IP: 92.5.172.16. Let me first test SSH connectivity, then deploy.
 
-● Bash(ssh -o ConnectTimeout=10 -o BatchMode=yes ubuntu@<VPS-IP> "echo 'SSH connection successful'; uname -a; which wg || echo 'WireGuard     timeout:
+● Bash(ssh -o ConnectTimeout=10 -o BatchMode=yes ubuntu@92.5.172.16 "echo 'SSH connection successful'; uname -a; which wg || echo 'WireGuard     timeout:
       tools not installed'")                                                                                                                     30s
   ⎿  Error: Exit code 255
-     ubuntu@<VPS-IP>: Permission denied (publickey).
+     ubuntu@92.5.172.16: Permission denied (publickey).
 
 ● Need to use the correct SSH key. Let me extract it from secrets.
 
 ● Bash(sops -d /home/nixos/workspaces/home-lab/projects/home-lab/secrets/instances/vps-oracle-frankfurt.yaml 2>/dev/null | grep -A 20 "ssh_private_key" |
       tail -n +2 |…)
-  ⎿      -----BEGIN OPENSSH PRIVATE KEY----- <REDACTED>
-         <REDACTED>
+  ⎿      -----BEGIN OPENSSH PRIVATE KEY-----
+         b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
 
 ● Bash(sops -d /home/nixos/workspaces/home-lab/projects/home-lab/secrets/instances/vps-oracle-frankfurt.yaml 2>/dev/null | python3 -c "
       import sys, yaml…)
@@ -147,10 +147,10 @@
 
 ● Bash(cd /home/nixos/workspaces/home-lab && sops -d projects/home-lab/secrets/instances/vps-oracle-frankfurt.yaml 2>/dev/null | .venv/bin/python -c "
       import sys, yaml…)
-  ⎿  -----BEGIN OPENSSH PRIVATE KEY----- <REDACTED>
-         <REDACTED>
+  ⎿  -----BEGIN OPENSSH PRIVATE KEY-----
+     b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
 
-● Bash(ssh -i /tmp/vps-ssh-key.pem -o ConnectTimeout=10 -o StrictHostKeyChecking=no ubuntu@<VPS-IP> "echo 'SSH connection successful'; uname  timeout:
+● Bash(ssh -i /tmp/vps-ssh-key.pem -o ConnectTimeout=10 -o StrictHostKeyChecking=no ubuntu@92.5.172.16 "echo 'SSH connection successful'; uname  timeout:
       -a; which wg || echo 'W…)                                                                                                                  30s
   ⎿  SSH connection successful
      Linux main-vnic 6.17.0-1011-oracle #11~24.04.1-Ubuntu SMP Fri Apr 10 02:28:06 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
@@ -158,7 +158,7 @@
 
 ● SSH works but WireGuard tools not installed. Let me install them first.
 
-● Bash(ssh -i /tmp/vps-ssh-key.pem -o StrictHostKeyChecking=no ubuntu@<VPS-IP> "sudo apt-get update && sudo apt-get install -y wireguard-tools")
+● Bash(ssh -i /tmp/vps-ssh-key.pem -o StrictHostKeyChecking=no ubuntu@92.5.172.16 "sudo apt-get update && sudo apt-get install -y wireguard-tools")
   ⎿  Get:1 http://security.ubuntu.com/ubuntu noble-security InRelease [126 kB]
      Get:2 http://eu-frankfurt-1-ad-3.clouds.archive.ubuntu.com/ubuntu noble InRelease [256 kB]
      Get:3 http://eu-frankfurt-1-ad-3.clouds.archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]
@@ -176,15 +176,15 @@
 
 ● Configuration deployed. Now enabling and starting WireGuard service.
 
-● Bash(ssh -i /tmp/vps-ssh-key.pem ubuntu@<VPS-IP> "sudo systemctl enable --now wg-quick@wg0 && sleep 2 && sudo wg show") timeout: 30s
+● Bash(ssh -i /tmp/vps-ssh-key.pem ubuntu@92.5.172.16 "sudo systemctl enable --now wg-quick@wg0 && sleep 2 && sudo wg show") timeout: 30s
   ⎿  interface: wg0
-       public key: <VPS-PUBLIC-KEY>
+       public key: vj9gNvWsm0BHjWPK5WkJGiB3/Rlqah/bLUuCYFikDTw=
        private key: (hidden)
      … +6 lines (ctrl+o to expand)
 
 ● WireGuard is running on the VPS. Let me verify the interface.
 
-● Bash(ssh -i /tmp/vps-ssh-key.pem ubuntu@<VPS-IP> "ip addr show wg0; echo '---'; sudo systemctl status wg-quick@wg0 --no-pager | head -10") timeout: 15s
+● Bash(ssh -i /tmp/vps-ssh-key.pem ubuntu@92.5.172.16 "ip addr show wg0; echo '---'; sudo systemctl status wg-quick@wg0 --no-pager | head -10") timeout: 15s
   ⎿  3: wg0: <POINTOPOINT,NOARP,UP,LOWER_UP> mtu 1420 qdisc noqueue state UNKNOWN group default qlen 1000
          link/none
          inet 10.100.0.2/30 scope global wg0
@@ -192,7 +192,7 @@
 
 ● Let me also open the firewall for WireGuard port 51820.
 
-● Bash(ssh -i /tmp/vps-ssh-key.pem ubuntu@<VPS-IP> "sudo iptables -L INPUT -n | grep 51820 || (sudo iptables -A INPUT -p udp --dport 51820 -j timeout:
+● Bash(ssh -i /tmp/vps-ssh-key.pem ubuntu@92.5.172.16 "sudo iptables -L INPUT -n | grep 51820 || (sudo iptables -A INPUT -p udp --dport 51820 -j timeout:
       ACCEPT && echo 'Firewa…)                                                                                                                   15s
 
   ⎿  Firewall rule added
@@ -210,10 +210,10 @@
 
   VPS status:
   interface: wg0
-    public key: <VPS-PUBLIC-KEY>
+    public key: vj9gNvWsm0BHjWPK5WkJGiB3/Rlqah/bLUuCYFikDTw=
     listening port: 51820
 
-  peer: <MIKROTIK-PUBLIC-KEY>
+  peer: Ka+uGYDyX0tgJygGDrErYPvpaMqa2NIhIUYmvVemg3k=
     allowed ips: 10.100.0.1/32, 192.168.88.0/24, 10.0.10.0/24, 10.0.99.0/24
 
   Note: You also need to:
@@ -226,7 +226,7 @@
    "automator:" | grep "password:" | awk '{print $2}')
    MIKROTIK_USER="automator"
    MIKROTIK_HOST="192.168.88.1"
-   VPS_IP="<VPS-IP>"
+   VPS_IP="92.5.172.16"
 
    # Получим ключи
    WG_SECRETS=$(sops -d /home/nixos/workspaces/home-lab/projects/home-lab/secrets/tunnels/wg-home-to-oci.yaml 2>/dev/null)
@@ -239,3 +239,420 @@
      "/interface wireguard add name=wg0 listen-port=51820 private-key=\"$MIKROTIK_PRIVKEY\" mtu=1420 comment=\"Tunnel: inst.tunnel.wg-home-to-oci\"" 2>&1
     | grep -v "WARNING"
    Create WireGuard interface
+
+   Создан
+
+    Bash command
+
+   MIKROTIK_PASS=$(sops -d /home/nixos/workspaces/home-lab/projects/home-lab/secrets/instances/rtr-mikrotik-chateau.yaml 2>/dev/null | grep -A2
+   "automator:" | grep "password:" | awk '{print $2}')
+   MIKROTIK_USER="automator"
+   MIKROTIK_HOST="192.168.88.1"
+   VPS_IP="92.5.172.16"
+
+   # Получим ключи
+   WG_SECRETS=$(sops -d /home/nixos/workspaces/home-lab/projects/home-lab/secrets/tunnels/wg-home-to-oci.yaml 2>/dev/null)
+   VPS_PUBKEY=$(echo "$WG_SECRETS" | grep -A2 "vps:" | grep "public_key:" | awk '{print $2}')
+   PSK=$(echo "$WG_SECRETS" | grep "preshared_key:" | awk '{print $2}')
+
+   # Добавим peer
+   echo "Adding WireGuard peer..."
+   sshpass -p "$MIKROTIK_PASS" ssh -o StrictHostKeyChecking=no ${MIKROTIK_USER}@${MIKROTIK_HOST} \
+     "/interface wireguard peers add interface=wg0 public-key=\"$VPS_PUBKEY\" preshared-key=\"$PSK\" endpoint-address=$VPS_IP endpoint-port=51820
+   allowed-address=10.100.0.2/32,0.0.0.0/0 persistent-keepalive=25s comment=\"Remote: vps-oracle-frankfurt\"" 2>&1 | grep -v "WARNING"
+
+   # Добавим IP адрес
+   echo "Adding IP address..."
+   sshpass -p "$MIKROTIK_PASS" ssh -o StrictHostKeyChecking=no ${MIKROTIK_USER}@${MIKROTIK_HOST} \
+     "/ip address add address=10.100.0.1/30 interface=wg0 comment=\"WireGuard tunnel IP\"" 2>&1 | grep -v "WARNING"
+
+   # Добавим в LAN list
+   echo "Adding to LAN interface list..."
+   sshpass -p "$MIKROTIK_PASS" ssh -o StrictHostKeyChecking=no ${MIKROTIK_USER}@${MIKROTIK_HOST} \
+     "/interface list member add interface=wg0 list=LAN comment=\"Trust WireGuard tunnel\"" 2>&1 | grep -v "WARNING"
+   Add peer, IP and interface list
+
+
+
+
+
+   Bash(MIKROTIK_PASS=$(sops -d /home/nixos/workspaces/home-lab/projects/home-lab/secrets/instances/rtr-mikrotik-chateau.yaml 2>/dev/null |      timeout: 1m
+      grep -A2 "automator:" | grep…)                                                                                                            0s
+  ⎿  === WireGuard Interface ===
+     ** The server may need to be upgraded. See https://openssh.com/pq.html
+     Flags: X - DISABLED; R - RUNNING
+     … +22 lines (ctrl+o to expand)
+
+● Почти всё настроено. Проверю интерфейс-лист и пинг:
+
+● Bash(MIKROTIK_PASS=$(sops -d /home/nixos/workspaces/home-lab/projects/home-lab/secrets/instances/rtr-mikrotik-chateau.yaml 2>/dev/null | grep  timeout:
+      -A2 "automator:" | grep…)                                                                                                                  30s
+  ⎿  Running…
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Bash command
+
+   MIKROTIK_PASS=$(sops -d /home/nixos/workspaces/home-lab/projects/home-lab/secrets/instances/rtr-mikrotik-chateau.yaml 2>/dev/null | grep -A2
+   "automator:" | grep "password:" | awk '{print $2}')
+   MIKROTIK_USER="automator"
+   MIKROTIK_HOST="192.168.88.1"
+
+   echo "=== Available Interface Lists ==="
+   sshpass -p "$MIKROTIK_PASS" ssh -o StrictHostKeyChecking=no ${MIKROTIK_USER}@${MIKROTIK_HOST} \
+     "/interface list print" 2>&1 | grep -v "WARNING" | grep -v "vulnerable"
+
+   echo ""
+   echo "=== Testing ping to VPS tunnel IP ==="
+   sshpass -p "$MIKROTIK_PASS" ssh -o StrictHostKeyChecking=no ${MIKROTIK_USER}@${MIKROTIK_HOST} \
+     "/ping 10.100.0.2 count=3" 2>&1 | grep -v "WARNING" | grep -v "vulnerable"
+   Test tunnel connectivity
+
+   ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Bash command
+
+   MIKROTIK_PASS=$(sops -d /home/nixos/workspaces/home-lab/projects/home-lab/secrets/instances/rtr-mikrotik-chateau.yaml 2>/dev/null | grep -A2
+   "automator:" | grep "password:" | awk '{print $2}')
+   MIKROTIK_USER="automator"
+   MIKROTIK_HOST="192.168.88.1"
+
+   # Проверим статус peer (last handshake)
+   echo "=== Peer Status ==="
+   sshpass -p "$MIKROTIK_PASS" ssh -o StrictHostKeyChecking=no ${MIKROTIK_USER}@${MIKROTIK_HOST} \
+     "/interface wireguard peers print detail" 2>&1 | grep -v "WARNING" | grep -v "vulnerable"
+
+   echo ""
+   echo "=== Ping test (5 packets) ==="
+   timeout 15 sshpass -p "$MIKROTIK_PASS" ssh -o StrictHostKeyChecking=no ${MIKROTIK_USER}@${MIKROTIK_HOST} \
+     "/ping 10.100.0.2 count=5" 2>&1 | grep -v "WARNING" | grep -v "vulnerable" || echo "Ping completed or timed out"
+   Check peer status and ping
+
+    Туннель настроен, но handshake не проходит. Проверю VPS:
+
+● Bash(# Проверим статус WireGuard на VPS                                                                                            timeout: 30s
+      ssh -i /tmp/vps-ssh-key.pem -o StrictHostKeyChecking=no ubuntu@92.5.172.16 "sudo wg show; echo '---'; sudo iptables -L INPUT…)
+  ⎿  Running…
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Bash command
+
+   # Проверим статус WireGuard на VPS
+   ssh -i /tmp/vps-ssh-key.pem -o StrictHostKeyChecking=no ubuntu@92.5.172.16 "sudo wg show; echo '---'; sudo iptables -L INPUT -n | head -10"
+   Check VPS WireGuard and firewall
+
+
+Bash(# Проверим статус WireGuard на VPS                                                                                            timeout: 30s
+      ssh -i /tmp/vps-ssh-key.pem -o StrictHostKeyChecking=no ubuntu@92.5.172.16 "sudo wg show; echo '---'; sudo iptables -L INPUT…)
+  ⎿  interface: wg0
+       public key: vj9gNvWsm0BHjWPK5WkJGiB3/Rlqah/bLUuCYFikDTw=
+       private key: (hidden)
+     … +14 lines (ctrl+o to expand)
+
+
+● Based on the summary, the WireGuard tunnel is configured on both ends but the handshake isn't completing. The issue identified is that the VPS iptables has a REJECT rule BEFORE the UDP 51820 ACCEPT rule. Let me fix this.
+
+● Bash(VPS_IP=$(oci compute instance list-vnics --instance-id $(oci compute instance list --compartment-id $(oci iam compartment list --query    timeout:
+      'data[0].id' --raw-output…)                                                                                                                30s
+  ⎿  Running…
+
+
+
+   Bash command
+
+   sops -d projects/home-lab/secrets/instances/vps-oracle-frankfurt.yaml 2>/dev/null | .venv/bin/python3 -c "import sys,yaml;
+   d=yaml.safe_load(sys.stdin); print(d['ssh_private_key'])" > /tmp/vps-ssh-key.pem && chmod 600 /tmp/vps-ssh-key.pem && echo "Key extracted"
+   Extract VPS SSH key with venv python
+
+
+    Bash(sops -d projects/home-lab/secrets/instances/vps-oracle-frankfurt.yaml 2>/dev/null | .venv/bin/python3 -c "import sys,yaml;
+      d=yaml.safe_load(sys.stdin); print(d[…)
+  ⎿  Key extracted
+
+● Bash(ssh -i /tmp/vps-ssh-key.pem -o StrictHostKeyChecking=no ubuntu@92.5.172.16 "sudo iptables -L INPUT -n -v --line-numbers") timeout: 30s
+  ⎿  Chain INPUT (policy ACCEPT 0 packets, 0 bytes)
+     num   pkts bytes target     prot opt in     out     source               destination
+     1    22734   48M ACCEPT     0    --  *      *       0.0.0.0/0            0.0.0.0/0            state RELATED,ESTABLISHED
+     … +5 lines (ctrl+o to expand)
+
+
+ The REJECT rule (line 5) is blocking WireGuard traffic before it reaches the ACCEPT rule (line 6). Let me fix the rule order:
+
+● Bash(ssh -i /tmp/vps-ssh-key.pem -o StrictHostKeyChecking=no ubuntu@92.5.172.16 "sudo iptables -D INPUT 6 && sudo iptables -I INPUT 5 -p udp   timeout:
+      --dport 51820 -j ACCEPT…)                                                                                                                  30s
+  ⎿  Chain INPUT (policy ACCEPT 0 packets, 0 bytes)
+     num   pkts bytes target     prot opt in     out     source               destination
+     1    22758   48M ACCEPT     0    --  *      *       0.0.0.0/0            0.0.0.0/0            state RELATED,ESTABLISHED
+     … +5 lines (ctrl+o to expand)
+
+● Iptables fixed. Now let me check WireGuard status on both sides:
+
+
+ Bash(ssh -i /tmp/vps-ssh-key.pem -o StrictHostKeyChecking=no ubuntu@92.5.172.16 "sudo wg show") timeout: 30s
+  ⎿  interface: wg0
+       public key: vj9gNvWsm0BHjWPK5WkJGiB3/Rlqah/bLUuCYFikDTw=
+       private key: (hidden)
+     … +8 lines (ctrl+o to expand)
+
+● The tunnel is now established. Handshake completed 2 seconds ago. Let me verify connectivity:
+
+
+Bash(sops -d projects/home-lab/secrets/instances/rtr-mikrotik-chateau.yaml 2>/dev/null | head -20)
+  ⎿  # rtr-mikrotik-chateau instance secrets
+     # Read from device via REST API 2026-06-07
+     # Hardware identity
+     … +17 lines (ctrl+o to expand)
+
+● Bash(sshpass -p 'jZJn9HJYDmdWfAa81VoUabXwhnJA_Ghw' ssh -o StrictHostKeyChecking=no automator@192.168.88.1 "/ping address=10.100.0.2 count=3") timeout: 30s
+  ⎿    SEQ HOST                                     SIZE TTL TIME       STATUS
+         0 10.100.0.2                                 56  64 33ms587us
+         1 10.100.0.2                                 56  64 33ms785us
+
+
+● Bash(ssh -i /tmp/vps-ssh-key.pem -o StrictHostKeyChecking=no ubuntu@92.5.172.16 "sudo netfilter-persistent save 2>/dev/null || sudo            timeout:
+      iptables-save | sudo tee /etc/ipt…)                                                                                                        30s
+  ⎿  iptables rules saved
+
+● Bash(ssh -i /tmp/vps-ssh-key.pem -o StrictHostKeyChecking=no ubuntu@92.5.172.16 "sudo systemctl is-enabled wg-quick@wg0 && echo 'WireGuard     timeout:
+      autostart enabled'")                                                                                                                       30s
+  ⎿  enabled
+     WireGuard autostart enabled
+
+● Bash(sshpass -p 'jZJn9HJYDmdWfAa81VoUabXwhnJA_Ghw' ssh -o StrictHostKeyChecking=no automator@192.168.88.1 "/interface wireguard peers print") timeout: 30s
+  ⎿  Columns: INTERFACE, PUBLIC-KEY, ENDPOINT-ADDRESS, ENDPOINT-PORT
+     # INT  PUBLIC-KEY                                    ENDPOINT-ADDRESS  ENDPO
+     ;;; Remote: vps-oracle-frankfurt
+     … +4 lines (ctrl+o to expand)
+
+
+ Bash(rm -f /tmp/vps-ssh-key.pem && echo "Cleaned up temp SSH key")
+  ⎿  Cleaned up temp SSH key
+
+● WireGuard tunnel deployment completed successfully.
+
+  Problem found and fixed:
+  - VPS iptables had REJECT rule at position 5, before the UDP 51820 ACCEPT rule at position 6
+  - This caused all WireGuard packets to be rejected before reaching the accept rule
+  - Fixed by reordering: deleted rule 6, inserted UDP 51820 accept at position 5
+
+  Current status:
+  MikroTik (10.100.0.1) ←→ VPS (10.100.0.2)
+  ├── Handshake: ✓ completed
+  ├── Transfer: 4.88 KiB received, 476 B sent
+  ├── Ping: 0% packet loss, ~34ms RTT
+  └── Persistence: iptables saved, wg-quick@wg0 enabled
+
+  Added task for future deployments:
+  - task deploy:wireguard-setup-vps-iptables - Properly inserts UDP 51820 rule BEFORE any REJECT rules
+
+
+
+● Документация обновлена. Добавлены:
+
+  Новые tasks в taskfiles/deploy.yml:
+  ┌───────────────────────────────────┬───────────────────────────────────────────────────────────────────┐
+  │               Task                │                             Описание                              │
+  ├───────────────────────────────────┼───────────────────────────────────────────────────────────────────┤
+  │ wireguard-extract-vps-key         │ Извлекает SSH ключ VPS из secrets в /tmp/vps-ssh-key.pem          │
+  ├───────────────────────────────────┼───────────────────────────────────────────────────────────────────┤
+  │ wireguard-full-deploy-vps         │ Полный деплой VPS: ключ + конфиг + iptables + OCI + systemd       │
+  ├───────────────────────────────────┼───────────────────────────────────────────────────────────────────┤
+  │ wireguard-deploy-mikrotik-sshpass │ Полный деплой MikroTik через sshpass (все credentials из secrets) │
+  └───────────────────────────────────┴───────────────────────────────────────────────────────────────────┘
+  Обновления в docs/guides/WIREGUARD-TUNNEL-SETUP.md:
+
+  1. Quick Start - минимальный путь в 3 команды:
+  task build
+  task deploy:wireguard-full-deploy-vps
+  task deploy:wireguard-deploy-mikrotik-sshpass
+  2. Step-by-Step - детальный путь с granular tasks
+  3. Step 6: Deploy to MikroTik - теперь начинается с автоматического task
+  4. Task Reference - разделен на High-Level и Granular tasks
+
+
+
+ если есть тунель от Chateau до vps то как мне зайти с Nixos на vps без авторизации?
+
+● Для доступа с NixOS на VPS через туннель нужно:
+
+  1. Проверить маршрутизацию на NixOS
+
+  # Проверить, есть ли маршрут до туннельной сети
+  ip route get 10.100.0.2
+
+  # Если нет маршрута, добавить через MikroTik
+  sudo ip route add 10.100.0.0/30 via 192.168.88.1
+
+  2. Проверить связность
+
+  ping 10.100.0.2
+
+  3. Для SSH без ввода пароля — добавить свой ключ на VPS
+
+  # Скопировать публичный ключ NixOS на VPS (через туннель)
+  ssh-copy-id -i ~/.ssh/id_ed25519.pub ubuntu@10.100.0.2
+
+  # Или если нужно использовать секретный ключ VPS для первого входа:
+  task deploy:wireguard-extract-vps-key
+  ssh -i /tmp/vps-ssh-key.pem ubuntu@10.100.0.2 \
+    "echo '$(cat ~/.ssh/id_ed25519.pub)' >> ~/.ssh/authorized_keys"
+
+  4. Настроить SSH config для удобства
+
+  # ~/.ssh/config
+  Host vps
+      HostName 10.100.0.2
+      User ubuntu
+      # Через туннель ключ не нужен, если добавлен в authorized_keys
+
+  После этого:
+  ssh vps
+
+  Нужно проверить маршрутизацию? Могу посмотреть текущую конфигурацию.
+
+❯ Да
+
+● Bash(ip route get 10.100.0.2 2>&1)
+  ⎿  10.100.0.2 via 172.23.224.1 dev eth0 src 172.23.230.77 uid 1000
+         cache
+
+● Bash(ip route | grep -E "(default|10\.100|192\.168\.88)")
+  ⎿  default via 172.23.224.1 dev eth0 proto kernel
+
+● Bash(ping -c 2 -W 2 10.100.0.2 2>&1)
+  ⎿  PING 10.100.0.2 (10.100.0.2) 56(84) bytes of data.
+     64 bytes from 10.100.0.2: icmp_seq=1 ttl=62 time=44.0 ms
+     64 bytes from 10.100.0.2: icmp_seq=2 ttl=62 time=36.9 ms
+     … +4 lines (ctrl+o to expand)
+
+● Связность есть — ping проходит через туннель (44ms, TTL=62).
+
+  Теперь настроим SSH без пароля:
+
+   Bash(ssh -o BatchMode=yes -o ConnectTimeout=5 ubuntu@10.100.0.2 "echo OK" 2>&1)
+  ⎿  Error: Exit code 255
+     Host key verification failed.
+
+● Host key не в known_hosts. Добавим ключ и авторизуем NixOS:
+
+● Bash(ssh-keyscan -H 10.100.0.2 >> ~/.ssh/known_hosts 2>/dev/null && echo "Host key added")
+  ⎿  Host key added
+
+● Bash(task deploy:wireguard-extract-vps-key 2>/dev/null && echo "Key extracted")
+
+ task deploy:wireguard-extract-vps-key 2>/dev/null && echo "Key extracted"
+   Extract VPS SSH key
+
+
+NIXOS_PUBKEY=$(cat ~/.ssh/id_ed25519.pub) && \
+   ssh -i /tmp/vps-ssh-key.pem -o StrictHostKeyChecking=no ubuntu@10.100.0.2 \
+     "grep -q '${NIXOS_PUBKEY}' ~/.ssh/authorized_keys 2>/dev/null || echo '${NIXOS_PUBKEY}' >> ~/.ssh/authorized_keys && echo 'Key added to
+   authorized_keys'"
+   Add NixOS key to VPS
+
+ Bash(ssh -o BatchMode=yes ubuntu@10.100.0.2 "echo 'SSH OK'; hostname; uptime") timeout: 15s
+  ⎿  Error: Exit code 255
+     ubuntu@10.100.0.2: Permission denied (publickey).
+
+● Bash(ssh -i /tmp/vps-ssh-key.pem ubuntu@10.100.0.2 "cat ~/.ssh/authorized_keys | tail -3") timeout: 15s
+  ⎿  ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEioBmQD5AKxPh+7Y3xsTqOZKj0ErRcKX5E3BUigYbQK vps-oracle-frankfurt
+     ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAde61C6ummeVTLbkbOo9h6zoHF3Hh1BDFj1XxpBg+K1 dprohhorov@gmail.com
+
+● Bash(cat ~/.ssh/id_ed25519.pub)
+  ⎿  ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAde61C6ummeVTLbkbOo9h6zoHF3Hh1BDFj1XxpBg+K1 dprohhorov@gmail.com
+
+● Ключ уже на VPS. Проверю, почему SSH не работает:
+
+● Bash(ssh -v ubuntu@10.100.0.2 "echo OK" 2>&1 | grep -E "(Offering|Authentications|identity|debug1: (Trying|Next|Offering))") timeout: 15s
+  ⎿  debug1: identity file /home/nixos/.ssh/id_rsa type -1
+     debug1: no identity pubkey loaded from /home/nixos/.ssh/id_rsa
+     debug1: identity file /home/nixos/.ssh/id_ecdsa type -1
+     … +14 lines (ctrl+o to expand)
+
+● Bash(ssh -i /tmp/vps-ssh-key.pem ubuntu@10.100.0.2 "cat ~/.ssh/authorized_keys" | grep -c "dprohhorov") timeout: 15s
+  ⎿  1
+
+● Bash(ls -la ~/.ssh/id_ed25519 && ssh-keygen -y -f ~/.ssh/id_ed25519 2>&1 | head -1)
+  ⎿  -rw------- 1 nixos users 464 Sep  5  2025 /home/nixos/.ssh/id_ed25519
+     ssh_askpass: exec(): No such file or directory
+
+● Ключ зашифрован паролем. Проверю ssh-agent:
+
+● Bash(ssh-add -l 2>&1)
+  ⎿  Error: Exit code 2
+     Could not open a connection to your authentication agent.
+
+● ssh-agent не запущен, а ключ защищён паролем. Запустим agent и добавим ключ:
+
+● Bash(eval $(ssh-agent -s) && echo "Agent PID: $SSH_AGENT_PID")
+  ⎿  Agent pid 64691
+     Agent PID: 64691
+
+● Agent запущен. Теперь нужно добавить ключ (потребуется ввести пароль от ключа):
+
+  ssh-add ~/.ssh/id_ed25519
+
+  После этого:
+  ssh ubuntu@10.100.0.2
+
+  Или настрой SSH config с конкретным ключом VPS:
+
+  # ~/.ssh/config
+  Host vps
+      HostName 10.100.0.2
+      User ubuntu
+      IdentityFile /tmp/vps-ssh-key.pem
+
+  Тогда просто:
+  task deploy:wireguard-extract-vps-key  # один раз
+  ssh vps
+
+  Какой вариант предпочтительнее?
+
+
+❯ ssh vps
+
+● Bash(cat >> ~/.ssh/config << 'EOF'…)
+  ⎿  SSH config updated
+
+● Bash(task deploy:wireguard-extract-vps-key 2>/dev/null && ssh vps "echo 'Connected to:'; hostname; uptime") timeout: 20s
+  ⎿  SSH key extracted to /tmp/vps-ssh-key.pem
+     Connected to:
+     main-vnic
+      13:24:53 up  6:11,  1 user,  load average: 0.00, 0.00, 0.00
+
+● Готово. Теперь:
+
+  ssh vps
+
+  Ключ в /tmp/ — после перезагрузки нужно повторить:
+  task deploy:wireguard-extract-vps-key
+
+ Правила сохранены корректно (51820 перед REJECT). Проверю автозагрузку iptables:
+
+● Bash(ssh vps "dpkg -l | grep -E '(iptables-persistent|netfilter-persistent)' | awk '{print \$2, \$3}'") timeout: 15s
+  ⎿  iptables-persistent 1.0.20
+     netfilter-persistent 1.0.20
+
+● Да, туннель поднимется автоматически.
+  ┌───────────────┬──────────────┬───────────────────────────────────────────────────┐
+  │   Компонент   │    Статус    │                      Причина                      │
+  ├───────────────┼──────────────┼───────────────────────────────────────────────────┤
+  │ VPS WireGuard │ ✓ enabled    │ systemctl enable wg-quick@wg0                     │
+  ├───────────────┼──────────────┼───────────────────────────────────────────────────┤
+  │ VPS iptables  │ ✓ persistent │ iptables-persistent установлен, правила сохранены │
+  ├───────────────┼──────────────┼───────────────────────────────────────────────────┤
+  │ MikroTik      │ ✓ persistent │ Конфиг хранится во flash, keepalive=25s           │
+  └───────────────┴──────────────┴───────────────────────────────────────────────────┘
+  Как это работает:
+  1. VPS перезагружается
+  2. systemd запускает wg-quick@wg0
+  3. iptables восстанавливает правила из /etc/iptables/rules.v4
+  4. MikroTik продолжает слать keepalive каждые 25 сек
+  5. Handshake завершается → туннель работает
+
+  Можешь проверить:
+  ssh vps "sudo reboot"
+  # Подождать ~1-2 минуты
+  ping 10.100.0.2
+    
+
+

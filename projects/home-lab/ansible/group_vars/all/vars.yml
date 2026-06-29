@@ -1,17 +1,6 @@
 ---
-# Home-lab service deployment defaults (v5 runtime integration)
+# Global variables for all hosts
+# ADR 0080: Build stage configuration
 
-timezone: "Europe/Tallinn"
-locale: "en_US.UTF-8"
-
-# Resolve names via local resolver first, then public fallback.
-dns_servers:
-  - 10.0.10.1
-  - 1.1.1.1
-
-# Keep common baseline conservative for first integration wave.
-common_firewall_enabled: false
-common_system_tuning: true
-
-# Monitoring role renders files by default and only applies containers when enabled.
-monitoring_apply: false
+ansible_user: root
+ansible_connection: ssh

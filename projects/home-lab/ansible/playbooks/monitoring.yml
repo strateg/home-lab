@@ -1,0 +1,9 @@
+---
+# Monitoring stack playbook
+- name: Monitoring deployment
+  hosts: monitoring
+  gather_facts: true
+  tasks:
+    - name: Monitoring placeholder
+      ansible.builtin.debug:
+        msg: "Monitoring setup placeholder"

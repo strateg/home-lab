@@ -1,0 +1,9 @@
+---
+# PostgreSQL service playbook
+- name: PostgreSQL deployment
+  hosts: postgresql
+  gather_facts: true
+  tasks:
+    - name: PostgreSQL placeholder
+      ansible.builtin.debug:
+        msg: "PostgreSQL setup placeholder"
