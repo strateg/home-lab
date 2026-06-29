@@ -5,7 +5,7 @@
       "command": "bash",
       "args": [
         "-lc",
-        "cd $HOME/workspaces/projects/home-lab && scripts/orchestration/mcp/run-mikrotik-mcp.sh"
+        "cd $HOME/workspaces/home-lab && MIKROTIK_BOOTSTRAP_SECRET_FILE=projects/home-lab/secrets/instances/rtr-mikrotik-chateau.yaml scripts/orchestration/mcp/run-mikrotik-mcp.sh"
       ]
     }
   }
