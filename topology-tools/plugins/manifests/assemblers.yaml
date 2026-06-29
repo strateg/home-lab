@@ -1,0 +1,206 @@
+schema_version: 1
+manifest_type: stage_plugins
+stage: assemble
+plugins:
+- id: base.assembler.changed_scopes
+  execution_mode: subinterpreter
+  kind: assembler
+  entry: assemblers/workspace_assembler.py:ChangedInputScopesAssembler
+  api_version: 1.x
+  stages:
+  - assemble
+  phase: init
+  order: 405
+  depends_on:
+  - base.generator.artifact_manifest
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.generator.artifact_manifest
+    key: artifact_manifest_path
+    required: true
+  - from_plugin: base.generator.artifact_manifest
+    key: artifact_manifest
+    required: true
+  produces:
+  - key: changed_input_scopes
+    scope: pipeline_shared
+  description: Computes changed_input_scopes from artifact-manifest checksum deltas.
+- id: base.assembler.workspace
+  execution_mode: subinterpreter
+  kind: assembler
+  entry: assemblers/workspace_assembler.py:WorkspaceAssembler
+  api_version: 1.x
+  stages:
+  - assemble
+  phase: run
+  order: 410
+  depends_on:
+  - base.generator.artifact_manifest
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.generator.artifact_manifest
+    key: artifact_manifest_path
+    required: true
+  produces:
+  - key: assembly_dir
+    scope: pipeline_shared
+  - key: assembled_files
+    scope: pipeline_shared
+  description: Copies generated artifacts into workspace root for release assembly.
+- id: base.assembler.artifact_contract_guard
+  execution_mode: subinterpreter
+  kind: assembler
+  entry: assemblers/artifact_contract_assembler.py:ArtifactContractAssembler
+  api_version: 1.x
+  stages:
+  - assemble
+  phase: verify
+  order: 418
+  depends_on:
+  - base.generator.ansible_inventory
+  timeout: 30
+  config:
+    artifact_contract_compatibility_producers:
+    - object.proxmox.generator.terraform
+    - object.mikrotik.generator.terraform
+    - object.oracle.generator.terraform
+    - object.proxmox.generator.bootstrap
+    - object.mikrotik.generator.bootstrap
+    - object.orangepi.generator.bootstrap
+  config_schema:
+    type: object
+    properties:
+      artifact_contract_compatibility_producers:
+        type: array
+        description: Compatibility-only producers resolved via legacy publish registry fallback.
+        items:
+          type: string
+    required: []
+  consumes:
+  - from_plugin: base.generator.ansible_inventory
+    key: artifact_plan
+    required: false
+  - from_plugin: base.generator.ansible_inventory
+    key: artifact_generation_report
+    required: false
+  - from_plugin: base.generator.ansible_inventory
+    key: artifact_contract_files
+    required: false
+  - from_plugin: base.generator.ansible_inventory
+    key: generated_dir
+    required: false
+  produces:
+  - key: artifact_contract_guard
+    scope: pipeline_shared
+  description: Enforces ADR0093 contract publications for migrated/migrating generators.
+- id: base.assembler.verify
+  execution_mode: subinterpreter
+  kind: assembler
+  entry: assemblers/workspace_assembler.py:AssemblyVerifyAssembler
+  api_version: 1.x
+  stages:
+  - assemble
+  phase: verify
+  order: 420
+  depends_on:
+  - base.assembler.workspace
+  timeout: 30
+  config:
+    commit_keys_on_failure:
+    - assemble_verified
+  config_schema:
+    type: object
+    properties:
+      commit_keys_on_failure:
+        type: array
+        description: Declared verdict keys that remain commit-eligible when the plugin returns FAILED without crashing.
+        items:
+          type: string
+    required: []
+  consumes:
+  - from_plugin: base.assembler.workspace
+    key: assembled_files
+    required: true
+  produces:
+  - key: assemble_verified
+    scope: pipeline_shared
+  description: Verifies assembled workspace content and checks basic secret-leak guardrails.
+- id: base.assembler.manifest
+  execution_mode: subinterpreter
+  kind: assembler
+  entry: assemblers/workspace_assembler.py:AssemblyManifestAssembler
+  api_version: 1.x
+  stages:
+  - assemble
+  phase: finalize
+  order: 430
+  depends_on:
+  - base.assembler.workspace
+  - base.assembler.verify
+  - base.generator.artifact_manifest
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.assembler.workspace
+    key: assembled_files
+    required: true
+  - from_plugin: base.generator.artifact_manifest
+    key: artifact_manifest_path
+    required: true
+  produces:
+  - key: generated_files
+    scope: pipeline_shared
+  - key: assembly_manifest_path
+    scope: pipeline_shared
+  - key: assembly_manifest
+    scope: pipeline_shared
+  description: Emits assembly-manifest.json consumed by build stage plugins.
+- id: base.assembler.deploy_bundle
+  execution_mode: subinterpreter
+  kind: assembler
+  entry: assemblers/workspace_assembler.py:DeployBundleAssembler
+  api_version: 1.x
+  stages:
+  - assemble
+  phase: finalize
+  order: 440
+  depends_on:
+  - base.assembler.manifest
+  - base.assembler.verify
+  timeout: 60
+  config: {}
+  config_schema:
+    type: object
+    properties:
+      deploy_bundles_root:
+        type: string
+    required: []
+  consumes:
+  - from_plugin: base.assembler.manifest
+    key: assembly_manifest_path
+    required: true
+  - from_plugin: base.assembler.verify
+    key: assemble_verified
+    required: true
+  produces:
+  - key: deploy_bundle_id
+    scope: pipeline_shared
+  - key: deploy_bundle_path
+    scope: pipeline_shared
+  - key: deploy_bundle_reused
+    scope: pipeline_shared
+  description: Creates or reuses deterministic deploy bundle from generated artifacts for deploy-plane execution.

@@ -1,0 +1,459 @@
+schema_version: 1
+manifest_type: stage_plugins
+stage: generate
+plugins:
+- id: base.generator.effective_json
+  kind: generator
+  entry: generators/effective_json_generator.py:EffectiveJsonGenerator
+  api_version: 1.x
+  stages:
+  - generate
+  phase: run
+  order: 190
+  depends_on:
+  - base.compiler.effective_model
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  produces:
+  - key: generated_files
+    scope: pipeline_shared
+  - key: effective_json_path
+    scope: pipeline_shared
+  description: Emits effective topology JSON from main-interpreter-committed compiled model (ADR 0069 WS4).
+  execution_mode: subinterpreter
+- id: base.generator.effective_yaml
+  kind: generator
+  entry: generators/effective_yaml_generator.py:EffectiveYamlGenerator
+  api_version: 1.x
+  stages:
+  - generate
+  phase: run
+  order: 200
+  depends_on:
+  - base.compiler.effective_model
+  timeout: 30
+  execution_mode: subinterpreter
+  config:
+    output_filename: effective-topology.yaml
+  config_schema:
+    type: object
+    properties:
+      output_filename:
+        type: string
+        description: Filename for generated effective YAML artifact.
+    required: []
+  produces:
+  - key: generated_files
+    scope: pipeline_shared
+  - key: effective_yaml_path
+    scope: pipeline_shared
+  description: Emits effective topology YAML from main-interpreter-committed compiled model (ADR 0069 WS4 seed).
+- id: base.generator.docs
+  kind: generator
+  entry: generators/docs_generator.py:DocsGenerator
+  api_version: 1.x
+  stages:
+  - generate
+  phase: post
+  order: 220
+  depends_on:
+  - base.compiler.effective_model
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  input_view:
+    raw_yaml: false
+  produces:
+  - key: generated_dir
+    scope: pipeline_shared
+  - key: generated_files
+    scope: pipeline_shared
+  - key: docs_files
+    scope: pipeline_shared
+  - key: docs_projection
+    scope: pipeline_shared
+  description: Emits baseline markdown docs artifacts from main-interpreter-committed compiled model projection.
+  execution_mode: subinterpreter
+- id: base.generator.diagrams
+  kind: generator
+  entry: generators/diagram_generator.py:DiagramGenerator
+  api_version: 1.x
+  stages:
+  - generate
+  phase: post
+  order: 225
+  depends_on:
+  - base.compiler.effective_model
+  timeout: 60
+  config:
+    mermaid_icon_mode: none
+  config_schema:
+    type: object
+    properties:
+      mermaid_icon_mode:
+        type: string
+        enum:
+        - icon-nodes
+        - compat
+        - none
+        description: |
+          Mermaid rendering mode (ADR 0027): icon-nodes uses @{ icon } syntax, compat uses labelled plain nodes, none disables icons entirely.
+      icon_pack_search_roots:
+        type: array
+        items:
+          type: string
+        description: |
+          Optional filesystem roots used to discover local Iconify packs under node_modules/@iconify-json for icon-node SVG cache emission.
+    required: []
+  produces:
+  - key: diagram_dir
+    scope: pipeline_shared
+  - key: generated_files
+    scope: pipeline_shared
+  - key: diagram_files
+    scope: pipeline_shared
+  description: |
+    Emits Mermaid topology diagram pages (physical + network) from main-interpreter-committed compiled model. Supports icon-nodes, compat, and plain modes (ADR 0005, ADR 0027).
+  execution_mode: subinterpreter
+- id: base.generator.topology_graph
+  kind: generator
+  entry: generators/topology_graph_generator.py:TopologyGraphGenerator
+  api_version: 1.x
+  stages:
+  - generate
+  phase: post
+  order: 227
+  depends_on:
+  - base.compiler.effective_model
+  timeout: 30
+  config:
+    domain_filter: []
+    layer_filter: []
+    edge_type_filter: []
+    node_type_filter: []
+    graph_direction: TB
+    include_external_refs: true
+    show_edge_labels: true
+    show_domain_styling: true
+    show_node_metadata: true
+    cross_domain_edges_dashed: false
+    include_isolated_nodes: true
+    group_nodes_by_domain: false
+    group_nodes_by_layer: false
+    max_nodes: 0
+    max_edges: 0
+  config_schema:
+    type: object
+    properties:
+      domain_filter:
+        type: array
+        description: Optional domain whitelist for unified topology graph nodes (physical/network/services/storage/operations).
+        items:
+          type: string
+      layer_filter:
+        type: array
+        description: Optional OSI/application layer whitelist for unified topology graph nodes (L1-L7).
+        items:
+          type: string
+      edge_type_filter:
+        type: array
+        description: Optional dependency edge-type whitelist for unified topology graph rendering.
+        items:
+          type: string
+      node_type_filter:
+        type: array
+        description: Optional node-type whitelist for unified topology graph rendering.
+        items:
+          type: string
+      graph_direction:
+        type: string
+        enum:
+        - TB
+        - TD
+        - BT
+        - LR
+        - RL
+        description: Mermaid graph direction for unified topology graph rendering.
+      include_external_refs:
+        type: boolean
+        description: Include synthetic external_ref nodes and related edges in unified topology graph output.
+      show_edge_labels:
+        type: boolean
+        description: Render edge labels (edge_type) on Mermaid links in unified topology graph output.
+      show_domain_styling:
+        type: boolean
+        description: Apply Mermaid classDef styling for nodes grouped by domain/external_ref in unified topology graph output.
+      show_node_metadata:
+        type: boolean
+        description: Include domain/layer metadata in node labels (instance_id-only labels when disabled).
+      cross_domain_edges_dashed:
+        type: boolean
+        description: Render cross-domain dependency edges as dashed Mermaid links.
+      include_isolated_nodes:
+        type: boolean
+        description: Keep nodes without visible edges in filtered unified topology graph output.
+      group_nodes_by_domain:
+        type: boolean
+        description: Render nodes inside Mermaid subgraphs grouped by domain.
+      group_nodes_by_layer:
+        type: boolean
+        description: Render nodes inside Mermaid subgraphs grouped by layer.
+      max_nodes:
+        type: integer
+        minimum: 0
+        description: Maximum number of nodes rendered in unified topology graph (0 = unlimited).
+      max_edges:
+        type: integer
+        minimum: 0
+        description: Maximum number of edges rendered in unified topology graph (0 = unlimited).
+    required: []
+  produces:
+  - key: generated_dir
+    scope: pipeline_shared
+  - key: generated_files
+    scope: pipeline_shared
+  - key: topology_graph_files
+    scope: pipeline_shared
+  - key: topology_graph_projection
+    scope: pipeline_shared
+  description: Emits unified topology dependency Mermaid graph with optional domain/layer filtering.
+  execution_mode: subinterpreter
+- id: base.generator.ansible_inventory
+  kind: generator
+  entry: generators/ansible_inventory_generator.py:AnsibleInventoryGenerator
+  api_version: 1.x
+  stages:
+  - generate
+  phase: run
+  order: 230
+  migration_mode: migrating
+  depends_on:
+  - base.compiler.effective_model
+  timeout: 30
+  config:
+    inventory_profile: production
+    topology_lane: v5
+    artifact_obsolete_action: warn
+  config_schema:
+    type: object
+    properties:
+      inventory_profile:
+        type: string
+        description: Inventory profile folder name under ansible/inventory.
+      topology_lane:
+        type: string
+        description: Logical lane tag exported to group_vars/all.yml.
+      artifact_obsolete_action:
+        type: string
+        enum:
+        - retain
+        - delete
+        - warn
+        default: warn
+        description: Action for stale files under generator output root (ADR0093 safe obsolete protocol).
+    required: []
+  produces:
+  - key: generated_dir
+    scope: pipeline_shared
+  - key: generated_files
+    scope: pipeline_shared
+  - key: ansible_inventory_files
+    scope: pipeline_shared
+  - key: artifact_plan
+    scope: pipeline_shared
+  - key: artifact_generation_report
+    scope: pipeline_shared
+  - key: artifact_contract_files
+    scope: pipeline_shared
+  description: Emits baseline Ansible inventory artifacts from v5 projections (Phase 5 bootstrap).
+  execution_mode: subinterpreter
+- id: base.generator.docker_compose
+  kind: generator
+  entry: generators/docker_compose_generator.py:DockerComposeGenerator
+  api_version: 1.x
+  stages:
+  - generate
+  phase: post
+  order: 230
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  execution_mode: subinterpreter
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  produces:
+  - key: generated_files
+    scope: pipeline_shared
+  - key: compose_files
+    scope: pipeline_shared
+  - key: compose_dir
+    scope: pipeline_shared
+  description: Generates docker-compose.yaml files from Docker stack instances (ADR 0087 Phase 6).
+- id: base.generator.ansible_role
+  kind: generator
+  entry: generators/ansible_role_generator.py:AnsibleRoleGenerator
+  api_version: 1.x
+  stages:
+  - generate
+  phase: run
+  order: 235
+  depends_on:
+  - base.generator.ansible_inventory
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.generator.ansible_inventory
+    key: generated_dir
+    required: false
+  produces:
+  - key: generated_files
+    scope: pipeline_shared
+  - key: ansible_role_files
+    scope: pipeline_shared
+  - key: ansible_role_artifact_plan
+    scope: pipeline_shared
+  - key: ansible_role_generation_report
+    scope: pipeline_shared
+  description: Emits role-based Ansible host_vars and playbooks from topology capabilities (ADR 0104).
+  execution_mode: subinterpreter
+- id: base.generator.wireguard
+  kind: generator
+  entry: generators/wireguard_generator.py:WireguardGenerator
+  api_version: 1.x
+  stages:
+  - generate
+  phase: post
+  order: 240
+  depends_on:
+  - base.compiler.effective_model
+  timeout: 30
+  execution_mode: subinterpreter
+  config:
+    artifact_obsolete_action: warn
+  config_schema:
+    type: object
+    properties:
+      project_root:
+        type: string
+        description: Root path to project for secrets resolution.
+      artifact_obsolete_action:
+        type: string
+        enum:
+        - retain
+        - delete
+        - warn
+        default: warn
+        description: Action for stale files under generator output root.
+    required: []
+  produces:
+  - key: generated_dir
+    scope: pipeline_shared
+  - key: generated_files
+    scope: pipeline_shared
+  - key: wireguard_configs
+    scope: pipeline_shared
+  - key: artifact_plan
+    scope: pipeline_shared
+  - key: artifact_generation_report
+    scope: pipeline_shared
+  - key: artifact_contract_files
+    scope: pipeline_shared
+  description: Generates WireGuard tunnel configurations for MikroTik and Linux endpoints.
+- id: base.generator.artifact_manifest
+  execution_mode: subinterpreter
+  kind: generator
+  entry: generators/artifact_manifest_generator.py:ArtifactManifestGenerator
+  api_version: 1.x
+  stages:
+  - generate
+  phase: finalize
+  order: 390
+  depends_on:
+  - base.generator.effective_json
+  - base.generator.effective_yaml
+  - base.generator.ansible_inventory
+  - base.generator.docs
+  - base.generator.diagrams
+  - base.generator.topology_graph
+  - base.generator.docker_compose
+  - base.generator.wireguard
+  timeout: 30
+  config:
+    artifact_manifest_producers:
+    - base.generator.effective_json
+    - base.generator.effective_yaml
+    - base.generator.ansible_inventory
+    - base.generator.docs
+    - base.generator.diagrams
+    - base.generator.topology_graph
+    - base.generator.docker_compose
+    - base.generator.wireguard
+    artifact_manifest_compatibility_producers:
+    - object.proxmox.generator.terraform
+    - object.mikrotik.generator.terraform
+    - object.oracle.generator.terraform
+    - object.proxmox.generator.bootstrap
+    - object.mikrotik.generator.bootstrap
+    - object.orangepi.generator.bootstrap
+  config_schema:
+    type: object
+    properties:
+      artifact_manifest_producers:
+        type: array
+        description: Declared producer plugin IDs consumed through snapshot/runtime contracts.
+        items:
+          type: string
+      artifact_manifest_compatibility_producers:
+        type: array
+        description: Compatibility-only producer plugin IDs included only for legacy direct execution fallback.
+        items:
+          type: string
+    required: []
+  consumes:
+  - from_plugin: base.generator.effective_json
+    key: generated_files
+    required: false
+  - from_plugin: base.generator.effective_yaml
+    key: generated_files
+    required: false
+  - from_plugin: base.generator.ansible_inventory
+    key: generated_files
+    required: false
+  - from_plugin: base.generator.docs
+    key: generated_files
+    required: false
+  - from_plugin: base.generator.diagrams
+    key: generated_files
+    required: false
+  - from_plugin: base.generator.topology_graph
+    key: generated_files
+    required: false
+  - from_plugin: base.generator.docker_compose
+    key: generated_files
+    required: false
+  produces:
+  - key: generated_files
+    scope: pipeline_shared
+  - key: artifact_manifest_path
+    scope: pipeline_shared
+  - key: artifact_manifest
+    scope: pipeline_shared
+  description: Consolidates generated artifact checksums and producer attribution into artifact-manifest.json.

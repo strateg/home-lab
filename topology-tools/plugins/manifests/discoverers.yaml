@@ -1,0 +1,102 @@
+schema_version: 1
+manifest_type: stage_plugins
+stage: discover
+plugins:
+- id: base.discover.manifest_loader
+  kind: discoverer
+  entry: discoverers/discover_manifest_loader.py:DiscoverManifestLoaderCompiler
+  api_version: 1.x
+  stages:
+  - discover
+  phase: init
+  order: 10
+  depends_on: []
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  produces:
+  - key: manifest_loader_summary
+    scope: pipeline_shared
+  description: Loads class/object module plugin manifests during discover bootstrap.
+- id: base.discover.boundary
+  execution_mode: subinterpreter
+  kind: discoverer
+  entry: discoverers/discover_boundary.py:DiscoverBoundaryCompiler
+  api_version: 1.x
+  stages:
+  - discover
+  phase: pre
+  order: 15
+  depends_on:
+  - base.discover.manifest_loader
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.discover.manifest_loader
+    key: manifest_loader_summary
+    required: true
+  produces:
+  - key: boundary_ok
+    scope: pipeline_shared
+  description: Enforces framework/project plugin manifest boundary during discover stage.
+- id: base.discover.inventory
+  execution_mode: subinterpreter
+  kind: discoverer
+  entry: discoverers/discover_inventory.py:DiscoverInventoryCompiler
+  api_version: 1.x
+  stages:
+  - discover
+  phase: run
+  order: 20
+  depends_on:
+  - base.discover.manifest_loader
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.discover.manifest_loader
+    key: manifest_loader_summary
+    required: true
+  produces:
+  - key: manifest_inventory
+    scope: pipeline_shared
+  description: Publishes discovered plugin manifests inventory for discover-stage traceability.
+- id: base.discover.capability_preflight
+  execution_mode: subinterpreter
+  kind: discoverer
+  entry: discoverers/discover_capability_preflight.py:DiscoverCapabilityPreflightCompiler
+  api_version: 1.x
+  stages:
+  - discover
+  phase: verify
+  order: 40
+  depends_on:
+  - base.discover.inventory
+  - base.discover.boundary
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.discover.inventory
+    key: manifest_inventory
+    required: true
+  - from_plugin: base.discover.boundary
+    key: boundary_ok
+    required: true
+  produces:
+  - key: capability_preflight_ok
+    scope: pipeline_shared
+  description: Verifies capability contract files are present before compile/validate execution.

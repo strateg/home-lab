@@ -1,0 +1,268 @@
+schema_version: 1
+manifest_type: stage_plugins
+stage: build
+plugins:
+- id: base.builder.bundle
+  execution_mode: subinterpreter
+  kind: builder
+  entry: builders/release_builder.py:ReleaseBundleBuilder
+  api_version: 1.x
+  stages:
+  - build
+  phase: run
+  order: 510
+  depends_on:
+  - base.assembler.manifest
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.assembler.manifest
+    key: assembly_manifest_path
+    required: true
+  produces:
+  - key: generated_files
+    scope: pipeline_shared
+  - key: release_bundle_path
+    scope: pipeline_shared
+  - key: release_bundle_sha256
+    scope: pipeline_shared
+  - key: dist_root
+    scope: pipeline_shared
+  description: Packages assembled workspace files into deterministic zip release bundle.
+- id: base.builder.sbom
+  execution_mode: subinterpreter
+  kind: builder
+  entry: builders/release_builder.py:SbomBuilder
+  api_version: 1.x
+  stages:
+  - build
+  phase: verify
+  order: 520
+  depends_on:
+  - base.builder.bundle
+  - base.assembler.manifest
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.assembler.manifest
+    key: assembly_manifest
+    required: true
+  - from_plugin: base.builder.bundle
+    key: release_bundle_path
+    required: true
+  produces:
+  - key: generated_files
+    scope: pipeline_shared
+  - key: sbom_path
+    scope: pipeline_shared
+  description: Generates minimal SBOM document from assembly manifest payload.
+- id: base.builder.artifact_family_summary
+  kind: builder
+  entry: builders/release_builder.py:ArtifactFamilySummaryBuilder
+  api_version: 1.x
+  stages:
+  - build
+  phase: verify
+  order: 525
+  depends_on:
+  - base.builder.sbom
+  - base.assembler.artifact_contract_guard
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.assembler.artifact_contract_guard
+    key: artifact_contract_guard
+    required: true
+  produces:
+  - key: generated_files
+    scope: pipeline_shared
+  - key: artifact_family_summary_path
+    scope: pipeline_shared
+  - key: artifact_family_summary
+    scope: pipeline_shared
+  description: Aggregates ADR0093 artifact family planning/report metadata into build summary output.
+- id: base.builder.generator_readiness_evidence
+  execution_mode: subinterpreter
+  kind: builder
+  entry: builders/release_builder.py:GeneratorReadinessEvidenceBuilder
+  api_version: 1.x
+  stages:
+  - build
+  phase: verify
+  order: 528
+  depends_on:
+  - base.builder.artifact_family_summary
+  - base.validator.generator_migration_status
+  - base.validator.generator_sunset
+  - base.validator.generator_rollback_escalation
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.validator.generator_migration_status
+    key: generator_migration_summary
+    required: true
+  - from_plugin: base.validator.generator_sunset
+    key: generator_sunset_summary
+    required: true
+  - from_plugin: base.validator.generator_rollback_escalation
+    key: generator_rollback_summary
+    required: true
+  - from_plugin: base.builder.artifact_family_summary
+    key: artifact_family_summary
+    required: true
+  produces:
+  - key: generated_files
+    scope: pipeline_shared
+  - key: generator_readiness_evidence_path
+    scope: pipeline_shared
+  - key: generator_readiness_evidence
+    scope: pipeline_shared
+  description: Emits consolidated ADR0093 generator migration/sunset/rollback readiness evidence artifact.
+- id: base.builder.readiness_reports
+  execution_mode: subinterpreter
+  kind: builder
+  entry: builders/release_builder.py:ReadinessReportsBuilder
+  api_version: 1.x
+  stages:
+  - build
+  phase: verify
+  order: 529
+  depends_on:
+  - base.builder.generator_readiness_evidence
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.builder.generator_readiness_evidence
+    key: generator_readiness_evidence
+    required: true
+  produces:
+  - key: generated_files
+    scope: pipeline_shared
+  - key: restore_readiness_report_path
+    scope: pipeline_shared
+  - key: restore_readiness_report
+    scope: pipeline_shared
+  - key: rollback_events_report_path
+    scope: pipeline_shared
+  - key: rollback_events_report
+    scope: pipeline_shared
+  description: Emits ADR0091-compatible reports/restore-readiness.json from generator readiness evidence.
+- id: base.builder.soho_readiness_package
+  execution_mode: subinterpreter
+  kind: builder
+  entry: builders/soho_readiness_builder.py:SohoReadinessBuilder
+  api_version: 1.x
+  stages:
+  - build
+  phase: verify
+  order: 529
+  depends_on:
+  - base.builder.readiness_reports
+  - base.validator.soho_product_profile
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.builder.readiness_reports
+    key: restore_readiness_report
+    required: true
+  - from_plugin: base.validator.soho_product_profile
+    key: product_profile_state
+    required: true
+  produces:
+  - key: generated_files
+    scope: pipeline_shared
+  - key: product_handover_dir
+    scope: pipeline_shared
+  - key: product_reports_dir
+    scope: pipeline_shared
+  - key: operator_readiness_report_path
+    scope: pipeline_shared
+  - key: support_bundle_manifest_path
+    scope: pipeline_shared
+  - key: operator_readiness
+    scope: pipeline_shared
+  description: Emits ADR0091 SOHO product handover/reports package and enforces readiness gate diagnostics.
+- id: base.builder.release_manifest
+  execution_mode: subinterpreter
+  kind: builder
+  entry: builders/release_builder.py:ReleaseManifestBuilder
+  api_version: 1.x
+  stages:
+  - build
+  phase: finalize
+  order: 530
+  depends_on:
+  - base.builder.sbom
+  - base.builder.artifact_family_summary
+  - base.builder.generator_readiness_evidence
+  - base.builder.readiness_reports
+  - base.builder.soho_readiness_package
+  - base.builder.bundle
+  - base.assembler.manifest
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.builder.bundle
+    key: release_bundle_path
+    required: true
+  - from_plugin: base.builder.bundle
+    key: release_bundle_sha256
+    required: true
+  - from_plugin: base.builder.sbom
+    key: sbom_path
+    required: true
+  - from_plugin: base.assembler.manifest
+    key: assembly_manifest_path
+    required: true
+  - from_plugin: base.builder.artifact_family_summary
+    key: artifact_family_summary_path
+    required: true
+  - from_plugin: base.builder.generator_readiness_evidence
+    key: generator_readiness_evidence_path
+    required: true
+  - from_plugin: base.builder.readiness_reports
+    key: restore_readiness_report_path
+    required: true
+  - from_plugin: base.builder.readiness_reports
+    key: rollback_events_report_path
+    required: true
+  - from_plugin: base.builder.soho_readiness_package
+    key: operator_readiness_report_path
+    required: true
+  - from_plugin: base.builder.soho_readiness_package
+    key: support_bundle_manifest_path
+    required: true
+  produces:
+  - key: generated_files
+    scope: pipeline_shared
+  - key: release_manifest_path
+    scope: pipeline_shared
+  description: Emits final release-manifest.json with bundle and SBOM references.

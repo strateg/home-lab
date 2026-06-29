@@ -1,0 +1,1299 @@
+schema_version: 1
+manifest_type: stage_plugins
+stage: validate
+plugins:
+- id: base.validator.foundation_device_taxonomy
+  kind: validator_json
+  entry: validators/foundation_device_taxonomy_validator.py:FoundationDeviceTaxonomyValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 97
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates L1 group/class taxonomy conventions.
+  execution_mode: subinterpreter
+- id: base.validator.references
+  kind: validator_json
+  entry: validators/reference_validator.py:ReferenceValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 100
+  depends_on:
+  - base.compiler.instance_rows
+  - base.compiler.capability_contract_loader
+  timeout: 30
+  config:
+    strict_mode: false
+  config_schema:
+    type: object
+    properties:
+      strict_mode:
+        type: boolean
+        default: false
+        description: If true, treat warnings as errors
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  - from_plugin: base.compiler.capability_contract_loader
+    key: catalog_ids
+    required: true
+  description: Validates all cross-entity references in compiled topology
+  execution_mode: subinterpreter
+- id: base.validator.initialization_contract
+  kind: validator_json
+  entry: validators/initialization_contract_validator.py:InitializationContractValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 101
+  depends_on: []
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  description: Validates optional object initialization_contract payloads for compute/router objects (ADR 0083).
+  execution_mode: subinterpreter
+- id: base.validator.model_lock
+  kind: validator_json
+  entry: validators/model_lock_validator.py:ModelLockValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 110
+  depends_on:
+  - base.validator.references
+  - base.compiler.model_lock_loader
+  - base.compiler.instance_rows
+  timeout: 30
+  config:
+    strict_mode: false
+  config_schema:
+    type: object
+    properties:
+      strict_mode:
+        type: boolean
+        default: false
+        description: If true, require all refs to be pinned in model.lock
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  - from_plugin: base.compiler.model_lock_loader
+    key: lock_payload
+    required: true
+  - from_plugin: base.compiler.model_lock_loader
+    key: model_lock_loaded
+    required: true
+  description: Validates that class_ref and object_ref are pinned in model.lock (ADR 0063)
+  execution_mode: subinterpreter
+- id: base.validator.power_source_refs
+  kind: validator_json
+  entry: validators/declarative_reference_validator.py:DeclarativeReferenceValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 115
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config:
+    enabled_rules:
+    - power_source
+    missing_rows_code: E6901
+    missing_rows_path: pipeline:mode
+    missing_rows_message_prefix: power_source_refs
+  config_schema:
+    type: object
+    properties:
+      enabled_rules:
+        type: array
+        items:
+          type: string
+      missing_rows_code:
+        type: string
+      missing_rows_path:
+        type: string
+      missing_rows_message_prefix:
+        type: string
+    required:
+    - enabled_rules
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates ADR0062 L1 lateral relation power.source_ref and outlet occupancy constraints.
+  execution_mode: subinterpreter
+- id: base.validator.network_ip_overlap
+  kind: validator_json
+  entry: validators/network_ip_overlap_validator.py:NetworkIpOverlapValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 116
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  input_view:
+    raw_yaml: false
+    subscriptions:
+    - from_plugin: base.compiler.instance_rows
+      key: normalized_rows
+      projection: $.rows[?(@.network)]
+  description: Detects duplicate IP reuse across normalized instance rows.
+  execution_mode: subinterpreter
+- id: base.validator.single_active_os
+  kind: validator_json
+  entry: validators/single_active_os_validator.py:SingleActiveOsValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 117
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Enforces at most one active OS ref per device row.
+  execution_mode: subinterpreter
+- id: base.validator.network_reserved_ranges
+  kind: validator_json
+  entry: validators/network_reserved_ranges_validator.py:NetworkReservedRangesValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 118
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  input_view:
+    raw_yaml: false
+    subscriptions:
+    - from_plugin: base.compiler.instance_rows
+      key: normalized_rows
+      projection: $.rows[?(@.object_ref=~/^network\.vlan\./)]
+  description: Validates VLAN reserved_ranges ranges, bounds, and overlaps.
+  execution_mode: subinterpreter
+- id: base.validator.network_trust_zone_firewall_refs
+  kind: validator_json
+  entry: validators/network_trust_zone_firewall_refs_validator.py:NetworkTrustZoneFirewallRefsValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 119
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates trust-zone default firewall policy references.
+  execution_mode: subinterpreter
+- id: base.validator.embedded_in
+  kind: validator_json
+  entry: validators/embedded_in_validator.py:EmbeddedInValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 120
+  depends_on:
+  - base.validator.references
+  - base.compiler.instance_rows
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates embedded_in references for OS instances (ADR 0064)
+  execution_mode: subinterpreter
+- id: base.validator.network_firewall_addressability
+  kind: validator_json
+  entry: validators/network_firewall_addressability_validator.py:NetworkFirewallAddressabilityValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 121
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Warns when firewall policy refs cannot resolve to static address sets.
+  execution_mode: subinterpreter
+- id: base.validator.runtime_target_os_binding
+  kind: validator_json
+  entry: validators/runtime_target_os_binding_validator.py:RuntimeTargetOsBindingValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 122
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Warns when docker/baremetal service runtime targets lack os_refs bindings.
+  execution_mode: subinterpreter
+- id: base.validator.storage_l3_refs
+  kind: validator_json
+  entry: validators/storage_l3_refs_validator.py:StorageL3RefsValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 123
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates L3 storage references (volume->pool, data_asset->volume).
+  execution_mode: subinterpreter
+- id: base.validator.network_ip_allocation_host_os_refs
+  kind: validator_json
+  entry: validators/network_ip_allocation_host_os_refs_validator.py:NetworkIpAllocationHostOsRefsValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 124
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Enforces Mode H network allocation ownership (device_ref required; host_os_ref forbidden).
+  execution_mode: subinterpreter
+- id: base.validator.network_vlan_zone_consistency
+  kind: validator_json
+  entry: validators/network_vlan_zone_consistency_validator.py:NetworkVlanZoneConsistencyValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 125
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Warns when VLAN id is outside trust-zone vlan_ids contract.
+  execution_mode: subinterpreter
+- id: base.validator.ethernet_port_inventory
+  kind: validator_json
+  entry: validators/ethernet_port_inventory_validator.py:EthernetPortInventoryValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 125
+  depends_on:
+  - base.validator.references
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  produces:
+  - key: ethernet_ports_by_object
+    scope: pipeline_shared
+  description: Publishes object ethernet port inventory for endpoint validators.
+  execution_mode: subinterpreter
+- id: base.validator.network_core_refs
+  kind: validator_json
+  entry: validators/declarative_reference_validator.py:DeclarativeReferenceValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 126
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config:
+    enabled_rules:
+    - network_core
+    missing_rows_code: E7837
+    missing_rows_message_prefix: network_core_refs
+  config_schema:
+    type: object
+    properties:
+      enabled_rules:
+        type: array
+        items:
+          type: string
+      missing_rows_code:
+        type: string
+      missing_rows_message_prefix:
+        type: string
+    required:
+    - enabled_rules
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates VLAN/bridge core refs (bridge/trust-zone/manager/host).
+  execution_mode: subinterpreter
+- id: base.validator.network_vlan_tags
+  kind: validator_json
+  entry: validators/network_vlan_tags_validator.py:NetworkVlanTagsValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 127
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates workload vlan_tag consistency against VLAN network contracts.
+  execution_mode: subinterpreter
+- id: base.validator.network_mtu_consistency
+  kind: validator_json
+  entry: validators/network_mtu_consistency_validator.py:NetworkMtuConsistencyValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 128
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates jumbo_frames and mtu consistency in VLAN networks.
+  execution_mode: subinterpreter
+- id: base.validator.service_runtime_refs
+  kind: validator_json
+  entry: validators/service_runtime_refs_validator.py:ServiceRuntimeRefsValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 129
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates service runtime target_ref/network_binding_ref contracts.
+  execution_mode: subinterpreter
+- id: base.validator.network_runtime_reachability
+  kind: validator_json
+  entry: validators/network_runtime_reachability_validator.py:NetworkRuntimeReachabilityValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 130
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Warns when runtime target cannot reach runtime.network_binding_ref.
+  execution_mode: subinterpreter
+- id: base.validator.capability_contract
+  kind: validator_json
+  entry: validators/capability_contract_validator.py:CapabilityContractValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: post
+  order: 130
+  depends_on:
+  - base.compiler.module_loader
+  - base.compiler.capability_contract_loader
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.capability_contract_loader
+    key: catalog_ids
+    required: true
+  - from_plugin: base.compiler.capability_contract_loader
+    key: packs_map
+    required: true
+  - from_plugin: base.compiler.module_loader
+    key: class_module_paths
+    required: true
+  - from_plugin: base.compiler.module_loader
+    key: object_module_paths
+    required: true
+  description: Validates capability contracts using compiler-derived data (ADR 0063 Phase 3 example)
+  execution_mode: subinterpreter
+- id: base.validator.network_security
+  kind: validator_json
+  entry: validators/network_security_validator.py:NetworkSecurityValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 131
+  depends_on:
+  - base.compiler.instance_rows
+  - base.compiler.security_matrix
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  - from_plugin: base.compiler.security_matrix
+    key: security_matrices
+    required: false
+  - from_plugin: base.compiler.security_matrix
+    key: zone_vlans
+    required: false
+  description: Validates network security configuration (ADR 0110 + ADR 0111). Checks VLAN ID collision (E7850), CIDR overlap
+    (E7851), policy_override refs (E7853), and security matrix completeness warnings (W7855, W7856, W7860).
+  execution_mode: subinterpreter
+- id: base.validator.service_dependency_refs
+  kind: validator_json
+  entry: validators/declarative_reference_validator.py:DeclarativeReferenceValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 132
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config:
+    enabled_rules:
+    - service_dependency
+    missing_rows_code: E7848
+    missing_rows_message_prefix: service_dependency_refs
+  config_schema:
+    type: object
+    properties:
+      enabled_rules:
+        type: array
+        items:
+          type: string
+      missing_rows_code:
+        type: string
+      missing_rows_message_prefix:
+        type: string
+    required:
+    - enabled_rules
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates service data_asset_refs and dependency service_ref links.
+  execution_mode: subinterpreter
+- id: base.validator.storage_device_taxonomy
+  kind: validator_json
+  entry: validators/storage_device_taxonomy_validator.py:StorageDeviceTaxonomyValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 133
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates L1 storage slot/media taxonomy on device rows.
+  execution_mode: subinterpreter
+- id: base.validator.storage_media_inventory
+  kind: validator_json
+  entry: validators/storage_media_inventory_validator.py:StorageMediaInventoryValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 134
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates L1 media registry and attachment consistency contracts.
+  execution_mode: subinterpreter
+- id: base.validator.dns_refs
+  kind: validator_json
+  entry: validators/declarative_reference_validator.py:DeclarativeReferenceValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 135
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config:
+    enabled_rules:
+    - dns
+    missing_rows_code: E7856
+    missing_rows_message_prefix: dns_refs
+  config_schema:
+    type: object
+    properties:
+      enabled_rules:
+        type: array
+        items:
+          type: string
+      missing_rows_code:
+        type: string
+      missing_rows_message_prefix:
+        type: string
+    required:
+    - enabled_rules
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates DNS record refs (device/lxc/service) in service DNS rows.
+  execution_mode: subinterpreter
+- id: base.validator.certificate_refs
+  kind: validator_json
+  entry: validators/declarative_reference_validator.py:DeclarativeReferenceValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 136
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config:
+    enabled_rules:
+    - certificate
+    missing_rows_code: E7857
+    missing_rows_message_prefix: certificate_refs
+  config_schema:
+    type: object
+    properties:
+      enabled_rules:
+        type: array
+        items:
+          type: string
+      missing_rows_code:
+        type: string
+      missing_rows_message_prefix:
+        type: string
+    required:
+    - enabled_rules
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates certificate service refs and used_by service links.
+  execution_mode: subinterpreter
+- id: base.validator.backup_refs
+  kind: validator_json
+  entry: validators/declarative_reference_validator.py:DeclarativeReferenceValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 137
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config:
+    enabled_rules:
+    - backup
+    missing_rows_code: E7858
+    missing_rows_message_prefix: backup_refs
+  config_schema:
+    type: object
+    properties:
+      enabled_rules:
+        type: array
+        items:
+          type: string
+      missing_rows_code:
+        type: string
+      missing_rows_message_prefix:
+        type: string
+    required:
+    - enabled_rules
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates backup targets and destination pool references.
+  execution_mode: subinterpreter
+- id: base.validator.security_policy_refs
+  kind: validator_json
+  entry: validators/security_policy_refs_validator.py:SecurityPolicyRefsValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 138
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates security_policy_ref links against security policy rows.
+  execution_mode: subinterpreter
+- id: base.validator.vm_refs
+  kind: validator_json
+  entry: validators/vm_refs_validator.py:VmRefsValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 139
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates VM row refs (device/trust-zone/host-os/networks/storage).
+  execution_mode: subinterpreter
+- id: base.validator.lxc_refs
+  kind: validator_json
+  entry: validators/lxc_refs_validator.py:LxcRefsValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 140
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config:
+    resource_profiles:
+      rp.lxc.micro:
+        cores: 1
+        memory_mb: 512
+        swap_mb: 512
+      rp.lxc.small:
+        cores: 1
+        memory_mb: 1024
+        swap_mb: 512
+      rp.lxc.balanced:
+        cores: 2
+        memory_mb: 1024
+        swap_mb: 1024
+      rp.lxc.standard:
+        cores: 2
+        memory_mb: 2048
+        swap_mb: 1024
+  config_schema:
+    type: object
+    properties:
+      resource_profiles:
+        type: object
+        description: Canonical LXC resource profile taxonomy used by resource_profile_ref.
+        additionalProperties:
+          type: object
+          properties:
+            cores:
+              type: integer
+              minimum: 1
+            memory_mb:
+              type: integer
+              minimum: 128
+            swap_mb:
+              type: integer
+              minimum: 0
+          required:
+          - cores
+          - memory_mb
+          - swap_mb
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates LXC row refs (device/trust-zone/host-os/networks/storage).
+  execution_mode: subinterpreter
+- id: base.validator.instance_placeholders
+  kind: validator_json
+  entry: validators/instance_placeholder_validator.py:InstancePlaceholderValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: post
+  order: 140
+  depends_on: []
+  timeout: 30
+  config:
+    format_registry_path: ../data/instance-field-formats.yaml
+    enforcement_mode: enforce
+    gate_statuses:
+    - modeled
+    - mapped
+  config_schema:
+    type: object
+    properties:
+      format_registry_path:
+        type: string
+        description: Path to ADR0068 placeholder format registry.
+      enforcement_mode:
+        type: string
+        enum:
+        - warn
+        - warn+gate-new
+        - enforce
+        default: enforce
+        description: ADR0068 policy mode (warn rollout, warn+gate-new, strict enforce).
+      gate_statuses:
+        type: array
+        items:
+          type: string
+        default:
+        - modeled
+        - mapped
+        description: Instance statuses treated as strict in warn+gate-new mode.
+    required: []
+  description: Validates ADR0068 @required/@optional placeholders and instance_overrides.
+  execution_mode: subinterpreter
+- id: base.validator.host_os_refs
+  kind: validator_json
+  entry: validators/host_os_refs_validator.py:HostOsRefsValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 141
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates runtime targets have active host OS bindings when OS inventory exists.
+  execution_mode: subinterpreter
+- id: base.validator.router_ports
+  kind: validator_json
+  entry: validators/router_port_validator.py:RouterPortValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 142
+  depends_on:
+  - base.validator.references
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  description: Consolidated router data-channel contract and vendor router ethernet port validation.
+  execution_mode: subinterpreter
+- id: base.validator.host_ref_dag
+  kind: validator_json
+  entry: validators/host_ref_dag_validator.py:HostRefDagValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 143
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates workload host_ref forms DAG with max depth 2 (ADR 0087 AC-6).
+  execution_mode: subinterpreter
+- id: base.validator.docker_refs
+  kind: validator_json
+  entry: validators/docker_refs_validator.py:DockerRefsValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 144
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates Docker container refs and host capabilities (ADR 0087 Phase 1).
+  execution_mode: subinterpreter
+- id: base.validator.hypervisor_execution_model
+  kind: validator_json
+  entry: validators/hypervisor_execution_model_validator.py:HypervisorExecutionModelValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 145
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates hypervisor execution_model linkage (ADR 0087 Phase 2).
+  execution_mode: subinterpreter
+- id: base.validator.vm_hypervisor_compat
+  kind: validator_json
+  entry: validators/vm_hypervisor_compat_validator.py:VmHypervisorCompatValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 146
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates VM disk/bus/format compatibility with hypervisor (ADR 0087 Phase 3).
+  execution_mode: subinterpreter
+- id: base.validator.volume_format_compat
+  kind: validator_json
+  entry: validators/volume_format_compat_validator.py:VolumeFormatCompatValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 147
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates volume format compatibility with pool and hypervisor (ADR 0087 Phase 4).
+  execution_mode: subinterpreter
+- id: base.validator.nested_topology_scope
+  kind: validator_json
+  entry: validators/nested_topology_scope_validator.py:NestedTopologyScopeValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 148
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Validates nested topology scope declarations and references (ADR 0087 Phase 5).
+  execution_mode: subinterpreter
+- id: base.validator.soho_product_profile
+  kind: validator_json
+  entry: validators/soho_product_profile_validator.py:SohoProductProfileValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: verify
+  order: 187
+  depends_on:
+  - base.compiler.soho_profile_resolver
+  timeout: 30
+  config:
+    soho_migration_policy_path: topology-tools/data/soho-migration-state-policy.yaml
+  config_schema:
+    type: object
+    properties:
+      soho_migration_policy_path:
+        type: string
+        description: Path to SOHO migration-state transition policy YAML.
+      soho_migration_today:
+        type: string
+        pattern: ^\d{4}-\d{2}-\d{2}$
+        description: Optional fixed date override (YYYY-MM-DD) for deterministic sunset-policy checks.
+    required: []
+  produces:
+  - key: product_profile_state
+    scope: pipeline_shared
+  consumes:
+  - from_plugin: base.compiler.soho_profile_resolver
+    key: soho_profile_resolution
+    required: true
+  - from_plugin: base.compiler.soho_profile_resolver
+    key: effective_product_bundles
+    required: true
+  - from_plugin: base.compiler.soho_profile_resolver
+    key: available_product_bundles
+    required: true
+  description: Validates ADR0089 product_profile contract and emits machine-readable migration state report.
+  execution_mode: subinterpreter
+- id: base.validator.generator_migration_status
+  kind: validator_json
+  entry: validators/generator_migration_status_validator.py:GeneratorMigrationStatusValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: verify
+  order: 188
+  depends_on: []
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  produces:
+  - key: generator_migration_summary
+    scope: pipeline_shared
+  description: Emits ADR0093 generator migration status summary (legacy/migrating/migrated/rollback).
+  execution_mode: subinterpreter
+- id: base.validator.generator_sunset
+  kind: validator_json
+  entry: validators/generator_sunset_validator.py:GeneratorSunsetValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: verify
+  order: 189
+  depends_on:
+  - base.validator.generator_migration_status
+  timeout: 30
+  config:
+    sunset_policy_path: topology-tools/data/generator-sunset-policy.yaml
+  config_schema:
+    type: object
+    properties:
+      sunset_today:
+        type: string
+        pattern: ^\d{4}-\d{2}-\d{2}$
+        description: Optional fixed date override (YYYY-MM-DD) for deterministic CI/tests.
+      sunset_policy_path:
+        type: string
+        description: Path to ADR0093 sunset policy YAML (repo-relative or absolute).
+      sunset_schedule:
+        type: object
+        description: |
+          Optional inline overrides for ADR0093 sunset policy. Keys are generator plugin IDs; values override file-based policy.
+        additionalProperties:
+          type: object
+          properties:
+            compatibility_sunset:
+              type: string
+              pattern: ^\d{4}-\d{2}-\d{2}$
+            hard_error_date:
+              type: string
+              pattern: ^\d{4}-\d{2}-\d{2}$
+          required:
+          - compatibility_sunset
+          - hard_error_date
+    required: []
+  produces:
+  - key: generator_sunset_summary
+    scope: pipeline_shared
+  description: Enforces ADR0093 sunset policy; scheduled legacy targets warn before hard_error_date and fail at/after hard_error_date.
+  execution_mode: subinterpreter
+- id: base.validator.generator_rollback_escalation
+  kind: validator_json
+  entry: validators/generator_rollback_escalation_validator.py:GeneratorRollbackEscalationValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: verify
+  order: 189
+  depends_on:
+  - base.validator.generator_migration_status
+  timeout: 30
+  config:
+    rollback_policy_path: topology-tools/data/generator-rollback-policy.yaml
+  config_schema:
+    type: object
+    properties:
+      rollback_today:
+        type: string
+        pattern: ^\d{4}-\d{2}-\d{2}$
+        description: Optional fixed date override (YYYY-MM-DD) for deterministic CI/tests.
+      rollback_policy_path:
+        type: string
+        description: Path to ADR0093 rollback policy YAML (repo-relative or absolute).
+      rollback_overrides:
+        type: object
+        description: Optional inline overrides by plugin_id (merged over file policy).
+        additionalProperties:
+          type: object
+          properties:
+            rollback_started_at:
+              type: string
+              pattern: ^\d{4}-\d{2}-\d{2}$
+          required: []
+    required: []
+  produces:
+  - key: generator_rollback_summary
+    scope: pipeline_shared
+  description: Emits ADR0093 rollback escalation warnings for generators in rollback mode over threshold.
+  execution_mode: subinterpreter
+- id: base.validator.governance_contract
+  kind: validator_yaml
+  entry: validators/governance_contract_validator.py:GovernanceContractValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: pre
+  order: 90
+  depends_on: []
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  description: Validates v5 root governance contract (version/model/framework/project/meta).
+  execution_mode: subinterpreter
+- id: base.validator.foundation_layout
+  kind: validator_yaml
+  entry: validators/foundation_layout_validator.py:FoundationLayoutValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: pre
+  order: 95
+  depends_on:
+  - base.validator.governance_contract
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  description: Validates class/object module root paths and baseline YAML/plugin layout.
+  execution_mode: subinterpreter
+- id: base.validator.foundation_include_contract
+  kind: validator_yaml
+  entry: validators/foundation_include_contract_validator.py:FoundationIncludeContractValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: pre
+  order: 96
+  depends_on:
+  - base.validator.foundation_layout
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  description: Validates deterministic v5 project instances directory contract.
+  execution_mode: subinterpreter
+- id: base.validator.foundation_file_placement
+  kind: validator_yaml
+  entry: validators/foundation_file_placement_validator.py:FoundationFilePlacementValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: pre
+  order: 96
+  depends_on:
+  - base.validator.foundation_include_contract
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  description: Validates policy-driven placement of instance YAML files in project instances tree.
+  execution_mode: subinterpreter

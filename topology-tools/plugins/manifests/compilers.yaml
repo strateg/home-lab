@@ -1,0 +1,558 @@
+schema_version: 1
+manifest_type: stage_plugins
+stage: compile
+plugins:
+- id: base.compiler.module_loader
+  kind: compiler
+  entry: compilers/module_loader_compiler.py:ModuleLoaderCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: init
+  order: 30
+  depends_on: []
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  produces:
+  - key: class_map
+    scope: pipeline_shared
+  - key: object_map
+    scope: pipeline_shared
+  - key: class_module_paths
+    scope: pipeline_shared
+  - key: object_module_paths
+    scope: pipeline_shared
+  description: Loads class/object module maps for plugin-first pipeline (ADR 0069).
+  execution_mode: subinterpreter
+- id: base.compiler.model_lock_loader
+  execution_mode: subinterpreter
+  kind: compiler
+  entry: compilers/model_lock_loader_compiler.py:ModelLockLoaderCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: init
+  order: 35
+  depends_on: []
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  produces:
+  - key: lock_payload
+    scope: pipeline_shared
+  - key: model_lock_loaded
+    scope: pipeline_shared
+  description: Loads model.lock payload for plugin-first pipeline (ADR 0069).
+- id: base.compiler.instance_host_index
+  kind: compiler
+  entry: compilers/instance_host_index_compiler.py:InstanceHostIndexCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: init
+  order: 35
+  depends_on: []
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  produces:
+  - key: host_workload_defaults_index
+    scope: pipeline_shared
+  description: Builds host_workload_defaults_index for @on directive resolution (ADR 0107 D12).
+  execution_mode: main_interpreter
+- id: base.compiler.annotation_resolver
+  execution_mode: subinterpreter
+  kind: compiler
+  entry: compilers/annotation_resolver_compiler.py:AnnotationResolverCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: init
+  order: 38
+  depends_on: []
+  timeout: 30
+  config:
+    format_registry_path: ../data/instance-field-formats.yaml
+  config_schema:
+    type: object
+    properties:
+      format_registry_path:
+        type: string
+        description: Path to annotation value format registry.
+    required: []
+  produces:
+  - key: object_annotations
+    scope: pipeline_shared
+  - key: object_secret_annotations
+    scope: pipeline_shared
+  - key: row_annotations_by_instance
+    scope: pipeline_shared
+  - key: annotation_formats
+    scope: pipeline_shared
+  description: Parses field annotations once and publishes normalized annotation indexes.
+- id: base.compiler.instance_rows_secret_resolve
+  kind: compiler
+  entry: compilers/instance_rows_secret_resolve_compiler.py:InstanceRowsSecretResolveCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: run
+  order: 39
+  depends_on:
+  - base.compiler.annotation_resolver
+  timeout: 30
+  config:
+    secrets_mode: passthrough
+    secrets_root: projects/home-lab/secrets
+    require_unlock: true
+  config_schema:
+    type: object
+    properties:
+      secrets_mode:
+        type: string
+        enum:
+        - inject
+        - passthrough
+        - strict
+        default: passthrough
+        description: Side-car secrets merge mode (ADR 0072).
+      secrets_root:
+        type: string
+        default: projects/home-lab/secrets
+        description: Root directory for side-car secret files (relative to repo root).
+      require_unlock:
+        type: boolean
+        default: true
+        description: Emit error when decryption fails due to missing unlocked age key.
+    required: []
+  produces:
+  - key: secret_resolved_rows
+    scope: stage_local
+  consumes:
+  - from_plugin: base.compiler.annotation_resolver
+    key: annotation_formats
+    required: true
+  - from_plugin: base.compiler.annotation_resolver
+    key: object_secret_annotations
+    required: true
+  - from_plugin: base.compiler.annotation_resolver
+    key: row_annotations_by_instance
+    required: true
+  description: Resolves semantic row keys, annotations, and side-car secrets into stage-local rows.
+  execution_mode: subinterpreter
+- id: base.compiler.instance_rows_resolve
+  kind: compiler
+  entry: compilers/instance_rows_resolve_compiler.py:InstanceRowsResolveCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: run
+  order: 40
+  depends_on:
+  - base.compiler.instance_rows_secret_resolve
+  timeout: 30
+  config:
+    secrets_mode: passthrough
+    secrets_root: projects/home-lab/secrets
+    require_unlock: true
+  config_schema:
+    type: object
+    properties:
+      secrets_mode:
+        type: string
+        enum:
+        - inject
+        - passthrough
+        - strict
+        default: passthrough
+        description: Side-car secrets merge mode (ADR 0072).
+      secrets_root:
+        type: string
+        default: projects/home-lab/secrets
+        description: Root directory for side-car secret files (relative to repo root).
+      require_unlock:
+        type: boolean
+        default: true
+        description: Emit error when decryption fails due to missing unlocked age key.
+    required: []
+  produces:
+  - key: resolved_rows
+    scope: stage_local
+  consumes:
+  - from_plugin: base.compiler.instance_rows_secret_resolve
+    key: secret_resolved_rows
+    required: true
+  description: Applies duplicate and identifier validation to secret-resolved rows before shape preparation.
+  execution_mode: subinterpreter
+- id: base.compiler.instance_rows_prepare
+  kind: compiler
+  entry: compilers/instance_rows_prepare_compiler.py:InstanceRowsPrepareCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: run
+  order: 41
+  depends_on:
+  - base.compiler.instance_rows_resolve
+  timeout: 30
+  config:
+    secrets_mode: passthrough
+    secrets_root: projects/home-lab/secrets
+    require_unlock: true
+  config_schema:
+    type: object
+    properties:
+      secrets_mode:
+        type: string
+        enum:
+        - inject
+        - passthrough
+        - strict
+        default: passthrough
+        description: Side-car secrets merge mode (ADR 0072).
+      secrets_root:
+        type: string
+        default: projects/home-lab/secrets
+        description: Root directory for side-car secret files (relative to repo root).
+      require_unlock:
+        type: boolean
+        default: true
+        description: Emit error when decryption fails due to missing unlocked age key.
+    required: []
+  produces:
+  - key: prepared_rows
+    scope: stage_local
+  consumes:
+  - from_plugin: base.compiler.instance_rows_resolve
+    key: resolved_rows
+    required: true
+  description: Resolves class/object refs and builds prepared instance rows before shape validation.
+  execution_mode: subinterpreter
+- id: base.compiler.instance_rows_on_prepare
+  kind: compiler
+  entry: compilers/instance_rows_on_prepare_compiler.py:InstanceRowsOnPrepareCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: run
+  order: 42
+  depends_on:
+  - base.compiler.instance_rows_prepare
+  - base.compiler.instance_host_index
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  produces:
+  - key: on_prepared_rows
+    scope: stage_local
+  consumes:
+  - from_plugin: base.compiler.instance_rows_prepare
+    key: prepared_rows
+    required: true
+  - from_plugin: base.compiler.instance_host_index
+    key: host_workload_defaults_index
+    required: true
+  description: Resolves @on:host.X and @on:root.X directives in prepared instance rows (ADR 0107 D12).
+  execution_mode: main_interpreter
+- id: base.compiler.instance_rows_validate
+  kind: compiler
+  entry: compilers/instance_rows_validate_compiler.py:InstanceRowsValidateCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: run
+  order: 43
+  depends_on:
+  - base.compiler.instance_rows_prepare
+  - base.compiler.instance_rows_on_prepare
+  timeout: 30
+  config:
+    secrets_mode: passthrough
+    secrets_root: projects/home-lab/secrets
+    require_unlock: true
+  config_schema:
+    type: object
+    properties:
+      secrets_mode:
+        type: string
+        enum:
+        - inject
+        - passthrough
+        - strict
+        default: passthrough
+        description: Side-car secrets merge mode (ADR 0072).
+      secrets_root:
+        type: string
+        default: projects/home-lab/secrets
+        description: Root directory for side-car secret files (relative to repo root).
+      require_unlock:
+        type: boolean
+        default: true
+        description: Emit error when decryption fails due to missing unlocked age key.
+    required: []
+  produces:
+  - key: validated_rows
+    scope: stage_local
+  consumes:
+  - from_plugin: base.compiler.instance_rows_on_prepare
+    key: on_prepared_rows
+    required: false
+  - from_plugin: base.compiler.instance_rows_prepare
+    key: prepared_rows
+    required: true
+  description: Validates prepared instance-row shape and builds stage-local normalized row payloads. Consumes on_prepared_rows
+    (ADR 0107) with fallback to prepared_rows.
+  execution_mode: subinterpreter
+- id: base.compiler.instance_rows
+  kind: compiler
+  entry: compilers/instance_rows_compiler.py:InstanceRowsCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: run
+  order: 44
+  depends_on:
+  - base.compiler.instance_rows_validate
+  timeout: 30
+  config:
+    secrets_mode: passthrough
+    secrets_root: projects/home-lab/secrets
+    require_unlock: true
+  config_schema:
+    type: object
+    properties:
+      secrets_mode:
+        type: string
+        enum:
+        - inject
+        - passthrough
+        - strict
+        default: passthrough
+        description: Side-car secrets merge mode (ADR 0072).
+      secrets_root:
+        type: string
+        default: projects/home-lab/secrets
+        description: Root directory for side-car secret files (relative to repo root).
+      require_unlock:
+        type: boolean
+        default: true
+        description: Emit error when decryption fails due to missing unlocked age key.
+    required: []
+  produces:
+  - key: normalized_rows
+    scope: pipeline_shared
+  consumes:
+  - from_plugin: base.compiler.instance_rows_validate
+    key: validated_rows
+    required: true
+  description: Publishes authoritative normalized instance rows after staged resolve/prepare/validate cutover.
+  execution_mode: subinterpreter
+- id: base.compiler.capability_contract_loader
+  execution_mode: subinterpreter
+  kind: compiler
+  entry: compilers/capability_contract_loader_compiler.py:CapabilityContractLoaderCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: init
+  order: 45
+  depends_on: []
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  produces:
+  - key: catalog_ids
+    scope: pipeline_shared
+  - key: packs_map
+    scope: pipeline_shared
+  description: Loads capability catalog and packs contract for plugin-first pipeline.
+- id: base.compiler.workload_defaults_redundancy
+  kind: compiler
+  entry: compilers/workload_defaults_redundancy_compiler.py:WorkloadDefaultsRedundancyCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: run
+  order: 46
+  depends_on:
+  - base.compiler.instance_rows_prepare
+  - base.compiler.instance_host_index
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows_prepare
+    key: prepared_rows
+    required: true
+  - from_plugin: base.compiler.instance_host_index
+    key: host_workload_defaults_index
+    required: true
+  description: Warns on redundant instance fields that duplicate workload_defaults values (ADR 0107 Phase 1).
+  execution_mode: subinterpreter
+- id: base.compiler.capabilities
+  execution_mode: subinterpreter
+  kind: compiler
+  entry: compilers/capability_compiler.py:CapabilityCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: run
+  order: 50
+  depends_on:
+  - base.compiler.module_loader
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  produces:
+  - key: capability_stats
+    scope: pipeline_shared
+  - key: derived_capabilities
+    scope: pipeline_shared
+  - key: effective_os_map
+    scope: pipeline_shared
+  - key: effective_firmware_map
+    scope: pipeline_shared
+  description: Derives capabilities from class/object definitions (ADR 0063 Phase 3 example). SINGLE SOURCE OF TRUTH for capability
+    derivation (ADR 0106 + ADR 0104).
+- id: base.compiler.soho_profile_resolver
+  execution_mode: subinterpreter
+  kind: compiler
+  entry: compilers/soho_profile_resolver_compiler.py:SohoProfileResolverCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: run
+  order: 55
+  depends_on: []
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  produces:
+  - key: soho_profile_resolution
+    scope: pipeline_shared
+  - key: effective_product_bundles
+    scope: pipeline_shared
+  - key: available_product_bundles
+    scope: pipeline_shared
+  description: Resolves ADR0089 canonical SOHO profile contract and effective required bundle set.
+- id: base.compiler.security_matrix
+  execution_mode: subinterpreter
+  kind: compiler
+  entry: compilers/security_matrix_compiler.py:SecurityMatrixCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: run
+  order: 55
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  produces:
+  - key: security_matrices
+    scope: pipeline_shared
+  - key: zone_vlans
+    scope: pipeline_shared
+  - key: matrix_by_enforcer
+    scope: pipeline_shared
+  - key: vlan_cidr_map
+    scope: pipeline_shared
+  description: Computes zone-to-zone security matrices from inst.security_matrix.* instances (ADR 0110). Implements R1-R6
+    matrix calculation rules.
+- id: base.compiler.ip_derivation
+  execution_mode: subinterpreter
+  kind: compiler
+  entry: compilers/ip_derivation_compiler.py:IpDerivationCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: run
+  order: 56
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  produces:
+  - key: ip_derivation_stats
+    scope: pipeline_shared
+  description: Derives IP addresses from vlan_ref + host pattern (ADR 0111). Validates host uniqueness and emits warnings
+    for deprecated hardcoded IPs.
+- id: base.compiler.effective_model
+  kind: compiler
+  entry: compilers/effective_model_compiler.py:EffectiveModelCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: finalize
+  compiled_json_owner: true
+  order: 60
+  depends_on:
+  - base.compiler.module_loader
+  - base.compiler.capabilities
+  - base.compiler.instance_rows
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  produces:
+  - key: effective_model_candidate
+    scope: pipeline_shared
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  - from_plugin: base.compiler.capabilities
+    key: derived_capabilities
+    required: false
+  - from_plugin: base.compiler.capabilities
+    key: effective_os_map
+    required: false
+  - from_plugin: base.compiler.capabilities
+    key: effective_firmware_map
+    required: false
+  description: Assembles candidate effective model in compile stage (ADR 0069 WS2). Subscribes to capability_compiler for
+    derived capabilities (ADR 0106 + ADR 0104).
+  execution_mode: subinterpreter

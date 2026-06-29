@@ -17,6 +17,36 @@
         "$ref": "#/$defs/plugin"
       },
       "description": "List of plugins declared by this manifest"
+    },
+    "includes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Paths to included manifest files (relative to this manifest)"
+    },
+    "manifest_type": {
+      "type": "string",
+      "enum": ["root", "stage_plugins"],
+      "description": "Type of manifest (root with includes or stage-specific)"
+    },
+    "stage": {
+      "type": "string",
+      "enum": ["discover", "compile", "validate", "generate", "assemble", "build"],
+      "description": "Primary stage for this manifest (for stage_plugins type)"
+    },
+    "global_settings": {
+      "type": "object",
+      "properties": {
+        "default_timeout": {"type": "integer"},
+        "parallel_execution": {"type": "boolean"},
+        "strict_dependency_resolution": {"type": "boolean"}
+      },
+      "description": "Global plugin settings"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Manifest metadata (informational)"
     }
   },
   "$defs": {
