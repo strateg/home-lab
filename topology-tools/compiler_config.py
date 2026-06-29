@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from kernel import Stage
@@ -101,3 +101,24 @@ class CompilerConfig:
             raise ValueError(
                 "--disable-plugins is retired; plugin-first runtime always enables plugins."
             )
+
+
+@dataclass
+class BootstrapResult:
+    """Result of the compiler bootstrap phase.
+
+    Contains all data needed to proceed with plugin execution after
+    successful validation of topology, project, and framework lock.
+
+    If bootstrap fails, run() returns early with _fail_early().
+    """
+
+    manifest: dict[str, Any]
+    framework_paths: dict[str, Any]
+    project_id: str
+    project_root: Path
+    project_manifest: dict[str, Any]
+    project_manifest_path: Path
+    manifest_bundle: Any  # ManifestBundle from compiler_runtime
+    framework_module_index_path: Path | None
+    secrets_root_value: str

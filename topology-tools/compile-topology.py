@@ -19,6 +19,7 @@ TOPOLOGY_TOOLS = Path(__file__).resolve().parent
 sys.path.insert(0, str(TOPOLOGY_TOOLS))
 
 from compiler_ai_sessions import AiConfig, AiSessionRunner
+from compiler_config import BootstrapResult
 from compiler_framework_lock import FrameworkLockManager
 from compiler_cli import CompilerCliDependencies
 from compiler_cli import build_parser as build_compiler_parser
@@ -917,14 +918,15 @@ class V5Compiler:
                 )
         return not self._has_errors()
 
-    def run(self) -> int:
-        self._run_generated_at = utc_now()
-        if self.trace_execution and self._plugin_registry:
-            self._plugin_registry.reset_execution_trace()
+    def _bootstrap_phase(self) -> BootstrapResult | None:
+        """Execute bootstrap phase: validation, manifest loading, framework lock.
 
+        Returns BootstrapResult on success, None on validation failure.
+        Extracts Phases 1-4 from run() per ADR 0069 thin orchestrator.
+        """
         # Phase 1: Pre-validation checks
         if not self._validate_stage_selection():
-            return self._fail_early()
+            return None
         if self.pipeline_mode != "plugin-first":
             self.add_diag(
                 code="E6904",
@@ -933,7 +935,7 @@ class V5Compiler:
                 message="pipeline_mode=legacy is retired after ADR0069 cutover; use --pipeline-mode plugin-first.",
                 path="pipeline:mode",
             )
-            return self._fail_early()
+            return None
         if self.parity_gate:
             self.add_diag(
                 code="E6905",
@@ -942,16 +944,16 @@ class V5Compiler:
                 message="--parity-gate is not supported after plugin-first cutover.",
                 path="pipeline:parity",
             )
-            return self._fail_early()
+            return None
 
         # Phase 2: Load and validate topology manifest
         manifest = self._load_yaml(self.manifest_path, code_missing="E1001", code_parse="E1003", stage="load")
         if manifest is None:
-            return self._fail_early()
+            return None
 
         manifest_result = self._validate_topology_manifest(manifest)
         if manifest_result is None:
-            return self._fail_early()
+            return None
         framework_paths, project_section = manifest_result
 
         # Phase 3: Load and validate project manifest
@@ -967,9 +969,9 @@ class V5Compiler:
             project_manifest_path, code_missing="E1001", code_parse="E1003", stage="load"
         )
         if project_manifest is None:
-            return self._fail_early()
+            return None
         if not self._validate_project_manifest(project_manifest, project_manifest_path):
-            return self._fail_early()
+            return None
 
         # Phase 4: Verify framework lock
         framework_lock_mgr = FrameworkLockManager(
@@ -986,7 +988,7 @@ class V5Compiler:
             project_manifest_path=project_manifest_path,
             framework_paths=framework_paths,
         ):
-            return self._fail_early()
+            return None
 
         manifest_bundle = resolve_manifest_paths(
             framework_paths=framework_paths,
@@ -995,6 +997,8 @@ class V5Compiler:
             project_manifest=project_manifest,
             resolve_repo_path=resolve_repo_path,
         )
+
+        # Resolve module index path
         framework_module_index_path: Path | None = None
         raw_module_index_path = framework_paths.get("module_index")
         if isinstance(raw_module_index_path, str) and raw_module_index_path.strip():
@@ -1003,6 +1007,8 @@ class V5Compiler:
             default_module_index = manifest_bundle.class_modules_root.parent / "module-index.yaml"
             if default_module_index.exists():
                 framework_module_index_path = default_module_index
+
+        # Resolve secrets root
         if self.secrets_root.strip():
             configured_secrets_root = self.secrets_root.strip()
             secrets_root_value = self._path_for_diag(resolve_repo_path(configured_secrets_root))
@@ -1016,7 +1022,35 @@ class V5Compiler:
                 message="project manifest must resolve non-empty secrets_root path.",
                 path=f"{self._path_for_diag(project_manifest_path)}:secrets_root",
             )
+            return None
+
+        return BootstrapResult(
+            manifest=manifest,
+            framework_paths=framework_paths,
+            project_id=project_id,
+            project_root=project_root,
+            project_manifest=project_manifest,
+            project_manifest_path=project_manifest_path,
+            manifest_bundle=manifest_bundle,
+            framework_module_index_path=framework_module_index_path,
+            secrets_root_value=secrets_root_value,
+        )
+
+    def run(self) -> int:
+        self._run_generated_at = utc_now()
+        if self.trace_execution and self._plugin_registry:
+            self._plugin_registry.reset_execution_trace()
+
+        # Phases 1-4: Bootstrap (validation, manifest loading, framework lock)
+        bootstrap = self._bootstrap_phase()
+        if bootstrap is None:
             return self._fail_early()
+
+        # Unpack bootstrap results for use in subsequent phases
+        manifest = bootstrap.manifest
+        manifest_bundle = bootstrap.manifest_bundle
+        framework_module_index_path = bootstrap.framework_module_index_path
+        secrets_root_value = bootstrap.secrets_root_value
 
         # Phase 5: Setup plugin context and execute pipeline
         self._load_base_plugin_manifest()
