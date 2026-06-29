@@ -70,7 +70,44 @@ class TerraformOCIGenerator(BaseGenerator):
                     path="generator:terraform_oci",
                 )
             )
-            return self.make_result(diagnostics)
+            # Publish empty contract data to satisfy migration_mode requirements
+            empty_plan = build_artifact_plan(
+                plugin_id=self.plugin_id,
+                artifact_family="terraform.oci",
+                planned_outputs=[],
+                projection_version="1.0",
+                ir_version="1.0",
+                obsolete_candidates=[],
+                capabilities=[],
+                validation_profiles=[ctx.profile],
+                ctx=ctx,
+            )
+            empty_report = build_generation_report(
+                plugin_id=self.plugin_id,
+                artifact_family="terraform.oci",
+                planned_outputs=[],
+                generated=[],
+                obsolete=[],
+                ctx=ctx,
+            )
+            # Write contract artifacts to disk even when no instances
+            contract_paths = write_contract_artifacts(
+                ctx=ctx,
+                plugin_id=self.plugin_id,
+                artifact_plan=empty_plan,
+                generation_report=empty_report,
+            )
+            ctx.publish("artifact_plan", empty_plan)
+            ctx.publish("artifact_generation_report", empty_report)
+            ctx.publish("artifact_contract_files", sorted(contract_paths.values()))
+            return self.make_result(
+                diagnostics=diagnostics,
+                output_data={
+                    "artifact_plan": empty_plan,
+                    "artifact_generation_report": empty_report,
+                    "artifact_contract_files": sorted(contract_paths.values()),
+                },
+            )
 
         out_dir = self.resolve_output_path(ctx, "terraform", "oci")
 

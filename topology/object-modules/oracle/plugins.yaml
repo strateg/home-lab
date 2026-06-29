@@ -8,7 +8,7 @@ plugins:
       - generate
     phase: run
     order: 215
-    migration_mode: migrating
+    migration_mode: migrated
     depends_on: []
     timeout: 30
     execution_mode: subinterpreter

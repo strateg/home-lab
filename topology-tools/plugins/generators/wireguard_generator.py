@@ -449,6 +449,21 @@ class WireguardGenerator(BaseGenerator):
             endpoint_a = tunnel.get("endpoint_a", {})
             endpoint_b = tunnel.get("endpoint_b", {})
 
+            # Skip tunnel if secrets are missing (passthrough mode or missing secrets files)
+            mikrotik_keys = secrets.get("mikrotik", {})
+            vps_keys = secrets.get("vps", {})
+            if not mikrotik_keys.get("private_key") or not vps_keys.get("private_key"):
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="I9402",
+                        severity="info",
+                        stage=stage,
+                        message=f"skipping tunnel '{tunnel.get('instance_id')}': missing required secrets (mikrotik.private_key or vps.private_key)",
+                        path=f"generator:wireguard:{tunnel_name}",
+                    )
+                )
+                continue
+
             # Determine endpoint platforms
             endpoint_a_platform = self._detect_platform(
                 payload, endpoint_a.get("device_ref", "")
@@ -468,8 +483,8 @@ class WireguardGenerator(BaseGenerator):
                 "routing": tunnel.get("routing", {}),
                 "vps_nat": tunnel.get("vps_nat", {}),
                 "secrets": secrets,
-                "mikrotik_keys": secrets.get("mikrotik", {}),
-                "vps_keys": secrets.get("vps", {}),
+                "mikrotik_keys": mikrotik_keys,
+                "vps_keys": vps_keys,
                 "psk": secrets.get("preshared_key", ""),
             }
 
