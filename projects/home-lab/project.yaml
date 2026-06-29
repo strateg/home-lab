@@ -1,7 +1,8 @@
 schema_version: 1
 project_schema_version: 1.0.0
 project: home-lab
-status: migration
+status: operational
+migration_completed: '2026-06-29'
 project_min_framework_version: 5.0.0
 project_contract_revision: 1
 instances_root: topology/instances
@@ -15,7 +16,7 @@ product_profile:
   user_band: 1-25
   operator_mode: single-operator
   release_channel: stable
-  migration_state: migrated-soft
+  migration_state: migrated-hard
 product_bundles:
   - bundle.edge-routing
   - bundle.network-segmentation
