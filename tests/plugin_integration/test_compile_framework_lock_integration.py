@@ -147,7 +147,16 @@ def test_compile_fails_when_framework_integrity_mismatch(monkeypatch, tmp_path: 
 
 
 def test_compile_lock_check_uses_extracted_framework_manifest_when_present(monkeypatch, tmp_path: Path) -> None:
+    """Test that framework lock verification uses extracted framework manifest.
+
+    After ADR 0069 decomposition, _verify_framework_lock was moved to FrameworkLockManager.
+    """
     mod = _load_compiler_module()
+    source_repo_root = Path(__file__).resolve().parents[2]
+    sys.path.insert(0, str(source_repo_root / "topology-tools"))
+    from compiler_diagnostics import CompilerDiagnostic
+    from compiler_framework_lock import FrameworkLockManager
+
     repo_root, topology_path, project_manifest_path, error_catalog_path = _create_minimal_repo(tmp_path)
     monkeypatch.setattr(mod, "REPO_ROOT", repo_root)
 
@@ -167,16 +176,28 @@ def test_compile_lock_check_uses_extracted_framework_manifest_when_present(monke
         },
     )
 
-    compiler = _create_compiler(mod, topology_path=topology_path, error_catalog_path=error_catalog_path)
-    ok = compiler._verify_framework_lock(
+    diagnostics: list[CompilerDiagnostic] = []
+
+    def add_diag(**kwargs):
+        diagnostics.append(CompilerDiagnostic(**kwargs))
+
+    lock_manager = FrameworkLockManager(
+        repo_root=repo_root,
+        manifest_path=topology_path,
+        runtime_profile="production",
+        add_diag=add_diag,
+        path_for_diag=str,
+        resolve_repo_path=lambda p: (repo_root / p).resolve(),
+    )
+    ok = lock_manager.verify(
         project_id="home-lab",
         project_root=repo_root / "projects" / "home-lab",
         project_manifest_path=project_manifest_path,
         framework_paths={"root": "framework-extracted"},
     )
     assert ok is False
-    assert any(diag.code == "E7822" for diag in compiler._diagnostics)
-    assert not any(diag.code == "E7821" for diag in compiler._diagnostics)
+    assert any(diag.code == "E7822" for diag in diagnostics)
+    assert not any(diag.code == "E7821" for diag in diagnostics)
 
 
 def test_compile_parser_defaults_catalog_and_plugins_to_script_paths() -> None:

@@ -37,27 +37,53 @@ def _compiler(mod, tmp_path: Path):
 
 
 def test_ai_advisory_recommendations_log_to_stderr(tmp_path: Path, capsys) -> None:
-    mod = _load_compiler_module()
-    compiler = _compiler(mod, tmp_path)
+    """Test that AI advisory recommendations are logged to stderr.
 
-    compiler._print_advisory_recommendations(
-        {
-            "recommendations": [
-                {
-                    "path": "generated/home-lab/docs/overview.md",
-                    "action": "suggest",
-                    "rationale": "Improve readability",
-                }
-            ],
-            "confidence_scores": {"generated/home-lab/docs/overview.md": 0.5},
-        }
-    )
+    After ADR 0069 decomposition, _print_advisory_recommendations moved to AiSessionRunner.
+    """
+    import logging
 
-    captured = capsys.readouterr()
-    assert captured.out == ""
-    assert "[ai-advisory] Recommendations:" in captured.err
-    assert "[ai-advisory] 1. suggest generated/home-lab/docs/overview.md (confidence=0.50)" in captured.err
-    assert "[ai-advisory]    rationale: Improve readability" in captured.err
+    repo_root = Path(__file__).resolve().parents[2]
+    sys.path.insert(0, str(repo_root / "topology-tools"))
+    from compiler_ai_sessions import AiConfig, AiSessionRunner
+
+    # Configure logger to output to stderr
+    logger = logging.getLogger("compiler_ai_sessions")
+    logger.setLevel(logging.INFO)
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setLevel(logging.INFO)
+    handler.setFormatter(logging.Formatter("%(message)s"))
+    logger.addHandler(handler)
+
+    try:
+        ai_runner = AiSessionRunner(
+            ai_config=AiConfig(),
+            repo_root=repo_root,
+            stages=[],
+            add_diag=lambda **kwargs: None,
+            path_for_diag=lambda p: str(p),
+        )
+
+        ai_runner._print_advisory_recommendations(
+            {
+                "recommendations": [
+                    {
+                        "path": "generated/home-lab/docs/overview.md",
+                        "action": "suggest",
+                        "rationale": "Improve readability",
+                    }
+                ],
+                "confidence_scores": {"generated/home-lab/docs/overview.md": 0.5},
+            }
+        )
+
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert "[ai-advisory] Recommendations:" in captured.err
+        assert "[ai-advisory] 1. suggest generated/home-lab/docs/overview.md (confidence=0.50)" in captured.err
+        assert "[ai-advisory]    rationale: Improve readability" in captured.err
+    finally:
+        logger.removeHandler(handler)
 
 
 def test_compile_summary_stays_on_stdout(tmp_path: Path, capsys) -> None:

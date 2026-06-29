@@ -29,20 +29,25 @@ def test_ai_runtime_package_contains_expected_modules() -> None:
 
 
 def test_compiler_entrypoints_use_ai_runtime_namespace() -> None:
+    """Verify AI runtime imports are in compiler_ai_sessions (thin orchestrator pattern).
+
+    After ADR 0069 decomposition, AI runtime imports were moved from compile-topology.py
+    to compiler_ai_sessions.py to achieve the thin orchestrator pattern.
+    """
     compile_topology = (V5_TOOLS / "compile-topology.py").read_text(encoding="utf-8")
     compiler_ai_sessions = (V5_TOOLS / "compiler_ai_sessions.py").read_text(encoding="utf-8")
 
-    assert "from ai_runtime.ai_advisory_contract import" in compile_topology
-    assert "from ai_runtime.ai_ansible import" in compile_topology
-    assert "from ai_runtime.ai_assisted import" in compile_topology
-    assert "from ai_runtime.ai_promotion import" in compile_topology
-    assert "from ai_runtime.ai_rollback import" in compile_topology
-    assert "from ai_runtime.ai_sandbox import" in compile_topology
+    # compile-topology.py should NOT have direct ai_runtime imports (thin orchestrator)
+    # It delegates to compiler_ai_sessions.py via AiSessionRunner
     assert "plugins.generators.ai_" not in compile_topology
 
+    # compiler_ai_sessions.py should have all AI runtime imports
     assert "from ai_runtime.ai_advisory_contract import" in compiler_ai_sessions
     assert "from ai_runtime.ai_ansible import" in compiler_ai_sessions
+    assert "from ai_runtime.ai_assisted import" in compiler_ai_sessions
     assert "from ai_runtime.ai_audit import" in compiler_ai_sessions
+    assert "from ai_runtime.ai_promotion import" in compiler_ai_sessions
+    assert "from ai_runtime.ai_rollback import" in compiler_ai_sessions
     assert "from ai_runtime.ai_sandbox import" in compiler_ai_sessions
     assert "plugins.generators.ai_" not in compiler_ai_sessions
 

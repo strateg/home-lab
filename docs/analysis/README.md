@@ -6,6 +6,9 @@ This directory contains project-level analysis and planning documents produced v
 
 | Document | Date | Purpose |
 |----------|------|---------|
+| [SPC-COMPILE-TOPOLOGY-DECOMPOSITION-2026-06-27.md](SPC-COMPILE-TOPOLOGY-DECOMPOSITION-2026-06-27.md) | 2026-06-27 | SPC 7-step analysis: V5Compiler decomposition with SWOT |
+| [ARCHITECTURE-ANALYSIS-2026-06-27.md](ARCHITECTURE-ANALYSIS-2026-06-27.md) | 2026-06-27 | Full architectural review and tech debt assessment |
+| [ARCHITECTURE-IMPROVEMENT-PLAN-2026-06-27.md](ARCHITECTURE-IMPROVEMENT-PLAN-2026-06-27.md) | 2026-06-27 | 4-phase architecture improvement roadmap |
 | [PROJECT-STATE-ASSESSMENT-2026-04-22.md](PROJECT-STATE-ASSESSMENT-2026-04-22.md) | 2026-04-22 | Full SPC 7-step project state analysis |
 | [IMPLEMENTATION-PLAN-2026-04-22.md](IMPLEMENTATION-PLAN-2026-04-22.md) | 2026-04-22 | Approved development roadmap |
 

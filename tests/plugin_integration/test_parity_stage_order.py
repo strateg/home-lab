@@ -9,7 +9,33 @@ import sys
 from datetime import date
 from pathlib import Path
 
+import pytest
+
 from tests.helpers.plugin_execution import publish_for_test
+
+
+_original_verify_method = None
+
+
+def _restore_framework_lock() -> None:
+    """Restore original framework lock verification after test."""
+    global _original_verify_method
+    if _original_verify_method is not None:
+        repo_root = Path(__file__).resolve().parents[2]
+        tools_dir = str(repo_root / "topology-tools")
+        if tools_dir not in sys.path:
+            sys.path.insert(0, tools_dir)
+        import compiler_framework_lock
+
+        compiler_framework_lock.FrameworkLockManager.verify = _original_verify_method
+        _original_verify_method = None
+
+
+@pytest.fixture(autouse=True, scope="function")
+def cleanup_framework_lock_patch():
+    """Ensure framework lock patch is restored after each test."""
+    yield
+    _restore_framework_lock()
 
 
 def _load_compiler_module():
@@ -33,7 +59,22 @@ def _publish_minimal_compile_outputs(ctx) -> None:
 
 
 def _disable_framework_lock(compiler) -> None:
-    compiler._verify_framework_lock = lambda **kwargs: True  # type: ignore[method-assign]
+    """Disable framework lock verification for testing.
+
+    After ADR 0069 decomposition, framework lock was moved to FrameworkLockManager.
+    This helper patches the manager's verify method at the class level.
+    Uses global state to save and restore the original method.
+    """
+    global _original_verify_method
+    repo_root = Path(__file__).resolve().parents[2]
+    tools_dir = str(repo_root / "topology-tools")
+    if tools_dir not in sys.path:
+        sys.path.insert(0, tools_dir)
+    import compiler_framework_lock
+
+    if _original_verify_method is None:
+        _original_verify_method = compiler_framework_lock.FrameworkLockManager.verify
+    compiler_framework_lock.FrameworkLockManager.verify = lambda self, **kwargs: True  # type: ignore[method-assign]
 
 
 def test_compiler_stage_order_uses_kernel_canonical_value():
@@ -530,23 +571,25 @@ def test_ai_config_normalizes_operator_inputs():
 
 def test_prepare_ai_session_builds_shared_advisory_context(monkeypatch, tmp_path):
     mod = _load_compiler_module()
+    repo_root = Path(__file__).resolve().parents[2]
+    sys.path.insert(0, str(repo_root / "topology-tools"))
+    from compiler_ai_sessions import AiConfig, AiSessionRunner, prepare_ai_session
+
     monkeypatch.setattr(mod, "REPO_ROOT", tmp_path)
-    compiler = mod.V5Compiler(
-        manifest_path=tmp_path / "topology.yaml",
-        output_json=tmp_path / "effective-topology.json",
-        diagnostics_json=tmp_path / "diagnostics.json",
-        diagnostics_txt=tmp_path / "diagnostics.txt",
-        error_catalog_path=mod.DEFAULT_ERROR_CATALOG,
-        strict_model_lock=False,
-        fail_on_warning=False,
-        require_new_model=True,
-        enable_plugins=True,
-        plugins_manifest_path=mod.DEFAULT_PLUGINS_MANIFEST,
-        stages=[mod.Stage.COMPILE, mod.Stage.VALIDATE],
-    )
     ctx = mod.PluginContext(topology_path="test", profile="test-real", model_lock={})
 
-    session = compiler._prepare_ai_session(
+    ai_config = AiConfig()
+    ai_runner = AiSessionRunner(
+        ai_config=ai_config,
+        repo_root=tmp_path,
+        stages=[mod.Stage.COMPILE, mod.Stage.VALIDATE],
+        add_diag=lambda **kwargs: None,
+        path_for_diag=lambda p: str(p),
+    )
+
+    session = prepare_ai_session(
+        ai_config=ai_config,
+        repo_root=tmp_path,
         mode="advisory",
         effective_payload={
             "classes": {},
@@ -558,9 +601,11 @@ def test_prepare_ai_session_builds_shared_advisory_context(monkeypatch, tmp_path
             },
         },
         project_id="home-lab",
-        plugin_ctx=ctx,
         plugin_id="base.compiler.ai_advisory",
+        stages=[mod.Stage.COMPILE, mod.Stage.VALIDATE],
         enforce_initial_sandbox_limits=True,
+        annotation_patterns=ai_runner._collect_annotation_redaction_patterns(ctx),
+        registry_patterns=ai_runner._collect_registry_redaction_patterns(ctx),
     )
 
     assert session.mode == "advisory"
@@ -698,8 +743,11 @@ def test_main_rejects_rollback_without_assisted(monkeypatch):
 
 
 def test_ai_advisory_payload_normalizer_handles_non_json_scalars():
-    mod = _load_compiler_module()
-    normalized = mod.V5Compiler._json_safe_payload({"today": date(2026, 4, 7), "ok": True})
+    repo_root = Path(__file__).resolve().parents[2]
+    sys.path.insert(0, str(repo_root / "topology-tools"))
+    from compiler_ai_sessions import json_safe_payload
+
+    normalized = json_safe_payload({"today": date(2026, 4, 7), "ok": True})
 
     assert normalized["today"] == "2026-04-07"
     assert normalized["ok"] is True
@@ -707,19 +755,10 @@ def test_ai_advisory_payload_normalizer_handles_non_json_scalars():
 
 def test_ai_advisory_redaction_patterns_collect_from_annotations_and_registry(tmp_path):
     mod = _load_compiler_module()
-    test_output_dir = mod.REPO_ROOT / "build" / "test-ai-advisory-redaction-patterns"
-    compiler = mod.V5Compiler(
-        manifest_path=mod.DEFAULT_MANIFEST,
-        output_json=test_output_dir / "effective-topology.json",
-        diagnostics_json=test_output_dir / "diagnostics.json",
-        diagnostics_txt=test_output_dir / "diagnostics.txt",
-        error_catalog_path=mod.DEFAULT_ERROR_CATALOG,
-        strict_model_lock=False,
-        fail_on_warning=False,
-        require_new_model=True,
-        enable_plugins=True,
-        plugins_manifest_path=mod.DEFAULT_PLUGINS_MANIFEST,
-    )
+    repo_root = Path(__file__).resolve().parents[2]
+    sys.path.insert(0, str(repo_root / "topology-tools"))
+    from compiler_ai_sessions import AiConfig, AiSessionRunner
+
     ctx = mod.PluginContext(topology_path="test", profile="test-real", model_lock={})
     secrets_root = tmp_path / "secrets"
     (secrets_root / "instances").mkdir(parents=True, exist_ok=True)
@@ -742,8 +781,16 @@ def test_ai_advisory_redaction_patterns_collect_from_annotations_and_registry(tm
         {"obj": {"credentials.api_token": {"secret": True}}},
     )
 
-    annotation_patterns = compiler._collect_annotation_redaction_patterns(ctx)
-    registry_patterns = compiler._collect_registry_redaction_patterns(ctx)
+    ai_runner = AiSessionRunner(
+        ai_config=AiConfig(),
+        repo_root=tmp_path,
+        stages=[mod.Stage.COMPILE, mod.Stage.VALIDATE],
+        add_diag=lambda **kwargs: None,
+        path_for_diag=lambda p: str(p),
+    )
+
+    annotation_patterns = ai_runner._collect_annotation_redaction_patterns(ctx)
+    registry_patterns = ai_runner._collect_registry_redaction_patterns(ctx)
 
     assert any(pattern.fullmatch("serial_number") for pattern in annotation_patterns)
     assert any(pattern.fullmatch("api_token") for pattern in annotation_patterns)

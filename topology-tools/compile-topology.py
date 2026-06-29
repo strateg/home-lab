@@ -3,11 +3,9 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 import os
-import re
 import sys
 import time
 from datetime import datetime, timezone
@@ -20,16 +18,8 @@ import yaml
 TOPOLOGY_TOOLS = Path(__file__).resolve().parent
 sys.path.insert(0, str(TOPOLOGY_TOOLS))
 
-from ai_runtime.ai_advisory_contract import parse_ai_output_payload, validate_ai_contract_payloads
-from ai_runtime.ai_ansible import (
-    parse_ansible_output_candidates,
-    validate_ansible_candidates_with_lint,
-)
-from ai_runtime.ai_assisted import build_candidate_diff, materialize_candidate_artifacts
-from ai_runtime.ai_promotion import promote_approved_candidates, resolve_approvals
-from ai_runtime.ai_rollback import list_ai_promoted_artifacts, rollback_ai_promoted_artifacts
-from ai_runtime.ai_sandbox import enforce_sandbox_resource_limits
-from compiler_ai_sessions import AiConfig, AiSessionPreparation, json_safe_payload, prepare_ai_session
+from compiler_ai_sessions import AiConfig, AiSessionRunner
+from compiler_framework_lock import FrameworkLockManager
 from compiler_cli import CompilerCliDependencies
 from compiler_cli import build_parser as build_compiler_parser
 from compiler_cli import run_cli
@@ -45,15 +35,6 @@ from compiler_runtime import (
     load_core_compile_inputs,
     resolve_manifest_paths,
 )
-from framework_lock import (
-    compute_framework_integrity,
-    default_framework_manifest_path,
-    verify_framework_lock,
-)
-from framework_lock import _git_remote as framework_lock_git_remote
-from framework_lock import _git_revision as framework_lock_git_revision
-from framework_lock import _load_yaml as framework_lock_load_yaml
-from framework_lock import resolve_paths as resolve_framework_lock_paths
 from kernel import (
     KERNEL_VERSION,
     STAGE_ORDER,
@@ -82,7 +63,6 @@ DEFAULT_PLUGINS_MANIFEST = TOPOLOGY_TOOLS / "plugins" / "plugins.yaml"
 SUPPORTED_RUNTIME_PROFILES = ("production", "modeled", "test-real", "dev")
 SUPPORTED_INSTANCE_SOURCE_MODES = ("auto", "sharded-only")
 SUPPORTED_SECRETS_MODES = ("inject", "passthrough", "strict")
-FRAMEWORK_LOCK_LOAD_CODES = {"E7821", "E7822"}
 REQUIRED_FRAMEWORK_KEYS = (
     "class_modules_root",
     "object_modules_root",
@@ -785,594 +765,6 @@ class V5Compiler:
             return None
         return payload
 
-    def _verify_framework_lock(
-        self,
-        *,
-        project_id: str,
-        project_root: Path,
-        project_manifest_path: Path,
-        framework_paths: dict[str, Any],
-    ) -> bool:
-        framework_root_value = framework_paths.get("root")
-        if isinstance(framework_root_value, str) and framework_root_value.strip():
-            lock_framework_root = resolve_repo_path(framework_root_value.strip())
-        else:
-            lock_framework_root = REPO_ROOT
-
-        try:
-            lock_paths = resolve_framework_lock_paths(
-                repo_root=REPO_ROOT,
-                topology_path=self.manifest_path,
-                project_id=project_id,
-                project_root=project_root,
-                project_manifest_path=project_manifest_path,
-                framework_root=lock_framework_root,
-                framework_manifest_path=default_framework_manifest_path(lock_framework_root),
-                lock_path=None,
-            )
-        except (OSError, ValueError) as exc:
-            self.add_diag(
-                code="E7827",
-                severity="error",
-                stage="load",
-                message=f"framework lock path resolution failed: {exc}",
-                path=self._path_for_diag(self.manifest_path),
-            )
-            return False
-
-        try:
-            verification = verify_framework_lock(paths=lock_paths, strict=True)
-        except (OSError, ValueError) as exc:
-            self.add_diag(
-                code="E7827",
-                severity="error",
-                stage="validate",
-                message=f"framework lock verification failed: {exc}",
-                path=self._path_for_diag(lock_paths.lock_path),
-            )
-            return False
-
-        # Dev profile: auto-regenerate lock on integrity mismatch (E7824)
-        if not verification.ok and self.runtime_profile == "dev":
-            has_integrity_mismatch = any(item.code == "E7824" for item in verification.diagnostics)
-            if has_integrity_mismatch:
-                try:
-                    self._regenerate_framework_lock(lock_paths)
-                    self.add_diag(
-                        code="I7829",
-                        severity="info",
-                        stage="validate",
-                        message=f"dev profile: auto-regenerated framework.lock.yaml for {project_id}",
-                        path=self._path_for_diag(lock_paths.lock_path),
-                    )
-                    # Retry verification after regeneration
-                    verification = verify_framework_lock(paths=lock_paths, strict=True)
-                except (OSError, ValueError) as exc:
-                    self.add_diag(
-                        code="E7827",
-                        severity="error",
-                        stage="validate",
-                        message=f"dev profile: framework lock auto-regeneration failed: {exc}",
-                        path=self._path_for_diag(lock_paths.lock_path),
-                    )
-                    return False
-
-        for item in verification.diagnostics:
-            stage = "load" if item.code in FRAMEWORK_LOCK_LOAD_CODES else "validate"
-            self.add_diag(
-                code=item.code,
-                severity=item.severity,
-                stage=stage,
-                message=item.message,
-                path=item.path,
-            )
-        return verification.ok
-
-    def _regenerate_framework_lock(self, lock_paths: Any) -> None:
-        """Regenerate framework.lock.yaml in place (dev profile only)."""
-        from datetime import UTC, datetime
-
-        framework_manifest = framework_lock_load_yaml(lock_paths.framework_manifest_path)
-        project_manifest = framework_lock_load_yaml(lock_paths.project_manifest_path)
-        integrity = compute_framework_integrity(
-            framework_root=lock_paths.framework_root,
-            framework_manifest=framework_manifest,
-        )
-        revision = framework_lock_git_revision(lock_paths.framework_root)
-        repository = framework_lock_git_remote(lock_paths.framework_root)
-
-        framework_id = str(framework_manifest.get("framework_id", "")).strip()
-        framework_version = str(framework_manifest.get("framework_api_version", "")).strip()
-        project_schema_version = str(project_manifest.get("project_schema_version", "")).strip()
-        project_contract_revision = project_manifest.get("project_contract_revision", 0)
-
-        payload: dict[str, Any] = {
-            "schema_version": 1,
-            "project_schema_version": project_schema_version,
-            "project_contract_revision": project_contract_revision if isinstance(project_contract_revision, int) else 0,
-            "framework": {
-                "id": framework_id,
-                "version": framework_version,
-                "source": "git",
-                "repository": repository or "",
-                "revision": revision or "UNKNOWN",
-                "integrity": integrity,
-            },
-            "locked_at": datetime.now(UTC).isoformat(),
-        }
-
-        lock_paths.lock_path.parent.mkdir(parents=True, exist_ok=True)
-        lock_paths.lock_path.write_text(
-            yaml.safe_dump(payload, sort_keys=False, allow_unicode=False),
-            encoding="utf-8",
-        )
-
-    @staticmethod
-    def _advisory_payload_hash(payload: dict[str, Any]) -> str:
-        digest = hashlib.sha256(json.dumps(payload, ensure_ascii=True, sort_keys=True).encode("utf-8")).hexdigest()
-        return f"sha256-{digest}"
-
-    @staticmethod
-    def _json_safe_payload(payload: dict[str, Any]) -> dict[str, Any]:
-        return json_safe_payload(payload)
-
-    @staticmethod
-    def _extract_path_leaf_token(path: str) -> str:
-        token = path.split(".")[-1].strip()
-        token = re.sub(r"\[\d+\]", "", token)
-        return token
-
-    def _collect_annotation_redaction_patterns(self, plugin_ctx: PluginContext | None) -> tuple[re.Pattern[str], ...]:
-        if plugin_ctx is None:
-            return ()
-        names: set[str] = set()
-        published = plugin_ctx.get_published_data().get("base.compiler.annotation_resolver", {})
-        for key in ("object_secret_annotations", "row_annotations_by_instance"):
-            container = published.get(key)
-            if not isinstance(container, dict):
-                continue
-            for _, annotations in container.items():
-                if not isinstance(annotations, dict):
-                    continue
-                for path, spec in annotations.items():
-                    if not isinstance(path, str) or not isinstance(spec, dict):
-                        continue
-                    if not bool(spec.get("secret")):
-                        continue
-                    leaf = self._extract_path_leaf_token(path)
-                    if leaf:
-                        names.add(leaf)
-        return tuple(re.compile(re.escape(name), re.IGNORECASE) for name in sorted(names))
-
-    def _collect_registry_redaction_patterns(self, plugin_ctx: PluginContext | None) -> tuple[re.Pattern[str], ...]:
-        if plugin_ctx is None:
-            return ()
-        secrets_root_raw = plugin_ctx.config.get("secrets_root")
-        if not isinstance(secrets_root_raw, str) or not secrets_root_raw.strip():
-            return ()
-        secrets_root = Path(secrets_root_raw.strip())
-        if not secrets_root.is_absolute():
-            secrets_root = (REPO_ROOT / secrets_root).resolve()
-        instances_dir = secrets_root / "instances"
-        if not instances_dir.exists() or not instances_dir.is_dir():
-            return ()
-
-        names: set[str] = set()
-
-        def walk(node: Any) -> None:
-            if isinstance(node, dict):
-                for key, value in node.items():
-                    if isinstance(key, str) and key not in {"sops", "instance"}:
-                        names.add(key.strip())
-                    walk(value)
-            elif isinstance(node, list):
-                for item in node:
-                    walk(item)
-
-        for path in sorted(instances_dir.glob("*.yaml")):
-            try:
-                payload = load_yaml_file(path) or {}
-            except Exception:
-                continue
-            walk(payload)
-        names = {name for name in names if name}
-        return tuple(re.compile(re.escape(name), re.IGNORECASE) for name in sorted(names))
-
-    def _load_ai_output_payload(self) -> dict[str, Any] | None:
-        if self.ai_output_json is None:
-            return None
-        path = self.ai_output_json
-        if not path.exists() or not path.is_file():
-            self.add_diag(
-                code="E8941",
-                severity="error",
-                stage="validate",
-                message=f"AI advisory output JSON does not exist: {path}",
-                path=self._path_for_diag(path),
-            )
-            return None
-        try:
-            payload = json.loads(path.read_text(encoding="utf-8"))
-        except Exception as exc:
-            self.add_diag(
-                code="E8941",
-                severity="error",
-                stage="validate",
-                message=f"AI advisory output JSON parse error: {exc}",
-                path=self._path_for_diag(path),
-            )
-            return None
-        if not isinstance(payload, dict):
-            self.add_diag(
-                code="E8941",
-                severity="error",
-                stage="validate",
-                message="AI advisory output JSON root must be an object.",
-                path=self._path_for_diag(path),
-            )
-            return None
-        return payload
-
-    def _print_advisory_recommendations(self, parsed_output: dict[str, Any]) -> None:
-        recommendations = parsed_output.get("recommendations", [])
-        confidence_scores = parsed_output.get("confidence_scores", {})
-        LOGGER.info("[ai-advisory] Recommendations:")
-        if not isinstance(recommendations, list) or not recommendations:
-            LOGGER.info("[ai-advisory] - No recommendations.")
-            return
-        for index, row in enumerate(recommendations, start=1):
-            if not isinstance(row, dict):
-                continue
-            path = str(row.get("path", "<unknown>"))
-            action = str(row.get("action", "suggest"))
-            rationale = str(row.get("rationale", "")).strip()
-            score = confidence_scores.get(path) if isinstance(confidence_scores, dict) else None
-            score_token = f"{float(score):.2f}" if isinstance(score, (int, float)) else "n/a"
-            LOGGER.info(f"[ai-advisory] {index}. {action} {path} (confidence={score_token})")
-            if rationale:
-                LOGGER.info(f"[ai-advisory]    rationale: {rationale}")
-
-    def _prepare_ai_session(
-        self,
-        *,
-        mode: str,
-        effective_payload: dict[str, Any],
-        project_id: str,
-        plugin_ctx: PluginContext | None,
-        plugin_id: str,
-        enforce_initial_sandbox_limits: bool,
-    ) -> AiSessionPreparation:
-        return prepare_ai_session(
-            ai_config=self.ai_config,
-            repo_root=REPO_ROOT,
-            mode=mode,
-            effective_payload=effective_payload,
-            project_id=project_id,
-            plugin_id=plugin_id,
-            stages=self.stages,
-            enforce_initial_sandbox_limits=enforce_initial_sandbox_limits,
-            annotation_patterns=self._collect_annotation_redaction_patterns(plugin_ctx),
-            registry_patterns=self._collect_registry_redaction_patterns(plugin_ctx),
-        )
-
-    def _run_ai_advisory_session(
-        self,
-        *,
-        effective_payload: dict[str, Any],
-        project_id: str,
-        plugin_ctx: PluginContext | None,
-    ) -> None:
-        start_ts = time.monotonic()
-        session = self._prepare_ai_session(
-            mode="advisory",
-            effective_payload=effective_payload,
-            project_id=project_id,
-            plugin_ctx=plugin_ctx,
-            plugin_id="base.compiler.ai_advisory",
-            enforce_initial_sandbox_limits=True,
-        )
-        if session.cleaned_audit_logs:
-            LOGGER.info(f"[ai-advisory] Cleaned {len(session.cleaned_audit_logs)} old audit day folders.")
-        if session.cleaned_sandbox_sessions:
-            LOGGER.info(f"[ai-advisory] Cleaned {len(session.cleaned_sandbox_sessions)} old sandbox sessions.")
-        LOGGER.info(f"[ai-advisory] Sandbox session: {self._path_for_diag(session.sandbox_session)}")
-        ai_input = session.ai_input
-        ai_output = self._load_ai_output_payload()
-        errors = validate_ai_contract_payloads(ai_input=ai_input, ai_output=ai_output, ctx=plugin_ctx)
-        if errors:
-            for message in errors:
-                self.add_diag(
-                    code="E8941",
-                    severity="error",
-                    stage="validate",
-                    message=message,
-                    path="ai-advisory:contract",
-                )
-            session.audit.log_event(
-                event_type="candidate_validation_result",
-                payload={"mode": "advisory", "status": "contract_error", "errors": errors},
-                input_hash=str(ai_input.get("input_hash", "")),
-            )
-            return
-
-        input_hash = str(ai_input.get("input_hash", ""))
-        session.audit.log_event(
-            event_type="ai_request_sent",
-            payload={
-                "mode": "advisory",
-                "sandbox_session": self._path_for_diag(session.sandbox_session),
-                "sandbox_usage": session.sandbox_usage,
-                "sandbox_limits": {
-                    "max_files": self.ai_config.sandbox_max_files,
-                    "max_bytes": self.ai_config.sandbox_max_bytes,
-                },
-                "annotation_pattern_count": len(session.annotation_patterns),
-                "registry_pattern_count": len(session.registry_patterns),
-                "env_keys_forwarded": len(session.sanitized_env),
-                "env_keys_removed": session.removed_env_keys,
-            },
-            input_hash=input_hash,
-        )
-        parsed: dict[str, Any] = {"recommendations": [], "confidence_scores": {}, "metadata": {}}
-        output_hash = ""
-        if ai_output is not None:
-            output_hash = self._advisory_payload_hash(ai_output)
-            parsed = parse_ai_output_payload(ai_output)
-            session.audit.log_event(
-                event_type="ai_response_received",
-                payload={
-                    "mode": "advisory",
-                    "recommendation_count": len(parsed.get("recommendations", [])),
-                },
-                input_hash=input_hash,
-                output_hash=output_hash,
-            )
-        self._print_advisory_recommendations(parsed)
-        session.audit.log_event(
-            event_type="candidate_validation_result",
-            payload={
-                "mode": "advisory",
-                "status": "completed",
-                "recommendation_count": len(parsed.get("recommendations", [])),
-            },
-            input_hash=input_hash,
-            output_hash=output_hash,
-        )
-        elapsed = time.monotonic() - start_ts
-        if elapsed > self.ai_config.advisory_max_latency_seconds:
-            self.add_diag(
-                code="W8941",
-                severity="warning",
-                stage="validate",
-                message=(
-                    "AI advisory latency exceeded configured limit: "
-                    f"{elapsed:.2f}s > {self.ai_config.advisory_max_latency_seconds:.2f}s"
-                ),
-                path="ai-advisory:latency",
-            )
-        LOGGER.info(f"[ai-advisory] Audit log: {self._path_for_diag(session.audit.log_path)}")
-
-    def _run_ai_assisted_session(
-        self,
-        *,
-        effective_payload: dict[str, Any],
-        project_id: str,
-        plugin_ctx: PluginContext | None,
-    ) -> None:
-        start_ts = time.monotonic()
-        session = self._prepare_ai_session(
-            mode="assisted",
-            effective_payload=effective_payload,
-            project_id=project_id,
-            plugin_ctx=plugin_ctx,
-            plugin_id="base.compiler.ai_assisted",
-            enforce_initial_sandbox_limits=False,
-        )
-        if session.cleaned_audit_logs:
-            LOGGER.info(f"[ai-assisted] Cleaned {len(session.cleaned_audit_logs)} old audit day folders.")
-        if session.cleaned_sandbox_sessions:
-            LOGGER.info(f"[ai-assisted] Cleaned {len(session.cleaned_sandbox_sessions)} old sandbox sessions.")
-        LOGGER.info(f"[ai-assisted] Sandbox session: {self._path_for_diag(session.sandbox_session)}")
-
-        ai_input = session.ai_input
-        ai_output = self._load_ai_output_payload()
-        errors = validate_ai_contract_payloads(ai_input=ai_input, ai_output=ai_output, ctx=plugin_ctx)
-        if errors:
-            for message in errors:
-                self.add_diag(
-                    code="E8941",
-                    severity="error",
-                    stage="validate",
-                    message=message,
-                    path="ai-assisted:contract",
-                )
-            session.audit.log_event(
-                event_type="candidate_validation_result",
-                payload={"mode": "assisted", "status": "contract_error", "errors": errors},
-                input_hash=str(ai_input.get("input_hash", "")),
-            )
-            return
-
-        input_hash = str(ai_input.get("input_hash", ""))
-        session.audit.log_event(
-            event_type="ai_request_sent",
-            payload={
-                "mode": "assisted",
-                "sandbox_session": self._path_for_diag(session.sandbox_session),
-                "annotation_pattern_count": len(session.annotation_patterns),
-                "registry_pattern_count": len(session.registry_patterns),
-                "env_keys_forwarded": len(session.sanitized_env),
-                "env_keys_removed": session.removed_env_keys,
-            },
-            input_hash=input_hash,
-        )
-        rollback_requested = self.ai_config.rollback_all or bool(self.ai_config.rollback_paths)
-        if rollback_requested:
-            rollback_candidates = list_ai_promoted_artifacts(repo_root=REPO_ROOT, project_id=project_id)
-            if self.ai_config.rollback_all:
-                targets = rollback_candidates
-            else:
-                wanted = set(self.ai_config.rollback_paths)
-                targets = [row for row in rollback_candidates if str(row.get("path", "")) in wanted]
-            rollback = rollback_ai_promoted_artifacts(
-                repo_root=REPO_ROOT,
-                artifacts=targets,
-                ref=self.ai_config.rollback_ref,
-            )
-            LOGGER.info(
-                "[ai-assisted] rollback: "
-                f"restored={len(rollback['restored'])} "
-                f"deleted={len(rollback['deleted'])} "
-                f"failed={len(rollback['failed'])} "
-                f"duration={rollback['duration_seconds']:.3f}s"
-            )
-            session.audit.log_event(
-                event_type="rollback_result",
-                payload={
-                    "mode": "assisted",
-                    "ref": self.ai_config.rollback_ref,
-                    "target_count": len(targets),
-                    "restored": rollback["restored"],
-                    "deleted": rollback["deleted"],
-                    "failed": rollback["failed"],
-                    "duration_seconds": rollback["duration_seconds"],
-                },
-                input_hash=input_hash,
-            )
-            LOGGER.info(f"[ai-assisted] Audit log: {self._path_for_diag(session.audit.log_path)}")
-            return
-        if ai_output is None:
-            self.add_diag(
-                code="E8941",
-                severity="error",
-                stage="validate",
-                message="AI assisted mode requires --ai-output-json payload.",
-                path="ai-assisted:output",
-            )
-            return
-
-        output_hash = self._advisory_payload_hash(ai_output)
-        parsed = parse_ai_output_payload(ai_output)
-        raw_candidates = ai_output.get("candidate_artifacts")
-        candidates = raw_candidates if isinstance(raw_candidates, list) else []
-        accepted, rejected = materialize_candidate_artifacts(
-            repo_root=REPO_ROOT,
-            sandbox_session=session.sandbox_session,
-            project_id=project_id,
-            candidates=[row for row in candidates if isinstance(row, dict)],
-        )
-        for row in accepted:
-            diff_payload = build_candidate_diff(
-                baseline_path=Path(row["baseline_path"]),
-                candidate_path=Path(row["candidate_path"]),
-                logical_path=str(row["path"]),
-            )
-            LOGGER.info(
-                f"[ai-assisted] {diff_payload['change_type']}: "
-                f"{diff_payload['path']} (added_lines={diff_payload['added_lines']})"
-            )
-            confidence = parsed.get("confidence_scores", {}).get(str(row["path"]))
-            if isinstance(confidence, (int, float)):
-                LOGGER.info(f"[ai-assisted]   confidence: {float(confidence):.2f}")
-        if rejected:
-            for row in rejected:
-                LOGGER.info(f"[ai-assisted] rejected: {row['path']} ({row['reason']})")
-        ansible_candidates = parse_ansible_output_candidates(project_id=project_id, ai_output=ai_output)
-        if self.ai_config.ansible_lint and ansible_candidates:
-            lint_failures = validate_ansible_candidates_with_lint(
-                candidates=accepted,
-                lint_cmd=self.ai_config.ansible_lint_cmd,
-            )
-            if lint_failures:
-                rejected.extend(lint_failures)
-                accepted = [
-                    row for row in accepted if str(row.get("path", "")) not in {f["path"] for f in lint_failures}
-                ]
-                for item in lint_failures:
-                    LOGGER.info(f"[ai-assisted] lint-rejected: {item['path']} ({item['reason']})")
-
-        enforce_sandbox_resource_limits(
-            sandbox_session=session.sandbox_session,
-            max_files=self.ai_config.sandbox_max_files,
-            max_bytes=self.ai_config.sandbox_max_bytes,
-        )
-        approve_paths_set = set(self.ai_config.approve_paths)
-        approved, approval_rejected = resolve_approvals(
-            candidates=accepted,
-            approve_all=self.ai_config.approve_all,
-            approve_paths=approve_paths_set,
-        )
-        session.audit.log_event(
-            event_type="human_approval_decision",
-            payload={
-                "mode": "assisted",
-                "approve_all": self.ai_config.approve_all,
-                "approved_count": len(approved),
-                "rejected_count": len(approval_rejected),
-                "approved_paths": [str(row.get("path", "")) for row in approved],
-            },
-            input_hash=input_hash,
-            output_hash=output_hash,
-        )
-
-        promoted: list[dict[str, str]] = []
-        if self.ai_config.promote_approved:
-            if not approved:
-                LOGGER.info("[ai-assisted] promotion skipped: no approved candidates.")
-            else:
-                promoted = promote_approved_candidates(repo_root=REPO_ROOT, approved=approved)
-                for row in promoted:
-                    LOGGER.info(f"[ai-assisted] promoted: {row['path']}")
-        else:
-            LOGGER.info("[ai-assisted] promotion gate: disabled (use --ai-promote-approved).")
-
-        session.audit.log_event(
-            event_type="ai_response_received",
-            payload={
-                "mode": "assisted",
-                "candidate_count": len(candidates),
-                "accepted_candidates": len(accepted),
-                "rejected_candidates": len(rejected),
-            },
-            input_hash=input_hash,
-            output_hash=output_hash,
-        )
-        session.audit.log_event(
-            event_type="candidate_validation_result",
-            payload={
-                "mode": "assisted",
-                "status": "completed",
-                "accepted_candidates": len(accepted),
-                "rejected_candidates": len(rejected),
-            },
-            input_hash=input_hash,
-            output_hash=output_hash,
-        )
-        session.audit.log_event(
-            event_type="candidate_promotion_result",
-            payload={
-                "mode": "assisted",
-                "promotion_enabled": self.ai_config.promote_approved,
-                "promoted_count": len(promoted),
-                "promoted_paths": [row["path"] for row in promoted],
-            },
-            input_hash=input_hash,
-            output_hash=output_hash,
-        )
-        elapsed = time.monotonic() - start_ts
-        if elapsed > self.ai_config.assisted_max_latency_seconds:
-            self.add_diag(
-                code="W8941",
-                severity="warning",
-                stage="validate",
-                message=(
-                    "AI assisted latency exceeded configured limit: "
-                    f"{elapsed:.2f}s > {self.ai_config.assisted_max_latency_seconds:.2f}s"
-                ),
-                path="ai-assisted:latency",
-            )
-        LOGGER.info(f"[ai-assisted] Audit log: {self._path_for_diag(session.audit.log_path)}")
-
     def _write_diagnostics(self) -> tuple[int, int, int, int]:
         self._write_execution_trace()
         plugin_stats = self._plugin_registry.get_stats() if self._plugin_registry else None
@@ -1418,44 +810,28 @@ class V5Compiler:
         if emit_effective and errors == 0:
             print(f"Effective JSON:   {self.output_json}")
 
-    def run(self) -> int:
-        self._run_generated_at = utc_now()
-        if self.trace_execution and self._plugin_registry:
-            self._plugin_registry.reset_execution_trace()
-        if not self._validate_stage_selection():
-            total, errors, warnings, infos = self._write_diagnostics()
-            self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
-            return 1
-        if self.pipeline_mode != "plugin-first":
-            self.add_diag(
-                code="E6904",
-                severity="error",
-                stage="validate",
-                message=("pipeline_mode=legacy is retired after ADR0069 cutover; " "use --pipeline-mode plugin-first."),
-                path="pipeline:mode",
-            )
-            total, errors, warnings, infos = self._write_diagnostics()
-            self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
-            return 1
+    def _fail_early(self) -> int:
+        """Write diagnostics and return failure exit code (thin orchestrator helper)."""
+        total, errors, warnings, infos = self._write_diagnostics()
+        self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
+        return 1
 
-        if self.parity_gate:
-            self.add_diag(
-                code="E6905",
-                severity="error",
-                stage="validate",
-                message="--parity-gate is not supported after plugin-first cutover.",
-                path="pipeline:parity",
-            )
-            total, errors, warnings, infos = self._write_diagnostics()
-            self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
+    def _finalize(self, *, emit_effective: bool = False) -> int:
+        """Write final diagnostics and return appropriate exit code."""
+        total, errors, warnings, infos = self._write_diagnostics()
+        self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=emit_effective)
+        if errors > 0:
             return 1
+        if self.fail_on_warning and warnings > 0:
+            return 2
+        return 0
 
-        manifest = self._load_yaml(self.manifest_path, code_missing="E1001", code_parse="E1003", stage="load")
-        if manifest is None:
-            total, errors, warnings, infos = self._write_diagnostics()
-            self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
-            return 1
+    def _has_errors(self) -> bool:
+        """Check if any error diagnostics exist."""
+        return any(item.severity == "error" for item in self._diagnostics)
 
+    def _validate_topology_manifest(self, manifest: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]] | None:
+        """Validate topology manifest structure. Returns (framework_paths, project_section) or None on error."""
         legacy_paths = manifest.get("paths")
         if legacy_paths is not None:
             self.add_diag(
@@ -1465,9 +841,7 @@ class V5Compiler:
                 message="Legacy manifest contract section 'paths' is unsupported in strict-only mode.",
                 path="topology/topology.yaml:paths",
             )
-            total, errors, warnings, infos = self._write_diagnostics()
-            self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
-            return 1
+            return None
 
         framework_paths = manifest.get("framework")
         if not isinstance(framework_paths, dict):
@@ -1478,9 +852,7 @@ class V5Compiler:
                 message="topology manifest must contain mapping key 'framework'.",
                 path="topology/topology.yaml:framework",
             )
-            total, errors, warnings, infos = self._write_diagnostics()
-            self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
-            return 1
+            return None
 
         project_section = manifest.get("project")
         if not isinstance(project_section, dict):
@@ -1491,9 +863,7 @@ class V5Compiler:
                 message="topology manifest must contain mapping key 'project'.",
                 path="topology/topology.yaml:project",
             )
-            total, errors, warnings, infos = self._write_diagnostics()
-            self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
-            return 1
+            return None
 
         for key in REQUIRED_FRAMEWORK_KEYS:
             value = framework_paths.get(key)
@@ -1527,11 +897,64 @@ class V5Compiler:
                     message=f"project.{key} must be non-empty string.",
                     path=f"topology/topology.yaml:project.{key}",
                 )
-        if any(item.severity == "error" for item in self._diagnostics):
-            total, errors, warnings, infos = self._write_diagnostics()
-            self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
-            return 1
 
+        if self._has_errors():
+            return None
+
+        return framework_paths, project_section
+
+    def _validate_project_manifest(self, project_manifest: dict[str, Any], project_manifest_path: Path) -> bool:
+        """Validate project manifest required keys. Returns True if valid."""
+        for key in REQUIRED_PROJECT_MANIFEST_KEYS:
+            value = project_manifest.get(key)
+            if not isinstance(value, str) or not value.strip():
+                self.add_diag(
+                    code="E3201",
+                    severity="error",
+                    stage="validate",
+                    message=f"project manifest key '{key}' must be non-empty string.",
+                    path=f"{self._path_for_diag(project_manifest_path)}:{key}",
+                )
+        return not self._has_errors()
+
+    def run(self) -> int:
+        self._run_generated_at = utc_now()
+        if self.trace_execution and self._plugin_registry:
+            self._plugin_registry.reset_execution_trace()
+
+        # Phase 1: Pre-validation checks
+        if not self._validate_stage_selection():
+            return self._fail_early()
+        if self.pipeline_mode != "plugin-first":
+            self.add_diag(
+                code="E6904",
+                severity="error",
+                stage="validate",
+                message="pipeline_mode=legacy is retired after ADR0069 cutover; use --pipeline-mode plugin-first.",
+                path="pipeline:mode",
+            )
+            return self._fail_early()
+        if self.parity_gate:
+            self.add_diag(
+                code="E6905",
+                severity="error",
+                stage="validate",
+                message="--parity-gate is not supported after plugin-first cutover.",
+                path="pipeline:parity",
+            )
+            return self._fail_early()
+
+        # Phase 2: Load and validate topology manifest
+        manifest = self._load_yaml(self.manifest_path, code_missing="E1001", code_parse="E1003", stage="load")
+        if manifest is None:
+            return self._fail_early()
+
+        manifest_result = self._validate_topology_manifest(manifest)
+        if manifest_result is None:
+            return self._fail_early()
+        framework_paths, project_section = manifest_result
+
+        # Phase 3: Load and validate project manifest
         project_id = self.project_override if self.project_override else str(project_section["active"]).strip()
         projects_root_path = resolve_repo_path(str(project_section["projects_root"]).strip())
         project_root = projects_root_path / project_id
@@ -1544,34 +967,26 @@ class V5Compiler:
             project_manifest_path, code_missing="E1001", code_parse="E1003", stage="load"
         )
         if project_manifest is None:
-            total, errors, warnings, infos = self._write_diagnostics()
-            self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
-            return 1
+            return self._fail_early()
+        if not self._validate_project_manifest(project_manifest, project_manifest_path):
+            return self._fail_early()
 
-        for key in REQUIRED_PROJECT_MANIFEST_KEYS:
-            value = project_manifest.get(key)
-            if not isinstance(value, str) or not value.strip():
-                self.add_diag(
-                    code="E3201",
-                    severity="error",
-                    stage="validate",
-                    message=f"project manifest key '{key}' must be non-empty string.",
-                    path=f"{self._path_for_diag(project_manifest_path)}:{key}",
-                )
-        if any(item.severity == "error" for item in self._diagnostics):
-            total, errors, warnings, infos = self._write_diagnostics()
-            self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
-            return 1
-
-        if not self._verify_framework_lock(
+        # Phase 4: Verify framework lock
+        framework_lock_mgr = FrameworkLockManager(
+            repo_root=REPO_ROOT,
+            manifest_path=self.manifest_path,
+            runtime_profile=self.runtime_profile,
+            add_diag=self.add_diag,
+            path_for_diag=self._path_for_diag,
+            resolve_repo_path=resolve_repo_path,
+        )
+        if not framework_lock_mgr.verify(
             project_id=project_id,
             project_root=project_root,
             project_manifest_path=project_manifest_path,
             framework_paths=framework_paths,
         ):
-            total, errors, warnings, infos = self._write_diagnostics()
-            self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
-            return 1
+            return self._fail_early()
 
         manifest_bundle = resolve_manifest_paths(
             framework_paths=framework_paths,
@@ -1601,10 +1016,9 @@ class V5Compiler:
                 message="project manifest must resolve non-empty secrets_root path.",
                 path=f"{self._path_for_diag(project_manifest_path)}:secrets_root",
             )
-            total, errors, warnings, infos = self._write_diagnostics()
-            self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
-            return 1
+            return self._fail_early()
 
+        # Phase 5: Setup plugin context and execute pipeline
         self._load_base_plugin_manifest()
         source_manifest_digest = manifest_digest(manifest)
         workspace_root_path = self._project_scoped_root(self.workspace_root, manifest_bundle.project_id)
@@ -1695,19 +1109,12 @@ class V5Compiler:
             plugin_ctx.config["discovered_plugin_manifests"] = list(self._discovered_manifest_paths)
             plugin_ctx.config["discovered_plugin_count"] = self._discovered_plugin_count
         self._capture_published_key_inventory(plugin_ctx)
-        if any(item.severity == "error" for item in self._diagnostics):
-            total, errors, warnings, infos = self._write_diagnostics()
-            self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
-            return 1
+        if self._has_errors():
+            return self._fail_early()
         if Stage.COMPILE not in self.stages:
-            total, errors, warnings, infos = self._write_diagnostics()
-            self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
-            if errors > 0:
-                return 1
-            if self.fail_on_warning and warnings > 0:
-                return 2
-            return 0
-        # Execute compiler plugins first
+            return self._finalize()
+
+        # Phase 6: Execute compiler plugins
         self._execute_plugins(stage=Stage.COMPILE, ctx=plugin_ctx)
         apply_plugin_compile_outputs(
             inputs=inputs,
@@ -1748,42 +1155,37 @@ class V5Compiler:
             add_diag=self.add_diag,
             repo_root=REPO_ROOT,
         )
-        if (
-            self.ai_advisory
-            and plugin_ctx is not None
-            and not any(item.severity == "error" for item in self._diagnostics)
-        ):
-            self._run_ai_advisory_session(
-                effective_payload=effective_payload,
-                project_id=manifest_bundle.project_id,
-                plugin_ctx=plugin_ctx,
+        # Phase 7: AI sessions (optional)
+        if (self.ai_advisory or self.ai_assisted) and plugin_ctx is not None and not self._has_errors():
+            ai_runner = AiSessionRunner(
+                ai_config=self.ai_config,
+                repo_root=REPO_ROOT,
+                stages=self.stages,
+                add_diag=self.add_diag,
+                path_for_diag=self._path_for_diag,
             )
-        if (
-            self.ai_assisted
-            and plugin_ctx is not None
-            and not any(item.severity == "error" for item in self._diagnostics)
-        ):
-            self._run_ai_assisted_session(
-                effective_payload=effective_payload,
-                project_id=manifest_bundle.project_id,
-                plugin_ctx=plugin_ctx,
-            )
+            if self.ai_advisory:
+                ai_runner.run_advisory_session(
+                    effective_payload=effective_payload,
+                    project_id=manifest_bundle.project_id,
+                    plugin_ctx=plugin_ctx,
+                )
+            if self.ai_assisted:
+                ai_runner.run_assisted_session(
+                    effective_payload=effective_payload,
+                    project_id=manifest_bundle.project_id,
+                    plugin_ctx=plugin_ctx,
+                )
 
-        if plugin_ctx is not None and not any(item.severity == "error" for item in self._diagnostics):
+        if plugin_ctx is not None and not self._has_errors():
             if Stage.ASSEMBLE in self.stages:
                 self._execute_plugins(stage=Stage.ASSEMBLE, ctx=plugin_ctx)
-            if Stage.BUILD in self.stages and not any(item.severity == "error" for item in self._diagnostics):
+            if Stage.BUILD in self.stages and not self._has_errors():
                 self._execute_plugins(stage=Stage.BUILD, ctx=plugin_ctx)
         self._capture_published_key_inventory(plugin_ctx)
 
-        total, errors, warnings, infos = self._write_diagnostics()
-        self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=True)
-
-        if errors > 0:
-            return 1
-        if self.fail_on_warning and warnings > 0:
-            return 2
-        return 0
+        # Phase 8: Finalize
+        return self._finalize(emit_effective=True)
 
 
 def _set_cli_repo_root(repo_root: Path) -> None:
