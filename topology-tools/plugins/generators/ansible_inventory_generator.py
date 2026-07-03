@@ -14,7 +14,8 @@ from plugins.generators.artifact_contract import (
     write_contract_artifacts,
 )
 from plugins.generators.base_generator import BaseGenerator
-from plugins.generators.projections import ProjectionError, build_ansible_projection
+from plugins.generators.projection_core import ProjectionError
+from plugins.generators.projections.ansible import build_ansible_projection
 
 
 class AnsibleInventoryGenerator(BaseGenerator):

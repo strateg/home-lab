@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage
 from plugins.generators.base_generator import BaseGenerator
-from plugins.generators.projections import ProjectionError, build_docs_projection
+from plugins.generators.projection_core import ProjectionError
+from plugins.generators.projections.docs import build_docs_projection
 
 
 class DocsGenerator(BaseGenerator):

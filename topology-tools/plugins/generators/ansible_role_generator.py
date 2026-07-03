@@ -14,11 +14,6 @@ from __future__ import annotations
 from typing import Any
 
 from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage
-from plugins.generators.ansible_role_projections import (
-    build_wireguard_gateway_vars,
-    resolve_tunnel_instance,
-    resolve_vlan_instance,
-)
 from plugins.generators.artifact_contract import (
     build_artifact_plan,
     build_generation_report,
@@ -28,10 +23,15 @@ from plugins.generators.artifact_contract import (
     write_contract_artifacts,
 )
 from plugins.generators.base_generator import BaseGenerator
-from plugins.generators.projections import (
-    ProjectionError,
+from plugins.generators.projection_core import ProjectionError
+from plugins.generators.projections.ansible import (
     build_ansible_role_projection,
     build_host_vars_for_role,
+)
+from plugins.generators.projections.ansible_roles import (
+    build_wireguard_gateway_vars,
+    resolve_tunnel_instance,
+    resolve_vlan_instance,
 )
 
 

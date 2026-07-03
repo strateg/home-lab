@@ -7,7 +7,8 @@ from typing import Any
 
 from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage
 from plugins.generators.base_generator import BaseGenerator
-from plugins.generators.projections import ProjectionError, build_topology_projection
+from plugins.generators.projection_core import ProjectionError
+from plugins.generators.projections.topology_graph import build_topology_projection
 
 
 class TopologyGraphGenerator(BaseGenerator):

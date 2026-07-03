@@ -10,11 +10,11 @@ from pathlib import Path
 V5_TOOLS = Path(__file__).resolve().parents[2] / "topology-tools"
 sys.path.insert(0, str(V5_TOOLS))
 
-from plugins.generators.docs.network_projection import build_network_projection  # noqa: E402
-from plugins.generators.docs.operations_projection import build_operations_projection  # noqa: E402
-from plugins.generators.docs.physical_projection import build_physical_projection  # noqa: E402
-from plugins.generators.docs.security_projection import build_security_projection  # noqa: E402
-from plugins.generators.docs.storage_projection import build_storage_projection  # noqa: E402
+from plugins.generators.projections.network import build_network_projection  # noqa: E402
+from plugins.generators.projections.operations import build_operations_projection  # noqa: E402
+from plugins.generators.projections.physical import build_physical_projection  # noqa: E402
+from plugins.generators.projections.security import build_security_projection  # noqa: E402
+from plugins.generators.projections.storage import build_storage_projection  # noqa: E402
 
 
 def _compiled_fixture() -> dict:

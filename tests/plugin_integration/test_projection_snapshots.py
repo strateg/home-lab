@@ -18,7 +18,7 @@ from plugins.generators.object_projection_loader import (  # noqa: E402
     load_bootstrap_projection_module,
     load_object_projection_module,
 )
-from plugins.generators.projections import build_ansible_projection  # noqa: E402
+from plugins.generators.projections.ansible import build_ansible_projection  # noqa: E402
 
 _PROXMOX_PROJECTIONS = load_object_projection_module("proxmox")
 _MIKROTIK_PROJECTIONS = load_object_projection_module("mikrotik")

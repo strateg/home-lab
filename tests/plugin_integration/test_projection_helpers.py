@@ -15,11 +15,9 @@ from plugins.generators.object_projection_loader import (  # noqa: E402
     load_bootstrap_projection_module,
     load_object_projection_module,
 )
-from plugins.generators.projections import (  # noqa: E402
-    build_ansible_projection,
-    build_docs_projection,
-    build_topology_projection,
-)
+from plugins.generators.projections.ansible import build_ansible_projection  # noqa: E402
+from plugins.generators.projections.docs import build_docs_projection  # noqa: E402
+from plugins.generators.projections.topology_graph import build_topology_projection  # noqa: E402
 
 _PROXMOX_PROJECTIONS = load_object_projection_module("proxmox")
 _MIKROTIK_PROJECTIONS = load_object_projection_module("mikrotik")
@@ -282,7 +280,7 @@ def test_docs_projection_includes_vms_with_host_ref() -> None:
 
 def test_safe_id_sanitizes_special_characters() -> None:
     """Test that safe_id replaces '.', '-', and '@' with '_'."""
-    from plugins.generators.projections import _safe_id
+    from plugins.generators.projections.mermaid import _safe_id
 
     assert _safe_id("svc-grafana@lxc.lxc-grafana") == "svc_grafana_lxc_lxc_grafana"
     assert _safe_id("inst.vlan.servers") == "inst_vlan_servers"

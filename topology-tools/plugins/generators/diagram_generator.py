@@ -8,7 +8,8 @@ from typing import Any
 
 from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage
 from plugins.generators.base_generator import BaseGenerator
-from plugins.generators.projections import ProjectionError, build_diagram_projection
+from plugins.generators.projection_core import ProjectionError
+from plugins.generators.projections.diagram import build_diagram_projection
 from plugins.icons.icon_manager import IconManager
 
 # Supported icon modes (ADR 0027)
