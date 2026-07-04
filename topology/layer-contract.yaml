@@ -73,6 +73,8 @@ class_layers:
     allowed_layers: [L1]
   class.storage.media:
     allowed_layers: [L1]
+  class.device.iot_endpoint:
+    allowed_layers: [L1]
 
   # L2 - Network (bridges, VLANs, firewall)
   class.network.data_link:
@@ -94,6 +96,8 @@ class_layers:
     allowed_layers: [L2]
   class.network.tunnel_link:
     allowed_layers: [L2]
+  class.network.security_matrix:
+    allowed_layers: [L2]
 
   # L3 - Storage/Data (pools, volumes, media, data assets)
   class.storage.pool:
@@ -101,8 +105,6 @@ class_layers:
   class.storage.volume:
     allowed_layers: [L3]
   class.storage.data_asset:
-    allowed_layers: [L3]
-  class.device.iot_endpoint:
     allowed_layers: [L3]
 
   # L4 - Platform (workloads)
