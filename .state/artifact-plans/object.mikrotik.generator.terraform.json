@@ -261,6 +261,13 @@
       "renderer": "jinja2",
       "required": true,
       "template": "mikrotik/wifi-config.rsc.j2"
+    },
+    {
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/rtr-mikrotik-chateau.wifi.yml",
+      "reason": "capability-enabled",
+      "renderer": "jinja2",
+      "required": true,
+      "template": "ansible/host_vars_wifi.yml.j2"
     }
   ],
   "plugin_id": "object.mikrotik.generator.terraform",

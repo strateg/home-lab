@@ -6,6 +6,7 @@ source_id: docker-adguard-secondary
 notes: ADR 0107 cleanup - inherits os_refs, network_ref, gateway from host
 host_ref: srv-orangepi5
 network:
-  ip: 10.0.30.217/24
+  vlan_ref: inst.vlan.servers
+  host: 217
 runtime:
   image: adguard/adguardhome:latest

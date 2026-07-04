@@ -19,14 +19,24 @@ metadata:
         "@title": 0.80
 warning_governance:
   allowlist:
-    - W3201
+    - W6814
     - W7816
+    - W7844
+    - W7864
     - W7892
     - W7941
     - W7942
   max_counts:
-    W3201: 14
+    # W6814: optional @on:host.network.bridge_ref? absent on docker-only host
+    # srv-orangepi5 (no bridge by design).
+    W6814: 8
     W7816: 5
+    # W7844: svc-postgresql-germany attaches vpn_germany via WireGuard tunnel
+    # routing, not direct VLAN (documented in instance).
+    W7844: 1
+    # W7864: docker-nginx uses RouterOS container bridge (inst.bridge.containers,
+    # 172.18.0.0/24) - no VLAN to migrate to (ADR 0111).
+    W7864: 1
     W7892: 50
     W7941: 5
     W7942: 10

@@ -6,8 +6,7 @@ source_id: docker-adguard
 notes: RouterOS container on LAN network (MikroTik runtime)
 host_ref: rtr-mikrotik-chateau
 network:
-  network_ref: inst.vlan.lan
-  ip: 192.168.88.210/24
-  gateway: 192.168.88.1
+  vlan_ref: inst.vlan.lan
+  host: 210
 runtime:
   image: adguard/adguardhome

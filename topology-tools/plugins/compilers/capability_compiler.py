@@ -271,18 +271,13 @@ class CapabilityCompiler(CompilerPlugin):
         os_caps, effective_os = shared_derive_os(
             object_id=object_id,
             object_payload=object_data,
-            catalog_ids=set(),  # Catalog validation done by capability_contract_validator
+            catalog_ids=set(),
             path=path,
-            add_diag=lambda **kwargs: diagnostics.append(
-                self.emit_diagnostic(
-                    code=kwargs.get("code", "W3201"),
-                    severity=kwargs.get("severity", "warning"),
-                    stage=stage,
-                    message=kwargs.get("message", ""),
-                    path=kwargs.get("path", path),
-                )
-            ),
-            emit_diagnostics=True,
+            add_diag=lambda **kwargs: None,
+            # Catalog/consistency diagnostics owned by capability_contract_validator;
+            # emitting here with empty catalog_ids would false-positive W3201 for
+            # every derived capability.
+            emit_diagnostics=False,
         )
         caps.update(os_caps)
         return effective_os
@@ -305,18 +300,12 @@ class CapabilityCompiler(CompilerPlugin):
         fw_caps, effective_fw = shared_derive_firmware(
             object_id=object_id,
             object_payload=object_data,
-            catalog_ids=set(),  # Catalog validation done by capability_contract_validator
+            catalog_ids=set(),
             path=path,
-            add_diag=lambda **kwargs: diagnostics.append(
-                self.emit_diagnostic(
-                    code=kwargs.get("code", "W3201"),
-                    severity=kwargs.get("severity", "warning"),
-                    stage=stage,
-                    message=kwargs.get("message", ""),
-                    path=kwargs.get("path", path),
-                )
-            ),
-            emit_diagnostics=True,
+            add_diag=lambda **kwargs: None,
+            # Catalog diagnostics owned by capability_contract_validator;
+            # emitting here with empty catalog_ids would false-positive W3201.
+            emit_diagnostics=False,
         )
         caps.update(fw_caps)
         return effective_fw

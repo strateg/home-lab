@@ -6,8 +6,7 @@ source_id: docker-tailscale
 notes: RouterOS container Tailscale on LAN (MikroTik runtime)
 host_ref: rtr-mikrotik-chateau
 network:
-  network_ref: inst.vlan.lan
-  ip: 192.168.88.212/24
-  gateway: 192.168.88.1
+  vlan_ref: inst.vlan.lan
+  host: 212
 runtime:
   image: tailscale/tailscale:latest

@@ -266,6 +266,14 @@ class TerraformMikroTikGenerator(BaseGenerator):
                 )
                 self.write_text_atomic(wifi_vars_path, wifi_vars_content)
                 written.append(str(wifi_vars_path))
+                planned_outputs.append(
+                    build_planned_output(
+                        path=str(wifi_vars_path),
+                        renderer="jinja2",
+                        template="ansible/host_vars_wifi.yml.j2",
+                        reason="capability-enabled",
+                    )
+                )
 
         obsolete_entries, obsolete_errors = compute_obsolete_entries(
             ctx=ctx,
