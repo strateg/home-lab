@@ -10,9 +10,6 @@ on:
       - "topology/**"
   pull_request:
   workflow_dispatch:
-  schedule:
-    # Weekly maintenance lane (UTC): every Sunday at 04:00
-    - cron: "0 4 * * 0"
 
 jobs:
   strict-mainline:
@@ -98,86 +95,3 @@ jobs:
             build/diagnostics/cutover/split-rehearsal.txt
           if-no-files-found: warn
 
-  legacy-v4-maintenance:
-    name: Legacy v4 Maintenance Lane
-    runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-    env:
-      DEVKEY_PASSPHRASE: ${{ secrets.DEVKEY_PASSPHRASE }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.14"
-
-      - name: Install Tooling Dependencies
-        run: python -m pip install --upgrade pip pyyaml jsonschema
-
-      - name: Resolve active project
-        run: |
-          PROJECT_ID=$(python - <<'PY'
-          import yaml
-          from pathlib import Path
-          payload = yaml.safe_load(Path("topology/topology.yaml").read_text(encoding="utf-8")) or {}
-          project = payload.get("project", {})
-          active = project.get("active") if isinstance(project, dict) else None
-          print(active.strip() if isinstance(active, str) and active.strip() else "home-lab")
-          PY
-          )
-          echo "PROJECT_ID=$PROJECT_ID" >> "$GITHUB_ENV"
-
-      - name: Setup Task CLI
-        uses: arduino/setup-task@v2
-        with:
-          version: 3.45.4
-
-      - name: Install age and sops
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y age
-          SOPS_VERSION="3.12.1"
-          curl -L "https://github.com/getsops/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.linux.amd64" -o sops
-          chmod +x sops
-          sudo mv sops /usr/local/bin/sops
-
-      - name: Enforce inject secret path on protected branches
-        if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
-        run: |
-          if [ -z "${DEVKEY_PASSPHRASE}" ]; then
-            echo "::error::DEVKEY_PASSPHRASE must be configured for main/master topology matrix."
-            exit 1
-          fi
-
-      - name: Unlock secrets
-        if: ${{ env.DEVKEY_PASSPHRASE != '' }}
-        run: |
-          mkdir -p ~/.config/sops/age
-          echo "$DEVKEY_PASSPHRASE" | age -d "projects/${PROJECT_ID}/secrets/devkey.age" > ~/.config/sops/age/keys.txt
-          chmod 600 ~/.config/sops/age/keys.txt
-
-      - name: Run legacy maintenance gate
-        run: task ci:legacy-maintenance
-
-      - name: Cleanup secrets key
-        if: always()
-        run: rm -f ~/.config/sops/age/keys.txt
-
-      - name: Upload cutover diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: cutover-diagnostics-legacy
-          path: |
-            build/diagnostics/cutover/summary.json
-            build/diagnostics/cutover/verify-lock.txt
-            build/diagnostics/cutover/verify-lock-package-trust-signature.txt
-            build/diagnostics/cutover/compile.txt
-            build/diagnostics/cutover/compatibility.txt
-            build/diagnostics/cutover/audit-entrypoints.txt
-            build/diagnostics/cutover/cutover-readiness.txt
-            build/diagnostics/cutover/split-rehearsal.json
-            build/diagnostics/cutover/split-rehearsal.txt
-          if-no-files-found: warn

@@ -1,1 +1,0 @@
-"""Proxmox bootstrap package generator."""

@@ -52,8 +52,6 @@
 | `topology-tools/utils/validate-framework-compatibility-matrix.py` | Матрица совместимости framework/project contracts | MUST NOT |
 | `topology-tools/utils/audit-strict-runtime-entrypoints.py` | Аудит strict-only runtime entrypoints (no legacy fallback) | MUST NOT |
 | `topology-tools/utils/discover-hardware-identity.py` | Генерация patch templates для hardware identity capture | MUST NOT |
-| `topology-tools/utils/split-instance-bindings.py` | Миграция legacy instance-bindings в sharded instances | MUST NOT |
-| `topology-tools/utils/bootstrap-phase1-mapping.py` | Bootstrap v4→v5 Phase 1 mapping inventory | MUST NOT |
 | `topology-tools/utils/record-service-chain-evidence.py` | CLI entrypoint evidence flow (wrapper) | MUST NOT |
 | `topology-tools/utils/service_chain_evidence.py` | Реализация service-chain evidence execution/reporting | MUST NOT |
 | `topology-tools/utils/validate-mermaid-render.py` | Проверка Mermaid render в generated docs | MUST NOT |

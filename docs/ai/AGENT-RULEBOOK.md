@@ -53,7 +53,7 @@ Load rule packs based on files you're modifying:
 
 | Rule | Trigger | Must | Never | Validate | Source |
 |---|---|---|---|---|---|
-| CORE-001 | Any repository change | Work in active root layout: `topology/`, `topology-tools/`, `projects/`, `tests/`, `scripts/`, `taskfiles/` | Do not create root `v4/` or `v5/`; do not modify `archive/v4/` unless explicitly requested | `task validate:workspace-layout` | ADR0075, ADR0080, ADR0086 |
+| CORE-001 | Any repository change | Work in active root layout: `topology/`, `topology-tools/`, `projects/`, `tests/`, `scripts/`, `taskfiles/` | Do not create root `v4/` or `v5/`; do not resurrect legacy v4 assets (preserved on branch `archive/v4-baseline`) | `task validate:workspace-layout` | ADR0075, ADR0080, ADR0086 |
 | CORE-002 | Any generated output request | Modify sources, then regenerate | Do not edit `generated/` by hand | `task validate:default` or relevant generator test | ADR0074, ADR0075, ADR0080 |
 | CORE-003 | Any topology/model change | Preserve `Class -> Object -> Instance` source-of-truth model | Do not bypass topology with generated/manual artifacts | `task validate:default` | ADR0062, ADR0071, ADR0088 |
 | CORE-004 | Any plugin/runtime change | Preserve stage affinity and manifest contracts | Do not add hidden plugin coupling outside `depends_on`, `consumes`, `produces` | `task validate:plugin-manifests`, `task test:plugin-contract` | ADR0063, ADR0065, ADR0080, ADR0086 |
@@ -79,7 +79,7 @@ Load rule packs based on files you're modifying:
 | `taskfiles/` | Go-Task definitions |
 | `adr/` | Architecture Decision Records |
 | `docs/` | Documentation |
-| `archive/v4/` | Frozen v4 reference (do not modify) |
+| branch `archive/v4-baseline` | Frozen v4 reference (git branch, not in dev tree) |
 
 ---
 

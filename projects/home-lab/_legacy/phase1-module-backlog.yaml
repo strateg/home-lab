@@ -1,9 +1,0 @@
-schema_version: 1
-phase: 1
-source_mapping: projects/home-lab/_legacy/v4-to-v5-mapping.yaml
-gaps:
-  classes: []
-  objects: []
-  unassigned:
-    class_ref: []
-    object_ref: []

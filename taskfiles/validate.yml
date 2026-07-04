@@ -55,11 +55,6 @@ tasks:
     deps:
       - quality-fast
 
-  quality-legacy-v4:
-    desc: Legacy v4 quality lane (archive reference; non-default)
-    cmds:
-      - "{{.PYTHON}} -c \"print('legacy v4 quality hooks are archived; run archive/v4 quality checks manually when needed')\""
-
   default:
     desc: Validate topology lane (passthrough secrets mode)
     env:
@@ -108,10 +103,10 @@ tasks:
     cmds:
       - "{{.PYTHON}} scripts/orchestration/lane.py validate-v5-layers"
 
-  phase1-gate:
-    desc: Run phase1 migration gate
+  test-lab-compile:
+    desc: Compile test-lab validation fixture (multi-project N>1 gate, ADR 0081)
     cmds:
-      - "{{.PYTHON}} scripts/orchestration/lane.py phase1-gate"
+      - "{{.PYTHON}} topology-tools/compile-topology.py --topology topology/topology.yaml --project test-lab --secrets-mode passthrough --output-json build/diagnostics/test-lab-effective.json --diagnostics-json build/diagnostics/test-lab-report.json --diagnostics-txt build/diagnostics/test-lab-report.txt"
 
   plugin-manifests:
     desc: Validate plugin manifests schema and entry paths across base/class/object manifests

@@ -1,6 +1,0 @@
-id: part-orangepi5-nvme-1
-media_attachment_ref: attach-orangepi5-slot-m2-0
-number: 1
-type: ext4
-size: 0.5
-description: Boot partition on Orange Pi 5 NVMe (kernel, initramfs)

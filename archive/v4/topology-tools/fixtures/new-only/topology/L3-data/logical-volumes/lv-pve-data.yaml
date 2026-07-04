@@ -1,5 +1,0 @@
-id: lv-pve-data
-name: data
-type: thin-pool
-vg_ref: vg-pve
-description: Proxmox thin pool for VM and LXC disks

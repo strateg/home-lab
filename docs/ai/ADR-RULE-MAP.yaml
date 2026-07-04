@@ -107,7 +107,7 @@ rules:
       - "Work in active root layout: topology/, topology-tools/, projects/, tests/, scripts/, taskfiles/."
     never:
       - "Do not create root v4/ or root v5/ directories."
-      - "Do not modify archive/v4/ unless explicitly requested for legacy hotfix or parity investigation."
+      - "Do not resurrect legacy v4 assets in the dev tree; the v4 baseline is preserved on branch archive/v4-baseline."
     validate:
       - "task validate:workspace-layout"
     source_adr: ["0075", "0080", "0086"]

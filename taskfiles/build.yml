@@ -57,30 +57,11 @@ tasks:
       - task build:docs
       - "{{.PYTHON}} topology-tools/utils/validate-mermaid-render.py --docs-root generated/home-lab/docs"
 
-  phase1-bootstrap:
-    desc: Refresh phase1 migration bootstrap map
-    cmds:
-      - "{{.PYTHON}} topology-tools/utils/bootstrap-phase1-mapping.py --refresh-effective"
-
-  phase1-reconcile:
-    desc: Reconcile phase1 mapping
-    cmds:
-      - "{{.PYTHON}} scripts/phase1/reconcile_phase1_mapping.py"
-
-  phase1-backlog:
-    desc: Refresh phase1 backlog report
-    cmds:
-      - "{{.PYTHON}} scripts/phase1/refresh_phase1_backlog.py"
-
   sync-lock:
     desc: Sync model lock
     cmds:
       - "{{.PYTHON}} scripts/model/sync_v5_model_lock.py"
 
-  export-bindings:
-    desc: Export instance bindings
-    cmds:
-      - "{{.PYTHON}} scripts/model/export_v5_instance_bindings.py"
 
   tfvars-mikrotik:
     desc: Generate terraform.tfvars for MikroTik from SOPS secrets

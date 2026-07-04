@@ -24,7 +24,7 @@
 1. ADR0078 migration cutover is closed.
 2. ADR0080 runtime lifecycle/contracts are implemented and gated.
 3. Root layout is canonical (`topology/`, `topology-tools/`, `projects/`, `tests/`).
-4. Legacy v4 is archived under `archive/v4` for parity/rollback reference only.
+4. Legacy v4 baseline is preserved on git branch `archive/v4-baseline` (removed from the dev tree 2026-07-04).
 5. Remaining work is post-migration productization, not structural v4->v5 migration.
 
 ---
@@ -44,7 +44,7 @@
 
 ## P2 (Decision/Expansion)
 
-1. ADR0053 final decision (`native` vs `dist` execution default).
+1. ADR0053 final decision (`native` vs `dist` execution default) — resolved by supersession via ADR 0085.
 2. ADR0047 observability modularization: execute next phases or formally defer.
 
 ## P3 (Optional Strategic)
@@ -91,7 +91,7 @@
 **Gate:**
 
 1. `task framework:release-tests`
-2. `task ci:local-with-legacy`
+2. `task ci:local` (historical gate name: `ci:local-with-legacy`, retired with the v4 parity lanes)
 
 ## Wave D - Operational Readiness Runbooks (P1)
 
@@ -111,7 +111,7 @@
 
 ## Wave E - Policy Decisions and Expansion (P2/P3)
 
-- [ ] ADR0053: lock execution default (`native` or `dist`) and align task/docs/CI.
+- [x] ADR0053: resolved by supersession — ADR 0085 (Deploy Bundle and Runner Workspace Contract, Implemented 2026-03-31) replaced the native/dist decision; no separate execution-default lock remains.
 - [x] ADR0047: choose execute-now vs deferred trigger and update status accordingly.
 - [x] ADR0076: physical multi-repo extraction track started.
   Execution artifacts:
@@ -121,7 +121,7 @@
 **Gate:**
 
 1. ADR status updates committed with linked evidence.
-2. No regression in `task ci:local-with-legacy`.
+2. No regression in `task ci:local`.
 
 ---
 

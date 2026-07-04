@@ -2,8 +2,8 @@
 
 **Date:** 2026-03-29
 **Status:** Completed
-**Owner:** _TBD_
-**Approver:** _TBD_
+**Owner:** Dmitri (strateg, single-operator) — assigned retroactively 2026-07-04
+**Approver:** Dmitri (strateg, single-operator) — assigned retroactively 2026-07-04; combined role acceptable under `operator_mode: single-operator` (ADR 0090)
 **Change Window:** 2026-04-09-adr0076-cutover-physical-extraction
 
 Reference plan: `adr/plan/0076-phase13-physical-extraction-plan.md`

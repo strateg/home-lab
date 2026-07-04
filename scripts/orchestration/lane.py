@@ -12,7 +12,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 PYTHON = sys.executable
-PHASE1_REPORT_JSON = "build/diagnostics/phase1-gate-report.json"
 LAYER_REPORT_JSON = "build/diagnostics/layer-contract-report.json"
 ADR0088_GOVERNANCE_REPORT_JSON = "build/diagnostics/adr0088-governance-report.json"
 LAYER_DERIVATION_REPORT_JSON = "build/diagnostics/layer-derivation-report.json"
@@ -85,7 +84,6 @@ def _validate_v5_commands(secrets_mode: str) -> list[list[str]]:
     if secrets_mode not in SUPPORTED_SECRETS_MODES:
         raise ValueError(f"Unsupported secrets mode: {secrets_mode}")
     # NOTE: canonical instance source is ADR0071 shards under project manifest instances_root.
-    # export_v5_instance_bindings.py is legacy migration helper only.
     commands = [
         [PYTHON, "scripts/validation/validate_v5_layer_contract.py", "--report-json", LAYER_REPORT_JSON],
         [PYTHON, "scripts/validation/validate_v5_scaffold.py"],
@@ -181,25 +179,11 @@ def build_v5(*, step_timeout: float | None = None, collect_all_errors: bool = Fa
     )
 
 
-def phase1_gate(*, step_timeout: float | None = None) -> None:
-    # NOTE: phase1 gate validates archived legacy migration assets only.
-    run(
-        [PYTHON, "scripts/validation/validate_phase1_gate.py", "--report-json", PHASE1_REPORT_JSON],
-        timeout=step_timeout,
-    )
-
-
 def validate_v5_layers(*, step_timeout: float | None = None) -> None:
-    # NOTE: export helper remains legacy-only and is not part of ADR0071 runtime.
     run(
         [PYTHON, "scripts/validation/validate_v5_layer_contract.py", "--report-json", LAYER_REPORT_JSON],
         timeout=step_timeout,
     )
-
-
-def export_v5_bindings(*, step_timeout: float | None = None) -> None:
-    """Export instance bindings from v4-to-v5-mapping.yaml (migration use only)."""
-    run([PYTHON, "scripts/model/export_v5_instance_bindings.py"], timeout=step_timeout)
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -210,9 +194,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "validate-v5",
             "validate-v5-passthrough",
             "build-v5",
-            "phase1-gate",
             "validate-v5-layers",
-            "export-v5-bindings",
         ),
         help="Lane command to run.",
     )
@@ -271,9 +253,7 @@ def main() -> int:
             step_timeout=args.step_timeout,
             collect_all_errors=args.collect_all_errors,
         ),
-        "phase1-gate": lambda: phase1_gate(step_timeout=args.step_timeout),
         "validate-v5-layers": lambda: validate_v5_layers(step_timeout=args.step_timeout),
-        "export-v5-bindings": lambda: export_v5_bindings(step_timeout=args.step_timeout),
     }
     try:
         _assert_workspace_layout()

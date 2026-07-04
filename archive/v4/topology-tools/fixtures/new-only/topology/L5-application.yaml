@@ -1,8 +1,0 @@
-# L5 Application
-# Part of Home Lab Topology v4.0.0
-# Services, certificates, DNS
-# Modular layout
-
-certificates: !include L5-application/certificates.yaml
-services: !include L5-application/services.yaml
-dns: !include L5-application/dns.yaml

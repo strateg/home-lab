@@ -27,7 +27,10 @@ product_bundles:
   - bundle.operator-workflows
   - bundle.update-management
 generated_at: '2026-03-11T14:57:34+00:00'
+# Legacy v4 migration assets (instance-bindings.yaml, v4-to-v5-mapping.yaml)
+# are preserved on git branch archive/v4-baseline; removed from the dev tree.
 migrated_from: projects/home-lab/_legacy/instance-bindings.yaml
 legacy_metadata:
   generated_at: '2026-03-08T23:24:31+00:00'
   source_mapping: projects/home-lab/_legacy/v4-to-v5-mapping.yaml
+  preserved_on_branch: archive/v4-baseline

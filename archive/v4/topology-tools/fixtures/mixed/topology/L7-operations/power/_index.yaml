@@ -1,3 +1,0 @@
-# Power resilience and outage orchestration policies.
-policies:
-- !include policy-ups-main.yaml

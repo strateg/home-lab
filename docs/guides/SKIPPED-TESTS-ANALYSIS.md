@@ -100,7 +100,7 @@ These tests are **regression guards** that compare v5 generator output to v4 bas
 
 **Migration lifecycle:**
 1. **Development phase** (current): Tests skip, v5 development continues
-2. **Cutover prep**: Generate v4 baseline from `archive/v4/`
+2. **Cutover prep**: Generate v4 baseline from branch `archive/v4-baseline`
 3. **Parity validation**: Tests run and validate equivalence
 4. **Post-migration**: Tests may be marked as historical or removed
 

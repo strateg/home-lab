@@ -1,8 +1,16 @@
 # V5 Production Readiness Plan
 
 **Created:** 2026-03-15
-**Revised:** 2026-04-09
+**Revised:** 2026-07-04
 **Goal:** Complete v4→v5 migration and achieve full production parity
+
+**Readiness signal (split, 2026-07-04):**
+
+| Track | Status | Evidence / Open Items |
+|---|---|---|
+| Structural migration (v4→v5) | **COMPLETE** | Phase 13 cutover 2026-04-09; `migration_state: migrated-hard`; legacy v4 tree removed 2026-07-04, preserved on branch `archive/v4-baseline` |
+| Operational readiness | **OPEN** | Phase 12 DoD: service-chain hardware execution, DR validation with recovery time; Phase 12.3: VPS VPN (business decision); ADR 0083 hardware initialization pending |
+
 **Current State:** Framework extraction complete (Phase 13 cutover 2026-04-09). SOHO productization contracts implemented (ADR 0089-0091). Remaining: service-chain execution evidence and hardware deployment.
 
 ---
@@ -26,8 +34,10 @@ v5 architecture is **operational for deployable artifacts** with:
 
 **Remaining gaps (by priority):**
 - P1: Service-chain execution evidence (hardware deployment pending).
+- P1: ADR 0083 fate: status stays `Implemented (scaffold complete, hardware pending)`;
+  hardware initialization evidence is tracked via Phase 12 DoD, no re-activation of the ADR itself required.
 - P2: Advanced infrastructure backlog (Phase 12.2/12.3).
-- P2: ADR/documentation consistency sweep (`adr/0058-0071-remaining-work.md`).
+- ~~P2: ADR/documentation consistency sweep~~ — closed 2026-07-04 (Phase 11.3).
 
 ---
 
@@ -542,15 +552,20 @@ V5 has 19 documentation templates (+ diagram index/legend pages) and determinist
 
 ### 11.3 P2 Items
 
-- [ ] Documentation consistency sweep: add/refresh "historical/superseded" headers.
-- [ ] Ensure `adr/PLUGIN-RUNTIME-ADR-MAP.md` remains authoritative entry map.
+- [x] Documentation consistency sweep: add/refresh "historical/superseded" headers.
+  - 2026-07-04 sweep: ADR0053 supersession reflected in `adr/plan/v5-post-migration-roadmap-2026-03-27.md`
+    (Wave E, P2 stack); retired v4 parity lanes (`ci:local-with-legacy`, `ci:legacy-maintenance`,
+    `test:parity-v4-current`) annotated; `archive/v4/` references repointed to branch `archive/v4-baseline`.
+- [x] Ensure `adr/PLUGIN-RUNTIME-ADR-MAP.md` remains authoritative entry map.
+  - Verified 2026-07-04: map present, entry order 0063 → 0065 → 0066 → 0069 → 0071, no stale v4 references.
 
 ### Phase 11 Definition of Done
 
 - [x] ADR 0069 is `Accepted`.
 - [x] E6806 enforce mode blocks unresolved placeholders deterministically.
 - [x] All 7 cross-layer relations have owner, validator, and acceptance test.
-- [ ] No stale "planned" or contradictory statements in active ADR docs.
+- [x] No stale "planned" or contradictory statements in active ADR docs
+  (2026-07-04 sweep: ADR0053/0085 drift fixed, v4-lane references retired).
 
 ---
 
@@ -636,6 +651,21 @@ V5 has 19 documentation templates (+ diagram index/legend pages) and determinist
 - [x] Establish cross-repo CI/CD pipelines for extracted repositories.
 - [x] Define dependency lock and integrity verification (ADR0076 Stage 2 baseline).
 - [x] Separate roadmap and risk assessment (Phase 13 execution plan + cutover checklist).
+
+**Split-rehearsal evidence (refresh 2026-07-04):** `task framework:split-rehearsal` status `ok`
+(dry_run=false), all 5 steps rc=0 (bootstrap_project_repo, seed_soho_catalogs, generate_lock,
+verify_lock, compile_strict); summary: `build/diagnostics/cutover/split-rehearsal.json`.
+
+**Framework release 5.0.0 (2026-07-04):**
+- `framework_release_channel` promoted `snapshot` → `stable` (`topology/framework.yaml`).
+- `task framework:release-preflight` PASS (strict + lock refresh + 475 release tests + validate:passthrough).
+- `task framework:release-build FRAMEWORK_VERSION=5.0.0`: 491 files,
+  `dist/framework/infra-topology-framework/5.0.0/` (tar.gz + zip + checksums.sha256 + framework-dist-manifest.json).
+- `task framework:verify-artifact-contents`: ok=true, missing_required=[], forbidden_present=[] (ADR 0081 boundary).
+- `task framework:release-bootstrap`: standalone repo candidate at `build/infra-topology-framework-bootstrap/`.
+- **Publish blocker:** no push access to `strateg/infra-topology-framework` from build environment
+  (no `gh`, SSH publickey denied). Operator action required: push bootstrap candidate + tag `v5.0.0`
+  + upload dist archives as release assets. Until published, extracted repo remains at v1.0.7.
 
 ---
 
