@@ -1,6 +1,6 @@
 # ADR 0112: Projection Domain Package Refactor
 
-- Status: Proposed
+- Status: Implemented
 - Date: 2026-07-03
 - Related: ADR-0074 (Generator Architecture), ADR-0078 (Object Module Layout), ADR-0079 (Docs/Diagram Migration), ADR-0104 (Ansible Role Generation), ADR-0106 (Capability-Driven Plugins)
 
@@ -103,6 +103,6 @@ Migration impact:
 
 ## References
 
-- Commit: (filled on implementation)
+- Commit: 72fb7859 (refactor(generators): split projections monolith into domain package)
 - Schema: -
 - Docs: `adr/0079-analysis/`, `docs/ai/rules/generator-artifacts.md`

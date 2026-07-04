@@ -13,7 +13,7 @@ sys.path.insert(0, str(V5_TOOLS))
 
 from plugins.generators.object_projection_loader import discover_object_projection_paths  # noqa: E402
 
-CORE_PROJECTIONS = V5_ROOT / "topology-tools" / "plugins" / "generators" / "projections.py"
+CORE_PROJECTIONS_PACKAGE = V5_ROOT / "topology-tools" / "plugins" / "generators" / "projections"
 MIKROTIK_PROJECTIONS = V5_ROOT / "topology" / "object-modules" / "mikrotik" / "plugins" / "projections.py"
 PROXMOX_PROJECTIONS = V5_ROOT / "topology" / "object-modules" / "proxmox" / "plugins" / "projections.py"
 SHARED_BOOTSTRAP_PROJECTIONS = V5_ROOT / "topology-tools" / "plugins" / "generators" / "bootstrap_projections.py"
@@ -28,12 +28,14 @@ def _function_names(path: Path) -> set[str]:
     return {node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)}
 
 
-def test_core_projections_module_does_not_own_object_specific_builders() -> None:
-    names = _function_names(CORE_PROJECTIONS)
+def test_core_projections_package_does_not_own_object_specific_builders() -> None:
+    names: set[str] = set()
+    for module_path in sorted(CORE_PROJECTIONS_PACKAGE.glob("*.py")):
+        names.update(_function_names(module_path))
     for name in CORE_BUILDERS:
-        assert name in names, f"Core projection builder '{name}' missing in {CORE_PROJECTIONS}"
+        assert name in names, f"Core projection builder '{name}' missing in {CORE_PROJECTIONS_PACKAGE}"
     leaked = sorted(name for name in (OBJECT_BUILDERS | SHARED_BUILDERS) if name in names)
-    assert leaked == [], f"Core projections module must not define object/shared builders: {leaked}"
+    assert leaked == [], f"Core projections package must not define object/shared builders: {leaked}"
 
 
 def test_object_projection_modules_do_not_define_core_builders() -> None:

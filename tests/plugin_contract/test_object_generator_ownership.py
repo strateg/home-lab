@@ -53,7 +53,7 @@ LEGACY_OBJECT_TEMPLATE_DIRS = [
     V5_ROOT / "topology-tools" / "templates" / "bootstrap" / "orangepi",
 ]
 
-SHARED_PROJECTIONS_FILE = V5_ROOT / "topology-tools" / "plugins" / "generators" / "projections.py"
+SHARED_PROJECTIONS_PACKAGE = V5_ROOT / "topology-tools" / "plugins" / "generators" / "projections"
 OBJECT_PROJECTION_FILES = [
     V5_ROOT / "topology" / "object-modules" / "proxmox" / "plugins" / "projections.py",
     V5_ROOT / "topology" / "object-modules" / "mikrotik" / "plugins" / "projections.py",
@@ -125,11 +125,13 @@ def test_object_specific_templates_exist_in_object_modules() -> None:
     assert missing_roots == [], f"Missing object template roots: {missing_roots}"
 
 
-def test_object_projection_builders_are_not_implemented_in_shared_tools_module() -> None:
-    body = SHARED_PROJECTIONS_FILE.read_text(encoding="utf-8")
-    leaked = [signature for signature in OBJECT_PROJECTION_BUILDERS if signature in body]
+def test_object_projection_builders_are_not_implemented_in_shared_tools_package() -> None:
+    leaked: list[str] = []
+    for module_path in sorted(SHARED_PROJECTIONS_PACKAGE.glob("*.py")):
+        body = module_path.read_text(encoding="utf-8")
+        leaked.extend(signature for signature in OBJECT_PROJECTION_BUILDERS if signature in body)
     assert leaked == [], (
-        "Object-specific projection builders must be owned by object modules, not shared tools module: " f"{leaked}"
+        "Object-specific projection builders must be owned by object modules, not shared tools package: " f"{leaked}"
     )
 
 
