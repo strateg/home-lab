@@ -61,7 +61,7 @@ jobs:
           python -m pip install pytest pytest-cov pyyaml jsonschema
 
       - name: Setup Task CLI
-        uses: arduino/setup-task@v2
+        uses: arduino/setup-task@v3
         with:
           version: 3.45.4
 
@@ -96,7 +96,7 @@ jobs:
           python -m pip install pytest pytest-cov pyyaml jsonschema
 
       - name: Setup Task CLI
-        uses: arduino/setup-task@v2
+        uses: arduino/setup-task@v3
         with:
           version: 3.45.4
 
@@ -130,7 +130,7 @@ jobs:
           python -m pip install pytest pytest-cov pyyaml jsonschema
 
       - name: Setup Task CLI
-        uses: arduino/setup-task@v2
+        uses: arduino/setup-task@v3
         with:
           version: 3.45.4
 
@@ -164,7 +164,7 @@ jobs:
           python -m pip install pytest pyyaml jsonschema
 
       - name: Setup Task CLI
-        uses: arduino/setup-task@v2
+        uses: arduino/setup-task@v3
         with:
           version: 3.45.4
 
@@ -192,7 +192,7 @@ jobs:
           python -m pip install pytest pyyaml jsonschema
 
       - name: Setup Task CLI
-        uses: arduino/setup-task@v2
+        uses: arduino/setup-task@v3
         with:
           version: 3.45.4
 
@@ -217,7 +217,7 @@ jobs:
           python -m pip install pyyaml jsonschema
 
       - name: Setup Task CLI
-        uses: arduino/setup-task@v2
+        uses: arduino/setup-task@v3
         with:
           version: 3.45.4
 
@@ -255,7 +255,7 @@ jobs:
           python -m pip install pyyaml jsonschema
 
       - name: Setup Task CLI
-        uses: arduino/setup-task@v2
+        uses: arduino/setup-task@v3
         with:
           version: 3.45.4
 
