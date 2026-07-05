@@ -664,8 +664,11 @@ verify_lock, compile_strict); summary: `build/diagnostics/cutover/split-rehearsa
 - `task framework:verify-artifact-contents`: ok=true, missing_required=[], forbidden_present=[] (ADR 0081 boundary).
 - `task framework:release-bootstrap`: standalone repo candidate at `build/infra-topology-framework-bootstrap/`.
 - **Publish blocker:** no push access to `strateg/infra-topology-framework` from build environment
-  (no `gh`, SSH publickey denied). Operator action required: push bootstrap candidate + tag `v5.0.0`
-  + upload dist archives as release assets. Until published, extracted repo remains at v1.0.7.
+  (no `gh`; SSH keys passphrase-protected, no agent). Until published, extracted repo remains at v1.0.7.
+- Bootstrap candidate finalized 2026-07-05: release workflow + notes committed (`49da72cb`),
+  annotated tag `v5.0.0` created, `origin` set to `git@github.com:strateg/infra-topology-framework.git`.
+  Remaining operator steps (push, release assets, WireGuard key rotation) are scripted in
+  `adr/plan/v5-release-5.0.0-operator-handoff.md`.
 
 ---
 
