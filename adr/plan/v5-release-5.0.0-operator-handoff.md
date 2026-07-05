@@ -1,7 +1,8 @@
 # Framework 5.0.0 — Operator Handoff (Publish + Post-Migration Actions)
 
-- Status: **PUBLISHED 2026-07-05** (agent key unlock by operator; pushes executed from session).
-  Remaining: verify CI release assets (§3.3), WireGuard key rotation (§3.5).
+- Status: **RELEASED 2026-07-05** — CI run #3 success, GitHub release `v5.0.0` live with 8 assets
+  (zip, tar.gz, checksums + cosign sig/crt, dist manifest, provenance, SBOM).
+  Remaining: WireGuard key rotation (§3.5).
 - Date: 2026-07-05
 - Owner/Approver: Dmitri (strateg, single-operator per ADR 0090)
 - Related: ADR 0075, ADR 0076, ADR 0081; `adr/plan/v5-production-readiness.md` (Phase 13);
@@ -113,9 +114,11 @@ secrets flow (SOPS/age), never in the topology tree.
       (2026-07-05: re-pointed to `fb9eeae3` after CI fix — first run at `49da72cb` was doomed:
       workflow referenced 5 co-located-only tests and `tests/helpers` was not extracted;
       fixed in template + extraction mapping, exact CI pytest chain simulated locally: 335 passed)
-- [ ] GitHub release `v5.0.0` exists with assets — CI workflow `Framework Release` retriggered by
-      tag move to `fb9eeae3`; verify in Actions, upload local dist as fallback if run failed
+- [x] GitHub release `v5.0.0` exists with assets — CI run #3 at `3e80aaf4` success (run #2 at
+      `fb9eeae3` failed in build: semantic-keywords/module-index missing from extraction; fixed).
+      8 assets live: zip, tar.gz, checksums.sha256 (+cosign .sig/.crt), framework-dist-manifest.json,
+      provenance.json, sbom.spdx.json. CI-built checksums supersede the local §1 values.
 - [x] Extracted repo default branch contains release commit — `main` replaced via
-      `--force-with-lease` (f77867d8 → 49da72cb → fb9eeae3), `development` pushed alongside (2026-07-05)
+      `--force-with-lease` (f77867d8 → 49da72cb → fb9eeae3 → 3e80aaf4), `development` alongside (2026-07-05)
 - [x] `origin/archive/v4-baseline` exists (= `01b9f9ca`, home-lab `development` = `1e35baf1`)
 - [ ] Old WireGuard public key removed from all peers; new handshakes verified
