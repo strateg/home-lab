@@ -87,6 +87,8 @@ def _mapping_rows(*, include_tests: bool) -> list[dict[str, Any]]:
     if include_tests:
         rows.extend(
             [
+                # helpers is optional for the same reason as conftest.py below.
+                {"source": "tests/helpers", "target": "tests/helpers", "optional": True},
                 {"source": "tests/plugin_api", "target": "tests/plugin_api"},
                 {"source": "tests/plugin_contract", "target": "tests/plugin_contract"},
                 {"source": "tests/plugin_integration", "target": "tests/plugin_integration"},

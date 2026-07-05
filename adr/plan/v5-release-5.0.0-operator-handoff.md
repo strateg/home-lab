@@ -110,10 +110,12 @@ secrets flow (SOPS/age), never in the topology tree.
 ## 4. Done criteria
 
 - [x] `git ls-remote --tags git@github.com:strateg/infra-topology-framework.git` shows `v5.0.0`
-      (2026-07-05: tag `8bb0c168` → commit `49da72cb`)
-- [ ] GitHub release `v5.0.0` exists with assets — CI workflow `Framework Release` triggered by
-      tag push (contents:write); verify in Actions, upload local dist as fallback if run failed
-- [x] Extracted repo default branch contains `49da72cb` — `main` replaced via
-      `--force-with-lease` (f77867d8 → 49da72cb), `development` pushed alongside (2026-07-05)
+      (2026-07-05: re-pointed to `fb9eeae3` after CI fix — first run at `49da72cb` was doomed:
+      workflow referenced 5 co-located-only tests and `tests/helpers` was not extracted;
+      fixed in template + extraction mapping, exact CI pytest chain simulated locally: 335 passed)
+- [ ] GitHub release `v5.0.0` exists with assets — CI workflow `Framework Release` retriggered by
+      tag move to `fb9eeae3`; verify in Actions, upload local dist as fallback if run failed
+- [x] Extracted repo default branch contains release commit — `main` replaced via
+      `--force-with-lease` (f77867d8 → 49da72cb → fb9eeae3), `development` pushed alongside (2026-07-05)
 - [x] `origin/archive/v4-baseline` exists (= `01b9f9ca`, home-lab `development` = `1e35baf1`)
 - [ ] Old WireGuard public key removed from all peers; new handshakes verified
