@@ -1,6 +1,7 @@
 # Framework 5.0.0 — Operator Handoff (Publish + Post-Migration Actions)
 
-- Status: **STAGED LOCALLY — awaiting operator publish**
+- Status: **PUBLISHED 2026-07-05** (agent key unlock by operator; pushes executed from session).
+  Remaining: verify CI release assets (§3.3), WireGuard key rotation (§3.5).
 - Date: 2026-07-05
 - Owner/Approver: Dmitri (strateg, single-operator per ADR 0090)
 - Related: ADR 0075, ADR 0076, ADR 0081; `adr/plan/v5-production-readiness.md` (Phase 13);
@@ -108,8 +109,11 @@ secrets flow (SOPS/age), never in the topology tree.
 
 ## 4. Done criteria
 
-- [ ] `git ls-remote --tags git@github.com:strateg/infra-topology-framework.git` shows `v5.0.0`
-- [ ] GitHub release `v5.0.0` exists with 4 assets; sha256 of downloads match §1
-- [ ] Extracted repo default branch contains `49da72cb` (no longer v1.0.7)
-- [ ] `origin/archive/v4-baseline` exists (if remote preservation chosen)
+- [x] `git ls-remote --tags git@github.com:strateg/infra-topology-framework.git` shows `v5.0.0`
+      (2026-07-05: tag `8bb0c168` → commit `49da72cb`)
+- [ ] GitHub release `v5.0.0` exists with assets — CI workflow `Framework Release` triggered by
+      tag push (contents:write); verify in Actions, upload local dist as fallback if run failed
+- [x] Extracted repo default branch contains `49da72cb` — `main` replaced via
+      `--force-with-lease` (f77867d8 → 49da72cb), `development` pushed alongside (2026-07-05)
+- [x] `origin/archive/v4-baseline` exists (= `01b9f9ca`, home-lab `development` = `1e35baf1`)
 - [ ] Old WireGuard public key removed from all peers; new handshakes verified
