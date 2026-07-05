@@ -62,6 +62,8 @@ def _make_fake_repo(tmp_path: Path, *, include_conftest: bool = True) -> Path:
     )
     _write(root / "topology" / "layer-contract.yaml", "schema_version: 1\n")
     _write(root / "topology" / "model.lock.yaml", "schema_version: 1\n")
+    _write(root / "topology" / "semantic-keywords.yaml", "schema_version: 1\n")
+    _write(root / "topology" / "module-index.yaml", "schema_version: 1\n")
     _write(root / "topology" / "profile-map.yaml", "schema_version: 1\n")
     _write(root / "topology" / "class-modules" / "router" / "class.router.test.yaml", "class: test\n")
     _write(root / "topology" / "object-modules" / "router" / "obj.router.test.yaml", "object: test\n")

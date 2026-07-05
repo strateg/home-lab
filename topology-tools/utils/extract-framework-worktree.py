@@ -81,6 +81,8 @@ def _mapping_rows(*, include_tests: bool) -> list[dict[str, Any]]:
         {"source": "topology/object-modules", "target": "topology/object-modules"},
         {"source": "topology/layer-contract.yaml", "target": "topology/layer-contract.yaml"},
         {"source": "topology/model.lock.yaml", "target": "topology/model.lock.yaml"},
+        {"source": "topology/semantic-keywords.yaml", "target": "topology/semantic-keywords.yaml"},
+        {"source": "topology/module-index.yaml", "target": "topology/module-index.yaml"},
         {"source": "topology/profile-map.yaml", "target": "topology/profile-map.yaml"},
         {"source": "topology-tools", "target": "topology-tools"},
     ]
