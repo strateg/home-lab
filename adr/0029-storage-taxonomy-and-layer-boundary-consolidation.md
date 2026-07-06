@@ -1,6 +1,6 @@
 # ADR 0029: Consolidate Storage Taxonomy and L1/L3 Boundary Contract
 
-- Status: Accepted
+- Status: Implemented
 - Date: 2026-02-22
 - Supersedes:
   - [0011](0011-l1-physical-storage-taxonomy-and-l3-disk-binding.md)

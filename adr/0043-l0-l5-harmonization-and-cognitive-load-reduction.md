@@ -17,7 +17,7 @@ harmonized_with: "0064"
 
 # ADR 0043: L0-L5 Harmonization and Cognitive Load Reduction
 
-- Status: Accepted
+- Status: Implemented
 - Date: 2026-02-24
 
 ## Context

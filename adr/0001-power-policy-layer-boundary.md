@@ -1,6 +1,6 @@
 # ADR 0001: Keep Physical Power in L1 and Outage Policies in L7
 
-- Status: Accepted
+- Status: Implemented
 - Date: 2026-02-20
 
 ## Context

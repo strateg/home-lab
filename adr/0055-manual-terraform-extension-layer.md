@@ -1,6 +1,6 @@
 # ADR 0055: Manual Terraform Extension Layer
 
-- Status: Accepted
+- Status: Implemented
 - Date: 2026-03-01
 - Harmonized With: ADR 0064 (Firmware + OS Two-Entity Model)
 

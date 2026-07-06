@@ -1,6 +1,6 @@
 # ADR 0054: Local Inputs Directory
 
-- Status: Accepted (secret-bearing inputs superseded by ADR 0072)
+- Status: Superseded (secret-bearing inputs superseded by ADR 0072)
 - Date: 2026-03-01
 - Supersedes: 0054-separate-local-inputs-from-generated-outputs.md (draft, never accepted)
 - Harmonized With: ADR 0064 (Firmware + OS Two-Entity Model)

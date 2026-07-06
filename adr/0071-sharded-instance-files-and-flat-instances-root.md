@@ -1,6 +1,6 @@
 # ADR 0071: Sharded Instance Files and Flat `instances` Root
 
-- Status: Accepted
+- Status: Implemented
 - Date: 2026-03-11
 - Revised: 2026-03-19
 - Related: ADR 0062, ADR 0063, ADR 0069, ADR 0070

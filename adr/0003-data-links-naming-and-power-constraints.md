@@ -1,6 +1,6 @@
 # ADR 0003: Rename L1 Physical Links to Data Links and Constrain Data-Link Power
 
-- Status: Accepted
+- Status: Implemented
 - Date: 2026-02-20
 - Supersedes: -
 

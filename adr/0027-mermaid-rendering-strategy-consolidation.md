@@ -1,6 +1,6 @@
 # ADR 0027: Consolidate Mermaid Rendering Strategy and Quality Gates
 
-- Status: Accepted
+- Status: Implemented
 - Date: 2026-02-22
 - Supersedes:
   - [0007](0007-icon-legend-and-complete-device-icon-coverage.md)

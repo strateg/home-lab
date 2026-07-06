@@ -1,6 +1,6 @@
 # ADR 0104: Ansible Role Generation from Topology
 
-- Status: **Accepted** (Implemented)
+- Status: Implemented
 - Date: 2026-06-09
 - Implemented: 2026-06-09
 

@@ -105,12 +105,12 @@
 | [0101](0101-layer-harmonization-os-runtime-and-foundation-boundaries.md) | Layer Harmonization for OS Runtime and Foundation Boundaries | Implemented (Mode H active) | 2026-04-23 | - | - |
 | [0102](0102-derived-instance-layer-semantics-and-path-decoupling.md) | Derived Instance Layer Semantics and Path-Decoupled Instance Layout | Implemented | 2026-04-23 | - | - |
 | [0103](0103-runtime-reconciliation-status-replaces-static-instance-status.md) | Runtime Reconciliation Status Replaces Static Instance Status | Partially Implemented (Wave 3 only, Waves 1/2/4 Cancelled) | 2026-06-07 | - | - |
-| [0104](0104-ansible-role-generation-from-topology.md) | Ansible Role Generation from Topology | **Accepted** | 2026-06-09 | - | - |
-| [0105](0105-device-state-commit-and-rollback-contract.md) | Device State Commit and Rollback Contract | **Proposed** | 2026-06-10 | - | - |
-| [0106](0106-capability-driven-plugin-architecture.md) | Capability-Driven Plugin Architecture | **Proposed** | 2026-06-11 | - | - |
-| [0107](0107-host-placement-defaults-and-on-directive.md) | Host Placement Defaults with `@on` Directive | **Implemented** | 2026-06-17 | 2026-06-18 | - |
-| [0108](0108-specification-driven-development-contract.md) | Specification-Driven Development Contract | **Proposed** | 2026-06-19 | - | - |
-| [0109](0109-network-segmentation-zone-based-architecture.md) | Network Segmentation with Zone-Based Architecture | **Implemented** | 2026-06-22 | - | - |
-| [0110](0110-universal-network-zone-vlan-mechanism.md) | Universal Network Zone and VLAN Configuration Mechanism | **Proposed** | 2026-06-22 | - | - |
+| [0104](0104-ansible-role-generation-from-topology.md) | Ansible Role Generation from Topology | Implemented | 2026-06-09 | - | - |
+| [0105](0105-device-state-commit-and-rollback-contract.md) | Device State Management Using Industry Best Practices | Draft | 2026-06-10 | - | - |
+| [0106](0106-capability-driven-plugin-architecture.md) | Capability-Driven Plugin Architecture | Implemented | 2026-06-11 | - | - |
+| [0107](0107-host-placement-defaults-and-on-directive.md) | Host Placement Defaults with `@on` Directive | Implemented | 2026-06-17 | 2026-06-18 | - |
+| [0108](0108-specification-driven-development-contract.md) | Specification-Driven Development Contract | Proposed | 2026-06-19 | - | - |
+| [0109](0109-network-segmentation-zone-based-architecture.md) | Network Segmentation with Zone-Based Architecture | Implemented | 2026-06-22 | - | - |
+| [0110](0110-universal-network-zone-vlan-mechanism.md) | Security Matrix and Trust Zone Configuration | Implemented | 2026-06-22 | - | - |
 | [0111](0111-ip-address-derivation-from-vlan.md) | IP Address Derivation from VLAN Instances | Implemented | 2026-06-22 | - | - |
 | [0112](0112-projection-domain-package-refactor.md) | Projection Domain Package Refactor | Implemented | 2026-07-03 | 2026-07-04 | - |

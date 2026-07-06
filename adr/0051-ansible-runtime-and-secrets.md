@@ -1,6 +1,6 @@
 # ADR 0051: Ansible Runtime, Inventory, and Secret Boundaries
 
-- Status: Accepted (secret storage sections superseded by ADR 0072)
+- Status: Superseded (secret storage sections superseded by ADR 0072)
 - Date: 2026-03-01
 - Harmonized With: ADR 0064 (Firmware + OS Two-Entity Model)
 - Partially Superseded By: ADR 0072 (Unified Secrets Management with SOPS + age)

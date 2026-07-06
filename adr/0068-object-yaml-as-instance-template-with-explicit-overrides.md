@@ -1,7 +1,7 @@
 # ADR 0068: Object YAML Template with Typed Instance Placeholders
 
 **Date:** 2026-03-10
-**Status:** Accepted (E6806 enforcement active; Phase 3 `enforce` mode)
+**Status:** Implemented (E6806 enforcement active; Phase 3 `enforce` mode)
 **Extends:** ADR 0062 (Class-Object-Instance merge contract)
 **Related:** ADR 0067 (Entity-specific keys in YAML authoring)
 **Implementation Plan:** `adr/0068-analysis/IMPLEMENTATION-PLAN.md`

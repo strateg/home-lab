@@ -1,7 +1,7 @@
 # ADR 0078: Object-Module Local Plugin Ownership and Runtime Layout
 
 **Date:** 2026-03-21
-**Status:** Accepted
+**Status:** Implemented
 **Depends on:** ADR 0062, ADR 0074, ADR 0076, ADR 0077
 **Amended:** 2026-03-22 (scope extended to compilers/validators/generators)
 **Amended:** 2026-03-22 (instance isolation, cross-object import prohibition, dynamic discovery)

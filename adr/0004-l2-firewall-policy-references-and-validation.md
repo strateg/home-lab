@@ -1,6 +1,6 @@
 # ADR 0004: Enforce Explicit L2 Firewall Policy References and Validation Semantics
 
-- Status: Accepted
+- Status: Implemented
 - Date: 2026-02-20
 - Supersedes: -
 

@@ -1,6 +1,6 @@
 # ADR 0002: Separate Data Links and Power Links in L1
 
-- Status: Accepted
+- Status: Implemented
 - Date: 2026-02-20
 - Supersedes: -
 

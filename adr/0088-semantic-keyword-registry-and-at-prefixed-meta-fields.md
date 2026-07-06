@@ -1,6 +1,6 @@
 # ADR 0088: Semantic Keyword Registry and `@`-Prefixed Meta Fields
 
-**Status:** Accepted (implemented)
+**Status:** Implemented
 **Date:** 2026-04-05
 
 | Field | Value |

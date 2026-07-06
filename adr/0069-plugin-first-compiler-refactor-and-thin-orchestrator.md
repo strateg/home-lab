@@ -1,7 +1,7 @@
 # ADR 0069: Plugin-First Compiler Refactor and Thin Orchestrator
 
 **Date:** 2026-03-10
-**Status:** Accepted (2026-03-12, cutover evidence confirmed)
+**Status:** Implemented (2026-03-12, cutover evidence confirmed)
 **Extends:** ADR 0063 (Plugin Microkernel), ADR 0068 (Typed instance placeholders)
 **Related:** ADR 0062 (v5 model contract), ADR 0065/0066 (plugin API and testing)
 **Implementation Plan:** `adr/0069-analysis/IMPLEMENTATION-PLAN.md`

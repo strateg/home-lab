@@ -1,6 +1,6 @@
 # ADR 0103: Runtime Reconciliation Status Replaces Static Instance Status
 
-- Status: Partially Implemented — Wave 3 only (Waves 1/2/4 Cancelled)
+- Status: Partially Implemented (Wave 3 only, Waves 1/2/4 Cancelled)
 - Date: 2026-06-07
 - Revised: 2026-06-18 (Wave 3 complete; Waves 1/2/4 cancelled)
 - SWOT Analysis: `adr/0103-analysis/SWOT-ANALYSIS.md`

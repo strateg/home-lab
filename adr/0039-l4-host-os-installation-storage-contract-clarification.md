@@ -12,7 +12,7 @@ harmonized_with: "0064"
 
 # ADR 0039: Host OS Installation Storage Contract (Strict)
 
-- Status: Accepted
+- Status: Implemented
 - Date: 2026-02-23
 
 ## TL;DR

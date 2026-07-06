@@ -1,7 +1,7 @@
 # ADR 0084: Cross-Platform Dev Plane and Linux Deploy Plane
 
 **Date:** 2026-03-31
-**Status:** Accepted (runner foundation and active bundle integration complete; Docker/Remote backend completion deferred)
+**Status:** Implemented (runner foundation and active bundle integration complete; Docker/Remote backend completion deferred)
 **Related:** ADR 0056 (Native Execution Workspace), ADR 0072 (Unified Secrets Management), ADR 0075 (Monorepo Framework/Project Boundary), ADR 0076 (Framework Distribution and Multi-Repository Extraction), ADR 0077 (Go-Task Developer Orchestration), ADR 0080 (Unified Build Pipeline), ADR 0085 (Deploy Bundle and Runner Workspace Contract), ADR 0083 (Unified Node Initialization Contract)
 
 ---

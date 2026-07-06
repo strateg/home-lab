@@ -1,7 +1,7 @@
 # ADR 0057: MikroTik Chateau Netinstall Bootstrap and Terraform Handover
 
 **Date:** 2026-03-05
-**Status:** Accepted
+**Status:** Implemented
 **Related:** ADR 0049 (MikroTik Bootstrap Automation), ADR 0054 (Local Inputs Directory), ADR 0055 (Manual Terraform Extension Layer), ADR 0056 (Native Execution Workspace)
 **Harmonized With:** ADR 0064 (Firmware + OS Two-Entity Model)
 

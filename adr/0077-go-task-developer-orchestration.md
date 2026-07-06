@@ -1,7 +1,7 @@
 # ADR 0077: Go-Task as Developer Orchestration Layer
 
 **Date:** 2026-03-21
-**Status:** Accepted
+**Status:** Implemented
 **Depends on:** ADR 0074, ADR 0075, ADR 0076
 
 ---

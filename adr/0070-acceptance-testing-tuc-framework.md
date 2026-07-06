@@ -1,6 +1,6 @@
 # ADR 0070: Acceptance Testing TUC Framework
 
-- Status: Accepted
+- Status: Implemented
 - Date: 2026-03-11
 - Related: ADR 0062, ADR 0063, ADR 0066, ADR 0069, ADR 0071
 

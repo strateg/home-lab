@@ -1,7 +1,7 @@
 # ADR 0083: Unified Node Initialization Contract and Deploy-Domain Initialization Phase
 
 **Date:** 2026-03-30
-**Status:** Proposed (Deferred/Optional; evaluate after ADR 0085 and ADR 0084)
+**Status:** Implemented (scaffold complete, hardware pending)
 **Related:** ADR 0057 (MikroTik Netinstall Bootstrap), ADR 0072 (Unified Secrets Management), ADR 0074 (V5 Generator Architecture), ADR 0075 (Monorepo Framework/Project Boundary), ADR 0076 (Framework Distribution and Multi-Repository Extraction), ADR 0080 (Unified Build Pipeline), ADR 0082 (Plugin Module-Pack Composition), ADR 0085 (Deploy Bundle and Runner Workspace Contract), ADR 0084 (Cross-Platform Dev Plane and Linux Deploy Plane)
 
 ---

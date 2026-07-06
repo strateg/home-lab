@@ -18,7 +18,7 @@ harmonized_with: "0064"
 
 # ADR 0038: Network Binding Contracts Phase 1 (Gradual Evolution)
 
-- Status: Accepted
+- Status: Implemented
 - Date: 2026-02-22
 
 ## TL;DR

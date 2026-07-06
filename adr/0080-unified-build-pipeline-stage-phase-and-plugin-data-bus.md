@@ -1,6 +1,6 @@
 # ADR 0080: Unified Build Pipeline, Stage-Phase Lifecycle, and Contractual Plugin Data Bus
 
-- Status: Accepted
+- Status: Implemented
 - Date: 2026-03-26
 - Depends on: ADR 0005, ADR 0027, ADR 0028, ADR 0050, ADR 0051, ADR 0052, ADR 0055, ADR 0056, ADR 0063, ADR 0065, ADR 0066, ADR 0069, ADR 0071, ADR 0072, ADR 0074, ADR 0075, ADR 0076, ADR 0078, ADR 0079
 

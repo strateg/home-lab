@@ -1,6 +1,6 @@
 # ADR 0086: Flatten Plugin Hierarchy and Reduce Plugin Granularity
 
-- Status: Accepted
+- Status: Implemented
 - Date: 2026-04-01
 - Updated: 2026-04-03
 - Depends on: ADR 0063, 0065, 0066, 0074, 0080, 0081

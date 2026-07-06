@@ -1,6 +1,6 @@
 # ADR 0028: Consolidate topology-tools Architecture and Module Boundaries
 
-- Status: Accepted
+- Status: Implemented
 - Date: 2026-02-22
 - Supersedes:
   - [0017](0017-topology-tools-modular-refactor-validation-generation.md)

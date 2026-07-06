@@ -1,6 +1,6 @@
 # ADR 0026: L3/L4 Taxonomy Refactoring - Storage Chain and Platform Separation
 
-- Status: Accepted
+- Status: Implemented
 - Date: 2026-02-21
 
 ## Context

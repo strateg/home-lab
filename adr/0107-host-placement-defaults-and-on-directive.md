@@ -1,6 +1,6 @@
 # ADR 0107: Host Placement Defaults with `@on` Directive
 
-- Status: **Implemented**
+- Status: Implemented
 - Date: 2026-06-17
 - Implemented: 2026-06-18
 - Extends: ADR 0068 (Object YAML Template with Typed Instance Placeholders)

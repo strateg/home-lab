@@ -18,7 +18,7 @@ harmonized_with: "0064"
 
 # ADR 0041: L4 Workload Network Attachment Typing
 
-- Status: Accepted
+- Status: Implemented
 - Date: 2026-02-24
 
 ## TL;DR

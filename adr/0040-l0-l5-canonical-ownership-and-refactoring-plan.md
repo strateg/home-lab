@@ -1,6 +1,6 @@
 # ADR 0040: L0-L5 Canonical Ownership and Refactoring Plan
 
-- Status: Accepted
+- Status: Implemented
 - Date: 2026-02-23
 - Updated: 2026-02-24
 - Harmonized With: ADR 0064 (Firmware + OS Two-Entity Model)

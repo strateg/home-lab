@@ -1,7 +1,7 @@
 # ADR 0062: Topology v5 - Modular Class-Object-Instance Architecture
 
 **Date:** 2026-03-06
-**Status:** Accepted (Harmonized with ADR 0064 on 2026-03-09)
+**Status:** Implemented (Harmonized with ADR 0064 on 2026-03-09)
 **Supersedes:** ADR 0058, ADR 0059, ADR 0060, ADR 0061
 **Evolves:** ADR 0048 (Topology v4 Architecture Consolidation)
 **Extended by:** ADR 0064 (Firmware + OS Two-Entity Model)

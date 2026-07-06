@@ -16,7 +16,7 @@ harmonized_with: "0064"
 
 # ADR 0044: IP Derivation from Refs
 
-- Status: Accepted
+- Status: Implemented
 - Date: 2026-02-24
 
 ## Context

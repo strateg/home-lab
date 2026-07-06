@@ -1,6 +1,6 @@
 # ADR 0082: Plugin Module-Pack Composition and Index-First Discovery Analysis
 
-- Status: Accepted
+- Status: Implemented
 - Date: 2026-03-29
 - Updated: 2026-04-03
 - Depends on: ADR 0063, ADR 0078, ADR 0080, ADR 0081

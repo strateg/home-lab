@@ -1,6 +1,6 @@
 # ADR 0050: Generated Directory Restructuring
 
-- Status: Accepted
+- Status: Implemented
 - Date: 2026-02-28
 - Harmonized With: ADR 0064 (Firmware + OS Two-Entity Model)
 

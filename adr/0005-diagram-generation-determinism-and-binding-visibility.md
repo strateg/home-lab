@@ -1,6 +1,6 @@
 # ADR 0005: Improve Diagram Generation Determinism and Firewall Binding Visibility
 
-- Status: Accepted
+- Status: Implemented
 - Date: 2026-02-20
 - Supersedes: -
 
