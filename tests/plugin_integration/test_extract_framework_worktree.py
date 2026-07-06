@@ -52,7 +52,9 @@ def _make_fake_repo(tmp_path: Path, *, include_conftest: bool = True) -> Path:
                         {"from": "topology/object-modules", "to": "topology/object-modules"},
                         {"from": "topology/layer-contract.yaml", "to": "topology/layer-contract.yaml"},
                         {"from": "topology/model.lock.yaml", "to": "topology/model.lock.yaml"},
+                        {"from": "topology/semantic-keywords.yaml", "to": "topology/semantic-keywords.yaml"},
                         {"from": "topology/profile-map.yaml", "to": "topology/profile-map.yaml"},
+                        {"from": "topology/module-index.yaml", "to": "topology/module-index.yaml"},
                         {"from": "topology-tools", "to": "topology-tools"},
                     ],
                 },
@@ -107,7 +109,11 @@ def test_extract_worktree_without_tests(tmp_path: Path) -> None:
     include = extracted_manifest["distribution"]["include"]
     assert "framework.yaml" in include
     assert "topology/class-modules" in include
+    assert "topology/semantic-keywords.yaml" in include
+    assert "topology/module-index.yaml" in include
     assert "topology-tools" in include
+    assert (output_root / "topology" / "semantic-keywords.yaml").exists()
+    assert (output_root / "topology" / "module-index.yaml").exists()
     assert all(not str(item).startswith("v5/") for item in include)
 
 

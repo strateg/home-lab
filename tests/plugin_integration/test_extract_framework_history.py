@@ -56,7 +56,9 @@ def _init_fixture_repo(tmp_path: Path) -> Path:
                         {"from": "topology/object-modules", "to": "topology/object-modules"},
                         {"from": "topology/layer-contract.yaml", "to": "topology/layer-contract.yaml"},
                         {"from": "topology/model.lock.yaml", "to": "topology/model.lock.yaml"},
+                        {"from": "topology/semantic-keywords.yaml", "to": "topology/semantic-keywords.yaml"},
                         {"from": "topology/profile-map.yaml", "to": "topology/profile-map.yaml"},
+                        {"from": "topology/module-index.yaml", "to": "topology/module-index.yaml"},
                         {"from": "topology-tools", "to": "topology-tools"},
                     ],
                 },
@@ -66,6 +68,8 @@ def _init_fixture_repo(tmp_path: Path) -> Path:
     )
     _write(root / "topology" / "layer-contract.yaml", "schema_version: 1\n")
     _write(root / "topology" / "model.lock.yaml", "schema_version: 1\n")
+    _write(root / "topology" / "semantic-keywords.yaml", "schema_version: 1\n")
+    _write(root / "topology" / "module-index.yaml", "schema_version: 1\n")
     _write(root / "topology" / "profile-map.yaml", "schema_version: 1\n")
     _write(root / "topology" / "class-modules" / "router" / "class.router.test.yaml", "class: test\n")
     _write(root / "topology" / "object-modules" / "router" / "obj.router.test.yaml", "object: test\n")
@@ -118,10 +122,14 @@ def test_extract_framework_history_preserves_git_and_normalizes_layout(tmp_path:
         "topology/object-modules",
         "topology/layer-contract.yaml",
         "topology/model.lock.yaml",
+        "topology/semantic-keywords.yaml",
+        "topology/module-index.yaml",
         "topology/profile-map.yaml",
         "topology-tools",
     }
     assert set(include) == expected_include
+    assert (output_root / "topology" / "semantic-keywords.yaml").exists()
+    assert (output_root / "topology" / "module-index.yaml").exists()
     assert all(not str(item).startswith("v5/") for item in include)
 
     commits = _git(output_root, "rev-list", "--count", "HEAD")

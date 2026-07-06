@@ -127,10 +127,13 @@ def _normalize_layout(*, repo_root: Path, include_tests: bool) -> None:
     _move_if_exists(repo_root / "topology" / "object-modules", stage / "topology" / "object-modules")
     _move_if_exists(repo_root / "topology" / "layer-contract.yaml", stage / "topology" / "layer-contract.yaml")
     _move_if_exists(repo_root / "topology" / "model.lock.yaml", stage / "topology" / "model.lock.yaml")
+    _move_if_exists(repo_root / "topology" / "semantic-keywords.yaml", stage / "topology" / "semantic-keywords.yaml")
+    _move_if_exists(repo_root / "topology" / "module-index.yaml", stage / "topology" / "module-index.yaml")
     _move_if_exists(repo_root / "topology" / "profile-map.yaml", stage / "topology" / "profile-map.yaml")
     _move_if_exists(repo_root / "topology-tools", stage / "topology-tools")
 
     if include_tests:
+        _move_if_exists(repo_root / "tests" / "helpers", stage / "tests" / "helpers")
         _move_if_exists(repo_root / "tests" / "plugin_api", stage / "tests" / "plugin_api")
         _move_if_exists(repo_root / "tests" / "plugin_contract", stage / "tests" / "plugin_contract")
         _move_if_exists(repo_root / "tests" / "plugin_integration", stage / "tests" / "plugin_integration")
