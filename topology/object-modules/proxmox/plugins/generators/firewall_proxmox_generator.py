@@ -44,18 +44,24 @@ class FirewallProxmoxGenerator(BaseGenerator):
     def _publish_empty_contracts(self, ctx: PluginContext) -> None:
         """Publish empty contract outputs for migrating mode compatibility."""
         ctx.publish("firewall_proxmox_files", [])
-        ctx.publish("artifact_plan", {
-            "plugin_id": self.plugin_id,
-            "artifact_family": "firewall.proxmox",
-            "status": "stub",
-            "planned_outputs": [],
-        })
-        ctx.publish("artifact_generation_report", {
-            "plugin_id": self.plugin_id,
-            "artifact_family": "firewall.proxmox",
-            "status": "stub",
-            "generated": [],
-        })
+        ctx.publish(
+            "artifact_plan",
+            {
+                "plugin_id": self.plugin_id,
+                "artifact_family": "firewall.proxmox",
+                "status": "stub",
+                "planned_outputs": [],
+            },
+        )
+        ctx.publish(
+            "artifact_generation_report",
+            {
+                "plugin_id": self.plugin_id,
+                "artifact_family": "firewall.proxmox",
+                "status": "stub",
+                "generated": [],
+            },
+        )
         ctx.publish("artifact_contract_files", [])
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:

@@ -60,9 +60,7 @@ def _decrypt_sops_file(secrets_path: Path) -> dict[str, Any]:
         raise WireguardProjectionError(f"invalid YAML in secrets: {e}") from e
 
 
-def _resolve_device_public_ip(
-    compiled: dict[str, Any], device_ref: str, secrets_root: Path
-) -> str | None:
+def _resolve_device_public_ip(compiled: dict[str, Any], device_ref: str, secrets_root: Path) -> str | None:
     """Resolve public IP for a device from secrets or topology."""
     # Try to find in instance secrets
     secrets_path = secrets_root / "instances" / f"{device_ref}.yaml"
@@ -272,14 +270,10 @@ def _resolve_vps_nat(
     if source_networks:
         # Forward rules
         iptables_rules.append(f"-I FORWARD 1 -i wg0 -o {out_interface} -j ACCEPT")
-        iptables_rules.append(
-            f"-I FORWARD 2 -i {out_interface} -o wg0 -m state --state RELATED,ESTABLISHED -j ACCEPT"
-        )
+        iptables_rules.append(f"-I FORWARD 2 -i {out_interface} -o wg0 -m state --state RELATED,ESTABLISHED -j ACCEPT")
         # NAT rules for each source network
         for cidr in source_networks:
-            iptables_rules.append(
-                f"-t nat -A POSTROUTING -s {cidr} -o {out_interface} -j MASQUERADE"
-            )
+            iptables_rules.append(f"-t nat -A POSTROUTING -s {cidr} -o {out_interface} -j MASQUERADE")
 
     return {
         **vps_nat,
@@ -332,12 +326,8 @@ def build_wireguard_projection(
         tunnel_name = inst_data.get("tunnel_name", "wg0")
         tunnel_network = inst_data.get("tunnel_network", "")
         # Resolve allowed_vlan_refs to allowed_ips (ADR-0111)
-        endpoint_a = _resolve_endpoint_allowed_ips(
-            inst_data.get("endpoint_a", {}), vlan_cidr_index
-        )
-        endpoint_b = _resolve_endpoint_allowed_ips(
-            inst_data.get("endpoint_b", {}), vlan_cidr_index
-        )
+        endpoint_a = _resolve_endpoint_allowed_ips(inst_data.get("endpoint_a", {}), vlan_cidr_index)
+        endpoint_b = _resolve_endpoint_allowed_ips(inst_data.get("endpoint_b", {}), vlan_cidr_index)
         secrets_ref = inst_data.get("secrets_ref", "")
 
         # Load tunnel secrets
@@ -411,9 +401,7 @@ class WireguardGenerator(BaseGenerator):
         secrets_root = project_root / "secrets"
 
         try:
-            projection = build_wireguard_projection(
-                payload, secrets_root=secrets_root
-            )
+            projection = build_wireguard_projection(payload, secrets_root=secrets_root)
         except WireguardProjectionError as exc:
             diagnostics.append(
                 self.emit_diagnostic(
@@ -465,12 +453,8 @@ class WireguardGenerator(BaseGenerator):
                 continue
 
             # Determine endpoint platforms
-            endpoint_a_platform = self._detect_platform(
-                payload, endpoint_a.get("device_ref", "")
-            )
-            endpoint_b_platform = self._detect_platform(
-                payload, endpoint_b.get("device_ref", "")
-            )
+            endpoint_a_platform = self._detect_platform(payload, endpoint_a.get("device_ref", ""))
+            endpoint_b_platform = self._detect_platform(payload, endpoint_b.get("device_ref", ""))
 
             template_ctx = {
                 "tunnel": tunnel,
@@ -498,9 +482,7 @@ class WireguardGenerator(BaseGenerator):
                         reason="base-family",
                     )
                 )
-                content = self.render_template(
-                    ctx, "wireguard/mikrotik.rsc.j2", template_ctx
-                )
+                content = self.render_template(ctx, "wireguard/mikrotik.rsc.j2", template_ctx)
                 self.write_text_atomic(mikrotik_path, content)
                 written.append(str(mikrotik_path))
 
@@ -514,9 +496,7 @@ class WireguardGenerator(BaseGenerator):
                         reason="base-family",
                     )
                 )
-                content = self.render_template(
-                    ctx, "wireguard/linux.conf.j2", template_ctx
-                )
+                content = self.render_template(ctx, "wireguard/linux.conf.j2", template_ctx)
                 self.write_text_atomic(linux_path, content)
                 written.append(str(linux_path))
 
@@ -529,9 +509,7 @@ class WireguardGenerator(BaseGenerator):
                     reason="base-family",
                 )
             )
-            content = self.render_template(
-                ctx, "wireguard/README.md.j2", {"tunnels": tunnels}
-            )
+            content = self.render_template(ctx, "wireguard/README.md.j2", {"tunnels": tunnels})
             self.write_text_atomic(readme_path, content)
             written.append(str(readme_path))
 
@@ -626,9 +604,7 @@ class WireguardGenerator(BaseGenerator):
             },
         )
 
-    def _detect_platform(
-        self, compiled: dict[str, Any], device_ref: str
-    ) -> str:
+    def _detect_platform(self, compiled: dict[str, Any], device_ref: str) -> str:
         """Detect platform type for a device using capability checks (ADR 0106).
 
         Uses get_platform_type() from capability_helpers instead of string matching.

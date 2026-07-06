@@ -150,13 +150,15 @@ def build_ansible_role_projection(compiled_json: dict[str, Any]) -> dict[str, An
             # Match capabilities to roles
             for cap in capabilities:
                 if cap in CAPABILITY_ROLE_MAP:
-                    role_assignments.append({
-                        "instance_id": instance_id,
-                        "capability": cap,
-                        "role": CAPABILITY_ROLE_MAP[cap],
-                        "group": group_name,
-                        "instance_data": deepcopy(inst),
-                    })
+                    role_assignments.append(
+                        {
+                            "instance_id": instance_id,
+                            "capability": cap,
+                            "role": CAPABILITY_ROLE_MAP[cap],
+                            "group": group_name,
+                            "instance_data": deepcopy(inst),
+                        }
+                    )
 
     return {
         "role_assignments": _sorted_rows(role_assignments),

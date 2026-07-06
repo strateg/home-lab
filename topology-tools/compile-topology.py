@@ -19,14 +19,14 @@ TOPOLOGY_TOOLS = Path(__file__).resolve().parent
 sys.path.insert(0, str(TOPOLOGY_TOOLS))
 
 from compiler_ai_sessions import AiConfig, AiSessionRunner
-from compiler_config import BootstrapResult
-from compiler_framework_lock import FrameworkLockManager
 from compiler_cli import CompilerCliDependencies
 from compiler_cli import build_parser as build_compiler_parser
 from compiler_cli import run_cli
+from compiler_config import BootstrapResult
 from compiler_contract import manifest_digest, validate_compiled_model_contract
 from compiler_decisions import select_effective_payload
 from compiler_diagnostics import CompilerDiagnostic
+from compiler_framework_lock import FrameworkLockManager
 from compiler_ownership import artifact_owner, compilation_owner, validation_owner
 from compiler_plugin_context import create_plugin_context
 from compiler_reporting import write_diagnostics_report

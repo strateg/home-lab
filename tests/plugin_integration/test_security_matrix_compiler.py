@@ -503,9 +503,7 @@ class TestSecurityMatrixCompilerIntegration:
             },
         ]
         # Object without zone_refs
-        objects = {
-            "obj.network.security_matrix.soho": {}
-        }
+        objects = {"obj.network.security_matrix.soho": {}}
         ctx = _create_ctx(rows=rows, objects=objects)
 
         result = run_plugin_for_test(

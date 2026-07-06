@@ -170,21 +170,51 @@ def _semanticize(compiled_json: dict) -> dict:
         ),
         (
             BootstrapProxmoxGenerator("object.proxmox.generator.bootstrap"),
-            {"instances": {"devices": [{"instance_id": "srv-pve", "object_ref": "obj.proxmox.ve", "object": {"derived_capabilities": ["cap.bootstrap.unattended"]}}]}},
+            {
+                "instances": {
+                    "devices": [
+                        {
+                            "instance_id": "srv-pve",
+                            "object_ref": "obj.proxmox.ve",
+                            "object": {"derived_capabilities": ["cap.bootstrap.unattended"]},
+                        }
+                    ]
+                }
+            },
             4,
             PROXMOX_MANIFEST,
             "object.proxmox.generator.bootstrap",
         ),
         (
             BootstrapMikroTikGenerator("object.mikrotik.generator.bootstrap"),
-            {"instances": {"devices": [{"instance_id": "rtr-mk", "object_ref": "obj.mikrotik.chateau_lte7_ax", "object": {"derived_capabilities": ["cap.bootstrap.netinstall"]}}]}},
+            {
+                "instances": {
+                    "devices": [
+                        {
+                            "instance_id": "rtr-mk",
+                            "object_ref": "obj.mikrotik.chateau_lte7_ax",
+                            "object": {"derived_capabilities": ["cap.bootstrap.netinstall"]},
+                        }
+                    ]
+                }
+            },
             4,
             MIKROTIK_MANIFEST,
             "object.mikrotik.generator.bootstrap",
         ),
         (
             BootstrapOrangePiGenerator("object.orangepi.generator.bootstrap"),
-            {"instances": {"devices": [{"instance_id": "srv-opi", "object_ref": "obj.orangepi.rk3588.debian", "object": {"derived_capabilities": ["cap.bootstrap.cloud_init"]}}]}},
+            {
+                "instances": {
+                    "devices": [
+                        {
+                            "instance_id": "srv-opi",
+                            "object_ref": "obj.orangepi.rk3588.debian",
+                            "object": {"derived_capabilities": ["cap.bootstrap.cloud_init"]},
+                        }
+                    ]
+                }
+            },
             3,
             ORANGEPI_MANIFEST,
             "object.orangepi.generator.bootstrap",
@@ -266,21 +296,51 @@ def test_generator_outputs_are_template_rendered(
         ),
         (
             BootstrapProxmoxGenerator("object.proxmox.generator.bootstrap"),
-            {"instances": {"devices": [{"instance_id": "srv-pve", "object_ref": "obj.proxmox.ve", "object": {"derived_capabilities": ["cap.bootstrap.unattended"]}}]}},
+            {
+                "instances": {
+                    "devices": [
+                        {
+                            "instance_id": "srv-pve",
+                            "object_ref": "obj.proxmox.ve",
+                            "object": {"derived_capabilities": ["cap.bootstrap.unattended"]},
+                        }
+                    ]
+                }
+            },
             "bootstrap_proxmox_files",
             PROXMOX_MANIFEST,
             "object.proxmox.generator.bootstrap",
         ),
         (
             BootstrapMikroTikGenerator("object.mikrotik.generator.bootstrap"),
-            {"instances": {"devices": [{"instance_id": "rtr-mk", "object_ref": "obj.mikrotik.chateau_lte7_ax", "object": {"derived_capabilities": ["cap.bootstrap.netinstall"]}}]}},
+            {
+                "instances": {
+                    "devices": [
+                        {
+                            "instance_id": "rtr-mk",
+                            "object_ref": "obj.mikrotik.chateau_lte7_ax",
+                            "object": {"derived_capabilities": ["cap.bootstrap.netinstall"]},
+                        }
+                    ]
+                }
+            },
             "bootstrap_mikrotik_files",
             MIKROTIK_MANIFEST,
             "object.mikrotik.generator.bootstrap",
         ),
         (
             BootstrapOrangePiGenerator("object.orangepi.generator.bootstrap"),
-            {"instances": {"devices": [{"instance_id": "srv-opi", "object_ref": "obj.orangepi.rk3588.debian", "object": {"derived_capabilities": ["cap.bootstrap.cloud_init"]}}]}},
+            {
+                "instances": {
+                    "devices": [
+                        {
+                            "instance_id": "srv-opi",
+                            "object_ref": "obj.orangepi.rk3588.debian",
+                            "object": {"derived_capabilities": ["cap.bootstrap.cloud_init"]},
+                        }
+                    ]
+                }
+            },
             "bootstrap_orangepi_files",
             ORANGEPI_MANIFEST,
             "object.orangepi.generator.bootstrap",

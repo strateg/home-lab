@@ -147,17 +147,13 @@ class DependencyResolver:
                         f"to {consumer_spec.phase.value}/{[s.value for s in consumer_spec.stages]}",
                     )
 
-    def _is_stage_local_consumption_valid(
-        self, producer: PluginSpec, consumer: PluginSpec
-    ) -> bool:
+    def _is_stage_local_consumption_valid(self, producer: PluginSpec, consumer: PluginSpec) -> bool:
         """Check if stage_local consumption is valid (same stage, producer first)."""
         for producer_stage in producer.stages:
             for consumer_stage in consumer.stages:
                 if producer_stage != consumer_stage:
                     continue
-                if SpecValidator.phase_rank(producer.phase) <= SpecValidator.phase_rank(
-                    consumer.phase
-                ):
+                if SpecValidator.phase_rank(producer.phase) <= SpecValidator.phase_rank(consumer.phase):
                     return True
         return False
 

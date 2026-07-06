@@ -206,9 +206,7 @@ class TestTUC0002TerraformGeneratorsV2:
         plugin = generator_class("object.mikrotik.generator.terraform")
         envelope = run_plugin_once(snapshot=snapshot, plugin=plugin)
 
-        assert envelope.result.status == PluginStatus.SUCCESS, (
-            f"Generator failed: {envelope.result.diagnostics}"
-        )
+        assert envelope.result.status == PluginStatus.SUCCESS, f"Generator failed: {envelope.result.diagnostics}"
 
         # Check generated files
         mikrotik_dir = tmp_path / "generated" / "terraform" / "mikrotik"
@@ -295,9 +293,7 @@ class TestTUC0002TerraformGeneratorsV2:
         plugin = generator_class("object.proxmox.generator.terraform")
         envelope = run_plugin_once(snapshot=snapshot, plugin=plugin)
 
-        assert envelope.result.status == PluginStatus.SUCCESS, (
-            f"Generator failed: {envelope.result.diagnostics}"
-        )
+        assert envelope.result.status == PluginStatus.SUCCESS, f"Generator failed: {envelope.result.diagnostics}"
 
         # Check generated files
         proxmox_dir = tmp_path / "generated" / "terraform" / "proxmox"
@@ -334,9 +330,7 @@ class TestTUC0002TerraformGeneratorsV2:
             }
         }
 
-        snapshot = _build_snapshot(
-            tmp_path, "object.mikrotik.generator.terraform", compiled, extra_config=extra_config
-        )
+        snapshot = _build_snapshot(tmp_path, "object.mikrotik.generator.terraform", compiled, extra_config=extra_config)
         plugin = generator_class("object.mikrotik.generator.terraform")
         envelope = run_plugin_once(snapshot=snapshot, plugin=plugin)
 
@@ -384,9 +378,7 @@ class TestTUC0002TerraformGeneratorsV2:
             }
         }
 
-        snapshot = _build_snapshot(
-            tmp_path, "object.proxmox.generator.terraform", compiled, extra_config=extra_config
-        )
+        snapshot = _build_snapshot(tmp_path, "object.proxmox.generator.terraform", compiled, extra_config=extra_config)
         plugin = generator_class("object.proxmox.generator.terraform")
         envelope = run_plugin_once(snapshot=snapshot, plugin=plugin)
 

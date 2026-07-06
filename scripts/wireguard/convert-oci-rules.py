@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Convert OCI Security List rules to update format and add WireGuard rule."""
-import sys
+
 import json
+import sys
 
 rules = json.load(sys.stdin)
 new_rules = []
@@ -11,7 +12,7 @@ for r in rules:
         "protocol": r["protocol"],
         "source": r["source"],
         "sourceType": r.get("source-type", "CIDR_BLOCK"),
-        "isStateless": r.get("is-stateless", False)
+        "isStateless": r.get("is-stateless", False),
     }
     if r.get("tcp-options"):
         nr["tcpOptions"] = {"destinationPortRange": r["tcp-options"]["destination-port-range"]}
@@ -24,15 +25,20 @@ for r in rules:
     new_rules.append(nr)
 
 # Add WireGuard rule if not present
-has_wg = any(r.get("protocol") == "17" and r.get("udpOptions", {}).get("destinationPortRange", {}).get("min") == 51820 for r in new_rules)
+has_wg = any(
+    r.get("protocol") == "17" and r.get("udpOptions", {}).get("destinationPortRange", {}).get("min") == 51820
+    for r in new_rules
+)
 if not has_wg:
-    new_rules.append({
-        "protocol": "17",
-        "source": "0.0.0.0/0",
-        "sourceType": "CIDR_BLOCK",
-        "isStateless": False,
-        "description": "WireGuard VPN",
-        "udpOptions": {"destinationPortRange": {"min": 51820, "max": 51820}}
-    })
+    new_rules.append(
+        {
+            "protocol": "17",
+            "source": "0.0.0.0/0",
+            "sourceType": "CIDR_BLOCK",
+            "isStateless": False,
+            "description": "WireGuard VPN",
+            "udpOptions": {"destinationPortRange": {"min": 51820, "max": 51820}},
+        }
+    )
 
 print(json.dumps(new_rules))

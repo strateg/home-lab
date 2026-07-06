@@ -165,7 +165,17 @@ def test_init_project_repo_creates_group_root_instances_structure_and_submodule(
     assert (output_root / "taskfiles" / "project.yml").exists()
     assert (output_root / "plugins" / "plugins.yaml").exists()
 
-    for group in ("meta", "devices", "network", "pools", "data-assets", "platform", "service", "monitoring", "operations"):
+    for group in (
+        "meta",
+        "devices",
+        "network",
+        "pools",
+        "data-assets",
+        "platform",
+        "service",
+        "monitoring",
+        "operations",
+    ):
         assert (output_root / "topology" / "instances" / group).exists()
 
     assert (output_root / "topology" / "instances" / "firmware" / "inst.firmware.apc.backups.650va.yaml").exists()

@@ -155,9 +155,8 @@ class TestDependencyDepthRegression:
         depths, max_depth, longest_path = _compute_dependency_depths(specs)
 
         violators = {pid: d for pid, d in depths.items() if d > HARD_LIMIT}
-        assert not violators, (
-            f"Plugins exceed hard limit ({HARD_LIMIT}):\n"
-            + "\n".join(f"  {pid}: depth {d}" for pid, d in sorted(violators.items()))
+        assert not violators, f"Plugins exceed hard limit ({HARD_LIMIT}):\n" + "\n".join(
+            f"  {pid}: depth {d}" for pid, d in sorted(violators.items())
         )
 
     def test_depth_distribution_sanity(self) -> None:
@@ -173,6 +172,5 @@ class TestDependencyDepthRegression:
         mid_depth_ratio = mid_depth_count / len(depths)
 
         assert mid_depth_ratio >= 0.5, (
-            f"Only {mid_depth_ratio:.1%} of plugins have depth ≤ 10. "
-            "Dependency graph may be too linear/deep."
+            f"Only {mid_depth_ratio:.1%} of plugins have depth ≤ 10. " "Dependency graph may be too linear/deep."
         )

@@ -115,9 +115,7 @@ def check_config_schema_required(
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Lint plugin manifests for required config_schema declarations."
-    )
+    parser = argparse.ArgumentParser(description="Lint plugin manifests for required config_schema declarations.")
     parser.add_argument(
         "--mode",
         choices=["strict", "warn", "baseline"],
@@ -130,7 +128,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         ),
     )
     parser.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         action="store_true",
         help="Print detailed output for each plugin.",
     )

@@ -18,7 +18,6 @@ from plugins.generators.projection_core import (
     _sorted_rows,
 )
 
-
 # Default OCI agent plugins configuration (matching original Terraform)
 DEFAULT_AGENT_PLUGINS = [
     {"name": "Vulnerability Scanning", "state": "DISABLED"},
@@ -79,9 +78,7 @@ def build_oci_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
         if not _is_oci_instance(row):
             continue
 
-        instance_id = _require_non_empty_str(
-            row, field="instance_id", path=f"compiled_json.instances.vm[{idx}]"
-        )
+        instance_id = _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.vm[{idx}]")
         _require_object_ref(row, path=f"compiled_json.instances.vm[{idx}]")
 
         # Extract OCI-specific configuration from instance_data
@@ -90,9 +87,7 @@ def build_oci_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
             instance_data_block = {}
         oci_config = instance_data_block.get("oci", {})
         if not isinstance(oci_config, dict):
-            raise ProjectionError(
-                f"compiled_json.instances.vm[{idx}].instance_data.oci must be mapping/object"
-            )
+            raise ProjectionError(f"compiled_json.instances.vm[{idx}].instance_data.oci must be mapping/object")
 
         region = oci_config.get("region", "")
         if region:

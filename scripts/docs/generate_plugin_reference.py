@@ -309,9 +309,7 @@ def _kind_to_stage(kind: str) -> str:
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Generate plugin reference documentation."
-    )
+    parser = argparse.ArgumentParser(description="Generate plugin reference documentation.")
     parser.add_argument(
         "--output-dir",
         type=Path,
@@ -319,7 +317,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Output directory (default: docs/generated)",
     )
     parser.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         action="store_true",
         help="Show detailed progress.",
     )

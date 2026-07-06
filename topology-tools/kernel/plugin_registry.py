@@ -65,30 +65,30 @@ from .plugin_runner import run_plugin_once
 
 # ADR 0063 Phase 3: Import from decomposed submodules
 # These are re-exported for backwards compatibility
+from .registry import ENTRY_FAMILIES as _ENTRY_FAMILIES
+from .registry import KIND_ENTRY_FAMILY as _KIND_ENTRY_FAMILY
+from .registry import KIND_STAGE_AFFINITY as _KIND_STAGE_AFFINITY
+from .registry import PHASE_ORDER as _PHASE_ORDER
+from .registry import STAGE_ORDER as _STAGE_ORDER
+from .registry import STAGE_ORDER_RANGES as _STAGE_ORDER_RANGES
+from .registry import SUPPORTED_API_VERSIONS as _SUPPORTED_API_VERSIONS
 from .registry import (
-    ENTRY_FAMILIES as _ENTRY_FAMILIES,
-    KIND_ENTRY_FAMILY as _KIND_ENTRY_FAMILY,
-    KIND_STAGE_AFFINITY as _KIND_STAGE_AFFINITY,
-    PHASE_ORDER as _PHASE_ORDER,
-    STAGE_ORDER as _STAGE_ORDER,
-    STAGE_ORDER_RANGES as _STAGE_ORDER_RANGES,
-    SUPPORTED_API_VERSIONS as _SUPPORTED_API_VERSIONS,
     ConfigValidationError,
     ConfigValidator,
     DependencyError,
     DependencyResolver,
     EnvelopeValidator,
-    ManifestLoadError,
     ManifestLoader,
+    ManifestLoadError,
     PluginCycleError,
-    PluginLoadError,
     PluginLoader,
+    PluginLoadError,
     PluginManifest,
     SpecValidationError,
     SpecValidator,
 )
+from .scheduler import HAS_REAL_SUBINTERPRETERS as _HAS_REAL_SUBINTERPRETERS
 from .scheduler import (
-    HAS_REAL_SUBINTERPRETERS as _HAS_REAL_SUBINTERPRETERS,
     ExecutionPlanner,
     ParallelExecutor,
     PlanningError,
@@ -564,9 +564,7 @@ class PluginRegistry:
         """Delegate to SnapshotBuilder (ADR 0063 Phase 3)."""
         return SnapshotBuilder._declared_consumes(spec)
 
-    def _inject_snapshot_metadata(
-        self, plugin_id: str, config: dict[str, Any]
-    ) -> dict[str, Any]:
+    def _inject_snapshot_metadata(self, plugin_id: str, config: dict[str, Any]) -> dict[str, Any]:
         """Inject plugin-specific metadata into snapshot config (ADR 0063 Phase 3).
 
         This callback is passed to SnapshotBuilder for metadata injection.
@@ -2230,9 +2228,7 @@ class PluginRegistry:
             spec = self.specs.get(plugin_id)
             if not isinstance(spec, PluginSpec):
                 continue
-            declared_model_versions = [
-                item for item in spec.model_versions if isinstance(item, str) and item.strip()
-            ]
+            declared_model_versions = [item for item in spec.model_versions if isinstance(item, str) and item.strip()]
             if not declared_model_versions:
                 continue
             if not isinstance(core_model_version, str) or not core_model_version:

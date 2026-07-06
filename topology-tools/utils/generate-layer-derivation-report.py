@@ -81,7 +81,9 @@ def main() -> int:
     args = _parse_args()
     repo_root = args.repo_root.resolve()
     topology_path = _resolve_path(repo_root, args.topology).resolve()
-    output_json = args.output_json.resolve() if args.output_json.is_absolute() else (repo_root / args.output_json).resolve()
+    output_json = (
+        args.output_json.resolve() if args.output_json.is_absolute() else (repo_root / args.output_json).resolve()
+    )
     output_txt = args.output_txt.resolve() if args.output_txt.is_absolute() else (repo_root / args.output_txt).resolve()
 
     manifest = load_yaml_file(topology_path) or {}
@@ -94,13 +96,17 @@ def main() -> int:
 
     class_root = _resolve_path(repo_root, framework.get("class_modules_root", "topology/class-modules")).resolve()
     object_root = _resolve_path(repo_root, framework.get("object_modules_root", "topology/object-modules")).resolve()
-    semantic_path = _resolve_path(repo_root, framework.get("semantic_keywords", "topology/semantic-keywords.yaml")).resolve()
+    semantic_path = _resolve_path(
+        repo_root, framework.get("semantic_keywords", "topology/semantic-keywords.yaml")
+    ).resolve()
 
     project_id = project.get("active")
     projects_root = _resolve_path(repo_root, project.get("projects_root", "projects")).resolve()
     project_manifest_path = projects_root / str(project_id or "") / "project.yaml"
     project_manifest = load_yaml_file(project_manifest_path) or {}
-    instances_root = projects_root / str(project_id or "") / str(project_manifest.get("instances_root", "topology/instances"))
+    instances_root = (
+        projects_root / str(project_id or "") / str(project_manifest.get("instances_root", "topology/instances"))
+    )
 
     semantic_registry = load_semantic_keyword_registry(semantic_path)
     class_layer_map = load_class_layer_map(class_modules_root=class_root, semantic_registry=semantic_registry)
@@ -117,8 +123,12 @@ def main() -> int:
         payload = load_yaml_file(path) or {}
         if not isinstance(payload, dict):
             continue
-        object_id_res = resolve_semantic_value(payload, registry=semantic_registry, context="entity_manifest", token="object_id")
-        class_ref_res = resolve_semantic_value(payload, registry=semantic_registry, context="entity_manifest", token="parent_ref")
+        object_id_res = resolve_semantic_value(
+            payload, registry=semantic_registry, context="entity_manifest", token="object_id"
+        )
+        class_ref_res = resolve_semantic_value(
+            payload, registry=semantic_registry, context="entity_manifest", token="parent_ref"
+        )
         object_id = str(object_id_res.value) if object_id_res.found else "<unknown>"
         class_ref = str(class_ref_res.value) if class_ref_res.found else "<unknown>"
         if "@layer" in payload:
@@ -146,9 +156,15 @@ def main() -> int:
         instances_total += 1
         if not isinstance(payload, dict):
             continue
-        instance_res = resolve_semantic_value(payload, registry=semantic_registry, context="entity_manifest", token="instance_id")
-        object_res = resolve_semantic_value(payload, registry=semantic_registry, context="entity_manifest", token="parent_ref")
-        layer_res = resolve_semantic_value(payload, registry=semantic_registry, context="entity_manifest", token="entity_layer")
+        instance_res = resolve_semantic_value(
+            payload, registry=semantic_registry, context="entity_manifest", token="instance_id"
+        )
+        object_res = resolve_semantic_value(
+            payload, registry=semantic_registry, context="entity_manifest", token="parent_ref"
+        )
+        layer_res = resolve_semantic_value(
+            payload, registry=semantic_registry, context="entity_manifest", token="entity_layer"
+        )
         instance_id = str(instance_res.value) if instance_res.found else "<unknown>"
         object_ref = str(object_res.value) if object_res.found else "<unknown>"
         derived_layer = object_layer_map.get(object_ref)
@@ -222,4 +238,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

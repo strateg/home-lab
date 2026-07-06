@@ -84,8 +84,7 @@ class NetworkIpAllocationHostOsRefsValidator(ValidatorJsonPlugin):
                         severity="error",
                         stage=stage,
                         message=(
-                            f"Network '{row_id}' ip_allocation '{ip_value}': "
-                            "device_ref is required in Mode H."
+                            f"Network '{row_id}' ip_allocation '{ip_value}': " "device_ref is required in Mode H."
                         ),
                         path=f"{path}.device_ref",
                     )

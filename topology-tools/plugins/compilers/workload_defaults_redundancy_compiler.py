@@ -44,9 +44,7 @@ class WorkloadDefaultsRedundancyCompiler(CompilerPlugin):
 
         # Get prepared rows (before @on resolution)
         try:
-            prepared_rows = ctx.subscribe(
-                self._PREPARED_ROWS_PLUGIN_ID, self._PREPARED_ROWS_KEY
-            )
+            prepared_rows = ctx.subscribe(self._PREPARED_ROWS_PLUGIN_ID, self._PREPARED_ROWS_KEY)
         except PluginDataExchangeError:
             # Plugin not available, skip validation
             return self.make_result(diagnostics)
@@ -56,9 +54,7 @@ class WorkloadDefaultsRedundancyCompiler(CompilerPlugin):
 
         # Get host workload defaults index
         try:
-            host_index = ctx.subscribe(
-                self._HOST_INDEX_PLUGIN_ID, self._HOST_INDEX_KEY
-            )
+            host_index = ctx.subscribe(self._HOST_INDEX_PLUGIN_ID, self._HOST_INDEX_KEY)
         except PluginDataExchangeError:
             return self.make_result(diagnostics)
 

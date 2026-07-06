@@ -145,7 +145,16 @@ def test_layer_contract_rejects_legacy_instance_bucket_paths(tmp_path: Path, cap
     mod = _load_module()
     topology_path = _seed_repo(tmp_path, object_has_layer=False)
     canonical = tmp_path / "projects" / "home-lab" / "topology" / "instances" / "devices" / "inst.router.a.yaml"
-    legacy = tmp_path / "projects" / "home-lab" / "topology" / "instances" / "L1-foundation" / "devices" / "inst.router.a.yaml"
+    legacy = (
+        tmp_path
+        / "projects"
+        / "home-lab"
+        / "topology"
+        / "instances"
+        / "L1-foundation"
+        / "devices"
+        / "inst.router.a.yaml"
+    )
     legacy.parent.mkdir(parents=True, exist_ok=True)
     canonical.rename(legacy)
 

@@ -69,10 +69,7 @@ def build_wireguard_gateway_vars(
 
     # Find tunnel interface config
     tunnel_interfaces = networking.get("tunnel_interfaces", [])
-    tunnel_iface = next(
-        (t for t in tunnel_interfaces if t.get("name") == "wg0"),
-        {}
-    )
+    tunnel_iface = next((t for t in tunnel_interfaces if t.get("name") == "wg0"), {})
 
     # Extract tunnel endpoint data
     tunnel_data = tunnel.get("instance_data", tunnel)
@@ -114,11 +111,13 @@ def build_wireguard_gateway_vars(
         network = net.get("network")
         if not network and vlan_cidr:
             network = vlan_cidr
-        routed_networks.append({
-            "network": network,
-            "comment": f"VLAN {vlan_data.get('vlan_id', '')} - {vlan_data.get('notes', '').split('.')[0] if vlan_data.get('notes') else 'VPN'}",
-            "nat": net.get("nat", "masquerade"),
-        })
+        routed_networks.append(
+            {
+                "network": network,
+                "comment": f"VLAN {vlan_data.get('vlan_id', '')} - {vlan_data.get('notes', '').split('.')[0] if vlan_data.get('notes') else 'VPN'}",
+                "nat": net.get("nat", "masquerade"),
+            }
+        )
 
     # Get iptables rules
     iptables_rules = wg_config.get("iptables_rules", {})

@@ -54,9 +54,7 @@ class TestInputViewSpecDataclass:
 
     def test_has_filters_with_compiled_json(self):
         """Test has_filters is True when compiled_json is set."""
-        spec = InputViewSpec(
-            compiled_json=CompiledJsonView(include=("$.instances",))
-        )
+        spec = InputViewSpec(compiled_json=CompiledJsonView(include=("$.instances",)))
         assert spec.has_filters is True
 
     def test_has_filters_with_subscriptions(self):
@@ -74,16 +72,12 @@ class TestInputViewSpecDataclass:
 
     def test_has_filters_with_object_map(self):
         """Test has_filters is True when object_map is set."""
-        spec = InputViewSpec(
-            object_map=MapFilterView(include_refs=("network.*",))
-        )
+        spec = InputViewSpec(object_map=MapFilterView(include_refs=("network.*",)))
         assert spec.has_filters is True
 
     def test_has_filters_with_class_map(self):
         """Test has_filters is True when class_map is set."""
-        spec = InputViewSpec(
-            class_map=MapFilterView(include_refs=("network.*",))
-        )
+        spec = InputViewSpec(class_map=MapFilterView(include_refs=("network.*",)))
         assert spec.has_filters is True
 
     def test_frozen_immutable(self):
@@ -104,17 +98,13 @@ class TestCompiledJsonView:
 
     def test_with_include_patterns(self):
         """Test CompiledJsonView with include patterns."""
-        view = CompiledJsonView(
-            include=("$.instances[*].network", "$.instances[*].id")
-        )
+        view = CompiledJsonView(include=("$.instances[*].network", "$.instances[*].id"))
         assert len(view.include) == 2
         assert "$.instances[*].network" in view.include
 
     def test_with_exclude_patterns(self):
         """Test CompiledJsonView with exclude patterns."""
-        view = CompiledJsonView(
-            exclude=("$.instances[*].secrets",)
-        )
+        view = CompiledJsonView(exclude=("$.instances[*].secrets",))
         assert len(view.exclude) == 1
 
 
@@ -129,10 +119,7 @@ class TestMapFilterView:
 
     def test_with_glob_patterns(self):
         """Test MapFilterView with glob patterns."""
-        view = MapFilterView(
-            include_refs=("network.*", "compute.*"),
-            exclude_refs=("*.internal",)
-        )
+        view = MapFilterView(include_refs=("network.*", "compute.*"), exclude_refs=("*.internal",))
         assert len(view.include_refs) == 2
         assert len(view.exclude_refs) == 1
 
@@ -181,12 +168,14 @@ class TestPluginSpecParseInputView:
 
     def test_parse_compiled_json(self):
         """Test parsing compiled_json section."""
-        result = PluginSpec._parse_input_view({
-            "compiled_json": {
-                "include": ["$.instances[*].network"],
-                "exclude": ["$.instances[*].secrets"],
+        result = PluginSpec._parse_input_view(
+            {
+                "compiled_json": {
+                    "include": ["$.instances[*].network"],
+                    "exclude": ["$.instances[*].secrets"],
+                }
             }
-        })
+        )
         assert result is not None
         assert result.compiled_json is not None
         assert result.compiled_json.include == ("$.instances[*].network",)
@@ -194,15 +183,17 @@ class TestPluginSpecParseInputView:
 
     def test_parse_subscriptions(self):
         """Test parsing subscriptions section."""
-        result = PluginSpec._parse_input_view({
-            "subscriptions": [
-                {
-                    "from_plugin": "base.compiler.instance_rows",
-                    "key": "normalized_rows",
-                    "projection": "$.rows[?(@.layer=='L2')]",
-                }
-            ]
-        })
+        result = PluginSpec._parse_input_view(
+            {
+                "subscriptions": [
+                    {
+                        "from_plugin": "base.compiler.instance_rows",
+                        "key": "normalized_rows",
+                        "projection": "$.rows[?(@.layer=='L2')]",
+                    }
+                ]
+            }
+        )
         assert result is not None
         assert len(result.subscriptions) == 1
         assert result.subscriptions[0].from_plugin == "base.compiler.instance_rows"
@@ -210,28 +201,32 @@ class TestPluginSpecParseInputView:
 
     def test_parse_subscriptions_skips_invalid(self):
         """Test parsing subscriptions skips invalid entries."""
-        result = PluginSpec._parse_input_view({
-            "subscriptions": [
-                {"from_plugin": "plugin.id"},  # Missing key and projection
-                {
-                    "from_plugin": "valid.plugin",
-                    "key": "valid_key",
-                    "projection": "$.valid",
-                },
-            ]
-        })
+        result = PluginSpec._parse_input_view(
+            {
+                "subscriptions": [
+                    {"from_plugin": "plugin.id"},  # Missing key and projection
+                    {
+                        "from_plugin": "valid.plugin",
+                        "key": "valid_key",
+                        "projection": "$.valid",
+                    },
+                ]
+            }
+        )
         assert result is not None
         assert len(result.subscriptions) == 1
         assert result.subscriptions[0].from_plugin == "valid.plugin"
 
     def test_parse_object_map(self):
         """Test parsing object_map section."""
-        result = PluginSpec._parse_input_view({
-            "object_map": {
-                "include_refs": ["network.*", "compute.*"],
-                "exclude_refs": ["*.internal"],
+        result = PluginSpec._parse_input_view(
+            {
+                "object_map": {
+                    "include_refs": ["network.*", "compute.*"],
+                    "exclude_refs": ["*.internal"],
+                }
             }
-        })
+        )
         assert result is not None
         assert result.object_map is not None
         assert result.object_map.include_refs == ("network.*", "compute.*")
@@ -239,36 +234,40 @@ class TestPluginSpecParseInputView:
 
     def test_parse_class_map(self):
         """Test parsing class_map section."""
-        result = PluginSpec._parse_input_view({
-            "class_map": {
-                "include_refs": ["lxc.*"],
+        result = PluginSpec._parse_input_view(
+            {
+                "class_map": {
+                    "include_refs": ["lxc.*"],
+                }
             }
-        })
+        )
         assert result is not None
         assert result.class_map is not None
         assert result.class_map.include_refs == ("lxc.*",)
 
     def test_parse_full_manifest(self):
         """Test parsing complete input_view manifest."""
-        result = PluginSpec._parse_input_view({
-            "compiled_json": {
-                "include": ["$.instances[?(@.object_ref=~/^network\\./)].network"],
-            },
-            "raw_yaml": False,
-            "subscriptions": [
-                {
-                    "from_plugin": "base.compiler.instance_rows",
-                    "key": "normalized_rows",
-                    "projection": "$.rows[?(@.layer=='L2')]",
-                }
-            ],
-            "object_map": {
-                "include_refs": ["network.*"],
-            },
-            "class_map": {
-                "include_refs": ["network.*"],
-            },
-        })
+        result = PluginSpec._parse_input_view(
+            {
+                "compiled_json": {
+                    "include": ["$.instances[?(@.object_ref=~/^network\\./)].network"],
+                },
+                "raw_yaml": False,
+                "subscriptions": [
+                    {
+                        "from_plugin": "base.compiler.instance_rows",
+                        "key": "normalized_rows",
+                        "projection": "$.rows[?(@.layer=='L2')]",
+                    }
+                ],
+                "object_map": {
+                    "include_refs": ["network.*"],
+                },
+                "class_map": {
+                    "include_refs": ["network.*"],
+                },
+            }
+        )
         assert result is not None
         assert result.compiled_json is not None
         assert result.raw_yaml is False

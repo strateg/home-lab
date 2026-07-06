@@ -90,9 +90,7 @@ class EnvelopeValidator:
                     )
                 )
             else:
-                undeclared_publish = sorted(
-                    key for key in published_keys if key not in declared_produces
-                )
+                undeclared_publish = sorted(key for key in published_keys if key not in declared_produces)
                 if undeclared_publish:
                     diagnostics.append(
                         PluginDiagnostic(

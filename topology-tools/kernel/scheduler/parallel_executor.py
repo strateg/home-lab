@@ -73,14 +73,12 @@ def execute_plugin_isolated(
         sys.path.insert(0, str(base_path))
 
     # Import kernel modules in subinterpreter
-    from kernel.plugin_base import (
-        PluginContext as SubPluginContext,
-        PluginDiagnostic as SubPluginDiagnostic,
-        PluginExecutionEnvelope as SubEnvelope,
-        PluginInputSnapshot as SubSnapshot,
-        PluginKind as SubPluginKind,
-        Stage as SubStage,
-    )
+    from kernel.plugin_base import PluginContext as SubPluginContext
+    from kernel.plugin_base import PluginDiagnostic as SubPluginDiagnostic
+    from kernel.plugin_base import PluginExecutionEnvelope as SubEnvelope
+    from kernel.plugin_base import PluginInputSnapshot as SubSnapshot
+    from kernel.plugin_base import PluginKind as SubPluginKind
+    from kernel.plugin_base import Stage as SubStage
     from kernel.scheduler.snapshot_builder import SerializablePluginSpec
 
     # Reconstruct objects

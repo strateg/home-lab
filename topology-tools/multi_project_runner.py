@@ -249,9 +249,7 @@ def print_results(result: MultiProjectResult) -> None:
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Compile multiple projects in parallel."
-    )
+    parser = argparse.ArgumentParser(description="Compile multiple projects in parallel.")
     parser.add_argument(
         "--projects",
         nargs="+",

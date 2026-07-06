@@ -60,9 +60,7 @@ class ExecutionPlanner:
         stage_plugins = {
             spec.id: spec
             for spec in self._specs.values()
-            if stage in spec.stages
-            and spec.phase == phase
-            and self._profile_allows_spec(spec, profile)
+            if stage in spec.stages and spec.phase == phase and self._profile_allows_spec(spec, profile)
         }
 
         if not stage_plugins:
@@ -112,9 +110,7 @@ class ExecutionPlanner:
 
         if len(ordered) != len(stage_plugins):
             # Defensive guard for unexpected cycles
-            remaining = sorted(
-                plugin_id for plugin_id, degree in indegree.items() if degree > 0
-            )
+            remaining = sorted(plugin_id for plugin_id, degree in indegree.items() if degree > 0)
             raise PluginCycleError(remaining)
 
         return ordered
@@ -136,8 +132,7 @@ class ExecutionPlanner:
         return [
             plugin_id
             for plugin_id in plugin_ids
-            if plugin_id in self._specs
-            and self._when_predicates_allow(self._specs[plugin_id], ctx)
+            if plugin_id in self._specs and self._when_predicates_allow(self._specs[plugin_id], ctx)
         ]
 
     def _profile_allows_spec(self, spec: PluginSpec, profile: Optional[str]) -> bool:
@@ -164,11 +159,7 @@ class ExecutionPlanner:
         # Capabilities check
         capabilities = self._string_list(spec.when.get("capabilities"))
         if capabilities:
-            available_caps = {
-                key
-                for key in (ctx.capability_catalog or {}).keys()
-                if isinstance(key, str) and key
-            }
+            available_caps = {key for key in (ctx.capability_catalog or {}).keys() if isinstance(key, str) and key}
             if not set(capabilities).issubset(available_caps):
                 return False
 
@@ -200,19 +191,11 @@ class ExecutionPlanner:
     def _active_changed_input_scopes(self, ctx: PluginContext) -> set[str] | None:
         """Get active changed input scopes from context."""
         if isinstance(ctx.changed_input_scopes, list):
-            return {
-                item
-                for item in ctx.changed_input_scopes
-                if isinstance(item, str) and item
-            }
+            return {item for item in ctx.changed_input_scopes if isinstance(item, str) and item}
 
         configured_scopes = ctx.config.get("changed_input_scopes")
         if isinstance(configured_scopes, list):
-            return {
-                item
-                for item in configured_scopes
-                if isinstance(item, str) and item
-            }
+            return {item for item in configured_scopes if isinstance(item, str) and item}
 
         return None
 

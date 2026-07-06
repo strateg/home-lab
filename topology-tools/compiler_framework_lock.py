@@ -13,16 +13,17 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 
 import yaml
-
-from framework_lock import (
-    compute_framework_integrity,
-    default_framework_manifest_path,
-    verify_framework_lock,
-)
 from framework_lock import _git_remote as framework_lock_git_remote
 from framework_lock import _git_revision as framework_lock_git_revision
 from framework_lock import _load_yaml as framework_lock_load_yaml
+from framework_lock import (
+    compute_framework_integrity,
+    default_framework_manifest_path,
+)
 from framework_lock import resolve_paths as resolve_framework_lock_paths
+from framework_lock import (
+    verify_framework_lock,
+)
 
 if TYPE_CHECKING:
     from framework_lock import FrameworkLockPaths
@@ -124,9 +125,7 @@ class FrameworkLockManager:
 
         # Dev profile: auto-regenerate lock on integrity mismatch (E7824)
         if not verification.ok and self.runtime_profile == "dev":
-            has_integrity_mismatch = any(
-                item.code == "E7824" for item in verification.diagnostics
-            )
+            has_integrity_mismatch = any(item.code == "E7824" for item in verification.diagnostics)
             if has_integrity_mismatch:
                 try:
                     self._regenerate_lock(lock_paths, project_id)

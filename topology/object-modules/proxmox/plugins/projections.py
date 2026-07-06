@@ -135,7 +135,9 @@ def build_proxmox_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     for idx, row in enumerate(devices):
         object_ref = _require_object_ref(row, path=f"compiled_json.instances.devices[{idx}]")
         if object_ref == "obj.proxmox.ve":
-            instance_id = _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.devices[{idx}]")
+            instance_id = _require_non_empty_str(
+                row, field="instance_id", path=f"compiled_json.instances.devices[{idx}]"
+            )
             export_row = dict(row)
             export_row.pop("instance", None)
             proxmox_nodes.append(export_row)

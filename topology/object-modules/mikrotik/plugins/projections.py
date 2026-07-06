@@ -682,9 +682,7 @@ def _extract_wireguard_tunnels(
             public_endpoint = remote_endpoint.get("public_endpoint", "")
             if public_endpoint:
                 peer_config["endpoint_address"] = public_endpoint
-                peer_config["endpoint_port"] = int(
-                    remote_endpoint.get("listen_port", 51820) or 51820
-                )
+                peer_config["endpoint_port"] = int(remote_endpoint.get("listen_port", 51820) or 51820)
             # Client needs keepalive
             keepalive = inst_data.get("keepalive_interval", 25)
             if keepalive:
@@ -694,12 +692,14 @@ def _extract_wireguard_tunnels(
         peer_config["preshared_key"] = True  # Indicates preshared key is used
 
         peers.append(peer_config)
-        tunnels.append({
-            "instance_id": row.get("instance_id", ""),
-            "tunnel_name": inst_data.get("tunnel_name", "wg0"),
-            "local_endpoint": local_endpoint,
-            "remote_endpoint": remote_endpoint,
-        })
+        tunnels.append(
+            {
+                "instance_id": row.get("instance_id", ""),
+                "tunnel_name": inst_data.get("tunnel_name", "wg0"),
+                "local_endpoint": local_endpoint,
+                "remote_endpoint": remote_endpoint,
+            }
+        )
 
     return {
         "tunnels": tunnels,
@@ -770,15 +770,17 @@ def _extract_mac_vlan_assignments(
         if not device_name:
             device_name = instance_id.replace("inst.device.", "")
 
-        assignments.append({
-            "device_id": instance_id,
-            "device_name": device_name,
-            "secrets_ref": secrets_ref,
-            "secrets_path": secrets_path,
-            "vlan_ref": vlan_ref,
-            "vlan_id": vlan_id,
-            "comment": f"{device_name} -> VLAN {vlan_id}",
-        })
+        assignments.append(
+            {
+                "device_id": instance_id,
+                "device_name": device_name,
+                "secrets_ref": secrets_ref,
+                "secrets_path": secrets_path,
+                "vlan_ref": vlan_ref,
+                "vlan_id": vlan_id,
+                "comment": f"{device_name} -> VLAN {vlan_id}",
+            }
+        )
 
     return sorted(assignments, key=lambda x: (x.get("vlan_id", 0), x.get("device_id", "")))
 

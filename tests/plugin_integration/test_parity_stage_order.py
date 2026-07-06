@@ -13,7 +13,6 @@ import pytest
 
 from tests.helpers.plugin_execution import publish_for_test
 
-
 _original_verify_method = None
 
 

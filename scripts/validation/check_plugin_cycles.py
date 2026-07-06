@@ -114,11 +114,10 @@ def format_cycle(cycle: list[str]) -> str:
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Check plugin dependency graph for cycles."
-    )
+    parser = argparse.ArgumentParser(description="Check plugin dependency graph for cycles.")
     parser.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         action="store_true",
         help="Show detailed output including all plugins scanned.",
     )

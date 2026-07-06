@@ -97,9 +97,7 @@ class ConfigValidator:
 
         return None
 
-    def load_payload_schema(
-        self, spec: PluginSpec, schema_ref: str
-    ) -> tuple[dict[str, Any] | None, str | None]:
+    def load_payload_schema(self, spec: PluginSpec, schema_ref: str) -> tuple[dict[str, Any] | None, str | None]:
         """Load and validate a payload schema.
 
         Args:
@@ -149,18 +147,11 @@ class ConfigValidator:
                 continue
             key = entry.get("key")
             schema_ref = entry.get("schema_ref")
-            if (
-                isinstance(key, str)
-                and key
-                and isinstance(schema_ref, str)
-                and schema_ref.strip()
-            ):
+            if isinstance(key, str) and key and isinstance(schema_ref, str) and schema_ref.strip():
                 refs[key] = schema_ref.strip()
         return refs
 
-    def schema_ref_by_consumed_key(
-        self, spec: PluginSpec
-    ) -> dict[tuple[str, str], str]:
+    def schema_ref_by_consumed_key(self, spec: PluginSpec) -> dict[tuple[str, str], str]:
         """Extract schema_ref for each consumed key.
 
         Args:

@@ -178,9 +178,7 @@ def test_plugin_diagnostics_determinism(tmp_path: Path) -> None:
     codes2 = extract_codes(diag2)
 
     assert codes1 == codes2, (
-        f"Diagnostic codes differ between runs:\n"
-        f"Run 1: {codes1[:10]}...\n"
-        f"Run 2: {codes2[:10]}..."
+        f"Diagnostic codes differ between runs:\n" f"Run 1: {codes1[:10]}...\n" f"Run 2: {codes2[:10]}..."
     )
 
 
@@ -197,7 +195,5 @@ def test_generated_file_count_stable(tmp_path: Path) -> None:
     count1 = len(hashes1)
     count2 = len(hashes2)
 
-    assert count1 == count2, (
-        f"Generated file count differs: run1={count1}, run2={count2}"
-    )
+    assert count1 == count2, f"Generated file count differs: run1={count1}, run2={count2}"
     assert count1 > 0, "No files were generated"

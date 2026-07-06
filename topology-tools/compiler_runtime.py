@@ -251,10 +251,7 @@ def _load_sharded_instance_payload(
                 code="E8807",
                 severity="error",
                 stage="validate",
-                message=(
-                    "Instance shard uses legacy service key 'group'. "
-                    "Use canonical '@group'."
-                ),
+                message=("Instance shard uses legacy service key 'group'. " "Use canonical '@group'."),
                 path=_diag_path(repo_root=repo_root, path=path),
             )
             continue

@@ -97,10 +97,7 @@ class NetworkSecurityValidator(ValidatorJsonPlugin):
                         code="E7850",
                         severity="error",
                         stage=stage,
-                        message=(
-                            f"VLAN ID {vlan_id} is used by multiple instances: "
-                            f"{', '.join(instances)}."
-                        ),
+                        message=(f"VLAN ID {vlan_id} is used by multiple instances: " f"{', '.join(instances)}."),
                         path=f"network:vlan_id:{vlan_id}",
                     )
                 )
@@ -113,7 +110,7 @@ class NetworkSecurityValidator(ValidatorJsonPlugin):
             except ValueError:
                 continue
 
-            for inst2, (cidr2_str, _) in cidr_list[i + 1:]:
+            for inst2, (cidr2_str, _) in cidr_list[i + 1 :]:
                 try:
                     net2 = ipaddress.IPv4Network(cidr2_str, strict=False)
                 except ValueError:
@@ -126,8 +123,7 @@ class NetworkSecurityValidator(ValidatorJsonPlugin):
                             severity="error",
                             stage=stage,
                             message=(
-                                f"VLAN CIDRs overlap: {inst1} ({cidr1_str}) "
-                                f"overlaps with {inst2} ({cidr2_str})."
+                                f"VLAN CIDRs overlap: {inst1} ({cidr1_str}) " f"overlaps with {inst2} ({cidr2_str})."
                             ),
                             path=f"network:cidr_overlap",
                         )
@@ -158,8 +154,7 @@ class NetworkSecurityValidator(ValidatorJsonPlugin):
 
                         # Check from_zone_ref
                         from_found = any(
-                            from_ref == z or from_ref.split(".")[-1] == z.split(".")[-1]
-                            for z in zone_refs
+                            from_ref == z or from_ref.split(".")[-1] == z.split(".")[-1] for z in zone_refs
                         )
                         if not from_found and from_ref:
                             diagnostics.append(
@@ -176,10 +171,7 @@ class NetworkSecurityValidator(ValidatorJsonPlugin):
                             )
 
                         # Check to_zone_ref
-                        to_found = any(
-                            to_ref == z or to_ref.split(".")[-1] == z.split(".")[-1]
-                            for z in zone_refs
-                        )
+                        to_found = any(to_ref == z or to_ref.split(".")[-1] == z.split(".")[-1] for z in zone_refs)
                         if not to_found and to_ref:
                             diagnostics.append(
                                 self.emit_diagnostic(
@@ -280,9 +272,7 @@ class NetworkSecurityValidator(ValidatorJsonPlugin):
                             code="W7860",
                             severity="warning",
                             stage=stage,
-                            message=(
-                                f"Zone '{zone_ref}' is in security matrix but has no VLANs assigned."
-                            ),
+                            message=(f"Zone '{zone_ref}' is in security matrix but has no VLANs assigned."),
                             path=f"network:zone_vlans:{zone_ref}",
                         )
                     )

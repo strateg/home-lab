@@ -25,8 +25,7 @@ from kernel.plugin_base import (
 
 # Pattern for @on directive: @on:<source>.<path>[?][:<default>]
 _ON_DIRECTIVE_RE = re.compile(
-    r"^@on:(?P<source>host|root|host\[\d+\])\.(?P<path>[a-zA-Z0-9_.]+)"
-    r"(?P<optional>\?)?(?::(?P<default>.+))?$"
+    r"^@on:(?P<source>host|root|host\[\d+\])\.(?P<path>[a-zA-Z0-9_.]+)" r"(?P<optional>\?)?(?::(?P<default>.+))?$"
 )
 
 
@@ -70,10 +69,7 @@ class InstanceHostIndexCompiler(CompilerPlugin):
                     code="E6812",
                     severity="error",
                     stage=stage,
-                    message=(
-                        f"Circular host_ref dependency in workload_defaults chain: "
-                        f"{' -> '.join(cycle)}"
-                    ),
+                    message=(f"Circular host_ref dependency in workload_defaults chain: " f"{' -> '.join(cycle)}"),
                     path="instance_bindings",
                 )
             )
@@ -193,15 +189,9 @@ class InstanceHostIndexCompiler(CompilerPlugin):
 
         def resolve_value(value: Any, path: str) -> Any:
             if isinstance(value, dict):
-                return {
-                    k: resolve_value(v, f"{path}.{k}" if path else k)
-                    for k, v in value.items()
-                }
+                return {k: resolve_value(v, f"{path}.{k}" if path else k) for k, v in value.items()}
             if isinstance(value, list):
-                return [
-                    resolve_value(item, f"{path}[{idx}]")
-                    for idx, item in enumerate(value)
-                ]
+                return [resolve_value(item, f"{path}[{idx}]") for idx, item in enumerate(value)]
             if not isinstance(value, str):
                 return value
 

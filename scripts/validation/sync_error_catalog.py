@@ -27,7 +27,7 @@ from typing import Any
 import yaml
 
 # Diagnostic code pattern: E/W/I followed by 4 digits
-CODE_PATTERN = re.compile(r'\b([EWI]\d{4})\b')
+CODE_PATTERN = re.compile(r"\b([EWI]\d{4})\b")
 
 # Directories to scan for code usage
 SCAN_DIRS = [
@@ -109,8 +109,8 @@ def analyze_sync(
     used = set(source_usage.keys())
 
     undefined = used - defined  # Used but not in catalog
-    unused = defined - used      # In catalog but not used
-    synced = defined & used      # Both defined and used
+    unused = defined - used  # In catalog but not used
+    synced = defined & used  # Both defined and used
 
     return undefined, unused, synced
 
@@ -171,8 +171,7 @@ def print_report(
         print("SYNCED CODES BY SEVERITY:")
         for severity in ["error", "warning", "info"]:
             codes_of_severity = [
-                code for code in sorted(synced)
-                if catalog_codes.get(code, {}).get("severity") == severity
+                code for code in sorted(synced) if catalog_codes.get(code, {}).get("severity") == severity
             ]
             if codes_of_severity:
                 print(f"  {severity.upper()} ({len(codes_of_severity)}):")
@@ -204,16 +203,15 @@ def generate_stub_entries(
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Sync error catalog with source code usage."
-    )
+    parser = argparse.ArgumentParser(description="Sync error catalog with source code usage.")
     parser.add_argument(
         "--fix",
         action="store_true",
         help="Generate stub entries for undefined codes (prints to stdout).",
     )
     parser.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         action="store_true",
         help="Show detailed output including all synced codes.",
     )
@@ -260,6 +258,7 @@ def main(argv: list[str] | None = None) -> int:
     # JSON output
     if args.output_json:
         import json
+
         report = {
             "total_defined": len(catalog_codes),
             "total_used": len(source_usage),

@@ -235,9 +235,7 @@ class AiSessionRunner:
     @staticmethod
     def _advisory_payload_hash(payload: dict[str, Any]) -> str:
         """Compute SHA256 hash of advisory payload."""
-        digest = hashlib.sha256(
-            json.dumps(payload, ensure_ascii=True, sort_keys=True).encode("utf-8")
-        ).hexdigest()
+        digest = hashlib.sha256(json.dumps(payload, ensure_ascii=True, sort_keys=True).encode("utf-8")).hexdigest()
         return f"sha256-{digest}"
 
     @staticmethod
@@ -247,9 +245,7 @@ class AiSessionRunner:
         token = re.sub(r"\[\d+\]", "", token)
         return token
 
-    def _collect_annotation_redaction_patterns(
-        self, plugin_ctx: PluginContext | None
-    ) -> tuple[re.Pattern[str], ...]:
+    def _collect_annotation_redaction_patterns(self, plugin_ctx: PluginContext | None) -> tuple[re.Pattern[str], ...]:
         """Collect patterns for redacting secret annotations."""
         if plugin_ctx is None:
             return ()
@@ -272,9 +268,7 @@ class AiSessionRunner:
                         names.add(leaf)
         return tuple(re.compile(re.escape(name), re.IGNORECASE) for name in sorted(names))
 
-    def _collect_registry_redaction_patterns(
-        self, plugin_ctx: PluginContext | None
-    ) -> tuple[re.Pattern[str], ...]:
+    def _collect_registry_redaction_patterns(self, plugin_ctx: PluginContext | None) -> tuple[re.Pattern[str], ...]:
         """Collect patterns for redacting registry secrets."""
         if plugin_ctx is None:
             return ()
@@ -615,9 +609,7 @@ class AiSessionRunner:
             if lint_failures:
                 rejected.extend(lint_failures)
                 accepted = [
-                    row
-                    for row in accepted
-                    if str(row.get("path", "")) not in {f["path"] for f in lint_failures}
+                    row for row in accepted if str(row.get("path", "")) not in {f["path"] for f in lint_failures}
                 ]
                 for item in lint_failures:
                     LOGGER.info(f"[ai-assisted] lint-rejected: {item['path']} ({item['reason']})")

@@ -101,10 +101,7 @@ class IpDerivationCompiler(CompilerPlugin):
                             code="E7862",
                             severity="error",
                             stage=stage,
-                            message=(
-                                f"Instance '{instance_id}' uses host: 1 which is "
-                                f"reserved for VLAN gateway."
-                            ),
+                            message=(f"Instance '{instance_id}' uses host: 1 which is " f"reserved for VLAN gateway."),
                             path=f"{path}.network.host",
                         )
                     )
@@ -122,8 +119,7 @@ class IpDerivationCompiler(CompilerPlugin):
                             severity="error",
                             stage=stage,
                             message=(
-                                f"Duplicate host {host} in {vlan_ref}: "
-                                f"'{instance_id}' conflicts with '{existing}'."
+                                f"Duplicate host {host} in {vlan_ref}: " f"'{instance_id}' conflicts with '{existing}'."
                             ),
                             path=f"{path}.network.host",
                         )

@@ -429,7 +429,10 @@ def test_load_core_compile_inputs_rejects_explicit_instance_layer_metadata(tmp_p
     )
 
     assert inputs.instance_payload is None
-    assert any(item.get("code") == "E8802" and "must not declare entity layer metadata" in item.get("message", "") for item in diagnostics)
+    assert any(
+        item.get("code") == "E8802" and "must not declare entity layer metadata" in item.get("message", "")
+        for item in diagnostics
+    )
 
 
 def test_load_core_compile_inputs_rejects_semantic_metadata_collision(tmp_path: Path) -> None:

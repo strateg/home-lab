@@ -188,7 +188,9 @@ class EffectiveModelCompiler(CompilerPlugin):
                         firmware_object_payload = objects.get(firmware_object_ref, {})
                         if not isinstance(firmware_object_payload, dict):
                             firmware_object_payload = {}
-                        fw_caps, fw_effective = self._derive_firmware_capabilities(object_payload=firmware_object_payload)
+                        fw_caps, fw_effective = self._derive_firmware_capabilities(
+                            object_payload=firmware_object_payload
+                        )
                         derived_caps.update(fw_caps)
                         firmware_effective = fw_effective
 
@@ -221,7 +223,12 @@ class EffectiveModelCompiler(CompilerPlugin):
                             derived_caps.add(f"cap.os.{family}")
                         if isinstance(distribution, str) and distribution:
                             derived_caps.add(f"cap.os.{distribution}")
-                        if isinstance(distribution, str) and isinstance(release_id, str) and distribution and release_id:
+                        if (
+                            isinstance(distribution, str)
+                            and isinstance(release_id, str)
+                            and distribution
+                            and release_id
+                        ):
                             derived_caps.add(f"cap.os.{distribution}.{release_id}")
                         if isinstance(distribution, str) and isinstance(codename, str) and distribution and codename:
                             derived_caps.add(f"cap.os.{distribution}.{codename}")

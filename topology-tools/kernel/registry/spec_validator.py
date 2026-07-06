@@ -107,8 +107,7 @@ class SpecValidator:
         if not self._is_api_compatible(spec.api_version):
             raise SpecValidationError(
                 spec.id,
-                f"Incompatible API version {spec.api_version}, "
-                f"kernel supports {SUPPORTED_API_VERSIONS}",
+                f"Incompatible API version {spec.api_version}, " f"kernel supports {SUPPORTED_API_VERSIONS}",
             )
 
     def _validate_stage_affinity(self, spec: PluginSpec) -> None:
@@ -162,9 +161,7 @@ class SpecValidator:
         for existing in self._specs.values():
             if not existing.compiled_json_owner or existing.phase != spec.phase:
                 continue
-            overlapping_stages = sorted(
-                {stage.value for stage in spec.stages if stage in existing.stages}
-            )
+            overlapping_stages = sorted({stage.value for stage in spec.stages if stage in existing.stages})
             if overlapping_stages:
                 raise SpecValidationError(
                     spec.id,

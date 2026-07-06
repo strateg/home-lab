@@ -97,9 +97,7 @@ def filter_by_capability(objects: list[dict[str, Any]], cap: str) -> list[dict[s
     return [obj for obj in objects if has_capability(obj, cap)]
 
 
-def group_by_capability_prefix(
-    objects: list[dict[str, Any]], prefix: str
-) -> dict[str, list[dict[str, Any]]]:
+def group_by_capability_prefix(objects: list[dict[str, Any]], prefix: str) -> dict[str, list[dict[str, Any]]]:
     """Group objects by capability prefix (ADR 0106 D3).
 
     Example:

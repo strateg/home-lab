@@ -77,6 +77,7 @@ class PluginLoader:
                 config_errors = config_validator(spec.id)
                 if config_errors:
                     from .config_validator import ConfigValidationError
+
                     raise ConfigValidationError(spec.id, "; ".join(config_errors))
 
             plugin_class = self._load_entry_point(spec)
@@ -86,8 +87,7 @@ class PluginLoader:
             if instance.kind != spec.kind:
                 raise PluginLoadError(
                     spec.id,
-                    f"Plugin kind mismatch: spec declares {spec.kind.value}, "
-                    f"class returns {instance.kind.value}",
+                    f"Plugin kind mismatch: spec declares {spec.kind.value}, " f"class returns {instance.kind.value}",
                 )
 
             self._instances[spec.id] = instance
@@ -132,15 +132,11 @@ class PluginLoader:
 
         # Get class from module
         if not hasattr(module, class_name):
-            raise PluginLoadError(
-                spec.id, f"Class '{class_name}' not found in {module_path}"
-            )
+            raise PluginLoadError(spec.id, f"Class '{class_name}' not found in {module_path}")
 
         plugin_class = getattr(module, class_name)
         if not isinstance(plugin_class, type) or not issubclass(plugin_class, PluginBase):
-            raise PluginLoadError(
-                spec.id, f"'{class_name}' is not a PluginBase subclass"
-            )
+            raise PluginLoadError(spec.id, f"'{class_name}' is not a PluginBase subclass")
 
         self._classes[spec.id] = plugin_class
         return plugin_class

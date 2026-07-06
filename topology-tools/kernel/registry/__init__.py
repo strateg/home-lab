@@ -20,8 +20,8 @@ from __future__ import annotations
 from .config_validator import ConfigValidationError, ConfigValidator
 from .dependency_resolver import DependencyError, DependencyResolver, PluginCycleError
 from .envelope_validator import EnvelopeValidator
-from .manifest_loader import ManifestLoadError, ManifestLoader, PluginManifest
-from .plugin_loader import PluginLoadError, PluginLoader
+from .manifest_loader import ManifestLoader, ManifestLoadError, PluginManifest
+from .plugin_loader import PluginLoader, PluginLoadError
 from .spec_validator import (
     ENTRY_FAMILIES,
     KIND_ENTRY_FAMILY,

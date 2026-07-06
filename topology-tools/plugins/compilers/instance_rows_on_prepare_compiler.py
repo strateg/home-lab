@@ -26,8 +26,7 @@ from kernel.plugin_base import (
 
 # Pattern for @on directive: @on:<source>.<path>[?][:<default>]
 _ON_DIRECTIVE_RE = re.compile(
-    r"^@on:(?P<source>host|root|host\[\d+\])\.(?P<path>[a-zA-Z0-9_.]+)"
-    r"(?P<optional>\?)?(?::(?P<default>.+))?$"
+    r"^@on:(?P<source>host|root|host\[\d+\])\.(?P<path>[a-zA-Z0-9_.]+)" r"(?P<optional>\?)?(?::(?P<default>.+))?$"
 )
 
 
@@ -236,14 +235,8 @@ class InstanceRowsOnPrepareCompiler(CompilerPlugin):
         """Deep merge two dicts, override wins for conflicts."""
         result = copy.deepcopy(base)
         for key, value in override.items():
-            if (
-                key in result
-                and isinstance(result[key], dict)
-                and isinstance(value, dict)
-            ):
-                result[key] = InstanceRowsOnPrepareCompiler._deep_merge(
-                    result[key], value
-                )
+            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+                result[key] = InstanceRowsOnPrepareCompiler._deep_merge(result[key], value)
             else:
                 result[key] = copy.deepcopy(value)
         return result

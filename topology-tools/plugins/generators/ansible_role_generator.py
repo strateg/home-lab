@@ -34,7 +34,6 @@ from plugins.generators.projections.ansible_roles import (
     resolve_vlan_instance,
 )
 
-
 # Role → template path mapping (ADR 0104 + ADR 0106)
 ROLE_TEMPLATE_MAP: dict[str, dict[str, str]] = {
     "common": {
@@ -427,6 +426,7 @@ class AnsibleRoleGenerator(BaseGenerator):
     def _fallback_write(self, path, content: str) -> None:
         """Fallback write method if write_text_atomic not available."""
         from pathlib import Path
+
         p = Path(path)
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(content, encoding="utf-8")

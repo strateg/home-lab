@@ -32,7 +32,9 @@ def test_base_manifest_points_discover_plugins_to_dedicated_modules() -> None:
     assert plugins["base.discover.manifest_loader"]["entry"] == (
         "../discoverers/discover_manifest_loader.py:DiscoverManifestLoaderCompiler"
     )
-    assert plugins["base.discover.inventory"]["entry"] == "../discoverers/discover_inventory.py:DiscoverInventoryCompiler"
+    assert (
+        plugins["base.discover.inventory"]["entry"] == "../discoverers/discover_inventory.py:DiscoverInventoryCompiler"
+    )
     assert plugins["base.discover.boundary"]["entry"] == "../discoverers/discover_boundary.py:DiscoverBoundaryCompiler"
     assert plugins["base.discover.capability_preflight"]["entry"] == (
         "../discoverers/discover_capability_preflight.py:DiscoverCapabilityPreflightCompiler"

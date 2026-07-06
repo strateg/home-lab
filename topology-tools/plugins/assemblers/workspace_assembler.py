@@ -35,6 +35,7 @@ def _get_bundle_module():
     global _bundle_module
     if _bundle_module is None:
         from scripts.orchestration.deploy import bundle as _bm
+
         _bundle_module = _bm
     return _bundle_module
 

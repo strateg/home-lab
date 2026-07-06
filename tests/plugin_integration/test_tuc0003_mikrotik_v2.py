@@ -201,15 +201,11 @@ class TestTUC0003MikroTikParityV2:
             "TerraformMikroTikGenerator",
         )
 
-        snapshot = _build_snapshot(
-            tmp_path, "object.mikrotik.generator.terraform", MIKROTIK_COMPILED_PAYLOAD
-        )
+        snapshot = _build_snapshot(tmp_path, "object.mikrotik.generator.terraform", MIKROTIK_COMPILED_PAYLOAD)
         plugin = generator_class("object.mikrotik.generator.terraform")
         envelope = run_plugin_once(snapshot=snapshot, plugin=plugin)
 
-        assert envelope.result.status == PluginStatus.SUCCESS, (
-            f"Generator failed: {envelope.result.diagnostics}"
-        )
+        assert envelope.result.status == PluginStatus.SUCCESS, f"Generator failed: {envelope.result.diagnostics}"
 
         mikrotik_dir = tmp_path / "generated" / "terraform" / "mikrotik"
         assert mikrotik_dir.exists()
@@ -235,9 +231,7 @@ class TestTUC0003MikroTikParityV2:
             "TerraformMikroTikGenerator",
         )
 
-        snapshot = _build_snapshot(
-            tmp_path, "object.mikrotik.generator.terraform", MIKROTIK_COMPILED_PAYLOAD
-        )
+        snapshot = _build_snapshot(tmp_path, "object.mikrotik.generator.terraform", MIKROTIK_COMPILED_PAYLOAD)
         plugin = generator_class("object.mikrotik.generator.terraform")
         envelope = run_plugin_once(snapshot=snapshot, plugin=plugin)
 

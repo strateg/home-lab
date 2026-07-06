@@ -184,9 +184,7 @@ class TestTUC0004SohoReadinessV2:
         (product_dir / "handover").mkdir(parents=True, exist_ok=True)
         (product_dir / "reports").mkdir(parents=True, exist_ok=True)
 
-        snapshot = _build_snapshot(
-            tmp_path, "base.builder.soho_readiness_package", SOHO_COMPILED_PAYLOAD
-        )
+        snapshot = _build_snapshot(tmp_path, "base.builder.soho_readiness_package", SOHO_COMPILED_PAYLOAD)
         plugin = builder_class("base.builder.soho_readiness_package")
         envelope = run_plugin_once(snapshot=snapshot, plugin=plugin)
 
@@ -196,9 +194,11 @@ class TestTUC0004SohoReadinessV2:
 
         # Builder produces files but may report FAILED due to missing evidence (backup, restore)
         # This is expected behavior - we're testing that files are generated
-        assert envelope.result.status in (PluginStatus.SUCCESS, PluginStatus.PARTIAL, PluginStatus.FAILED), (
-            f"Unexpected status: {envelope.result.status}"
-        )
+        assert envelope.result.status in (
+            PluginStatus.SUCCESS,
+            PluginStatus.PARTIAL,
+            PluginStatus.FAILED,
+        ), f"Unexpected status: {envelope.result.status}"
 
         # Verify output_data contains generated files
         output_data = envelope.result.output_data
@@ -236,9 +236,9 @@ class TestTUC0004SohoReadinessV2:
         evidence = payload.get("evidence", {})
 
         assert isinstance(evidence, dict)
-        assert ADR0091_D3_DOMAINS.issubset(set(evidence.keys())), (
-            f"Missing domains: {ADR0091_D3_DOMAINS - set(evidence.keys())}"
-        )
+        assert ADR0091_D3_DOMAINS.issubset(
+            set(evidence.keys())
+        ), f"Missing domains: {ADR0091_D3_DOMAINS - set(evidence.keys())}"
         assert payload.get("status") in {"green", "yellow", "red"}
 
     def test_support_bundle_manifest_schema(self, tmp_path: Path) -> None:

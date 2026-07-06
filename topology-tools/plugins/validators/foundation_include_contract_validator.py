@@ -174,9 +174,7 @@ class FoundationIncludeContractValidator(ValidatorYamlPlugin):
         if not isinstance(group_layers, dict):
             return self._DEFAULT_REQUIRED_INSTANCE_DIRS
 
-        resolved = tuple(
-            sorted(group for group in group_layers.keys() if isinstance(group, str) and group.strip())
-        )
+        resolved = tuple(sorted(group for group in group_layers.keys() if isinstance(group, str) and group.strip()))
         return resolved or self._DEFAULT_REQUIRED_INSTANCE_DIRS
 
     def _resolve_topology_manifest_path(self, *, ctx: PluginContext, project_root: Path) -> Path | None:

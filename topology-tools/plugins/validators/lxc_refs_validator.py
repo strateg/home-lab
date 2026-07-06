@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import Any
 
 from capability_derivation import extract_architecture as shared_extract_architecture
-from plugins.generators.capability_helpers import has_capability
 from kernel.plugin_base import (
     PluginContext,
     PluginDataExchangeError,
@@ -14,6 +13,7 @@ from kernel.plugin_base import (
     Stage,
     ValidatorJsonPlugin,
 )
+from plugins.generators.capability_helpers import has_capability
 
 
 class LxcRefsValidator(ValidatorJsonPlugin):

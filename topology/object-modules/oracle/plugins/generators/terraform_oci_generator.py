@@ -233,10 +233,7 @@ class TerraformOCIGenerator(BaseGenerator):
                 code="I9302",
                 severity="info",
                 stage=stage,
-                message=(
-                    f"generated OCI Terraform artifacts: instances={len(instances)} "
-                    f"region={primary_region}"
-                ),
+                message=(f"generated OCI Terraform artifacts: instances={len(instances)} " f"region={primary_region}"),
                 path=str(out_dir),
             )
         )

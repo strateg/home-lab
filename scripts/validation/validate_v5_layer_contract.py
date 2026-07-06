@@ -365,9 +365,7 @@ def main() -> int:
         if isinstance(expected_bucket, str) and expected_bucket:
             rel_parts = Path(rel_path).parts
             if not rel_parts:
-                errors.append(
-                    f"{display_path}: class '{class_id}' has invalid path; expected '{expected_bucket}/...'"
-                )
+                errors.append(f"{display_path}: class '{class_id}' has invalid path; expected '{expected_bucket}/...'")
             elif rel_parts[0] != expected_bucket:
                 errors.append(
                     f"{display_path}: class '{class_id}' with @layer '{declared}' must be placed under "

@@ -43,9 +43,7 @@ class PluginManifest:
     source_path: str
 
     @classmethod
-    def from_data(
-        cls, data: dict[str, Any], source_path: str, spec_factory: Any
-    ) -> PluginManifest:
+    def from_data(cls, data: dict[str, Any], source_path: str, spec_factory: Any) -> PluginManifest:
         """Load manifest from parsed dictionary.
 
         Args:
@@ -150,14 +148,10 @@ class ManifestLoader:
         try:
             payload = load_yaml_file(manifest_path) or {}
         except (OSError, yaml.YAMLError) as exc:
-            raise ManifestLoadError(
-                str(manifest_path), f"Failed to parse: {exc}"
-            ) from exc
+            raise ManifestLoadError(str(manifest_path), f"Failed to parse: {exc}") from exc
 
         if not isinstance(payload, dict):
-            raise ManifestLoadError(
-                str(manifest_path), "Manifest root must be mapping/object"
-            )
+            raise ManifestLoadError(str(manifest_path), "Manifest root must be mapping/object")
 
         self.validate_payload(payload, manifest_path)
         manifest = PluginManifest.from_data(payload, str(manifest_path), spec_factory)

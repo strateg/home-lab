@@ -98,9 +98,7 @@ class CompilerConfig:
     def __post_init__(self) -> None:
         """Validate configuration after initialization."""
         if not self.modes.enable_plugins:
-            raise ValueError(
-                "--disable-plugins is retired; plugin-first runtime always enables plugins."
-            )
+            raise ValueError("--disable-plugins is retired; plugin-first runtime always enables plugins.")
 
 
 @dataclass

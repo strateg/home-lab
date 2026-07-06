@@ -11,9 +11,7 @@ from __future__ import annotations
 import pytest
 
 # Skip all tests in this module - superseded by v2 tests
-pytestmark = pytest.mark.skip(
-    reason="Superseded by test_tuc0003_mikrotik_v2.py using snapshot/envelope model"
-)
+pytestmark = pytest.mark.skip(reason="Superseded by test_tuc0003_mikrotik_v2.py using snapshot/envelope model")
 
 import json
 import subprocess

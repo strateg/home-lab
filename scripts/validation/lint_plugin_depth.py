@@ -144,6 +144,7 @@ def get_dependency_chain(
     Returns:
         List of plugin IDs forming the longest chain.
     """
+
     def find_longest_path(node: str, visited: set[str]) -> list[str]:
         if node in visited or node not in graph:
             return []
@@ -170,9 +171,7 @@ def get_dependency_chain(
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Lint plugin dependency graph for depth violations."
-    )
+    parser = argparse.ArgumentParser(description="Lint plugin dependency graph for depth violations.")
     parser.add_argument(
         "--max-depth",
         type=int,
@@ -186,7 +185,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help=f"Depth threshold for warnings (default: {DEFAULT_WARN_DEPTH})",
     )
     parser.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         action="store_true",
         help="Show detailed output including top-depth plugins.",
     )
@@ -247,6 +247,7 @@ def main(argv: list[str] | None = None) -> int:
     # JSON output
     if args.output_json:
         import json
+
         report = {
             "total_plugins": len(graph),
             "max_depth_threshold": args.max_depth,

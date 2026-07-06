@@ -74,9 +74,7 @@ class FoundationFilePlacementValidator(ValidatorYamlPlugin):
                         code=self._WARNING_CODE,
                         severity="warning",
                         stage=stage,
-                        message=(
-                            f"Instance file '{rel}' should declare string fields: @group and @instance."
-                        ),
+                        message=(f"Instance file '{rel}' should declare string fields: @group and @instance."),
                         path=f"project:{file_path}",
                     )
                 )

@@ -256,14 +256,10 @@ class TerraformMikroTikGenerator(BaseGenerator):
 
         # Generate Ansible host_vars for WiFi (automated deployment)
         if wifi_datapaths or wifi_configurations:
-            ansible_out_dir = self.resolve_output_path(
-                ctx, "ansible", "inventory", "production", "host_vars"
-            )
+            ansible_out_dir = self.resolve_output_path(ctx, "ansible", "inventory", "production", "host_vars")
             for router_id in routers:
                 wifi_vars_path = ansible_out_dir / f"{router_id}.wifi.yml"
-                wifi_vars_content = self.render_template(
-                    ctx, "ansible/host_vars_wifi.yml.j2", render_context
-                )
+                wifi_vars_content = self.render_template(ctx, "ansible/host_vars_wifi.yml.j2", render_context)
                 self.write_text_atomic(wifi_vars_path, wifi_vars_content)
                 written.append(str(wifi_vars_path))
                 planned_outputs.append(

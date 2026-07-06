@@ -33,10 +33,16 @@ def get_oci_instance_public_ip(instance_id: str, compartment_id: str) -> str | N
     """Fetch public IP for OCI instance via VNIC attachments."""
     # Get VNIC attachments for the instance
     vnic_cmd = [
-        "oci", "compute", "vnic-attachment", "list",
-        "--compartment-id", compartment_id,
-        "--instance-id", instance_id,
-        "--output", "json"
+        "oci",
+        "compute",
+        "vnic-attachment",
+        "list",
+        "--compartment-id",
+        compartment_id,
+        "--instance-id",
+        instance_id,
+        "--output",
+        "json",
     ]
 
     try:
@@ -83,11 +89,7 @@ def encrypt_sops_file(path: Path, content: str) -> None:
     temp_path.rename(path)
 
 
-def update_tunnel_secrets(
-    secrets_path: Path,
-    public_ip: str,
-    dry_run: bool = False
-) -> bool:
+def update_tunnel_secrets(secrets_path: Path, public_ip: str, dry_run: bool = False) -> bool:
     """Update tunnel secrets with public IP."""
     import yaml
 
@@ -180,6 +182,7 @@ def main() -> int:
     try:
         instance_content = decrypt_sops_file(instance_secrets_path)
         import yaml
+
         instance_secrets = yaml.safe_load(instance_content)
     except Exception as e:
         print(f"Error reading instance secrets: {e}", file=sys.stderr)
@@ -194,12 +197,10 @@ def main() -> int:
     topology_path = project_root / "topology" / "instances" / "vm" / "cloud" / "vps-oracle-frankfurt.yaml"
     try:
         import yaml
+
         # Filter out lines starting with @ (topology markers)
         content = topology_path.read_text()
-        filtered_lines = [
-            line for line in content.split("\n")
-            if not line.strip().startswith("@")
-        ]
+        filtered_lines = [line for line in content.split("\n") if not line.strip().startswith("@")]
         topology = yaml.safe_load("\n".join(filtered_lines))
         instance_id = topology.get("oci", {}).get("instance_id")
     except Exception as e:

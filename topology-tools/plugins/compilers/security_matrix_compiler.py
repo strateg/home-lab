@@ -52,10 +52,7 @@ class SecurityMatrixCompiler(CompilerPlugin):
 
             # Index VLANs with their trust_zone_ref
             elif instance_id.startswith("inst.vlan."):
-                trust_zone_ref = (
-                    extensions.get("trust_zone_ref")
-                    or row.get("trust_zone_ref")
-                )
+                trust_zone_ref = extensions.get("trust_zone_ref") or row.get("trust_zone_ref")
                 if isinstance(trust_zone_ref, str):
                     vlan_zone_map[instance_id] = trust_zone_ref
 
@@ -132,11 +129,7 @@ class SecurityMatrixCompiler(CompilerPlugin):
                         "security_level": zone_data.get("security_level", 0),
                         "isolated": zone_data.get("isolated", False),
                         "vlans": zone_vlans.get(zone_ref, []),
-                        "cidrs": [
-                            vlan_cidr_map[v]
-                            for v in zone_vlans.get(zone_ref, [])
-                            if v in vlan_cidr_map
-                        ],
+                        "cidrs": [vlan_cidr_map[v] for v in zone_vlans.get(zone_ref, []) if v in vlan_cidr_map],
                     }
                 else:
                     diagnostics.append(
@@ -395,9 +388,8 @@ class SecurityMatrixCompiler(CompilerPlugin):
                 # Isolated zones can only reach untrusted (internet)
                 if from_isolated:
                     # Check if destination is untrusted zone
-                    is_untrusted = (
-                        "untrusted" in to_zone.lower()
-                        or (to_level == 0 and to_name.lower() == "untrusted zone")
+                    is_untrusted = "untrusted" in to_zone.lower() or (
+                        to_level == 0 and to_name.lower() == "untrusted zone"
                     )
                     if is_untrusted:
                         # R2: Isolated zone CAN reach untrusted = ALLOW
@@ -458,14 +450,8 @@ class SecurityMatrixCompiler(CompilerPlugin):
             to_ref = override.get("to_zone_ref", "")
 
             # Match exact refs or by suffix (inst. vs obj.)
-            from_match = (
-                from_ref == from_zone
-                or from_ref.split(".")[-1] == from_zone.split(".")[-1]
-            )
-            to_match = (
-                to_ref == to_zone
-                or to_ref.split(".")[-1] == to_zone.split(".")[-1]
-            )
+            from_match = from_ref == from_zone or from_ref.split(".")[-1] == from_zone.split(".")[-1]
+            to_match = to_ref == to_zone or to_ref.split(".")[-1] == to_zone.split(".")[-1]
 
             if from_match and to_match:
                 return override

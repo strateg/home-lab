@@ -147,12 +147,7 @@ class SnapshotBuilder:
                     continue
                 from_plugin = consume.get("from_plugin")
                 key = consume.get("key")
-                if (
-                    not isinstance(from_plugin, str)
-                    or not from_plugin
-                    or not isinstance(key, str)
-                    or not key
-                ):
+                if not isinstance(from_plugin, str) or not from_plugin or not isinstance(key, str) or not key:
                     continue
                 try:
                     subscriptions[(from_plugin, key)] = pipeline_state.resolve_subscription(
@@ -193,9 +188,7 @@ class SnapshotBuilder:
             workspace_root=ctx.workspace_root,
             dist_root=ctx.dist_root,
             assembly_manifest=dict(ctx.assembly_manifest),
-            changed_input_scopes=(
-                list(ctx.changed_input_scopes) if ctx.changed_input_scopes else None
-            ),
+            changed_input_scopes=(list(ctx.changed_input_scopes) if ctx.changed_input_scopes else None),
             signing_backend=ctx.signing_backend,
             release_tag=ctx.release_tag,
             sbom_output_dir=ctx.sbom_output_dir,
