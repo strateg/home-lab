@@ -539,7 +539,7 @@ class PluginContext:
 
     Inter-Plugin Data Exchange (ADR 0065):
     - publish(key, value): Store data for dependent plugins to access
-    - subscribe(plugin_id, key): Retrieve data from a plugin in depends_on list
+    - subscribe(plugin_id, key): Retrieve data from a declared upstream plugin
     """
 
     # Core data
@@ -725,7 +725,7 @@ class PluginContext:
         if plugin_id not in scope.allowed_dependencies:
             raise PluginDataExchangeError(
                 f"Plugin '{scope.plugin_id}' cannot subscribe to '{plugin_id}': "
-                f"not in depends_on list. Allowed: {sorted(scope.allowed_dependencies)}"
+                f"not in declared dependency contract. Allowed: {sorted(scope.allowed_dependencies)}"
             )
         if self._snapshot is not None:
             subscription = self._snapshot.subscriptions.get((plugin_id, key))

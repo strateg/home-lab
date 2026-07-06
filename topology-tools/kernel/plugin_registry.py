@@ -299,6 +299,23 @@ class PluginSpec:
                     result[key] = item.get("scope", "pipeline_shared")
         return result
 
+    def declared_dependency_ids(self) -> set[str]:
+        """Return all explicitly declared upstream plugin IDs.
+
+        Runtime subscribe authorization must cover both execution dependencies and
+        consumes-declared data-bus producers. Some bootstrap-safe base-manifest
+        plugins can only name later-discovered producers under consumes because
+        those producer manifests are loaded after discover-stage bootstrap.
+        """
+        result = {item.strip() for item in self.depends_on if isinstance(item, str) and item.strip()}
+        for item in self.consumes:
+            if not isinstance(item, dict):
+                continue
+            from_plugin = item.get("from_plugin")
+            if isinstance(from_plugin, str) and from_plugin.strip():
+                result.add(from_plugin.strip())
+        return result
+
 
 @dataclass
 class PluginManifest:
@@ -1718,7 +1735,7 @@ class PluginRegistry:
         produced_key_scopes = spec.declared_produced_scopes()
         scope = PluginExecutionScope(
             plugin_id=plugin_id,
-            allowed_dependencies=frozenset(spec.depends_on),
+            allowed_dependencies=frozenset(spec.declared_dependency_ids()),
             phase=phase,
             config=scoped_config,
             stage=stage,

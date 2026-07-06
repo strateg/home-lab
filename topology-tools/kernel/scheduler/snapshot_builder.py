@@ -197,7 +197,7 @@ class SnapshotBuilder:
             compiled_file=ctx.compiled_file,
             subscriptions=subscriptions,
             legacy_published_data=legacy_published_data,
-            allowed_dependencies=frozenset(spec.depends_on),
+            allowed_dependencies=frozenset(spec.declared_dependency_ids()),
             produced_key_scopes=produced_key_scopes,
         )
 

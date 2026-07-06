@@ -193,5 +193,5 @@ def test_artifact_manifest_generator_respects_explicit_producer_list(tmp_path: P
     assert result.status == PluginStatus.SUCCESS
     payload = json.loads((project_root / "artifact-manifest.json").read_text(encoding="utf-8"))
     assert [row["producer_plugin"] for row in payload["artifacts"]] == ["object.proxmox.generator.terraform"]
-    assert result.output_data["compatibility_fallback_used"] == 1
-    assert any(diag.code == "I3903" for diag in result.diagnostics)
+    assert result.output_data["compatibility_fallback_used"] == 0
+    assert not any(diag.code == "I3903" for diag in result.diagnostics)

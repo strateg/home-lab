@@ -44,6 +44,7 @@ class DockerComposeGenerator(BaseGenerator):
         stacks = [row for row in rows if row.get("class_ref") in self._STACK_CLASSES]
 
         if not stacks:
+            compose_root = self.resolve_output_path(ctx, "docker-compose")
             diagnostics.append(
                 self.emit_diagnostic(
                     code="I7930",
@@ -53,7 +54,17 @@ class DockerComposeGenerator(BaseGenerator):
                     path="generator:docker_compose",
                 )
             )
-            return self.make_result(diagnostics=diagnostics)
+            ctx.publish("compose_files", [])
+            ctx.publish("generated_files", [])
+            ctx.publish("compose_dir", str(compose_root))
+            return self.make_result(
+                diagnostics=diagnostics,
+                output_data={
+                    "compose_dir": str(compose_root),
+                    "compose_files": [],
+                    "generated_files": [],
+                },
+            )
 
         compose_root = self.resolve_output_path(ctx, "docker-compose")
         generated_files: list[str] = []

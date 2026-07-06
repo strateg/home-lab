@@ -163,6 +163,7 @@ def test_docker_compose_generator_skips_when_no_stacks(tmp_path: Path) -> None:
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.GENERATE)
     assert result.status == PluginStatus.SUCCESS
+    assert result.output_data["generated_files"] == []
     assert any(d.code == "I7930" and "No Docker stack" in d.message for d in result.diagnostics)
 
 

@@ -21,6 +21,8 @@ def _registry() -> PluginRegistry:
     registry.load_manifest(V5_TOOLS / "plugins" / "plugins.yaml")
     registry.load_manifest(Path("topology/object-modules/proxmox/plugins.yaml"))
     registry.load_manifest(Path("topology/object-modules/mikrotik/plugins.yaml"))
+    registry.load_manifest(Path("topology/object-modules/oracle/plugins.yaml"))
+    registry.load_manifest(Path("topology/object-modules/orangepi/plugins.yaml"))
     return registry
 
 
@@ -39,7 +41,12 @@ def _run_guard(plugin: ArtifactContractAssembler, ctx: PluginContext, registry: 
     ctx.config.update(spec.config)
     # ADR 0097 P4.1: Inject generator_migration_metadata for subinterpreter compatibility
     ctx.config["generator_migration_metadata"] = registry._compute_generator_migration_metadata()
-    return run_plugin_for_test(plugin, ctx, Stage.ASSEMBLE, consumes_keys=set(spec.depends_on))
+    consumes_keys = {
+        item["from_plugin"]
+        for item in spec.consumes
+        if isinstance(item, dict) and isinstance(item.get("from_plugin"), str)
+    }
+    return run_plugin_for_test(plugin, ctx, Stage.ASSEMBLE, consumes_keys=set(spec.depends_on) | consumes_keys)
 
 
 def _required_keys_payload(*, generated_dir: str | None = None) -> dict[str, object]:
@@ -64,10 +71,19 @@ def _migrating_generators(registry: PluginRegistry) -> list[str]:
     )
 
 
+def _checked_generators(registry: PluginRegistry) -> list[str]:
+    return sorted(
+        plugin_id
+        for plugin_id, spec in registry.specs.items()
+        if getattr(spec, "kind", None).value == "generator"
+        and getattr(spec, "migration_mode", "legacy") in {"migrating", "migrated"}
+    )
+
+
 def test_artifact_contract_assembler_passes_when_migrating_generators_publish_contracts() -> None:
     registry = _registry()
     ctx = _ctx(registry)
-    for idx, plugin_id in enumerate(_migrating_generators(registry)):
+    for idx, plugin_id in enumerate(_checked_generators(registry)):
         _publish(
             ctx,
             plugin_id,
@@ -86,7 +102,7 @@ def test_artifact_contract_assembler_passes_when_migrating_generators_publish_co
     assert all(isinstance(item.get("artifact_plan"), dict) for item in summary["checked_plugins"])
     assert all(isinstance(item.get("artifact_generation_report"), dict) for item in summary["checked_plugins"])
     assert summary["missing_contracts"] == []
-    assert any(diag.code == "I9397" for diag in result.diagnostics)
+    assert not any(diag.code == "I9397" for diag in result.diagnostics)
     assert not any(diag.code == "E9394" for diag in result.diagnostics)
 
 
@@ -95,7 +111,9 @@ def test_artifact_contract_assembler_errors_for_missing_migrating_contracts() ->
     ctx = _ctx(registry)
     migrating = _migrating_generators(registry)
     assert migrating
-    for plugin_id in migrating[1:]:
+    for plugin_id in _checked_generators(registry):
+        if plugin_id == migrating[0]:
+            continue
         _publish(
             ctx,
             plugin_id,
@@ -111,10 +129,21 @@ def test_artifact_contract_assembler_errors_for_missing_migrating_contracts() ->
 
 def test_artifact_contract_assembler_errors_for_missing_migrated_contracts() -> None:
     registry = _registry()
-    migrating = _migrating_generators(registry)
-    assert migrating
-    registry.specs[migrating[0]].migration_mode = "migrated"
+    migrated = sorted(
+        plugin_id
+        for plugin_id, spec in registry.specs.items()
+        if getattr(spec, "kind", None).value == "generator" and getattr(spec, "migration_mode", "legacy") == "migrated"
+    )
+    assert migrated
     ctx = _ctx(registry)
+    for plugin_id in _checked_generators(registry):
+        if plugin_id == migrated[0]:
+            continue
+        _publish(
+            ctx,
+            plugin_id,
+            _required_keys_payload(generated_dir=f"/tmp/generated/{plugin_id.replace('.', '_')}"),
+        )
 
     plugin = ArtifactContractAssembler("base.assembler.artifact_contract_guard")
     result = _run_guard(plugin, ctx, registry)
@@ -126,12 +155,12 @@ def test_artifact_contract_assembler_errors_for_missing_migrated_contracts() -> 
 def test_artifact_contract_assembler_detects_overlapping_generated_dir_prefixes() -> None:
     registry = _registry()
     ctx = _ctx(registry)
-    migrating = _migrating_generators(registry)
-    assert len(migrating) >= 2
+    checked = _checked_generators(registry)
+    assert len(checked) >= 2
 
-    _publish(ctx, migrating[0], _required_keys_payload(generated_dir="/tmp/generated/shared"))
-    _publish(ctx, migrating[1], _required_keys_payload(generated_dir="/tmp/generated/shared/nested"))
-    for plugin_id in migrating[2:]:
+    _publish(ctx, checked[0], _required_keys_payload(generated_dir="/tmp/generated/shared"))
+    _publish(ctx, checked[1], _required_keys_payload(generated_dir="/tmp/generated/shared/nested"))
+    for plugin_id in checked[2:]:
         _publish(
             ctx,
             plugin_id,

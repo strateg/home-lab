@@ -513,8 +513,8 @@ def test_compiled_json_owner_must_be_unique_per_stage_phase(tmp_path: Path):
         assert "compiled_json_owner conflicts" in str(exc)
 
 
-def test_consumes_requires_depends_on_declaration(tmp_path: Path):
-    """Declared consumes must reference producer in depends_on."""
+def test_consumes_without_depends_on_is_allowed_for_earlier_stage_producer(tmp_path: Path):
+    """consumes may rely on stage/phase ordering when producer already runs earlier."""
     manifest = tmp_path / "plugins.yaml"
     payload = {
         "schema_version": 1,
@@ -545,11 +545,46 @@ def test_consumes_requires_depends_on_declaration(tmp_path: Path):
 
     registry = PluginRegistry(V5_TOOLS)
     registry.load_manifest(manifest)
+    assert registry.resolve_dependencies() == ["test.compiler.producer", "test.validator.consumer"]
+
+
+def test_consumes_without_depends_on_is_rejected_for_later_same_phase_producer(tmp_path: Path):
+    """consume-only contracts must not rely on later same-phase execution order."""
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "test.generator.consumer",
+                "kind": "generator",
+                "entry": "generators/docs_generator.py:DocsGenerator",
+                "api_version": "1.x",
+                "stages": ["generate"],
+                "phase": "run",
+                "order": 190,
+                "consumes": [{"from_plugin": "test.generator.producer", "key": "k1"}],
+            },
+            {
+                "id": "test.generator.producer",
+                "kind": "generator",
+                "entry": "generators/docs_generator.py:DocsGenerator",
+                "api_version": "1.x",
+                "stages": ["generate"],
+                "phase": "run",
+                "order": 200,
+                "produces": [{"key": "k1", "scope": "pipeline_shared"}],
+            },
+        ],
+    }
+    manifest.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
     try:
         registry.resolve_dependencies()
-        assert False, "Expected consumes/depends_on contract error"
+        assert False, "Expected consume-order validation error"
     except PluginLoadError as exc:
-        assert "requires 'test.compiler.producer' in depends_on" in str(exc)
+        assert "requires an earlier producer by stage/phase/order" in str(exc)
 
 
 def test_stage_local_consumes_across_stages_is_rejected(tmp_path: Path):
@@ -604,6 +639,11 @@ def test_base_manifest_declares_high_value_data_bus_contracts():
     """Base manifest should declare core produces/consumes contracts for key plugins."""
     registry = PluginRegistry(V5_TOOLS)
     registry.load_manifest(V5_TOOLS / "plugins" / "plugins.yaml")
+    repo_root = V5_TOOLS.parent
+    registry.load_manifest(repo_root / "topology" / "object-modules" / "proxmox" / "plugins.yaml")
+    registry.load_manifest(repo_root / "topology" / "object-modules" / "mikrotik" / "plugins.yaml")
+    registry.load_manifest(repo_root / "topology" / "object-modules" / "oracle" / "plugins.yaml")
+    registry.load_manifest(repo_root / "topology" / "object-modules" / "orangepi" / "plugins.yaml")
 
     module_loader = registry.specs["base.compiler.module_loader"]
     discover_boundary = registry.specs["base.discover.boundary"]
@@ -611,6 +651,7 @@ def test_base_manifest_declares_high_value_data_bus_contracts():
     capability_loader = registry.specs["base.compiler.capability_contract_loader"]
     references = registry.specs["base.validator.references"]
     artifact_manifest = registry.specs["base.generator.artifact_manifest"]
+    artifact_contract_guard = registry.specs["base.assembler.artifact_contract_guard"]
 
     assert {item["key"] for item in module_loader.produces} >= {
         "class_map",
@@ -632,13 +673,64 @@ def test_base_manifest_declares_high_value_data_bus_contracts():
         "base.generator.effective_json",
         "base.generator.effective_yaml",
         "base.generator.ansible_inventory",
-    }
-    assert set(artifact_manifest.config.get("artifact_manifest_compatibility_producers", [])) >= {
+        "base.generator.docker_compose",
+        "base.generator.wireguard",
         "object.proxmox.generator.terraform",
         "object.mikrotik.generator.terraform",
+        "object.oracle.generator.terraform",
         "object.proxmox.generator.bootstrap",
         "object.mikrotik.generator.bootstrap",
         "object.orangepi.generator.bootstrap",
+    }
+    assert {
+        item["from_plugin"]
+        for item in artifact_manifest.consumes
+        if item.get("key") == "generated_files"
+    } >= {
+        "base.generator.effective_json",
+        "base.generator.effective_yaml",
+        "base.generator.ansible_inventory",
+        "base.generator.docs",
+        "base.generator.diagrams",
+        "base.generator.topology_graph",
+        "base.generator.docker_compose",
+        "base.generator.wireguard",
+        "object.proxmox.generator.terraform",
+        "object.mikrotik.generator.terraform",
+        "object.oracle.generator.terraform",
+        "object.proxmox.generator.bootstrap",
+        "object.mikrotik.generator.bootstrap",
+        "object.orangepi.generator.bootstrap",
+    }
+    assert {
+        (item["from_plugin"], item["key"])
+        for item in artifact_contract_guard.consumes
+        if item["from_plugin"].startswith("object.")
+    } >= {
+        ("object.proxmox.generator.terraform", "artifact_plan"),
+        ("object.proxmox.generator.terraform", "artifact_generation_report"),
+        ("object.proxmox.generator.terraform", "artifact_contract_files"),
+        ("object.proxmox.generator.terraform", "generated_dir"),
+        ("object.mikrotik.generator.terraform", "artifact_plan"),
+        ("object.mikrotik.generator.terraform", "artifact_generation_report"),
+        ("object.mikrotik.generator.terraform", "artifact_contract_files"),
+        ("object.mikrotik.generator.terraform", "generated_dir"),
+        ("object.oracle.generator.terraform", "artifact_plan"),
+        ("object.oracle.generator.terraform", "artifact_generation_report"),
+        ("object.oracle.generator.terraform", "artifact_contract_files"),
+        ("object.oracle.generator.terraform", "generated_dir"),
+        ("object.proxmox.generator.bootstrap", "artifact_plan"),
+        ("object.proxmox.generator.bootstrap", "artifact_generation_report"),
+        ("object.proxmox.generator.bootstrap", "artifact_contract_files"),
+        ("object.proxmox.generator.bootstrap", "generated_dir"),
+        ("object.mikrotik.generator.bootstrap", "artifact_plan"),
+        ("object.mikrotik.generator.bootstrap", "artifact_generation_report"),
+        ("object.mikrotik.generator.bootstrap", "artifact_contract_files"),
+        ("object.mikrotik.generator.bootstrap", "generated_dir"),
+        ("object.orangepi.generator.bootstrap", "artifact_plan"),
+        ("object.orangepi.generator.bootstrap", "artifact_generation_report"),
+        ("object.orangepi.generator.bootstrap", "artifact_contract_files"),
+        ("object.orangepi.generator.bootstrap", "generated_dir"),
     }
     assert {item["key"] for item in artifact_manifest.produces} >= {
         "artifact_manifest_path",

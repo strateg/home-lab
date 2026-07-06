@@ -2354,7 +2354,7 @@ def test_publish_subscribe_dependency_check():
         ctx.subscribe("plugin.producer", "data")
         assert False, "Should have raised PluginDataExchangeError"
     except PluginDataExchangeError as e:
-        assert "not in depends_on list" in str(e)
+        assert "not in declared dependency contract" in str(e)
 
     ctx._clear_execution_context()  # noqa: SLF001
     print("PASS: Subscribe dependency check works")

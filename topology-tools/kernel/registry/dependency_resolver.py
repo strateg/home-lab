@@ -112,19 +112,27 @@ class DependencyResolver:
                 if not isinstance(key, str) or not key:
                     continue
 
-                # Must be in depends_on
-                if from_plugin not in consumer_spec.depends_on:
-                    raise DependencyError(
-                        consumer_spec.id,
-                        f"consumes '{from_plugin}.{key}' requires '{from_plugin}' in depends_on.",
-                    )
-
-                # Producer must exist
                 producer_spec = self._specs.get(from_plugin)
                 if producer_spec is None:
+                    if from_plugin in consumer_spec.depends_on:
+                        raise DependencyError(
+                            consumer_spec.id,
+                            f"consumes references unknown producer '{from_plugin}'.",
+                        )
+                    # Base-manifest bootstrap may declare consumes against module/plugin
+                    # manifests that are discovered only after discover-stage startup.
+                    # Treat those consume-only references as deferred and validate them
+                    # once the producer manifest is actually loaded into the registry.
+                    continue
+
+                if (
+                    from_plugin not in consumer_spec.depends_on
+                    and not self._is_consume_order_valid(consumer_spec, producer_spec)
+                ):
                     raise DependencyError(
                         consumer_spec.id,
-                        f"consumes references unknown producer '{from_plugin}'.",
+                        "consumes requires an earlier producer by stage/phase/order "
+                        f"or an explicit depends_on entry: '{from_plugin}.{key}'.",
                     )
 
                 # Check produced scope
@@ -146,6 +154,27 @@ class DependencyResolver:
                         f"'{from_plugin}.{key}' from {producer_spec.phase.value}/{[s.value for s in producer_spec.stages]} "
                         f"to {consumer_spec.phase.value}/{[s.value for s in consumer_spec.stages]}",
                     )
+
+    def _is_consume_order_valid(self, consumer_spec: PluginSpec, producer_spec: PluginSpec) -> bool:
+        """Return True when consumes can rely on stage/phase/order instead of depends_on."""
+        for consumer_stage in consumer_spec.stages:
+            consumer_stage_rank = SpecValidator.stage_rank(consumer_stage)
+            consumer_phase_rank = SpecValidator.phase_rank(consumer_spec.phase)
+            for producer_stage in producer_spec.stages:
+                producer_stage_rank = SpecValidator.stage_rank(producer_stage)
+                producer_phase_rank = SpecValidator.phase_rank(producer_spec.phase)
+
+                if producer_stage_rank < consumer_stage_rank:
+                    return True
+                if producer_stage_rank > consumer_stage_rank:
+                    continue
+                if producer_phase_rank < consumer_phase_rank:
+                    return True
+                if producer_phase_rank > consumer_phase_rank:
+                    continue
+                if producer_spec.order <= consumer_spec.order:
+                    return True
+        return False
 
     def _is_stage_local_consumption_valid(self, producer: PluginSpec, consumer: PluginSpec) -> bool:
         """Check if stage_local consumption is valid (same stage, producer first)."""

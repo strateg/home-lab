@@ -406,7 +406,6 @@ plugins:
     - base.generator.topology_graph
     - base.generator.docker_compose
     - base.generator.wireguard
-    artifact_manifest_compatibility_producers:
     - object.proxmox.generator.terraform
     - object.mikrotik.generator.terraform
     - object.oracle.generator.terraform
@@ -419,11 +418,6 @@ plugins:
       artifact_manifest_producers:
         type: array
         description: Declared producer plugin IDs consumed through snapshot/runtime contracts.
-        items:
-          type: string
-      artifact_manifest_compatibility_producers:
-        type: array
-        description: Compatibility-only producer plugin IDs included only for legacy direct execution fallback.
         items:
           type: string
     required: []
@@ -447,6 +441,27 @@ plugins:
     key: generated_files
     required: false
   - from_plugin: base.generator.docker_compose
+    key: generated_files
+    required: false
+  - from_plugin: base.generator.wireguard
+    key: generated_files
+    required: false
+  - from_plugin: object.proxmox.generator.terraform
+    key: generated_files
+    required: false
+  - from_plugin: object.mikrotik.generator.terraform
+    key: generated_files
+    required: false
+  - from_plugin: object.oracle.generator.terraform
+    key: generated_files
+    required: false
+  - from_plugin: object.proxmox.generator.bootstrap
+    key: generated_files
+    required: false
+  - from_plugin: object.mikrotik.generator.bootstrap
+    key: generated_files
+    required: false
+  - from_plugin: object.orangepi.generator.bootstrap
     key: generated_files
     required: false
   produces:
