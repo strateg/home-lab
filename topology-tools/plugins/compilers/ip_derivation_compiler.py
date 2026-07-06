@@ -2,6 +2,7 @@
 
 This plugin derives IP addresses from vlan_ref + host pattern:
 - Resolves vlan_ref → VLAN instance CIDR
+- Also supports bridge_ref + host for bridge networks (inst.bridge.*)
 - Computes _resolved_ip and _resolved_gateway
 - Validates host uniqueness and reserved gateway
 - Emits warnings for deprecated hardcoded IP patterns
@@ -29,12 +30,12 @@ class IpDerivationCompiler(CompilerPlugin):
         if not rows or not isinstance(rows, list):
             return self.make_result(diagnostics=diagnostics)
 
-        # Build VLAN CIDR index for resolution
+        # Build network CIDR index for resolution (VLANs and bridges)
         # CIDR can be in instance extensions, instance root, or inherited from object
-        vlan_cidrs: dict[str, str] = {}
+        network_cidrs: dict[str, str] = {}
         for row in rows:
             instance_id = row.get("instance", "") or row.get("instance_id", "")
-            if instance_id.startswith("inst.vlan."):
+            if instance_id.startswith(("inst.vlan.", "inst.bridge.")):
                 cidr = None
                 # Check instance extensions first
                 extensions = row.get("extensions", {})
@@ -53,9 +54,9 @@ class IpDerivationCompiler(CompilerPlugin):
                             if isinstance(props, dict):
                                 cidr = props.get("cidr")
                 if cidr:
-                    vlan_cidrs[instance_id] = cidr
+                    network_cidrs[instance_id] = cidr
 
-        # Host registry for duplicate detection: vlan_ref -> {host -> instance_id}
+        # Host registry for duplicate detection: network_ref -> {host -> instance_id}
         host_registry: dict[str, dict[int, str]] = {}
 
         # Process rows with network field (in extensions)
@@ -73,11 +74,15 @@ class IpDerivationCompiler(CompilerPlugin):
 
             path = f"instance:{instance_id}"
             vlan_ref = network.get("vlan_ref")
+            bridge_ref = network.get("bridge_ref")
+            # vlan_ref is the canonical ADR 0111 pattern; bridge_ref + host is the
+            # equivalent derivation for bridge networks (e.g., RouterOS containers).
+            network_ref = vlan_ref or bridge_ref
             host = network.get("host")
             hardcoded_ip = network.get("ip")
 
-            # Case 1: vlan_ref + host pattern (ADR 0111 canonical)
-            if vlan_ref and host is not None:
+            # Case 1: network ref + host pattern (ADR 0111 canonical)
+            if network_ref and host is not None:
                 # Validate no mixed patterns
                 if hardcoded_ip:
                     diagnostics.append(
@@ -86,8 +91,8 @@ class IpDerivationCompiler(CompilerPlugin):
                             severity="error",
                             stage=stage,
                             message=(
-                                f"Instance '{instance_id}' mixes vlan_ref/host with "
-                                f"hardcoded ip. Use one pattern only."
+                                f"Instance '{instance_id}' mixes vlan_ref/bridge_ref+host "
+                                f"with hardcoded ip. Use one pattern only."
                             ),
                             path=f"{path}.network",
                         )
@@ -101,46 +106,50 @@ class IpDerivationCompiler(CompilerPlugin):
                             code="E7862",
                             severity="error",
                             stage=stage,
-                            message=(f"Instance '{instance_id}' uses host: 1 which is " f"reserved for VLAN gateway."),
+                            message=(
+                                f"Instance '{instance_id}' uses host: 1 which is " f"reserved for network gateway."
+                            ),
                             path=f"{path}.network.host",
                         )
                     )
                     continue
 
-                # Validate host uniqueness within vlan_ref
-                if vlan_ref not in host_registry:
-                    host_registry[vlan_ref] = {}
+                # Validate host uniqueness within the referenced network
+                if network_ref not in host_registry:
+                    host_registry[network_ref] = {}
 
-                if host in host_registry[vlan_ref]:
-                    existing = host_registry[vlan_ref][host]
+                if host in host_registry[network_ref]:
+                    existing = host_registry[network_ref][host]
                     diagnostics.append(
                         self.emit_diagnostic(
                             code="E7861",
                             severity="error",
                             stage=stage,
                             message=(
-                                f"Duplicate host {host} in {vlan_ref}: " f"'{instance_id}' conflicts with '{existing}'."
+                                f"Duplicate host {host} in {network_ref}: "
+                                f"'{instance_id}' conflicts with '{existing}'."
                             ),
                             path=f"{path}.network.host",
                         )
                     )
                     continue
 
-                host_registry[vlan_ref][host] = instance_id
+                host_registry[network_ref][host] = instance_id
 
-                # Resolve IP from VLAN CIDR
-                cidr = vlan_cidrs.get(vlan_ref)
+                # Resolve IP from network CIDR
+                cidr = network_cidrs.get(network_ref)
                 if not cidr:
+                    ref_key = "vlan_ref" if vlan_ref else "bridge_ref"
                     diagnostics.append(
                         self.emit_diagnostic(
                             code="E7866",
                             severity="error",
                             stage=stage,
                             message=(
-                                f"Instance '{instance_id}' references unknown VLAN "
-                                f"'{vlan_ref}' or VLAN has no CIDR."
+                                f"Instance '{instance_id}' references unknown network "
+                                f"'{network_ref}' or network has no CIDR."
                             ),
-                            path=f"{path}.network.vlan_ref",
+                            path=f"{path}.network.{ref_key}",
                         )
                     )
                     continue
@@ -159,7 +168,7 @@ class IpDerivationCompiler(CompilerPlugin):
                                     stage=stage,
                                     message=(
                                         f"Instance '{instance_id}' host {host} exceeds "
-                                        f"VLAN CIDR {cidr} range (1-{net.num_addresses - 2})."
+                                        f"network CIDR {cidr} range (1-{net.num_addresses - 2})."
                                     ),
                                     path=f"{path}.network.host",
                                 )
@@ -173,7 +182,7 @@ class IpDerivationCompiler(CompilerPlugin):
                     resolved_count += 1
 
             # Case 2: Hardcoded IP pattern (deprecated)
-            elif hardcoded_ip and not vlan_ref:
+            elif hardcoded_ip and not network_ref:
                 diagnostics.append(
                     self.emit_diagnostic(
                         code="W7864",
@@ -194,7 +203,7 @@ class IpDerivationCompiler(CompilerPlugin):
             {
                 "resolved_count": resolved_count,
                 "warning_count": warning_count,
-                "vlan_count": len(vlan_cidrs),
+                "vlan_count": len(network_cidrs),
             },
         )
 

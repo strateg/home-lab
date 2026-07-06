@@ -1,7 +1,7 @@
 @object: obj.docker.container.generic
 @extends: class.compute.workload.docker
 @title: Docker Container Generic
-@version: 1.0.0
+@version: 1.1.0
 
 model: Generic Docker/OCI Container Workload
 vendor: generic
@@ -19,10 +19,11 @@ vendor_capabilities:
 - vendor.runtime.docker.container
 
 # ADR 0107: Host placement defaults via @on directive
+# Note: no bridge_ref default here — Docker Engine hosts address containers via
+# the ADR 0111 vlan_ref + host pattern; bridge_ref stays with RouterOS containers.
 defaults:
   trust_zone_ref: "@on:host.trust_zone_ref?"
   os_refs: "@on:host.os_refs?"
   network:
     network_ref: "@on:host.network.network_ref?"
-    bridge_ref: "@on:host.network.bridge_ref?"
     gateway: "@on:host.network.gateway?"

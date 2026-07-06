@@ -5,8 +5,8 @@
 source_id: svc-postgresql-germany
 notes: |
   PostgreSQL on OCI Frankfurt for Germany geo-specific services.
-  W7844 warning expected: VPS attaches to vpn_germany via WireGuard tunnel routing,
-  not direct VLAN interface. Service listens on tunnel IP 10.100.0.2.
+  VPS attaches to vpn_germany via WireGuard tunnel routing (wireguard_gateway.routed_networks),
+  not a direct VLAN interface. Service listens on tunnel IP 10.100.0.2.
 
 port: 5432
 protocol: tcp

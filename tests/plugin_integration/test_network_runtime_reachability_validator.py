@@ -197,6 +197,54 @@ def test_network_runtime_reachability_validator_supports_non_vlan_legacy_network
     assert result.diagnostics == []
 
 
+def test_network_runtime_reachability_validator_accepts_vm_with_wireguard_routed_network():
+    registry = _registry()
+    ctx = _context()
+    rows = _base_rows()
+    rows[3] = {  # type: ignore[index]
+        "group": "vm",
+        "instance": "vps-a",
+        "class_ref": "class.compute.workload.vm",
+        "layer": "L4",
+        "extensions": {
+            "wireguard_gateway": {
+                "enabled": True,
+                "routed_networks": [{"network": "192.168.55.0/24", "vlan_ref": "inst.vlan.a"}],
+            }
+        },
+    }
+    rows[-1]["runtime"] = {"type": "vm", "target_ref": "vps-a", "network_binding_ref": "inst.vlan.a"}
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert result.diagnostics == []
+
+
+def test_network_runtime_reachability_validator_warns_on_vm_without_attachment_or_route():
+    registry = _registry()
+    ctx = _context()
+    rows = _base_rows()
+    rows[3] = {  # type: ignore[index]
+        "group": "vm",
+        "instance": "vps-a",
+        "class_ref": "class.compute.workload.vm",
+        "layer": "L4",
+        "extensions": {
+            "wireguard_gateway": {
+                "enabled": True,
+                "routed_networks": [{"network": "192.168.66.0/24", "vlan_ref": "inst.vlan.other"}],
+            }
+        },
+    }
+    rows[-1]["runtime"] = {"type": "vm", "target_ref": "vps-a", "network_binding_ref": "inst.vlan.a"}
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.PARTIAL
+    assert any(diag.code == "W7844" for diag in result.diagnostics)
+
+
 def test_network_runtime_reachability_validator_accepts_docker_runtime_to_l4_docker_with_network():
     registry = _registry()
     ctx = _context()

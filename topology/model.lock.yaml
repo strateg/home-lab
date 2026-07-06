@@ -43,13 +43,13 @@ classes:
     version: 1.0.0
   class.network.routing_policy:
     version: 1.0.0
+  class.network.security_matrix:
+    version: 1.0.0
   class.network.trust_zone:
     version: 1.0.0
   class.network.tunnel_link:
     version: 1.0.0
   class.network.vlan:
-    version: 1.0.0
-  class.network.security_matrix:
     version: 1.0.0
   class.observability.alert:
     version: 1.0.0
@@ -112,7 +112,7 @@ objects:
     version: 1.0.0
     class_ref: class.device.iot_endpoint
   obj.docker.container.generic:
-    version: 1.0.0
+    version: 1.1.0
     class_ref: class.compute.workload.docker
   obj.docker.stack.media:
     version: 1.0.0
@@ -195,6 +195,12 @@ objects:
   obj.network.routing_policy.vpn_vlan:
     version: 1.0.0
     class_ref: class.network.routing_policy
+  obj.network.security_matrix.proxmox_servers:
+    version: 1.0.0
+    class_ref: class.network.security_matrix
+  obj.network.security_matrix.soho:
+    version: 1.0.0
+    class_ref: class.network.security_matrix
   obj.network.trust_zone.guest:
     version: 1.0.0
     class_ref: class.network.trust_zone
@@ -234,12 +240,6 @@ objects:
   obj.network.vlan.user:
     version: 1.0.0
     class_ref: class.network.vlan
-  obj.network.security_matrix.soho:
-    version: 1.0.0
-    class_ref: class.network.security_matrix
-  obj.network.security_matrix.proxmox_servers:
-    version: 1.0.0
-    class_ref: class.network.security_matrix
   obj.network.vlan.vpn_tunnel:
     version: 1.0.0
     class_ref: class.network.vlan

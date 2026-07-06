@@ -241,6 +241,19 @@ class NetworkRuntimeReachabilityValidator(ValidatorJsonPlugin):
             if isinstance(network_ref, str) and network_ref:
                 refs.add(network_ref)
 
+        # Format 3: WireGuard gateway routed networks (tunnel-routed reachability).
+        # A gateway that routes a VLAN over a tunnel can host services bound to it.
+        wireguard_gateway = self._resolve_field(ctx=ctx, row=row, key="wireguard_gateway")
+        if isinstance(wireguard_gateway, dict):
+            routed_networks = wireguard_gateway.get("routed_networks")
+            if isinstance(routed_networks, list):
+                for routed in routed_networks:
+                    if not isinstance(routed, dict):
+                        continue
+                    routed_vlan_ref = routed.get("vlan_ref")
+                    if isinstance(routed_vlan_ref, str) and routed_vlan_ref:
+                        refs.add(routed_vlan_ref)
+
         return refs
 
     @staticmethod
