@@ -125,9 +125,8 @@ class DependencyResolver:
                     # once the producer manifest is actually loaded into the registry.
                     continue
 
-                if (
-                    from_plugin not in consumer_spec.depends_on
-                    and not self._is_consume_order_valid(consumer_spec, producer_spec)
+                if from_plugin not in consumer_spec.depends_on and not self._is_consume_order_valid(
+                    consumer_spec, producer_spec
                 ):
                     raise DependencyError(
                         consumer_spec.id,

@@ -682,11 +682,7 @@ def test_base_manifest_declares_high_value_data_bus_contracts():
         "object.mikrotik.generator.bootstrap",
         "object.orangepi.generator.bootstrap",
     }
-    assert {
-        item["from_plugin"]
-        for item in artifact_manifest.consumes
-        if item.get("key") == "generated_files"
-    } >= {
+    assert {item["from_plugin"] for item in artifact_manifest.consumes if item.get("key") == "generated_files"} >= {
         "base.generator.effective_json",
         "base.generator.effective_yaml",
         "base.generator.ansible_inventory",
