@@ -97,6 +97,9 @@ class TerraformOCIGenerator(BaseGenerator):
                 artifact_plan=empty_plan,
                 generation_report=empty_report,
             )
+            # Snapshot contract: declared produces must be published even on skip.
+            ctx.publish("generated_files", [])
+            ctx.publish("terraform_oci_files", [])
             ctx.publish("artifact_plan", empty_plan)
             ctx.publish("artifact_generation_report", empty_report)
             ctx.publish("artifact_contract_files", sorted(contract_paths.values()))

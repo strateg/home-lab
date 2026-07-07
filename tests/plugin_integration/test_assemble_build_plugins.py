@@ -27,11 +27,11 @@ def _registry() -> PluginRegistry:
 
 
 def _seed_migrating_contract_publications(ctx: PluginContext, registry: PluginRegistry) -> None:
-    """Populate required ADR0093 contract keys for migrating generators."""
+    """Populate required ADR0093 contract keys for migrating/migrated generators."""
     for plugin_id, spec in registry.specs.items():
         if getattr(spec, "kind", None).value != "generator":
             continue
-        if getattr(spec, "migration_mode", "legacy") != "migrating":
+        if getattr(spec, "migration_mode", "legacy") not in {"migrating", "migrated"}:
             continue
         planned_path = f"generated/home-lab/contracts/{plugin_id}.json"
         publish_for_test(

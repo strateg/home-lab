@@ -63,7 +63,6 @@ def test_artifact_manifest_generator_emits_checksums(tmp_path: Path):
     assert payload["artifact_count"] == 2
     assert [row["path"] for row in payload["artifacts"]] == sorted([row["path"] for row in payload["artifacts"]])
     assert result.output_data["artifact_manifest_path"] == str(manifest_path)
-    assert result.output_data["compatibility_fallback_used"] == 0
 
 
 def test_artifact_manifest_generator_is_deterministic_across_publish_order(tmp_path: Path):
@@ -108,7 +107,7 @@ def test_artifact_manifest_generator_is_deterministic_across_publish_order(tmp_p
     assert first == second
 
 
-def test_artifact_manifest_generator_snapshot_path_skips_compatibility_only_producers(tmp_path: Path):
+def test_artifact_manifest_generator_snapshot_path_skips_producers_without_subscription(tmp_path: Path):
     artifacts_root = tmp_path / "generated"
     project_root = artifacts_root / "home-lab"
 
@@ -131,8 +130,10 @@ def test_artifact_manifest_generator_snapshot_path_skips_compatibility_only_prod
             "project_id": "home-lab",
             "generator_artifacts_root": str(artifacts_root),
             "compile_generated_at": "2026-03-26T00:00:00+00:00",
-            "artifact_manifest_producers": ["base.generator.docs"],
-            "artifact_manifest_compatibility_producers": ["object.proxmox.generator.terraform"],
+            "artifact_manifest_producers": [
+                "base.generator.docs",
+                "object.proxmox.generator.terraform",
+            ],
         },
         subscriptions={
             ("base.generator.docs", "generated_files"): SubscriptionValue(
@@ -193,5 +194,3 @@ def test_artifact_manifest_generator_respects_explicit_producer_list(tmp_path: P
     assert result.status == PluginStatus.SUCCESS
     payload = json.loads((project_root / "artifact-manifest.json").read_text(encoding="utf-8"))
     assert [row["producer_plugin"] for row in payload["artifacts"]] == ["object.proxmox.generator.terraform"]
-    assert result.output_data["compatibility_fallback_used"] == 0
-    assert not any(diag.code == "I3903" for diag in result.diagnostics)

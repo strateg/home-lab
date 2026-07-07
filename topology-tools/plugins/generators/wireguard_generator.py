@@ -425,6 +425,9 @@ class WireguardGenerator(BaseGenerator):
                     path="generator:wireguard",
                 )
             )
+            # Snapshot contract: declared produces must be published even on skip.
+            ctx.publish("generated_files", [])
+            ctx.publish("wireguard_configs", [])
             return self.make_result(diagnostics)
 
         out_root = self.resolve_output_path(ctx, "wireguard")

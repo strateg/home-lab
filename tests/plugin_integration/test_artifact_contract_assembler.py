@@ -36,11 +36,21 @@ def _ctx(registry: PluginRegistry) -> PluginContext:
     )
 
 
-def _run_guard(plugin: ArtifactContractAssembler, ctx: PluginContext, registry: PluginRegistry):
+def _run_guard(
+    plugin: ArtifactContractAssembler,
+    ctx: PluginContext,
+    registry: PluginRegistry,
+    *,
+    metadata_override: dict[str, str] | None = None,
+):
     spec = registry.specs[plugin.plugin_id]
     ctx.config.update(spec.config)
     # ADR 0097 P4.1: Inject generator_migration_metadata for subinterpreter compatibility
-    ctx.config["generator_migration_metadata"] = registry._compute_generator_migration_metadata()
+    metadata = registry._compute_generator_migration_metadata()
+    if metadata_override:
+        for plugin_id, mode in metadata_override.items():
+            metadata.setdefault(plugin_id, {})["migration_mode"] = mode
+    ctx.config["generator_migration_metadata"] = metadata
     consumes_keys = {
         item["from_plugin"]
         for item in spec.consumes
@@ -61,14 +71,6 @@ def _required_keys_payload(*, generated_dir: str | None = None) -> dict[str, obj
 def _publish(ctx: PluginContext, plugin_id: str, payload: dict[str, object]) -> None:
     for key, value in payload.items():
         publish_for_test(ctx, plugin_id, key, value)
-
-
-def _migrating_generators(registry: PluginRegistry) -> list[str]:
-    return sorted(
-        plugin_id
-        for plugin_id, spec in registry.specs.items()
-        if getattr(spec, "kind", None).value == "generator" and getattr(spec, "migration_mode", "legacy") == "migrating"
-    )
 
 
 def _checked_generators(registry: PluginRegistry) -> list[str]:
@@ -96,23 +98,26 @@ def test_artifact_contract_assembler_passes_when_migrating_generators_publish_co
     assert result.status == PluginStatus.SUCCESS
     assert result.output_data is not None
     summary = result.output_data["artifact_contract_guard"]
-    assert summary["migrating"] >= 3
-    assert summary["checked"] >= 3
+    assert summary["migrating"] == 0
+    assert summary["migrated"] >= 7
+    assert summary["checked"] >= 7
     assert len(summary["checked_plugins"]) == summary["checked"]
     assert all(isinstance(item.get("artifact_plan"), dict) for item in summary["checked_plugins"])
     assert all(isinstance(item.get("artifact_generation_report"), dict) for item in summary["checked_plugins"])
     assert summary["missing_contracts"] == []
-    assert not any(diag.code == "I9397" for diag in result.diagnostics)
     assert not any(diag.code == "E9394" for diag in result.diagnostics)
 
 
 def test_artifact_contract_assembler_errors_for_missing_migrating_contracts() -> None:
     registry = _registry()
     ctx = _ctx(registry)
-    migrating = _migrating_generators(registry)
-    assert migrating
-    for plugin_id in _checked_generators(registry):
-        if plugin_id == migrating[0]:
+    checked = _checked_generators(registry)
+    assert checked
+    # No real generators remain in migrating mode; force one via metadata override
+    # to keep coverage for the migrating-mode enforcement branch.
+    target = checked[0]
+    for plugin_id in checked:
+        if plugin_id == target:
             continue
         _publish(
             ctx,
@@ -121,7 +126,7 @@ def test_artifact_contract_assembler_errors_for_missing_migrating_contracts() ->
         )
 
     plugin = ArtifactContractAssembler("base.assembler.artifact_contract_guard")
-    result = _run_guard(plugin, ctx, registry)
+    result = _run_guard(plugin, ctx, registry, metadata_override={target: "migrating"})
 
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E9394" for diag in result.diagnostics)

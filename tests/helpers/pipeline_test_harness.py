@@ -188,7 +188,6 @@ class PipelineTestHarness:
             output_dir=str(self.work_dir),
             workspace_root=str(self.generated_root),
             subscriptions=subscriptions,
-            legacy_published_data=dict(self.pipeline_state.committed_data),
             allowed_dependencies=frozenset(spec.depends_on if spec else []),
             produced_key_scopes={},
         )

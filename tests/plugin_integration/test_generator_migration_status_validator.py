@@ -41,5 +41,6 @@ def test_generator_migration_status_validator_reports_summary() -> None:
     assert result.output_data is not None
     summary = result.output_data["generator_migration_summary"]
     assert summary["total_generators"] >= 1
-    assert summary["migrating"] >= 3
+    assert summary["migrating"] == 0
+    assert summary["migrated"] >= 5
     assert any(diag.code == "I9390" for diag in result.diagnostics)

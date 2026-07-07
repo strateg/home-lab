@@ -160,14 +160,6 @@ class SnapshotBuilder:
                         continue
                     raise
 
-        legacy_published_data: dict[str, dict[str, Any]] = {}
-        if pipeline_state is not None:
-            compatibility_producers = self._compatibility_producer_ids(spec)
-            for producer_id in compatibility_producers:
-                payload = pipeline_state.committed_data.get(producer_id)
-                if isinstance(payload, dict) and payload:
-                    legacy_published_data[producer_id] = payload.copy()
-
         return PluginInputSnapshot(
             plugin_id=plugin_id,
             stage=stage,
@@ -196,7 +188,6 @@ class SnapshotBuilder:
             source_file=ctx.source_file,
             compiled_file=ctx.compiled_file,
             subscriptions=subscriptions,
-            legacy_published_data=legacy_published_data,
             allowed_dependencies=frozenset(spec.declared_dependency_ids()),
             produced_key_scopes=produced_key_scopes,
         )
@@ -213,27 +204,3 @@ class SnapshotBuilder:
             if isinstance(from_plugin, str) and from_plugin and isinstance(key, str) and key:
                 result.add((from_plugin, key))
         return result
-
-    @staticmethod
-    def _compatibility_producer_ids(spec: PluginSpec) -> set[str]:
-        """Return legacy compatibility producers declared in plugin config.
-
-        These producers are not part of explicit snapshot subscriptions yet, but
-        snapshot-backed plugins may still need read-only access to their already
-        committed payloads to support compatibility fallback paths during staged
-        migration.
-        """
-        config = getattr(spec, "config", {})
-        if not isinstance(config, dict):
-            return set()
-
-        out: set[str] = set()
-        for key, raw in config.items():
-            if not isinstance(key, str) or not key.endswith("_compatibility_producers"):
-                continue
-            if not isinstance(raw, list):
-                continue
-            for item in raw:
-                if isinstance(item, str) and item:
-                    out.add(item)
-        return out

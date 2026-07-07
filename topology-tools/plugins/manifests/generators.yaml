@@ -233,7 +233,7 @@ plugins:
   - generate
   phase: run
   order: 230
-  migration_mode: migrating
+  migration_mode: migrated
   depends_on:
   - base.compiler.effective_model
   timeout: 30
