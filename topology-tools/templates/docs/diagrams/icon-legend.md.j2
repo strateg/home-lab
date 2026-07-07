@@ -12,19 +12,19 @@ Current icon mode: `{{ icon_mode }}`
 
 ```mermaid
 flowchart TB
-{% for device in devices %}
+{% for entry in legend_device_classes %}
 {% if use_mermaid_icons %}
-  dev_{{ device.safe_id }}@{ icon: "{{ device.icon }}", form: "rounded", label: "{{ device.class_ref }}", pos: "b", h: 42 }
+  dev_{{ entry.safe_id }}@{ icon: "{{ entry.icon }}", form: "rounded", label: "{{ entry.class_ref }}", pos: "b", h: 42 }
 {% else %}
-  dev_{{ device.safe_id }}["{{ device.class_ref }}\n{{ device.icon }}"]
+  dev_{{ entry.safe_id }}["{{ entry.class_ref }}\n{{ entry.icon }}"]
 {% endif %}
 {% endfor %}
 ```
 
 | Class | Icon |
 | --- | --- |
-{% for device in devices -%}
-| `{{ device.class_ref }}` | `{{ device.icon }}` |
+{% for entry in legend_device_classes -%}
+| `{{ entry.class_ref }}` | `{{ entry.icon }}` |
 {% endfor %}
 
 ## Trust Zones

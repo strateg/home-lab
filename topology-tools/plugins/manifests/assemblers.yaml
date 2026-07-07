@@ -57,6 +57,48 @@ plugins:
   - key: assembled_files
     scope: pipeline_shared
   description: Copies generated artifacts into workspace root for release assembly.
+- id: base.assembler.docs_site
+  execution_mode: subinterpreter
+  kind: assembler
+  entry: ../assemblers/docs_site_assembler.py:DocsSiteAssembler
+  api_version: 1.x
+  stages:
+  - assemble
+  phase: run
+  order: 415
+  depends_on:
+  - base.generator.docs
+  - base.generator.diagrams
+  - base.generator.topology_graph
+  timeout: 30
+  config:
+    site_name: Topology Documentation
+  config_schema:
+    type: object
+    properties:
+      site_name:
+        type: string
+        description: MkDocs site title rendered in the generated mkdocs.yml.
+    required: []
+  consumes:
+  - from_plugin: base.generator.docs
+    key: generated_dir
+    required: false
+  - from_plugin: base.generator.docs
+    key: docs_files
+    required: false
+  - from_plugin: base.generator.diagrams
+    key: diagram_files
+    required: false
+  - from_plugin: base.generator.topology_graph
+    key: topology_graph_files
+    required: false
+  produces:
+  - key: docs_site_config
+    scope: pipeline_shared
+  - key: docs_site_dir
+    scope: pipeline_shared
+  description: Emits mkdocs.yml (Material theme, Mermaid fences, deterministic nav) for generated docs.
 - id: base.assembler.artifact_contract_guard
   execution_mode: subinterpreter
   kind: assembler
@@ -163,6 +205,50 @@ plugins:
   - key: artifact_contract_guard
     scope: pipeline_shared
   description: Enforces ADR0093 contract publications for migrated/migrating generators.
+- id: base.assembler.mermaid_verify
+  execution_mode: subinterpreter
+  kind: assembler
+  entry: ../assemblers/mermaid_verify_assembler.py:MermaidVerifyAssembler
+  api_version: 1.x
+  stages:
+  - assemble
+  phase: verify
+  order: 419
+  depends_on:
+  - base.generator.docs
+  - base.generator.diagrams
+  - base.generator.topology_graph
+  timeout: 120
+  config:
+    use_mmdc: false
+    commit_keys_on_failure:
+    - mermaid_verified
+  config_schema:
+    type: object
+    properties:
+      use_mmdc:
+        type: boolean
+        description: Run Mermaid CLI (`mmdc`) render checks in addition to syntax checks.
+      commit_keys_on_failure:
+        type: array
+        description: Declared verdict keys that remain commit-eligible when the plugin returns FAILED without crashing.
+        items:
+          type: string
+    required: []
+  consumes:
+  - from_plugin: base.generator.docs
+    key: docs_files
+    required: false
+  - from_plugin: base.generator.diagrams
+    key: diagram_files
+    required: false
+  - from_plugin: base.generator.topology_graph
+    key: topology_graph_files
+    required: false
+  produces:
+  - key: mermaid_verified
+    scope: pipeline_shared
+  description: Verifies Mermaid blocks in generated markdown docs before assemble finalize (ADR 0079).
 - id: base.assembler.verify
   execution_mode: subinterpreter
   kind: assembler

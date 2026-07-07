@@ -29,14 +29,17 @@ def _write_manifest(path: Path, payload: dict) -> None:
     path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
 
 
-def _context(tmp_path: Path, compiled_json: dict) -> PluginContext:
+def _context(tmp_path: Path, compiled_json: dict, config: dict | None = None) -> PluginContext:
+    payload = {"generator_artifacts_root": str(tmp_path / "generated")}
+    if isinstance(config, dict):
+        payload.update(config)
     return PluginContext(
         topology_path="topology/topology.yaml",
         profile="test",
         model_lock={},
         compiled_json=_semanticize(compiled_json),
         output_dir=str(tmp_path / "build"),
-        config={"generator_artifacts_root": str(tmp_path / "generated")},
+        config=payload,
     )
 
 
@@ -122,7 +125,17 @@ def test_docs_generator_writes_expected_files(tmp_path: Path) -> None:
     assert (docs_root / "qos-topology.md").exists()
     assert (docs_root / "ups-topology.md").exists()
     assert (docs_root / "backup-schedule.md").exists()
+    assert (docs_root / "index.md").exists()
     assert (docs_root / "_generated_files.txt").exists()
+
+    index = (docs_root / "index.md").read_text(encoding="utf-8")
+    assert "# Topology Documentation" in index
+    assert "[Overview](overview.md)" in index
+    assert "[Backup Schedule](backup-schedule.md)" in index
+    assert "[Diagrams Index](diagrams/index.md)" in index
+    assert "Partial documentation" not in index
+    generated_list = (docs_root / "_generated_files.txt").read_text(encoding="utf-8")
+    assert "index.md" in generated_list.splitlines()
 
     overview = (docs_root / "overview.md").read_text(encoding="utf-8")
     assert "| Devices | 1 |" in overview
@@ -132,6 +145,47 @@ def test_docs_generator_writes_expected_files(tmp_path: Path) -> None:
     assert "docker" in services
     network = (docs_root / "network-diagram.md").read_text(encoding="utf-8")
     assert "Network Inventory" in network
+
+
+def test_docs_generator_honors_template_sets(tmp_path: Path) -> None:
+    registry = _registry()
+    ctx = _context(tmp_path, _compiled_fixture(), {"template_sets": ["network"]})
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.GENERATE)
+
+    assert result.status == PluginStatus.SUCCESS
+    docs_root = tmp_path / "generated" / "docs"
+    assert (docs_root / "network-diagram.md").exists()
+    assert (docs_root / "vlan-topology.md").exists()
+    assert (docs_root / "index.md").exists()
+    assert (docs_root / "_generated_files.txt").exists()
+    assert not (docs_root / "overview.md").exists()
+    assert not (docs_root / "backup-schedule.md").exists()
+
+    index = (docs_root / "index.md").read_text(encoding="utf-8")
+    assert "Partial documentation" in index
+    assert "`network`" in index
+    assert "[Network Inventory](network-diagram.md)" in index
+    assert "[Overview](overview.md)" not in index
+
+    generated_list = (docs_root / "_generated_files.txt").read_text(encoding="utf-8").splitlines()
+    assert "index.md" in generated_list
+    assert "overview.md" not in generated_list
+
+
+def test_docs_generator_warns_on_unknown_template_set(tmp_path: Path) -> None:
+    registry = _registry()
+    ctx = _context(tmp_path, _compiled_fixture(), {"template_sets": ["bogus"]})
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.GENERATE)
+
+    assert result.status == PluginStatus.PARTIAL
+    assert any(diag.code == "W9702" for diag in result.diagnostics)
+    # Fallback: all sets generated when no valid set remains.
+    docs_root = tmp_path / "generated" / "docs"
+    assert (docs_root / "overview.md").exists()
+    assert (docs_root / "backup-schedule.md").exists()
+    assert (docs_root / "index.md").exists()
 
 
 def test_docs_generator_reports_projection_error(tmp_path: Path) -> None:

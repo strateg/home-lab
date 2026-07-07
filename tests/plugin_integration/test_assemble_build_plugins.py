@@ -227,7 +227,9 @@ def test_assemble_and_build_stage_plugins_produce_release_artifacts(tmp_path: Pa
     assert [r.plugin_id for r in assemble_results] == [
         "base.assembler.changed_scopes",
         "base.assembler.workspace",
+        "base.assembler.docs_site",
         "base.assembler.artifact_contract_guard",
+        "base.assembler.mermaid_verify",
         "base.assembler.verify",
         "base.assembler.manifest",
         "base.assembler.deploy_bundle",

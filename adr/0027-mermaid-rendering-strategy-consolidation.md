@@ -1,6 +1,6 @@
 # ADR 0027: Consolidate Mermaid Rendering Strategy and Quality Gates
 
-- Status: Implemented
+- Status: Implemented (amended 2026-07-07)
 - Date: 2026-02-22
 - Supersedes:
   - [0007](0007-icon-legend-and-complete-device-icon-coverage.md)
@@ -45,6 +45,28 @@ Trade-offs:
 - Fine-grained historical rationale is now split between this summary ADR and superseded details.
 - Future Mermaid changes should prefer updating this ADR unless a new decision boundary appears.
 
+## Amendment (2026-07-07)
+
+The v5 plugin pipeline (ADR 0079/0080) changed the operational defaults of this policy:
+
+1. **Default icon mode is `none` (plain Mermaid nodes).** Decision item 1 originally kept
+   icon-node output as default; the v5 diagram generator defaults to
+   `mermaid_icon_mode: none` because icon-node syntax requires renderer-side
+   `registerIconPacks()` support that most Markdown viewers lack. `icon-nodes` and
+   `compat` remain explicit opt-ins via plugin config (`mermaid_icon_mode`) or the
+   `V5_DIAGRAM_ICON_MODE` environment variable (`task build:docs-icons`,
+   `task build:docs-compat`).
+2. **CLI flags replaced.** The v4 flags `--no-mermaid-icons` and
+   `--skip-mermaid-validate` no longer exist. Icon mode selection uses the config/env
+   mechanism above; Mermaid validation runs as the assemble-stage gate
+   `base.assembler.mermaid_verify` (syntax checks always, `mmdc` render checks via
+   `use_mmdc: true`) plus the standalone `topology-tools/utils/validate-mermaid-render.py`
+   (`task build:docs-validate`).
+3. **Tooling paths updated.** `topology-tools/regenerate-all.py` and
+   `topology-tools/scripts/generators/docs/` were retired; the current implementation is
+   `topology-tools/plugins/generators/diagram_generator.py`,
+   `topology-tools/plugins/icons/`, and `topology-tools/templates/docs/diagrams/`.
+
 ## References
 
 - Replaced ADRs:
@@ -52,8 +74,9 @@ Trade-offs:
   - [0008](0008-mermaid-icon-node-default-and-runtime-pack-registration.md)
   - [0009](0009-robust-icon-pack-discovery-and-render-validation.md)
   - [0010](0010-regeneration-pipeline-mermaid-quality-gate.md)
-- Tooling:
-  - `topology-tools/regenerate-all.py`
+- Tooling (current):
+  - `topology-tools/plugins/generators/diagram_generator.py`
+  - `topology-tools/plugins/icons/`
+  - `topology-tools/plugins/assemblers/mermaid_verify_assembler.py`
   - `topology-tools/utils/validate-mermaid-render.py`
-  - `topology-tools/scripts/generators/docs/`
-  - `topology-tools/templates/docs/`
+  - `topology-tools/templates/docs/diagrams/`

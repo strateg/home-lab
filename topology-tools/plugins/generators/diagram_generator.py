@@ -47,6 +47,29 @@ class DiagramGenerator(BaseGenerator):
         return sorted(icon_ids)
 
     @staticmethod
+    def _legend_device_classes(projection: dict[str, Any]) -> list[dict[str, Any]]:
+        """Deduplicate device rows by (class_ref, icon) for the icon legend."""
+        legend: list[dict[str, Any]] = []
+        seen: set[tuple[str, str]] = set()
+        for row in projection.get("devices", []):
+            if not isinstance(row, dict):
+                continue
+            class_ref = str(row.get("class_ref", ""))
+            icon = str(row.get("icon", ""))
+            key = (class_ref, icon)
+            if key in seen:
+                continue
+            seen.add(key)
+            legend.append(
+                {
+                    "class_ref": class_ref,
+                    "icon": icon,
+                    "safe_id": class_ref.replace(".", "_").replace("-", "_"),
+                }
+            )
+        return legend
+
+    @staticmethod
     def _icon_manager(ctx: PluginContext) -> IconManager:
         raw_roots = ctx.config.get("icon_pack_search_roots", [])
         roots: list[Path] = []
@@ -96,6 +119,9 @@ class DiagramGenerator(BaseGenerator):
         icon_mode = self._icon_mode(ctx)
         use_icons = icon_mode == _ICON_MODE_ICON_NODES
         icon_runtime_hint = _ICON_RUNTIME_HINTS[icon_mode]
+        enable_click_links = ctx.config.get("enable_click_links", True)
+        if not isinstance(enable_click_links, bool):
+            enable_click_links = True
 
         diagrams_root = self.resolve_output_path(ctx, "docs", "diagrams")
         generated_files: list[str] = []
@@ -110,9 +136,11 @@ class DiagramGenerator(BaseGenerator):
             "services": projection.get("services", []),
             "lxc": projection.get("lxc", []),
             "counts": projection.get("counts", {}),
+            "legend_device_classes": self._legend_device_classes(projection),
             "use_mermaid_icons": use_icons,
             "icon_mode": icon_mode,
             "mermaid_icon_runtime_hint": icon_runtime_hint,
+            "enable_click_links": enable_click_links,
         }
 
         templates = (

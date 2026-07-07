@@ -63,10 +63,24 @@ plugins:
   depends_on:
   - base.compiler.effective_model
   timeout: 30
-  config: {}
+  config:
+    template_sets: []
   config_schema:
     type: object
-    properties: {}
+    properties:
+      template_sets:
+        type: array
+        description: Optional docs set whitelist (empty = all sets); unknown names are warned and ignored. index.md is always emitted.
+        items:
+          type: string
+          enum:
+          - core
+          - network
+          - security
+          - physical
+          - services
+          - storage
+          - operations
     required: []
   input_view:
     raw_yaml: false
@@ -94,9 +108,13 @@ plugins:
   timeout: 60
   config:
     mermaid_icon_mode: none
+    enable_click_links: true
   config_schema:
     type: object
     properties:
+      enable_click_links:
+        type: boolean
+        description: Emit Mermaid click directives linking diagram nodes to docs pages (ignored by renderers without click support).
       mermaid_icon_mode:
         type: string
         enum:
@@ -149,6 +167,8 @@ plugins:
     group_nodes_by_layer: false
     max_nodes: 0
     max_edges: 0
+    enable_click_links: true
+    graph_presets: []
   config_schema:
     type: object
     properties:
@@ -213,6 +233,25 @@ plugins:
         type: integer
         minimum: 0
         description: Maximum number of edges rendered in unified topology graph (0 = unlimited).
+      enable_click_links:
+        type: boolean
+        description: Emit Mermaid click directives linking graph nodes to docs pages (ignored by renderers without click support).
+      graph_presets:
+        type: array
+        description: Optional named presets; each emits an extra topology-<name>.md page overriding any base graph options per preset.
+        items:
+          type: object
+          properties:
+            name:
+              type: string
+              pattern: ^[a-z0-9][a-z0-9_-]*$
+              description: Preset slug used for output filename topology-<name>.md.
+            description:
+              type: string
+              description: Optional human-readable preset summary rendered on the preset page and in the presets index.
+          required:
+          - name
+          additionalProperties: true
     required: []
   produces:
   - key: generated_dir
@@ -223,7 +262,7 @@ plugins:
     scope: pipeline_shared
   - key: topology_graph_projection
     scope: pipeline_shared
-  description: Emits unified topology dependency Mermaid graph with optional domain/layer filtering.
+  description: Emits unified topology dependency Mermaid graph with optional domain/layer filtering and named presets.
   execution_mode: subinterpreter
 - id: base.generator.ansible_inventory
   kind: generator

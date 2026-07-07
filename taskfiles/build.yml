@@ -57,6 +57,18 @@ tasks:
       - task build:docs
       - "{{.PYTHON}} topology-tools/utils/validate-mermaid-render.py --docs-root generated/home-lab/docs"
 
+  docs-site:
+    desc: Generate docs/diagrams and build static MkDocs site (requires mkdocs-material)
+    cmds:
+      - task build:docs
+      - "{{.PYTHON}} -m mkdocs build -f generated/home-lab/mkdocs.yml"
+
+  docs-serve:
+    desc: Generate docs/diagrams and serve MkDocs site locally on http://127.0.0.1:8000
+    cmds:
+      - task build:docs
+      - "{{.PYTHON}} -m mkdocs serve -f generated/home-lab/mkdocs.yml"
+
   sync-lock:
     desc: Sync model lock
     cmds:

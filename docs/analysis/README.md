@@ -6,6 +6,7 @@ This directory contains project-level analysis and planning documents produced v
 
 | Document | Date | Purpose |
 |----------|------|---------|
+| [DOCS-DIAGRAMS-GENERATION-SWOT-2026-07-07.md](DOCS-DIAGRAMS-GENERATION-SWOT-2026-07-07.md) | 2026-07-07 | SPC SWOT: docs/diagram generation state + display-layer extension outcome |
 | [SPC-COMPILE-TOPOLOGY-DECOMPOSITION-2026-06-27.md](SPC-COMPILE-TOPOLOGY-DECOMPOSITION-2026-06-27.md) | 2026-06-27 | SPC 7-step analysis: V5Compiler decomposition with SWOT |
 | [ARCHITECTURE-ANALYSIS-2026-06-27.md](ARCHITECTURE-ANALYSIS-2026-06-27.md) | 2026-06-27 | Full architectural review and tech debt assessment |
 | [ARCHITECTURE-IMPROVEMENT-PLAN-2026-06-27.md](ARCHITECTURE-IMPROVEMENT-PLAN-2026-06-27.md) | 2026-06-27 | 4-phase architecture improvement roadmap |

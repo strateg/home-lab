@@ -55,6 +55,13 @@ graph TB
     class {{ device.safe_id }} cloud
 {% endif %}
 {% endfor %}
+{% if enable_click_links %}
+
+    %% Click navigation (ignored by renderers without click support)
+{% for device in devices %}
+    click {{ device.safe_id }} "../devices.md" "{{ device.instance_id }}"
+{% endfor %}
+{% endif %}
 ```
 
 ---
@@ -74,9 +81,9 @@ graph TB
 | Link | Medium | Endpoint A | Endpoint B | Speed | Status |
 | --- | --- | --- | --- | --- | --- |
 {% for link in data_links -%}
-| {{ link.instance_id }} | {{ link.medium | upper }} | {{ link.endpoint_a.device_ref | default(link.endpoint_a.get('external_ref', '-')) }} | {{ link.endpoint_b.device_ref | default(link.endpoint_b.get('external_ref', '-')) }} | {{ link.speed_mbps | default('-') }}{% if link.speed_mbps %} Mbps{% endif %} | {{ link.status }} |
+| {{ link.instance_id }} | {{ link.medium | upper }} | {{ link.endpoint_a.device_ref | default(link.endpoint_a.get('external_ref', '-')) }} | {{ link.endpoint_b.device_ref | default(link.endpoint_b.get('external_ref', '-')) }} | {{ link.speed_mbps | default('-', true) }}{% if link.speed_mbps %} Mbps{% endif %} | {{ link.status }} |
 {% endfor %}
 
 ---
 
-*DO NOT EDIT MANUALLY - regenerate with `task build:v5-docs`*
+*DO NOT EDIT MANUALLY - regenerate with `task build:docs`*

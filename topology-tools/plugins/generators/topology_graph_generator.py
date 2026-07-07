@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import re
 from collections import Counter
+from pathlib import Path
 from typing import Any
 
 from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage
@@ -23,6 +25,27 @@ class TopologyGraphGenerator(BaseGenerator):
         "operations": "fill:#fce4ec,stroke:#c2185b,color:#880e4f",
         "external_ref": "fill:#eceff1,stroke:#546e7a,color:#263238",
     }
+    _PRESET_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
+    _PRESET_RESERVED_KEYS = {"name", "description"}
+    # SPC STEP 6 / D2: Mermaid click navigation targets per node_type
+    # (relative to docs/diagrams/; renderers without click support ignore them).
+    _NODE_CLICK_TARGETS = {
+        "device": "../devices.md",
+        "lxc": "../devices.md",
+        "vm": "../devices.md",
+        "service": "../services.md",
+        "trust_zone": "../trust-zones.md",
+        "vlan": "../vlan-topology.md",
+        "bridge": "../network-diagram.md",
+        "storage_pool": "../storage-topology.md",
+        "data_asset": "../data-flow-topology.md",
+        "backup_policy": "../backup-schedule.md",
+        "healthcheck": "../monitoring-topology.md",
+        "alert": "../monitoring-topology.md",
+        "vpn_service": "../vpn-topology.md",
+        "qos_policy": "../qos-topology.md",
+        "ups_device": "../ups-topology.md",
+    }
 
     @staticmethod
     def _normalize_filter(raw: Any) -> set[str] | None:
@@ -35,8 +58,8 @@ class TopologyGraphGenerator(BaseGenerator):
         normalized = {item for item in values if item}
         return normalized or None
 
-    def _graph_direction(self, ctx: PluginContext) -> str:
-        raw = ctx.config.get("graph_direction")
+    def _graph_direction(self, options: dict[str, Any]) -> str:
+        raw = options.get("graph_direction")
         if not isinstance(raw, str):
             return "TB"
         direction = raw.strip().upper()
@@ -45,8 +68,10 @@ class TopologyGraphGenerator(BaseGenerator):
         return "TB"
 
     @staticmethod
-    def _int_config(ctx: PluginContext, key: str, *, default: int) -> int:
-        raw = ctx.config.get(key)
+    def _int_option(options: dict[str, Any], key: str, *, default: int) -> int:
+        raw = options.get(key)
+        if isinstance(raw, bool):
+            return default
         if isinstance(raw, int):
             return raw if raw >= 0 else default
         if isinstance(raw, str):
@@ -58,8 +83,8 @@ class TopologyGraphGenerator(BaseGenerator):
         return default
 
     @staticmethod
-    def _bool_config(ctx: PluginContext, key: str, *, default: bool) -> bool:
-        raw = ctx.config.get(key)
+    def _bool_option(options: dict[str, Any], key: str, *, default: bool) -> bool:
+        raw = options.get(key)
         if isinstance(raw, bool):
             return raw
         if isinstance(raw, str):
@@ -70,50 +95,106 @@ class TopologyGraphGenerator(BaseGenerator):
                 return True
         return default
 
-    def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
-        diagnostics: list[PluginDiagnostic] = []
-        payload = ctx.compiled_json
-        if not isinstance(payload, dict) or not payload:
+    def _collect_presets(
+        self, ctx: PluginContext, stage: Stage, diagnostics: list[PluginDiagnostic]
+    ) -> list[dict[str, Any]]:
+        """Validate graph_presets config; invalid entries are skipped with W9853."""
+        raw = ctx.config.get("graph_presets")
+        presets: list[dict[str, Any]] = []
+        if raw is None:
+            return presets
+        if not isinstance(raw, list):
             diagnostics.append(
                 self.emit_diagnostic(
-                    code="E9851",
-                    severity="error",
+                    code="W9853",
+                    severity="warning",
                     stage=stage,
-                    message="compiled_json is empty; cannot generate unified topology graph.",
-                    path="generator:topology-graph",
+                    message="graph_presets must be a list of preset objects; ignoring config value.",
+                    path="generator:topology-graph:graph_presets",
                 )
             )
-            return self.make_result(diagnostics)
-
-        try:
-            projection = build_topology_projection(payload)
-        except ProjectionError as exc:
-            diagnostics.append(
-                self.emit_diagnostic(
-                    code="E9852",
-                    severity="error",
-                    stage=stage,
-                    message=f"failed to build topology projection: {exc}",
-                    path="generator:topology-graph",
+            return presets
+        seen_names: set[str] = set()
+        for idx, entry in enumerate(raw):
+            entry_path = f"generator:topology-graph:graph_presets[{idx}]"
+            if not isinstance(entry, dict):
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="W9853",
+                        severity="warning",
+                        stage=stage,
+                        message=f"graph_presets[{idx}] must be mapping/object; preset skipped.",
+                        path=entry_path,
+                    )
                 )
+                continue
+            raw_name = entry.get("name")
+            name = raw_name.strip() if isinstance(raw_name, str) else ""
+            if not name or not self._PRESET_NAME_RE.match(name):
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="W9853",
+                        severity="warning",
+                        stage=stage,
+                        message=(
+                            f"graph_presets[{idx}].name must match '[a-z0-9][a-z0-9_-]*' "
+                            f"(got {raw_name!r}); preset skipped."
+                        ),
+                        path=entry_path,
+                    )
+                )
+                continue
+            if name in seen_names:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="W9853",
+                        severity="warning",
+                        stage=stage,
+                        message=f"graph_presets[{idx}] duplicates preset name '{name}'; preset skipped.",
+                        path=entry_path,
+                    )
+                )
+                continue
+            seen_names.add(name)
+            description = entry.get("description")
+            presets.append(
+                {
+                    "name": name,
+                    "description": description.strip() if isinstance(description, str) else "",
+                    "overrides": {key: value for key, value in entry.items() if key not in self._PRESET_RESERVED_KEYS},
+                }
             )
-            return self.make_result(diagnostics)
+        return presets
 
-        domain_filter = self._normalize_filter(ctx.config.get("domain_filter"))
-        layer_filter = self._normalize_filter(ctx.config.get("layer_filter"))
-        edge_type_filter = self._normalize_filter(ctx.config.get("edge_type_filter"))
-        node_type_filter = self._normalize_filter(ctx.config.get("node_type_filter"))
-        graph_direction = self._graph_direction(ctx)
-        include_external_refs = self._bool_config(ctx, "include_external_refs", default=True)
-        show_edge_labels = self._bool_config(ctx, "show_edge_labels", default=True)
-        show_domain_styling = self._bool_config(ctx, "show_domain_styling", default=True)
-        show_node_metadata = self._bool_config(ctx, "show_node_metadata", default=True)
-        cross_domain_edges_dashed = self._bool_config(ctx, "cross_domain_edges_dashed", default=False)
-        include_isolated_nodes = self._bool_config(ctx, "include_isolated_nodes", default=True)
-        group_nodes_by_domain = self._bool_config(ctx, "group_nodes_by_domain", default=False)
-        group_nodes_by_layer = self._bool_config(ctx, "group_nodes_by_layer", default=False)
-        max_nodes = self._int_config(ctx, "max_nodes", default=0)
-        max_edges = self._int_config(ctx, "max_edges", default=0)
+    def _render_graph_file(
+        self,
+        ctx: PluginContext,
+        stage: Stage,
+        projection: dict[str, Any],
+        options: dict[str, Any],
+        output_path: Path,
+        *,
+        preset_name: str,
+        preset_description: str,
+        preset_pages: list[dict[str, str]],
+    ) -> PluginDiagnostic:
+        """Filter projection with resolved options and render one topology graph page."""
+        domain_filter = self._normalize_filter(options.get("domain_filter"))
+        layer_filter = self._normalize_filter(options.get("layer_filter"))
+        edge_type_filter = self._normalize_filter(options.get("edge_type_filter"))
+        node_type_filter = self._normalize_filter(options.get("node_type_filter"))
+        graph_direction = self._graph_direction(options)
+        include_external_refs = self._bool_option(options, "include_external_refs", default=True)
+        show_edge_labels = self._bool_option(options, "show_edge_labels", default=True)
+        show_domain_styling = self._bool_option(options, "show_domain_styling", default=True)
+        show_node_metadata = self._bool_option(options, "show_node_metadata", default=True)
+        cross_domain_edges_dashed = self._bool_option(options, "cross_domain_edges_dashed", default=False)
+        include_isolated_nodes = self._bool_option(options, "include_isolated_nodes", default=True)
+        group_nodes_by_domain = self._bool_option(options, "group_nodes_by_domain", default=False)
+        group_nodes_by_layer = self._bool_option(options, "group_nodes_by_layer", default=False)
+        enable_click_links = self._bool_option(options, "enable_click_links", default=True)
+        max_nodes = self._int_option(options, "max_nodes", default=0)
+        max_edges = self._int_option(options, "max_edges", default=0)
 
         nodes = projection.get("nodes", [])
         edges = projection.get("edges", [])
@@ -283,8 +364,6 @@ class TopologyGraphGenerator(BaseGenerator):
             rows.sort(key=lambda item: str(item.get("instance_id", "")))
             nodes_by_layer[layer] = rows
 
-        diagrams_root = self.resolve_output_path(ctx, "docs", "diagrams")
-        output_path = diagrams_root / "unified-topology.md"
         content = self.render_template(
             ctx,
             "docs/diagrams/unified-topology.md.j2",
@@ -292,6 +371,9 @@ class TopologyGraphGenerator(BaseGenerator):
                 "projection": projection,
                 "nodes": filtered_nodes,
                 "edges": rendered_edges,
+                "preset_name": preset_name,
+                "preset_description": preset_description,
+                "preset_pages": preset_pages,
                 "domain_filter": sorted(domain_filter) if domain_filter else [],
                 "layer_filter": sorted(layer_filter) if layer_filter else [],
                 "edge_type_filter": sorted(edge_type_filter) if edge_type_filter else [],
@@ -307,6 +389,8 @@ class TopologyGraphGenerator(BaseGenerator):
                 "include_isolated_nodes": include_isolated_nodes,
                 "group_nodes_by_domain": group_nodes_by_domain,
                 "group_nodes_by_layer": group_nodes_by_layer,
+                "enable_click_links": enable_click_links,
+                "node_click_targets": self._NODE_CLICK_TARGETS,
                 "max_nodes": max_nodes,
                 "max_edges": max_edges,
                 "truncated_nodes": truncated_nodes,
@@ -319,36 +403,109 @@ class TopologyGraphGenerator(BaseGenerator):
         )
         self.write_text_atomic(output_path, content)
 
-        generated_files = [str(output_path)]
+        return self.emit_diagnostic(
+            code="I9851",
+            severity="info",
+            stage=stage,
+            message=(
+                f"generated topology graph file={output_path.name} "
+                f"preset={preset_name if preset_name else '-'}: "
+                f"nodes={len(filtered_nodes)} edges={len(rendered_edges)} "
+                f"domain_filter={','.join(sorted(domain_filter)) if domain_filter else 'all'} "
+                f"layer_filter={','.join(sorted(layer_filter)) if layer_filter else 'all'} "
+                f"edge_type_filter={','.join(sorted(edge_type_filter)) if edge_type_filter else 'all'} "
+                f"node_type_filter={','.join(sorted(node_type_filter)) if node_type_filter else 'all'} "
+                f"graph_direction={graph_direction} "
+                f"include_external_refs={str(include_external_refs).lower()} "
+                f"show_edge_labels={str(show_edge_labels).lower()} "
+                f"show_domain_styling={str(show_domain_styling).lower()} "
+                f"show_node_metadata={str(show_node_metadata).lower()} "
+                f"cross_domain_edges_dashed={str(cross_domain_edges_dashed).lower()} "
+                f"include_isolated_nodes={str(include_isolated_nodes).lower()} "
+                f"group_nodes_by_domain={str(group_nodes_by_domain).lower()} "
+                f"group_nodes_by_layer={str(group_nodes_by_layer).lower()} "
+                f"max_nodes={max_nodes} "
+                f"max_edges={max_edges} "
+                f"truncated_nodes={str(truncated_nodes).lower()} "
+                f"truncated_edges={str(truncated_edges).lower()}"
+            ),
+            path=str(output_path),
+        )
+
+    def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        diagnostics: list[PluginDiagnostic] = []
+        payload = ctx.compiled_json
+        if not isinstance(payload, dict) or not payload:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E9851",
+                    severity="error",
+                    stage=stage,
+                    message="compiled_json is empty; cannot generate unified topology graph.",
+                    path="generator:topology-graph",
+                )
+            )
+            return self.make_result(diagnostics)
+
+        try:
+            projection = build_topology_projection(payload)
+        except ProjectionError as exc:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E9852",
+                    severity="error",
+                    stage=stage,
+                    message=f"failed to build topology projection: {exc}",
+                    path="generator:topology-graph",
+                )
+            )
+            return self.make_result(diagnostics)
+
+        presets = self._collect_presets(ctx, stage, diagnostics)
+        preset_pages = [
+            {
+                "name": preset["name"],
+                "file": f"topology-{preset['name']}.md",
+                "description": preset["description"],
+            }
+            for preset in presets
+        ]
+
+        diagrams_root = self.resolve_output_path(ctx, "docs", "diagrams")
+        base_options = dict(ctx.config)
+        generated_files: list[str] = []
+
+        base_path = diagrams_root / "unified-topology.md"
         diagnostics.append(
-            self.emit_diagnostic(
-                code="I9851",
-                severity="info",
-                stage=stage,
-                message=(
-                    "generated unified topology graph: "
-                    f"nodes={len(filtered_nodes)} edges={len(rendered_edges)} "
-                    f"domain_filter={','.join(sorted(domain_filter)) if domain_filter else 'all'} "
-                    f"layer_filter={','.join(sorted(layer_filter)) if layer_filter else 'all'} "
-                    f"edge_type_filter={','.join(sorted(edge_type_filter)) if edge_type_filter else 'all'} "
-                    f"node_type_filter={','.join(sorted(node_type_filter)) if node_type_filter else 'all'} "
-                    f"graph_direction={graph_direction} "
-                    f"include_external_refs={str(include_external_refs).lower()} "
-                    f"show_edge_labels={str(show_edge_labels).lower()} "
-                    f"show_domain_styling={str(show_domain_styling).lower()} "
-                    f"show_node_metadata={str(show_node_metadata).lower()} "
-                    f"cross_domain_edges_dashed={str(cross_domain_edges_dashed).lower()} "
-                    f"include_isolated_nodes={str(include_isolated_nodes).lower()} "
-                    f"group_nodes_by_domain={str(group_nodes_by_domain).lower()} "
-                    f"group_nodes_by_layer={str(group_nodes_by_layer).lower()} "
-                    f"max_nodes={max_nodes} "
-                    f"max_edges={max_edges} "
-                    f"truncated_nodes={str(truncated_nodes).lower()} "
-                    f"truncated_edges={str(truncated_edges).lower()}"
-                ),
-                path=str(output_path),
+            self._render_graph_file(
+                ctx,
+                stage,
+                projection,
+                base_options,
+                base_path,
+                preset_name="",
+                preset_description="",
+                preset_pages=preset_pages,
             )
         )
+        generated_files.append(str(base_path))
+
+        for preset in presets:
+            preset_options = {**base_options, **preset["overrides"]}
+            preset_path = diagrams_root / f"topology-{preset['name']}.md"
+            diagnostics.append(
+                self._render_graph_file(
+                    ctx,
+                    stage,
+                    projection,
+                    preset_options,
+                    preset_path,
+                    preset_name=preset["name"],
+                    preset_description=preset["description"],
+                    preset_pages=[],
+                )
+            )
+            generated_files.append(str(preset_path))
 
         ctx.publish("generated_dir", str(diagrams_root))
         ctx.publish("generated_files", generated_files)

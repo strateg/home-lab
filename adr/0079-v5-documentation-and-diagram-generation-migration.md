@@ -1,7 +1,7 @@
 # ADR 0079: V5 Documentation and Diagram Generation Migration
 
 **Date:** 2026-03-24
-**Status:** Implemented
+**Status:** Implemented (amended 2026-07-07)
 **Depends on:** ADR 0027 (Mermaid Rendering Strategy), ADR 0074 (V5 Generator Architecture)
 **Migrates:** ADR 0005, ADR 0027 implementations from v4
 
@@ -671,6 +671,54 @@ The v5 implementation introduces several improvements:
 | M7 | V4 deprecation | V4 docs generator marked deprecated |
 
 ---
+
+## Amendment (2026-07-07)
+
+Implementation diverged from and extended the original plan in the following points:
+
+### A1. Mermaid gate moved from validate stage to assemble stage
+
+The planned `base.validator_generated.mermaid` validator (see "Mermaid Validation
+Integration") is **superseded**: under the ADR 0080 6-stage order
+(`discover -> compile -> validate -> generate -> assemble -> build`) the validate stage
+runs *before* generate and cannot observe generated files. The gate is implemented as
+the assembler `base.assembler.mermaid_verify` (`assemble` stage, phase `verify`,
+order 419). It consumes the published file lists `docs_files`, `diagram_files`, and
+`topology_graph_files`, always performs syntax checks (headers, unresolved template
+tokens, subgraph/end balance), and optionally runs `mmdc` render checks via
+`use_mmdc: true`. Diagnostic codes: `E9861` (syntax), `E9862` (render), `W9861`
+(degraded: published files missing on disk), `I9861` (summary / graceful skip when no
+sources are published) — the planned `E9801/E9802` slots were already taken by the
+diagram generator.
+
+### A2. `template_sets` implemented with revised set identifiers
+
+`base.generator.docs` supports `template_sets` config; the effective set ids are
+`core, network, security, physical, services, storage, operations` (the planned
+`application` split into `services`/`storage`; `navigation` became the always-emitted
+root `index.md`; empty/omitted selection means "all"). Unknown entries emit `W9702`
+and degrade gracefully to full generation.
+
+### A3. Capabilities added beyond the original scope
+
+1. **Root docs index**: `docs/index.md` is always emitted with grouped links to all
+   generated pages and the diagrams index.
+2. **Graph presets**: `base.generator.topology_graph` accepts `graph_presets`
+   (named filter/option overlays) and emits one `topology-<name>.md` per preset next
+   to `unified-topology.md`; invalid presets are skipped with `W9853`.
+3. **Click navigation**: diagram templates emit Mermaid `click` directives
+   (opt-out via `enable_click_links: false` on both diagram generators).
+4. **Display layer**: `base.assembler.docs_site` (assemble/run, order 415) emits a
+   deterministic `mkdocs.yml` (Material theme, Mermaid superfences, nav derived from
+   published file lists) next to the generated `docs/` tree; codes `E9871` (write
+   failure) and `I9871` (summary / graceful skip).
+   Operator entry points: `task build:docs-site`, `task build:docs-serve`
+   (dependencies `mkdocs`/`mkdocs-material` in `requirements-dev.txt`).
+
+### A4. Icon mode default
+
+Per the ADR 0027 amendment, the diagram generator defaults to
+`mermaid_icon_mode: none`; `icon-nodes`/`compat` are opt-in.
 
 ## References
 

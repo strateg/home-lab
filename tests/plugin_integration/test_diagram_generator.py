@@ -44,17 +44,20 @@ def _write_manifest(path: Path, payload: dict) -> None:
     path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
 
 
-def _ctx(tmp_path: Path, compiled_json: dict) -> PluginContext:
+def _ctx(tmp_path: Path, compiled_json: dict, config: dict | None = None) -> PluginContext:
+    payload = {
+        "generator_artifacts_root": str(tmp_path / "generated"),
+        "mermaid_icon_mode": "none",
+    }
+    if isinstance(config, dict):
+        payload.update(config)
     return PluginContext(
         topology_path="topology/topology.yaml",
         profile="test",
         model_lock={},
         compiled_json=_semanticize(compiled_json),
         output_dir=str(tmp_path / "build"),
-        config={
-            "generator_artifacts_root": str(tmp_path / "generated"),
-            "mermaid_icon_mode": "none",
-        },
+        config=payload,
     )
 
 
@@ -191,6 +194,69 @@ def test_diagram_generator_writes_expected_files(tmp_path: Path) -> None:
     physical = (target_dir / "physical-topology.md").read_text(encoding="utf-8")
     assert "rtr-slate" in physical
     assert "srv-gamayun" in physical
+
+
+def test_diagram_generator_deduplicates_icon_legend_and_masks_none(tmp_path: Path) -> None:
+    compiled = _compiled_fixture()
+    compiled["instances"]["devices"].append(
+        {
+            "instance_id": "rtr-second",
+            "class_ref": "class.network.router",
+            "object_ref": "obj.glinet.slate_ax1800",
+            "layer": "L1",
+            "status": "mapped",
+        }
+    )
+    compiled["instances"]["network"].append(
+        {
+            "instance_id": "inst.vlan.untagged",
+            "class_ref": "class.network.vlan",
+            "object_ref": "obj.network.vlan.untagged",
+            "status": "mapped",
+            "instance_data": {"trust_zone_ref": "inst.trust_zone.servers"},
+        }
+    )
+    generator = DiagramGenerator("base.generator.diagrams")
+    ctx = _ctx(tmp_path, compiled)
+
+    result = _run_generator(generator, ctx)
+
+    assert result.status == PluginStatus.SUCCESS
+    target_dir = tmp_path / "generated" / "docs" / "diagrams"
+    legend = (target_dir / "icon-legend.md").read_text(encoding="utf-8")
+    assert legend.count("`class.network.router`") == 1
+    network = (target_dir / "network-topology.md").read_text(encoding="utf-8")
+    assert "None" not in network
+    assert "| inst.vlan.untagged | - | - | - |" in network
+
+
+def test_diagram_generator_emits_click_navigation(tmp_path: Path) -> None:
+    generator = DiagramGenerator("base.generator.diagrams")
+    ctx = _ctx(tmp_path, _compiled_fixture())
+
+    result = _run_generator(generator, ctx)
+
+    assert result.status == PluginStatus.SUCCESS
+    target_dir = tmp_path / "generated" / "docs" / "diagrams"
+    physical = (target_dir / "physical-topology.md").read_text(encoding="utf-8")
+    assert 'click rtr_slate "../devices.md" "rtr-slate"' in physical
+    assert 'click srv_gamayun "../devices.md" "srv-gamayun"' in physical
+    network = (target_dir / "network-topology.md").read_text(encoding="utf-8")
+    assert 'click inst_vlan_servers "../vlan-topology.md" "inst.vlan.servers"' in network
+
+
+def test_diagram_generator_can_disable_click_navigation(tmp_path: Path) -> None:
+    generator = DiagramGenerator("base.generator.diagrams")
+    ctx = _ctx(tmp_path, _compiled_fixture(), config={"enable_click_links": False})
+
+    result = _run_generator(generator, ctx)
+
+    assert result.status == PluginStatus.SUCCESS
+    target_dir = tmp_path / "generated" / "docs" / "diagrams"
+    physical = (target_dir / "physical-topology.md").read_text(encoding="utf-8")
+    network = (target_dir / "network-topology.md").read_text(encoding="utf-8")
+    assert "click " not in physical
+    assert "click " not in network
 
 
 def test_diagram_generator_supports_icon_mode_override_via_env(tmp_path: Path) -> None:

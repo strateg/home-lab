@@ -32,6 +32,15 @@ graph TB
     classDef {{ zone.safe_id }}_style {{ zone.colour }}
     class {{ zone.safe_id }} {{ zone.safe_id }}_style
 {% endfor %}
+{% if enable_click_links %}
+
+    %% Click navigation (ignored by renderers without click support)
+{% for zone in trust_zones %}
+{% for vlan in vlans if vlan.trust_zone_ref == zone.instance_id %}
+    click {{ vlan.safe_id }} "../vlan-topology.md" "{{ vlan.instance_id }}"
+{% endfor %}
+{% endfor %}
+{% endif %}
 ```
 
 ---
@@ -51,7 +60,7 @@ graph TB
 | Instance | VLAN ID | CIDR | Gateway | Trust Zone | Firewall Policies | Status |
 | --- | ---: | --- | --- | --- | --- | --- |
 {% for vlan in vlans -%}
-| {{ vlan.instance_id }} | {{ vlan.vlan_id | default('-') }} | {{ vlan.cidr | default('-') }} | {{ vlan.gateway | default('-') }} | {{ vlan.trust_zone_ref | default('-') }} | {{ vlan.firewall_policy_refs | join(', ') if vlan.firewall_policy_refs else '-' }} | {{ vlan.status }} |
+| {{ vlan.instance_id }} | {{ vlan.vlan_id | default('-', true) }} | {{ vlan.cidr | default('-', true) }} | {{ vlan.gateway | default('-', true) }} | {{ vlan.trust_zone_ref | default('-', true) }} | {{ vlan.firewall_policy_refs | join(', ') if vlan.firewall_policy_refs else '-' }} | {{ vlan.status }} |
 {% endfor %}
 
 ---
@@ -61,9 +70,9 @@ graph TB
 | Instance | Host | Notes | Status |
 | --- | --- | --- | --- |
 {% for bridge in bridges -%}
-| {{ bridge.instance_id }} | {{ bridge.host_ref | default('-') }} | {{ bridge.notes }} | {{ bridge.status }} |
+| {{ bridge.instance_id }} | {{ bridge.host_ref | default('-', true) }} | {{ bridge.notes }} | {{ bridge.status }} |
 {% endfor %}
 
 ---
 
-*DO NOT EDIT MANUALLY - regenerate with `task build:v5-docs`*
+*DO NOT EDIT MANUALLY - regenerate with `task build:docs`*

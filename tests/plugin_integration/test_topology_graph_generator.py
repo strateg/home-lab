@@ -433,6 +433,137 @@ def test_topology_graph_generator_can_group_nodes_by_layer(tmp_path: Path) -> No
     assert 'subgraph layer_L2["Layer: L2"]' in content
 
 
+def test_topology_graph_generator_emits_click_navigation(tmp_path: Path) -> None:
+    registry = _registry()
+    ctx = _context(tmp_path)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.GENERATE)
+
+    assert result.status == PluginStatus.SUCCESS
+    content = (tmp_path / "generated" / "docs" / "diagrams" / "unified-topology.md").read_text(encoding="utf-8")
+    assert "%% Click navigation" in content
+    assert 'click svc_grafana "../services.md" "svc-grafana"' in content
+    assert 'click srv_pve "../devices.md" "srv-pve"' in content
+    assert 'click inst_vlan_servers "../vlan-topology.md" "inst.vlan.servers"' in content
+    assert "click external_internet" not in content
+
+
+def test_topology_graph_generator_can_disable_click_navigation(tmp_path: Path) -> None:
+    registry = _registry()
+    ctx = _context(tmp_path, {"enable_click_links": False})
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.GENERATE)
+
+    assert result.status == PluginStatus.SUCCESS
+    content = (tmp_path / "generated" / "docs" / "diagrams" / "unified-topology.md").read_text(encoding="utf-8")
+    assert "%% Click navigation" not in content
+    assert "click " not in content
+
+
+def test_topology_graph_generator_emits_preset_files(tmp_path: Path) -> None:
+    registry = _registry()
+    ctx = _context(
+        tmp_path,
+        {
+            "graph_presets": [
+                {
+                    "name": "services-only",
+                    "description": "Services domain focus",
+                    "domain_filter": ["services"],
+                },
+                {
+                    "name": "layer-l4",
+                    "layer_filter": ["L4"],
+                    "graph_direction": "LR",
+                },
+            ],
+        },
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.GENERATE)
+
+    assert result.status == PluginStatus.SUCCESS
+    diagrams_root = tmp_path / "generated" / "docs" / "diagrams"
+
+    base_content = (diagrams_root / "unified-topology.md").read_text(encoding="utf-8")
+    assert "## Presets" in base_content
+    assert "[services-only](topology-services-only.md) — Services domain focus" in base_content
+    assert "[layer-l4](topology-layer-l4.md)" in base_content
+    assert "Domains: all" in base_content
+
+    preset_content = (diagrams_root / "topology-services-only.md").read_text(encoding="utf-8")
+    assert "## Preset: services-only" in preset_content
+    assert "Services domain focus" in preset_content
+    assert "[Back to full graph](unified-topology.md)" in preset_content
+    assert "Domains: services" in preset_content
+    assert "svc_grafana" in preset_content
+    assert "srv_pve" not in preset_content
+    assert "## Presets" not in preset_content
+
+    layer_content = (diagrams_root / "topology-layer-l4.md").read_text(encoding="utf-8")
+    assert "## Preset: layer-l4" in layer_content
+    assert "Layers: L4" in layer_content
+    assert "graph LR" in layer_content
+
+    published_files = result.output_data["topology_graph_files"]
+    assert [Path(item).name for item in published_files] == [
+        "unified-topology.md",
+        "topology-services-only.md",
+        "topology-layer-l4.md",
+    ]
+
+
+def test_topology_graph_generator_skips_invalid_presets_with_warning(tmp_path: Path) -> None:
+    registry = _registry()
+    ctx = _context(
+        tmp_path,
+        {
+            "graph_presets": [
+                "not-a-dict",
+                {"domain_filter": ["network"]},
+                {"name": "Bad Name!"},
+                {"name": "valid", "domain_filter": ["network"]},
+                {"name": "valid", "layer_filter": ["L2"]},
+            ],
+        },
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.GENERATE)
+
+    assert result.status == PluginStatus.PARTIAL
+    warning_codes = [item.code for item in result.diagnostics if item.severity == "warning"]
+    assert warning_codes == ["W9853", "W9853", "W9853", "W9853"]
+
+    diagrams_root = tmp_path / "generated" / "docs" / "diagrams"
+    assert (diagrams_root / "unified-topology.md").exists()
+    assert (diagrams_root / "topology-valid.md").exists()
+    preset_files = sorted(item.name for item in diagrams_root.glob("topology-*.md"))
+    assert preset_files == ["topology-valid.md"]
+    valid_content = (diagrams_root / "topology-valid.md").read_text(encoding="utf-8")
+    assert "Domains: network" in valid_content
+
+
+def test_topology_graph_generator_base_output_stable_without_presets(tmp_path: Path) -> None:
+    registry = _registry()
+
+    ctx_plain = _context(tmp_path / "plain")
+    result_plain = registry.execute_plugin(PLUGIN_ID, ctx_plain, Stage.GENERATE)
+    assert result_plain.status == PluginStatus.SUCCESS
+
+    ctx_empty = _context(tmp_path / "empty", {"graph_presets": []})
+    result_empty = registry.execute_plugin(PLUGIN_ID, ctx_empty, Stage.GENERATE)
+    assert result_empty.status == PluginStatus.SUCCESS
+
+    plain_content = (tmp_path / "plain" / "generated" / "docs" / "diagrams" / "unified-topology.md").read_text(
+        encoding="utf-8"
+    )
+    empty_content = (tmp_path / "empty" / "generated" / "docs" / "diagrams" / "unified-topology.md").read_text(
+        encoding="utf-8"
+    )
+    assert plain_content == empty_content
+    assert "## Presets" not in plain_content
+
+
 def test_topology_graph_generator_can_limit_nodes_and_edges(tmp_path: Path) -> None:
     registry = _registry()
     ctx = _context(
