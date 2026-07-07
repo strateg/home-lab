@@ -6,10 +6,12 @@ This directory contains project-level analysis and planning documents produced v
 
 | Document | Date | Purpose |
 |----------|------|---------|
+| [PLUGIN-REGISTRY-DECOMPOSITION-PLAN-2026-07-07.md](PLUGIN-REGISTRY-DECOMPOSITION-PLAN-2026-07-07.md) | 2026-07-07 | H2.1/N1: plugin_registry.py god-class decomposition plan (S1–S10) |
+| [ARCHITECTURE-IMPROVEMENT-PLAN-2026-07-07.md](ARCHITECTURE-IMPROVEMENT-PLAN-2026-07-07.md) | 2026-07-07 | Prioritized improvement plan (H1/H2/H3); supersedes 2026-06-27 plan |
 | [DOCS-DIAGRAMS-GENERATION-SWOT-2026-07-07.md](DOCS-DIAGRAMS-GENERATION-SWOT-2026-07-07.md) | 2026-07-07 | SPC SWOT: docs/diagram generation state + display-layer extension outcome |
 | [SPC-COMPILE-TOPOLOGY-DECOMPOSITION-2026-06-27.md](SPC-COMPILE-TOPOLOGY-DECOMPOSITION-2026-06-27.md) | 2026-06-27 | SPC 7-step analysis: V5Compiler decomposition with SWOT |
 | [ARCHITECTURE-ANALYSIS-2026-06-27.md](ARCHITECTURE-ANALYSIS-2026-06-27.md) | 2026-06-27 | Full architectural review and tech debt assessment |
-| [ARCHITECTURE-IMPROVEMENT-PLAN-2026-06-27.md](ARCHITECTURE-IMPROVEMENT-PLAN-2026-06-27.md) | 2026-06-27 | 4-phase architecture improvement roadmap |
+| [ARCHITECTURE-IMPROVEMENT-PLAN-2026-06-27.md](ARCHITECTURE-IMPROVEMENT-PLAN-2026-06-27.md) | 2026-06-27 | 4-phase architecture improvement roadmap (superseded by 2026-07-07 plan) |
 | [PROJECT-STATE-ASSESSMENT-2026-04-22.md](PROJECT-STATE-ASSESSMENT-2026-04-22.md) | 2026-04-22 | Full SPC 7-step project state analysis |
 | [IMPLEMENTATION-PLAN-2026-04-22.md](IMPLEMENTATION-PLAN-2026-04-22.md) | 2026-04-22 | Approved development roadmap |
 

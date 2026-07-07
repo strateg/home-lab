@@ -2,8 +2,13 @@
 
 **Date:** 2026-06-27
 **Source:** Architecture Analysis `ARCHITECTURE-ANALYSIS-2026-06-27.md`
-**Status:** Proposed
+**Status:** Superseded by `ARCHITECTURE-IMPROVEMENT-PLAN-2026-07-07.md` (2026-07-07)
 **Analyst:** Claude Code (claude-opus-4-5-20251101)
+
+> Disposition (2026-07-07): Phases 1-3, P4.1 and P4.6 completed (evidence in the
+> superseding plan, section 4); the "<200 LOC orchestrator" metric and P4.5 are
+> retired; P4.2/P4.3/P4.7 carried over as H1.5/H2.5, P4.4 remains open (low
+> priority).
 
 ---
 
