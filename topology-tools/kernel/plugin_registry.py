@@ -46,7 +46,6 @@ from .plugin_base import (
     PluginStatus,
     Stage,
 )
-from .plugin_runner import run_plugin_once
 
 # ADR 0063 Phase 3: Import from decomposed submodules
 # These are re-exported for backwards compatibility
@@ -80,6 +79,8 @@ from .scheduler import (
     SnapshotBuilder,
     execute_plugin_isolated,
 )
+from .scheduler import context_bridge as _context_bridge
+from .scheduler import envelope_pipeline as _envelope_pipeline
 
 # Kernel version/compatibility constants and plugin spec types live in
 # kernel.specs (leaf module) and are re-exported here for backwards
@@ -361,30 +362,16 @@ class PluginRegistry:
         return metadata
 
     def _ensure_pipeline_state(self, ctx: PluginContext) -> PipelineState:
-        """Return main-interpreter pipeline state for the current execution context."""
-        pipeline_state = getattr(ctx, "_pipeline_state", None)
-        if isinstance(pipeline_state, PipelineState):
-            return pipeline_state
-
-        pipeline_state = PipelineState(
-            committed_data=ctx.get_published_data(),
-            published_meta=ctx._published_meta.copy(),
-        )
-        setattr(ctx, "_pipeline_state", pipeline_state)
-        return pipeline_state
+        """Delegate to scheduler.context_bridge (S4 decomposition)."""
+        return _context_bridge.ensure_pipeline_state(ctx)
 
     def _mirror_context_into_pipeline_state(self, ctx: PluginContext, pipeline_state: PipelineState) -> None:
-        """Refresh scheduler-owned state from legacy context mutations."""
-        pipeline_state.committed_data = ctx.get_published_data()
-        pipeline_state.published_meta = ctx._published_meta.copy()
+        """Delegate to scheduler.context_bridge (S4 decomposition)."""
+        _context_bridge.mirror_context_into_pipeline_state(ctx, pipeline_state)
 
     def _sync_pipeline_state_to_context(self, ctx: PluginContext, pipeline_state: PipelineState) -> None:
-        """Expose committed pipeline state through legacy context accessors."""
-        ctx._published_data = {
-            plugin_id: payload.copy() for plugin_id, payload in pipeline_state.committed_data.items()
-        }
-        ctx._published_meta = pipeline_state.published_meta.copy()
-        setattr(ctx, "_pipeline_state", pipeline_state)
+        """Delegate to scheduler.context_bridge (S4 decomposition)."""
+        _context_bridge.sync_pipeline_state_to_context(ctx, pipeline_state)
 
     def _apply_authoritative_commit_side_effects(
         self,
@@ -393,49 +380,12 @@ class PluginRegistry:
         pipeline_state: PipelineState,
         spec: PluginSpec,
     ) -> None:
-        """Apply main-interpreter-owned authoritative state derived from committed outputs."""
-        plugin_payload = pipeline_state.committed_data.get(spec.id, {})
-        if not isinstance(plugin_payload, dict):
-            return
-
-        class_map = plugin_payload.get("class_map")
-        object_map = plugin_payload.get("object_map")
-        if isinstance(class_map, dict):
-            ctx.classes = {
-                class_id: item["payload"]
-                for class_id, item in class_map.items()
-                if isinstance(class_id, str) and isinstance(item, dict) and isinstance(item.get("payload"), dict)
-            }
-        if isinstance(object_map, dict):
-            ctx.objects = {
-                object_id: item["payload"]
-                for object_id, item in object_map.items()
-                if isinstance(object_id, str) and isinstance(item, dict) and isinstance(item.get("payload"), dict)
-            }
-
-        if spec.compiled_json_owner:
-            candidate = plugin_payload.get("effective_model_candidate")
-            if isinstance(candidate, dict):
-                ctx.compiled_json = candidate
-
-        changed_input_scopes = plugin_payload.get("changed_input_scopes")
-        if isinstance(changed_input_scopes, list):
-            normalized = [item for item in changed_input_scopes if isinstance(item, str) and item]
-            ctx.changed_input_scopes = normalized
-            ctx.config["changed_input_scopes"] = normalized
-
-        assembly_dir = plugin_payload.get("assembly_dir")
-        if isinstance(assembly_dir, str) and assembly_dir.strip():
-            ctx.workspace_root = assembly_dir
-
-        assembly_manifest = plugin_payload.get("assembly_manifest")
-        if isinstance(assembly_manifest, dict):
-            ctx.assembly_manifest = assembly_manifest
-
-        # ADR 0097 P4.1: Commit lock_payload to ctx.model_lock for subinterpreter compatibility.
-        lock_payload = plugin_payload.get("lock_payload")
-        if isinstance(lock_payload, dict):
-            ctx.model_lock = lock_payload
+        """Delegate to scheduler.context_bridge (S4 decomposition)."""
+        _context_bridge.apply_authoritative_commit_side_effects(
+            ctx=ctx,
+            pipeline_state=pipeline_state,
+            spec=spec,
+        )
 
     def _validate_required_consumes_snapshot(
         self,
@@ -481,9 +431,11 @@ class PluginRegistry:
         phase: Phase,
         diagnostics: list[PluginDiagnostic],
     ) -> PluginResult:
-        return PluginResult.failed(
-            plugin_id=spec.id,
-            api_version=spec.api_version,
+        """Delegate to scheduler.envelope_pipeline (S4 decomposition)."""
+        return _envelope_pipeline.failed_result_with_diagnostics(
+            spec=spec,
+            stage=stage,
+            phase=phase,
             diagnostics=diagnostics,
         )
 
@@ -497,45 +449,21 @@ class PluginRegistry:
         snapshot: PluginInputSnapshot,
         timeout: float,
     ) -> PluginExecutionEnvelope:
-        """Run one snapshot-compatible plugin in-process with timeout handling."""
-        plugin = self.load_plugin(plugin_id)
-        start_time = time.perf_counter()
-        timed_out = False
-        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-        try:
-            future = executor.submit(run_plugin_once, snapshot=snapshot, plugin=plugin)
-            try:
-                envelope = future.result(timeout=timeout)
-                envelope.result.duration_ms = (time.perf_counter() - start_time) * 1000
-                return envelope
-            except concurrent.futures.TimeoutError:
-                timed_out = True
-                future.cancel()
-                duration_ms = (time.perf_counter() - start_time) * 1000
-                result = PluginResult.timeout(
-                    plugin_id=plugin_id,
-                    api_version=spec.api_version,
-                    duration_ms=duration_ms,
-                )
-                result.diagnostics.append(
-                    PluginDiagnostic(
-                        code="E4102",
-                        severity="error",
-                        stage=stage.value,
-                        phase=phase.value,
-                        message=f"Plugin exceeded timeout of {timeout}s",
-                        path="kernel",
-                        plugin_id="kernel",
-                    )
-                )
-                return PluginExecutionEnvelope(result=result)
-        finally:
-            executor.shutdown(wait=not timed_out, cancel_futures=True)
+        """Delegate to scheduler.envelope_pipeline (S4 decomposition)."""
+        return _envelope_pipeline.execute_plugin_envelope_local(
+            plugin=self.load_plugin(plugin_id),
+            plugin_id=plugin_id,
+            spec=spec,
+            stage=stage,
+            phase=phase,
+            snapshot=snapshot,
+            timeout=timeout,
+        )
 
     @staticmethod
     def _is_cross_interpreter_shareability_error(exc: Exception) -> bool:
-        message = str(exc)
-        return "NotShareableError" in message or "does not support cross-interpreter data" in message
+        """Delegate to scheduler.envelope_pipeline (S4 decomposition)."""
+        return _envelope_pipeline.is_cross_interpreter_shareability_error(exc)
 
     def _commit_envelope_result(
         self,
@@ -549,102 +477,28 @@ class PluginRegistry:
         contract_warnings: bool,
         contract_errors: bool,
     ) -> PluginResult:
-        """Validate and commit an execution envelope through main-interpreter state."""
-        result = envelope.result
-        validation_diags = self._validate_envelope_for_commit(
+        """Delegate to scheduler.envelope_pipeline (S4 decomposition)."""
+        return _envelope_pipeline.commit_envelope_result(
+            ctx=ctx,
+            pipeline_state=pipeline_state,
             spec=spec,
             stage=stage,
             phase=phase,
             envelope=envelope,
-            emit_warnings=contract_warnings,
-            undeclared_as_errors=contract_errors,
+            contract_warnings=contract_warnings,
+            contract_errors=contract_errors,
+            envelope_validator=self._envelope_validator,
         )
-        if validation_diags:
-            result.diagnostics.extend(validation_diags)
-            self._apply_result_status_from_diagnostics(result)
-
-        envelope_to_commit = envelope
-        if result.status in {PluginStatus.SUCCESS, PluginStatus.PARTIAL}:
-            pass
-        elif (
-            result.status == PluginStatus.FAILED
-            and result.error_traceback is None
-            and not any(diag.severity == "error" for diag in validation_diags)
-        ):
-            commit_keys_on_failure = self._commit_keys_on_failure(spec)
-            if not commit_keys_on_failure:
-                return result
-            filtered_messages = [
-                message for message in envelope.published_messages if message.key in commit_keys_on_failure
-            ]
-            if not filtered_messages:
-                return result
-            envelope_to_commit = PluginExecutionEnvelope(
-                result=result,
-                published_messages=filtered_messages,
-                execution_metadata=envelope.execution_metadata,
-            )
-        else:
-            return result
-
-        try:
-            pipeline_state.commit_envelope(
-                plugin_id=spec.id,
-                stage=stage,
-                phase=phase,
-                produces=spec.produces,
-                envelope=envelope_to_commit,
-            )
-        except PluginDataExchangeError as exc:
-            result.diagnostics.append(
-                PluginDiagnostic(
-                    code="E8005",
-                    severity="error",
-                    stage=stage.value,
-                    phase=phase.value,
-                    message=str(exc),
-                    path=f"plugin:{spec.id}",
-                    plugin_id="kernel",
-                )
-            )
-            self._apply_result_status_from_diagnostics(result)
-            return result
-
-        self._sync_pipeline_state_to_context(ctx, pipeline_state)
-        self._apply_authoritative_commit_side_effects(ctx=ctx, pipeline_state=pipeline_state, spec=spec)
-        return result
 
     @staticmethod
     def _commit_keys_on_failure(spec: PluginSpec) -> set[str]:
-        """Return declared output keys that may be committed from non-crash failures.
-
-        This is a narrow compatibility mechanism for verdict-style outputs such as
-        verification booleans that downstream plugins need even when the producer
-        reports diagnostics and therefore returns FAILED.
-        """
-        config = getattr(spec, "config", {})
-        if not isinstance(config, dict):
-            return set()
-        raw = config.get("commit_keys_on_failure")
-        if not isinstance(raw, list):
-            return set()
-        declared = {
-            item.get("key")
-            for item in spec.produces
-            if isinstance(item, dict) and isinstance(item.get("key"), str) and item.get("key")
-        }
-        return {item.strip() for item in raw if isinstance(item, str) and item.strip() in declared}
+        """Delegate to scheduler.envelope_pipeline (S4 decomposition)."""
+        return _envelope_pipeline.commit_keys_on_failure(spec)
 
     @staticmethod
     def _apply_result_status_from_diagnostics(result: PluginResult) -> None:
-        if result.status not in {PluginStatus.SUCCESS, PluginStatus.PARTIAL}:
-            return
-        has_errors = any(diag.severity == "error" for diag in result.diagnostics)
-        has_warnings = any(diag.severity == "warning" for diag in result.diagnostics)
-        if has_errors:
-            result.status = PluginStatus.FAILED
-        elif has_warnings:
-            result.status = PluginStatus.PARTIAL
+        """Delegate to scheduler.envelope_pipeline (S4 decomposition)."""
+        _envelope_pipeline.apply_result_status_from_diagnostics(result)
 
     def _resolve_payload_schema_path(self, spec: PluginSpec, schema_ref: str) -> Path | None:
         """Delegate to ConfigValidator (ADR 0063 Phase 3)."""
