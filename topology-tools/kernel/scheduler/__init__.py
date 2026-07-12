@@ -32,8 +32,9 @@ from .envelope_pipeline import (
 from .execution_planner import ExecutionPlanner, PlanningError
 from .parallel_executor import (
     HAS_REAL_SUBINTERPRETERS,
-    ParallelExecutor,
+    compute_wavefronts,
     execute_plugin_isolated,
+    get_parallel_executor,
 )
 from .snapshot_builder import SerializablePluginSpec, SnapshotBuilder
 
@@ -42,8 +43,9 @@ __all__ = [
     "ExecutionPlanner",
     "PlanningError",
     # parallel_executor
-    "ParallelExecutor",
+    "compute_wavefronts",
     "execute_plugin_isolated",
+    "get_parallel_executor",
     "HAS_REAL_SUBINTERPRETERS",
     # snapshot_builder
     "SnapshotBuilder",

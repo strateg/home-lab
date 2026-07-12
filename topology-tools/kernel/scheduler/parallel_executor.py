@@ -1,6 +1,8 @@
 """Plugin parallel executor (ADR 0063 registry decomposition).
 
-This module handles parallel plugin execution with subinterpreters.
+This module handles parallel plugin execution with subinterpreters:
+the isolated worker entry point, subinterpreter pool creation, and the
+single wavefront computation implementation.
 """
 
 from __future__ import annotations
@@ -9,22 +11,15 @@ import heapq
 import sys
 from typing import TYPE_CHECKING, Any, Callable
 
-from ..plugin_base import (
-    Phase,
-    PluginContext,
-    PluginDiagnostic,
-    PluginExecutionEnvelope,
-    PluginInputSnapshot,
-    PluginResult,
-    Stage,
-)
+from ..plugin_base import PluginExecutionEnvelope
 
 if TYPE_CHECKING:
     from ..specs import PluginSpec
 
 __all__ = [
-    "ParallelExecutor",
+    "compute_wavefronts",
     "execute_plugin_isolated",
+    "get_parallel_executor",
     "HAS_REAL_SUBINTERPRETERS",
 ]
 
@@ -142,113 +137,80 @@ def execute_plugin_isolated(
         )
 
 
-class ParallelExecutor:
-    """Execute plugins in parallel with subinterpreters."""
+def get_parallel_executor(max_workers: int) -> InterpreterPoolExecutor:
+    """Return subinterpreter executor for parallel plugin execution (ADR 0097 Wave 5).
 
-    def __init__(self, base_path: Any, max_workers: int = 8) -> None:
-        """Initialize executor.
+    Python 3.14+ is required. All plugins execute in isolated subinterpreters
+    providing true parallelism via per-interpreter GIL. On Python < 3.14 a
+    ThreadPoolExecutor is used for development/testing.
 
-        Args:
-            base_path: Base path for plugin loading
-            max_workers: Maximum parallel workers
-        """
-        self.base_path = base_path
-        self.max_workers = max_workers
-        self._executor: InterpreterPoolExecutor | None = None
+    Args:
+        max_workers: Maximum number of parallel workers
 
-    def get_executor(self, max_workers: int | None = None) -> InterpreterPoolExecutor:
-        """Get or create parallel executor.
+    Returns:
+        InterpreterPoolExecutor instance
+    """
+    return InterpreterPoolExecutor(max_workers=max_workers)
 
-        Args:
-            max_workers: Override max workers
 
-        Returns:
-            Executor instance
-        """
-        workers = max_workers or self.max_workers
-        if self._executor is None or self._executor._max_workers != workers:  # type: ignore[attr-defined]
-            self._executor = InterpreterPoolExecutor(max_workers=workers)
-        return self._executor
+def compute_wavefronts(
+    plugin_ids: list[str],
+    specs: dict[str, PluginSpec],
+    sort_key: Callable[[str], tuple[int, str]],
+) -> list[list[str]]:
+    """Compute execution wavefronts respecting dependencies.
 
-    def compute_wavefronts(
-        self,
-        plugin_ids: list[str],
-        specs: dict[str, PluginSpec],
-        sort_key: Callable[[str], tuple[int, str]],
-    ) -> list[list[str]]:
-        """Compute execution wavefronts respecting dependencies.
+    The single wavefront implementation (ADR 0063 §6): dependency-respecting
+    topological grouping with (order, plugin_id) tie-breaks within each
+    wavefront. Dependencies outside plugin_ids are ignored.
 
-        Args:
-            plugin_ids: List of plugin IDs to execute
-            specs: Plugin specifications
-            sort_key: Callable to get sort key for plugin
+    Args:
+        plugin_ids: List of plugin IDs to execute
+        specs: Plugin specifications
+        sort_key: Callable to get sort key for plugin
 
-        Returns:
-            List of wavefronts (each wavefront is a list of plugin IDs)
-        """
-        if not plugin_ids:
-            return []
+    Returns:
+        List of wavefronts (each wavefront is a list of plugin IDs)
+    """
+    if not plugin_ids:
+        return []
 
-        plugin_set = set(plugin_ids)
-        indegree: dict[str, int] = {plugin_id: 0 for plugin_id in plugin_ids}
-        dependents: dict[str, list[str]] = {plugin_id: [] for plugin_id in plugin_ids}
+    plugin_set = set(plugin_ids)
+    indegree: dict[str, int] = {plugin_id: 0 for plugin_id in plugin_ids}
+    dependents: dict[str, list[str]] = {plugin_id: [] for plugin_id in plugin_ids}
 
-        for plugin_id in plugin_ids:
-            spec = specs.get(plugin_id)
-            if spec is None:
+    for plugin_id in plugin_ids:
+        spec = specs.get(plugin_id)
+        if spec is None:
+            continue
+        for dep_id in spec.depends_on:
+            if dep_id not in plugin_set:
                 continue
-            for dep_id in spec.depends_on:
-                if dep_id not in plugin_set:
-                    continue
-                indegree[plugin_id] += 1
-                dependents[dep_id].append(plugin_id)
+            indegree[plugin_id] += 1
+            dependents[dep_id].append(plugin_id)
 
-        # Build initial ready queue
-        ready: list[tuple[int, str]] = []
-        for plugin_id in plugin_ids:
-            if indegree[plugin_id] == 0:
-                heapq.heappush(ready, sort_key(plugin_id))
+    # Build initial ready queue
+    ready: list[tuple[int, str]] = []
+    for plugin_id in plugin_ids:
+        if indegree[plugin_id] == 0:
+            heapq.heappush(ready, sort_key(plugin_id))
 
-        wavefronts: list[list[str]] = []
-        completed: set[str] = set()
+    wavefronts: list[list[str]] = []
 
+    while ready:
+        wavefront: list[str] = []
         while ready:
-            wavefront: list[str] = []
-            while ready:
-                _, plugin_id = heapq.heappop(ready)
-                wavefront.append(plugin_id)
+            _, plugin_id = heapq.heappop(ready)
+            wavefront.append(plugin_id)
 
-            if wavefront:
-                wavefronts.append(wavefront)
-                completed.update(wavefront)
+        if wavefront:
+            wavefronts.append(wavefront)
 
-                # Update ready queue with newly unblocked plugins
-                for plugin_id in wavefront:
-                    for dependent_id in dependents[plugin_id]:
-                        indegree[dependent_id] -= 1
-                        if indegree[dependent_id] == 0:
-                            heapq.heappush(ready, sort_key(dependent_id))
+            # Update ready queue with newly unblocked plugins
+            for plugin_id in wavefront:
+                for dependent_id in dependents[plugin_id]:
+                    indegree[dependent_id] -= 1
+                    if indegree[dependent_id] == 0:
+                        heapq.heappush(ready, sort_key(dependent_id))
 
-        return wavefronts
-
-    def preload_plugins(
-        self,
-        plugin_ids: list[str],
-        loader: Any,
-        specs: dict[str, PluginSpec],
-    ) -> None:
-        """Preload plugin classes before execution.
-
-        Args:
-            plugin_ids: List of plugin IDs to preload
-            loader: Plugin loader instance
-            specs: Plugin specifications
-        """
-        for plugin_id in plugin_ids:
-            spec = specs.get(plugin_id)
-            if spec is None:
-                continue
-            try:
-                loader._load_entry_point(spec)
-            except Exception:
-                pass  # Will be raised again during execution
+    return wavefronts

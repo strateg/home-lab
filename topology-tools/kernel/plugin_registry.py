@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import concurrent.futures
 import contextvars
-import heapq
 import re
 import sys
 import threading
@@ -73,14 +72,15 @@ from .registry import (
 from .scheduler import HAS_REAL_SUBINTERPRETERS as _HAS_REAL_SUBINTERPRETERS
 from .scheduler import (
     ExecutionPlanner,
-    ParallelExecutor,
     PlanningError,
     SerializablePluginSpec,
     SnapshotBuilder,
     execute_plugin_isolated,
+    get_parallel_executor,
 )
 from .scheduler import context_bridge as _context_bridge
 from .scheduler import envelope_pipeline as _envelope_pipeline
+from .scheduler import phase_executor as _phase_executor
 
 # Kernel version/compatibility constants and plugin spec types live in
 # kernel.specs (leaf module) and are re-exported here for backwards
@@ -161,18 +161,8 @@ class PluginRegistry:
         self._plugin_loader = PluginLoader(self.base_path)
 
     def _get_parallel_executor(self, max_workers: int) -> InterpreterPoolExecutor:
-        """Return subinterpreter executor for parallel plugin execution (ADR 0097 Wave 5).
-
-        Python 3.14+ is required. All plugins execute in isolated subinterpreters
-        providing true parallelism via per-interpreter GIL.
-
-        Args:
-            max_workers: Maximum number of parallel workers
-
-        Returns:
-            InterpreterPoolExecutor instance
-        """
-        return InterpreterPoolExecutor(max_workers=max_workers)
+        """Delegate to scheduler.parallel_executor (S5 decomposition)."""
+        return get_parallel_executor(max_workers)
 
     def _trace_event(
         self,
@@ -770,327 +760,23 @@ class PluginRegistry:
         contract_warnings: bool = False,
         contract_errors: bool = False,
     ) -> list[PluginResult]:
-        """Execute one phase in dependency-respecting wavefronts."""
-        if not plugin_ids:
-            return []
+        """Delegate to scheduler.phase_executor (S5 decomposition).
 
-        pipeline_state = self._ensure_pipeline_state(ctx)
-        plugin_set = set(plugin_ids)
-        indegree: dict[str, int] = {plugin_id: 0 for plugin_id in plugin_ids}
-        dependents: dict[str, list[str]] = {plugin_id: [] for plugin_id in plugin_ids}
-
-        for plugin_id in plugin_ids:
-            spec = self.specs.get(plugin_id)
-            if spec is None:
-                continue
-            for dep_id in spec.depends_on:
-                if dep_id not in plugin_set:
-                    continue
-                indegree[plugin_id] += 1
-                dependents[dep_id].append(plugin_id)
-
-        ready: list[tuple[int, str]] = []
-        for plugin_id in plugin_ids:
-            if indegree[plugin_id] == 0:
-                heapq.heappush(ready, self._plugin_sort_key(plugin_id))
-
-        results_by_plugin: dict[str, PluginResult] = {}
-        max_workers = min(8, max(1, len(plugin_ids)))
-
-        # ADR 0097 Wave 5: Always use subinterpreters (Python 3.14+ required)
-        executor = self._get_parallel_executor(max_workers)
-
-        # ADR 0097: Pre-validate all plugin configs before parallel submission
-        # Validates upfront to fail fast and avoid wasted subinterpreter spawning
-        config_validation_failed: dict[str, list[str]] = {}
-        for plugin_id in plugin_ids:
-            errors = self.validate_plugin_config(plugin_id)
-            if errors:
-                config_validation_failed[plugin_id] = errors
-
-        # Create early failures for invalid configs
-        for plugin_id, errors in config_validation_failed.items():
-            spec = self.specs.get(plugin_id)
-            if spec is None:
-                continue
-            results_by_plugin[plugin_id] = PluginResult.failed(
-                plugin_id=plugin_id,
-                api_version=spec.api_version,
-                diagnostics=[
-                    PluginDiagnostic(
-                        code="E4001",
-                        severity="error",
-                        stage=stage.value,
-                        phase=phase.value,
-                        message=f"Config validation failed: {'; '.join(errors)}",
-                        path="kernel.config_validation",
-                        plugin_id="kernel",
-                    )
-                ],
-            )
-            # Remove from ready queue - mark as having indegree -1 to prevent execution
-            indegree[plugin_id] = -1
-
-        with executor:
-            while ready:
-                wavefront: list[str] = []
-                while ready:
-                    _, plugin_id = heapq.heappop(ready)
-                    # Skip plugins that failed config validation
-                    if plugin_id in config_validation_failed:
-                        continue
-                    wavefront.append(plugin_id)
-
-                if not wavefront:
-                    break  # No more valid plugins to execute
-
-                futures: dict[concurrent.futures.Future[PluginExecutionEnvelope], str] = {}
-                snapshots_by_plugin: dict[str, PluginInputSnapshot] = {}
-                for plugin_id in wavefront:
-                    if trace_execution:
-                        self._trace_event(event="plugin_start", stage=stage, phase=phase, plugin_id=plugin_id)
-
-                    spec = self.specs[plugin_id]
-                    # ADR 0097 PR2: Route based on execution_mode
-                    if spec.execution_mode == "thread_legacy":
-                        # Legacy path: direct execute_plugin() with context merge-back
-                        result = self.execute_plugin(
-                            plugin_id,
-                            ctx,
-                            stage,
-                            phase,
-                            None,
-                            record_result=False,
-                            contract_warnings=contract_warnings,
-                            contract_errors=contract_errors,
-                        )
-                        results_by_plugin[plugin_id] = result
-                        self._mirror_context_into_pipeline_state(ctx, pipeline_state)
-                        if trace_execution:
-                            self._trace_event(
-                                event="plugin_result",
-                                stage=stage,
-                                phase=phase,
-                                plugin_id=plugin_id,
-                                status=result.status,
-                                message="thread_legacy compatibility path",
-                            )
-                        continue
-
-                    try:
-                        snapshot = self._build_input_snapshot(
-                            plugin_id=plugin_id,
-                            stage=stage,
-                            phase=phase,
-                            ctx=ctx,
-                            pipeline_state=pipeline_state,
-                        )
-                    except PluginDataExchangeError as exc:
-                        failed = PluginResult.failed(
-                            plugin_id=plugin_id,
-                            api_version=spec.api_version,
-                            diagnostics=[
-                                PluginDiagnostic(
-                                    code="E8003",
-                                    severity="error",
-                                    stage=stage.value,
-                                    phase=phase.value,
-                                    message=str(exc),
-                                    path=f"plugin:{plugin_id}:snapshot",
-                                    plugin_id="kernel",
-                                )
-                            ],
-                        )
-                        results_by_plugin[plugin_id] = failed
-                        if trace_execution:
-                            self._trace_event(
-                                event="plugin_result",
-                                stage=stage,
-                                phase=phase,
-                                plugin_id=plugin_id,
-                                status=failed.status,
-                                message="snapshot-build failed",
-                            )
-                        continue
-
-                    required_consume_diags = self._validate_required_consumes_snapshot(
-                        spec=spec,
-                        snapshot=snapshot,
-                        stage=stage,
-                        phase=phase,
-                    )
-                    if required_consume_diags:
-                        failed = self._failed_result_with_diagnostics(
-                            spec=spec,
-                            stage=stage,
-                            phase=phase,
-                            diagnostics=required_consume_diags,
-                        )
-                        results_by_plugin[plugin_id] = failed
-                        if trace_execution:
-                            self._trace_event(
-                                event="plugin_result",
-                                stage=stage,
-                                phase=phase,
-                                plugin_id=plugin_id,
-                                status=failed.status,
-                                message="snapshot preflight failed",
-                            )
-                        continue
-
-                    # ADR 0097 PR2: execution_mode routing
-                    # - "subinterpreter" + Python 3.14+ → isolated subinterpreter pool
-                    # - "subinterpreter" + Python <3.14 → ThreadPoolExecutor parallel
-                    # - "main_interpreter" → inline in main interpreter (no cross-interpreter sharing)
-                    if spec.execution_mode == "subinterpreter" and HAS_REAL_SUBINTERPRETERS:
-                        # Submit to real subinterpreter pool (ADR 0063 Phase 3: delegate to scheduler)
-                        snapshots_by_plugin[plugin_id] = snapshot
-                        serialized_spec = SerializablePluginSpec.from_plugin_spec(spec)
-                        future = executor.submit(
-                            execute_plugin_isolated,
-                            snapshot.__dict__,
-                            str(self.base_path),
-                            serialized_spec.to_dict(),
-                        )
-                        futures[future] = plugin_id
-                    elif spec.execution_mode == "main_interpreter" or HAS_REAL_SUBINTERPRETERS:
-                        # Execute inline in main interpreter (ADR 0097 D1: main owns state)
-                        # This includes: main_interpreter mode, or subinterpreter fallback on Py3.14+
-                        envelope = self._execute_plugin_envelope_local(
-                            plugin_id=plugin_id,
-                            spec=spec,
-                            stage=stage,
-                            phase=phase,
-                            snapshot=snapshot,
-                            timeout=spec.timeout,
-                        )
-                        result = self._commit_envelope_result(
-                            ctx=ctx,
-                            pipeline_state=pipeline_state,
-                            spec=spec,
-                            stage=stage,
-                            phase=phase,
-                            envelope=envelope,
-                            contract_warnings=contract_warnings,
-                            contract_errors=contract_errors,
-                        )
-                        results_by_plugin[plugin_id] = result
-                        if trace_execution:
-                            self._trace_event(
-                                event="plugin_result",
-                                stage=stage,
-                                phase=phase,
-                                plugin_id=plugin_id,
-                                status=result.status,
-                                message="main_interpreter inline execution",
-                            )
-                    else:
-                        # Python <3.14: use ThreadPoolExecutor for parallel execution
-                        future = executor.submit(
-                            self._execute_plugin_envelope_local,
-                            plugin_id=plugin_id,
-                            spec=spec,
-                            stage=stage,
-                            phase=phase,
-                            snapshot=snapshot,
-                            timeout=spec.timeout,
-                        )
-                        futures[future] = plugin_id
-
-                for future in concurrent.futures.as_completed(futures):
-                    plugin_id = futures[future]
-                    spec = self.specs.get(plugin_id)
-                    if spec is None:
-                        continue
-                    try:
-                        envelope = future.result(timeout=spec.timeout if HAS_REAL_SUBINTERPRETERS else None)
-                        result = self._commit_envelope_result(
-                            ctx=ctx,
-                            pipeline_state=pipeline_state,
-                            spec=spec,
-                            stage=stage,
-                            phase=phase,
-                            envelope=envelope,
-                            contract_warnings=contract_warnings,
-                            contract_errors=contract_errors,
-                        )
-                        results_by_plugin[plugin_id] = result
-                        if trace_execution:
-                            self._trace_event(
-                                event="plugin_result",
-                                stage=stage,
-                                phase=phase,
-                                plugin_id=plugin_id,
-                                status=result.status,
-                            )
-                    except Exception as exc:
-                        snapshot = snapshots_by_plugin.get(plugin_id)
-                        if snapshot is not None and self._is_cross_interpreter_shareability_error(exc):
-                            envelope = self._execute_plugin_envelope_local(
-                                plugin_id=plugin_id,
-                                spec=spec,
-                                stage=stage,
-                                phase=phase,
-                                snapshot=snapshot,
-                                timeout=spec.timeout,
-                            )
-                            result = self._commit_envelope_result(
-                                ctx=ctx,
-                                pipeline_state=pipeline_state,
-                                spec=spec,
-                                stage=stage,
-                                phase=phase,
-                                envelope=envelope,
-                                contract_warnings=contract_warnings,
-                                contract_errors=contract_errors,
-                            )
-                            results_by_plugin[plugin_id] = result
-                            if trace_execution:
-                                self._trace_event(
-                                    event="plugin_result",
-                                    stage=stage,
-                                    phase=phase,
-                                    plugin_id=plugin_id,
-                                    status=result.status,
-                                    message="fallback to local envelope path",
-                                )
-                            continue
-                        failed = PluginResult.failed(
-                            plugin_id=plugin_id,
-                            api_version=spec.api_version,
-                            diagnostics=[
-                                PluginDiagnostic(
-                                    code="E4102",
-                                    severity="error",
-                                    stage=stage.value,
-                                    phase=phase.value,
-                                    message=f"Plugin crashed in parallel execution: {exc}",
-                                    path="kernel",
-                                    plugin_id="kernel",
-                                )
-                            ],
-                            error_traceback=traceback.format_exc(),
-                        )
-                        results_by_plugin[plugin_id] = failed
-                        if trace_execution:
-                            self._trace_event(
-                                event="plugin_result",
-                                stage=stage,
-                                phase=phase,
-                                plugin_id=plugin_id,
-                                status=failed.status,
-                                message=str(exc),
-                            )
-
-                for plugin_id in sorted(wavefront, key=self._plugin_sort_key):
-                    if plugin_id not in results_by_plugin:
-                        continue
-                    for dependent_id in dependents[plugin_id]:
-                        indegree[dependent_id] -= 1
-                        if indegree[dependent_id] == 0:
-                            heapq.heappush(ready, self._plugin_sort_key(dependent_id))
-
-        ordered_results = [results_by_plugin[plugin_id] for plugin_id in plugin_ids if plugin_id in results_by_plugin]
+        HAS_REAL_SUBINTERPRETERS and execute_plugin_isolated are resolved from
+        this module's globals at call time (observable patch points).
+        """
+        ordered_results = _phase_executor.execute_phase_parallel(
+            host=self,
+            stage=stage,
+            phase=phase,
+            ctx=ctx,
+            plugin_ids=plugin_ids,
+            trace_execution=trace_execution,
+            contract_warnings=contract_warnings,
+            contract_errors=contract_errors,
+            has_real_subinterpreters=HAS_REAL_SUBINTERPRETERS,
+            isolated_worker=execute_plugin_isolated,
+        )
         self._results.extend(ordered_results)
         return ordered_results
 
