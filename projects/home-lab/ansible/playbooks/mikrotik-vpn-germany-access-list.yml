@@ -20,6 +20,7 @@
 #   projects/home-lab/secrets/instances/boox-go-103-lumi.yaml
 #   projects/home-lab/secrets/instances/laptop-katana.yaml
 #   projects/home-lab/secrets/instances/tv-sony-bravia.yaml
+#   projects/home-lab/secrets/instances/jolla-phone-2026.yaml
 # ansible_host is resolved from generated inventory host_vars/rtr-mikrotik-chateau.yml
 
 - name: Configure VPN Germany WiFi access list
@@ -57,6 +58,11 @@
         file: "{{ playbook_dir }}/../../secrets/instances/tv-sony-bravia.yaml"
         name: tv_bravia
 
+    - name: Load Jolla Phone 2026 device secrets
+      community.sops.load_vars:
+        file: "{{ playbook_dir }}/../../secrets/instances/jolla-phone-2026.yaml"
+        name: jolla_phone
+
     - name: Build VPN Germany device list from device secrets
       ansible.builtin.set_fact:
         vpn_germany_devices:
@@ -66,6 +72,8 @@
             comment: "Laptop WiFi - VPN Germany"
           - mac: "{{ tv_bravia.mac_address | upper }}"
             comment: "Sony Bravia AJ9 - VPN Germany"
+          - mac: "{{ jolla_phone.mac_address | upper }}"
+            comment: "Jolla Phone 2026 - VPN Germany"
 
     - name: Build desired MAC list
       ansible.builtin.set_fact:
