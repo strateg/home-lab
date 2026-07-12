@@ -6,9 +6,10 @@ source_id: phone-jolla-jp2
 status: planned
 notes: |
   Jolla Phone 2026 (JP2) with Sailfish OS 5.2.0.13 Finnlayson.
+  Day1 launch event device - 12GB/256GB configuration.
   Includes Android App Support 15 for running Android applications.
-  WiFi and cellular connectivity.
-  Designed for privacy-focused mobile computing.
+  Privacy-focused mobile computing with Privacy Switch, RGB LED, replaceable battery.
+  Specifications verified from official Jolla store and community forum.
 
 # Firmware and OS references (ADR0064)
 firmware_ref: inst.firmware.jolla.jp2.arm64
@@ -20,73 +21,77 @@ device_name: "Jolla Phone 2026"
 manufacturer: Jolla
 model: JP2
 
-# Hardware specifications
+# Hardware specifications (verified from forum post and official store)
 hardware:
   display:
-    size_inches: 6.5
+    size_inches: 6.38
     technology: AMOLED
-    resolution: 2400x1080
-    ppi: 405
-    refresh_rate_hz: 120
-    hdr: true
-  cpu: Qualcomm Snapdragon 7+ Gen 3 (Octa-core, 4nm)
-  gpu: Adreno 732
-  ram_gb: 8
+    resolution: 2272x1032
+    ppi: 397
+    diagonal_mm: 162
+    dimensions_mm: [61.9, 149.9]
+    aspect_ratio: "20:9"
+    protection: Gorilla Glass
+  cpu: Mediatek Dimensity 7100 5G (8-core, 4x Cortex-A55 @ 2000MHz, 4x Cortex-A78 @ 2400MHz)
+  gpu: Mali-G610 MC2
+  ram_gb: 12
   storage_gb: 256
-  battery_mah: 5000
-  dimensions_mm: [159.5, 73.2, 8.1]
-  weight_g: 189
+  storage_expandable: true
+  storage_max_tb: 2
+  battery_mah: 5450
+  battery_replaceable: true
+  dimensions_mm: [158, 74.2, 9.4]
+  camera_bump_mm: 14.3
+  weight_g: 190
   charging:
-    fast_charging_w: 67
+    fast_charging_w: null
     wireless: false
   sensors:
-    - fingerprint (in-display)
+    - fingerprint (power key)
     - accelerometer
     - gyroscope
     - proximity
     - compass
     - ambient_light
-    - barometer
 
-# Connectivity
+# Connectivity (verified from official specs)
 connectivity:
   cellular:
     - 5G NR
     - 4G LTE
     - 3G UMTS
     - 2G GSM
+  dual_sim: true
+  sim_type: dual nano-SIM (two-sided single tray)
+  esim: false
   wifi:
-    - WiFi 6E (802.11ax)
+    - WiFi 6 (802.11ax)
     - 2.4GHz
     - 5GHz
-    - 6GHz
-  bluetooth: "5.3"
+  bluetooth: "5.4"
   nfc: true
-  usb: USB-C 3.2
-  dual_sim: true
-  esim: true
+  usb: USB-C
   audio_jack: false
   speakers: stereo
+  location:
+    - GPS
+    - Galileo
+    - GLONASS
+    - BEIDOU
 
-# Camera specifications
+# Camera specifications (verified from official specs - Sony cameras)
 cameras:
   rear:
     main:
       megapixels: 50
-      sensor: Sony IMX890
+      brand: Sony
       aperture: f/1.8
-      ois: true
     ultrawide:
-      megapixels: 12
+      megapixels: 13
+      brand: Sony
       aperture: f/2.2
-      fov_degrees: 120
-    telephoto:
-      megapixels: 8
-      aperture: f/2.4
-      optical_zoom: 3x
-      ois: true
   front:
-    megapixels: 16
+    megapixels: 32
     aperture: f/2.4
 
 # Operating System
