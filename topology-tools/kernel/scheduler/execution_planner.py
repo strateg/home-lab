@@ -12,7 +12,7 @@ from ..plugin_base import Phase, PluginContext, Stage
 from ..registry.spec_validator import SpecValidator
 
 if TYPE_CHECKING:
-    from ..plugin_registry import PluginSpec
+    from ..specs import PluginSpec
 
 __all__ = ["ExecutionPlanner", "PlanningError"]
 

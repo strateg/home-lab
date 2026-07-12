@@ -17,7 +17,7 @@ except ImportError:
     HAS_JSONSCHEMA = False
 
 if TYPE_CHECKING:
-    from ..plugin_registry import PluginSpec
+    from ..specs import PluginSpec
 
 __all__ = ["ConfigValidator", "ConfigValidationError"]
 

@@ -8,14 +8,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from ..plugin_base import Phase, PluginKind, Stage
+from ..specs import SUPPORTED_API_VERSIONS
 
 if TYPE_CHECKING:
-    from ..plugin_registry import PluginSpec
+    from ..specs import PluginSpec
 
-__all__ = ["SpecValidator", "SpecValidationError"]
-
-# Kernel version constants
-SUPPORTED_API_VERSIONS = ["1.x"]
+__all__ = ["SpecValidator", "SpecValidationError", "SUPPORTED_API_VERSIONS"]
 
 # Stage ordering
 STAGE_ORDER: tuple[Stage, ...] = (

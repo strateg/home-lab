@@ -19,19 +19,8 @@ import sys
 import threading
 import time
 import traceback
-from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Optional, Type
-
-import yaml
-from yaml_loader import load_yaml_file
-
-try:
-    import jsonschema
-
-    HAS_JSONSCHEMA = True
-except ImportError:
-    HAS_JSONSCHEMA = False
+from typing import Any, Optional, Type
 
 # ADR 0097 Wave 5: Python 3.14+ required - always use subinterpreters
 # On Python < 3.14, fall back to ThreadPoolExecutor for development/testing
@@ -44,9 +33,6 @@ else:
 
 from .pipeline_runtime import PipelineState
 from .plugin_base import (
-    CompiledJsonView,
-    InputViewSpec,
-    MapFilterView,
     Phase,
     PluginBase,
     PluginContext,
@@ -59,7 +45,6 @@ from .plugin_base import (
     PluginResult,
     PluginStatus,
     Stage,
-    SubscriptionProjection,
 )
 from .plugin_runner import run_plugin_once
 
@@ -83,7 +68,6 @@ from .registry import (
     PluginCycleError,
     PluginLoader,
     PluginLoadError,
-    PluginManifest,
     SpecValidationError,
     SpecValidator,
 )
@@ -97,15 +81,19 @@ from .scheduler import (
     execute_plugin_isolated,
 )
 
-# Kernel version and compatibility matrix
-KERNEL_VERSION = "0.5.0"
-KERNEL_API_VERSION = "1.0"
-SUPPORTED_API_VERSIONS = ["1.x"]
-MODEL_VERSIONS = ["0062-1.0"]
-EXECUTION_PROFILES = ["production", "modeled", "test-real"]
-
-# Default timeout for plugin execution (seconds)
-DEFAULT_PLUGIN_TIMEOUT = 30.0
+# Kernel version/compatibility constants and plugin spec types live in
+# kernel.specs (leaf module) and are re-exported here for backwards
+# compatibility (ADR 0063 decomposition).
+from .specs import (  # noqa: E402
+    DEFAULT_PLUGIN_TIMEOUT,
+    EXECUTION_PROFILES,
+    KERNEL_API_VERSION,
+    KERNEL_VERSION,
+    MODEL_VERSIONS,
+    SUPPORTED_API_VERSIONS,
+    PluginManifest,
+    PluginSpec,
+)
 
 # Re-export constants from registry.spec_validator for backwards compatibility
 PHASE_ORDER = _PHASE_ORDER
@@ -117,238 +105,6 @@ ENTRY_FAMILIES = _ENTRY_FAMILIES
 
 # execute_plugin_isolated is imported from .scheduler (ADR 0063 Phase 3)
 # SerializablePluginSpec is imported from .scheduler for backwards compatibility
-
-
-@dataclass
-class PluginSpec:
-    """Specification for a single plugin from manifest."""
-
-    id: str
-    kind: PluginKind
-    entry: str
-    api_version: str
-    stages: list[Stage]
-    order: int
-    phase: Phase = Phase.RUN
-    depends_on: list[str] = field(default_factory=list)
-    capabilities: list[str] = field(default_factory=list)
-    requires_capabilities: list[str] = field(default_factory=list)
-    config: dict[str, Any] = field(default_factory=dict)
-    config_schema: Optional[dict[str, Any]] = None
-    when: dict[str, Any] = field(default_factory=dict)
-    produces: list[dict[str, Any]] = field(default_factory=list)
-    consumes: list[dict[str, Any]] = field(default_factory=list)
-    compiled_json_owner: bool = False
-    model_versions: list[str] = field(default_factory=list)
-    description: str = ""
-    migration_mode: str = "legacy"
-    manifest_path: str = ""
-    timeout: float = DEFAULT_PLUGIN_TIMEOUT
-    execution_mode: str = "main_interpreter"  # ADR 0097 PR2: subinterpreter | main_interpreter | thread_legacy
-    input_view: InputViewSpec | None = None  # ADR 0097 P4.2: snapshot filtering specification
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any], manifest_path: str = "") -> PluginSpec:
-        """Create PluginSpec from manifest dictionary."""
-        # Normalize entry path if it contains ../ and we have a manifest_path
-        entry = data["entry"]
-        if manifest_path and "../" in entry and ":" in entry:
-            module_path, class_name = entry.rsplit(":", 1)
-            manifest_dir = Path(manifest_path).parent
-            normalized_module_path = (manifest_dir / module_path).resolve()
-            # The entry should just be the normalized path as posix
-            entry = f"{normalized_module_path.as_posix()}:{class_name}"
-
-        return cls(
-            id=data["id"],
-            kind=PluginKind(data["kind"]),
-            entry=entry,
-            api_version=data["api_version"],
-            stages=[Stage(s) for s in data["stages"]],
-            order=data["order"],
-            phase=Phase(data.get("phase", Phase.RUN.value)),
-            depends_on=data.get("depends_on", []),
-            capabilities=data.get("capabilities", []),
-            requires_capabilities=data.get("requires_capabilities", []),
-            config=data.get("config", {}),
-            config_schema=data.get("config_schema"),
-            when=data.get("when", {}),
-            produces=data.get("produces", []),
-            consumes=data.get("consumes", []),
-            compiled_json_owner=bool(data.get("compiled_json_owner", False)),
-            model_versions=data.get("model_versions", []),
-            description=data.get("description", ""),
-            migration_mode=str(data.get("migration_mode", "legacy")),
-            manifest_path=manifest_path,
-            timeout=data.get("timeout", DEFAULT_PLUGIN_TIMEOUT),
-            execution_mode=cls._resolve_execution_mode(data),
-            input_view=cls._parse_input_view(data.get("input_view")),
-        )
-
-    @staticmethod
-    def _parse_input_view(raw: dict[str, Any] | None) -> InputViewSpec | None:
-        """Parse input_view manifest section into InputViewSpec.
-
-        Supports the following manifest structure:
-            input_view:
-              compiled_json:
-                include: ["$.instances[*].network"]
-                exclude: []
-              raw_yaml: false
-              subscriptions:
-                - from_plugin: base.compiler.instance_rows
-                  key: normalized_rows
-                  projection: "$.rows[?(@.layer=='L2')]"
-              object_map:
-                include_refs: ["network.*"]
-              class_map:
-                include_refs: ["network.*"]
-        """
-        if raw is None:
-            return None
-        if not isinstance(raw, dict):
-            return None
-
-        compiled_json_raw = raw.get("compiled_json")
-        compiled_json = None
-        if isinstance(compiled_json_raw, dict):
-            compiled_json = CompiledJsonView(
-                include=tuple(compiled_json_raw.get("include", [])),
-                exclude=tuple(compiled_json_raw.get("exclude", [])),
-            )
-
-        raw_yaml = raw.get("raw_yaml", True)
-        if not isinstance(raw_yaml, bool):
-            raw_yaml = True
-
-        subscriptions_raw = raw.get("subscriptions", [])
-        subscriptions = []
-        if isinstance(subscriptions_raw, list):
-            for sub in subscriptions_raw:
-                if isinstance(sub, dict) and all(k in sub for k in ("from_plugin", "key", "projection")):
-                    subscriptions.append(
-                        SubscriptionProjection(
-                            from_plugin=str(sub["from_plugin"]),
-                            key=str(sub["key"]),
-                            projection=str(sub["projection"]),
-                        )
-                    )
-
-        object_map_raw = raw.get("object_map")
-        object_map = None
-        if isinstance(object_map_raw, dict):
-            object_map = MapFilterView(
-                include_refs=tuple(object_map_raw.get("include_refs", [])),
-                exclude_refs=tuple(object_map_raw.get("exclude_refs", [])),
-            )
-
-        class_map_raw = raw.get("class_map")
-        class_map = None
-        if isinstance(class_map_raw, dict):
-            class_map = MapFilterView(
-                include_refs=tuple(class_map_raw.get("include_refs", [])),
-                exclude_refs=tuple(class_map_raw.get("exclude_refs", [])),
-            )
-
-        return InputViewSpec(
-            compiled_json=compiled_json,
-            raw_yaml=raw_yaml,
-            subscriptions=tuple(subscriptions),
-            object_map=object_map,
-            class_map=class_map,
-        )
-
-    @staticmethod
-    def _resolve_execution_mode(data: dict[str, Any]) -> str:
-        """Resolve execution_mode from manifest data.
-
-        ADR 0097 PR2: execution_mode is the primary routing field.
-        Valid values: 'subinterpreter', 'main_interpreter', 'thread_legacy'.
-        Default: 'main_interpreter' (envelope path in main interpreter).
-        """
-        explicit_mode = data.get("execution_mode")
-        if explicit_mode is not None:
-            if explicit_mode not in ("subinterpreter", "main_interpreter", "thread_legacy"):
-                raise ValueError(
-                    f"Invalid execution_mode '{explicit_mode}'. "
-                    "Must be 'subinterpreter', 'main_interpreter', or 'thread_legacy'."
-                )
-            return explicit_mode
-
-        # Default: main_interpreter (envelope path in main interpreter)
-        return "main_interpreter"
-
-    def declared_produced_scopes(self) -> dict[str, str]:
-        """Extract declared produced keys and their scopes.
-
-        Returns a mapping of key -> scope for all entries in self.produces.
-        Handles both legacy string format and dict format:
-          - String: "key_name" -> scope defaults to "pipeline_shared"
-          - Dict: {"key": "key_name", "scope": "stage_local"} -> uses specified scope
-
-        Returns:
-            dict mapping key names to scope strings ("pipeline_shared" or "stage_local")
-        """
-        result: dict[str, str] = {}
-        for item in self.produces:
-            if isinstance(item, str):
-                result[item] = "pipeline_shared"
-            elif isinstance(item, dict):
-                key = item.get("key")
-                if isinstance(key, str) and key:
-                    result[key] = item.get("scope", "pipeline_shared")
-        return result
-
-    def declared_dependency_ids(self) -> set[str]:
-        """Return all explicitly declared upstream plugin IDs.
-
-        Runtime subscribe authorization must cover both execution dependencies and
-        consumes-declared data-bus producers. Some bootstrap-safe base-manifest
-        plugins can only name later-discovered producers under consumes because
-        those producer manifests are loaded after discover-stage bootstrap.
-        """
-        result = {item.strip() for item in self.depends_on if isinstance(item, str) and item.strip()}
-        for item in self.consumes:
-            if not isinstance(item, dict):
-                continue
-            from_plugin = item.get("from_plugin")
-            if isinstance(from_plugin, str) and from_plugin.strip():
-                result.add(from_plugin.strip())
-        return result
-
-
-@dataclass
-class PluginManifest:
-    """Parsed plugin manifest file."""
-
-    schema_version: int
-    plugins: list[PluginSpec]
-    source_path: str
-
-    @classmethod
-    def from_data(cls, data: dict[str, Any], source_path: str, spec_factory: Any) -> PluginManifest:
-        """Load manifest from parsed dictionary.
-
-        Args:
-            data: Parsed YAML data
-            source_path: Path to manifest file
-            spec_factory: Callable to create PluginSpec from dict (PluginSpec.from_dict)
-        """
-        if data.get("schema_version") != 1:
-            raise ValueError(f"Unsupported manifest schema_version in {source_path}")
-
-        plugins = [spec_factory(p, source_path) for p in data.get("plugins", [])]
-        return cls(
-            schema_version=data["schema_version"],
-            plugins=plugins,
-            source_path=source_path,
-        )
-
-    @classmethod
-    def from_file(cls, path: Path, spec_factory: Any) -> PluginManifest:
-        """Load manifest from YAML file."""
-        data = load_yaml_file(path) or {}
-        return cls.from_data(data, str(path), spec_factory)
 
 
 # Exception classes are imported from .registry for backwards compatibility:
@@ -380,11 +136,14 @@ class PluginRegistry:
         self.manifest_schema_path = self.base_path / "schemas" / "plugin-manifest.schema.json"
         self.specs: dict[str, PluginSpec] = {}
         self.instances: dict[str, PluginBase] = {}
-        self.manifests: list[str] = []
-        self._load_errors: list[str] = []
+        self._manifest_loader = ManifestLoader(self.manifest_schema_path)
+        # S2 decomposition: manifest bookkeeping lives in ManifestLoader.
+        # Facade attributes alias the same list objects because append order
+        # and identity are observable API (compile-topology.py reads slices).
+        self.manifests: list[str] = self._manifest_loader.manifests
+        self._load_errors: list[str] = self._manifest_loader._load_errors
         self._results: list[PluginResult] = []
         self._instances_lock = threading.Lock()
-        self._payload_schema_cache: dict[str, dict[str, Any]] = {}
         self._execution_trace: list[dict[str, Any]] = []
         self._trace_lock = threading.Lock()
 
@@ -399,7 +158,6 @@ class PluginRegistry:
             metadata_provider=self._inject_snapshot_metadata,
         )
         self._plugin_loader = PluginLoader(self.base_path)
-        self._manifest_loader = ManifestLoader(self.manifest_schema_path)
 
     def _get_parallel_executor(self, max_workers: int) -> InterpreterPoolExecutor:
         """Return subinterpreter executor for parallel plugin execution (ADR 0097 Wave 5).
@@ -449,80 +207,44 @@ class PluginRegistry:
         if candidate not in sys.path:
             sys.path.insert(0, candidate)
 
-    def _get_manifest_schema(self) -> dict[str, Any]:
-        """Get manifest JSON schema.
+    def _register_spec(self, spec: PluginSpec) -> None:
+        """Validate and register a spec loaded from a manifest.
 
-        Delegates to ManifestLoader (ADR 0063 Phase 3).
+        Passed as on_spec callback to ManifestLoader (S2 decomposition).
+        Raises PluginLoadError for invalid specs.
         """
-        try:
-            return self._manifest_loader._get_schema()
-        except ManifestLoadError as e:
-            raise PluginLoadError(e.source, str(e).split(": ", 1)[-1]) from e
-
-    def _validate_manifest_payload(self, payload: dict[str, Any], *, manifest_path: Path) -> None:
-        """Validate manifest against JSON schema.
-
-        Delegates to ManifestLoader (ADR 0063 Phase 3).
-        """
-        try:
-            self._manifest_loader.validate_payload(payload, manifest_path)
-        except ManifestLoadError as e:
-            raise PluginLoadError(e.source, str(e).split(": ", 1)[-1]) from e
+        self._validate_spec(spec)
+        self.specs[spec.id] = spec
 
     def load_manifest(self, manifest_path: Path, *, _loaded_paths: set[Path] | None = None) -> None:
         """Load plugins from a manifest file.
 
         Supports 'includes' key for manifest sharding (Phase 2 improvement).
         Include paths are resolved relative to the manifest file directory.
+
+        Delegates to ManifestLoader (S2 decomposition); converts
+        ManifestLoadError to PluginLoadError for backwards compatibility.
         """
-        if _loaded_paths is None:
-            _loaded_paths = set()
-
-        resolved_path = manifest_path.resolve()
-        if resolved_path in _loaded_paths:
-            return  # Skip already-loaded manifests (circular include protection)
-        _loaded_paths.add(resolved_path)
-
         try:
-            payload = load_yaml_file(manifest_path) or {}
-        except (OSError, yaml.YAMLError) as exc:
-            raise PluginLoadError("manifest.load", f"Failed to parse manifest '{manifest_path}': {exc}") from exc
-        if not isinstance(payload, dict):
-            raise PluginLoadError("manifest.load", f"Manifest root must be mapping/object: {manifest_path}")
-
-        # Process includes first (allows sharding into stage-specific manifests)
-        includes = payload.get("includes", [])
-        if isinstance(includes, list):
-            manifest_dir = manifest_path.parent
-            for include_path in includes:
-                if isinstance(include_path, str) and include_path.strip():
-                    include_resolved = (manifest_dir / include_path.strip()).resolve()
-                    if include_resolved.exists():
-                        try:
-                            self.load_manifest(include_resolved, _loaded_paths=_loaded_paths)
-                        except Exception as e:
-                            self._load_errors.append(f"Error loading included manifest {include_path}: {e}")
-                    else:
-                        self._load_errors.append(f"Included manifest not found: {include_path}")
-
-        self._validate_manifest_payload(payload, manifest_path=manifest_path)
-        manifest = PluginManifest.from_data(payload, str(manifest_path), PluginSpec.from_dict)
-        self.manifests.append(str(manifest_path))
-
-        for spec in manifest.plugins:
-            if spec.id in self.specs:
-                self._load_errors.append(f"Duplicate plugin ID: {spec.id}")
-                continue
-            self._validate_spec(spec)
-            self.specs[spec.id] = spec
+            self._manifest_loader.load_manifest(
+                manifest_path,
+                PluginSpec.from_dict,
+                self._register_spec,
+                existing_ids=self.specs,
+                _loaded_paths=_loaded_paths,
+            )
+        except ManifestLoadError as e:
+            raise PluginLoadError(e.source, e.message) from e
 
     def load_manifests_from_dir(self, search_dir: Path, pattern: str = "plugins.yaml") -> None:
         """Recursively load all plugin manifests from a directory."""
-        for manifest_path in search_dir.rglob(pattern):
-            try:
-                self.load_manifest(manifest_path)
-            except Exception as e:
-                self._load_errors.append(f"Error loading {manifest_path}: {e}")
+        self._manifest_loader.load_manifests_from_dir(
+            search_dir,
+            PluginSpec.from_dict,
+            self._register_spec,
+            existing_ids=self.specs,
+            pattern=pattern,
+        )
 
     def _validate_spec(self, spec: PluginSpec) -> None:
         """Validate plugin specification.
@@ -723,55 +445,13 @@ class PluginRegistry:
         stage: Stage,
         phase: Phase,
     ) -> list[PluginDiagnostic]:
-        diagnostics: list[PluginDiagnostic] = []
-        consume_schema_refs = self._schema_ref_by_consumed_key(spec)
-
-        for consume_entry in spec.consumes:
-            if not isinstance(consume_entry, dict):
-                continue
-            from_plugin = consume_entry.get("from_plugin")
-            key = consume_entry.get("key")
-            required = consume_entry.get("required", True)
-            if not isinstance(from_plugin, str) or not from_plugin or not isinstance(key, str) or not key:
-                continue
-
-            subscription = snapshot.subscriptions.get((from_plugin, key))
-            if subscription is None:
-                if required is False:
-                    continue
-                diagnostics.append(
-                    PluginDiagnostic(
-                        code="E8003",
-                        severity="error",
-                        stage=stage.value,
-                        phase=phase.value,
-                        message=(
-                            f"Plugin '{spec.id}' requires payload '{from_plugin}.{key}', "
-                            "but it is not available in committed pipeline state."
-                        ),
-                        path=f"plugin:{spec.id}:consumes.{from_plugin}.{key}",
-                        plugin_id="kernel",
-                    )
-                )
-                continue
-
-            schema_ref = consume_schema_refs.get((from_plugin, key))
-            if schema_ref is None:
-                continue
-
-            probe_result = PluginResult.success(spec.id, spec.api_version)
-            self._validate_schema_ref_payload(
-                result=probe_result,
-                stage=stage,
-                phase=phase,
-                spec=spec,
-                payload=subscription.value,
-                schema_ref=schema_ref,
-                path_suffix=f"consumes.{from_plugin}.{key}",
-            )
-            diagnostics.extend(probe_result.diagnostics)
-
-        return diagnostics
+        """Delegate to EnvelopeValidator (S3 decomposition)."""
+        return self._envelope_validator.validate_required_consumes_snapshot(
+            spec=spec,
+            snapshot=snapshot,
+            stage=stage,
+            phase=phase,
+        )
 
     def _validate_envelope_for_commit(
         self,
@@ -982,29 +662,6 @@ class PluginRegistry:
         """Delegate to ConfigValidator (ADR 0063 Phase 3)."""
         return self._config_validator.schema_ref_by_consumed_key(spec)
 
-    def _append_schema_validation_error(
-        self,
-        *,
-        result: PluginResult,
-        stage: Stage,
-        phase: Phase,
-        spec: PluginSpec,
-        code: str,
-        message: str,
-        path_suffix: str,
-    ) -> None:
-        result.diagnostics.append(
-            PluginDiagnostic(
-                code=code,
-                severity="error",
-                stage=stage.value,
-                phase=phase.value,
-                message=message,
-                path=f"plugin:{spec.id}:{path_suffix}",
-                plugin_id="kernel",
-            )
-        )
-
     def _validate_required_consumes_pre_run(
         self,
         *,
@@ -1013,57 +670,13 @@ class PluginRegistry:
         stage: Stage,
         phase: Phase,
     ) -> list[PluginDiagnostic]:
-        diagnostics: list[PluginDiagnostic] = []
-        published_data = ctx.get_published_data()
-        consume_schema_refs = self._schema_ref_by_consumed_key(spec)
-
-        for consume_entry in spec.consumes:
-            if not isinstance(consume_entry, dict):
-                continue
-            from_plugin = consume_entry.get("from_plugin")
-            key = consume_entry.get("key")
-            required = consume_entry.get("required", True)
-            if required is False:
-                continue
-            if not isinstance(from_plugin, str) or not from_plugin:
-                continue
-            if not isinstance(key, str) or not key:
-                continue
-
-            payload = published_data.get(from_plugin, {}).get(key, None)
-            if payload is None and key not in published_data.get(from_plugin, {}):
-                diagnostics.append(
-                    PluginDiagnostic(
-                        code="E8003",
-                        severity="error",
-                        stage=stage.value,
-                        phase=phase.value,
-                        message=(
-                            f"Plugin '{spec.id}' requires payload '{from_plugin}.{key}', "
-                            "but it is not available in published data."
-                        ),
-                        path=f"plugin:{spec.id}:consumes.{from_plugin}.{key}",
-                        plugin_id="kernel",
-                    )
-                )
-                continue
-
-            schema_ref = consume_schema_refs.get((from_plugin, key))
-            if schema_ref is None:
-                continue
-            probe_result = PluginResult.success(spec.id, spec.api_version)
-            self._validate_schema_ref_payload(
-                result=probe_result,
-                stage=stage,
-                phase=phase,
-                spec=spec,
-                payload=payload,
-                schema_ref=schema_ref,
-                path_suffix=f"consumes.{from_plugin}.{key}",
-            )
-            diagnostics.extend(probe_result.diagnostics)
-
-        return diagnostics
+        """Delegate to EnvelopeValidator (S3 decomposition)."""
+        return self._envelope_validator.validate_required_consumes_pre_run(
+            spec=spec,
+            published_data=ctx.get_published_data(),
+            stage=stage,
+            phase=phase,
+        )
 
     def _validate_schema_ref_payload(
         self,
@@ -1076,30 +689,17 @@ class PluginRegistry:
         schema_ref: str,
         path_suffix: str,
     ) -> None:
-        schema, schema_error = self._load_payload_schema(spec, schema_ref)
-        if schema is None:
-            self._append_schema_validation_error(
-                result=result,
+        """Delegate to EnvelopeValidator (S3 decomposition); appends into result."""
+        result.diagnostics.extend(
+            self._envelope_validator.validate_payload_schema(
+                spec=spec,
                 stage=stage,
                 phase=phase,
-                spec=spec,
-                code="E8001",
-                message=schema_error or f"schema_ref '{schema_ref}' could not be loaded.",
+                payload=payload,
+                schema_ref=schema_ref,
                 path_suffix=path_suffix,
             )
-            return
-        try:
-            jsonschema.validate(instance=payload, schema=schema)
-        except jsonschema.ValidationError as exc:
-            self._append_schema_validation_error(
-                result=result,
-                stage=stage,
-                phase=phase,
-                spec=spec,
-                code="E8002",
-                message=f"payload does not satisfy schema_ref '{schema_ref}': {exc.message}",
-                path_suffix=path_suffix,
-            )
+        )
 
     def _attach_data_bus_contract_diagnostics(
         self,

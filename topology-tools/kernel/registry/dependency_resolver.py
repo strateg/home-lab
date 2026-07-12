@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any
 from .spec_validator import SpecValidator
 
 if TYPE_CHECKING:
-    from ..plugin_registry import PluginSpec
+    from ..specs import PluginSpec
 
 __all__ = ["DependencyResolver", "PluginCycleError", "DependencyError"]
 

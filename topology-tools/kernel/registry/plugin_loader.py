@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Type
 from ..plugin_base import PluginBase
 
 if TYPE_CHECKING:
-    from ..plugin_registry import PluginSpec
+    from ..specs import PluginSpec
 
 __all__ = ["PluginLoader", "PluginLoadError"]
 

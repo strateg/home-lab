@@ -20,7 +20,7 @@ from ..plugin_base import (
 )
 
 if TYPE_CHECKING:
-    from ..plugin_registry import PluginSpec
+    from ..specs import PluginSpec
 
 __all__ = [
     "ParallelExecutor",

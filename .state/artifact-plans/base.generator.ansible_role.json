@@ -21,7 +21,21 @@
       "action": "warn",
       "ownership_method": "output_prefix_match",
       "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/inst.device.jolla-phone-2026.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
       "path": "generated/home-lab/ansible/inventory/production/host_vars/inst.device.tv-sony-bravia.yml",
+      "reason": "obsolete-shadowed"
+    },
+    {
+      "action": "warn",
+      "ownership_method": "output_prefix_match",
+      "ownership_proven": true,
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/inst.os.sailfish.5.2.0.13.arm64.jolla.common.yml",
       "reason": "obsolete-shadowed"
     },
     {
@@ -200,6 +214,12 @@
       "required": true
     },
     {
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/inst.device.jolla-phone-2026.common.yml",
+      "reason": "capability-enabled",
+      "renderer": "jinja2",
+      "required": true
+    },
+    {
       "path": "generated/home-lab/ansible/inventory/production/host_vars/inst.os.debian.12.arm64.container_base.common.yml",
       "reason": "capability-enabled",
       "renderer": "jinja2",
@@ -231,6 +251,12 @@
     },
     {
       "path": "generated/home-lab/ansible/inventory/production/host_vars/inst.os.proxmox.ve.9.common.yml",
+      "reason": "capability-enabled",
+      "renderer": "jinja2",
+      "required": true
+    },
+    {
+      "path": "generated/home-lab/ansible/inventory/production/host_vars/inst.os.sailfish.finnlayson.arm64.jolla.common.yml",
       "reason": "capability-enabled",
       "renderer": "jinja2",
       "required": true

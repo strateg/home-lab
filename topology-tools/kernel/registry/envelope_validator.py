@@ -4,6 +4,7 @@ This module handles validation of PluginExecutionEnvelope before committing
 to pipeline state. It validates:
 - Published keys against manifest produces declarations
 - Payload schema validation for published messages
+- Required consumes availability and schema conformance (pre-run gates)
 """
 
 from __future__ import annotations
@@ -18,8 +19,14 @@ except ImportError:
     HAS_JSONSCHEMA = False
 
 if TYPE_CHECKING:
-    from ..plugin_base import Phase, PluginDiagnostic, PluginExecutionEnvelope, Stage
-    from ..plugin_registry import PluginSpec
+    from ..plugin_base import (
+        Phase,
+        PluginDiagnostic,
+        PluginExecutionEnvelope,
+        PluginInputSnapshot,
+        Stage,
+    )
+    from ..specs import PluginSpec
     from .config_validator import ConfigValidator
 
 __all__ = ["EnvelopeValidator"]
@@ -114,7 +121,7 @@ class EnvelopeValidator:
             if schema_ref is None:
                 continue
 
-            schema_diagnostics = self._validate_payload_schema(
+            schema_diagnostics = self.validate_payload_schema(
                 spec=spec,
                 stage=stage,
                 phase=phase,
@@ -126,7 +133,7 @@ class EnvelopeValidator:
 
         return diagnostics
 
-    def _validate_payload_schema(
+    def validate_payload_schema(
         self,
         *,
         spec: PluginSpec,
@@ -183,6 +190,136 @@ class EnvelopeValidator:
                     message=f"payload does not satisfy schema_ref '{schema_ref}': {exc.message}",
                     path=f"plugin:{spec.id}:{path_suffix}",
                     plugin_id="kernel",
+                )
+            )
+
+        return diagnostics
+
+    def validate_required_consumes_snapshot(
+        self,
+        *,
+        spec: PluginSpec,
+        snapshot: PluginInputSnapshot,
+        stage: Stage,
+        phase: Phase,
+    ) -> list[PluginDiagnostic]:
+        """Validate required consumes against a plugin input snapshot (E8003).
+
+        For every required consumes[] entry, checks that the subscription is
+        present in the snapshot and (when a schema_ref is declared) that the
+        payload conforms to the declared schema.
+        """
+        from ..plugin_base import PluginDiagnostic
+
+        diagnostics: list[PluginDiagnostic] = []
+        consume_schema_refs = self._config_validator.schema_ref_by_consumed_key(spec)
+
+        for consume_entry in spec.consumes:
+            if not isinstance(consume_entry, dict):
+                continue
+            from_plugin = consume_entry.get("from_plugin")
+            key = consume_entry.get("key")
+            required = consume_entry.get("required", True)
+            if not isinstance(from_plugin, str) or not from_plugin or not isinstance(key, str) or not key:
+                continue
+
+            subscription = snapshot.subscriptions.get((from_plugin, key))
+            if subscription is None:
+                if required is False:
+                    continue
+                diagnostics.append(
+                    PluginDiagnostic(
+                        code="E8003",
+                        severity="error",
+                        stage=stage.value,
+                        phase=phase.value,
+                        message=(
+                            f"Plugin '{spec.id}' requires payload '{from_plugin}.{key}', "
+                            "but it is not available in committed pipeline state."
+                        ),
+                        path=f"plugin:{spec.id}:consumes.{from_plugin}.{key}",
+                        plugin_id="kernel",
+                    )
+                )
+                continue
+
+            schema_ref = consume_schema_refs.get((from_plugin, key))
+            if schema_ref is None:
+                continue
+
+            diagnostics.extend(
+                self.validate_payload_schema(
+                    spec=spec,
+                    stage=stage,
+                    phase=phase,
+                    payload=subscription.value,
+                    schema_ref=schema_ref,
+                    path_suffix=f"consumes.{from_plugin}.{key}",
+                )
+            )
+
+        return diagnostics
+
+    def validate_required_consumes_pre_run(
+        self,
+        *,
+        spec: PluginSpec,
+        published_data: dict[str, dict[str, Any]],
+        stage: Stage,
+        phase: Phase,
+    ) -> list[PluginDiagnostic]:
+        """Validate required consumes against published data (E8003, legacy path).
+
+        Used by the legacy thread execution path where consumed payloads come
+        from context published data instead of an input snapshot.
+        """
+        from ..plugin_base import PluginDiagnostic
+
+        diagnostics: list[PluginDiagnostic] = []
+        consume_schema_refs = self._config_validator.schema_ref_by_consumed_key(spec)
+
+        for consume_entry in spec.consumes:
+            if not isinstance(consume_entry, dict):
+                continue
+            from_plugin = consume_entry.get("from_plugin")
+            key = consume_entry.get("key")
+            required = consume_entry.get("required", True)
+            if required is False:
+                continue
+            if not isinstance(from_plugin, str) or not from_plugin:
+                continue
+            if not isinstance(key, str) or not key:
+                continue
+
+            payload = published_data.get(from_plugin, {}).get(key, None)
+            if payload is None and key not in published_data.get(from_plugin, {}):
+                diagnostics.append(
+                    PluginDiagnostic(
+                        code="E8003",
+                        severity="error",
+                        stage=stage.value,
+                        phase=phase.value,
+                        message=(
+                            f"Plugin '{spec.id}' requires payload '{from_plugin}.{key}', "
+                            "but it is not available in published data."
+                        ),
+                        path=f"plugin:{spec.id}:consumes.{from_plugin}.{key}",
+                        plugin_id="kernel",
+                    )
+                )
+                continue
+
+            schema_ref = consume_schema_refs.get((from_plugin, key))
+            if schema_ref is None:
+                continue
+            diagnostics.extend(
+                self.validate_payload_schema(
+                    spec=spec,
+                    stage=stage,
+                    phase=phase,
+                    payload=payload,
+                    schema_ref=schema_ref,
+                    path_suffix=f"consumes.{from_plugin}.{key}",
                 )
             )
 
