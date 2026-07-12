@@ -7,6 +7,7 @@ This package provides modular components for plugin execution scheduling:
 - snapshot_builder: Build input snapshots for isolated execution
 - context_bridge: PipelineState <-> legacy PluginContext shim (D13 quarantine)
 - envelope_pipeline: Local envelope execution and commit pipeline
+- legacy_executor: Legacy thread-path plugin execution (D13 quarantine)
 - phase_executor: Wavefront-parallel execution of one pipeline phase
 - stage_executor: Full-stage plugin orchestration
 - preflight: Model-version and capability gates (E4010/E4011/E4012)
