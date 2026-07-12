@@ -1,0 +1,21 @@
+@object: obj.firmware.jolla.jp2.arm64
+@extends: class.firmware
+@title: Firmware Jolla Phone 2026 ARM64
+@version: 1.0.0
+
+vendor: jolla
+model: Jolla Phone 2026 Firmware
+properties:
+  vendor: jolla
+  family: jolla
+  version: 'jp2'
+  architecture: arm64
+  boot_stack: linux
+  virtual: false
+  soc: snapdragon_7plus_gen3
+  updatable: true
+  update_method: ota
+enabled_capabilities: []
+enabled_packs: []
+vendor_capabilities:
+- vendor.jolla.phone.firmware

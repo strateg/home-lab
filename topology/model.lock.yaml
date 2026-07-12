@@ -108,6 +108,9 @@ objects:
   obj.device.e_reader:
     version: 1.0.0
     class_ref: class.device.iot_endpoint
+  obj.device.smartphone:
+    version: 1.0.0
+    class_ref: class.device.iot_endpoint
   obj.device.smart_tv:
     version: 1.0.0
     class_ref: class.device.iot_endpoint
@@ -127,6 +130,9 @@ objects:
     version: 1.0.0
     class_ref: class.firmware
   obj.firmware.boox.go103.arm64:
+    version: 1.0.0
+    class_ref: class.firmware
+  obj.firmware.jolla.jp2.arm64:
     version: 1.0.0
     class_ref: class.firmware
   obj.firmware.openwrt.glinet.4x:
@@ -334,6 +340,9 @@ objects:
     version: 1.0.0
     class_ref: class.os
   obj.os.routeros.7.x86_64:
+    version: 1.0.0
+    class_ref: class.os
+  obj.os.sailfish.5.arm64:
     version: 1.0.0
     class_ref: class.os
   obj.pdu.generic.managed:

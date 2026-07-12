@@ -1,0 +1,24 @@
+@object: obj.device.smartphone
+@extends: class.device.iot_endpoint
+@title: Smartphone Device
+@description: |
+  Mobile smartphone device with cellular and WiFi connectivity.
+  Used for communication, apps, and mobile computing.
+  Requires WiFi for home network connectivity.
+@version: 1.0.0
+
+# Fixed properties for smartphones
+device_type: other
+connection_type: wifi
+
+# Typical network requirements
+network_requirements:
+  bandwidth_mbps: 50
+  latency_sensitive: true
+  ports:
+    - 443/tcp   # HTTPS
+    - 80/tcp    # HTTP
+    - 53/udp    # DNS
+    - 5353/udp  # mDNS/Bonjour
+
+enabled_capabilities: []

@@ -1,0 +1,15 @@
+@instance: inst.firmware.jolla.jp2.arm64
+@extends: obj.firmware.jolla.jp2.arm64
+@group: firmware
+@version: 1.0.0
+source_id: inst.firmware.jolla.jp2.arm64
+device_ref: inst.device.jolla-phone-2026
+status: planned
+notes: |
+  Jolla Phone 2026 (JP2) firmware with Sailfish OS 5.2.0.13 Finnlayson.
+  Based on Qualcomm Snapdragon 7+ Gen 3 SoC.
+  Supports OTA updates, secure boot, unlockable bootloader.
+  
+  Firmware version: JP2-2026.1
+  Build date: 2026-06-01
+  Security patch: 2026-06

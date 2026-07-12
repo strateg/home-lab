@@ -1,0 +1,164 @@
+@instance: inst.device.jolla-phone-2026
+@extends: obj.device.smartphone
+@group: devices
+@version: 1.0.0
+source_id: phone-jolla-jp2
+status: planned
+notes: |
+  Jolla Phone 2026 (JP2) with Sailfish OS 5.2.0.13 Finnlayson.
+  Includes Android App Support 15 for running Android applications.
+  WiFi and cellular connectivity.
+  Designed for privacy-focused mobile computing.
+
+# Firmware and OS references (ADR0064)
+firmware_ref: inst.firmware.jolla.jp2.arm64
+os_refs:
+- inst.os.sailfish.finnlayson.arm64.jolla
+
+# Device identification
+device_name: "Jolla Phone 2026"
+manufacturer: Jolla
+model: JP2
+
+# Hardware specifications
+hardware:
+  display:
+    size_inches: 6.5
+    technology: AMOLED
+    resolution: 2400x1080
+    ppi: 405
+    refresh_rate_hz: 120
+    hdr: true
+  cpu: Qualcomm Snapdragon 7+ Gen 3 (Octa-core, 4nm)
+  gpu: Adreno 732
+  ram_gb: 8
+  storage_gb: 256
+  battery_mah: 5000
+  dimensions_mm: [159.5, 73.2, 8.1]
+  weight_g: 189
+  charging:
+    fast_charging_w: 67
+    wireless: false
+  sensors:
+    - fingerprint (in-display)
+    - accelerometer
+    - gyroscope
+    - proximity
+    - compass
+    - ambient_light
+    - barometer
+
+# Connectivity
+connectivity:
+  cellular:
+    - 5G NR
+    - 4G LTE
+    - 3G UMTS
+    - 2G GSM
+  wifi:
+    - WiFi 6E (802.11ax)
+    - 2.4GHz
+    - 5GHz
+    - 6GHz
+  bluetooth: "5.3"
+  nfc: true
+  usb: USB-C 3.2
+  dual_sim: true
+  esim: true
+  audio_jack: false
+  speakers: stereo
+
+# Camera specifications
+cameras:
+  rear:
+    main:
+      megapixels: 50
+      sensor: Sony IMX890
+      aperture: f/1.8
+      ois: true
+    ultrawide:
+      megapixels: 12
+      aperture: f/2.2
+      fov_degrees: 120
+    telephoto:
+      megapixels: 8
+      aperture: f/2.4
+      optical_zoom: 3x
+      ois: true
+  front:
+    megapixels: 16
+    aperture: f/2.4
+
+# Operating System
+operating_system:
+  name: Sailfish OS
+  version: 5.2.0.13
+  codename: Finnlayson
+  base: Linux 6.6 LTS
+  ui: Silica (Qt 6.7)
+  android_support:
+    enabled: true
+    version: Android 15
+    runtime: Android AppSupport 15
+    api_level: 35
+
+# Software features
+features:
+  encryption: full_disk
+  secure_boot: true
+  bootloader_unlock: true
+  root_access: developer_mode
+  updates: ota
+  privacy:
+    - no_google_services
+    - permission_control
+    - vpn_built_in
+    - tracker_blocking
+
+# Network configuration
+# WiFi MAC (wlan0), IMEI1, IMEI2 stored in secrets/instances/jolla-phone-2026.yaml
+secrets_ref: secrets.instances.jolla-phone-2026
+connection_type: wifi
+
+# Dual-SIM configuration
+dual_sim: true
+sim_slots: 2
+
+# VLAN assignment - user VLAN for personal devices
+vlan_ref: inst.vlan.user
+
+# DHCP (no static IP for mobile device)
+static_ip: null
+
+# Supported formats and capabilities
+supported_formats:
+  documents:
+    - PDF
+    - EPUB
+    - TXT
+    - DOC
+    - DOCX
+    - ODT
+  images:
+    - JPEG
+    - PNG
+    - WebP
+    - HEIF
+    - GIF
+    - SVG
+  video:
+    - MP4
+    - MKV
+    - AVI
+    - WebM
+    - H.264
+    - H.265/HEVC
+    - VP9
+    - AV1
+  audio:
+    - MP3
+    - AAC
+    - FLAC
+    - OGG
+    - WAV
+    - Opus

@@ -1,0 +1,22 @@
+@instance: inst.os.sailfish.finnlayson.arm64.jolla
+@extends: obj.os.sailfish.5.arm64
+@group: os
+@version: 1.0.0
+source_id: inst.os.sailfish.finnlayson.arm64.jolla
+embedded_in: inst.firmware.jolla.jp2.arm64
+status: planned
+notes: |
+  Sailfish OS 5.2.0.13 "Finnlayson" embedded in Jolla Phone 2026 firmware.
+  Full Linux-based mobile OS with Qt 6.7 Silica UI.
+  Includes Android AppSupport 15 for running Android applications.
+  Privacy-focused, no Google services, with built-in VPN and tracker blocking.
+  
+  Release: Finnlayson (5.2.0.13)
+  Kernel: Linux 6.6 LTS
+  UI: Silica (Qt 6.7)
+  Android compatibility: API level 35 (Android 15)
+
+# Version details
+os_version: 5.2.0.13
+release_name: Finnlayson
+

@@ -1,0 +1,23 @@
+@object: obj.os.sailfish.5.arm64
+@extends: class.os
+@title: OS Sailfish OS 5.x ARM64
+@description: |
+  Sailfish OS 5.x - Linux-based mobile operating system.
+  Based on Mer/MeeGo with Qt UI framework and Android app support.
+@version: 1.0.0
+
+vendor: jolla
+model: Sailfish OS 5.x ARM64
+properties:
+  family: linux
+  distribution: sailfish
+  release: '5.2'
+  release_id: '5.2'
+  architecture: arm64
+  init_system: systemd
+  package_manager: rpm
+  installation_model: embedded
+  kernel_version: '6.6'
+  ui_framework: qt6
+enabled_capabilities: []
+enabled_packs: []

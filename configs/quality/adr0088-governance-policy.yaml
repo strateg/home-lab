@@ -19,6 +19,7 @@ metadata:
         "@title": 0.80
 warning_governance:
   allowlist:
+    - W3201
     - W6814
     - W7816
     - W7844
@@ -27,6 +28,8 @@ warning_governance:
     - W7941
     - W7942
   max_counts:
+    # W3201: derived capabilities missing in capability catalog (new modules)
+    W3201: 10
     # W6814: optional @on:host.network.bridge_ref? absent on docker-only host
     # srv-orangepi5 (no bridge by design).
     W6814: 8
