@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import concurrent.futures
 import contextvars
-import re
 import sys
 import threading
 import time
@@ -35,7 +34,6 @@ from .plugin_base import (
     Phase,
     PluginBase,
     PluginContext,
-    PluginDataExchangeError,
     PluginDiagnostic,
     PluginExecutionEnvelope,
     PluginExecutionScope,
@@ -81,6 +79,8 @@ from .scheduler import (
 from .scheduler import context_bridge as _context_bridge
 from .scheduler import envelope_pipeline as _envelope_pipeline
 from .scheduler import phase_executor as _phase_executor
+from .scheduler import preflight as _preflight
+from .scheduler import stage_executor as _stage_executor
 
 # Kernel version/compatibility constants and plugin spec types live in
 # kernel.specs (leaf module) and are re-exported here for backwards
@@ -1048,305 +1048,32 @@ class PluginRegistry:
         Returns:
             List of PluginResult for each executed plugin
         """
-        results: list[PluginResult] = []
-        phase_plugin_ids: dict[Phase, list[str]] = {
-            phase: self.get_execution_order(stage, profile, phase=phase) for phase in PHASE_ORDER
-        }
-        ordered_plugin_ids = [plugin_id for phase in PHASE_ORDER for plugin_id in phase_plugin_ids[phase]]
-
-        if not ordered_plugin_ids:
-            return results
-
-        if trace_execution:
-            self._trace_event(
-                event="stage_start",
-                stage=stage,
-                message=f"plugins={len(ordered_plugin_ids)} parallel={parallel_plugins}",
-            )
-
-        invalidated_stage_local: list[str] = []
-        try:
-            pipeline_state = self._ensure_pipeline_state(ctx)
-            stage_failure_context: list[dict[str, Any]] = []
-            ctx.config["stage_failure_context"] = stage_failure_context
-
-            def _record_stage_failure(result: PluginResult, *, phase: Phase) -> None:
-                if result.status not in {PluginStatus.FAILED, PluginStatus.TIMEOUT}:
-                    return
-                diagnostics_payload: list[dict[str, Any]] = []
-                diag_codes = [
-                    diag.code
-                    for diag in result.diagnostics
-                    if isinstance(diag, PluginDiagnostic) and isinstance(diag.code, str) and diag.code
-                ]
-                for diag in result.diagnostics:
-                    if not isinstance(diag, PluginDiagnostic):
-                        continue
-                    diagnostics_payload.append(
-                        {
-                            "code": diag.code,
-                            "severity": diag.severity,
-                            "phase": diag.phase,
-                            "message": diag.message,
-                            "path": diag.path,
-                            "plugin_id": diag.plugin_id,
-                        }
-                    )
-                stage_failure_context.append(
-                    {
-                        "plugin_id": result.plugin_id,
-                        "status": result.status.value,
-                        "phase": phase.value,
-                        "diagnostic_codes": diag_codes,
-                        "diagnostics": diagnostics_payload,
-                    }
-                )
-
-            when_allowed_by_plugin: dict[str, bool] = {}
-            for plugin_id in ordered_plugin_ids:
-                spec = self.specs.get(plugin_id)
-                if spec is None:
-                    when_allowed_by_plugin[plugin_id] = False
-                    continue
-                when_allowed_by_plugin[plugin_id] = self._when_predicates_allow(spec, ctx)
-
-            active_plugin_ids = [
-                plugin_id for plugin_id in ordered_plugin_ids if when_allowed_by_plugin.get(plugin_id, False)
-            ]
-
-            # Model version validation (extracted method)
-            model_version_diags = self._validate_model_versions(stage, ctx, active_plugin_ids)
-            if model_version_diags:
-                result = PluginResult.failed(
-                    plugin_id="kernel.model_version_guard",
-                    api_version=KERNEL_API_VERSION,
-                    diagnostics=model_version_diags,
-                )
-                results.append(result)
-                self._results.append(result)
-                return results
-
-            # Capability validation (extracted method)
-            capability_diags = self._validate_required_capabilities(stage, ctx, profile, active_plugin_ids)
-            if capability_diags:
-                result = PluginResult.failed(
-                    plugin_id="kernel.capability_guard",
-                    api_version=KERNEL_API_VERSION,
-                    diagnostics=capability_diags,
-                )
-                results.append(result)
-                self._results.append(result)
-                return results
-
-            if parallel_plugins:
-                self._preload_plugins(active_plugin_ids)
-
-            fail_fast_triggered = False
-            for phase in PHASE_ORDER:
-                if fail_fast_triggered and phase is not Phase.FINALIZE:
-                    continue
-
-                if trace_execution:
-                    self._trace_event(event="phase_start", stage=stage, phase=phase)
-
-                phase_active_plugin_ids: list[str] = []
-                for plugin_id in phase_plugin_ids[phase]:
-                    spec = self.specs.get(plugin_id)
-                    if spec is None:
-                        continue
-
-                    if not when_allowed_by_plugin.get(plugin_id, False):
-                        skipped = PluginResult.skipped(
-                            plugin_id=plugin_id,
-                            api_version=spec.api_version,
-                            reason=f"when predicate evaluated to false for phase '{phase.value}'",
-                        )
-                        skipped.diagnostics.append(
-                            PluginDiagnostic(
-                                code="I4013",
-                                severity="info",
-                                stage=stage.value,
-                                phase=phase.value,
-                                message=f"Plugin '{plugin_id}' skipped by when predicates.",
-                                path=f"plugin:{plugin_id}",
-                                plugin_id="kernel",
-                            )
-                        )
-                        results.append(skipped)
-                        self._results.append(skipped)
-                        if trace_execution:
-                            self._trace_event(
-                                event="plugin_result",
-                                stage=stage,
-                                phase=phase,
-                                plugin_id=plugin_id,
-                                status=skipped.status,
-                                message="when=false",
-                            )
-                        continue
-
-                    phase_active_plugin_ids.append(plugin_id)
-
-                if not phase_active_plugin_ids:
-                    continue
-
-                use_parallel_phase_executor = parallel_plugins and not fail_fast and len(phase_active_plugin_ids) > 1
-                if use_parallel_phase_executor:
-                    phase_results = self._execute_phase_parallel(
-                        stage=stage,
-                        phase=phase,
-                        ctx=ctx,
-                        plugin_ids=phase_active_plugin_ids,
-                        trace_execution=trace_execution,
-                        contract_warnings=contract_warnings,
-                        contract_errors=contract_errors,
-                    )
-                    results.extend(phase_results)
-                    for phase_result in phase_results:
-                        _record_stage_failure(phase_result, phase=phase)
-                    continue
-
-                for plugin_id in phase_active_plugin_ids:
-                    if trace_execution:
-                        self._trace_event(event="plugin_start", stage=stage, phase=phase, plugin_id=plugin_id)
-                    spec = self.specs[plugin_id]
-                    # ADR 0097 PR2: Route based on execution_mode
-                    if spec.execution_mode == "thread_legacy":
-                        # Legacy path: direct execute_plugin() with context merge-back
-                        result = self.execute_plugin(
-                            plugin_id,
-                            ctx,
-                            stage,
-                            phase=phase,
-                            contract_warnings=contract_warnings,
-                            contract_errors=contract_errors,
-                        )
-                        self._mirror_context_into_pipeline_state(ctx, pipeline_state)
-                    else:
-                        # Envelope path: both subinterpreter and main_interpreter modes
-                        try:
-                            snapshot = self._build_input_snapshot(
-                                plugin_id=plugin_id,
-                                stage=stage,
-                                phase=phase,
-                                ctx=ctx,
-                                pipeline_state=pipeline_state,
-                            )
-                        except PluginDataExchangeError as exc:
-                            result = PluginResult.failed(
-                                plugin_id=plugin_id,
-                                api_version=spec.api_version,
-                                diagnostics=[
-                                    PluginDiagnostic(
-                                        code="E8003",
-                                        severity="error",
-                                        stage=stage.value,
-                                        phase=phase.value,
-                                        message=str(exc),
-                                        path=f"plugin:{plugin_id}:snapshot",
-                                        plugin_id="kernel",
-                                    )
-                                ],
-                            )
-                        else:
-                            required_consume_diags = self._validate_required_consumes_snapshot(
-                                spec=spec,
-                                snapshot=snapshot,
-                                stage=stage,
-                                phase=phase,
-                            )
-                            if required_consume_diags:
-                                result = self._failed_result_with_diagnostics(
-                                    spec=spec,
-                                    stage=stage,
-                                    phase=phase,
-                                    diagnostics=required_consume_diags,
-                                )
-                            else:
-                                envelope = self._execute_plugin_envelope_local(
-                                    plugin_id=plugin_id,
-                                    spec=spec,
-                                    stage=stage,
-                                    phase=phase,
-                                    snapshot=snapshot,
-                                    timeout=spec.timeout,
-                                )
-                                result = self._commit_envelope_result(
-                                    ctx=ctx,
-                                    pipeline_state=pipeline_state,
-                                    spec=spec,
-                                    stage=stage,
-                                    phase=phase,
-                                    envelope=envelope,
-                                    contract_warnings=contract_warnings,
-                                    contract_errors=contract_errors,
-                                )
-                    results.append(result)
-                    _record_stage_failure(result, phase=phase)
-                    if trace_execution:
-                        self._trace_event(
-                            event="plugin_result",
-                            stage=stage,
-                            phase=phase,
-                            plugin_id=plugin_id,
-                            status=result.status,
-                        )
-
-                    if (
-                        fail_fast
-                        and phase is not Phase.FINALIZE
-                        and result.status in (PluginStatus.FAILED, PluginStatus.TIMEOUT)
-                    ):
-                        fail_fast_triggered = True
-                        break
-
-            return results
-        finally:
-            pipeline_state = getattr(ctx, "_pipeline_state", None)
-            if isinstance(pipeline_state, PipelineState):
-                invalidated_stage_local = pipeline_state.invalidate_stage_local_data(stage)
-                self._sync_pipeline_state_to_context(ctx, pipeline_state)
-            else:
-                invalidated_stage_local = ctx.invalidate_stage_local_data(stage)
-            if trace_execution:
-                suffix = f"invalidated_stage_local={len(invalidated_stage_local)}"
-                self._trace_event(event="stage_end", stage=stage, message=suffix)
+        return _stage_executor.execute_stage(
+            host=self,
+            stage=stage,
+            ctx=ctx,
+            profile=profile,
+            fail_fast=fail_fast,
+            parallel_plugins=parallel_plugins,
+            trace_execution=trace_execution,
+            contract_warnings=contract_warnings,
+            contract_errors=contract_errors,
+        )
 
     @staticmethod
     def _normalize_model_version(token: str) -> str | None:
-        if not isinstance(token, str):
-            return None
-        candidate = token.strip()
-        if not candidate:
-            return None
-        match = re.search(r"(\d+)\.(\d+)", candidate)
-        if not match:
-            return None
-        return f"{int(match.group(1))}.{int(match.group(2))}"
+        """Delegate to scheduler.preflight (S6 decomposition)."""
+        return _preflight.normalize_model_version(token)
 
     @classmethod
     def _is_model_version_compatible(cls, core_model_version: str) -> bool:
-        normalized_core = cls._normalize_model_version(core_model_version)
-        if normalized_core is None:
-            return False
-        supported = {
-            normalized
-            for normalized in (cls._normalize_model_version(item) for item in MODEL_VERSIONS)
-            if normalized is not None
-        }
-        return normalized_core in supported
+        """Delegate to scheduler.preflight (S6 decomposition)."""
+        return _preflight.is_model_version_compatible(core_model_version)
 
     @classmethod
     def _is_model_version_in_set(cls, core_model_version: str, allowed_versions: list[str]) -> bool:
-        normalized_core = cls._normalize_model_version(core_model_version)
-        if normalized_core is None:
-            return False
-        normalized_allowed = {
-            normalized
-            for normalized in (cls._normalize_model_version(item) for item in allowed_versions)
-            if normalized is not None
-        }
-        return normalized_core in normalized_allowed
+        """Delegate to scheduler.preflight (S6 decomposition)."""
+        return _preflight.is_model_version_in_set(core_model_version, allowed_versions)
 
     def _validate_model_versions(
         self,
@@ -1354,72 +1081,13 @@ class PluginRegistry:
         ctx: PluginContext,
         active_plugin_ids: list[str],
     ) -> list[PluginDiagnostic]:
-        """Validate model version compatibility for active plugins.
-
-        Returns list of diagnostics (empty if all pass).
-        """
-        diagnostics: list[PluginDiagnostic] = []
-        core_model_version = ctx.model_lock.get("core_model_version") if isinstance(ctx.model_lock, dict) else None
-
-        # Check kernel supports this model version
-        if isinstance(core_model_version, str) and core_model_version:
-            if not self._is_model_version_compatible(core_model_version):
-                diagnostics.append(
-                    PluginDiagnostic(
-                        code="E4011",
-                        severity="error",
-                        stage=stage.value,
-                        phase=Phase.RUN.value,
-                        message=(
-                            f"Unsupported core_model_version '{core_model_version}'. "
-                            f"Kernel supports: {MODEL_VERSIONS}"
-                        ),
-                        path="model.lock:core_model_version",
-                        plugin_id="kernel",
-                    )
-                )
-                return diagnostics  # Early return - kernel incompatibility
-
-        # Check per-plugin model_versions declarations
-        for plugin_id in active_plugin_ids:
-            spec = self.specs.get(plugin_id)
-            if not isinstance(spec, PluginSpec):
-                continue
-            declared_model_versions = [item for item in spec.model_versions if isinstance(item, str) and item.strip()]
-            if not declared_model_versions:
-                continue
-            if not isinstance(core_model_version, str) or not core_model_version:
-                diagnostics.append(
-                    PluginDiagnostic(
-                        code="E4012",
-                        severity="error",
-                        stage=stage.value,
-                        phase=Phase.RUN.value,
-                        message=(
-                            f"Plugin '{plugin_id}' declares model_versions={declared_model_versions}, "
-                            "but model.lock core_model_version is unavailable."
-                        ),
-                        path=f"plugin:{plugin_id}",
-                        plugin_id="kernel",
-                    )
-                )
-                continue
-            if not self._is_model_version_in_set(core_model_version, declared_model_versions):
-                diagnostics.append(
-                    PluginDiagnostic(
-                        code="E4011",
-                        severity="error",
-                        stage=stage.value,
-                        phase=Phase.RUN.value,
-                        message=(
-                            f"Plugin '{plugin_id}' does not support core_model_version "
-                            f"'{core_model_version}'. Supported by plugin: {declared_model_versions}"
-                        ),
-                        path=f"plugin:{plugin_id}",
-                        plugin_id="kernel",
-                    )
-                )
-        return diagnostics
+        """Delegate to scheduler.preflight (S6 decomposition)."""
+        return _preflight.validate_model_versions(
+            stage=stage,
+            ctx=ctx,
+            active_plugin_ids=active_plugin_ids,
+            specs=self.specs,
+        )
 
     def _validate_required_capabilities(
         self,
@@ -1428,47 +1096,16 @@ class PluginRegistry:
         profile: Optional[str],
         active_plugin_ids: list[str],
     ) -> list[PluginDiagnostic]:
-        """Validate that all required capabilities are available.
-
-        Returns list of diagnostics (empty if all pass).
-        """
-        # Collect available capabilities from active plugins
-        available_capabilities: set[str] = set()
-        for spec in self.specs.values():
-            if not self._profile_allows_spec(spec, profile):
-                continue
-            if not self._when_predicates_allow(spec, ctx):
-                continue
-            for capability in spec.capabilities:
-                if isinstance(capability, str) and capability:
-                    available_capabilities.add(capability)
-
-        # Check each plugin's requires_capabilities
-        diagnostics: list[PluginDiagnostic] = []
-        for plugin_id in active_plugin_ids:
-            spec = self.specs.get(plugin_id)
-            if not isinstance(spec, PluginSpec):
-                continue
-            missing = sorted(
-                capability
-                for capability in spec.requires_capabilities
-                if isinstance(capability, str) and capability and capability not in available_capabilities
-            )
-            if missing:
-                diagnostics.append(
-                    PluginDiagnostic(
-                        code="E4010",
-                        severity="error",
-                        stage=stage.value,
-                        message=(
-                            f"Plugin '{plugin_id}' requires missing capabilities: {missing}. "
-                            "Provide capability-producing plugins or adjust requires_capabilities."
-                        ),
-                        path=f"plugin:{plugin_id}",
-                        plugin_id="kernel",
-                    )
-                )
-        return diagnostics
+        """Delegate to scheduler.preflight (S6 decomposition)."""
+        return _preflight.validate_required_capabilities(
+            stage=stage,
+            ctx=ctx,
+            profile=profile,
+            active_plugin_ids=active_plugin_ids,
+            specs=self.specs,
+            profile_allows=self._profile_allows_spec,
+            when_allows=self._when_predicates_allow,
+        )
 
     def get_load_errors(self) -> list[str]:
         """Return any errors encountered during manifest loading."""
