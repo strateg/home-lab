@@ -5,14 +5,14 @@
 source_id: policy-vpn-germany
 status: active
 notes: |
-  Routes all traffic from VLAN 50 (VPN Germany) through WireGuard tunnel wg0.
+  Routes all traffic from VLAN 55 (VPN Germany) through WireGuard tunnel wg0.
   Exit point: VPS in Frankfurt, Germany (92.5.172.16).
 
 # Policy identification
 policy_name: vpn-germany-routing
-policy_description: Route VLAN 50 traffic through WireGuard to Frankfurt VPS
+policy_description: Route VLAN 55 traffic through WireGuard to Frankfurt VPS
 
-# Source: VLAN 50 subnet
+# Source: VLAN 55 subnet
 source_match:
   type: subnet
   value: 192.168.55.0/24
@@ -32,17 +32,29 @@ enabled: true
 
 # MikroTik implementation details
 mikrotik_config:
-  # 1. Mangle rule to mark connections from VLAN 50
+  # 1. Mangle rules to mark connections from VLAN 55.
+  #    dst_address is negated so traffic to the local VLAN (incl. gateway
+  #    192.168.55.1) is never pushed into the tunnel.
   mangle_rules:
     - chain: prerouting
       src_address: 192.168.55.0/24
+      dst_address: "!192.168.55.0/24"
       action: mark-connection
       new_connection_mark: vpn-germany
       passthrough: true
     - chain: prerouting
       connection_mark: vpn-germany
+      # src_address restricts mark-routing to the ORIGINATING direction only.
+      # Reply packets (server -> phone) carry the same connection-mark; without
+      # this match they would also get routing-mark vpn-tunnel and be routed
+      # back into wg0 (the table's only route is 0.0.0.0/0 via wg0), so TCP
+      # SYN-ACKs never reached the client while fasttracked UDP still worked.
+      src_address: 192.168.55.0/24
       action: mark-routing
-      new_routing_mark: to-wg0
+      # RouterOS 7: new-routing-mark must be an existing routing table name,
+      # so the mark equals the table below and triggers a direct lookup
+      # (no separate /routing/rule needed).
+      new_routing_mark: vpn-tunnel
       passthrough: false
 
   # 2. Routing table for VPN traffic
@@ -55,12 +67,6 @@ mikrotik_config:
     - dst_address: 0.0.0.0/0
       gateway: wg0
       routing_table: vpn-tunnel
-
-  # 4. Routing rule to use VPN table for marked traffic
-  routing_rules:
-    - routing_mark: to-wg0
-      action: lookup
-      table: vpn-tunnel
 
 # Managed by
 managed_by_ref: rtr-mikrotik-chateau

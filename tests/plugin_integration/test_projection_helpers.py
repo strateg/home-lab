@@ -143,6 +143,69 @@ def test_mikrotik_projection_is_stable_and_scoped() -> None:
     assert [row["instance_id"] for row in projection["services"]] == ["svc-snmp"]
 
 
+def test_mikrotik_projection_extracts_routing_policies() -> None:
+    payload = _compiled_fixture()
+    payload["instances"]["network"].append(
+        {
+            "instance_id": "inst.routing_policy.vpn_germany",
+            "instance": {
+                "materializes_object": "obj.network.routing_policy.vpn_vlan",
+                "materializes_class": "class.network.routing_policy",
+            },
+            "instance_data": {
+                "policy_name": "vpn-germany-routing",
+                "enabled": True,
+                "managed_by_ref": "rtr-mk",
+                "source_match": {"type": "subnet", "value": "192.168.55.0/24"},
+                "target_gateway": {"type": "interface", "value": "wg0"},
+                "mikrotik_config": {
+                    "mangle_rules": [
+                        {
+                            "chain": "prerouting",
+                            "src_address": "192.168.55.0/24",
+                            "dst_address": "!192.168.55.0/24",
+                            "action": "mark-connection",
+                            "new_connection_mark": "vpn-germany",
+                            "passthrough": True,
+                        },
+                        {
+                            "chain": "prerouting",
+                            "connection_mark": "vpn-germany",
+                            "action": "mark-routing",
+                            "new_routing_mark": "vpn-tunnel",
+                            "passthrough": False,
+                        },
+                    ],
+                    "routing_table": {"name": "vpn-tunnel", "fib": True},
+                    "routes": [
+                        {"dst_address": "0.0.0.0/0", "gateway": "wg0", "routing_table": "vpn-tunnel"},
+                    ],
+                },
+            },
+        }
+    )
+
+    projection = build_mikrotik_projection(payload)
+
+    assert projection["counts"]["routing_policies"] == 1
+    (policy,) = projection["routing_policies"]
+    assert policy["instance_id"] == "inst.routing_policy.vpn_germany"
+    assert policy["name"] == "vpn_germany"
+    assert policy["policy_name"] == "vpn-germany-routing"
+    assert policy["enabled"] is True
+    assert policy["source_subnet"] == "192.168.55.0/24"
+    assert policy["tunnel_interface"] == "wg0"
+    assert policy["routing_table"] == {"name": "vpn-tunnel", "fib": True}
+    assert [rule["action"] for rule in policy["mangle_rules"]] == ["mark-connection", "mark-routing"]
+    assert policy["routes"][0]["gateway"] == "wg0"
+    assert policy["managed_by_ref"] == "rtr-mk"
+    # routing_policy objects contain "vlan" in their object ref (obj.network.routing_policy.vpn_vlan)
+    # and must not leak into the VLAN projection.
+    assert "inst.routing_policy.vpn_germany" not in [
+        vlan.get("instance_id") for vlan in projection["vlans"]
+    ]
+
+
 def test_ansible_projection_contains_hosts_from_l1_and_l4() -> None:
     projection = build_ansible_projection(_compiled_fixture())
     assert [row["instance_id"] for row in projection["hosts"]] == [

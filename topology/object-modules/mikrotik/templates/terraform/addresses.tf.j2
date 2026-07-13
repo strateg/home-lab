@@ -23,7 +23,7 @@ resource "routeros_ip_address" "{{ bridge.name }}" {
 {% if vlans %}
 # Gateway addresses for VLANs
 {% for vlan in vlans %}
-{% if vlan.gateway and vlan.cidr %}
+{% if vlan.gateway and vlan.cidr and (vlan.is_native_lan or vlan.vlan_id) %}
 {% set prefix = vlan.cidr.split('/')[1] %}
 resource "routeros_ip_address" "{{ vlan.name }}" {
   address   = "{{ vlan.gateway }}/{{ prefix }}"

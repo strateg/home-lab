@@ -216,6 +216,47 @@ def _build_firewall_entry(row: dict[str, Any], *, managed_by_ref: str) -> dict[s
     }
 
 
+def _build_routing_policy_entry(row: dict[str, Any], *, managed_by_ref: str) -> dict[str, Any]:
+    """Extract policy-based routing configuration from network row."""
+    inst_data = row.get("instance_data", {}) or {}
+    mikrotik_config = inst_data.get("mikrotik_config", {}) or {}
+    if not isinstance(mikrotik_config, dict):
+        mikrotik_config = {}
+    source_match = inst_data.get("source_match", {}) or {}
+    if not isinstance(source_match, dict):
+        source_match = {}
+    target_gateway = inst_data.get("target_gateway", {}) or {}
+    if not isinstance(target_gateway, dict):
+        target_gateway = {}
+
+    instance_id = str(row.get("instance_id", "")).strip()
+    name = instance_id.replace("inst.routing_policy.", "").replace(".", "_").replace("-", "_")
+
+    mangle_rules = mikrotik_config.get("mangle_rules", [])
+    if not isinstance(mangle_rules, list):
+        mangle_rules = []
+    routing_table = mikrotik_config.get("routing_table", {})
+    if not isinstance(routing_table, dict):
+        routing_table = {}
+    routes = mikrotik_config.get("routes", [])
+    if not isinstance(routes, list):
+        routes = []
+
+    return {
+        "instance_id": instance_id,
+        "name": name,
+        "policy_name": str(inst_data.get("policy_name", "")).strip() or name,
+        "enabled": bool(inst_data.get("enabled", True)),
+        "source_subnet": str(source_match.get("value", "")).strip(),
+        "tunnel_interface": str(target_gateway.get("value", "")).strip(),
+        "mangle_rules": [rule for rule in mangle_rules if isinstance(rule, dict)],
+        "routing_table": routing_table,
+        "routes": [route for route in routes if isinstance(route, dict)],
+        "managed_by_ref": managed_by_ref,
+        "staged": _is_staged_row(row),
+    }
+
+
 def _extract_wifi_config(routers: list[dict[str, Any]]) -> dict[str, Any]:
     """Extract WiFi configuration from router instances.
 
@@ -811,6 +852,7 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     bridges: list[dict[str, Any]] = []
     vlans: list[dict[str, Any]] = []
     firewall_policies: list[dict[str, Any]] = []
+    routing_policies: list[dict[str, Any]] = []
 
     default_router_id = next(iter(sorted(router_ids)), "")
 
@@ -831,7 +873,9 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
                 bridges.append(_build_bridge_entry(row, managed_by_ref=managed_by_ref))
 
         # Extract VLANs managed by MikroTik routers.
-        if "vlan" in object_ref:
+        # Note: routing_policy objects (e.g. obj.network.routing_policy.vpn_vlan)
+        # also contain "vlan" in their ref and must not be treated as VLANs.
+        if "vlan" in object_ref and "routing_policy" not in object_ref:
             if not managed_by_ref and len(router_ids) == 1:
                 # VLAN instances are treated as router-owned in single-router topology.
                 managed_by_ref = default_router_id
@@ -848,6 +892,13 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
             if managed_by_ref in router_ids:
                 vlan_entry = _build_vlan_entry(row, managed_by_ref=managed_by_ref)
                 vlans.append(vlan_entry)
+
+        # Extract policy-based routing (e.g. VPN VLAN via WireGuard) managed by MikroTik routers.
+        if "routing_policy" in object_ref:
+            if not managed_by_ref and len(router_ids) == 1:
+                managed_by_ref = default_router_id
+            if managed_by_ref in router_ids:
+                routing_policies.append(_build_routing_policy_entry(row, managed_by_ref=managed_by_ref))
 
     # Extract firewall policies from dedicated firewall group.
     for idx, row in enumerate(firewall_rows):
@@ -999,6 +1050,7 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
             normalized_firewall,
             key=lambda p: (int(p.get("priority") or 1000), str(p.get("instance_id", ""))),
         ),
+        "routing_policies": sorted(routing_policies, key=lambda p: str(p.get("instance_id", ""))),
         "trust_zone_cidrs": trust_zone_cidrs,
         "runtime_baseline": runtime_baseline,
         "services": _sorted_rows(selected_services),
@@ -1017,6 +1069,7 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
             "bridges": len(bridges),
             "vlans": len(vlans),
             "firewall_policies": len(firewall_policies),
+            "routing_policies": len(routing_policies),
             "services": len(selected_services),
             "wireguard_tunnels": len(wireguard_data.get("tunnels", [])),
         },

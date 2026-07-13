@@ -96,6 +96,7 @@ observed_runtime:
           - inst.device.boox_go103_lumi      # BOOX e-reader
           - inst.device.laptop_katana        # Laptop KATANA WiFi
           - inst.device.tv_sony_bravia       # Sony Bravia AJ9
+          - inst.device.jolla-phone-2026     # Jolla Phone 2026
       status: bound
     # ADR-0109: Guest WiFi — VLAN 20, isolated (internet only)
     wifi_guest:
@@ -135,6 +136,9 @@ observed_runtime:
     - chain: srcnat
       action: masquerade
       out_interface: ether1
+    # NOTE: no masquerade on wg0 — source-preserving design: the VPS peer
+    # accepts 192.168.55.0/24 (AllowedIPs) and masquerades it to the internet
+    # itself (see generated/home-lab/wireguard/vps-wg0.conf vps_nat PostUp).
     - chain: dstnat
       action: dst-nat
       protocol: tcp

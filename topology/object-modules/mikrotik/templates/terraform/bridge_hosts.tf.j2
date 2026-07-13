@@ -1,29 +1,19 @@
-# MikroTik Bridge Host entries for MAC-based VLAN assignment
+# MikroTik MAC-based VLAN assignment (documentation only)
 # Generated from topology device instances with vlan_ref + secrets_ref
 #
-# Devices with specified MAC addresses will be automatically assigned to
-# the target VLAN regardless of port PVID. All other devices use port default.
+# NOTE: The terraform-routeros provider (checked up to v1.99.1) does NOT
+# support a routeros_interface_bridge_host resource, so bridge host entries
+# cannot be managed via Terraform.
 #
-# MAC addresses are passed via Terraform variable (from secrets).
+# MAC -> VLAN assignment is instead delivered via WiFi access-list entries
+# (vlan-id per MAC) by the Ansible playbook:
+#   projects/home-lab/ansible/playbooks/mikrotik-vpn-germany-access-list.yml
 
 {% if mac_vlan_assignments %}
-# MAC-based VLAN assignments from device instances:
+# MAC-based VLAN assignments from device instances (applied via access-list):
 {% for entry in mac_vlan_assignments %}
 # - {{ entry.device_name }}: {{ entry.secrets_path }} -> VLAN {{ entry.vlan_id }}
 {% endfor %}
-
-resource "routeros_interface_bridge_host" "mac_vlan" {
-  for_each = { for idx, entry in var.mac_vlan_assignments : entry.device_id => entry }
-
-  bridge      = "bridge"
-  mac_address = each.value.mac_address
-  vid         = each.value.vlan_id
-  comment     = each.value.comment
-
-  lifecycle {
-    create_before_destroy = false
-  }
-}
 {% else %}
 # No MAC-based VLAN assignments configured
 # To enable: add vlan_ref and secrets_ref to device instances in data-assets/

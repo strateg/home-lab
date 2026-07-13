@@ -60,7 +60,7 @@ resource "routeros_ip_firewall_filter" "zone_override_{{ override_name }}_tcp" {
   protocol         = "tcp"
   dst_port         = "{{ ports.get('tcp') | join(',') }}"
   comment          = "ADR-0110 R6: {{ override.get('comment', override.get('name', 'override')) }} - managed by topology"
-  depends_on       = [routeros_ip_firewall_filter.zone_established_related]
+  place_before     = routeros_ip_firewall_filter.zone_drop_all_forward.id
 }
 
 {% endif %}
@@ -73,7 +73,7 @@ resource "routeros_ip_firewall_filter" "zone_override_{{ override_name }}_udp" {
   protocol         = "udp"
   dst_port         = "{{ ports.get('udp') | join(',') }}"
   comment          = "ADR-0110 R6: {{ override.get('comment', override.get('name', 'override')) }} - managed by topology"
-  depends_on       = [routeros_ip_firewall_filter.zone_established_related]
+  place_before     = routeros_ip_firewall_filter.zone_drop_all_forward.id
 }
 
 {% endif %}
@@ -84,7 +84,7 @@ resource "routeros_ip_firewall_filter" "zone_override_{{ override_name }}" {
   src_address_list = "zone-{{ from_zone }}"
   dst_address_list = "zone-{{ to_zone }}"
   comment          = "ADR-0110 R6: {{ override.get('comment', override.get('name', 'override')) }} - managed by topology"
-  depends_on       = [routeros_ip_firewall_filter.zone_established_related]
+  place_before     = routeros_ip_firewall_filter.zone_drop_all_forward.id
 }
 
 {% endif %}
@@ -111,7 +111,7 @@ resource "routeros_ip_firewall_filter" "zone_deny_{{ from_name }}_to_{{ to_name 
   log_prefix       = "DENY:{{ from_name }}→{{ to_name }}"
 {% endif %}
   comment          = "ADR-0110 {{ rule }}: {{ reason }} - managed by topology"
-  depends_on       = [routeros_ip_firewall_filter.zone_established_related]
+  place_before     = routeros_ip_firewall_filter.zone_drop_all_forward.id
 }
 
 {% endif %}

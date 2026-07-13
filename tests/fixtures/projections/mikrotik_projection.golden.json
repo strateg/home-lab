@@ -18,11 +18,13 @@
     "firewall_policies": 0,
     "networks": 2,
     "routers": 1,
+    "routing_policies": 0,
     "services": 1,
     "vlans": 0,
     "wireguard_tunnels": 0
   },
   "firewall_policies": [],
+  "routing_policies": [],
   "mac_vlan_assignments": [],
   "networks": [
     {

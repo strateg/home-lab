@@ -163,6 +163,96 @@ def test_terraform_mikrotik_generator_writes_expected_files(tmp_path: Path) -> N
     assert firewall_tf.index("inst.net.lan") < firewall_tf.index("inst.net.wan")
 
 
+def test_terraform_mikrotik_generator_renders_routing_policy_in_vpn_tf(tmp_path: Path) -> None:
+    generator = TerraformMikroTikGenerator("object.mikrotik.generator.terraform")
+    compiled = _compiled_fixture()
+    compiled["instances"]["network"].append(
+        {
+            "instance_id": "inst.routing_policy.vpn_germany",
+            "instance": {
+                "materializes_object": "obj.network.routing_policy.vpn_vlan",
+                "materializes_class": "class.network.routing_policy",
+            },
+            "instance_data": {
+                "policy_name": "vpn-germany-routing",
+                "enabled": True,
+                "managed_by_ref": "rtr-mk",
+                "source_match": {"type": "subnet", "value": "192.168.55.0/24"},
+                "target_gateway": {"type": "interface", "value": "wg0"},
+                "mikrotik_config": {
+                    "mangle_rules": [
+                        {
+                            "chain": "prerouting",
+                            "src_address": "192.168.55.0/24",
+                            "dst_address": "!192.168.55.0/24",
+                            "action": "mark-connection",
+                            "new_connection_mark": "vpn-germany",
+                            "passthrough": True,
+                        },
+                        {
+                            "chain": "prerouting",
+                            "connection_mark": "vpn-germany",
+                            "action": "mark-routing",
+                            "new_routing_mark": "vpn-tunnel",
+                            "passthrough": False,
+                        },
+                    ],
+                    "routing_table": {"name": "vpn-tunnel", "fib": True},
+                    "routes": [
+                        {"dst_address": "0.0.0.0/0", "gateway": "wg0", "routing_table": "vpn-tunnel"},
+                    ],
+                },
+            },
+        }
+    )
+    ctx = _ctx(tmp_path, compiled)
+
+    result = _run_generator(generator, ctx)
+
+    assert result.status == PluginStatus.SUCCESS
+    vpn_tf = (tmp_path / "generated" / "terraform" / "mikrotik" / "vpn.tf").read_text(encoding="utf-8")
+    assert 'resource "routeros_routing_table" "vpn_germany"' in vpn_tf
+    assert 'name = "vpn-tunnel"' in vpn_tf
+    assert 'resource "routeros_ip_firewall_mangle" "vpn_germany_mangle_1"' in vpn_tf
+    assert 'new_connection_mark = "vpn-germany"' in vpn_tf
+    assert 'dst_address = "!192.168.55.0/24"' in vpn_tf
+    assert 'resource "routeros_ip_firewall_mangle" "vpn_germany_mangle_2"' in vpn_tf
+    # ROS7: new_routing_mark must equal the routing table name
+    assert 'new_routing_mark = "vpn-tunnel"' in vpn_tf
+    assert 'resource "routeros_ip_route" "vpn_germany_route_1"' in vpn_tf
+    assert 'gateway       = "wg0"' in vpn_tf
+    assert 'routing_table = "vpn-tunnel"' in vpn_tf
+
+
+def test_terraform_mikrotik_generator_skips_disabled_routing_policy(tmp_path: Path) -> None:
+    generator = TerraformMikroTikGenerator("object.mikrotik.generator.terraform")
+    compiled = _compiled_fixture()
+    compiled["instances"]["network"].append(
+        {
+            "instance_id": "inst.routing_policy.vpn_germany",
+            "instance": {
+                "materializes_object": "obj.network.routing_policy.vpn_vlan",
+                "materializes_class": "class.network.routing_policy",
+            },
+            "instance_data": {
+                "policy_name": "vpn-germany-routing",
+                "enabled": False,
+                "managed_by_ref": "rtr-mk",
+                "mikrotik_config": {
+                    "routing_table": {"name": "vpn-tunnel", "fib": True},
+                },
+            },
+        }
+    )
+    ctx = _ctx(tmp_path, compiled)
+
+    result = _run_generator(generator, ctx)
+
+    assert result.status == PluginStatus.SUCCESS
+    vpn_tf = (tmp_path / "generated" / "terraform" / "mikrotik" / "vpn.tf").read_text(encoding="utf-8")
+    assert "routeros_routing_table" not in vpn_tf
+
+
 def test_terraform_mikrotik_generator_reports_projection_error(tmp_path: Path) -> None:
     generator = TerraformMikroTikGenerator("object.mikrotik.generator.terraform")
     ctx = _ctx(tmp_path, {"instances": {"devices": [{}]}})

@@ -35,13 +35,6 @@
       "action": "warn",
       "ownership_method": "output_prefix_match",
       "ownership_proven": true,
-      "path": "generated/home-lab/ansible/inventory/production/host_vars/inst.os.sailfish.5.2.0.13.arm64.jolla.common.yml",
-      "reason": "obsolete-shadowed"
-    },
-    {
-      "action": "warn",
-      "ownership_method": "output_prefix_match",
-      "ownership_proven": true,
       "path": "generated/home-lab/ansible/inventory/production/host_vars/lxc-docker.yml",
       "reason": "obsolete-shadowed"
     },

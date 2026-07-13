@@ -42,6 +42,82 @@ resource "routeros_interface_list_member" "wg0_lan" {
   list      = "LAN"
   comment   = "Trust WireGuard tunnel - managed by topology"
 }
+{% for policy in routing_policies %}
+{% if policy.enabled and not policy.staged %}
+
+# ==============================================================================
+# Policy-based routing: {{ policy.instance_id }}
+# {{ policy.policy_name }} ({{ policy.source_subnet }} -> {{ policy.tunnel_interface }})
+# ==============================================================================
+{% if policy.routing_table and policy.routing_table.name %}
+resource "routeros_routing_table" "{{ policy.name }}" {
+  name = "{{ policy.routing_table.name }}"
+  fib  = {{ 'true' if policy.routing_table.get('fib', True) else 'false' }}
+  comment = "{{ policy.policy_name }} routing table - managed by topology"
+}
+{% endif %}
+{% for rule in policy.mangle_rules %}
+
+resource "routeros_ip_firewall_mangle" "{{ policy.name }}_mangle_{{ loop.index }}" {
+  chain  = "{{ rule.chain }}"
+  action = "{{ rule.action }}"
+{% if rule.get('src_address') %}
+  src_address = "{{ rule.get('src_address') }}"
+{% endif %}
+{% if rule.get('dst_address') %}
+  dst_address = "{{ rule.get('dst_address') }}"
+{% endif %}
+{% if rule.get('connection_mark') %}
+  connection_mark = "{{ rule.get('connection_mark') }}"
+{% endif %}
+{% if rule.get('new_connection_mark') %}
+  new_connection_mark = "{{ rule.get('new_connection_mark') }}"
+{% endif %}
+{% if rule.get('new_routing_mark') %}
+  new_routing_mark = "{{ rule.get('new_routing_mark') }}"
+{% endif %}
+  passthrough = {{ 'true' if rule.get('passthrough', True) else 'false' }}
+  comment     = "{{ policy.policy_name }} mangle - managed by topology"
+{% if loop.index > 1 %}
+  depends_on = [routeros_ip_firewall_mangle.{{ policy.name }}_mangle_{{ loop.index - 1 }}]
+{% elif policy.routing_table and policy.routing_table.name %}
+  depends_on = [routeros_routing_table.{{ policy.name }}]
+{% endif %}
+}
+{% endfor %}
+{% for route in policy.routes %}
+
+resource "routeros_ip_route" "{{ policy.name }}_route_{{ loop.index }}" {
+  dst_address   = "{{ route.dst_address }}"
+  gateway       = "{{ route.gateway }}"
+{% if route.get('routing_table') %}
+  routing_table = "{{ route.get('routing_table') }}"
+{% endif %}
+  comment       = "{{ policy.policy_name }} route - managed by topology"
+{% if policy.routing_table and policy.routing_table.name %}
+  depends_on = [routeros_routing_table.{{ policy.name }}]
+{% endif %}
+}
+{% endfor %}
+{% if has_security_matrix %}
+
+# Tunnel egress: allow new connections from {{ policy.source_subnet }} out via {{ policy.tunnel_interface }}.
+# The zone firewall (ADR 0110) ends the forward chain with a final drop-all,
+# so without this rule marked traffic is routed into the tunnel but dropped.
+# place_before keeps this rule ahead of the final drop-all on the router.
+resource "routeros_ip_firewall_filter" "{{ policy.name }}_tunnel_egress" {
+  chain         = "forward"
+  action        = "accept"
+  src_address   = "{{ policy.source_subnet }}"
+  out_interface = "{{ policy.tunnel_interface }}"
+  comment       = "{{ policy.policy_name }} tunnel egress - managed by topology"
+  place_before  = routeros_ip_firewall_filter.zone_drop_all_forward.id
+
+  depends_on = [routeros_interface_wireguard.wg0]
+}
+{% endif %}
+{% endif %}
+{% endfor %}
 {% else %}
 # WireGuard capability not enabled - no resources generated
 {% endif %}

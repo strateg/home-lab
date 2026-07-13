@@ -89,6 +89,7 @@ class TerraformMikroTikGenerator(BaseGenerator):
         services = [str(row.get("instance_id", "")) for row in projection.get("services", [])]
         vlans = projection.get("vlans", [])
         firewall_policies = projection.get("firewall_policies", [])
+        routing_policies = projection.get("routing_policies", [])
         runtime_baseline = projection.get("runtime_baseline", {})
         wireguard = projection.get("wireguard", {})
         if not isinstance(runtime_baseline, dict):
@@ -148,6 +149,7 @@ class TerraformMikroTikGenerator(BaseGenerator):
             "vlans": vlans,
             "vlans_count": len(vlans),
             "firewall_policies": firewall_policies,
+            "routing_policies": routing_policies,
             "runtime_baseline": runtime_baseline,
             "mikrotik_host": mikrotik_host,
             # WireGuard configuration

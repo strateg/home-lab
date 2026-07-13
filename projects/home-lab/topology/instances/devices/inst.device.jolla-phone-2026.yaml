@@ -129,8 +129,9 @@ connection_type: wifi
 dual_sim: true
 sim_slots: 2
 
-# VLAN assignment - user VLAN for personal devices
-vlan_ref: inst.vlan.user
+# VLAN assignment - VPN Germany VLAN (device connects to VPN-Germany SSID;
+# MAC-based bridge host entry must match the SSID datapath VLAN 55)
+vlan_ref: inst.vlan.vpn_germany
 
 # DHCP (no static IP for mobile device)
 static_ip: null
