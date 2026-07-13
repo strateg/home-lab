@@ -9,7 +9,7 @@ import importlib.util
 import sys
 import threading
 from pathlib import Path
-from typing import TYPE_CHECKING, Type
+from typing import TYPE_CHECKING, Callable, Optional, Type
 
 from ..plugin_base import PluginBase
 
@@ -54,7 +54,7 @@ class PluginLoader:
     def load(
         self,
         spec: PluginSpec,
-        config_validator: Any = None,
+        config_validator: Optional[Callable[[str], list[str]]] = None,
     ) -> PluginBase:
         """Load and instantiate a plugin.
 

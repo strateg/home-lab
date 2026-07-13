@@ -133,7 +133,11 @@ class PluginRegistry:
         self._ensure_import_path(self.base_path)
         self.manifest_schema_path = self.base_path / "schemas" / "plugin-manifest.schema.json"
         self.specs: dict[str, PluginSpec] = {}
-        self.instances: dict[str, PluginBase] = {}
+        self._plugin_loader = PluginLoader(self.base_path)
+        # S8 decomposition: the single instance cache lives in PluginLoader.
+        # The facade attribute aliases the same dict object because identity
+        # is observable API (tests and callers read/seed registry.instances).
+        self.instances: dict[str, PluginBase] = self._plugin_loader.instances
         self._manifest_loader = ManifestLoader(self.manifest_schema_path)
         # S2 decomposition: manifest bookkeeping lives in ManifestLoader.
         # Facade attributes alias the same list objects because append order
@@ -141,7 +145,6 @@ class PluginRegistry:
         self.manifests: list[str] = self._manifest_loader.manifests
         self._load_errors: list[str] = self._manifest_loader._load_errors
         self._results: list[PluginResult] = []
-        self._instances_lock = threading.Lock()
         self._execution_trace: list[dict[str, Any]] = []
         self._trace_lock = threading.Lock()
 
@@ -155,7 +158,6 @@ class PluginRegistry:
             self.specs,
             metadata_provider=self._inject_snapshot_metadata,
         )
-        self._plugin_loader = PluginLoader(self.base_path)
 
     def _get_parallel_executor(self, max_workers: int) -> InterpreterPoolExecutor:
         """Delegate to scheduler.parallel_executor (S5 decomposition)."""
@@ -663,6 +665,10 @@ class PluginRegistry:
     def load_plugin(self, plugin_id: str) -> PluginBase:
         """Load and instantiate a plugin by ID.
 
+        Delegates to PluginLoader.load with a single instance cache (S8);
+        `self.instances` aliases the loader cache, and a cache-hit precedes
+        the spec lookup.
+
         Args:
             plugin_id: Plugin ID to load
 
@@ -672,32 +678,17 @@ class PluginRegistry:
         Raises:
             PluginLoadError: If plugin cannot be loaded
         """
-        with self._instances_lock:
-            if plugin_id in self.instances:
-                return self.instances[plugin_id]
+        cached = self._plugin_loader.get_instance(plugin_id)
+        if cached is not None:
+            return cached
 
-            if plugin_id not in self.specs:
-                raise PluginLoadError(plugin_id, "Plugin not found in registry")
+        if plugin_id not in self.specs:
+            raise PluginLoadError(plugin_id, "Plugin not found in registry")
 
-            spec = self.specs[plugin_id]
-
-            # Validate config before loading
-            config_errors = self.validate_plugin_config(plugin_id)
-            if config_errors:
-                raise PluginConfigError(plugin_id, "; ".join(config_errors))
-
-            plugin_class = self._load_entry_point(spec)
-            instance = plugin_class(plugin_id, spec.api_version)
-
-            # Verify plugin kind matches spec
-            if instance.kind != spec.kind:
-                raise PluginLoadError(
-                    plugin_id,
-                    f"Plugin kind mismatch: spec declares {spec.kind.value}, class returns {instance.kind.value}",
-                )
-
-            self.instances[plugin_id] = instance
-            return instance
+        return self._plugin_loader.load(
+            self.specs[plugin_id],
+            config_validator=self.validate_plugin_config,
+        )
 
     def _load_entry_point(self, spec: PluginSpec) -> Type[PluginBase]:
         """Load plugin class from entry point specification.
