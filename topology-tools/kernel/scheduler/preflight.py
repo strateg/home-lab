@@ -10,8 +10,8 @@ Kernel-level gates evaluated before any plugin of a stage executes
   active plugin)
 
 Predicate callables (`profile_allows`, `when_allows`) are passed in by the
-caller so gate evaluation honors registry-instance patch points. This
-surface is normalized in S9 together with the facade private delegates.
+caller so gate evaluation honors registry-instance patch points
+(host-surface normalization done in S9).
 """
 
 from __future__ import annotations

@@ -12,7 +12,7 @@ from __future__ import annotations
 import concurrent.futures
 import sys
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -31,6 +31,7 @@ from kernel.plugin_base import (  # noqa: E402
     ValidatorJsonPlugin,
 )
 from kernel.plugin_registry import PluginRegistry, PluginSpec  # noqa: E402
+from kernel.scheduler import phase_executor  # noqa: E402
 
 
 class SimpleValidatorPlugin(ValidatorJsonPlugin):
@@ -152,11 +153,14 @@ def test_main_interpreter_mode_uses_envelope_path() -> None:
         patch.object(registry, "execute_plugin", return_value=PluginResult.success(plugin_id, "2.0")) as execute_legacy,
         patch.object(registry, "_mirror_context_into_pipeline_state") as mirror,
     ):
-        results = registry._execute_phase_parallel(
+        results = phase_executor.execute_phase_parallel(
+            host=registry,
             stage=Stage.VALIDATE,
             phase=Phase.RUN,
             ctx=ctx,
             plugin_ids=[plugin_id],
+            has_real_subinterpreters=True,
+            isolated_worker=MagicMock(),
         )
 
     assert len(results) == 1
@@ -178,8 +182,9 @@ def test_subinterpreter_mode_uses_isolated_execution() -> None:
     def _isolated(snapshot_dict, _base_path_str, _serialized_spec_dict):
         return _success_envelope(snapshot_dict["plugin_id"])
 
+    execute_isolated = MagicMock(side_effect=_isolated)
+
     with (
-        patch("kernel.plugin_registry.HAS_REAL_SUBINTERPRETERS", True),
         patch.object(
             registry,
             "_get_parallel_executor",
@@ -187,15 +192,17 @@ def test_subinterpreter_mode_uses_isolated_execution() -> None:
         ),
         patch.object(registry, "_build_input_snapshot", return_value=snapshot),
         patch.object(registry, "_validate_required_consumes_snapshot", return_value=[]),
-        patch("kernel.plugin_registry.execute_plugin_isolated", side_effect=_isolated) as execute_isolated,
         patch.object(registry, "_execute_plugin_envelope_local") as execute_local,
         patch.object(registry, "_commit_envelope_result", return_value=PluginResult.success(plugin_id, "2.0")),
     ):
-        results = registry._execute_phase_parallel(
+        results = phase_executor.execute_phase_parallel(
+            host=registry,
             stage=Stage.VALIDATE,
             phase=Phase.RUN,
             ctx=ctx,
             plugin_ids=[plugin_id],
+            has_real_subinterpreters=True,
+            isolated_worker=execute_isolated,
         )
 
     assert len(results) == 1
@@ -212,8 +219,9 @@ def test_subinterpreter_mode_falls_back_to_local_envelope_without_real_subinterp
     ctx = PluginContext(topology_path="topology/topology.yaml", profile="test", model_lock={})
     snapshot = _make_snapshot(plugin_id)
 
+    execute_isolated = MagicMock()
+
     with (
-        patch("kernel.plugin_registry.HAS_REAL_SUBINTERPRETERS", False),
         patch.object(
             registry,
             "_get_parallel_executor",
@@ -221,17 +229,19 @@ def test_subinterpreter_mode_falls_back_to_local_envelope_without_real_subinterp
         ),
         patch.object(registry, "_build_input_snapshot", return_value=snapshot),
         patch.object(registry, "_validate_required_consumes_snapshot", return_value=[]),
-        patch("kernel.plugin_registry.execute_plugin_isolated") as execute_isolated,
         patch.object(
             registry, "_execute_plugin_envelope_local", return_value=_success_envelope(plugin_id)
         ) as execute_local,
         patch.object(registry, "_commit_envelope_result", return_value=PluginResult.success(plugin_id, "2.0")),
     ):
-        results = registry._execute_phase_parallel(
+        results = phase_executor.execute_phase_parallel(
+            host=registry,
             stage=Stage.VALIDATE,
             phase=Phase.RUN,
             ctx=ctx,
             plugin_ids=[plugin_id],
+            has_real_subinterpreters=False,
+            isolated_worker=execute_isolated,
         )
 
     assert len(results) == 1
@@ -257,11 +267,14 @@ def test_thread_legacy_mode_uses_execute_plugin() -> None:
         patch.object(registry, "_mirror_context_into_pipeline_state") as mirror,
         patch.object(registry, "_build_input_snapshot") as build_snapshot,
     ):
-        results = registry._execute_phase_parallel(
+        results = phase_executor.execute_phase_parallel(
+            host=registry,
             stage=Stage.VALIDATE,
             phase=Phase.RUN,
             ctx=ctx,
             plugin_ids=[plugin_id],
+            has_real_subinterpreters=True,
+            isolated_worker=MagicMock(),
         )
 
     assert len(results) == 1

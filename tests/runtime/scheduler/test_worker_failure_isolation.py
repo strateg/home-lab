@@ -36,6 +36,9 @@ from kernel.plugin_base import (  # noqa: E402
 )
 from kernel.plugin_registry import PluginRegistry, PluginSpec  # noqa: E402
 from kernel.plugin_runner import run_plugin_once  # noqa: E402
+from kernel.registry.config_validator import ConfigValidator  # noqa: E402
+from kernel.registry.envelope_validator import EnvelopeValidator  # noqa: E402
+from kernel.scheduler import envelope_pipeline, phase_executor  # noqa: E402
 
 
 class CrashingPlugin(ValidatorJsonPlugin):
@@ -267,7 +270,6 @@ def test_no_partial_commit_on_crash() -> None:
 
 def test_failed_verdict_output_can_be_committed_when_explicitly_allowed() -> None:
     """Non-crash failures may commit declared verdict keys when whitelisted."""
-    registry = PluginRegistry(V5_TOOLS)
     plugin_id = "test.verify"
     spec = PluginSpec(
         id=plugin_id,
@@ -315,7 +317,7 @@ def test_failed_verdict_output_can_be_committed_when_explicitly_allowed() -> Non
         ],
     )
 
-    result = registry._commit_envelope_result(  # noqa: SLF001 - runtime contract test
+    result = envelope_pipeline.commit_envelope_result(
         ctx=ctx,
         pipeline_state=state,
         spec=spec,
@@ -324,6 +326,7 @@ def test_failed_verdict_output_can_be_committed_when_explicitly_allowed() -> Non
         envelope=envelope,
         contract_warnings=False,
         contract_errors=False,
+        envelope_validator=EnvelopeValidator(ConfigValidator(V5_TOOLS)),
     )
 
     assert result.status == PluginStatus.FAILED
@@ -479,7 +482,6 @@ def test_subinterpreter_crash_is_isolated() -> None:
         )
 
     with (
-        patch("kernel.plugin_registry.HAS_REAL_SUBINTERPRETERS", True),
         patch.object(
             registry,
             "_get_parallel_executor",
@@ -494,13 +496,15 @@ def test_subinterpreter_crash_is_isolated() -> None:
                 "partial_output" if plugin_id == crash_id else "success_output",
             ),
         ),
-        patch("kernel.plugin_registry.execute_plugin_isolated", side_effect=_isolated),
     ):
-        results = registry._execute_phase_parallel(
+        results = phase_executor.execute_phase_parallel(
+            host=registry,
             stage=Stage.VALIDATE,
             phase=Phase.RUN,
             ctx=ctx,
             plugin_ids=[crash_id, success_id],
+            has_real_subinterpreters=True,
+            isolated_worker=_isolated,
         )
 
     statuses = {r.plugin_id: r.status for r in results}
@@ -551,7 +555,6 @@ def test_subinterpreter_memory_is_isolated() -> None:
         )
 
     with (
-        patch("kernel.plugin_registry.HAS_REAL_SUBINTERPRETERS", True),
         patch.object(
             registry,
             "_get_parallel_executor",
@@ -572,13 +575,15 @@ def test_subinterpreter_memory_is_isolated() -> None:
                 produced_key_scopes={"safe_output": "pipeline_shared"},
             ),
         ),
-        patch("kernel.plugin_registry.execute_plugin_isolated", side_effect=_isolated),
     ):
-        results = registry._execute_phase_parallel(
+        results = phase_executor.execute_phase_parallel(
+            host=registry,
             stage=Stage.VALIDATE,
             phase=Phase.RUN,
             ctx=ctx,
             plugin_ids=[plugin_id],
+            has_real_subinterpreters=True,
+            isolated_worker=_isolated,
         )
 
     assert marker["mutated"] is True

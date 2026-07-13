@@ -9,9 +9,8 @@ or the thread_legacy compatibility path.
 The executor calls back into the registry facade through the `host`
 parameter (bound methods), preserving the runtime-test patch points on
 registry instances. `has_real_subinterpreters` and `isolated_worker` are
-passed per call so patches on the `kernel.plugin_registry` module globals
-take effect. This host surface is normalized in S9 together with the
-facade private delegates.
+passed explicitly per call, so callers (including tests) control routing
+without patching module globals (host-surface normalization done in S9).
 """
 
 from __future__ import annotations

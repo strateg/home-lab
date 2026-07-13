@@ -9,8 +9,8 @@ trace event).
 
 The executor calls back into the registry facade through the `host`
 parameter (bound methods), preserving the runtime-test patch points on
-registry instances. This host surface is normalized in S9 together with
-the facade private delegates.
+registry instances (host-surface normalization done in S9: unused facade
+delegates removed, tests target the scheduler module APIs directly).
 """
 
 from __future__ import annotations

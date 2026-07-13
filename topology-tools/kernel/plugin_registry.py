@@ -66,7 +66,6 @@ from .registry import (
 from .scheduler import HAS_REAL_SUBINTERPRETERS as _HAS_REAL_SUBINTERPRETERS
 from .scheduler import (
     ExecutionPlanner,
-    PlanningError,
     SerializablePluginSpec,
     SnapshotBuilder,
     execute_plugin_isolated,
@@ -362,20 +361,6 @@ class PluginRegistry:
         """Delegate to scheduler.context_bridge (S4 decomposition)."""
         _context_bridge.sync_pipeline_state_to_context(ctx, pipeline_state)
 
-    def _apply_authoritative_commit_side_effects(
-        self,
-        *,
-        ctx: PluginContext,
-        pipeline_state: PipelineState,
-        spec: PluginSpec,
-    ) -> None:
-        """Delegate to scheduler.context_bridge (S4 decomposition)."""
-        _context_bridge.apply_authoritative_commit_side_effects(
-            ctx=ctx,
-            pipeline_state=pipeline_state,
-            spec=spec,
-        )
-
     def _validate_required_consumes_snapshot(
         self,
         *,
@@ -390,26 +375,6 @@ class PluginRegistry:
             snapshot=snapshot,
             stage=stage,
             phase=phase,
-        )
-
-    def _validate_envelope_for_commit(
-        self,
-        *,
-        spec: PluginSpec,
-        stage: Stage,
-        phase: Phase,
-        envelope: PluginExecutionEnvelope,
-        emit_warnings: bool,
-        undeclared_as_errors: bool,
-    ) -> list[PluginDiagnostic]:
-        """Delegate to EnvelopeValidator (ADR 0063 Phase 3)."""
-        return self._envelope_validator.validate_for_commit(
-            spec=spec,
-            stage=stage,
-            phase=phase,
-            envelope=envelope,
-            emit_warnings=emit_warnings,
-            undeclared_as_errors=undeclared_as_errors,
         )
 
     def _failed_result_with_diagnostics(
@@ -480,22 +445,9 @@ class PluginRegistry:
         )
 
     @staticmethod
-    def _commit_keys_on_failure(spec: PluginSpec) -> set[str]:
-        """Delegate to scheduler.envelope_pipeline (S4 decomposition)."""
-        return _envelope_pipeline.commit_keys_on_failure(spec)
-
-    @staticmethod
     def _apply_result_status_from_diagnostics(result: PluginResult) -> None:
         """Delegate to scheduler.envelope_pipeline (S4 decomposition)."""
         _envelope_pipeline.apply_result_status_from_diagnostics(result)
-
-    def _resolve_payload_schema_path(self, spec: PluginSpec, schema_ref: str) -> Path | None:
-        """Delegate to ConfigValidator (ADR 0063 Phase 3)."""
-        return self._config_validator.resolve_schema_path(spec, schema_ref)
-
-    def _load_payload_schema(self, spec: PluginSpec, schema_ref: str) -> tuple[dict[str, Any] | None, str | None]:
-        """Delegate to ConfigValidator (ADR 0063 Phase 3)."""
-        return self._config_validator.load_payload_schema(spec, schema_ref)
 
     def _schema_ref_by_produced_key(self, spec: PluginSpec) -> dict[str, str]:
         """Delegate to ConfigValidator (ADR 0063 Phase 3)."""
@@ -770,21 +722,6 @@ class PluginRegistry:
             contract_warnings=contract_warnings,
             contract_errors=contract_errors,
         )
-
-    @staticmethod
-    def _normalize_model_version(token: str) -> str | None:
-        """Delegate to scheduler.preflight (S6 decomposition)."""
-        return _preflight.normalize_model_version(token)
-
-    @classmethod
-    def _is_model_version_compatible(cls, core_model_version: str) -> bool:
-        """Delegate to scheduler.preflight (S6 decomposition)."""
-        return _preflight.is_model_version_compatible(core_model_version)
-
-    @classmethod
-    def _is_model_version_in_set(cls, core_model_version: str, allowed_versions: list[str]) -> bool:
-        """Delegate to scheduler.preflight (S6 decomposition)."""
-        return _preflight.is_model_version_in_set(core_model_version, allowed_versions)
 
     def _validate_model_versions(
         self,

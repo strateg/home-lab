@@ -29,6 +29,7 @@ from kernel.plugin_base import (  # noqa: E402
     Stage,
 )
 from kernel.plugin_registry import PluginRegistry, PluginSpec  # noqa: E402
+from kernel.scheduler import context_bridge  # noqa: E402
 
 
 def _make_spec(plugin_id: str, *, execution_mode: str) -> PluginSpec:
@@ -254,11 +255,10 @@ def test_commit_envelope_does_not_mutate_context_directly() -> None:
 
 
 def test_side_effect_application_updates_context_after_commit() -> None:
-    """_apply_authoritative_commit_side_effects() updates ctx after commit."""
+    """context_bridge.apply_authoritative_commit_side_effects() updates ctx after commit."""
     from kernel.pipeline_runtime import PipelineState
     from kernel.plugin_base import PluginExecutionEnvelope
 
-    registry = PluginRegistry(V5_TOOLS)
     spec = PluginSpec(
         id="test.compiler.owner",
         kind=PluginKind.COMPILER,
@@ -325,7 +325,7 @@ def test_side_effect_application_updates_context_after_commit() -> None:
         produces=spec.produces,
         envelope=envelope,
     )
-    registry._apply_authoritative_commit_side_effects(ctx=ctx, pipeline_state=state, spec=spec)
+    context_bridge.apply_authoritative_commit_side_effects(ctx=ctx, pipeline_state=state, spec=spec)
 
     assert ctx.classes == {"class.new": {"name": "new-class"}}
     assert ctx.objects == {"object.new": {"name": "new-object"}}
