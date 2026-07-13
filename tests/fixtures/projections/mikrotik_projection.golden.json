@@ -79,6 +79,7 @@
   "wifi": {
     "configurations": [],
     "datapaths": [],
+    "interfaces": [],
     "securities": []
   },
   "wireguard": {

@@ -132,6 +132,7 @@ class TerraformMikroTikGenerator(BaseGenerator):
         wifi_datapaths = wifi.get("datapaths", [])
         wifi_configurations = wifi.get("configurations", [])
         wifi_securities = wifi.get("securities", [])
+        wifi_interfaces = wifi.get("interfaces", [])
         bridge_vlans = projection.get("bridge_vlans", [])
 
         render_context = {
@@ -161,6 +162,7 @@ class TerraformMikroTikGenerator(BaseGenerator):
             "wifi_datapaths": wifi_datapaths,
             "wifi_configurations": wifi_configurations,
             "wifi_securities": wifi_securities,
+            "wifi_interfaces": wifi_interfaces,
             # Bridge VLAN entries
             "bridge_vlans": bridge_vlans,
             # Security matrix data (ADR 0110)

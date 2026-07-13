@@ -159,6 +159,41 @@
     return_content: true
   register: existing_wifi_interfaces
 
+# Virtual (slave) APs do not exist on a fresh RouterOS install - only the
+# physical radios (wifi1/wifi2) are present. Create any interface from the
+# topology that declares master_interface and is missing on the router.
+- name: Create virtual WiFi interfaces (slave APs)
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}:{{ mikrotik_api_port }}/rest/interface/wifi/add"
+    method: POST
+    user: "{{ mikrotik_user }}"
+    password: "{{ mikrotik_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    body_format: json
+    body:
+      name: "{{ item.name }}"
+      master-interface: "{{ item.master_interface }}"
+      configuration: "{{ item.configuration }}"
+      comment: "managed-by-ansible"
+    status_code: [200, 201]
+  loop: "{{ mikrotik_wifi_interfaces }}"
+  when:
+    - item.master_interface is defined
+    - item.name not in (existing_wifi_interfaces.json | default([]) | map(attribute='name') | list)
+  register: created_wifi_interfaces
+
+- name: Refresh WiFi interface list after creating slave APs
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host }}:{{ mikrotik_api_port }}/rest/interface/wifi"
+    method: GET
+    user: "{{ mikrotik_user }}"
+    password: "{{ mikrotik_password }}"
+    force_basic_auth: true
+    validate_certs: false
+    return_content: true
+  register: existing_wifi_interfaces
+
 - name: Apply configurations to WiFi interfaces
   ansible.builtin.uri:
     url: "https://{{ ansible_host }}:{{ mikrotik_api_port }}/rest/interface/wifi/set"

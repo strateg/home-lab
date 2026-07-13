@@ -49,12 +49,19 @@ mikrotik_wifi:
   configurations: []
 {% endif %}
 
-  # Physical WiFi interfaces only (wifi1=5GHz, wifi2=2.4GHz)
-  # Virtual APs (like wifi_vpn_germany) are created automatically when datapath has vlan_id
+  # Interface -> configuration bindings from topology.
+  # Entries with master_interface are virtual (slave) APs: they do NOT exist
+  # on a fresh RouterOS and are created by the mikrotik_wifi role if missing.
+  # Staged SSIDs are excluded (configuration exists, no AP broadcasts it).
+{% if wifi_interfaces %}
   interfaces:
-{% for cfg in wifi_configurations %}
-{% if cfg.name in ['cfg-wifi1', 'cfg-wifi2'] %}
-    - name: {{ cfg.name | replace('cfg-', '') }}
-      configuration: {{ cfg.name }}
+{% for iface in wifi_interfaces %}
+    - name: {{ iface.name }}
+      configuration: {{ iface.configuration }}
+{% if iface.master_interface is defined and iface.master_interface %}
+      master_interface: {{ iface.master_interface }}
 {% endif %}
 {% endfor %}
+{% else %}
+  interfaces: []
+{% endif %}

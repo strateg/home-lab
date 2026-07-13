@@ -265,11 +265,15 @@ def _extract_wifi_config(routers: list[dict[str, Any]]) -> dict[str, Any]:
             "datapaths": [...],      # Unique datapath configurations
             "configurations": [...], # WiFi configurations (SSIDs)
             "securities": [...],     # Security profiles
+            "interfaces": [...],     # Interface -> configuration bindings
+                                     # (entries with master_interface are
+                                     # virtual/slave APs that must be created)
         }
     """
     datapaths: dict[str, dict[str, Any]] = {}  # keyed by name to dedupe
     configurations: list[dict[str, Any]] = []
     securities: dict[str, dict[str, Any]] = {}  # keyed by name to dedupe
+    interfaces: list[dict[str, Any]] = []
 
     for router in routers:
         instance_data = router.get("instance_data", {})
@@ -336,10 +340,29 @@ def _extract_wifi_config(routers: list[dict[str, Any]]) -> dict[str, Any]:
 
             configurations.append(cfg_entry)
 
+            # Interface -> configuration binding. Staged SSIDs are not bound
+            # (their configuration exists but no AP broadcasts it yet).
+            # Entries with master_interface describe virtual (slave) APs
+            # (e.g. VPN-Germany on wifi1) which do NOT exist out of the box
+            # on a fresh RouterOS and must be created by the deploy tooling.
+            status = str(iface_data.get("status", "")).strip().lower()
+            if status != "staged":
+                iface_entry: dict[str, Any] = {
+                    # Physical slots use the mapping key (wifi1/wifi2);
+                    # virtual APs carry an explicit interface name.
+                    "name": str(iface_data.get("name") or iface_name),
+                    "configuration": cfg_name,
+                }
+                master = str(iface_data.get("master_interface") or "").strip()
+                if master:
+                    iface_entry["master_interface"] = master
+                interfaces.append(iface_entry)
+
     return {
         "datapaths": list(datapaths.values()),
         "configurations": configurations,
         "securities": list(securities.values()),
+        "interfaces": interfaces,
     }
 
 

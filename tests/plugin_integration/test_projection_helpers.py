@@ -206,6 +206,53 @@ def test_mikrotik_projection_extracts_routing_policies() -> None:
     ]
 
 
+def test_mikrotik_projection_extracts_wifi_interfaces() -> None:
+    payload = _compiled_fixture()
+    payload["instances"]["devices"][0]["instance_data"] = {
+        "observed_runtime": {
+            "wifi": {
+                "wifi1": {
+                    "ssid": "Home-Main",
+                    "mode": "ap",
+                    "security": "wpa2-psk",
+                    "status": "running",
+                },
+                "wifi_vpn_germany": {
+                    "name": "wifi-vpn-germany",
+                    "ssid": "VPN-Germany",
+                    "mode": "ap",
+                    "security": "wpa2-psk",
+                    "master_interface": "wifi1",
+                    "status": "bound",
+                    "datapath": {"name": "dp-vpn-germany", "bridge": "bridge", "vlan_id": 55},
+                },
+                "wifi_guest": {
+                    "ssid": "Guest",
+                    "mode": "ap",
+                    "security": "wpa2-psk",
+                    "status": "staged",
+                },
+            }
+        }
+    }
+
+    projection = build_mikrotik_projection(payload)
+    interfaces = projection["wifi"]["interfaces"]
+
+    # Physical radio bound by mapping key, no master_interface.
+    assert {"name": "wifi1", "configuration": "cfg-wifi1"} in interfaces
+    # Virtual (slave) AP: explicit name + master_interface must be preserved
+    # so deploy tooling can create it on a fresh RouterOS.
+    assert {
+        "name": "wifi-vpn-germany",
+        "configuration": "cfg-wifi_vpn_germany",
+        "master_interface": "wifi1",
+    } in interfaces
+    # Staged SSIDs keep their configuration but are never bound to an AP.
+    assert "cfg-wifi_guest" in [cfg["name"] for cfg in projection["wifi"]["configurations"]]
+    assert "cfg-wifi_guest" not in [row["configuration"] for row in interfaces]
+
+
 def test_ansible_projection_contains_hosts_from_l1_and_l4() -> None:
     projection = build_ansible_projection(_compiled_fixture())
     assert [row["instance_id"] for row in projection["hosts"]] == [

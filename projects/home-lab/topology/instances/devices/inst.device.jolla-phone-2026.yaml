@@ -129,9 +129,14 @@ connection_type: wifi
 dual_sim: true
 sim_slots: 2
 
-# VLAN assignment - VPN Germany VLAN (device connects to VPN-Germany SSID;
-# MAC-based bridge host entry must match the SSID datapath VLAN 55)
-vlan_ref: inst.vlan.vpn_germany
+# VLAN assignment - trusted user LAN (native VLAN, 192.168.88.0/24).
+# Default home network for the device: connecting to Chateau/Chateau* SSIDs
+# lands it in the trusted user zone with plain internet (no VPN).
+# The device additionally stays whitelisted for the VPN-Germany SSID: the
+# wifi-vpn-germany access-list (see rtr-mikrotik-chateau wifi_vpn_germany
+# access_list and playbooks/mikrotik-vpn-germany-access-list.yml) assigns
+# VLAN 55 -> wg0 tunnel ONLY when it connects to that SSID.
+vlan_ref: inst.vlan.lan
 
 # DHCP (no static IP for mobile device)
 static_ip: null

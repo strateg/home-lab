@@ -53,6 +53,28 @@
 {% endfor %}
 {% endif %}
 
+{% if wifi_interfaces %}
+# ============================================================================
+# WiFi Interfaces (bind configurations, create virtual/slave APs)
+# Virtual APs (master-interface set) do not exist on a fresh RouterOS.
+# ============================================================================
+/interface/wifi
+{% for iface in wifi_interfaces %}
+{% if iface.master_interface is defined and iface.master_interface %}
+:if ([:len [find name="{{ iface.name }}"]] = 0) do={
+    add name="{{ iface.name }}" master-interface={{ iface.master_interface }} configuration={{ iface.configuration }} disabled=no comment="{{ iface.configuration }} slave AP - managed by topology"
+    :put "  Created virtual AP: {{ iface.name }} (master {{ iface.master_interface }})"
+} else={
+    set [find name="{{ iface.name }}"] configuration={{ iface.configuration }} disabled=no
+    :put "  Updated virtual AP: {{ iface.name }}"
+}
+{% else %}
+set [find name="{{ iface.name }}"] configuration={{ iface.configuration }} disabled=no
+:put "  Bound configuration {{ iface.configuration }} to {{ iface.name }}"
+{% endif %}
+{% endfor %}
+{% endif %}
+
 :put ""
 :put "=== WiFi Configuration Complete ==="
 :put ""
@@ -60,7 +82,3 @@
 {% for sec in wifi_securities %}
 :put "/interface/wifi/security/set {{ sec.name }} passphrase=YOUR_PASSWORD"
 {% endfor %}
-:put ""
-:put "To apply configuration to interfaces:"
-:put "/interface/wifi/set wifi1 configuration=cfg-wifi1"
-:put "/interface/wifi/set wifi2 configuration=cfg-wifi2"
