@@ -215,5 +215,5 @@ Kernel timeout MUST produce:
 - ADR 0063: `adr/0063-plugin-microkernel-for-compiler-validators-generators.md`
 - ADR 0066: `adr/0066-plugin-testing-and-ci-strategy.md`
 - Kernel package: `v5/topology-tools/kernel/`
-- Plugin tests: `v5/tests/test_plugin_registry.py`
+- Plugin tests: `tests/test_plugin_registry.py` (facade smoke), `tests/kernel/` (unit tests, ADR 0113)
 - Compiler baseline: `v5/topology-tools/compile-topology.py`

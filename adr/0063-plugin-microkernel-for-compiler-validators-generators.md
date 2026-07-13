@@ -435,10 +435,10 @@ CI must:
 - [x] Diagnostics schema with plugin attribution (`v5/topology-tools/schemas/diagnostics.schema.json`)
 - [x] Kernel package with base interfaces (`v5/topology-tools/kernel/`)
   - [x] `plugin_base.py` - PluginBase, PluginKind, PluginContext, PluginResult
-  - [x] `plugin_registry.py` - PluginRegistry, PluginManifest, PluginSpec
+  - [x] `plugin_registry.py` - PluginRegistry facade (since ADR 0113: PluginManifest/PluginSpec live in `kernel/specs.py`; loading/validation in `kernel/registry/`, execution in `kernel/scheduler/`)
 - [x] Error catalog with plugin error codes (`v5/topology-tools/data/error-catalog.yaml`)
 - [x] Base reference validator plugin (`v5/topology-tools/plugins/validators/reference_validator.py`)
-- [x] Plugin tests (`v5/tests/test_plugin_registry.py`)
+- [x] Plugin tests (facade smoke `tests/test_plugin_registry.py`; since ADR 0113 unit tests live in `tests/kernel/`)
 
 ### Phase 2 - Validator Migration (Complete)
 
@@ -486,7 +486,7 @@ CI must:
 - Error catalog: `v5/topology-tools/data/error-catalog.yaml`
 - Kernel package: `v5/topology-tools/kernel/`
 - Base plugins: `v5/topology-tools/plugins/`
-- Plugin tests: `v5/tests/test_plugin_registry.py`
+- Plugin tests: `tests/test_plugin_registry.py` (facade smoke), `tests/kernel/` (unit tests, ADR 0113)
 - `adr/0068-object-yaml-as-instance-template-with-explicit-overrides.md`
 - `adr/0069-plugin-first-compiler-refactor-and-thin-orchestrator.md`
 - `adr/0071-sharded-instance-files-and-flat-instances-root.md`

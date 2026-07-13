@@ -2,7 +2,7 @@
 
 - Status: Implemented
 - Date: 2026-04-15
-- Revised: 2026-04-21
+- Revised: 2026-04-21; 2026-07-13 (D10 amended by ADR 0113)
 - Implementation Complete: PR1-PR5
 - Depends on: ADR 0063, ADR 0080, ADR 0086, ADR 0098
 - Follow-up: ADR 0099 (test architecture migration for snapshot/envelope/pipeline-state runtime)
@@ -168,11 +168,20 @@ Runtime must not serialize/restore mutable pipeline bus state into worker interp
 
 ### D10. Runtime module decomposition
 
-Runtime implementation is decomposed into three responsibilities:
+*(Amended 2026-07-13 by ADR 0113: the original 3-module layout is replaced
+by the 5-component layout below; execution-model decisions unchanged.)*
 
-1. `plugin_registry.py` — manifest loading, spec validation, dependency graph, plugin entry loading.
-2. `pipeline_runtime.py` — `PipelineState`, snapshot builder, consume resolution, envelope commit, stage-local invalidation.
-3. `plugin_runner.py` — `run_plugin_once(snapshot, plugin_spec) -> envelope`, with serial and subinterpreter runners.
+Runtime implementation is decomposed into five components:
+
+1. `kernel/specs.py` — leaf types: `PluginSpec`, `PluginManifest`, kernel constants.
+2. `kernel/registry/` — static loading and validation: manifest loading (includes traversal, duplicate-ID detection), spec validation, dependency graph, config validation, plugin entry loading with the single instance cache, envelope/payload schema validation.
+3. `kernel/scheduler/` — execution: snapshot builder (`snapshot_builder.py` lives here), subinterpreter worker/pool and wavefront computation, envelope pipeline (local execution + commit), phase executor (`execution_mode` routing), stage executor with preflight gates, and the quarantined `legacy_executor`/`context_bridge` (D13).
+4. `pipeline_runtime.py` — `PipelineState`: consume resolution, envelope commit, stage-local invalidation. `plugin_runner.py` — `run_plugin_once(snapshot, plugin_spec) -> envelope`.
+5. `plugin_registry.py` — thin facade: frozen public API, component wiring, introspection, backwards-compatible re-exports.
+
+Dependency direction is invariant: `plugin_base ← specs ← registry ←
+{pipeline_runtime, plugin_runner} ← scheduler ← plugin_registry (facade)`.
+See ADR 0113 for the full module map and the frozen facade contract.
 
 ### D11. Plugin implementation style contract
 

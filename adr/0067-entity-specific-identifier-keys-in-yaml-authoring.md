@@ -81,4 +81,4 @@ Adopt strict, non-transitional entity-specific keys.
 - `v5/topology-tools/compile-topology.py`
 - `v5/topology/instances/`
 - `v5/topology/instances/_legacy-home-lab/instance-bindings.yaml` (historical archive)
-- `v5/tests/test_plugin_registry.py`
+- `tests/test_plugin_registry.py` (facade smoke; unit tests in `tests/kernel/`, ADR 0113)

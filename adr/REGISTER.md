@@ -114,3 +114,4 @@
 | [0110](0110-universal-network-zone-vlan-mechanism.md) | Security Matrix and Trust Zone Configuration | Implemented | 2026-06-22 | - | - |
 | [0111](0111-ip-address-derivation-from-vlan.md) | IP Address Derivation from VLAN Instances | Implemented | 2026-06-22 | - | - |
 | [0112](0112-projection-domain-package-refactor.md) | Projection Domain Package Refactor | Implemented | 2026-07-03 | 2026-07-04 | - |
+| [0113](0113-kernel-runtime-decomposition-registry-scheduler-facade.md) | Kernel Runtime Decomposition into Registry, Scheduler, and Facade | Implemented | 2026-07-13 | - | - |
