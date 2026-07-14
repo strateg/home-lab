@@ -2,7 +2,7 @@
 
 - Status: Implemented (100% reduction achieved, baseline = 0)
 - Date: 2026-04-15
-- Revised: 2026-04-21
+- Revised: 2026-04-21; 2026-07-14 (Test Directory Guidance note, ADR 0113)
 - Depends on: ADR 0097
 - Scope note: This ADR is the canonical follow-up for test architecture migration under the actor-style plugin runtime model.
 
@@ -223,6 +223,15 @@ Intent:
 - `runtime/scheduler/` — orchestration and stage flow;
 - `runtime/parity/` — serial vs subinterpreter equivalence;
 - `compatibility_legacy/` — temporary compatibility shim tests only.
+
+> **Note (2026-07-14, ADR 0113):** the kernel-package decomposition adds a
+> complementary tree `tests/kernel/{registry,scheduler}/` that mirrors the
+> `topology-tools/kernel/` module layout (unit tests per kernel module,
+> plus the `tests/kernel/test_layering.py` dependency-direction gate).
+> It does not replace the layers above: `tests/runtime/*` remain the
+> execution-model contract tests of this ADR; a scheduler concern may
+> legitimately have both a contract test here and a unit test in
+> `tests/kernel/`. See ADR 0113 Rule 5.
 
 ## Consequences
 

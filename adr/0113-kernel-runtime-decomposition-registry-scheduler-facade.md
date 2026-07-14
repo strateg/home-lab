@@ -78,10 +78,11 @@ Rules:
    `plugin_base ← specs ← registry ← {pipeline_runtime, plugin_runner} ←
    scheduler ← plugin_registry (facade)`. `registry` never imports
    `scheduler` or `pipeline_runtime`; `scheduler` never imports the facade.
-   *Verification:* currently manual (import review / grep of the package
-   import graph; last audited 2026-07-13, clean). No automated layering
-   gate exists yet; an `ast`-based layering test under `tests/kernel/` is
-   the designated hardening path if drift is ever observed.
+   *Verification:* automated — `tests/kernel/test_layering.py` statically
+   checks the import graph of `kernel/` via `ast` (layer table, the two
+   named prohibitions, and the D13 quarantine importer allowlist of
+   Rule 4); it runs in the `test:plugin-api` and `test:plugin-contract`
+   gates. TYPE_CHECKING-only imports count as edges.
 2. **Frozen facade contract:** constructor `(base_path)`; attributes `specs`
    (dict identity preserved — live references held by plugins and
    sub-components), `instances` (alias of the `PluginLoader` cache dict),
@@ -134,7 +135,10 @@ Rules:
      `execute_plugin` delegation to `legacy_executor.execute_plugin`);
      the `thread_legacy` routing branches (`phase_executor.py:227`,
      `stage_executor.py:354`); the `thread_legacy` literal in the
-     `execution_mode` validation (`specs.py`).
+     `execution_mode` validation (`specs.py`); the `context_bridge`
+     import in `envelope_pipeline.py` (authoritative-commit merge-back
+     into legacy `PluginContext`); the quarantine allowlist in
+     `tests/kernel/test_layering.py`.
    - *Dependent behavior:* data-bus contract diagnostics (W800x/E800x)
      are implemented inside `legacy_executor`; at removal they must be
      either ported to the envelope path or explicitly retired together
@@ -186,8 +190,7 @@ Rules:
 ## Acceptance Criteria
 
 - AC1: Dependency direction of Rule 1 holds across `kernel/`
-  (verified manually by import audit; automated layering test is the
-  designated hardening path — see Rule 1).
+  (automated: `tests/kernel/test_layering.py`, see Rule 1).
 - AC2: Frozen facade surface of Rule 2 is exercised by
   `tests/test_plugin_registry.py` (facade smoke) and the
   `test:plugin-contract` gate; audited load-bearing re-exports resolve.
