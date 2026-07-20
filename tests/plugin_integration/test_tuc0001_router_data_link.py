@@ -206,28 +206,12 @@ def test_tuc0001_network_validator_rejects_endpoint_pair_mismatch():
     assert any(diag.code == "E7308" for diag in result.diagnostics)
 
 
-def test_tuc0001_compile_preserves_cable_instance_data(tmp_path: Path):
-    mod = _load_compiler_module()
-    out_dir = mod.REPO_ROOT / "build" / "test-tuc0001" / tmp_path.name
-    output_json = out_dir / "effective-topology.json"
+def test_tuc0001_compile_preserves_cable_instance_data(effective_topology: dict[str, Any]) -> None:
+    """Verify cable instance data is preserved in compiled output.
 
-    compiler = mod.V5Compiler(
-        manifest_path=mod.DEFAULT_MANIFEST,
-        output_json=output_json,
-        diagnostics_json=out_dir / "diagnostics.json",
-        diagnostics_txt=out_dir / "diagnostics.txt",
-        error_catalog_path=mod.DEFAULT_ERROR_CATALOG,
-        strict_model_lock=True,
-        fail_on_warning=False,
-        require_new_model=False,
-        enable_plugins=True,
-        plugins_manifest_path=mod.DEFAULT_PLUGINS_MANIFEST,
-    )
-
-    exit_code = compiler.run()
-    assert exit_code == 0
-    payload = json.loads(output_json.read_text(encoding="utf-8"))
-    l1_rows = payload.get("instances", {}).get("physical-links", [])
+    H1.2: Uses session-scoped compile fixture instead of independent subprocess.
+    """
+    l1_rows = effective_topology.get("instances", {}).get("physical-links", [])
     cable_row = next((row for row in l1_rows if row.get("source_id") == "inst.ethernet_cable.cat5e"), None)
     assert isinstance(cable_row, dict)
     instance_block = cable_row.get("instance")
@@ -242,28 +226,12 @@ def test_tuc0001_compile_preserves_cable_instance_data(tmp_path: Path):
     assert instance_data.get("endpoint_b", {}).get("port") == "lan1"
 
 
-def test_tuc0001_compile_preserves_power_source_bindings(tmp_path: Path):
-    mod = _load_compiler_module()
-    out_dir = mod.REPO_ROOT / "build" / "test-tuc0001" / f"{tmp_path.name}-power"
-    output_json = out_dir / "effective-topology.json"
+def test_tuc0001_compile_preserves_power_source_bindings(effective_topology: dict[str, Any]) -> None:
+    """Verify power source bindings are preserved in compiled output.
 
-    compiler = mod.V5Compiler(
-        manifest_path=mod.DEFAULT_MANIFEST,
-        output_json=output_json,
-        diagnostics_json=out_dir / "diagnostics.json",
-        diagnostics_txt=out_dir / "diagnostics.txt",
-        error_catalog_path=mod.DEFAULT_ERROR_CATALOG,
-        strict_model_lock=True,
-        fail_on_warning=False,
-        require_new_model=False,
-        enable_plugins=True,
-        plugins_manifest_path=mod.DEFAULT_PLUGINS_MANIFEST,
-    )
-
-    exit_code = compiler.run()
-    assert exit_code == 0
-    payload = json.loads(output_json.read_text(encoding="utf-8"))
-    instances = payload.get("instances", {})
+    H1.2: Uses session-scoped compile fixture instead of independent subprocess.
+    """
+    instances = effective_topology.get("instances", {})
     l1_rows = instances.get("devices", []) + instances.get("power", [])
     by_source_id = {row.get("source_id"): row for row in l1_rows if isinstance(row, dict)}
 
