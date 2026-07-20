@@ -24,6 +24,7 @@ dependencies = [
 dev = [
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
+    "pytest-xdist>=3.5.0",
     "black>=26.0",
     "isort>=8.0",
     "pylint>=3.0.0",
@@ -52,7 +53,9 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
-addopts = "-v --cov=topology-tools --cov-report=term-missing --cov-fail-under=75"
+# H1.1: Coverage moved to CI-only tasks (test:ci-coverage, ci:coverage-gate)
+# Use -n auto for parallel execution with pytest-xdist
+addopts = "-v"
 
 [tool.setuptools.packages.find]
 where = ["topology-tools"]

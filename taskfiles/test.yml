@@ -2,10 +2,10 @@ version: "3"
 
 tasks:
   default:
-    desc: Run all tests
+    desc: Run all tests (parallel with xdist)
     cmds:
       - "{{.PYTHON}} scripts/validation/validate_workspace_layout.py"
-      - "{{.PYTHON}} -m pytest -o addopts= tests -q"
+      - "{{.PYTHON}} -m pytest tests -q -n auto"
 
   all:
     desc: Alias for test:default
@@ -13,24 +13,24 @@ tasks:
       - default
 
   plugin-api:
-    desc: Run plugin API unit tests (CI gate)
+    desc: Run plugin API unit tests (CI gate, parallel)
     cmds:
-      - '{{.PYTHON}} -m pytest -o addopts= tests/plugin_api tests/kernel tests/test_plugin_registry.py -v --cov=topology-tools/kernel --cov-report=xml:coverage-api.xml --cov-report=term-missing --cov-fail-under=80 --durations=10'
+      - '{{.PYTHON}} -m pytest tests/plugin_api tests/kernel tests/test_plugin_registry.py -v -n auto --cov=topology-tools/kernel --cov-report=xml:coverage-api.xml --cov-report=term-missing --cov-fail-under=80 --durations=10'
 
   plugin-contract:
-    desc: Run plugin contract tests (CI gate)
+    desc: Run plugin contract tests (CI gate, parallel)
     cmds:
-      - '{{.PYTHON}} -m pytest -o addopts= tests/plugin_contract tests/plugin_api tests/kernel tests/test_plugin_registry.py -v --cov=topology-tools/kernel --cov-report=xml:coverage-contract.xml --cov-report=term-missing --cov-fail-under=70 --durations=10'
+      - '{{.PYTHON}} -m pytest tests/plugin_contract tests/plugin_api tests/kernel tests/test_plugin_registry.py -v -n auto --cov=topology-tools/kernel --cov-report=xml:coverage-contract.xml --cov-report=term-missing --cov-fail-under=70 --durations=10'
 
   plugin-integration:
-    desc: Run plugin integration tests (CI gate)
+    desc: Run plugin integration tests (CI gate, parallel)
     cmds:
-      - '{{.PYTHON}} -m pytest -o addopts= tests/plugin_integration -v --cov=topology-tools --cov-report=xml:coverage-integration.xml --cov-report=term-missing --durations=10'
+      - '{{.PYTHON}} -m pytest tests/plugin_integration -v -n auto --cov=topology-tools --cov-report=xml:coverage-integration.xml --cov-report=term-missing --durations=10'
 
   plugin-regression:
-    desc: Run plugin regression tests (CI gate)
+    desc: Run plugin regression tests (CI gate, parallel)
     cmds:
-      - "{{.PYTHON}} -m pytest -o addopts= tests/plugin_regression -v --durations=10"
+      - "{{.PYTHON}} -m pytest tests/plugin_regression -v -n auto --durations=10"
 
   ai-redaction:
     desc: Run ADR0094 redaction verification tests
