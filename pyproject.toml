@@ -57,6 +57,11 @@ python_files = ["test_*.py", "*_test.py"]
 # Use -n auto for parallel execution with pytest-xdist
 addopts = "-v"
 
+# H1.6: Canonical coverage threshold for all CI gates
+# Task-specific thresholds (--cov-fail-under) must equal or exceed this value
+[tool.coverage.report]
+fail_under = 75
+
 [tool.setuptools.packages.find]
 where = ["topology-tools"]
 include = ["kernel", "kernel.*"]

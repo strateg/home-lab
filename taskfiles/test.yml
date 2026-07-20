@@ -14,13 +14,15 @@ tasks:
 
   plugin-api:
     desc: Run plugin API unit tests (CI gate, parallel)
+    # H1.6: 80% threshold (above canonical 75%) — kernel is critical infrastructure
     cmds:
       - '{{.PYTHON}} -m pytest tests/plugin_api tests/kernel tests/test_plugin_registry.py -v -n auto --cov=topology-tools/kernel --cov-report=xml:coverage-api.xml --cov-report=term-missing --cov-fail-under=80 --durations=10'
 
   plugin-contract:
     desc: Run plugin contract tests (CI gate, parallel)
+    # H1.6: 75% threshold (canonical) — contract tests validate plugin behavior
     cmds:
-      - '{{.PYTHON}} -m pytest tests/plugin_contract tests/plugin_api tests/kernel tests/test_plugin_registry.py -v -n auto --cov=topology-tools/kernel --cov-report=xml:coverage-contract.xml --cov-report=term-missing --cov-fail-under=70 --durations=10'
+      - '{{.PYTHON}} -m pytest tests/plugin_contract tests/plugin_api tests/kernel tests/test_plugin_registry.py -v -n auto --cov=topology-tools/kernel --cov-report=xml:coverage-contract.xml --cov-report=term-missing --cov-fail-under=75 --durations=10'
 
   plugin-integration:
     desc: Run plugin integration tests (CI gate, parallel)
@@ -39,5 +41,6 @@ tasks:
 
   ci-coverage:
     desc: Run repository test suite with coverage report for CI
+    # H1.6: 75% threshold (canonical from pyproject.toml)
     cmds:
       - "{{.PYTHON}} -m pytest -o addopts= tests -v --cov=topology-tools --cov-report=xml --cov-fail-under=75"

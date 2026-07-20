@@ -69,6 +69,7 @@ tasks:
 
   coverage-gate:
     desc: Enforce coverage threshold (75% minimum)
+    # H1.6: 75% threshold (canonical from pyproject.toml)
     cmds:
       - "{{.PYTHON}} -m pytest tests --cov --cov-fail-under=75 --cov-report=term-missing"
 
