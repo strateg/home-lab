@@ -20,7 +20,7 @@ def main() -> int:
         tuc_root / "analysis" / "EVIDENCE-LOG.md",
         tuc_root / "analysis" / "PROJECT-STATUS-REPORT.md",
         repo_root / "docs" / "runbooks" / "MIKROTIK-TERRAFORM-DRIFT-CHECK.md",
-        repo_root / "tests" / "plugin_integration" / "test_tuc0003_mikrotik_live_parity.py",
+        repo_root / "tests" / "plugin_integration" / "test_tuc0003_mikrotik_v2.py",
     ]
     missing = [path for path in required if not path.exists()]
     if missing:
