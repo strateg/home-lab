@@ -12,6 +12,7 @@ from kernel.plugin_base import (
     Stage,
     ValidatorJsonPlugin,
 )
+from plugins.validators._refs_shared import get_extensions
 
 
 class StorageDeviceTaxonomyValidator(ValidatorJsonPlugin):
@@ -96,7 +97,7 @@ class StorageDeviceTaxonomyValidator(ValidatorJsonPlugin):
         diagnostics: list[PluginDiagnostic],
     ) -> None:
         row_prefix = self._row_prefix(row)
-        extensions = self._extensions(row)
+        extensions = get_extensions(row)
         row_id = self._row_id(row)
 
         substrate = extensions.get("substrate")
@@ -338,7 +339,7 @@ class StorageDeviceTaxonomyValidator(ValidatorJsonPlugin):
         for row in rows:
             if not self._is_media_attachment_row(row):
                 continue
-            extensions = self._extensions(row)
+            extensions = get_extensions(row)
             device_ref = extensions.get("device_ref")
             slot_ref = extensions.get("slot_ref")
             if not isinstance(device_ref, str) or not device_ref:
@@ -391,7 +392,7 @@ class StorageDeviceTaxonomyValidator(ValidatorJsonPlugin):
         return normalized
 
     def _normalize_media(self, row: dict[str, Any], *, media_id: str) -> dict[str, Any]:
-        extensions = self._extensions(row)
+        extensions = get_extensions(row)
         media_type = extensions.get("media_type")
         if not isinstance(media_type, str):
             media_type = extensions.get("type")
@@ -411,7 +412,7 @@ class StorageDeviceTaxonomyValidator(ValidatorJsonPlugin):
         row_id = row.get("instance")
         if isinstance(row_id, str) and row_id:
             return row_id
-        media_id = self._extensions(row).get("id")
+        media_id = get_extensions(row).get("id")
         if isinstance(media_id, str) and media_id:
             return media_id
         return ""
@@ -424,7 +425,7 @@ class StorageDeviceTaxonomyValidator(ValidatorJsonPlugin):
             return True
         if row.get("group") != "devices":
             return False
-        extensions = self._extensions(row)
+        extensions = get_extensions(row)
         return any(key in extensions for key in ("storage_slots", "substrate", "os"))
 
     def _is_media_row(self, row: dict[str, Any]) -> bool:
@@ -434,7 +435,7 @@ class StorageDeviceTaxonomyValidator(ValidatorJsonPlugin):
         group = row.get("group")
         if group in {"media_registry", "storage_media"}:
             return True
-        extensions = self._extensions(row)
+        extensions = get_extensions(row)
         return "media_type" in extensions or ("supported_buses" in extensions and "removable" in extensions)
 
     def _is_media_attachment_row(self, row: dict[str, Any]) -> bool:
@@ -444,13 +445,8 @@ class StorageDeviceTaxonomyValidator(ValidatorJsonPlugin):
         group = row.get("group")
         if group in {"media_attachments", "storage_media_attachments"}:
             return True
-        extensions = self._extensions(row)
+        extensions = get_extensions(row)
         return {"device_ref", "slot_ref", "media_ref"}.issubset(extensions.keys())
-
-    @staticmethod
-    def _extensions(row: dict[str, Any]) -> dict[str, Any]:
-        extensions = row.get("extensions")
-        return extensions if isinstance(extensions, dict) else {}
 
     @staticmethod
     def _row_id(row: dict[str, Any]) -> str:

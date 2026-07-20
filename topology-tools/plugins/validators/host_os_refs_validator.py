@@ -13,6 +13,7 @@ from kernel.plugin_base import (
     Stage,
     ValidatorJsonPlugin,
 )
+from plugins.validators._refs_shared import get_extensions, normalize_architecture
 
 
 class HostOsRefsValidator(ValidatorJsonPlugin):
@@ -27,16 +28,6 @@ class HostOsRefsValidator(ValidatorJsonPlugin):
     _SERVICE_PREFIX = "class.service."
     _DEVICE_RUNTIME_TYPES = {"docker", "baremetal"}
     _INSTALL_REQUIRED_HOST_TYPES = {"baremetal", "hypervisor"}
-    _ARCH_ALIASES = {
-        "x86_64": "x86_64",
-        "amd64": "x86_64",
-        "x86": "i386",
-        "i386": "i386",
-        "arm64": "arm64",
-        "aarch64": "arm64",
-        "riscv64": "riscv64",
-        "riscv": "riscv64",
-    }
     _CANONICAL_ARCH_VALUES = {"x86_64", "arm64", "riscv64", "i386"}
     _CAPABILITY_ALLOWED_HOST_TYPES = {
         "lxc": {"hypervisor"},
@@ -300,7 +291,7 @@ class HostOsRefsValidator(ValidatorJsonPlugin):
         diagnostics: list[PluginDiagnostic],
         row_prefix: str,
     ) -> None:
-        endpoint_ext = self._extensions(endpoint_row)
+        endpoint_ext = get_extensions(endpoint_row)
         mount_point_ref = endpoint_ext.get("mount_point_ref")
         if not isinstance(mount_point_ref, str) or not mount_point_ref:
             return
@@ -319,7 +310,7 @@ class HostOsRefsValidator(ValidatorJsonPlugin):
                 )
             )
             return
-        mount_ext = self._extensions(mount_row)
+        mount_ext = get_extensions(mount_row)
         mount_device_ref = mount_ext.get("device_ref")
         if (
             isinstance(mount_device_ref, str)
@@ -357,7 +348,7 @@ class HostOsRefsValidator(ValidatorJsonPlugin):
         raw_arch = extensions.get("architecture")
         if not isinstance(raw_arch, str) or not raw_arch.strip():
             return
-        normalized = self._normalize_arch(raw_arch)
+        normalized = normalize_architecture(raw_arch)
         if raw_arch != normalized:
             diagnostics.append(
                 self.emit_diagnostic(
@@ -386,7 +377,7 @@ class HostOsRefsValidator(ValidatorJsonPlugin):
             if not isinstance(device_row, dict):
                 continue
             device_arch_raw = self._row_architecture(ctx=ctx, row=device_row)
-            device_arch = self._normalize_arch(device_arch_raw)
+            device_arch = normalize_architecture(device_arch_raw)
             if device_arch and device_arch != normalized:
                 diagnostics.append(
                     self.emit_diagnostic(
@@ -443,25 +434,18 @@ class HostOsRefsValidator(ValidatorJsonPlugin):
 
     @staticmethod
     def _extract_device_ref(row: dict[str, Any]) -> Any:
-        extensions = HostOsRefsValidator._extensions(row)
+        extensions = get_extensions(row)
         if "device_ref" in extensions:
             return extensions.get("device_ref")
         return row.get("device_ref")
 
     @staticmethod
     def _host_os_payload(row: dict[str, Any]) -> dict[str, Any]:
-        payload = dict(HostOsRefsValidator._extensions(row))
+        payload = dict(get_extensions(row))
         for key in ("architecture", "capabilities", "host_type", "installation"):
             if key not in payload and key in row:
                 payload[key] = row.get(key)
         return payload
-
-    @staticmethod
-    def _extensions(row: dict[str, Any]) -> dict[str, Any]:
-        extensions = row.get("extensions")
-        if isinstance(extensions, dict):
-            return extensions
-        return {}
 
     @staticmethod
     def _row_architecture(*, ctx: PluginContext, row: dict[str, Any]) -> str | None:
@@ -472,7 +456,7 @@ class HostOsRefsValidator(ValidatorJsonPlugin):
                 architecture = shared_extract_architecture(object_payload)
                 if isinstance(architecture, str) and architecture:
                     return architecture
-        extensions = HostOsRefsValidator._extensions(row)
+        extensions = get_extensions(row)
         ext_arch = extensions.get("architecture")
         if isinstance(ext_arch, str) and ext_arch:
             return ext_arch
@@ -480,13 +464,6 @@ class HostOsRefsValidator(ValidatorJsonPlugin):
         if isinstance(row_arch, str) and row_arch:
             return row_arch
         return None
-
-    @classmethod
-    def _normalize_arch(cls, value: Any) -> str:
-        if not isinstance(value, str):
-            return ""
-        normalized = value.strip().lower()
-        return cls._ARCH_ALIASES.get(normalized, normalized)
 
     def _has_active_os_binding(self, *, device_row: dict[str, Any], row_by_id: dict[str, dict[str, Any]]) -> bool:
         os_refs = device_row.get("os_refs")

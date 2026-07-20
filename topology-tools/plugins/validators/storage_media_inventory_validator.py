@@ -12,6 +12,7 @@ from kernel.plugin_base import (
     Stage,
     ValidatorJsonPlugin,
 )
+from plugins.validators._refs_shared import get_extensions
 
 
 class StorageMediaInventoryValidator(ValidatorJsonPlugin):
@@ -116,7 +117,7 @@ class StorageMediaInventoryValidator(ValidatorJsonPlugin):
     ) -> None:
         row_prefix = self._row_prefix(row)
         row_id = self._row_id(row)
-        extensions = self._extensions(row)
+        extensions = get_extensions(row)
         device_ref = extensions.get("device_ref")
         slot_ref = extensions.get("slot_ref")
         media_ref = extensions.get("media_ref")
@@ -316,7 +317,7 @@ class StorageMediaInventoryValidator(ValidatorJsonPlugin):
                 continue
             device_id = self._row_id(row)
             slot_map: dict[str, dict[str, Any]] = {}
-            storage_slots = self._extensions(row).get("storage_slots")
+            storage_slots = get_extensions(row).get("storage_slots")
             if not isinstance(storage_slots, list):
                 slots_by_device[device_id] = slot_map
                 continue
@@ -344,7 +345,7 @@ class StorageMediaInventoryValidator(ValidatorJsonPlugin):
         return media_by_id, duplicate_ids
 
     def _normalize_media(self, row: dict[str, Any], *, media_id: str) -> dict[str, Any]:
-        extensions = self._extensions(row)
+        extensions = get_extensions(row)
         media_type = extensions.get("media_type")
         if not isinstance(media_type, str):
             media_type = extensions.get("type")
@@ -360,7 +361,7 @@ class StorageMediaInventoryValidator(ValidatorJsonPlugin):
         row_id = row.get("instance")
         if isinstance(row_id, str) and row_id:
             return row_id
-        media_id = self._extensions(row).get("id")
+        media_id = get_extensions(row).get("id")
         if isinstance(media_id, str) and media_id:
             return media_id
         return ""
@@ -382,7 +383,7 @@ class StorageMediaInventoryValidator(ValidatorJsonPlugin):
         group = row.get("group")
         if group in {"media_registry", "storage_media"}:
             return True
-        extensions = self._extensions(row)
+        extensions = get_extensions(row)
         return "media_type" in extensions or ("supported_buses" in extensions and "removable" in extensions)
 
     def _is_media_attachment_row(self, row: dict[str, Any]) -> bool:
@@ -392,13 +393,8 @@ class StorageMediaInventoryValidator(ValidatorJsonPlugin):
         group = row.get("group")
         if group in {"media_attachments", "storage_media_attachments"}:
             return True
-        extensions = self._extensions(row)
+        extensions = get_extensions(row)
         return {"device_ref", "slot_ref", "media_ref"}.issubset(extensions.keys())
-
-    @staticmethod
-    def _extensions(row: dict[str, Any]) -> dict[str, Any]:
-        extensions = row.get("extensions")
-        return extensions if isinstance(extensions, dict) else {}
 
     @staticmethod
     def _row_id(row: dict[str, Any]) -> str:

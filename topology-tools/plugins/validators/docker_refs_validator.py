@@ -12,6 +12,7 @@ from kernel.plugin_base import (
     Stage,
     ValidatorJsonPlugin,
 )
+from plugins.validators._refs_shared import get_extensions
 
 
 class DockerRefsValidator(ValidatorJsonPlugin):
@@ -79,7 +80,7 @@ class DockerRefsValidator(ValidatorJsonPlugin):
             row_id = row.get("instance")
             group = row.get("group", "docker")
             row_prefix = f"instance:{group}:{row_id}"
-            extensions = self._extensions(row)
+            extensions = get_extensions(row)
 
             # Get host_ref
             host_ref = self._extract_host_ref(row)
@@ -241,7 +242,7 @@ class DockerRefsValidator(ValidatorJsonPlugin):
         # For L4 LXC hosts, also check if it has docker feature enabled
         host_class = host_row.get("class_ref")
         if host_class == "class.compute.workload.lxc":
-            extensions = self._extensions(host_row)
+            extensions = get_extensions(host_row)
             features = extensions.get("features") or host_row.get("features")
             if isinstance(features, dict):
                 nesting = features.get("nesting")
@@ -295,7 +296,7 @@ class DockerRefsValidator(ValidatorJsonPlugin):
 
     def _get_capabilities(self, row: dict[str, Any]) -> list[Any]:
         """Get capabilities from row."""
-        extensions = self._extensions(row)
+        extensions = get_extensions(row)
         caps = extensions.get("capabilities") or row.get("capabilities")
         if isinstance(caps, list):
             return list(caps)
@@ -404,9 +405,3 @@ class DockerRefsValidator(ValidatorJsonPlugin):
                         path=f"{row_prefix}.storage.volumes[{idx}].volume_ref",
                     )
                 )
-
-    @staticmethod
-    def _extensions(row: dict[str, Any]) -> dict[str, Any]:
-        """Get extensions dict from row."""
-        extensions = row.get("extensions")
-        return extensions if isinstance(extensions, dict) else {}

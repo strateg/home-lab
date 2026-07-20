@@ -12,6 +12,7 @@ from kernel.plugin_base import (
     Stage,
     ValidatorJsonPlugin,
 )
+from plugins.validators._refs_shared import get_extensions
 
 
 class NestedTopologyScopeValidator(ValidatorJsonPlugin):
@@ -70,7 +71,7 @@ class NestedTopologyScopeValidator(ValidatorJsonPlugin):
             row_id = row.get("instance")
             if not isinstance(row_id, str) or not row_id:
                 continue
-            extensions = self._extensions(row)
+            extensions = get_extensions(row)
 
             # Check for topology_scope declaration
             topology_scope = extensions.get("topology_scope") or row.get("topology_scope")
@@ -118,7 +119,7 @@ class NestedTopologyScopeValidator(ValidatorJsonPlugin):
                 continue
             group = row.get("group", "workloads")
             row_prefix = f"instance:{group}:{row_id}"
-            extensions = self._extensions(row)
+            extensions = get_extensions(row)
 
             # Find parent scope through host_ref chain
             host_ref = self._extract_host_ref(row)
@@ -126,7 +127,7 @@ class NestedTopologyScopeValidator(ValidatorJsonPlugin):
             if host_ref:
                 parent_row = row_by_id.get(host_ref)
                 if parent_row:
-                    parent_ext = self._extensions(parent_row)
+                    parent_ext = get_extensions(parent_row)
                     parent_scope = parent_ext.get("topology_scope") or parent_row.get("topology_scope")
                     if isinstance(parent_scope, dict):
                         parent_scope_id = parent_scope.get("scope_id")
@@ -235,7 +236,7 @@ class NestedTopologyScopeValidator(ValidatorJsonPlugin):
         diagnostics: list[PluginDiagnostic],
     ) -> None:
         """Validate scope.* references resolve within declared scope."""
-        extensions = self._extensions(row)
+        extensions = get_extensions(row)
 
         # Check network references for scope.* prefix
         networks = extensions.get("networks") or row.get("networks")
@@ -335,15 +336,9 @@ class NestedTopologyScopeValidator(ValidatorJsonPlugin):
 
     def _extract_host_ref(self, row: dict[str, Any]) -> str | None:
         """Extract host_ref from row."""
-        extensions = self._extensions(row)
+        extensions = get_extensions(row)
         for key in ("host_ref", "device_ref"):
             ref = extensions.get(key) or row.get(key)
             if isinstance(ref, str) and ref:
                 return ref
         return None
-
-    @staticmethod
-    def _extensions(row: dict[str, Any]) -> dict[str, Any]:
-        """Get extensions dict from row."""
-        extensions = row.get("extensions")
-        return extensions if isinstance(extensions, dict) else {}

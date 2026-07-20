@@ -14,6 +14,11 @@ from kernel.plugin_base import (
     ValidatorJsonPlugin,
 )
 from plugins.generators.capability_helpers import has_capability
+from plugins.validators._refs_shared import (
+    ACTIVE_OS_STATUSES,
+    get_extensions,
+    normalize_architecture,
+)
 
 
 class LxcRefsValidator(ValidatorJsonPlugin):
@@ -23,17 +28,6 @@ class LxcRefsValidator(ValidatorJsonPlugin):
     _ROWS_KEY = "normalized_rows"
     _LXC_CLASSES = {"class.compute.workload.lxc"}
     _RESOURCE_PROFILE_REF_FIELD = "resource_profile_ref"
-    _ACTIVE_OS_STATUSES = {"active", "mapped", "modeled"}
-    _ARCH_ALIASES = {
-        "x86_64": "x86_64",
-        "amd64": "x86_64",
-        "x86": "i386",
-        "i386": "i386",
-        "arm64": "arm64",
-        "aarch64": "arm64",
-        "riscv64": "riscv64",
-        "riscv": "riscv64",
-    }
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
@@ -65,7 +59,7 @@ class LxcRefsValidator(ValidatorJsonPlugin):
             row_id = row.get("instance")
             group = row.get("group")
             row_prefix = f"instance:{group}:{row_id}"
-            extensions = self._extensions(row)
+            extensions = get_extensions(row)
             device_ref = extensions.get("device_ref")
             host_os_ref = extensions.get("host_os_ref")
             template_ref = extensions.get("template_ref")
@@ -374,8 +368,8 @@ class LxcRefsValidator(ValidatorJsonPlugin):
         if isinstance(template_ref, str) and template_ref:
             template_row = row_by_id.get(template_ref)
             if isinstance(template_row, dict):
-                template_arch = self._normalize_arch(self._row_architecture(ctx=ctx, row=template_row))
-        host_arch = self._normalize_arch(self._row_architecture(ctx=ctx, row=resolved_host_os_row))
+                template_arch = normalize_architecture(self._row_architecture(ctx=ctx, row=template_row))
+        host_arch = normalize_architecture(self._row_architecture(ctx=ctx, row=resolved_host_os_row))
 
         if guest_arch and template_arch and guest_arch != template_arch:
             diagnostics.append(
@@ -625,13 +619,6 @@ class LxcRefsValidator(ValidatorJsonPlugin):
                 )
             )
 
-    @staticmethod
-    def _extensions(row: dict[str, Any]) -> dict[str, Any]:
-        extensions = row.get("extensions")
-        if isinstance(extensions, dict):
-            return extensions
-        return {}
-
     def _resolve_host_os_row(
         self,
         *,
@@ -656,13 +643,13 @@ class LxcRefsValidator(ValidatorJsonPlugin):
         return None
 
     def _guest_architecture(self, row: dict[str, Any]) -> str:
-        extensions = self._extensions(row)
+        extensions = get_extensions(row)
         os_payload = extensions.get("os")
         if not isinstance(os_payload, dict):
             os_payload = row.get("os")
         if isinstance(os_payload, dict):
             architecture = os_payload.get("architecture")
-            return self._normalize_arch(architecture)
+            return normalize_architecture(architecture)
         return ""
 
     @staticmethod
@@ -676,7 +663,7 @@ class LxcRefsValidator(ValidatorJsonPlugin):
                 architecture = shared_extract_architecture(object_payload)
                 if isinstance(architecture, str) and architecture:
                     return architecture
-        extensions = LxcRefsValidator._extensions(row)
+        extensions = get_extensions(row)
         ext_arch = extensions.get("architecture")
         if isinstance(ext_arch, str) and ext_arch:
             return ext_arch
@@ -687,21 +674,21 @@ class LxcRefsValidator(ValidatorJsonPlugin):
 
     @staticmethod
     def _capabilities(row: dict[str, Any]) -> Any:
-        extensions = LxcRefsValidator._extensions(row)
+        extensions = get_extensions(row)
         if "capabilities" in extensions:
             return extensions.get("capabilities")
         return row.get("capabilities")
 
     @staticmethod
     def _storage_platform(row: dict[str, Any]) -> Any:
-        extensions = LxcRefsValidator._extensions(row)
+        extensions = get_extensions(row)
         if "platform" in extensions:
             return extensions.get("platform")
         return row.get("platform")
 
     @staticmethod
     def _legacy_field(row: dict[str, Any], field_name: str) -> Any:
-        extensions = LxcRefsValidator._extensions(row)
+        extensions = get_extensions(row)
         if field_name in extensions:
             return extensions.get(field_name)
         return row.get(field_name)
@@ -720,13 +707,6 @@ class LxcRefsValidator(ValidatorJsonPlugin):
             normalized[key] = payload
         return normalized
 
-    @classmethod
-    def _normalize_arch(cls, value: Any) -> str:
-        if not isinstance(value, str):
-            return ""
-        normalized = value.strip().lower()
-        return cls._ARCH_ALIASES.get(normalized, normalized)
-
     def _active_os_refs(self, *, device_row: dict[str, Any], row_by_id: dict[str, dict[str, Any]]) -> set[str]:
         active_refs: set[str] = set()
         os_refs = device_row.get("os_refs")
@@ -739,6 +719,6 @@ class LxcRefsValidator(ValidatorJsonPlugin):
             if not isinstance(os_row, dict) or os_row.get("class_ref") != "class.os":
                 continue
             status = str(os_row.get("status") or "").strip().lower()
-            if not status or status in self._ACTIVE_OS_STATUSES:
+            if not status or status in ACTIVE_OS_STATUSES:
                 active_refs.add(os_ref)
         return active_refs

@@ -12,6 +12,7 @@ from kernel.plugin_base import (
     Stage,
     ValidatorJsonPlugin,
 )
+from plugins.validators._refs_shared import get_extensions
 
 
 class StorageL3RefsValidator(ValidatorJsonPlugin):
@@ -349,7 +350,7 @@ class StorageL3RefsValidator(ValidatorJsonPlugin):
             diagnostics=diagnostics,
         )
 
-        extensions = self._extensions(row)
+        extensions = get_extensions(row)
         endpoint_path = extensions.get("path")
         has_path = isinstance(endpoint_path, str) and bool(endpoint_path.strip())
         has_lv_ref = isinstance(extensions.get("lv_ref"), str) and bool(str(extensions.get("lv_ref")).strip())
@@ -581,7 +582,7 @@ class StorageL3RefsValidator(ValidatorJsonPlugin):
         row_id = row.get("instance")
         group = row.get("group")
         row_prefix = f"instance:{group}:{row_id}"
-        extensions = self._extensions(row)
+        extensions = get_extensions(row)
 
         category = extensions.get("category")
         criticality = extensions.get("criticality")
@@ -703,13 +704,6 @@ class StorageL3RefsValidator(ValidatorJsonPlugin):
             if isinstance(name, str) and name.strip():
                 index[name.strip()] = row_id
         return index
-
-    @staticmethod
-    def _extensions(row: dict[str, Any]) -> dict[str, Any]:
-        extensions = row.get("extensions")
-        if isinstance(extensions, dict):
-            return extensions
-        return {}
 
     @staticmethod
     def _get_extension_field(row: dict[str, Any], key: str) -> Any:

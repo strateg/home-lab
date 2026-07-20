@@ -12,6 +12,7 @@ from kernel.plugin_base import (
     Stage,
     ValidatorJsonPlugin,
 )
+from plugins.validators._refs_shared import get_extensions
 
 
 class VolumeFormatCompatValidator(ValidatorJsonPlugin):
@@ -98,7 +99,7 @@ class VolumeFormatCompatValidator(ValidatorJsonPlugin):
             row_id = row.get("instance")
             group = row.get("group", "volumes")
             row_prefix = f"instance:{group}:{row_id}"
-            extensions = self._extensions(row)
+            extensions = get_extensions(row)
 
             # Get volume format
             volume_format = extensions.get("format") or row.get("format")
@@ -199,7 +200,7 @@ class VolumeFormatCompatValidator(ValidatorJsonPlugin):
 
     def _get_pool_type(self, pool_row: dict[str, Any]) -> str | None:
         """Get pool type from row."""
-        extensions = self._extensions(pool_row)
+        extensions = get_extensions(pool_row)
         pool_type = extensions.get("type") or pool_row.get("type")
         return pool_type if isinstance(pool_type, str) else None
 
@@ -224,7 +225,7 @@ class VolumeFormatCompatValidator(ValidatorJsonPlugin):
             if not class_ref.startswith("class.compute.workload"):
                 continue
 
-            extensions = self._extensions(row)
+            extensions = get_extensions(row)
 
             # Check VM disks
             disks = extensions.get("disks") or row.get("disks")
@@ -265,15 +266,9 @@ class VolumeFormatCompatValidator(ValidatorJsonPlugin):
 
     def _extract_host_ref(self, row: dict[str, Any]) -> str | None:
         """Extract host_ref from row."""
-        extensions = self._extensions(row)
+        extensions = get_extensions(row)
         for key in ("host_ref", "device_ref"):
             ref = extensions.get(key) or row.get(key)
             if isinstance(ref, str) and ref:
                 return ref
         return None
-
-    @staticmethod
-    def _extensions(row: dict[str, Any]) -> dict[str, Any]:
-        """Get extensions dict from row."""
-        extensions = row.get("extensions")
-        return extensions if isinstance(extensions, dict) else {}

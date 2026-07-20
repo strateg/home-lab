@@ -12,6 +12,7 @@ from kernel.plugin_base import (
     Stage,
     ValidatorJsonPlugin,
 )
+from plugins.validators._refs_shared import get_extensions
 
 
 class HypervisorExecutionModelValidator(ValidatorJsonPlugin):
@@ -71,7 +72,7 @@ class HypervisorExecutionModelValidator(ValidatorJsonPlugin):
             group = row.get("group", "devices")
             layer = row.get("layer")
             row_prefix = f"instance:{group}:{row_id}"
-            extensions = self._extensions(row)
+            extensions = get_extensions(row)
 
             # Get execution_model (from extensions, top-level, or class default)
             execution_model = self._get_execution_model(row, class_ref)
@@ -182,7 +183,7 @@ class HypervisorExecutionModelValidator(ValidatorJsonPlugin):
 
     def _get_execution_model(self, row: dict[str, Any], class_ref: str) -> str | None:
         """Get execution_model from row or derive from class."""
-        extensions = self._extensions(row)
+        extensions = get_extensions(row)
 
         # Check extensions first
         execution_model = extensions.get("execution_model")
@@ -202,9 +203,3 @@ class HypervisorExecutionModelValidator(ValidatorJsonPlugin):
             # hyperv and vmware support both, no default
         }
         return class_defaults.get(class_ref)
-
-    @staticmethod
-    def _extensions(row: dict[str, Any]) -> dict[str, Any]:
-        """Get extensions dict from row."""
-        extensions = row.get("extensions")
-        return extensions if isinstance(extensions, dict) else {}

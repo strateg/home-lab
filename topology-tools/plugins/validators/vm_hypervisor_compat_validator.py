@@ -12,6 +12,7 @@ from kernel.plugin_base import (
     Stage,
     ValidatorJsonPlugin,
 )
+from plugins.validators._refs_shared import get_extensions
 
 
 class VmHypervisorCompatValidator(ValidatorJsonPlugin):
@@ -89,7 +90,7 @@ class VmHypervisorCompatValidator(ValidatorJsonPlugin):
             row_id = row.get("instance")
             group = row.get("group", "vms")
             row_prefix = f"instance:{group}:{row_id}"
-            extensions = self._extensions(row)
+            extensions = get_extensions(row)
 
             # Get host_ref and resolve hypervisor
             host_ref = self._extract_host_ref(row)
@@ -103,7 +104,7 @@ class VmHypervisorCompatValidator(ValidatorJsonPlugin):
                 continue
 
             host_class = host_row.get("class_ref", "")
-            host_extensions = self._extensions(host_row)
+            host_extensions = get_extensions(host_row)
 
             # Get allowed formats/buses from host
             allowed_formats = self._get_allowed_formats(host_class, host_row, host_extensions)
@@ -286,9 +287,3 @@ class VmHypervisorCompatValidator(ValidatorJsonPlugin):
 
         # Fall back to class defaults
         return self._DEFAULT_ALLOWED_BUSES.get(host_class, set())
-
-    @staticmethod
-    def _extensions(row: dict[str, Any]) -> dict[str, Any]:
-        """Get extensions dict from row."""
-        extensions = row.get("extensions")
-        return extensions if isinstance(extensions, dict) else {}

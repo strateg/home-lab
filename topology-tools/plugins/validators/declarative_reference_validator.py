@@ -28,6 +28,7 @@ from kernel.plugin_base import (
     Stage,
     ValidatorJsonPlugin,
 )
+from plugins.validators._refs_shared import get_extensions
 
 
 @dataclass(frozen=True)
@@ -117,11 +118,6 @@ class DeclarativeReferenceValidator(ValidatorJsonPlugin):
             diagnostics.extend(handler.func(self, ctx, rows, row_by_id, stage))
 
         return self.make_result(diagnostics)
-
-    @staticmethod
-    def _extensions(row: dict[str, Any]) -> dict[str, Any]:
-        payload = row.get("extensions")
-        return payload if isinstance(payload, dict) else {}
 
     def _row_prefix(self, row: dict[str, Any]) -> str:
         return f"instance:{row.get('group')}:{row.get('instance')}"
@@ -285,7 +281,7 @@ class DeclarativeReferenceValidator(ValidatorJsonPlugin):
                 continue
             row_id = row.get("instance")
             row_prefix = self._row_prefix(row)
-            extensions = self._extensions(row)
+            extensions = get_extensions(row)
 
             records: list[Any] = []
             direct = extensions.get("records")
@@ -623,7 +619,7 @@ class DeclarativeReferenceValidator(ValidatorJsonPlugin):
                 continue
             row_id = row.get("instance")
             row_prefix = self._row_prefix(row)
-            extensions = self._extensions(row)
+            extensions = get_extensions(row)
 
             diagnostics.extend(
                 self._validate_target_ref(
@@ -693,7 +689,7 @@ class DeclarativeReferenceValidator(ValidatorJsonPlugin):
                 continue
             row_id = row.get("instance")
             row_prefix = self._row_prefix(row)
-            extensions = self._extensions(row)
+            extensions = get_extensions(row)
 
             diagnostics.extend(
                 self._validate_target_ref(
@@ -789,7 +785,7 @@ class DeclarativeReferenceValidator(ValidatorJsonPlugin):
                 continue
             row_id = row.get("instance")
             row_prefix = self._row_prefix(row)
-            extensions = self._extensions(row)
+            extensions = get_extensions(row)
 
             data_asset_refs = extensions.get("data_asset_refs")
             if isinstance(data_asset_refs, list):
