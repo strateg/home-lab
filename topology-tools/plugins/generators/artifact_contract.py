@@ -222,6 +222,7 @@ def _resolve_contracts_root(ctx: PluginContext) -> Path:
 
 
 def _resolve_state_root(ctx: PluginContext) -> Path:
+    # 1. Explicit config takes priority
     raw_state_root = ctx.config.get("artifact_plan_state_dir")
     if isinstance(raw_state_root, str) and raw_state_root.strip():
         state_root = Path(raw_state_root.strip())
@@ -230,6 +231,16 @@ def _resolve_state_root(ctx: PluginContext) -> Path:
         repo_root = _resolve_repo_root(ctx)
         return (repo_root / state_root).resolve()
 
+    # 2. State under generator_artifacts_root (H1.4: hermetic pipeline)
+    artifacts_root_raw = ctx.config.get("generator_artifacts_root")
+    if isinstance(artifacts_root_raw, str) and artifacts_root_raw.strip():
+        artifacts_root = Path(artifacts_root_raw.strip())
+        if not artifacts_root.is_absolute():
+            repo_root = _resolve_repo_root(ctx)
+            artifacts_root = repo_root / artifacts_root
+        return (artifacts_root.resolve() / ".state" / "artifact-plans").resolve()
+
+    # 3. Fallback: repo-relative (default case when no external artifacts-root)
     repo_root_raw = ctx.config.get("repo_root")
     if isinstance(repo_root_raw, str) and repo_root_raw.strip():
         return (Path(repo_root_raw.strip()).resolve() / ".state" / "artifact-plans").resolve()
