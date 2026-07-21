@@ -2,7 +2,10 @@
 
 ## Status
 
-Proposed
+Deferred
+
+> **Note:** H1.5 ADR hygiene (2026-07-21): Phase 1 implementation deferred. Activate when
+> AI agent context optimization becomes a priority.
 
 ## Date
 

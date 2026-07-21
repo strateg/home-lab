@@ -1,11 +1,12 @@
 # ADR 0105: Device State Management Using Industry Best Practices
 
 **Date:** 2026-06-10
-**Status:** Draft
+**Status:** Deferred
 **Related:** ADR 0083, ADR 0084, ADR 0085
 
-> **Note:** Status changed from Proposed to Draft pending Critical issue resolution (C1-C3).
+> **Note:** Status changed to Deferred pending Critical issue resolution (C1-C3).
 > See `adr/0105-analysis/TECH-LEAD-REVIEW.md` for full critique.
+> H1.5 ADR hygiene (2026-07-21): Implementation deferred until blockers resolved.
 
 ---
 
