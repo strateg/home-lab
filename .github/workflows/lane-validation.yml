@@ -40,7 +40,7 @@ jobs:
           echo "PROJECT_ID=$PROJECT_ID" >> "$GITHUB_ENV"
 
       - name: Setup Task CLI
-        uses: arduino/setup-task@v2
+        uses: arduino/setup-task@v3
         with:
           version: 3.45.4
 
