@@ -357,6 +357,26 @@ def build_wireguard_projection(
         # Resolve source_vlan_refs in vps_nat and generate iptables rules (ADR-0111)
         vps_nat = _resolve_vps_nat(inst_data.get("vps_nat", {}), vlan_cidr_index)
 
+        # Extract road_warrior_peers with resolved secrets
+        road_warrior_peers: list[dict[str, Any]] = []
+        raw_rw_peers = inst_data.get("road_warrior_peers", [])
+        rw_secrets_dict = secrets.get("road_warriors", {})
+        for rw in raw_rw_peers:
+            if not isinstance(rw, dict):
+                continue
+            device_ref = rw.get("device_ref", "")
+            # Extract short name: inst.device.jolla-phone-2026 -> jolla-phone-2026
+            short_name = device_ref.replace("inst.device.", "")
+            rw_device_secrets = rw_secrets_dict.get(short_name, {})
+            road_warrior_peers.append(
+                {
+                    **rw,
+                    "device_ref": device_ref,
+                    "short_name": short_name,
+                    "secrets": rw_device_secrets,
+                }
+            )
+
         tunnels.append(
             {
                 "instance_id": inst_id,
@@ -364,6 +384,7 @@ def build_wireguard_projection(
                 "tunnel_network": tunnel_network,
                 "endpoint_a": endpoint_a,
                 "endpoint_b": endpoint_b,
+                "road_warrior_peers": road_warrior_peers,
                 "routing": inst_data.get("routing", {}),
                 "firewall": inst_data.get("firewall", {}),
                 "vps_nat": vps_nat,
@@ -502,6 +523,36 @@ class WireguardGenerator(BaseGenerator):
                 content = self.render_template(ctx, "wireguard/linux.conf.j2", template_ctx)
                 self.write_text_atomic(linux_path, content)
                 written.append(str(linux_path))
+
+            # Generate road-warrior client configs
+            road_warrior_peers = tunnel.get("road_warrior_peers", [])
+            for rw in road_warrior_peers:
+                short_name = rw.get("short_name", "")
+                rw_secrets = rw.get("secrets", {})
+                if not rw_secrets.get("private_key"):
+                    # Skip clients without secrets
+                    continue
+
+                client_path = out_root / f"client-{short_name}.conf"
+                planned_outputs.append(
+                    build_planned_output(
+                        path=str(client_path),
+                        renderer="jinja2",
+                        reason="base-family",
+                    )
+                )
+                client_ctx = {
+                    "tunnel": tunnel,
+                    "tunnel_name": tunnel_name,
+                    "client": rw,
+                    "server": endpoint_b,
+                    "vps_keys": vps_keys,
+                    "client_keys": rw_secrets,
+                    "mtu": tunnel.get("mtu", 1420),
+                }
+                content = self.render_template(ctx, "wireguard/client.conf.j2", client_ctx)
+                self.write_text_atomic(client_path, content)
+                written.append(str(client_path))
 
             # Generate README
             readme_path = out_root / "README.md"

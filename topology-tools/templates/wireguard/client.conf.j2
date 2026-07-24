@@ -1,0 +1,24 @@
+# WireGuard Configuration for {{ client.device_ref }}
+# Tunnel: {{ tunnel.instance_id }}
+# Generated from topology - DO NOT EDIT MANUALLY
+#
+# Deploy on Sailfish OS:
+#   Settings -> VPN -> WireGuard -> + (Add) -> Import from file
+#   Select this .conf file and enable the VPN when needed
+
+[Interface]
+# {{ client.device_ref }} (road-warrior)
+Address = {{ client.tunnel_ip }}
+PrivateKey = {{ client_keys.private_key }}
+DNS = 192.168.88.1
+MTU = {{ mtu }}
+
+[Peer]
+# VPS Hub: {{ server.device_ref }}
+PublicKey = {{ vps_keys.public_key }}
+{% if client_keys.preshared_key %}
+PresharedKey = {{ client_keys.preshared_key }}
+{% endif %}
+Endpoint = {{ server.public_endpoint }}:{{ server.listen_port | default(51820) }}
+AllowedIPs = {{ client.routes | join(', ') }}
+PersistentKeepalive = {{ client.persistent_keepalive | default(25) }}

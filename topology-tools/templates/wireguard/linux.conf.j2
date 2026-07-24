@@ -19,11 +19,17 @@ MTU = {{ mtu }}
 {% if vps_nat.ip_forward | default(false) %}
 PostUp = sysctl -w net.ipv4.ip_forward=1
 {% endif %}
+{% if tunnel.road_warrior_peers | default([]) | length > 0 %}
+PostUp = iptables -I FORWARD 1 -i wg0 -o wg0 -j ACCEPT
+{% endif %}
 {% for rule in vps_nat.iptables_rules | default([]) %}
 PostUp = iptables {{ rule }}
 {% endfor %}
 
 # PostDown rules to clean up
+{% if tunnel.road_warrior_peers | default([]) | length > 0 %}
+PostDown = iptables -D FORWARD -i wg0 -o wg0 -j ACCEPT
+{% endif %}
 {% for rule in vps_nat.iptables_rules | default([]) %}
 {# Convert -I/-A to -D for deletion #}
 {% set delete_rule = rule | replace('-I FORWARD 1 ', '-D FORWARD ') | replace('-I FORWARD 2 ', '-D FORWARD ') | replace('-A ', '-D ') %}
@@ -44,3 +50,16 @@ Endpoint = {{ endpoint_a.public_endpoint }}:{{ endpoint_a.listen_port | default(
 {% if endpoint_a.role == 'client' %}
 # Client initiates connection, no PersistentKeepalive needed on server
 {% endif %}
+{% for rw in tunnel.road_warrior_peers | default([]) %}
+{% if rw.secrets.public_key %}
+
+[Peer]
+# Road-warrior: {{ rw.device_ref }}
+PublicKey = {{ rw.secrets.public_key }}
+{% if rw.secrets.preshared_key %}
+PresharedKey = {{ rw.secrets.preshared_key }}
+{% endif %}
+AllowedIPs = {{ rw.tunnel_ip.split('/')[0] }}/32
+# Mobile client initiates connection, no Endpoint needed
+{% endif %}
+{% endfor %}

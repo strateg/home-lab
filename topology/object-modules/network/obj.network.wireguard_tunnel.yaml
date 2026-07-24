@@ -109,6 +109,34 @@ instance_schema:
       format: ipv4_cidr
       description: Tunnel subnet (e.g., 10.100.0.0/30)
 
+    road_warrior_peers:
+      type: array
+      description: Mobile/road-warrior clients connecting to VPS hub
+      items:
+        type: object
+        required:
+          - device_ref
+          - tunnel_ip
+        properties:
+          device_ref:
+            type: string
+            format: instance_ref
+            description: Reference to device instance (phone, laptop)
+          tunnel_ip:
+            type: string
+            format: ipv4_cidr
+            description: IP address on tunnel interface
+          routes:
+            type: array
+            items:
+              type: string
+              format: ipv4_cidr
+            description: Networks this client should route through VPN
+          persistent_keepalive:
+            type: integer
+            default: 25
+            description: Keepalive for mobile connections behind NAT
+
     routing:
       type: object
       description: Routing configuration for tunnel
