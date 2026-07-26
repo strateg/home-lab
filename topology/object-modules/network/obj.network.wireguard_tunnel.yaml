@@ -121,7 +121,7 @@ instance_schema:
           device_ref:
             type: string
             format: instance_ref
-            description: Reference to device instance (phone, laptop)
+            description: Reference to device instance (phone, laptop, travel router)
           tunnel_ip:
             type: string
             format: ipv4_cidr
@@ -132,10 +132,31 @@ instance_schema:
               type: string
               format: ipv4_cidr
             description: Networks this client should route through VPN
+          dns:
+            type: string
+            format: ipv4
+            description: |
+              Resolver pushed to the client. Only set this when the address
+              is reachable THROUGH the tunnel and the client has no resolver
+              of its own; a gateway peer that already runs DNS for its LAN
+              must omit it, otherwise every lookup on that LAN breaks
+              whenever the tunnel is down or the resolver is unreachable.
+              Omitted -> no DNS line is emitted.
           persistent_keepalive:
             type: integer
             default: 25
             description: Keepalive for mobile connections behind NAT
+          gateway_for:
+            type: array
+            items:
+              type: string
+              format: instance_ref
+            description: |
+              Device instances that reach the tunnel THROUGH this peer
+              instead of holding their own keys. Only valid when the peer is
+              itself a router that masquerades its LAN into the tunnel, so
+              the hub still sees a single /32. Documentation-only: no
+              separate peer is generated.
 
     routing:
       type: object

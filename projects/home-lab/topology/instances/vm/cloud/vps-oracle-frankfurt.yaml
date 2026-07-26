@@ -43,7 +43,7 @@ networking:
   tunnel_interfaces:
     - name: wg0
       tunnel_ref: inst.tunnel.wg-home-to-oci
-      tunnel_ip: 10.100.0.2/30
+      tunnel_ip: 10.100.0.2/24
       listen_port: 51820
       role: server
 

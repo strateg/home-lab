@@ -2,15 +2,31 @@
 # Tunnel: {{ tunnel.instance_id }}
 # Generated from topology - DO NOT EDIT MANUALLY
 #
-# Deploy on Sailfish OS:
-#   Settings -> VPN -> WireGuard -> + (Add) -> Import from file
-#   Select this .conf file and enable the VPN when needed
+# Deploy - import this file into the WireGuard client on the target device:
+#   Sailfish OS: Settings -> VPN -> WireGuard -> + (Add) -> Import from file
+#   GL.iNet:     VPN -> WireGuard Client -> Add Manually / Import Config
+#   Linux:       /etc/wireguard/{{ tunnel_name }}.conf (chmod 600), then
+#                systemctl enable --now wg-quick@{{ tunnel_name }}
+#
+# Routing is defined by AllowedIPs below. Configure the client to honour it
+# rather than forcing all traffic through the tunnel, otherwise unrelated
+# internet traffic is captured and needs per-destination exclusions.
+{% if client.get('gateway_for') %}
+#
+# Gateway peer - these devices reach the tunnel through it and need no VPN
+# config of their own (requires LAN -> {{ tunnel_name }} masquerade):
+{% for dev in client.gateway_for %}
+#   - {{ dev }}
+{% endfor %}
+{% endif %}
 
 [Interface]
 # {{ client.device_ref }} (road-warrior)
 Address = {{ client.tunnel_ip }}
 PrivateKey = {{ client_keys.private_key }}
-DNS = 192.168.88.1
+{% if client.get('dns') %}
+DNS = {{ client.dns }}
+{% endif %}
 MTU = {{ mtu }}
 
 [Peer]

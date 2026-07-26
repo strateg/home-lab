@@ -6,8 +6,10 @@ source_id: inst.tunnel.wg-home-to-oci
 status: active
 notes: |
   WireGuard hub-spoke tunnel between home MikroTik router,
-  Oracle Cloud VPS, and road-warrior mobile clients.
+  Oracle Cloud VPS, and road-warrior clients.
   VPS serves as hub for both site-to-site and road-warrior connections.
+  Road-warrior peers are either end devices holding their own keys
+  (Jolla Phone) or travel gateways carrying a whole LAN (rtr-slate).
 
 # Tunnel interface name
 tunnel_name: wg0
@@ -50,10 +52,41 @@ road_warrior_peers:
   - device_ref: inst.device.jolla-phone-2026
     tunnel_ip: 10.100.0.3/24
     persistent_keepalive: 25
+    # End device with no resolver of its own: use the MikroTik over the tunnel.
+    dns: 192.168.88.1
     # Routes this client needs access to
     routes:
       - 192.168.88.0/24    # Home LAN (MikroTik admin at .1)
       - 10.100.0.0/24      # Tunnel network
+
+  # Travel VPN gateway: carries every device on its LAN into the tunnel with a
+  # single peer, so portable appliances need no WireGuard config of their own.
+  # srv-orangepi5 travels with the Slate and reaches the home LAN through it.
+  # When srv-orangepi5 is plugged back into the Chateau it is already on
+  # inst.vlan.lan, so no tunnel is involved on that path.
+  #
+  # Requires LAN->wg masquerade on the Slate (GL.iNet default). The VPS
+  # therefore sees one /32 and traffic from srv-orangepi5 appears as
+  # 10.100.0.4. Devices behind the Slate are not individually addressable
+  # from the home LAN; that direction is not needed here.
+  # Reachable from the Jolla Phone at 10.100.0.4: the Jolla already routes
+  # 10.100.0.0/24 into the tunnel, so peer-to-peer works through the VPS
+  # hairpin (FORWARD -i wg0 -o wg0) with no change to the phone's config.
+  - device_ref: rtr-slate
+    tunnel_ip: 10.100.0.4/24
+    persistent_keepalive: 25
+    # NO dns: on purpose. The Slate runs its own resolver for its LAN, and
+    # pushing 192.168.88.1 here makes every lookup behind the Slate depend on
+    # the tunnel being up - that broke all outbound name resolution (including
+    # api.anthropic.com) while the tunnel showed connected. Routing already
+    # keeps non-home traffic out of the tunnel; DNS must not undo that.
+    gateway_for:
+      - srv-orangepi5
+    # Slate LAN is 192.168.8.0/24 (GL.iNet default) or 192.168.20.0/24
+    # (travel) - neither overlaps the routes below.
+    routes:
+      - 192.168.88.0/24    # Home LAN behind the Chateau
+      - 10.100.0.0/24      # Tunnel network (VPS hub + other peers)
 
 # Routing configuration
 routing:
@@ -96,3 +129,5 @@ use_cases:
   - Monitoring home infrastructure from cloud
   - Route VPN VLAN traffic through German IP (geo-bypass)
   - Road-warrior access to home LAN from mobile devices (Jolla Phone)
+  - Travel gateway access to home LAN via rtr-slate for appliances carried
+    on the road (srv-orangepi5), with no per-device VPN config
