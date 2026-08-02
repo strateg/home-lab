@@ -33,6 +33,40 @@ resource "routeros_ip_firewall_addr_list" "zone_{{ zone_name }}_{{ loop.index }}
 {% endfor %}
 
 # ==============================================================================
+# INPUT Chain Rules (Management Access from LAN including WireGuard)
+# ADR-0110: Secure remote management through trusted interfaces
+# ==============================================================================
+resource "routeros_ip_firewall_filter" "input_established_related" {
+  chain            = "input"
+  action           = "accept"
+  connection_state = "established,related,untracked"
+  comment          = "ADR-0110: Accept established/related/untracked input - managed by topology"
+}
+
+resource "routeros_ip_firewall_filter" "input_icmp" {
+  chain    = "input"
+  action   = "accept"
+  protocol = "icmp"
+  comment  = "ADR-0110: Accept ICMP - managed by topology"
+}
+
+resource "routeros_ip_firewall_filter" "input_management_from_lan" {
+  chain             = "input"
+  action            = "accept"
+  protocol          = "tcp"
+  dst_port          = "22,8291,8443"
+  in_interface_list = "LAN"
+  comment           = "ADR-0110: Allow SSH/Winbox/API from LAN (incl. WireGuard) - managed by topology"
+}
+
+resource "routeros_ip_firewall_filter" "input_drop_not_lan" {
+  chain             = "input"
+  action            = "drop"
+  in_interface_list = "!LAN"
+  comment           = "ADR-0110: Drop input not from LAN - managed by topology"
+}
+
+# ==============================================================================
 # 1. Established/Related Rule (FIRST)
 # ==============================================================================
 resource "routeros_ip_firewall_filter" "zone_established_related" {
