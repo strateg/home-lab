@@ -59,6 +59,17 @@ road_warrior_peers:
       - 192.168.88.0/24    # Home LAN (MikroTik admin at .1)
       - 10.100.0.0/24      # Tunnel network
 
+  # Workstation: primary development machine, needs access to home LAN
+  # and MikroTik management via tunnel when on external networks (ISP router)
+  - device_ref: ws-nixos
+    tunnel_ip: 10.100.0.5/24
+    persistent_keepalive: 25
+    dns: 192.168.88.1
+    routes:
+      - 192.168.88.0/24    # Home LAN
+      - 10.100.0.0/24      # Tunnel network
+      - 10.0.99.0/24       # Management VLAN
+
   # Travel VPN gateway: carries every device on its LAN into the tunnel with a
   # single peer, so portable appliances need no WireGuard config of their own.
   # srv-orangepi5 travels with the Slate and reaches the home LAN through it.
