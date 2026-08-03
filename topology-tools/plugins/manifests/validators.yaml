@@ -218,6 +218,29 @@ plugins:
   description: Enforces that an inst.os.<distro>.* row extends an obj.os.<distro>.*
     object, so distribution capabilities are not lost to a generic OS object.
   execution_mode: subinterpreter
+- id: base.validator.os_obj_refs
+  kind: validator_json
+  entry: ../validators/os_obj_refs_validator.py:OsObjRefsValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 117
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Enforces that instance os_refs stay inside the object's declared
+    software_contract.os_obj_refs allow-list.
+  execution_mode: subinterpreter
 - id: base.validator.network_reserved_ranges
   kind: validator_json
   entry: ../validators/network_reserved_ranges_validator.py:NetworkReservedRangesValidator

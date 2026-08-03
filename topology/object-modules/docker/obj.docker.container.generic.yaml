@@ -1,13 +1,15 @@
 @object: obj.docker.container.generic
 @extends: class.compute.workload.docker
 @title: Docker Container Generic
-@version: 1.1.0
+@version: 1.2.0
 
 model: Generic Docker/OCI Container Workload
 vendor: generic
 software_contract:
+  # A container binds the container_base OS profile (installation_model:
+  # container_base), not the edge profile that models an SBC host install.
   os_obj_refs:
-  - obj.os.debian.12.arm64.edge
+  - obj.os.debian.12.arm64.container_base
   os_cardinality:
     min: 1
     max: 1
