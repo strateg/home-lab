@@ -12,7 +12,7 @@
     },
     "mechanism": {
       "type": "string",
-      "enum": ["netinstall", "unattended_install", "cloud_init", "ansible_bootstrap"]
+      "enum": ["netinstall", "unattended_install", "cloud_init", "ansible_bootstrap", "manual"]
     },
     "bootstrap": {
       "$ref": "#/$defs/bootstrap"

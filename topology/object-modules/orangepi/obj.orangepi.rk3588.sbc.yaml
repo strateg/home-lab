@@ -1,7 +1,7 @@
 @object: obj.orangepi.rk3588.sbc
 @extends: class.compute.edge_node
 @title: Orangepi RK3588 SBC
-@version: 1.1.0
+@version: 2.0.0
 
 model: Orange Pi 5 (RK3588S) ARM64 SBC
 vendor: orangepi
@@ -27,19 +27,22 @@ software_contract:
     max: 2
   multi_boot: true
 
+# OS installation is operator-driven: the Armbian image is written to media by
+# hand and armbian-install moves it to NVMe and flashes the SPI bootloader.
+# There is no unattended path and no cloud-init on the image, so no bootstrap
+# artifacts are generated for this object.
 initialization_contract:
-  version: 1.0.0
-  mechanism: cloud_init
-  bootstrap:
-    template: bootstrap/user-data.example.j2
-    outputs:
-      user_data: user-data.example
-      meta_data: meta-data
+  version: 2.0.0
+  mechanism: manual
   requirements:
-  - type: tool
-    name: cloud-init
+  - type: artifact
+    name: armbian_image
     required: true
-    description: Target image must include cloud-init service.
+    description: Armbian image for board orangepi5 (rockchip-rk3588, arm64) obtained and verified by the operator.
+  - type: tool
+    name: armbian-install
+    required: true
+    description: Run on the target to move the rootfs to NVMe and flash the SPI NOR bootloader.
   - type: network
     name: first_boot_dhcp
     required: true
@@ -53,6 +56,11 @@ initialization_contract:
       max_attempts: 8
       backoff_seconds: 20
       timeout_seconds: 600
+  post_handover:
+    owner: operator
+    notes: >-
+      Hand over to configuration management once SSH is reachable; ongoing
+      configuration is Ansible-driven per ADR 0105.
 
 enabled_capabilities:
 - cap.compute.node.edge
