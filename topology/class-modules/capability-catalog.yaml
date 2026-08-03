@@ -1079,6 +1079,14 @@ capabilities:
     stability: stable
     derived: true
 
+  - @capability: cap.os.armbian
+    title: Armbian
+    summary: Armbian Linux distribution for ARM single-board computers.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+
   - @capability: cap.os.alpine
     title: Alpine Linux
     summary: Alpine Linux distribution.
@@ -1170,6 +1178,50 @@ capabilities:
     layer: L0
     stability: stable
     derived: true
+
+  - @capability: cap.os.ubuntu.noble
+    title: Ubuntu Noble
+    summary: Alias for Ubuntu 24.04 LTS.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+    alias_for: cap.os.ubuntu.2404
+
+  - @capability: cap.os.ubuntu.2410
+    title: Ubuntu 24.10
+    summary: Ubuntu 24.10 (Oracular Oriole) interim release.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+
+  - @capability: cap.os.ubuntu.oracular
+    title: Ubuntu Oracular
+    summary: Alias for Ubuntu 24.10.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+    alias_for: cap.os.ubuntu.2410
+
+  # Armbian Releases
+  - @capability: cap.os.armbian.265
+    title: Armbian 26.5
+    summary: Armbian 26.5 release (Ubuntu 26.04 resolute userland).
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+
+  - @capability: cap.os.armbian.resolute
+    title: Armbian Resolute
+    summary: Alias for Armbian 26.5.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+    alias_for: cap.os.armbian.265
 
   # Init Systems
   - @capability: cap.os.init.systemd

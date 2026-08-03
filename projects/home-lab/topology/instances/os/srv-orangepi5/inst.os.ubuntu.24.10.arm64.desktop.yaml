@@ -1,0 +1,14 @@
+@instance: inst.os.ubuntu.24.10.arm64.desktop
+@extends: obj.os.ubuntu.24.10.arm64.desktop
+@group: os
+@version: 1.0.0
+source_id: inst.os.ubuntu.24.10.arm64.desktop
+status: staged
+notes: >-
+  Fallback/rescue OS of srv-orangepi5, held on the removable microSD card
+  (mmcblk1p1, ext4, label desktop-rootfs, 119 GB). Orange Pi vendor desktop
+  image, kernel 6.1.0-1025-rockchip, image hostname strateg-OP5. Bootable but
+  not the running system - the active OS is inst.os.armbian.26.5.arm64.edge on
+  NVMe. Ubuntu 24.10 is an interim release whose nine-month support window
+  ended in July 2025, so treat this as recovery media only and do not place
+  services on it.

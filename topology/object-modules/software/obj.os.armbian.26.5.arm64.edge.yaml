@@ -1,0 +1,19 @@
+@object: obj.os.armbian.26.5.arm64.edge
+@extends: class.os
+@title: OS Armbian 26.5 ARM64 Edge
+@version: 1.0.0
+
+vendor: armbian
+model: Armbian 26.5 ARM64 Edge (Ubuntu 26.04 resolute userland, rk35xx vendor kernel)
+properties:
+  family: linux
+  distribution: armbian
+  release: '26.5'
+  release_id: '26.5'
+  codename: resolute
+  architecture: arm64
+  init_system: systemd
+  package_manager: apt
+  installation_model: installable
+enabled_capabilities: []
+enabled_packs: []

@@ -1,0 +1,10 @@
+@instance: inst.os.armbian.26.5.arm64.edge
+@extends: obj.os.armbian.26.5.arm64.edge
+@group: os
+@version: 1.0.0
+source_id: inst.os.armbian.26.5.arm64.edge
+status: active
+notes: >-
+  Active OS of srv-orangepi5 since 2026-08-03. Armbian 26.5.1 (vendor kernel
+  6.1.115-rk35xx) installed on the internal NVMe (armbi_root), booted via the
+  SPI NOR bootloader. Replaces the previously modelled Debian 12 edge binding.

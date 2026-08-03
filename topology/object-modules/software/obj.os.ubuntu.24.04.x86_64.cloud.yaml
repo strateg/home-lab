@@ -1,0 +1,19 @@
+@object: obj.os.ubuntu.24.04.x86_64.cloud
+@extends: class.os
+@title: OS Ubuntu 24.04 LTS x86_64 Cloud
+@version: 1.0.0
+
+vendor: ubuntu
+model: Ubuntu 24.04 LTS x86_64 Cloud Image
+properties:
+  family: linux
+  distribution: ubuntu
+  release: '24.04'
+  release_id: '24.04'
+  codename: noble
+  architecture: x86_64
+  init_system: systemd
+  package_manager: apt
+  installation_model: cloud_image
+enabled_capabilities: []
+enabled_packs: []

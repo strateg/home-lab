@@ -15,7 +15,7 @@ from yaml_loader import load_yaml_file
 SCHEMA_PATH = REPO_ROOT / "schemas" / "initialization-contract.schema.json"
 MIKROTIK_OBJECT_PATH = REPO_ROOT / "topology" / "object-modules" / "mikrotik" / "obj.mikrotik.chateau_lte7_ax.yaml"
 PROXMOX_OBJECT_PATH = REPO_ROOT / "topology" / "object-modules" / "proxmox" / "obj.proxmox.ve.yaml"
-ORANGEPI_OBJECT_PATH = REPO_ROOT / "topology" / "object-modules" / "orangepi" / "obj.orangepi.rk3588.debian.yaml"
+ORANGEPI_OBJECT_PATH = REPO_ROOT / "topology" / "object-modules" / "orangepi" / "obj.orangepi.rk3588.sbc.yaml"
 
 
 def test_mikrotik_object_has_valid_initialization_contract() -> None:

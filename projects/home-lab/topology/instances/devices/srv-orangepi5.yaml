@@ -1,12 +1,13 @@
 @instance: srv-orangepi5
-@extends: obj.orangepi.rk3588.debian
+@extends: obj.orangepi.rk3588.sbc
 @group: devices
-@version: 1.1.0
+@version: 1.2.0
 source_id: srv-orangepi5
-notes: ADR 0107 workload_defaults applied
+notes: ADR 0107 workload_defaults applied; migrated to Armbian on NVMe (2026-08-03)
 firmware_ref: inst.firmware.uboot.generic.arm64
 os_refs:
-- inst.os.debian.12.arm64.edge
+- inst.os.armbian.26.5.arm64.edge
+- inst.os.ubuntu.24.10.arm64.desktop
 power:
   source_ref: pdu-rack
   max_watts: 20

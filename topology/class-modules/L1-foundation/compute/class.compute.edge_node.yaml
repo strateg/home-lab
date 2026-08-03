@@ -2,14 +2,18 @@
 @title: Compute Edge Node
 @summary: Low-power edge compute host for service runtime.
 @layer: L1
-@version: 1.0.0
+@version: 1.1.0
 
 os_policy: required
 firmware_policy: required
+# SBC edge nodes commonly keep a removable rescue/fallback image (SD card) next to
+# the installed system on internal storage. ADR 0064 models the Orange Pi 5 as a
+# multi-boot node with max 2 OS bindings; base.validator.single_active_os keeps
+# exactly one of them `status: active`.
 os_cardinality:
   min: 1
-  max: 1
-multi_boot: false
+  max: 2
+multi_boot: true
 allowed_os_install_models:
 - installable
 - embedded

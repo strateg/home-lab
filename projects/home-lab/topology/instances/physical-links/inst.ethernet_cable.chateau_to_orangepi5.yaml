@@ -10,7 +10,7 @@ endpoint_a:
   port: ether4
 endpoint_b:
   device_ref: srv-orangepi5
-  port: eth0
+  port: end1
 creates_channel_ref: inst.chan.eth.chateau_to_orangepi5
 length_m: 1.5
 shielding: utp

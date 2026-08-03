@@ -1,27 +1,31 @@
-@object: obj.orangepi.rk3588.debian
+@object: obj.orangepi.rk3588.sbc
 @extends: class.compute.edge_node
-@title: Orangepi RK3588 Debian
-@version: 1.0.0
+@title: Orangepi RK3588 SBC
+@version: 1.1.0
 
-model: Orange Pi 5 RK3588 Debian
+model: Orange Pi 5 (RK3588S) ARM64 SBC
 vendor: orangepi
 hardware_specs:
   interfaces:
     ethernet:
-    - name: eth0
+    - name: end1
       role: trunk_uplink
       speed_mbps: 1000
       standard: gbe
       duplex: full
-      description: Primary wired uplink to core router
+      description: >-
+        Onboard RTL8211F GbE (platform fe1c0000.ethernet, rk_gmac-dwmac driver).
+        Named end1 by the Armbian rk35xx vendor kernel; the legacy eth0 name
+        applied to the previous Debian image only.
 software_contract:
   firmware_obj_ref: obj.firmware.uboot.generic.arm64
   os_obj_refs:
-  - obj.os.debian.12.arm64.edge
+  - obj.os.armbian.26.5.arm64.edge
+  - obj.os.ubuntu.24.10.arm64.desktop
   os_cardinality:
     min: 1
-    max: 1
-  multi_boot: false
+    max: 2
+  multi_boot: true
 
 initialization_contract:
   version: 1.0.0

@@ -1,0 +1,19 @@
+@object: obj.os.ubuntu.24.10.arm64.desktop
+@extends: class.os
+@title: OS Ubuntu 24.10 ARM64 Desktop
+@version: 1.0.0
+
+vendor: ubuntu
+model: Ubuntu 24.10 ARM64 Desktop (Orange Pi vendor image, linux-rockchip kernel)
+properties:
+  family: linux
+  distribution: ubuntu
+  release: '24.10'
+  release_id: '24.10'
+  codename: oracular
+  architecture: arm64
+  init_system: systemd
+  package_manager: apt
+  installation_model: installable
+enabled_capabilities: []
+enabled_packs: []

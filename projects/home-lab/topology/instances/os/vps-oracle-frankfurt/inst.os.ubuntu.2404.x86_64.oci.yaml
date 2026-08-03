@@ -1,5 +1,5 @@
 @instance: inst.os.ubuntu.2404.x86_64.oci
-@extends: obj.os.linux.generic.x86_64
+@extends: obj.os.ubuntu.24.04.x86_64.cloud
 @group: os
 @version: 1.0.0
 source_id: inst.os.ubuntu.2404.x86_64.oci

@@ -2,7 +2,7 @@ version: 1
 core_model_version: 1.0.0
 classes:
   class.compute.edge_node:
-    version: 1.0.0
+    version: 1.1.0
   class.compute.hypervisor:
     version: 2.0.0
   class.compute.hypervisor.hyperv:
@@ -108,10 +108,10 @@ objects:
   obj.device.e_reader:
     version: 1.0.0
     class_ref: class.device.iot_endpoint
-  obj.device.smartphone:
+  obj.device.smart_tv:
     version: 1.0.0
     class_ref: class.device.iot_endpoint
-  obj.device.smart_tv:
+  obj.device.smartphone:
     version: 1.0.0
     class_ref: class.device.iot_endpoint
   obj.docker.container.generic:
@@ -307,12 +307,15 @@ objects:
     version: 1.0.0
     class_ref: class.operations.backup
   obj.oracle.cloud_vm:
-    version: 1.0.0
+    version: 1.1.0
     class_ref: class.compute.workload.vm
-  obj.orangepi.rk3588.debian:
-    version: 1.0.0
+  obj.orangepi.rk3588.sbc:
+    version: 1.1.0
     class_ref: class.compute.edge_node
   obj.os.android.15.arm64:
+    version: 1.0.0
+    class_ref: class.os
+  obj.os.armbian.26.5.arm64.edge:
     version: 1.0.0
     class_ref: class.os
   obj.os.debian.12.arm64.container_base:
@@ -343,6 +346,12 @@ objects:
     version: 1.0.0
     class_ref: class.os
   obj.os.sailfish.5.arm64:
+    version: 1.0.0
+    class_ref: class.os
+  obj.os.ubuntu.24.04.x86_64.cloud:
+    version: 1.0.0
+    class_ref: class.os
+  obj.os.ubuntu.24.10.arm64.desktop:
     version: 1.0.0
     class_ref: class.os
   obj.pdu.generic.managed:
