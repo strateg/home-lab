@@ -96,6 +96,13 @@ rule_packs:
       - "topology/class-modules/capability-catalog.yaml"
       - "topology/object-modules/**/enabled_capabilities*"
       - "topology/object-modules/**/initialization_contract*"
+  mikrotik-terraform:
+    path: docs/ai/rules/mikrotik-terraform.md
+    source_adr: ["0072", "0074", "0110"]
+    files_glob:
+      - "generated/**/terraform/mikrotik/**"
+      - "topology/object-modules/mikrotik/**"
+      - "projects/*/secrets/terraform/mikrotik*"
 
 rules:
   # === ALWAYS-LOAD CORE RULES ===

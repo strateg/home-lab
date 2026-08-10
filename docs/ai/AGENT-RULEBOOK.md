@@ -42,6 +42,7 @@ Load rule packs based on files you're modifying:
 | `projects/*/secrets/**` | `secrets.md` | SOPS/age, never plaintext |
 | `adr/**`, `docs/ai/**` | `adr-governance.md` | Update ADR + REGISTER.md |
 | `tests/**`, `.github/workflows/**` | `testing-ci.md` | Run targeted tests + ci |
+| `generated/**/terraform/mikrotik/**` | `mikrotik-terraform.md` | Import existing resources before apply |
 | `acceptance-testing/**` | `acceptance-tuc.md` | TUC folder structure |
 | Device/platform detection | `capability-model.md` | Use capabilities, not string matching |
 
@@ -128,3 +129,49 @@ Load rule packs based on files you're modifying:
 3. Keep all use-case contract, plan, matrix, evidence, quality gate, and logs inside the TUC folder.
 4. Add or update `tests/plugin_integration/test_tuc*.py` for executable regression coverage.
 5. Run the specific quality gate, TUC tests, and compile evidence task when the TUC requires compiled artifacts.
+
+### MikroTik Terraform Import (First-Time or Drift)
+
+When applying MikroTik Terraform to a router with existing configuration:
+
+1. **Prepare credentials**: Extract from SOPS secrets to tfvars.
+   ```bash
+   sops -d projects/home-lab/secrets/terraform/mikrotik.sops.yaml > /tmp/mikrotik.tfvars.json
+   ```
+
+2. **Test API connection**: Use REST API (port 80/443), not RouterOS API (port 8728).
+   ```bash
+   curl -s -u user:pass "http://<router>/rest/system/identity" | jq
+   ```
+
+3. **Get resource IDs**: Query REST API for existing resources.
+   ```bash
+   curl -s -u user:pass "http://<router>/rest/ip/address" | jq -c '.[] | {".id", address, interface}'
+   curl -s -u user:pass "http://<router>/rest/ip/firewall/address-list" | jq -c '.[] | {".id", list, address}'
+   curl -s -u user:pass "http://<router>/rest/interface/vlan" | jq -c '.[] | {".id", name, "vlan-id"}'
+   ```
+
+4. **Import resources**: Map Terraform resource names to MikroTik IDs.
+   ```bash
+   terraform import -var-file=/tmp/mikrotik.tfvars.json routeros_interface_vlan.servers "*24"
+   terraform import -var-file=/tmp/mikrotik.tfvars.json routeros_ip_address.servers "*1F"
+   ```
+
+5. **Handle import conflicts**:
+   - **Address swap conflict** ("already have such entry"): Remove both from state, re-import with correct mapping.
+   - **Unknown parameter** (e.g., "vrf"): Add attribute manually via REST API, then refresh state.
+   ```bash
+   terraform state rm routeros_ip_firewall_addr_list.zone_user_1
+   terraform import ... "*correct_id"
+   ```
+
+6. **Verify and apply**:
+   ```bash
+   terraform plan -var-file=/tmp/mikrotik.tfvars.json  # Should show "No changes"
+   terraform apply -var-file=/tmp/mikrotik.tfvars.json
+   ```
+
+**Key resources to import** (typical order):
+- VLAN interfaces → IP addresses → DHCP pools → DHCP servers → DHCP networks
+- DNS records → Firewall address-lists → Firewall filter rules
+- WireGuard interface → WireGuard peers → Routing tables → Mangle rules → Routes
