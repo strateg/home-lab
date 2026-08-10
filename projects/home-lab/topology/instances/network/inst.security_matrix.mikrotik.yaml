@@ -66,3 +66,13 @@ policy_overrides:
     action: drop
     log: true
     comment: Servers cannot initiate to management (uphill, R4)
+
+  # Infrastructure admin access from LAN (user zone) to management zone
+  # Required for Claude Code/operator workstations to reach srv-orangepi5 (10.0.99.20)
+  - name: lan-to-management-admin
+    from_zone_ref: inst.trust_zone.user
+    to_zone_ref: inst.trust_zone.management
+    action: accept
+    src_vlan_ref: inst.vlan.lan
+    log: false
+    comment: Allow LAN to management for infrastructure admin access

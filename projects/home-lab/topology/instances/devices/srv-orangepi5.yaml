@@ -1,9 +1,15 @@
 @instance: srv-orangepi5
 @extends: obj.orangepi.rk3588.sbc
 @group: devices
-@version: 1.2.0
+@version: 1.4.0
 source_id: srv-orangepi5
-notes: ADR 0107 workload_defaults applied; migrated to Armbian on NVMe (2026-08-03)
+notes: |
+  Infrastructure controller node with Claude Code for topology management.
+  Dual-homed via USB-Ethernet adapter (onboard end1 PHY non-functional):
+    - Host: management VLAN 99 (10.0.99.20) - native/untagged
+    - Docker: servers VLAN 100 (10.0.100.x) - tagged
+  Connected to rtr-mikrotik-chateau ether3 as trunk port.
+  ADR 0107 workload_defaults applied; migrated to Armbian on NVMe (2026-08-03).
 firmware_ref: inst.firmware.uboot.generic.arm64
 os_refs:
 - inst.os.armbian.26.5.arm64.edge
@@ -12,17 +18,35 @@ power:
   source_ref: pdu-rack
   max_watts: 20
 
+# Host network binding - management VLAN for SSH/admin access
+# USB-Ethernet adapter configured as VLAN trunk on MikroTik ether3:
+#   PVID=99 (management - native), tagged=100 (servers for Docker)
+network:
+  interface: enx00e04c680347
+  vlan_ref: inst.vlan.management
+  host: 20
+  gateway: 10.0.99.1
+  mode: trunk
+  trunk_vlans:
+    - inst.vlan.management  # untagged (native VLAN for host)
+    - inst.vlan.servers     # tagged (VLAN 100 for Docker services)
+  switch_port:
+    device_ref: rtr-mikrotik-chateau
+    interface: ether3
+    pvid: 99
+
 # ADR 0087: Docker host capability declaration
-# Inherited from obj.orangepi.rk3588.debian but explicit for validator visibility
 # ADR 0107: Host-level workload defaults for Docker containers
+# Docker containers use servers VLAN 100 (tagged traffic via enx00e04c680347.100)
 workload_defaults:
   trust_zone_ref: inst.trust_zone.servers
   os_refs:
     - inst.os.debian.12.arm64.container_base
   network:
     network_ref: inst.vlan.servers
-    gateway: 10.0.30.1
+    gateway: 10.0.100.1
 
 capabilities:
 - cap.compute.runtime.container_host
 - vendor.runtime.docker.host
+- cap.operations.infrastructure_controller  # Claude Code topology management

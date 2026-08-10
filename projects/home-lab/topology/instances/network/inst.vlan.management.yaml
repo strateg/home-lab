@@ -23,6 +23,11 @@ ip_allocations:
     host: 10
     purpose: hypervisor management UI
 
+  # Infrastructure controller (Claude Code host)
+  - device_ref: srv-orangepi5
+    host: 20
+    purpose: infrastructure controller (Claude Code, topology management)
+
 # MAC-based VLAN assignment is now automatic via device instances.
 # Devices with vlan_ref pointing to this VLAN and secrets_ref containing
 # mac_address will be auto-assigned. See data-assets/inst.device.*.yaml

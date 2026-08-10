@@ -1,0 +1,82 @@
+---
+# Network Configuration for srv-orangepi5
+# Based on topology: projects/home-lab/topology/instances/devices/srv-orangepi5.yaml
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml playbooks/network-orangepi5.yml
+
+- name: Configure srv-orangepi5 Network
+  hosts: srv-orangepi5
+  gather_facts: true
+  become: true
+
+  vars:
+    # From topology srv-orangepi5.yaml
+    primary_interface: enx00e04c680347
+    management_vlan:
+      id: 99
+      ip: 10.0.99.20
+      prefix: 24
+      gateway: 10.0.99.1
+    servers_vlan:
+      id: 100
+      name: vlan100
+      ip: 10.0.100.5
+      prefix: 24
+      gateway: 10.0.100.1
+
+  tasks:
+    - name: Ensure NetworkManager is installed
+      ansible.builtin.package:
+        name: network-manager
+        state: present
+
+    - name: Configure primary interface (management VLAN - native)
+      community.general.nmcli:
+        conn_name: "management"
+        ifname: "{{ primary_interface }}"
+        type: ethernet
+        ip4: "{{ management_vlan.ip }}/{{ management_vlan.prefix }}"
+        gw4: "{{ management_vlan.gateway }}"
+        state: present
+        autoconnect: true
+
+    - name: Remove old VLAN 30 connection if exists
+      community.general.nmcli:
+        conn_name: "usb.30-docker"
+        state: absent
+      ignore_errors: true
+
+    - name: Configure servers VLAN 100 interface
+      community.general.nmcli:
+        conn_name: "vlan-servers"
+        ifname: "{{ servers_vlan.name }}"
+        type: vlan
+        vlanid: "{{ servers_vlan.id }}"
+        vlandev: "{{ primary_interface }}"
+        ip4: "{{ servers_vlan.ip }}/{{ servers_vlan.prefix }}"
+        never_default4: true
+        state: present
+        autoconnect: true
+
+    - name: Bring up servers VLAN connection
+      ansible.builtin.command:
+        cmd: nmcli connection up vlan-servers
+      register: vlan_up
+      changed_when: "'successfully activated' in vlan_up.stdout"
+      failed_when: false
+
+    - name: Verify network configuration
+      ansible.builtin.shell: |
+        ip addr show {{ primary_interface }}
+        ip addr show {{ servers_vlan.name }} 2>/dev/null || echo "VLAN interface not yet created"
+      register: network_status
+      changed_when: false
+
+    - name: Display network status
+      ansible.builtin.debug:
+        msg: "{{ network_status.stdout_lines }}"
+
+  tags:
+    - network
+    - vlan

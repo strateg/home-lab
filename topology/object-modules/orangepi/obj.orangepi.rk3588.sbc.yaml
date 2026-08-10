@@ -13,10 +13,21 @@ hardware_specs:
       speed_mbps: 1000
       standard: gbe
       duplex: full
+      status: degraded
       description: >-
         Onboard RTL8211F GbE (platform fe1c0000.ethernet, rk_gmac-dwmac driver).
-        Named end1 by the Armbian rk35xx vendor kernel; the legacy eth0 name
-        applied to the previous Debian image only.
+        Named end1 by the Armbian rk35xx vendor kernel. Currently non-functional
+        due to PHY initialization failure (Cannot attach to PHY error -19).
+    - name: enx00e04c680347
+      role: trunk_uplink
+      speed_mbps: 1000
+      standard: gbe
+      duplex: full
+      removable: true
+      description: >-
+        USB 3.0 Gigabit Ethernet adapter (Realtek RTL8153). Used as primary
+        network interface while onboard end1 PHY is non-functional.
+        Interface name derived from MAC address (predictable naming).
 software_contract:
   firmware_obj_ref: obj.firmware.uboot.generic.arm64
   os_obj_refs:
