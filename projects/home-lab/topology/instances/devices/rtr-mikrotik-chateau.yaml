@@ -13,9 +13,9 @@ power:
   voltage_v: 24
   max_watts: 21.5
 observed_runtime:
-  captured_at: "2026-04-08"
+  captured_at: "2026-08-10"
   identity: rtr-mikrotik-chateau
-  routeros_version: "7.22"
+  routeros_version: "7.23.3"
   # serial_number and software_id are in SOPS secrets (secrets/instances/rtr-mikrotik-chateau.yaml)
   wan:
     primary_interface: ether1
@@ -61,17 +61,25 @@ observed_runtime:
       ssid: "Chateau*"
       mode: ap
       channel_width: 20/40/80mhz
-      security: wpa2-psk
+      frequency: 5220  # Channel 44 - not crowded, no DFS, per scan 2026-08-10
+      security:
+        authentication_types: [wpa2-psk, wpa3-psk]
+        fast_transition: true
+        fast_transition_over_ds: true
       datapath:
         name: dp-main-lan
         bridge: bridge
       status: running
     wifi2:
-      band: 2.4ghz-ax
+      band: 2ghz-ax
       ssid: "Chateau"
       mode: ap
       channel_width: 20/40mhz
-      security: wpa2-psk
+      frequency: 2462  # Channel 11 - least congested per scan 2026-08-10
+      security:
+        authentication_types: [wpa2-psk, wpa3-psk]
+        fast_transition: true
+        fast_transition_over_ds: true
       datapath:
         name: dp-main-lan
         bridge: bridge

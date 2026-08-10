@@ -258,22 +258,8 @@ class TerraformMikroTikGenerator(BaseGenerator):
                 )
             )
 
-        # Generate Ansible host_vars for WiFi (automated deployment)
-        if wifi_datapaths or wifi_configurations:
-            ansible_out_dir = self.resolve_output_path(ctx, "ansible", "inventory", "production", "host_vars")
-            for router_id in routers:
-                wifi_vars_path = ansible_out_dir / f"{router_id}.wifi.yml"
-                wifi_vars_content = self.render_template(ctx, "ansible/host_vars_wifi.yml.j2", render_context)
-                self.write_text_atomic(wifi_vars_path, wifi_vars_content)
-                written.append(str(wifi_vars_path))
-                planned_outputs.append(
-                    build_planned_output(
-                        path=str(wifi_vars_path),
-                        renderer="jinja2",
-                        template="ansible/host_vars_wifi.yml.j2",
-                        reason="capability-enabled",
-                    )
-                )
+        # NOTE: Ansible WiFi generation removed - WiFi now managed via Terraform
+        # See wifi.tf generated from topology/object-modules/mikrotik/templates/terraform/wifi.tf.j2
 
         obsolete_entries, obsolete_errors = compute_obsolete_entries(
             ctx=ctx,

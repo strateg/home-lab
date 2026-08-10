@@ -1,19 +1,127 @@
 # MikroTik WiFi configuration generated from topology
 # RouterOS 7 WiFi (wave2) with VLAN datapath support
 #
-# NOTE: The routeros Terraform provider does not support WiFi resources.
-# WiFi configuration must be applied via RSC script through SSH.
-#
-# Apply WiFi configuration:
-#   scp generated/home-lab/mikrotik/wifi-config.rsc admin@192.168.88.1:
-#   ssh admin@192.168.88.1 "/import wifi-config.rsc"
+# Uses routeros_wifi with inline configuration blocks
+# Provider version: >= 1.40 (WiFi support added)
 {% if wifi_datapaths or wifi_configurations %}
 
-# WiFi configuration summary from topology:
-{% for dp in wifi_datapaths %}
-# - Datapath: {{ dp.name }} (bridge={{ dp.bridge }}{% if dp.vlan_id is defined and dp.vlan_id %}, vlan_id={{ dp.vlan_id }}{% endif %})
+#------------------------------------------------------------------------------
+# WiFi Interfaces with full inline configuration
+#------------------------------------------------------------------------------
+{% for iface in wifi_interfaces %}
+{% set cfg = wifi_configurations | selectattr('name', 'equalto', iface.configuration) | first %}
+{% set sec_name = cfg.security | default('') %}
+{% set dp_name = cfg.datapath | default('') %}
+{% set sec = wifi_securities | selectattr('name', 'equalto', sec_name) | first if sec_name else none %}
+{% set dp = wifi_datapaths | selectattr('name', 'equalto', dp_name) | first if dp_name else none %}
+{% if iface.master_interface is defined and iface.master_interface %}
+# Virtual AP: {{ iface.name }} (slave of {{ iface.master_interface }})
+resource "routeros_wifi" "{{ iface.name | replace('-', '_') }}" {
+  name             = "{{ iface.name }}"
+  master_interface = "{{ iface.master_interface }}"
+  disabled         = false
+  comment          = "{{ cfg.ssid }} - managed by terraform"
+
+  configuration = {
+    ssid = "{{ cfg.ssid }}"
+    mode = "{{ cfg.mode | default('ap') }}"
+  }
+
+{% if sec %}
+  security = {
+{% if sec.authentication_types is iterable and sec.authentication_types is not string %}
+    authentication_types = "{{ sec.authentication_types | join(',') }}"
+{% else %}
+    authentication_types = "{{ sec.authentication_types | default('wpa2-psk') }}"
+{% endif %}
+{% if sec.ft is defined and sec.ft %}
+    ft         = "true"
+{% endif %}
+{% if sec.ft_over_ds is defined and sec.ft_over_ds %}
+    ft_over_ds = "true"
+{% endif %}
+{% if 'vpn' in sec.name or 'germany' in sec.name %}
+    passphrase = var.wifi_vpn_germany_passphrase
+{% elif 'guest' in sec.name %}
+    passphrase = var.wifi_guest_passphrase
+{% elif 'iot' in sec.name %}
+    passphrase = var.wifi_iot_passphrase
+{% else %}
+    passphrase = var.wifi_main_passphrase
+{% endif %}
+    wps = "disable"
+  }
+{% endif %}
+
+{% if dp %}
+  datapath = {
+    bridge = "{{ dp.bridge }}"
+{% if dp.vlan_id is defined and dp.vlan_id %}
+    vlan_id = "{{ dp.vlan_id }}"
+{% endif %}
+  }
+{% endif %}
+}
+
+{% else %}
+# Physical interface: {{ iface.name }}
+resource "routeros_wifi" "{{ iface.name | replace('-', '_') }}" {
+  name     = "{{ iface.name }}"
+  disabled = false
+  comment  = "{{ cfg.ssid }} - managed by terraform"
+
+  configuration = {
+    ssid = "{{ cfg.ssid }}"
+    mode = "{{ cfg.mode | default('ap') }}"
+  }
+
+{% if iface.frequency is defined %}
+  channel = {
+{% if iface.band is defined %}
+    band      = "{{ iface.band }}"
+{% endif %}
+    frequency = "{{ iface.frequency }}"
+{% if iface.channel_width is defined %}
+    width     = "{{ iface.channel_width }}"
+{% endif %}
+  }
+{% endif %}
+
+{% if sec %}
+  security = {
+{% if sec.authentication_types is iterable and sec.authentication_types is not string %}
+    authentication_types = "{{ sec.authentication_types | join(',') }}"
+{% else %}
+    authentication_types = "{{ sec.authentication_types | default('wpa2-psk') }}"
+{% endif %}
+{% if sec.ft is defined and sec.ft %}
+    ft         = "true"
+{% endif %}
+{% if sec.ft_over_ds is defined and sec.ft_over_ds %}
+    ft_over_ds = "true"
+{% endif %}
+{% if 'vpn' in sec.name or 'germany' in sec.name %}
+    passphrase = var.wifi_vpn_germany_passphrase
+{% elif 'guest' in sec.name %}
+    passphrase = var.wifi_guest_passphrase
+{% elif 'iot' in sec.name %}
+    passphrase = var.wifi_iot_passphrase
+{% else %}
+    passphrase = var.wifi_main_passphrase
+{% endif %}
+    wps = "disable"
+  }
+{% endif %}
+
+{% if dp %}
+  datapath = {
+    bridge = "{{ dp.bridge }}"
+  }
+{% endif %}
+}
+
+{% endif %}
 {% endfor %}
-{% for cfg in wifi_configurations %}
-# - SSID: {{ cfg.ssid }} ({{ cfg.name }}{% if cfg.datapath %}, datapath={{ cfg.datapath }}{% endif %})
-{% endfor %}
+{% else %}
+# No WiFi configuration in topology
 {% endif %}

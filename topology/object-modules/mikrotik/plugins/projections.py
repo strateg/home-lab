@@ -313,17 +313,37 @@ def _extract_wifi_config(routers: list[dict[str, Any]]) -> dict[str, Any]:
                     datapaths[dp_name] = dp_entry
 
             # Extract security profile
+            # Supports both string format ("wpa2-psk") and object format:
+            # security:
+            #   authentication_types: [wpa2-psk, wpa3-psk]
+            #   fast_transition: true
+            #   fast_transition_over_ds: true
             security = iface_data.get("security")
             sec_name = None
-            if isinstance(security, str) and security:
+            if security:
                 sec_name = f"sec-{iface_name}"
                 if sec_name not in securities:
-                    securities[sec_name] = {
+                    sec_entry: dict[str, Any] = {
                         "name": sec_name,
-                        "authentication_types": [security],
                         "passphrase": True,  # indicates variable needed
                         "comment": f"{ssid} security - managed by topology",
                     }
+                    if isinstance(security, str):
+                        # Simple string format: "wpa2-psk"
+                        sec_entry["authentication_types"] = [security]
+                    elif isinstance(security, dict):
+                        # Object format with WPA3/FT support
+                        auth_types = security.get("authentication_types", [])
+                        if isinstance(auth_types, list):
+                            sec_entry["authentication_types"] = auth_types
+                        elif isinstance(auth_types, str):
+                            sec_entry["authentication_types"] = [auth_types]
+                        # Fast Transition (802.11r) support
+                        if security.get("fast_transition"):
+                            sec_entry["ft"] = True
+                        if security.get("fast_transition_over_ds"):
+                            sec_entry["ft_over_ds"] = True
+                    securities[sec_name] = sec_entry
 
             # Build configuration entry
             cfg_name = f"cfg-{iface_name}"
@@ -356,6 +376,18 @@ def _extract_wifi_config(routers: list[dict[str, Any]]) -> dict[str, Any]:
                 master = str(iface_data.get("master_interface") or "").strip()
                 if master:
                     iface_entry["master_interface"] = master
+
+                # Channel configuration (frequency in MHz, band, width)
+                frequency = iface_data.get("frequency")
+                if frequency:
+                    iface_entry["frequency"] = int(frequency)
+                band = iface_data.get("band")
+                if band:
+                    iface_entry["band"] = str(band)
+                channel_width = iface_data.get("channel_width")
+                if channel_width:
+                    iface_entry["channel_width"] = str(channel_width)
+
                 interfaces.append(iface_entry)
 
     return {
@@ -364,6 +396,108 @@ def _extract_wifi_config(routers: list[dict[str, Any]]) -> dict[str, Any]:
         "securities": list(securities.values()),
         "interfaces": interfaces,
     }
+
+
+def _extract_bridge_vlans(
+    routers: list[dict[str, Any]],
+    wifi_data: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Extract bridge VLAN entries for WiFi interface VLAN membership.
+
+    When bridge_vlan_filtering is enabled, WiFi interfaces must be explicitly
+    added to bridge VLANs. Interfaces with datapaths that have no vlan_id go
+    to VLAN 1 (untagged), interfaces with vlan_id go to that VLAN (tagged on bridge).
+
+    Returns:
+        List of bridge VLAN entries:
+        [
+            {"bridge": "bridge", "vlan_id": 1, "untagged": ["bridge", "wifi1", "wifi2"], "tagged": []},
+            {"bridge": "bridge", "vlan_id": 55, "untagged": [], "tagged": ["bridge"]},
+        ]
+    """
+    bridge_vlans: dict[int, dict[str, Any]] = {}  # vlan_id -> entry
+
+    for router in routers:
+        instance_data = router.get("instance_data", {})
+        if not isinstance(instance_data, dict):
+            continue
+
+        observed = instance_data.get("observed_runtime", {})
+        if not isinstance(observed, dict):
+            continue
+
+        lan = observed.get("lan", {})
+        if not isinstance(lan, dict):
+            continue
+
+        # Check if VLAN filtering is enabled
+        vlan_filtering = lan.get("bridge_vlan_filtering", False)
+        if not vlan_filtering:
+            continue
+
+        bridge_name = str(lan.get("bridge_interface", "bridge")).strip() or "bridge"
+        bridge_ports = lan.get("bridge_ports", [])
+        if not isinstance(bridge_ports, list):
+            bridge_ports = []
+
+        # Build datapath -> vlan_id mapping from wifi_data
+        datapath_vlan: dict[str, int] = {}  # datapath name -> vlan_id (0 means native/VLAN 1)
+        for dp in wifi_data.get("datapaths", []):
+            dp_name = str(dp.get("name", "")).strip()
+            vlan_id = dp.get("vlan_id", 0)
+            if dp_name:
+                datapath_vlan[dp_name] = int(vlan_id) if vlan_id else 0
+
+        # Build interface -> datapath mapping from wifi_data
+        iface_datapath: dict[str, str] = {}  # interface name -> datapath name
+        for cfg in wifi_data.get("configurations", []):
+            cfg_name = str(cfg.get("name", "")).strip()
+            dp_name = str(cfg.get("datapath", "")).strip()
+            if cfg_name and dp_name:
+                # Find interface using this configuration
+                for iface in wifi_data.get("interfaces", []):
+                    if str(iface.get("configuration", "")).strip() == cfg_name:
+                        iface_name = str(iface.get("name", "")).strip()
+                        if iface_name:
+                            iface_datapath[iface_name] = dp_name
+
+        # Initialize VLAN 1 with bridge itself as untagged
+        if 1 not in bridge_vlans:
+            bridge_vlans[1] = {
+                "bridge": bridge_name,
+                "vlan_id": 1,
+                "untagged": [bridge_name],
+                "tagged": [],
+            }
+
+        # Process each bridge port
+        for port in bridge_ports:
+            port_name = str(port).strip()
+            if not port_name:
+                continue
+
+            # Check if this is a WiFi interface with a datapath
+            dp_name = iface_datapath.get(port_name, "")
+            vlan_id = datapath_vlan.get(dp_name, 0) if dp_name else 0
+
+            if vlan_id == 0:
+                # Native VLAN 1 - add as untagged
+                if port_name not in bridge_vlans[1]["untagged"]:
+                    bridge_vlans[1]["untagged"].append(port_name)
+            else:
+                # Tagged VLAN - create entry if needed
+                if vlan_id not in bridge_vlans:
+                    bridge_vlans[vlan_id] = {
+                        "bridge": bridge_name,
+                        "vlan_id": vlan_id,
+                        "untagged": [],
+                        "tagged": [bridge_name],  # Bridge itself is tagged for VLAN trunking
+                    }
+                # Add WiFi interface as untagged (it sends/receives untagged frames for this VLAN)
+                if port_name not in bridge_vlans[vlan_id]["untagged"]:
+                    bridge_vlans[vlan_id]["untagged"].append(port_name)
+
+    return sorted(bridge_vlans.values(), key=lambda x: x.get("vlan_id", 0))
 
 
 def _extract_security_matrix(
@@ -1049,6 +1183,9 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     # Extract WiFi configurations from router instances
     wifi_data = _extract_wifi_config(routers)
 
+    # Extract bridge VLAN entries for WiFi interface membership
+    bridge_vlans = _extract_bridge_vlans(routers, wifi_data)
+
     # Extract security matrix for zone-based firewall (ADR 0110)
     security_matrix = _extract_security_matrix(network, router_ids)
 
@@ -1082,6 +1219,8 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
         "wireguard": wireguard_data,
         # WiFi configuration data for Terraform generation
         "wifi": wifi_data,
+        # Bridge VLAN entries for WiFi interface membership
+        "bridge_vlans": bridge_vlans,
         # Security matrix for zone-based firewall (ADR 0110)
         "security_matrix": security_matrix,
         # MAC-based VLAN assignments from device instances
