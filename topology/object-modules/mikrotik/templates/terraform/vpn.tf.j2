@@ -18,13 +18,14 @@ resource "routeros_interface_wireguard" "wg0" {
 # WireGuard Peers
 {% for peer in wireguard_peers %}
 resource "routeros_interface_wireguard_peer" "{{ peer.name | replace('-', '_') }}" {
+  count                = length(var.wireguard_peers) > {{ loop.index0 }} ? 1 : 0
   interface            = routeros_interface_wireguard.wg0.name
-  public_key           = var.wireguard_peers[{{ loop.index0 }}].public_key
-  preshared_key        = var.wireguard_peers[{{ loop.index0 }}].preshared_key
-  endpoint_address     = var.wireguard_peers[{{ loop.index0 }}].endpoint_address
-  endpoint_port        = var.wireguard_peers[{{ loop.index0 }}].endpoint_port
-  allowed_address      = var.wireguard_peers[{{ loop.index0 }}].allowed_ips
-  persistent_keepalive = var.wireguard_peers[{{ loop.index0 }}].persistent_keepalive
+  public_key           = length(var.wireguard_peers) > {{ loop.index0 }} ? var.wireguard_peers[{{ loop.index0 }}].public_key : ""
+  preshared_key        = length(var.wireguard_peers) > {{ loop.index0 }} ? var.wireguard_peers[{{ loop.index0 }}].preshared_key : null
+  endpoint_address     = length(var.wireguard_peers) > {{ loop.index0 }} ? var.wireguard_peers[{{ loop.index0 }}].endpoint_address : null
+  endpoint_port        = length(var.wireguard_peers) > {{ loop.index0 }} ? var.wireguard_peers[{{ loop.index0 }}].endpoint_port : null
+  allowed_address      = length(var.wireguard_peers) > {{ loop.index0 }} ? var.wireguard_peers[{{ loop.index0 }}].allowed_ips : []
+  persistent_keepalive = length(var.wireguard_peers) > {{ loop.index0 }} ? var.wireguard_peers[{{ loop.index0 }}].persistent_keepalive : null
   comment              = {{ peer.comment | default("Remote: " + peer.name) | tojson }}
 }
 
