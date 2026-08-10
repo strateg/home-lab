@@ -178,3 +178,4 @@ package.json
 *.iml
 *.lnk
 .coverage.*
+coverage-contract.xml
