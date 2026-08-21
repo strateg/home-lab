@@ -1,0 +1,32 @@
+@instance: docker-portainer
+@extends: obj.docker.container.generic
+@group: docker
+@version: 1.0.0
+source_id: docker-portainer
+notes: |
+  Container management UI.
+  ADR 0072: Admin password in SOPS secrets.
+  Bootstrap: --admin-password-file method for automated setup.
+host_ref: srv-orangepi5
+
+network:
+  vlan_ref: inst.vlan.servers
+  host: 200
+
+runtime:
+  image: portainer/portainer-ce:latest
+  container_name: portainer
+  restart: unless-stopped
+  ports:
+    - "9000:9000"
+    - "9443:9443"
+  volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+    - /armbian/portainer/data:/data
+    - /etc/portainer/secrets/admin_password:/run/secrets/admin_password:ro
+  command:
+    - "--admin-password-file=/run/secrets/admin_password"
+
+admin:
+  username: admin
+  secret_key: portainer.admin_password
