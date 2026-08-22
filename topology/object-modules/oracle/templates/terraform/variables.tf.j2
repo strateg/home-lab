@@ -30,3 +30,10 @@ variable "ssh_public_key" {
   type        = string
   sensitive   = true
 }
+
+variable "cloud_init_config" {
+  description = "Cloud-init configuration (base64 encoded)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}

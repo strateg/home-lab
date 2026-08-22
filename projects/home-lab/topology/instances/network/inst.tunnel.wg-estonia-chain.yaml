@@ -1,0 +1,98 @@
+@instance: inst.tunnel.wg-estonia-chain
+@extends: obj.network.wireguard_tunnel
+@group: network
+@version: 1.0.0
+source_id: inst.tunnel.wg-estonia-chain
+status: active
+notes: |
+  WireGuard tunnel for Estonia exit chain.
+  VPS forwards traffic from vpn-estonia profile (10.100.0.6) to Chateau
+  for exit via Estonian home IP.
+
+  Traffic flow:
+    Jolla (10.100.0.6) -> VPS (wg0) -> VPS (wg1) -> Chateau (wg1) -> Internet
+
+  This is a separate tunnel from wg0 because WireGuard routes by destination IP,
+  not source IP. VPS needs AllowedIPs=0.0.0.0/0 for Chateau on this interface
+  to forward internet-bound traffic.
+
+# Tunnel interface name
+tunnel_name: wg1
+
+# Tunnel network (point-to-point for exit chain)
+tunnel_network: 10.100.1.0/30
+
+# Endpoint A: MikroTik Chateau (client - initiates to VPS)
+# Behind LTE/NAT, connects to VPS then receives forwarded traffic
+# Masquerades Estonia traffic to WAN for exit
+endpoint_a:
+  device_ref: rtr-mikrotik-chateau
+  role: client
+  tunnel_ip: 10.100.1.1/30
+  persistent_keepalive: 25
+  # AllowedIPs on VPS peer config for Chateau:
+  # Route ALL internet traffic through Chateau (for Estonia exit)
+  allowed_ips:
+    - 0.0.0.0/0
+    - "::/0"
+
+# Endpoint B: Oracle Cloud VPS (server - accepts from Chateau)
+# Receives Estonia profile traffic on wg0, forwards to Chateau via wg1
+endpoint_b:
+  device_ref: vps-oracle-frankfurt
+  role: server
+  tunnel_ip: 10.100.1.2/30
+  listen_port: 51821
+  # AllowedIPs on MikroTik peer config for VPS:
+  # What source IPs MikroTik accepts from VPS
+  allowed_ips:
+    - 10.100.1.2/32        # VPS tunnel IP
+    - 10.100.0.6/32        # Estonia profile IP (forwarded by VPS)
+
+# Routing configuration
+routing:
+  propagate_routes: false
+  route_all_traffic: false
+  # Policy routing on VPS: from 10.100.0.6 lookup estonia_chain
+  # estonia_chain table: default via 10.100.1.1 dev wg1
+  policy_routing:
+    enabled: true
+    source_ip: 10.100.0.6
+    table_name: estonia_chain
+    table_id: 100
+
+# Reuse same keys as wg0 (simpler key management)
+# The same key pair can be used on multiple interfaces
+secrets_ref: secrets.tunnels.wg-home-to-oci
+
+# Firewall integration
+firewall:
+  # Allow WireGuard UDP on Chateau (port 51821)
+  mikrotik_allow_inbound:
+    protocol: udp
+    port: 51821
+    source: any
+  # Trust tunnel interface on MikroTik
+  mikrotik_interface_list: LAN
+  # VPS firewall rules
+  vps_rules:
+    - type: forward
+      description: "Estonia chain hairpin wg0 -> wg1"
+      in_interface: wg0
+      out_interface: wg1
+      action: accept
+    - type: forward
+      description: "Estonia chain return wg1 -> wg0"
+      in_interface: wg1
+      out_interface: wg0
+      action: accept
+
+# NAT configuration on Chateau for Estonia exit
+chateau_nat:
+  enabled: true
+  masquerade:
+    source_networks:
+      - 10.100.0.6/32      # Estonia profile traffic
+      - 10.100.1.0/30      # Estonia chain tunnel network
+    out_interface_list: WAN
+    comment: "VPN Estonia chain exit"

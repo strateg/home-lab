@@ -13,27 +13,43 @@ Address = {{ endpoint_b.tunnel_ip }}
 ListenPort = {{ endpoint_b.listen_port | default(51820) }}
 PrivateKey = {{ vps_keys.private_key }}
 MTU = {{ mtu }}
-{% if vps_nat.enabled | default(false) %}
+{% if routing.get('policy_routing', {}).get('enabled', false) %}
+# Policy routing: traffic from {{ routing.policy_routing.source_ip | default('specific sources') }} uses table {{ routing.policy_routing.table_id }}
+Table = {{ routing.policy_routing.table_id }}
+{% endif %}
+{% if vps_nat.enabled | default(false) or firewall.vps_rules | default([]) | length > 0 %}
 
-# PostUp rules for forwarding and NAT (from topology vps_nat)
+# PostUp rules for forwarding and NAT (from topology)
 {% if vps_nat.ip_forward | default(false) %}
 PostUp = sysctl -w net.ipv4.ip_forward=1
 {% endif %}
 {% if tunnel.road_warrior_peers | default([]) | length > 0 %}
-PostUp = iptables -I FORWARD 1 -i wg0 -o wg0 -j ACCEPT
+{# Hairpin rule for peer-to-peer through VPS - use actual interface name #}
+PostUp = iptables -I FORWARD 1 -i {{ tunnel_name }} -o {{ tunnel_name }} -j ACCEPT
 {% endif %}
 {% for rule in vps_nat.iptables_rules | default([]) %}
 PostUp = iptables {{ rule }}
 {% endfor %}
+{# VPS firewall rules from firewall.vps_rules (e.g., Estonia chain FORWARD) #}
+{% for rule in firewall.vps_rules | default([]) %}
+{% if rule.type == 'forward' %}
+PostUp = iptables -I FORWARD -i {{ rule.in_interface }} -o {{ rule.out_interface }} -j {{ rule.action | upper }}
+{% endif %}
+{% endfor %}
 
 # PostDown rules to clean up
 {% if tunnel.road_warrior_peers | default([]) | length > 0 %}
-PostDown = iptables -D FORWARD -i wg0 -o wg0 -j ACCEPT
+PostDown = iptables -D FORWARD -i {{ tunnel_name }} -o {{ tunnel_name }} -j ACCEPT
 {% endif %}
 {% for rule in vps_nat.iptables_rules | default([]) %}
 {# Convert -I/-A to -D for deletion #}
 {% set delete_rule = rule | replace('-I FORWARD 1 ', '-D FORWARD ') | replace('-I FORWARD 2 ', '-D FORWARD ') | replace('-A ', '-D ') %}
 PostDown = iptables {{ delete_rule }}
+{% endfor %}
+{% for rule in firewall.vps_rules | default([]) %}
+{% if rule.type == 'forward' %}
+PostDown = iptables -D FORWARD -i {{ rule.in_interface }} -o {{ rule.out_interface }} -j {{ rule.action | upper }}
+{% endif %}
 {% endfor %}
 {% endif %}
 
@@ -59,7 +75,19 @@ PublicKey = {{ rw.secrets.public_key }}
 {% if rw.secrets.preshared_key %}
 PresharedKey = {{ rw.secrets.preshared_key }}
 {% endif %}
-AllowedIPs = {{ rw.tunnel_ip.split('/')[0] }}/32
+{#- Collect all unique tunnel IPs from vpn_profiles (or fallback to base tunnel_ip) #}
+{% set all_ips = [] %}
+{% if rw.vpn_profiles %}
+{% for profile in rw.vpn_profiles %}
+{% if profile.tunnel_ip %}
+{% set _ = all_ips.append(profile.tunnel_ip.split('/')[0] ~ '/32') %}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% if not all_ips %}
+{% set _ = all_ips.append(rw.tunnel_ip.split('/')[0] ~ '/32') %}
+{% endif %}
+AllowedIPs = {{ all_ips | unique | join(', ') }}
 # Mobile client initiates connection, no Endpoint needed
 {% endif %}
 {% endfor %}

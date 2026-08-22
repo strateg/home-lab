@@ -147,6 +147,15 @@ observed_runtime:
     # NOTE: no masquerade on wg0 — source-preserving design: the VPS peer
     # accepts 192.168.55.0/24 (AllowedIPs) and masquerades it to the internet
     # itself (see generated/home-lab/wireguard/vps-wg0.conf vps_nat PostUp).
+    #
+    # Estonia chain exit: masquerade tunnel traffic (10.100.0.0/24) to WAN
+    # This enables road warriors (Jolla) to exit via Estonian IP when using
+    # the VPN Estonia profile. Traffic path: Jolla -> VPS -> Chateau -> Internet
+    - chain: srcnat
+      action: masquerade
+      src_address: 10.100.0.0/24
+      out_interface_list: WAN
+      comment: "VPN Estonia chain exit (road warriors via Chateau)"
     - chain: dstnat
       action: dst-nat
       protocol: tcp

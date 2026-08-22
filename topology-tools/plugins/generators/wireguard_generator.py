@@ -368,12 +368,15 @@ def build_wireguard_projection(
             # Extract short name: inst.device.jolla-phone-2026 -> jolla-phone-2026
             short_name = device_ref.replace("inst.device.", "")
             rw_device_secrets = rw_secrets_dict.get(short_name, {})
+            # Preserve vpn_profiles for exit mode support
+            vpn_profiles = rw.get("vpn_profiles", [])
             road_warrior_peers.append(
                 {
                     **rw,
                     "device_ref": device_ref,
                     "short_name": short_name,
                     "secrets": rw_device_secrets,
+                    "vpn_profiles": vpn_profiles,
                 }
             )
 
@@ -489,6 +492,7 @@ class WireguardGenerator(BaseGenerator):
                 "endpoint_a": endpoint_a,
                 "endpoint_b": endpoint_b,
                 "routing": tunnel.get("routing", {}),
+                "firewall": tunnel.get("firewall", {}),
                 "vps_nat": tunnel.get("vps_nat", {}),
                 "secrets": secrets,
                 "mikrotik_keys": mikrotik_keys,
@@ -533,26 +537,57 @@ class WireguardGenerator(BaseGenerator):
                     # Skip clients without secrets
                     continue
 
-                client_path = out_root / f"client-{short_name}.conf"
-                planned_outputs.append(
-                    build_planned_output(
-                        path=str(client_path),
-                        renderer="jinja2",
-                        reason="base-family",
+                # Check for VPN profiles (exit modes)
+                vpn_profiles = rw.get("vpn_profiles", [])
+
+                if vpn_profiles:
+                    # Generate config for each profile
+                    for profile in vpn_profiles:
+                        profile_name = profile.get("name", "default")
+                        client_path = out_root / f"client-{short_name}-{profile_name}.conf"
+                        planned_outputs.append(
+                            build_planned_output(
+                                path=str(client_path),
+                                renderer="jinja2",
+                                reason="base-family",
+                            )
+                        )
+                        client_ctx = {
+                            "tunnel": tunnel,
+                            "tunnel_name": tunnel_name,
+                            "client": rw,
+                            "server": endpoint_b,
+                            "vps_keys": vps_keys,
+                            "client_keys": rw_secrets,
+                            "mtu": tunnel.get("mtu", 1420),
+                            "profile": profile,
+                        }
+                        content = self.render_template(ctx, "wireguard/client.conf.j2", client_ctx)
+                        self.write_text_atomic(client_path, content)
+                        written.append(str(client_path))
+                else:
+                    # No profiles - generate single default config
+                    client_path = out_root / f"client-{short_name}.conf"
+                    planned_outputs.append(
+                        build_planned_output(
+                            path=str(client_path),
+                            renderer="jinja2",
+                            reason="base-family",
+                        )
                     )
-                )
-                client_ctx = {
-                    "tunnel": tunnel,
-                    "tunnel_name": tunnel_name,
-                    "client": rw,
-                    "server": endpoint_b,
-                    "vps_keys": vps_keys,
-                    "client_keys": rw_secrets,
-                    "mtu": tunnel.get("mtu", 1420),
-                }
-                content = self.render_template(ctx, "wireguard/client.conf.j2", client_ctx)
-                self.write_text_atomic(client_path, content)
-                written.append(str(client_path))
+                    client_ctx = {
+                        "tunnel": tunnel,
+                        "tunnel_name": tunnel_name,
+                        "client": rw,
+                        "server": endpoint_b,
+                        "vps_keys": vps_keys,
+                        "client_keys": rw_secrets,
+                        "mtu": tunnel.get("mtu", 1420),
+                        "profile": None,
+                    }
+                    content = self.render_template(ctx, "wireguard/client.conf.j2", client_ctx)
+                    self.write_text_atomic(client_path, content)
+                    written.append(str(client_path))
 
             # Generate README
             readme_path = out_root / "README.md"

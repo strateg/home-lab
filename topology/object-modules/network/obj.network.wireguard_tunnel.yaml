@@ -157,6 +157,51 @@ instance_schema:
               itself a router that masquerades its LAN into the tunnel, so
               the hub still sees a single /32. Documentation-only: no
               separate peer is generated.
+          vpn_profiles:
+            type: array
+            description: |
+              VPN exit profiles for road-warrior clients. Each profile generates
+              a separate .conf file with its own tunnel_ip. VPS routes traffic
+              automatically based on source IP (policy routing).
+            items:
+              type: object
+              required:
+                - name
+                - tunnel_ip
+                - routes
+              properties:
+                name:
+                  type: string
+                  description: Profile name used in config filename
+                tunnel_ip:
+                  type: string
+                  format: ipv4_cidr
+                  description: Tunnel IP for this profile (determines exit path)
+                description:
+                  type: string
+                  description: Human-readable profile description
+                routes:
+                  type: array
+                  items:
+                    type: string
+                  description: AllowedIPs for this profile
+                dns:
+                  type: string
+                  description: DNS server(s) for this profile
+                exit_mode:
+                  type: string
+                  enum: [direct, chained]
+                  description: |
+                    Exit mode: direct (masquerade to internet) or
+                    chained (forward via another tunnel peer)
+                exit_country:
+                  type: string
+                  description: ISO country code for exit IP location
+                exit_chain:
+                  type: array
+                  items:
+                    type: string
+                  description: Chain of hops for chained exit mode
 
     routing:
       type: object

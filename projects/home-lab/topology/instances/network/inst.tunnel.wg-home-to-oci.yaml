@@ -54,10 +54,42 @@ road_warrior_peers:
     persistent_keepalive: 25
     # End device with no resolver of its own: use the MikroTik over the tunnel.
     dns: 192.168.88.1
-    # Routes this client needs access to
+    # Routes this client needs access to (default profile: vpn-home)
     routes:
       - 192.168.88.0/24    # Home LAN (MikroTik admin at .1)
       - 10.100.0.0/24      # Tunnel network
+    # VPN exit profiles - each profile has its own tunnel IP for automatic routing
+    # VPS routes traffic based on source IP:
+    #   10.100.0.3 → Germany exit (masquerade to ens3)
+    #   10.100.0.6 → Estonia exit (forward to Chateau 10.100.0.1)
+    vpn_profiles:
+      - name: vpn-home
+        description: "Access home network (split tunnel)"
+        tunnel_ip: 10.100.0.3/32
+        routes:
+          - 192.168.88.0/24
+          - 10.100.0.0/24
+          - 10.0.30.0/24
+          - 10.0.99.0/24
+        dns: 192.168.88.1
+      - name: vpn-germany
+        description: "Full exit via German IP (OCI Frankfurt)"
+        tunnel_ip: 10.100.0.3/32
+        routes:
+          - 0.0.0.0/0
+          - "::/0"
+        dns: "1.1.1.1, 1.0.0.1"
+        exit_mode: direct
+        exit_country: DE
+      - name: vpn-estonia
+        description: "Exit via Estonian IP (OCI -> Chateau chain)"
+        tunnel_ip: 10.100.0.6/32
+        routes:
+          - 0.0.0.0/0
+          - "::/0"
+        dns: 192.168.88.1
+        exit_mode: chained
+        exit_country: EE
 
   # Workstation: primary development machine, needs access to home LAN
   # and MikroTik management via tunnel when on external networks (ISP router)
