@@ -6,7 +6,7 @@ source_id: policy-vpn-germany
 status: active
 notes: |
   Routes all traffic from VLAN 55 (VPN Germany) through WireGuard tunnel wg0.
-  Exit point: VPS in Frankfurt, Germany (92.5.172.16).
+  Exit point: VPS in Frankfurt, Germany (130.61.160.221).
 
 # Policy identification
 policy_name: vpn-germany-routing

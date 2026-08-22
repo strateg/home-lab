@@ -242,6 +242,7 @@ def _resolve_endpoint_allowed_ips(
 def _resolve_vps_nat(
     vps_nat: dict[str, Any],
     vlan_cidr_index: dict[str, str],
+    tunnel_name: str = "wg0",
 ) -> dict[str, Any]:
     """Resolve source_vlan_refs in vps_nat to source_networks and generate iptables rules (ADR-0111)."""
     if not isinstance(vps_nat, dict) or not vps_nat.get("enabled"):
@@ -257,20 +258,22 @@ def _resolve_vps_nat(
     if isinstance(vlan_refs, list):
         source_networks = _resolve_vlan_refs_to_cidrs(vlan_refs, vlan_cidr_index)
 
-    # Fallback to explicit source_networks if no refs
-    if not source_networks:
-        explicit = masquerade.get("source_networks", [])
-        if isinstance(explicit, list):
-            source_networks = [str(n) for n in explicit if isinstance(n, str)]
+    # Also include explicit source_networks (e.g., tunnel network for road-warriors)
+    explicit = masquerade.get("source_networks", [])
+    if isinstance(explicit, list):
+        for n in explicit:
+            if isinstance(n, str) and n not in source_networks:
+                source_networks.append(n)
 
     # Generate iptables rules from resolved source_networks
     out_interface = masquerade.get("out_interface", "ens3")
     iptables_rules: list[str] = []
 
     if source_networks:
-        # Forward rules
-        iptables_rules.append(f"-I FORWARD 1 -i wg0 -o {out_interface} -j ACCEPT")
-        iptables_rules.append(f"-I FORWARD 2 -i {out_interface} -o wg0 -m state --state RELATED,ESTABLISHED -j ACCEPT")
+        # Forward rules (use actual tunnel interface name, not hardcoded wg0)
+        iptables_rules.append(f"-I FORWARD 1 -i {tunnel_name} -o {tunnel_name} -j ACCEPT")
+        iptables_rules.append(f"-I FORWARD 1 -i {tunnel_name} -o {out_interface} -j ACCEPT")
+        iptables_rules.append(f"-I FORWARD 2 -i {out_interface} -o {tunnel_name} -m state --state RELATED,ESTABLISHED -j ACCEPT")
         # NAT rules for each source network
         for cidr in source_networks:
             iptables_rules.append(f"-t nat -A POSTROUTING -s {cidr} -o {out_interface} -j MASQUERADE")
@@ -355,7 +358,7 @@ def build_wireguard_projection(
                 endpoint_b = {**endpoint_b, "public_endpoint": public_ip}
 
         # Resolve source_vlan_refs in vps_nat and generate iptables rules (ADR-0111)
-        vps_nat = _resolve_vps_nat(inst_data.get("vps_nat", {}), vlan_cidr_index)
+        vps_nat = _resolve_vps_nat(inst_data.get("vps_nat", {}), vlan_cidr_index, tunnel_name)
 
         # Extract road_warrior_peers with resolved secrets
         road_warrior_peers: list[dict[str, Any]] = []

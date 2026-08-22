@@ -1,5 +1,14 @@
 # WireGuard Configuration for {{ client.device_ref }}
 # Tunnel: {{ tunnel.instance_id }}
+{% if profile %}
+# Profile: {{ profile.get('name', 'default') }} - {{ profile.get('description', '') }}
+{% if profile.get('exit_country') %}
+# Exit Country: {{ profile.get('exit_country') }}
+{% endif %}
+{% if profile.get('exit_mode') %}
+# Exit Mode: {{ profile.get('exit_mode') }}
+{% endif %}
+{% endif %}
 # Generated from topology - DO NOT EDIT MANUALLY
 #
 # Deploy - import this file into the WireGuard client on the target device:
@@ -8,9 +17,12 @@
 #   Linux:       /etc/wireguard/{{ tunnel_name }}.conf (chmod 600), then
 #                systemctl enable --now wg-quick@{{ tunnel_name }}
 #
-# Routing is defined by AllowedIPs below. Configure the client to honour it
-# rather than forcing all traffic through the tunnel, otherwise unrelated
-# internet traffic is captured and needs per-destination exclusions.
+{% if profile and profile.get('exit_mode') == 'chained' %}
+# NOTE: This profile uses chained routing (VPS -> Home router -> ISP).
+# Traffic from this tunnel IP is routed via wg1 on VPS using policy routing.
+#
+{% endif %}
+# Routing is defined by AllowedIPs below.
 {% if client.get('gateway_for') %}
 #
 # Gateway peer - these devices reach the tunnel through it and need no VPN
@@ -22,9 +34,15 @@
 
 [Interface]
 # {{ client.device_ref }} (road-warrior)
+{% if profile and profile.get('tunnel_ip') %}
+Address = {{ profile.get('tunnel_ip') }}
+{% else %}
 Address = {{ client.tunnel_ip }}
+{% endif %}
 PrivateKey = {{ client_keys.private_key }}
-{% if client.get('dns') %}
+{% if profile and profile.get('dns') %}
+DNS = {{ profile.get('dns') }}
+{% elif client.get('dns') %}
 DNS = {{ client.dns }}
 {% endif %}
 MTU = {{ mtu }}
@@ -36,5 +54,9 @@ PublicKey = {{ vps_keys.public_key }}
 PresharedKey = {{ client_keys.preshared_key }}
 {% endif %}
 Endpoint = {{ server.public_endpoint }}:{{ server.listen_port | default(51820) }}
+{% if profile and profile.get('routes') %}
+AllowedIPs = {{ profile.get('routes') | join(', ') }}
+{% else %}
 AllowedIPs = {{ client.routes | join(', ') }}
+{% endif %}
 PersistentKeepalive = {{ client.persistent_keepalive | default(25) }}

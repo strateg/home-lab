@@ -1,0 +1,45 @@
+@instance: inst.vlan.vpn_exit
+@extends: obj.network.vlan.vpn_tunnel
+@group: network
+@version: 1.0.0
+source_id: net-vpn-exit
+status: active
+notes: |
+  ISOLATED VLAN for VPN exit traffic (wg1 tunnel).
+  Road-warrior clients using vpn-germany or vpn-estonia profiles
+  have their wg1 tunnel IPs in this network segment.
+
+  Traffic flow:
+    Client -> wg1 (10.100.1.x) -> VPS -> exit (DE via ens3 or EE via MikroTik)
+
+  CRITICAL: This VLAN has NO routes to any other VLANs.
+  MikroTik firewall explicitly blocks all inter-VLAN traffic from wg1.
+
+# VLAN configuration (VLAN 56 - VPN block 50-59)
+vlan_id: 56
+cidr: 10.100.1.0/24
+gateway: 10.100.1.1
+# No DHCP - IPs assigned via WireGuard tunnel config
+dhcp_enabled: false
+
+# VPN routing - exit only
+vpn_routing:
+  enabled: true
+  tunnel_ref: inst.tunnel.wg-exit
+  tunnel_interface: wg1
+  exit_only: true
+
+# Trust zone - completely isolated from internal networks
+trust_zone_ref: inst.trust_zone.vpn_exit
+
+# Managed by MikroTik Chateau
+managed_by_ref: rtr-mikrotik-chateau
+
+# IP allocations within tunnel network
+ip_allocations:
+  - device_ref: rtr-mikrotik-chateau
+    host: 1
+    purpose: wg1 tunnel endpoint (Estonia exit)
+  - device_ref: vps-oracle-frankfurt
+    host: 2
+    purpose: wg1 tunnel endpoint (VPS hub)

@@ -1,10 +1,14 @@
 @instance: vps-oracle-frankfurt
 @extends: obj.oracle.cloud_vm
 @group: vm
-@version: 1.2.0
+@version: 1.0.0
 source_id: vps-oracle-frankfurt
 status: active
-notes: OCI Always Free tier VM in Frankfurt; WireGuard gateway for VPN-Germany VLAN geo-bypass
+notes: |
+  OCI Always Free tier VM in Frankfurt.
+  Dual WireGuard gateway architecture (ADR-0112):
+    - wg0 (:51820): Admin tunnel for home LAN access
+    - wg1 (:51821): Exit tunnel for internet traffic (isolated)
 
 firmware_ref: inst.firmware.uefi.generic.x86_64
 os_refs:
@@ -36,68 +40,71 @@ hardware_specs:
     size_mb: 1024
     type: ddr4
 
-# Network configuration
+# Network configuration - dual tunnel
 networking:
   primary_interface: ens3
   public_ip_ref: secrets.vps.oracle_frankfurt.public_ip
   tunnel_interfaces:
+    # wg0: Admin tunnel - for home LAN access
     - name: wg0
       tunnel_ref: inst.tunnel.wg-home-to-oci
       tunnel_ip: 10.100.0.2/24
       listen_port: 51820
       role: server
+      purpose: admin
+    # wg1: Exit tunnel - for internet exit (isolated)
+    - name: wg1
+      tunnel_ref: inst.tunnel.wg-exit
+      tunnel_ip: 10.100.1.2/24
+      listen_port: 51821
+      role: server
+      purpose: exit
 
 # WireGuard gateway configuration
 wireguard_gateway:
   enabled: true
-  tunnel_ref: inst.tunnel.wg-home-to-oci
-  routed_networks:
-    - network: 192.168.55.0/24
-      vlan_ref: inst.vlan.vpn_germany
-      nat: masquerade
   ip_forwarding: true
   iptables_rules:
     forward:
-      - "-I FORWARD 1 -i wg0 -o ens3 -j ACCEPT"
-      - "-I FORWARD 2 -i ens3 -o wg0 -m state --state RELATED,ESTABLISHED -j ACCEPT"
-      # Hairpin for wg0->wg0 (peer-to-peer and Estonia chain)
-      - "-I FORWARD 3 -i wg0 -o wg0 -j ACCEPT"
+      # wg0: Admin tunnel - hairpin only (peer-to-peer)
+      - "-I FORWARD 1 -i wg0 -o wg0 -j ACCEPT"
+      # wg1: Exit tunnel to internet (Germany exit)
+      - "-I FORWARD 2 -i wg1 -o ens3 -j ACCEPT"
+      - "-I FORWARD 3 -i ens3 -o wg1 -m state --state RELATED,ESTABLISHED -j ACCEPT"
+      # wg1: Estonia chain - forward to MikroTik
+      - "-I FORWARD 4 -i wg1 -o wg1 -j ACCEPT"
     nat:
-      - "-t nat -A POSTROUTING -s 192.168.55.0/24 -o ens3 -j MASQUERADE"
-      # Road warrior exit via German IP (Jolla, ws-nixos when using full exit)
-      - "-t nat -A POSTROUTING -s 10.100.0.0/24 -o ens3 -j MASQUERADE"
+      # wg1: Exit tunnel masquerade (Germany exit)
+      - "-t nat -A POSTROUTING -s 10.100.1.0/24 -o ens3 -j MASQUERADE"
+    # No NAT for wg0 - admin tunnel only
 
-# VPN exit profiles for road warriors
+# VPN exit profiles (on wg1 only)
 vpn_exit_profiles:
   # Germany Exit: direct masquerade to internet via ens3
   germany_exit:
     description: Full exit via German IP (OCI Frankfurt)
+    tunnel_interface: wg1
     mode: direct
     clients:
-      - 10.100.0.3/32  # Jolla
-      - 10.100.0.5/32  # ws-nixos (optional)
+      - 10.100.1.3/32  # Jolla vpn-germany
+      - 10.100.1.4/32  # rtr-slate vpn-germany
+      - 10.100.1.5/32  # ws-nixos vpn-germany
     exit_interface: ens3
     nat: masquerade
 
-  # Estonia Chain: policy route through Chateau peer
+  # Estonia Chain: policy route through Chateau peer via wg1
   estonia_chain:
     description: Chained exit via Estonian IP (Chateau -> ISP)
+    tunnel_interface: wg1
     mode: policy_route
     clients:
-      - 10.100.0.3/32  # Jolla (when using Estonia profile)
-    next_hop: 10.100.0.1  # Chateau tunnel IP
+      - 10.100.1.6/32  # Jolla vpn-estonia
+    next_hop: 10.100.1.1  # Chateau wg1 tunnel IP
     routing_table: estonia_chain
-    # iproute2 configuration
     ip_rules:
-      # Mark-based routing (fwmark set by iptables mangle)
-      - "ip rule add fwmark 0x45 lookup estonia_chain priority 100"
+      - "ip rule add from 10.100.1.6 lookup estonia_chain priority 100"
     ip_routes:
-      - "ip route add default via 10.100.0.1 dev wg0 table estonia_chain"
-    iptables_mangle:
-      # Mark Estonia-bound traffic (when Jolla uses Estonia profile DNS 192.168.88.1)
-      # Profile selection is implicit: Germany uses 1.1.1.1 DNS, Estonia uses 192.168.88.1
-      # For explicit control, use connection tracking or DSCP marking from client
-      - "-t mangle -A PREROUTING -i wg0 -s 10.100.0.3 -m mark --mark 0x45 -j MARK --set-mark 0x45"
+      - "ip route add default via 10.100.1.1 dev wg1 table estonia_chain"
 
 # Capabilities from cloud provider
 enabled_capabilities:

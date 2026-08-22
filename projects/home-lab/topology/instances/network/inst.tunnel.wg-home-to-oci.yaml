@@ -5,16 +5,20 @@
 source_id: inst.tunnel.wg-home-to-oci
 status: active
 notes: |
-  WireGuard hub-spoke tunnel between home MikroTik router,
-  Oracle Cloud VPS, and road-warrior clients.
-  VPS serves as hub for both site-to-site and road-warrior connections.
-  Road-warrior peers are either end devices holding their own keys
-  (Jolla Phone) or travel gateways carrying a whole LAN (rtr-slate).
+  WireGuard ADMIN tunnel (wg0) for home network access.
+  PURPOSE: Management and LAN access ONLY. NOT for internet exit.
+
+  Architecture (ADR-0112):
+    - wg0: Admin tunnel for LAN/management access (this file)
+    - wg1: Exit tunnel for internet traffic (inst.tunnel.wg-exit)
+
+  Traffic type: Split tunnel to home VLANs only
+  Exit traffic: NONE (use wg1 for vpn-germany/vpn-estonia profiles)
 
 # Tunnel interface name
 tunnel_name: wg0
 
-# Tunnel network (expanded to /24 for road-warriors)
+# Tunnel network
 tunnel_network: 10.100.0.0/24
 
 # Endpoint A: MikroTik Chateau (client/initiator)
@@ -25,43 +29,36 @@ endpoint_a:
   tunnel_ip: 10.100.0.1/24
   persistent_keepalive: 25
   # Networks that MikroTik will advertise through tunnel
-  # ADR-0111: Use VLAN refs instead of hardcoded CIDRs
   allowed_ips:
-    - 10.100.0.1/32        # Tunnel IP (explicit)
+    - 10.100.0.1/32
   allowed_vlan_refs:
     - inst.vlan.lan        # 192.168.88.0/24 - Default LAN
-    - inst.vlan.vpn_germany  # 192.168.55.0/24 - VPN Germany
     - inst.vlan.servers    # 10.0.30.0/24 - Servers
     - inst.vlan.management # 10.0.99.0/24 - Management
 
 # Endpoint B: Oracle Cloud VPS (server/responder)
-# Has public IP, accepts incoming connections from MikroTik and road-warriors
 endpoint_b:
   device_ref: vps-oracle-frankfurt
   role: server
   tunnel_ip: 10.100.0.2/24
   listen_port: 51820
   # public_endpoint loaded from secrets
-  # Networks accessible through VPS
   allowed_ips:
     - 10.100.0.2/32
-    - 0.0.0.0/0            # Can route all traffic if needed
+    # NO 0.0.0.0/0 - this is NOT an exit tunnel
 
-# Road-warrior mobile clients connecting to VPS hub
+# Road-warrior peers for ADMIN ACCESS ONLY (vpn-home profile)
 road_warrior_peers:
   - device_ref: inst.device.jolla-phone-2026
     tunnel_ip: 10.100.0.3/24
     persistent_keepalive: 25
-    # End device with no resolver of its own: use the MikroTik over the tunnel.
     dns: 192.168.88.1
-    # Routes this client needs access to (default profile: vpn-home)
     routes:
-      - 192.168.88.0/24    # Home LAN (MikroTik admin at .1)
-      - 10.100.0.0/24      # Tunnel network
-    # VPN exit profiles - each profile has its own tunnel IP for automatic routing
-    # VPS routes traffic based on source IP:
-    #   10.100.0.3 → Germany exit (masquerade to ens3)
-    #   10.100.0.6 → Estonia exit (forward to Chateau 10.100.0.1)
+      - 192.168.88.0/24
+      - 10.100.0.0/24
+      - 10.0.30.0/24
+      - 10.0.99.0/24
+    # Only vpn-home profile on wg0 - exit profiles moved to wg1
     vpn_profiles:
       - name: vpn-home
         description: "Access home network (split tunnel)"
@@ -72,105 +69,62 @@ road_warrior_peers:
           - 10.0.30.0/24
           - 10.0.99.0/24
         dns: 192.168.88.1
-      - name: vpn-germany
-        description: "Full exit via German IP (OCI Frankfurt)"
-        tunnel_ip: 10.100.0.3/32
-        routes:
-          - 0.0.0.0/0
-          - "::/0"
-        dns: "1.1.1.1, 1.0.0.1"
-        exit_mode: direct
-        exit_country: DE
-      - name: vpn-estonia
-        description: "Exit via Estonian IP (OCI -> Chateau chain)"
-        tunnel_ip: 10.100.0.6/32
-        routes:
-          - 0.0.0.0/0
-          - "::/0"
-        dns: 192.168.88.1
-        exit_mode: chained
-        exit_country: EE
 
-  # Workstation: primary development machine, needs access to home LAN
-  # and MikroTik management via tunnel when on external networks (ISP router)
+  # Workstation: development machine with LAN/management access
   - device_ref: ws-nixos
     tunnel_ip: 10.100.0.5/24
     persistent_keepalive: 25
     dns: 192.168.88.1
     routes:
-      - 192.168.88.0/24    # Home LAN
-      - 10.100.0.0/24      # Tunnel network
-      - 10.0.99.0/24       # Management VLAN
+      - 192.168.88.0/24
+      - 10.100.0.0/24
+      - 10.0.99.0/24
+    vpn_profiles:
+      - name: vpn-home
+        description: "Access home network (split tunnel)"
+        tunnel_ip: 10.100.0.5/32
+        routes:
+          - 192.168.88.0/24
+          - 10.100.0.0/24
+          - 10.0.99.0/24
+        dns: 192.168.88.1
 
-  # Travel VPN gateway: carries every device on its LAN into the tunnel with a
-  # single peer, so portable appliances need no WireGuard config of their own.
-  # srv-orangepi5 travels with the Slate and reaches the home LAN through it.
-  # When srv-orangepi5 is plugged back into the Chateau it is already on
-  # inst.vlan.lan, so no tunnel is involved on that path.
-  #
-  # Requires LAN->wg masquerade on the Slate (GL.iNet default). The VPS
-  # therefore sees one /32 and traffic from srv-orangepi5 appears as
-  # 10.100.0.4. Devices behind the Slate are not individually addressable
-  # from the home LAN; that direction is not needed here.
-  # Reachable from the Jolla Phone at 10.100.0.4: the Jolla already routes
-  # 10.100.0.0/24 into the tunnel, so peer-to-peer works through the VPS
-  # hairpin (FORWARD -i wg0 -o wg0) with no change to the phone's config.
+  # Travel VPN gateway: split tunnel access to home LAN
   - device_ref: rtr-slate
     tunnel_ip: 10.100.0.4/24
     persistent_keepalive: 25
-    # NO dns: on purpose. The Slate runs its own resolver for its LAN, and
-    # pushing 192.168.88.1 here makes every lookup behind the Slate depend on
-    # the tunnel being up - that broke all outbound name resolution (including
-    # api.anthropic.com) while the tunnel showed connected. Routing already
-    # keeps non-home traffic out of the tunnel; DNS must not undo that.
     gateway_for:
       - srv-orangepi5
-    # Slate LAN is 192.168.8.0/24 (GL.iNet default) or 192.168.20.0/24
-    # (travel) - neither overlaps the routes below.
     routes:
-      - 192.168.88.0/24    # Home LAN behind the Chateau
-      - 10.100.0.0/24      # Tunnel network (VPS hub + other peers)
+      - 192.168.88.0/24
+      - 10.100.0.0/24
 
-# Routing configuration
+# Routing configuration - NO exit traffic
 routing:
   propagate_routes: true
   route_all_traffic: false
-  # Networks to route through tunnel from home side
   allowed_networks:
-    - 10.100.0.0/24        # Tunnel network (expanded for road-warriors)
+    - 10.100.0.0/24
 
 # WireGuard keys stored in secrets
-# Reference: projects/home-lab/secrets/tunnels/wg-home-to-oci.yaml
 secrets_ref: secrets.tunnels.wg-home-to-oci
 
 # Firewall integration
 firewall:
-  # Allow WireGuard UDP on VPS
   vps_allow_inbound:
     protocol: udp
     port: 51820
     source: any
-  # Trust tunnel interface on MikroTik
+  # wg0 on MikroTik is trusted (LAN interface list)
   mikrotik_interface_list: LAN
 
-# NAT configuration on VPS (for VPN VLAN traffic)
+# NO NAT on admin tunnel - only split tunnel access
 vps_nat:
-  enabled: true
-  masquerade:
-    # ADR-0111: Use VLAN refs instead of hardcoded CIDRs
-    source_vlan_refs:
-      - inst.vlan.vpn_germany  # VPN Germany traffic routes through VPS
-    out_interface: ens3        # VPS public interface
-  # iptables rules generated from source_vlan_refs by WireGuard generator
-  ip_forward: true
+  enabled: false
 
 # Use cases for this tunnel
 use_cases:
   - Access home network services from VPS
-  - Expose home services via VPS public IP (reverse proxy)
-  - Backup home data to OCI object storage
-  - Monitoring home infrastructure from cloud
-  - Route VPN VLAN traffic through German IP (geo-bypass)
-  - Road-warrior access to home LAN from mobile devices (Jolla Phone)
-  - Travel gateway access to home LAN via rtr-slate for appliances carried
-    on the road (srv-orangepi5), with no per-device VPN config
+  - Road-warrior access to home LAN (vpn-home profile)
+  - MikroTik management via tunnel
+  - Access servers and services at home

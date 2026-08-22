@@ -144,18 +144,16 @@ observed_runtime:
     - chain: srcnat
       action: masquerade
       out_interface: ether1
-    # NOTE: no masquerade on wg0 — source-preserving design: the VPS peer
-    # accepts 192.168.55.0/24 (AllowedIPs) and masquerades it to the internet
-    # itself (see generated/home-lab/wireguard/vps-wg0.conf vps_nat PostUp).
+    # NOTE: no masquerade on wg0 — admin tunnel only, no exit traffic.
     #
-    # Estonia chain exit: masquerade tunnel traffic (10.100.0.0/24) to WAN
-    # This enables road warriors (Jolla) to exit via Estonian IP when using
-    # the VPN Estonia profile. Traffic path: Jolla -> VPS -> Chateau -> Internet
+    # Estonia chain exit: masquerade wg1 tunnel traffic to WAN (Estonian IP).
+    # Traffic path: Jolla (wg1) -> VPS (wg1) -> Chateau (wg1) -> Internet
+    # wg1 is in VPN_EXIT interface list (isolated from LAN)
     - chain: srcnat
       action: masquerade
-      src_address: 10.100.0.0/24
+      src_address: 10.100.1.0/24
       out_interface_list: WAN
-      comment: "VPN Estonia chain exit (road warriors via Chateau)"
+      comment: "VPN Estonia chain exit (wg1 traffic via Chateau)"
     - chain: dstnat
       action: dst-nat
       protocol: tcp
@@ -170,11 +168,26 @@ observed_runtime:
   wireguard:
     configured: true
     interfaces:
+      # wg0: Admin tunnel - trusted (LAN interface list)
       - name: wg0
-        listen_port: null  # Client mode, no listen port
+        listen_port: null  # Client mode
         tunnel_ref: inst.tunnel.wg-home-to-oci
-        tunnel_ip: 10.100.0.1/30
+        tunnel_ip: 10.100.0.1/24
         persistent_keepalive: 25
+        interface_list: LAN  # Trusted admin access
+      # wg1: Exit tunnel - isolated (VPN_EXIT interface list)
+      - name: wg1
+        listen_port: null  # Client mode
+        tunnel_ref: inst.tunnel.wg-exit
+        tunnel_ip: 10.100.1.1/24
+        persistent_keepalive: 25
+        interface_list: VPN_EXIT  # ISOLATED from all VLANs
+    # Interface list for isolated exit traffic
+    interface_lists:
+      VPN_EXIT:
+        comment: "Isolated VPN exit traffic - no LAN access"
+        members:
+          - wg1
   services:
     webfig_http_port: 80
     webfig_https_enabled: true

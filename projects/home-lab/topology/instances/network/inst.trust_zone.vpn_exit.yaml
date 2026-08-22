@@ -1,0 +1,42 @@
+@instance: inst.trust_zone.vpn_exit
+@extends: obj.network.trust_zone.vpn_tunnel
+@group: network
+@version: 1.0.0
+source_id: zone-vpn-exit
+status: active
+notes: |
+  ISOLATED trust zone for VPN exit traffic.
+  Devices in this zone can ONLY reach the internet via WireGuard exit tunnel (wg1).
+  NO access to any internal VLANs (management, servers, user, LAN, etc.)
+
+  Used by road-warrior clients using vpn-germany/vpn-estonia profiles.
+  This zone has the LOWEST trust level (0) for maximum isolation.
+
+zone_name: vpn-exit
+
+# Firewall policy: internet-only, complete isolation from internal networks
+firewall_policy:
+  # Allow outbound to internet ONLY (via VPN exit tunnel)
+  outbound:
+    - action: accept
+      destination: untrusted
+      via_interface: wg1
+      comment: "Allow internet via VPN exit tunnel"
+
+  # Allow established/related return traffic
+  inbound:
+    - action: accept
+      state: [established, related]
+      comment: "Allow return traffic"
+
+  # BLOCK ALL internal zones - explicit deny for security
+  blocked_zone_refs:
+    - inst.trust_zone.user
+    - inst.trust_zone.guest
+    - inst.trust_zone.iot
+    - inst.trust_zone.servers
+    - inst.trust_zone.management
+    - inst.trust_zone.vpn_tunnel
+
+  # No tunnel network access (only exit traffic allowed)
+  allow_tunnel_networks: false
