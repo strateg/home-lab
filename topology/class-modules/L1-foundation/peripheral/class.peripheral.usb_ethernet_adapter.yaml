@@ -1,0 +1,71 @@
+@class: class.peripheral.usb_ethernet_adapter
+@title: USB Ethernet Adapter
+@description: |
+  USB-to-Ethernet adapter peripheral device. Provides network connectivity
+  via USB interface, commonly used when onboard NICs are unavailable or damaged.
+  Modeled separately from host device to track MAC addresses and physical connections.
+@layer: L1
+@version: 1.0.0
+
+properties:
+  required:
+    - chipset
+    - usb_version
+    - speed_mbps
+  optional:
+    - mac_address
+    - form_factor
+    - connector_type
+    - duplex
+    - features
+    - notes
+
+property_schemas:
+  chipset:
+    type: string
+    description: Network controller chipset (e.g., RTL8153, AX88179)
+  usb_version:
+    type: string
+    enum: ["2.0", "3.0", "3.1", "3.2"]
+    description: USB interface version
+  speed_mbps:
+    type: integer
+    enum: [100, 1000, 2500]
+    description: Maximum link speed in Mbps
+  mac_address:
+    type: string
+    pattern: "^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$"
+    description: Hardware MAC address
+  form_factor:
+    type: string
+    enum: [dongle, dock, inline]
+    default: dongle
+    description: Physical form factor
+  connector_type:
+    type: string
+    enum: [usb_a, usb_c, micro_usb]
+    default: usb_a
+    description: USB connector type on device side
+  duplex:
+    type: string
+    enum: [half, full]
+    default: full
+    description: Duplex mode
+  features:
+    type: array
+    items:
+      type: string
+    description: Additional features (wake-on-lan, vlan_tagging, etc.)
+
+required_capabilities:
+  - cap.peripheral.usb_network
+
+optional_capabilities:
+  - cap.network.vlan_tagging
+  - cap.network.wake_on_lan
+
+enabled_capabilities: []
+
+invariants:
+  - mac_address must be unique across all instances
+  - usb_version 3.0+ required for speed_mbps > 100

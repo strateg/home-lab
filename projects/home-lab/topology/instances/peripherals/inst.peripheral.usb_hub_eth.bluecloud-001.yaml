@@ -1,0 +1,11 @@
+@instance: inst.peripheral.usb_hub_eth.bluecloud-001
+@extends: obj.peripheral.bluecloud.usbc_hub_gbe
+@group: peripherals
+@version: 1.0.0
+source_id: usb-hub-eth-bluecloud-001
+notes: |
+  Bluecloud USB-C Hub with Gigabit Ethernet (RTL8153 chipset).
+  Portable peripheral - host attachment modeled via link references.
+
+# MAC address and derived linux_interface stored in secrets
+secrets_ref: secrets.peripherals.usb-hub-eth-bluecloud-001

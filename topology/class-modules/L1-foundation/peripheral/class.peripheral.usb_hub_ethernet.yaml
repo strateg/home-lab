@@ -1,0 +1,75 @@
+@class: class.peripheral.usb_hub_ethernet
+@title: USB Hub with Ethernet Adapter
+@description: |
+  Combined USB hub with integrated Ethernet adapter.
+  Provides additional USB ports and network connectivity via single USB connection.
+@layer: L1
+@version: 1.0.0
+
+properties:
+  required:
+    - usb_host_connector
+    - usb_version
+    - ethernet_speed_mbps
+    - usb_ports_count
+  optional:
+    - chipset
+    - mac_address
+    - usb_port_type
+    - form_factor
+    - dimensions_mm
+    - casing_material
+    - cable_type
+    - notes
+
+property_schemas:
+  usb_host_connector:
+    type: string
+    enum: [usb_a, usb_c, micro_usb]
+    description: Connector type that plugs into host device
+  usb_version:
+    type: string
+    enum: ["2.0", "3.0", "3.1_gen1", "3.1_gen2", "3.2"]
+    description: USB interface version
+  ethernet_speed_mbps:
+    type: integer
+    enum: [100, 1000, 2500]
+    description: Maximum ethernet link speed in Mbps
+  usb_ports_count:
+    type: integer
+    description: Number of downstream USB ports
+  usb_port_type:
+    type: string
+    enum: [usb_a, usb_c, mixed]
+    default: usb_a
+    description: Type of downstream USB ports
+  chipset:
+    type: string
+    description: Network controller chipset
+  mac_address:
+    type: string
+    pattern: "^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$"
+    description: Hardware MAC address
+  form_factor:
+    type: string
+    enum: [dongle, dock, inline]
+    default: dongle
+  dimensions_mm:
+    type: object
+    properties:
+      width: { type: number }
+      length: { type: number }
+      height: { type: number }
+  casing_material:
+    type: string
+    enum: [plastic, aluminum, metal]
+  cable_type:
+    type: string
+    enum: [integrated, detachable, braided]
+
+required_capabilities:
+  - cap.peripheral.usb_hub
+  - cap.peripheral.usb_network
+
+optional_capabilities:
+  - cap.network.vlan_tagging

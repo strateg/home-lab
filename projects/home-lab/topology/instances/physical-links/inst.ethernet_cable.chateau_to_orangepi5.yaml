@@ -3,14 +3,15 @@
 @group: physical-links
 @version: 1.0.0
 source_id: link-rtr-mikrotik-srv-orangepi5
-notes: Wired uplink carrying management and server VLANs between Chateau and Orange
-  Pi 5
+notes: |
+  Wired uplink carrying management and server VLANs between Chateau and Orange Pi 5.
+  Uses USB-Ethernet adapter (onboard end1 PHY damaged).
 endpoint_a:
   device_ref: rtr-mikrotik-chateau
-  port: ether4
+  port: ether3
 endpoint_b:
-  device_ref: srv-orangepi5
-  port: end1
+  peripheral_ref: inst.peripheral.usb_hub_eth.bluecloud-001
+  port: rj45
 creates_channel_ref: inst.chan.eth.chateau_to_orangepi5
 length_m: 1.5
 shielding: utp

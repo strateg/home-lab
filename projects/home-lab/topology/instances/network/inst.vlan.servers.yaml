@@ -7,7 +7,7 @@ status: staged
 notes: |
   Servers VLAN 100 (10.0.100.0/24) for intranet services.
   Accessible via WireGuard tunnel. Higher trust level than IoT/guest per ADR-0110.
-  Trunk port on rtr-mikrotik-chateau ether3 (srv-orangepi5).
+  Trunk port on rtr-mikrotik-chateau ether5 (srv-orangepi5).
 
 bridge_ref: inst.bridge.vmbr0
 trust_zone_ref: inst.trust_zone.servers
