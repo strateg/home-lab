@@ -22,6 +22,9 @@
 # Traffic from this tunnel IP is routed via wg1 on VPS using policy routing.
 #
 {% endif %}
+{% if profile and profile.get('tunnel_ipv6') %}
+# IPv6 BLOCKED: AllowedIPs includes ::/0 to capture and blackhole IPv6
+{% endif %}
 # Routing is defined by AllowedIPs below.
 {% if client.get('gateway_for') %}
 #
@@ -35,9 +38,9 @@
 [Interface]
 # {{ client.device_ref }} (road-warrior)
 {% if profile and profile.get('tunnel_ip') %}
-Address = {{ profile.get('tunnel_ip') }}
+Address = {{ profile.get('tunnel_ip') }}{{ ', ' + profile.get('tunnel_ipv6') if profile.get('tunnel_ipv6') else '' }}
 {% else %}
-Address = {{ client.tunnel_ip }}
+Address = {{ client.tunnel_ip }}{{ ', ' + client.tunnel_ipv6 if client.get('tunnel_ipv6') else '' }}
 {% endif %}
 PrivateKey = {{ client_keys.private_key }}
 {% if profile and profile.get('dns') %}
