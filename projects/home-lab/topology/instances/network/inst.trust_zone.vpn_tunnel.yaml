@@ -13,6 +13,12 @@ notes: |
 
 zone_name: vpn-tunnel
 
+# Additional networks to include in this zone's address-list
+# (beyond VLANs that reference trust_zone_ref)
+additional_networks:
+  - cidr: 10.100.0.0/24
+    comment: "WireGuard admin tunnel (wg0) overlay network"
+
 # Firewall policy using zone/vlan refs (ADR-0111)
 firewall_policy:
   # Allow outbound to internet (via VPN tunnel)

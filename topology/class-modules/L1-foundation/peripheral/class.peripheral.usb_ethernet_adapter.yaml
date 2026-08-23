@@ -57,12 +57,9 @@ property_schemas:
       type: string
     description: Additional features (wake-on-lan, vlan_tagging, etc.)
 
-required_capabilities:
-  - cap.peripheral.usb_network
+required_capabilities: []
 
-optional_capabilities:
-  - cap.network.vlan_tagging
-  - cap.network.wake_on_lan
+optional_capabilities: []
 
 enabled_capabilities: []
 

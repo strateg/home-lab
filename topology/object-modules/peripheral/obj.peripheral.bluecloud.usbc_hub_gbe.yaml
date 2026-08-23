@@ -41,9 +41,7 @@ hardware_specs:
     - chromeos
     - abitti_digabios
 
-enabled_capabilities:
-  - cap.peripheral.usb_hub
-  - cap.peripheral.usb_network
+enabled_capabilities: []
 
 notes: |
   Bluecloud USB-C hub with integrated Gigabit Ethernet adapter.

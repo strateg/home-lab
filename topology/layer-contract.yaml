@@ -25,6 +25,7 @@ layer_semantics:
 group_layers:
   meta: L0
   devices: L1
+  peripherals: L1
   physical-links: L1
   power: L1
   firmware: L1
@@ -74,6 +75,10 @@ class_layers:
   class.storage.media:
     allowed_layers: [L1]
   class.device.iot_endpoint:
+    allowed_layers: [L1]
+  class.peripheral.usb_ethernet_adapter:
+    allowed_layers: [L1]
+  class.peripheral.usb_hub_ethernet:
     allowed_layers: [L1]
 
   # L2 - Network (bridges, VLANs, firewall)

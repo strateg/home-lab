@@ -3,4 +3,16 @@
 @group: network
 @version: 1.0.0
 source_id: trust-zone-management
-notes: Management zone for infrastructure access
+notes: |
+  Management zone for infrastructure access.
+  Allows admin access from VPN tunnel zone (wg0 admin tunnel).
+
+# Override ADR-0110 uphill block to allow VPN admin access
+firewall_policy:
+  allowed_from_zones:
+    - zone_ref: inst.trust_zone.vpn_tunnel
+      comment: "VPN tunnel admin access to management zone"
+      protocols:
+        - icmp
+        - tcp
+        - udp
