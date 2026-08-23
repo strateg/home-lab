@@ -142,20 +142,72 @@ def _build_proxmox_values(payload: dict[str, Any]) -> dict[str, Any]:
 def _build_mikrotik_values(payload: dict[str, Any]) -> dict[str, Any]:
     mikrotik = _require_mapping(payload.get("mikrotik"), path="mikrotik")
     wireguard = _require_mapping(payload.get("wireguard"), path="wireguard")
-    containers = _require_mapping(payload.get("containers"), path="containers")
+    containers = payload.get("containers", {})
+    if not isinstance(containers, dict):
+        containers = {}
+    wifi = payload.get("wifi", {})
+    if not isinstance(wifi, dict):
+        wifi = {}
+    mac_assignments = payload.get("mac_vlan_assignments", [])
+    if not isinstance(mac_assignments, list):
+        mac_assignments = []
+
     peers = wireguard.get("peers", [])
     if not isinstance(peers, list):
         peers = []
-    return {
+
+    # Multi-interface WireGuard support (ADR-0111: dual-tunnel architecture)
+    # - wireguard_peers: legacy variable (same as wg0)
+    # - wireguard_wg0_peers: explicit wg0 interface peers (admin tunnel)
+    # - wireguard_wg1_peers: wg1 interface peers (exit tunnel)
+    wg0_peers = wireguard.get("wg0_peers", peers)  # Default to legacy peers
+    wg1_peers = wireguard.get("wg1_peers", [])
+    if not isinstance(wg0_peers, list):
+        wg0_peers = []
+    if not isinstance(wg1_peers, list):
+        wg1_peers = []
+
+    # Interface-specific private keys (dual-tunnel architecture)
+    wg0_private_key = wireguard.get("wg0_private_key") or wireguard.get("private_key", "")
+    wg1_private_key = wireguard.get("wg1_private_key", "")
+
+    result = {
         "mikrotik_host": _require_scalar(mikrotik.get("host"), path="mikrotik.host"),
         "mikrotik_username": _require_scalar(mikrotik.get("username"), path="mikrotik.username"),
         "mikrotik_password": _require_scalar(mikrotik.get("password"), path="mikrotik.password"),
         "mikrotik_insecure": bool(mikrotik.get("insecure")),
-        "wireguard_private_key": _require_scalar(wireguard.get("private_key"), path="wireguard.private_key"),
-        "wireguard_peers": peers,
-        "adguard_password": _require_scalar(containers.get("adguard_password"), path="containers.adguard_password"),
-        "tailscale_authkey": _require_scalar(containers.get("tailscale_authkey"), path="containers.tailscale_authkey"),
+        # Legacy single private key (deprecated, use wg0/wg1 specific keys)
+        "wireguard_private_key": wg0_private_key,
+        # Interface-specific private keys
+        "wireguard_wg0_private_key": wg0_private_key,
+        "wireguard_wg1_private_key": wg1_private_key,
+        # Peer lists
+        "wireguard_peers": peers,  # Legacy compatibility
+        "wireguard_wg0_peers": wg0_peers,
+        "wireguard_wg1_peers": wg1_peers,
     }
+
+    # MAC-based VLAN assignments
+    if mac_assignments:
+        result["mac_vlan_assignments"] = mac_assignments
+
+    # WiFi passphrases (optional)
+    if wifi.get("main_passphrase"):
+        result["wifi_main_passphrase"] = wifi["main_passphrase"]
+    if wifi.get("vpn_germany_passphrase"):
+        result["wifi_vpn_germany_passphrase"] = wifi["vpn_germany_passphrase"]
+    if wifi.get("guest_passphrase"):
+        result["wifi_guest_passphrase"] = wifi["guest_passphrase"]
+    if wifi.get("iot_passphrase"):
+        result["wifi_iot_passphrase"] = wifi["iot_passphrase"]
+
+    # Container secrets (optional)
+    if containers.get("adguard_password"):
+        result["adguard_password"] = containers["adguard_password"]
+    if containers.get("tailscale_authkey"):
+        result["tailscale_authkey"] = containers["tailscale_authkey"]
+
+    return result
 
 
 def _build_values(target: str, payload: dict[str, Any]) -> dict[str, Any]:

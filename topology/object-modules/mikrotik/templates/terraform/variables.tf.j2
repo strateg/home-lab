@@ -22,14 +22,23 @@ variable "mikrotik_insecure" {
 }
 
 variable "wireguard_private_key" {
-  description = "WireGuard private key"
+  description = "WireGuard private key (legacy, use interface-specific keys)"
   type        = string
   sensitive   = true
   default     = ""
 }
 
+{% for iface in wireguard_interfaces %}
+variable "wireguard_{{ iface.name }}_private_key" {
+  description = "WireGuard private key for {{ iface.name }}"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+{% endfor %}
 variable "wireguard_peers" {
-  description = "WireGuard peers list"
+  description = "WireGuard peers list (legacy wg0)"
   type = list(object({
     name             = string
     public_key       = string
@@ -42,6 +51,24 @@ variable "wireguard_peers" {
   }))
   default = []
 }
+
+{% for iface in wireguard_interfaces %}
+variable "wireguard_{{ iface.name }}_peers" {
+  description = "WireGuard peers list for {{ iface.name }}"
+  type = list(object({
+    name             = string
+    public_key       = string
+    preshared_key    = optional(string)
+    endpoint_address = optional(string)
+    endpoint_port    = optional(number)
+    allowed_ips      = list(string)
+    persistent_keepalive = optional(string)
+    comment          = optional(string)
+  }))
+  default = []
+}
+
+{% endfor %}
 
 variable "adguard_password" {
   description = "AdGuard Home admin password (hash)"

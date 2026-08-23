@@ -27,6 +27,16 @@ PostUp = sysctl -w net.ipv4.ip_forward=1
 {# Hairpin rule for peer-to-peer through VPS - use actual interface name #}
 PostUp = iptables -I FORWARD 1 -i {{ tunnel_name }} -o {{ tunnel_name }} -j ACCEPT
 {% endif %}
+{# Policy routes for chained exit (e.g., Estonia via MikroTik) #}
+{% for policy in vps_nat.policy_routes | default([]) %}
+{# Add ip rule for source-based routing (|| true to handle restart) #}
+PostUp = ip rule add from {{ policy.source_ip | replace('/32', '') }} lookup {{ policy.table_id }} priority {{ policy.table_id }} || true
+{# Add interface route and default gateway to policy table #}
+PostUp = ip route add {{ tunnel_network }} dev {{ policy.via_interface }} table {{ policy.table_id }} || true
+PostUp = ip route add default via {{ policy.next_hop }} table {{ policy.table_id }} || true
+{# Exclude chained traffic from masquerade - let MikroTik do NAT #}
+PostUp = iptables -t nat -I POSTROUTING 1 -s {{ policy.source_ip }} -o {{ policy.via_interface }} -j ACCEPT
+{% endfor %}
 {% for rule in vps_nat.iptables_rules | default([]) %}
 PostUp = iptables {{ rule }}
 {% endfor %}
@@ -41,6 +51,13 @@ PostUp = iptables -I FORWARD -i {{ rule.in_interface }} -o {{ rule.out_interface
 {% if tunnel.road_warrior_peers | default([]) | length > 0 %}
 PostDown = iptables -D FORWARD -i {{ tunnel_name }} -o {{ tunnel_name }} -j ACCEPT
 {% endif %}
+{# Clean up policy routes #}
+{% for policy in vps_nat.policy_routes | default([]) %}
+PostDown = ip rule del from {{ policy.source_ip | replace('/32', '') }} lookup {{ policy.table_id }} priority {{ policy.table_id }} || true
+PostDown = ip route del {{ tunnel_network }} dev {{ policy.via_interface }} table {{ policy.table_id }} || true
+PostDown = ip route del default via {{ policy.next_hop }} table {{ policy.table_id }} || true
+PostDown = iptables -t nat -D POSTROUTING -s {{ policy.source_ip }} -o {{ policy.via_interface }} -j ACCEPT || true
+{% endfor %}
 {% for rule in vps_nat.iptables_rules | default([]) %}
 {# Convert -I/-A to -D for deletion #}
 {% set delete_rule = rule | replace('-I FORWARD 1 ', '-D FORWARD ') | replace('-I FORWARD 2 ', '-D FORWARD ') | replace('-A ', '-D ') %}

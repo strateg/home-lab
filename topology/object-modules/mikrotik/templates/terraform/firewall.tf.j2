@@ -83,8 +83,14 @@ resource "routeros_ip_firewall_filter" "drop_all_forward" {
 resource "routeros_ip_firewall_nat" "runtime_nat_{{ loop.index }}" {
   chain  = "{{ nat.get('chain', '') }}"
   action = "{{ nat.get('action', '') }}"
+{% if nat.get('src_address') %}
+  src_address = "{{ nat.get('src_address') }}"
+{% endif %}
 {% if nat.get('out_interface') %}
   out_interface = "{{ nat.get('out_interface') }}"
+{% endif %}
+{% if nat.get('out_interface_list') %}
+  out_interface_list = "{{ nat.get('out_interface_list') }}"
 {% endif %}
 {% if nat.get('protocol') %}
   protocol = "{{ nat.get('protocol') }}"
@@ -98,7 +104,11 @@ resource "routeros_ip_firewall_nat" "runtime_nat_{{ loop.index }}" {
 {% if nat.get('to_ports') %}
   to_ports = "{{ nat.get('to_ports') }}"
 {% endif %}
+{% if nat.get('comment') %}
+  comment = "{{ nat.get('comment') }} - managed by topology"
+{% else %}
   comment = "runtime NAT baseline - managed by topology"
+{% endif %}
 }
 
 {% endfor %}

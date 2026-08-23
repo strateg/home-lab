@@ -141,19 +141,20 @@ observed_runtime:
       - name: router.lan
         address: 192.168.88.1
   nat:
-    - chain: srcnat
-      action: masquerade
-      out_interface: ether1
-    # NOTE: no masquerade on wg0 — admin tunnel only, no exit traffic.
+    # IMPORTANT: Order matters! Specific rules BEFORE general masquerade.
     #
     # Estonia chain exit: masquerade wg1 tunnel traffic to WAN (Estonian IP).
     # Traffic path: Jolla (wg1) -> VPS (wg1) -> Chateau (wg1) -> Internet
-    # wg1 is in VPN_EXIT interface list (isolated from LAN)
+    # This rule MUST be first, otherwise general ether1 masquerade catches it.
     - chain: srcnat
       action: masquerade
       src_address: 10.100.1.0/24
       out_interface_list: WAN
       comment: "VPN Estonia chain exit (wg1 traffic via Chateau)"
+    # General masquerade for all other LAN traffic
+    - chain: srcnat
+      action: masquerade
+      out_interface: ether1
     - chain: dstnat
       action: dst-nat
       protocol: tcp

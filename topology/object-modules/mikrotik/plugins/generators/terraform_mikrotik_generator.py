@@ -126,6 +126,8 @@ class TerraformMikroTikGenerator(BaseGenerator):
         wireguard_address = wireguard.get("wireguard_address", "")
         wireguard_listen_port = wireguard.get("wireguard_listen_port", 51820)
         wireguard_mtu = wireguard.get("wireguard_mtu", 1420)
+        # Multi-interface support (ADR-0111: Estonia chain)
+        wireguard_interfaces = wireguard.get("interfaces", [])
 
         # Extract WiFi and bridge VLAN configuration from projection
         wifi = projection.get("wifi", {})
@@ -158,6 +160,7 @@ class TerraformMikroTikGenerator(BaseGenerator):
             "wireguard_address": wireguard_address,
             "wireguard_listen_port": wireguard_listen_port,
             "wireguard_mtu": wireguard_mtu,
+            "wireguard_interfaces": wireguard_interfaces,
             # WiFi configuration
             "wifi_datapaths": wifi_datapaths,
             "wifi_configurations": wifi_configurations,

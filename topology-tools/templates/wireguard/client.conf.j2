@@ -46,6 +46,30 @@ DNS = {{ profile.get('dns') }}
 DNS = {{ client.dns }}
 {% endif %}
 MTU = {{ mtu }}
+{% if profile and profile.get('preserve_endpoint_route') %}
+
+# Preserve route to VPS endpoint when on same network as exit node
+# This prevents routing loop when AllowedIPs=0.0.0.0/0 captures endpoint traffic
+PreUp = GATEWAY=$(ip route | grep default | head -1 | awk '{print $3}') && ip route add {{ server.public_endpoint }}/32 via $GATEWAY || true
+PostDown = ip route del {{ server.public_endpoint }}/32 || true
+{% endif %}
+{% if profile and profile.get('block_dns_leaks') %}
+
+# Kill switch + DNS leak protection - block ALL traffic outside tunnel
+# Allow only: loopback, tunnel interface, and WireGuard endpoint
+PostUp = iptables -I OUTPUT -o lo -j ACCEPT 2>/dev/null || true
+PostUp = iptables -I OUTPUT -o %i -j ACCEPT 2>/dev/null || true
+PostUp = iptables -I OUTPUT -d {{ server.public_endpoint }} -p udp --dport {{ server.listen_port | default(51820) }} -j ACCEPT 2>/dev/null || true
+PostUp = iptables -A OUTPUT -j REJECT 2>/dev/null || true
+# Force DNS through tunnel
+PostUp = resolvectl dns %i 1.1.1.1 1.0.0.1 2>/dev/null || true
+PostUp = resolvectl default-route %i true 2>/dev/null || true
+# Cleanup on disconnect
+PostDown = iptables -D OUTPUT -o lo -j ACCEPT 2>/dev/null || true
+PostDown = iptables -D OUTPUT -o %i -j ACCEPT 2>/dev/null || true
+PostDown = iptables -D OUTPUT -d {{ server.public_endpoint }} -p udp --dport {{ server.listen_port | default(51820) }} -j ACCEPT 2>/dev/null || true
+PostDown = iptables -D OUTPUT -j REJECT 2>/dev/null || true
+{% endif %}
 
 [Peer]
 # VPS Hub: {{ server.device_ref }}

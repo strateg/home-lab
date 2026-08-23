@@ -776,19 +776,19 @@ def _extract_wireguard_tunnels(
     Returns:
         {
             "tunnels": [...],  # List of tunnel configs for this router
-            "wireguard_address": "192.0.2.1/30",  # Interface address
-            "wireguard_listen_port": 51820,
+            "interfaces": [...],  # List of WireGuard interfaces with their peers
+            "wireguard_address": "192.0.2.1/30",  # Primary interface address (legacy)
+            "wireguard_listen_port": 51820,  # Primary listen port (legacy)
             "wireguard_mtu": 1420,
-            "wireguard_peers": [...],  # Peer configurations
+            "wireguard_peers": [...],  # Primary interface peers (legacy)
         }
     """
     if vlan_cidr_index is None:
         vlan_cidr_index = {}
     tunnels: list[dict[str, Any]] = []
-    peers: list[dict[str, Any]] = []
-    interface_address = ""
-    listen_port = 51820
-    mtu = 1420
+
+    # Group by interface name for multi-interface support
+    interfaces_by_name: dict[str, dict[str, Any]] = {}
 
     for row in network_rows:
         object_ref = _resolved_object_ref(row)
@@ -822,9 +822,12 @@ def _extract_wireguard_tunnels(
         if not local_endpoint or not isinstance(remote_endpoint, dict):
             continue
 
+        tunnel_name = inst_data.get("tunnel_name", "wg0")
+
         # Extract local interface config
         local_ip = str(local_endpoint.get("tunnel_ip", "")).strip()
         tunnel_network = str(inst_data.get("tunnel_network", "")).strip()
+        interface_address = ""
         if local_ip:
             # Check if IP already includes prefix
             if "/" in local_ip:
@@ -839,7 +842,8 @@ def _extract_wireguard_tunnels(
             else:
                 interface_address = f"{local_ip}/30"
 
-        listen_port = int(local_endpoint.get("listen_port", 51820) or 51820)
+        local_role = str(local_endpoint.get("role", "")).strip()
+        listen_port = int(local_endpoint.get("listen_port", 0) or 0) if local_role == "server" else 0
         mtu = int(inst_data.get("mtu", 1420) or 1420)
 
         # Build peer config for remote endpoint
@@ -882,29 +886,59 @@ def _extract_wireguard_tunnels(
                 peer_config["endpoint_address"] = public_endpoint
                 peer_config["endpoint_port"] = int(remote_endpoint.get("listen_port", 51820) or 51820)
             # Client needs keepalive
-            keepalive = inst_data.get("keepalive_interval", 25)
+            local_keepalive = local_endpoint.get("persistent_keepalive")
+            keepalive = local_keepalive if local_keepalive else inst_data.get("keepalive_interval", 25)
             if keepalive:
                 peer_config["persistent_keepalive"] = f"{keepalive}s"
 
         # Mark that secrets are needed (not stored in projection)
         peer_config["preshared_key"] = True  # Indicates preshared key is used
 
-        peers.append(peer_config)
+        # Initialize interface if not seen yet
+        if tunnel_name not in interfaces_by_name:
+            interfaces_by_name[tunnel_name] = {
+                "name": tunnel_name,
+                "address": interface_address,
+                "listen_port": listen_port if listen_port > 0 else None,
+                "mtu": mtu,
+                "peers": [],
+            }
+        else:
+            # Update address if not set
+            if not interfaces_by_name[tunnel_name]["address"] and interface_address:
+                interfaces_by_name[tunnel_name]["address"] = interface_address
+            # Update listen_port if we found a server endpoint
+            if listen_port > 0 and not interfaces_by_name[tunnel_name]["listen_port"]:
+                interfaces_by_name[tunnel_name]["listen_port"] = listen_port
+
+        interfaces_by_name[tunnel_name]["peers"].append(peer_config)
+
         tunnels.append(
             {
                 "instance_id": row.get("instance_id", ""),
-                "tunnel_name": inst_data.get("tunnel_name", "wg0"),
+                "tunnel_name": tunnel_name,
                 "local_endpoint": local_endpoint,
                 "remote_endpoint": remote_endpoint,
             }
         )
 
+    # Build interfaces list sorted by name
+    interfaces = sorted(interfaces_by_name.values(), key=lambda x: x["name"])
+
+    # Legacy compatibility: extract primary (wg0) interface data
+    primary_interface = interfaces_by_name.get("wg0", {})
+    legacy_address = primary_interface.get("address", "")
+    legacy_listen_port = primary_interface.get("listen_port", 51820) or 51820
+    legacy_mtu = primary_interface.get("mtu", 1420)
+    legacy_peers = primary_interface.get("peers", [])
+
     return {
         "tunnels": tunnels,
-        "wireguard_address": interface_address,
-        "wireguard_listen_port": listen_port,
-        "wireguard_mtu": mtu,
-        "wireguard_peers": peers,
+        "interfaces": interfaces,
+        "wireguard_address": legacy_address,
+        "wireguard_listen_port": legacy_listen_port,
+        "wireguard_mtu": legacy_mtu,
+        "wireguard_peers": legacy_peers,
     }
 
 

@@ -5,16 +5,15 @@
 source_id: inst.tunnel.wg-exit
 status: active
 notes: |
-  WireGuard EXIT tunnel (wg1) for internet exit traffic.
-  PURPOSE: Internet exit ONLY. No LAN access.
+  WireGuard EXIT tunnel (wg1) for ESTONIA exit traffic ONLY.
+  PURPOSE: Estonian IP exit. ISOLATED from LAN - no local access.
 
   Architecture (ADR-0112):
-    - wg0: Admin tunnel for LAN/management access (inst.tunnel.wg-home-to-oci)
-    - wg1: Exit tunnel for internet traffic (this file)
+    - wg0: Admin tunnel + Germany exit (inst.tunnel.wg-home-to-oci)
+    - wg1: Estonia exit ONLY (this file)
 
-  Traffic flows:
-    vpn-germany: Client (10.100.1.x) -> VPS wg1 -> masquerade -> ens3 -> Internet (German IP)
-    vpn-estonia: Client (10.100.1.x) -> VPS wg1 -> forward -> MikroTik wg1 -> WAN -> Internet (Estonian IP)
+  Traffic flow:
+    vpn-estonia: Client (10.100.1.x) -> VPS wg1 -> MikroTik wg1 -> WAN -> Estonian IP
 
   ISOLATION: wg1 interface on MikroTik is in VPN_EXIT interface list,
   which has firewall rules blocking ALL access to LAN VLANs.
@@ -32,8 +31,10 @@ endpoint_a:
   tunnel_ip: 10.100.1.1/24
   persistent_keepalive: 25
   # MikroTik accepts traffic from VPS for Estonia exit
+  # Internal routes + catch-all for chained exit traffic
   allowed_ips:
     - 10.100.1.0/24
+    - 0.0.0.0/0  # Required for Estonia chain exit (VPS -> MikroTik -> WAN)
   # CRITICAL: Interface list is VPN_EXIT (isolated from LAN)
   mikrotik_interface_list: VPN_EXIT
 
@@ -61,6 +62,8 @@ road_warrior_peers:
         dns: "1.1.1.1, 1.0.0.1"
         exit_mode: direct
         exit_country: DE
+        # Block DNS leaks - force all DNS through tunnel
+        block_dns_leaks: true
 
       - name: vpn-estonia
         description: "Exit via Estonian IP (MikroTik WAN)"
@@ -72,6 +75,10 @@ road_warrior_peers:
         exit_mode: chained
         exit_country: EE
         next_hop: 10.100.1.1
+        # Fix routing loop when client is on same network as exit node
+        preserve_endpoint_route: true
+        # Block DNS leaks - force all DNS through tunnel
+        block_dns_leaks: true
 
   - device_ref: ws-nixos
     persistent_keepalive: 25

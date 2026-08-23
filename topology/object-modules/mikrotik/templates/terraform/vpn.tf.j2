@@ -1,11 +1,63 @@
 # MikroTik WireGuard VPN configuration
 # Generated from topology - DO NOT EDIT MANUALLY
 
+{% if has_wireguard %}
+{% if wireguard_interfaces %}
+# ==============================================================================
+# Multi-interface WireGuard configuration
+# ==============================================================================
+{% for iface in wireguard_interfaces %}
+
+# WireGuard Interface: {{ iface.name }}
+resource "routeros_interface_wireguard" "{{ iface.name }}" {
+  name        = "{{ iface.name }}"
+  listen_port = {{ iface.listen_port if iface.listen_port else (51820 + loop.index0) }}
+  private_key = var.wireguard_{{ iface.name }}_private_key
+  mtu         = {{ iface.mtu if iface.mtu else 1420 }}
+  comment     = "WireGuard {{ iface.name }} - managed by topology"
+}
+
+# IP Address for {{ iface.name }}
+{% if iface.address %}
+resource "routeros_ip_address" "{{ iface.name }}" {
+  address   = "{{ iface.address }}"
+  interface = routeros_interface_wireguard.{{ iface.name }}.name
+  comment   = "WireGuard {{ iface.name }} IP - managed by topology"
+}
+{% endif %}
+
+# Add {{ iface.name }} to LAN interface list (firewall trust)
+resource "routeros_interface_list_member" "{{ iface.name }}_lan" {
+  interface = routeros_interface_wireguard.{{ iface.name }}.name
+  list      = "LAN"
+  comment   = "Trust WireGuard {{ iface.name }} - managed by topology"
+}
+
+# Peers for {{ iface.name }}
+{% for peer in iface.peers %}
+resource "routeros_interface_wireguard_peer" "{{ iface.name }}_{{ peer.name | replace('-', '_') | replace('.', '_') }}" {
+  count                = length(var.wireguard_{{ iface.name }}_peers) > {{ loop.index0 }} ? 1 : 0
+  interface            = routeros_interface_wireguard.{{ iface.name }}.name
+  public_key           = length(var.wireguard_{{ iface.name }}_peers) > {{ loop.index0 }} ? var.wireguard_{{ iface.name }}_peers[{{ loop.index0 }}].public_key : ""
+  preshared_key        = length(var.wireguard_{{ iface.name }}_peers) > {{ loop.index0 }} ? var.wireguard_{{ iface.name }}_peers[{{ loop.index0 }}].preshared_key : null
+  endpoint_address     = length(var.wireguard_{{ iface.name }}_peers) > {{ loop.index0 }} ? var.wireguard_{{ iface.name }}_peers[{{ loop.index0 }}].endpoint_address : null
+  endpoint_port        = length(var.wireguard_{{ iface.name }}_peers) > {{ loop.index0 }} ? var.wireguard_{{ iface.name }}_peers[{{ loop.index0 }}].endpoint_port : null
+  allowed_address      = length(var.wireguard_{{ iface.name }}_peers) > {{ loop.index0 }} ? var.wireguard_{{ iface.name }}_peers[{{ loop.index0 }}].allowed_ips : []
+  persistent_keepalive = length(var.wireguard_{{ iface.name }}_peers) > {{ loop.index0 }} ? var.wireguard_{{ iface.name }}_peers[{{ loop.index0 }}].persistent_keepalive : null
+  comment              = {{ peer.comment | default("Remote: " + peer.name) | tojson }}
+}
+
+{% endfor %}
+{% endfor %}
+{% else %}
+# ==============================================================================
+# Legacy single-interface WireGuard configuration (wg0)
+# ==============================================================================
+
 locals {
   wireguard_interface_name = "wg0"
 }
 
-{% if has_wireguard %}
 # WireGuard Interface
 resource "routeros_interface_wireguard" "wg0" {
   name        = local.wireguard_interface_name
@@ -43,6 +95,7 @@ resource "routeros_interface_list_member" "wg0_lan" {
   list      = "LAN"
   comment   = "Trust WireGuard tunnel - managed by topology"
 }
+{% endif %}
 {% for policy in routing_policies %}
 {% if policy.enabled and not policy.staged %}
 

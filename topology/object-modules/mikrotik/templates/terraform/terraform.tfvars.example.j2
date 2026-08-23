@@ -4,5 +4,19 @@ mikrotik_password = "<TODO_MIKROTIK_PASSWORD>"
 mikrotik_insecure = true
 wireguard_private_key = "<TODO_WG_PRIVATE_KEY>"
 wireguard_peers = []
+{% for iface in wireguard_interfaces %}
+wireguard_{{ iface.name }}_peers = [
+  # {
+  #   name                 = "peer-name"
+  #   public_key           = "<PUBLIC_KEY>"
+  #   preshared_key        = "<PRESHARED_KEY>"
+  #   endpoint_address     = "x.x.x.x"
+  #   endpoint_port        = 51820
+  #   allowed_ips          = ["10.100.0.0/24"]
+  #   persistent_keepalive = "25s"
+  #   comment              = "Remote peer"
+  # }
+]
+{% endfor %}
 adguard_password = "<TODO_ADGUARD_PASSWORD_HASH>"
 tailscale_authkey = "<TODO_TAILSCALE_AUTHKEY>"

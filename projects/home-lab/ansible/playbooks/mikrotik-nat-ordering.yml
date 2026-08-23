@@ -1,0 +1,144 @@
+---
+# MikroTik NAT Rules with Proper Ordering
+# Ensures Estonia chain NAT rule comes BEFORE general masquerade
+#
+# SAFE DEPLOYMENT: Adds new rules FIRST, then removes old duplicates
+# This prevents internet outage if something fails
+#
+# Usage:
+#   cd projects/home-lab/ansible
+#   ansible-playbook playbooks/mikrotik-nat-ordering.yml
+
+- name: Configure MikroTik NAT rules with correct ordering
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    mikrotik_host: "192.168.88.1"
+    mikrotik_user: "automator"
+    mikrotik_pass: "{{ lookup('env', 'MIKROTIK_PASSWORD') | default('jZJn9HJYDmdWfAa81VoUabXwhnJA_Ghw', true) }}"
+
+  tasks:
+    # Step 1: Get current state
+    - name: Get all current srcnat rules
+      ansible.builtin.uri:
+        url: "https://{{ mikrotik_host }}/rest/ip/firewall/nat?chain=srcnat"
+        user: "{{ mikrotik_user }}"
+        password: "{{ mikrotik_pass }}"
+        method: GET
+        validate_certs: false
+        force_basic_auth: true
+      register: current_nat_rules
+
+    - name: Display current NAT rules count
+      ansible.builtin.debug:
+        msg: "Current srcnat rules: {{ current_nat_rules.json | length }}"
+
+    # Step 2: Find existing general masquerade rule ID for placement
+    - name: Find general masquerade rule
+      ansible.builtin.set_fact:
+        general_rules: "{{ current_nat_rules.json | selectattr('out-interface', 'defined') | selectattr('out-interface', 'equalto', 'ether1') | selectattr('dynamic', 'equalto', 'false') | list }}"
+
+    - name: Set general masquerade ID
+      ansible.builtin.set_fact:
+        existing_general_id: "{{ general_rules[0]['.id'] if general_rules | length > 0 else '' }}"
+
+    - name: Debug existing general ID
+      ansible.builtin.debug:
+        msg: "Existing general masquerade ID: {{ existing_general_id | default('none') }}"
+
+    # Step 3: ADD Estonia rule FIRST (safe - won't break internet)
+    - name: Add Estonia NAT rule (placed before existing general masquerade)
+      ansible.builtin.uri:
+        url: "https://{{ mikrotik_host }}/rest/ip/firewall/nat/add"
+        user: "{{ mikrotik_user }}"
+        password: "{{ mikrotik_pass }}"
+        method: POST
+        validate_certs: false
+        force_basic_auth: true
+        body_format: json
+        body:
+          chain: "srcnat"
+          action: "masquerade"
+          src-address: "10.100.1.0/24"
+          out-interface-list: "WAN"
+          comment: "VPN Estonia chain exit (wg1 traffic via Chateau)"
+          place-before: "{{ existing_general_id }}"
+        status_code: [200, 201]
+      register: new_estonia_rule
+      when: existing_general_id != ''
+
+    - name: Add Estonia NAT rule (no placement needed)
+      ansible.builtin.uri:
+        url: "https://{{ mikrotik_host }}/rest/ip/firewall/nat/add"
+        user: "{{ mikrotik_user }}"
+        password: "{{ mikrotik_pass }}"
+        method: POST
+        validate_certs: false
+        force_basic_auth: true
+        body_format: json
+        body:
+          chain: "srcnat"
+          action: "masquerade"
+          src-address: "10.100.1.0/24"
+          out-interface-list: "WAN"
+          comment: "VPN Estonia chain exit (wg1 traffic via Chateau)"
+        status_code: [200, 201]
+      register: new_estonia_rule_noplacement
+      when: existing_general_id == ''
+
+    - name: Add general masquerade rule (if not exists)
+      ansible.builtin.uri:
+        url: "https://{{ mikrotik_host }}/rest/ip/firewall/nat/add"
+        user: "{{ mikrotik_user }}"
+        password: "{{ mikrotik_pass }}"
+        method: POST
+        validate_certs: false
+        force_basic_auth: true
+        body_format: json
+        body:
+          chain: "srcnat"
+          action: "masquerade"
+          out-interface: "ether1"
+          comment: "General WAN masquerade for LAN traffic"
+        status_code: [200, 201]
+      when: existing_general_id == ''
+
+    # Step 4: Remove OLD Estonia duplicates (now safe - new rules are in place)
+    - name: Remove old Estonia rules (keep only the new one)
+      ansible.builtin.uri:
+        url: "https://{{ mikrotik_host }}/rest/ip/firewall/nat/{{ item['.id'] }}"
+        user: "{{ mikrotik_user }}"
+        password: "{{ mikrotik_pass }}"
+        method: DELETE
+        validate_certs: false
+        force_basic_auth: true
+        status_code: [200, 204]
+      loop: "{{ current_nat_rules.json | default([]) }}"
+      when: >
+        item.comment is defined and
+        'Estonia' in item.comment
+      ignore_errors: true
+
+    # Step 5: Verify final state
+    - name: Get final NAT rules
+      ansible.builtin.uri:
+        url: "https://{{ mikrotik_host }}/rest/ip/firewall/nat?chain=srcnat"
+        user: "{{ mikrotik_user }}"
+        password: "{{ mikrotik_pass }}"
+        method: GET
+        validate_certs: false
+        force_basic_auth: true
+      register: final_rules
+
+    - name: Display final NAT rules
+      ansible.builtin.debug:
+        msg: |
+          NAT Rules (in order):
+          {% for rule in final_rules.json %}
+          {{ loop.index }}. {{ rule.action }} [{{ rule['.id'] }}]
+             src: {{ rule['src-address'] | default('any') }}
+             out: {{ rule['out-interface'] | default(rule['out-interface-list'] | default('any')) }}
+             comment: {{ rule.comment | default('none') }}
+             dynamic: {{ rule.dynamic | default('false') }}
+          {% endfor %}
