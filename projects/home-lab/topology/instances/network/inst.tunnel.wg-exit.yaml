@@ -59,27 +59,25 @@ road_warrior_peers:
         tunnel_ip: 10.100.1.3/32
         routes:
           - 0.0.0.0/0
-          - "::/0"
         dns: "1.1.1.1, 1.0.0.1"
         exit_mode: direct
         exit_country: DE
-        # NOTE: block_dns_leaks disabled - Sailfish OS doesn't run PostDown
-        # scripts, leaving iptables kill switch active after disconnect
+        # Block IPv6 to prevent leaks (no IPv6 in tunnel)
+        block_ipv6: true
 
       - name: vpn-estonia
         description: "Exit via Estonian IP (MikroTik WAN)"
         tunnel_ip: 10.100.1.6/32
         routes:
           - 0.0.0.0/0
-          - "::/0"
         dns: "1.1.1.1, 1.0.0.1"
         exit_mode: chained
         exit_country: EE
         next_hop: 10.100.1.1
         # Fix routing loop when client is on same network as exit node
         preserve_endpoint_route: true
-        # NOTE: block_dns_leaks disabled - Sailfish OS doesn't run PostDown
-        # scripts, leaving iptables kill switch active after disconnect
+        # Block IPv6 to prevent leaks (no IPv6 in tunnel)
+        block_ipv6: true
 
   - device_ref: ws-nixos
     persistent_keepalive: 25
