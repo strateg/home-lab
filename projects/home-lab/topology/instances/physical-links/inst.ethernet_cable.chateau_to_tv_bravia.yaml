@@ -1,0 +1,19 @@
+@instance: inst.ethernet_cable.chateau_to_tv_bravia
+@extends: obj.network.ethernet_cable
+@group: physical-links
+@version: 1.0.0
+source_id: link-rtr-mikrotik-tv-bravia
+notes: |
+  Ethernet connection between Chateau and Sony Bravia TV.
+  TV uses Estonian exit (direct via ISP) by default.
+  For German exit: switch to WiFi "VPN-Germany" or use VPN app.
+endpoint_a:
+  device_ref: rtr-mikrotik-chateau
+  port: ether2
+endpoint_b:
+  device_ref: inst.device.tv-sony-bravia
+  port: ethernet
+length_m: 5
+shielding: utp
+category: cat5e
+color: white
