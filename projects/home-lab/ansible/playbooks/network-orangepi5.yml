@@ -2,8 +2,20 @@
 # Network Configuration for srv-orangepi5
 # Based on topology: projects/home-lab/topology/instances/devices/srv-orangepi5.yaml
 #
+# Configures dual-homed network:
+#   - Management VLAN 99 (10.0.99.20) - native/untagged for SSH/admin
+#   - Servers VLAN 100 (10.0.100.20) - tagged for Docker containers
+#
 # Usage:
-#   ansible-playbook -i inventory/hosts.yml playbooks/network-orangepi5.yml
+#   # Normal operation (after initial setup):
+#   ansible-playbook -i inventory/production playbooks/network-orangepi5.yml
+#
+#   # Bootstrap (first time, via temporary DHCP IP):
+#   ansible-playbook playbooks/network-orangepi5.yml \
+#     -i "192.168.88.XXX," \
+#     -e ansible_user=strateg \
+#     -e ansible_host=192.168.88.XXX \
+#     --ask-pass --ask-become-pass
 
 - name: Configure srv-orangepi5 Network
   hosts: srv-orangepi5
@@ -11,17 +23,20 @@
   become: true
 
   vars:
-    # From topology srv-orangepi5.yaml
+    # From topology srv-orangepi5.yaml and inst.vlan.management.yaml
     primary_interface: enx00e04c680347
     management_vlan:
       id: 99
       ip: 10.0.99.20
       prefix: 24
       gateway: 10.0.99.1
+      dns:
+        - 10.0.99.1
+        - 8.8.8.8
     servers_vlan:
       id: 100
       name: vlan100
-      ip: 10.0.100.5
+      ip: 10.0.100.23
       prefix: 24
       gateway: 10.0.100.1
 
@@ -38,6 +53,7 @@
         type: ethernet
         ip4: "{{ management_vlan.ip }}/{{ management_vlan.prefix }}"
         gw4: "{{ management_vlan.gateway }}"
+        dns4: "{{ management_vlan.dns }}"
         state: present
         autoconnect: true
 

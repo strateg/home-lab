@@ -7,7 +7,7 @@ notes: |
   Infrastructure controller node with Claude Code for topology management.
   Dual-homed via USB-Ethernet adapter (onboard end1 PHY non-functional):
     - Host: management VLAN 99 (10.0.99.20) - native/untagged
-    - Docker: servers VLAN 100 (10.0.100.x) - tagged
+    - Docker: servers VLAN 100 (10.0.100.23) - tagged
   Connected to rtr-mikrotik-chateau ether3 via USB-Ethernet adapter (onboard PHY damaged).
   ADR 0107 workload_defaults applied; migrated to Armbian on NVMe (2026-08-03).
 firmware_ref: inst.firmware.uboot.generic.arm64
@@ -54,6 +54,7 @@ workload_defaults:
     - inst.os.debian.12.arm64.container_base
   network:
     network_ref: inst.vlan.servers
+    host: 23
     gateway: 10.0.100.1
 
 capabilities:
