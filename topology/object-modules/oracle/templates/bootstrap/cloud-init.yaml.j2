@@ -1,0 +1,36 @@
+#cloud-config
+# Cloud-init configuration for OCI VPS
+# Generated from topology - DO NOT EDIT MANUALLY
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - wireguard
+  - wireguard-tools
+
+write_files:
+{% if wireguard_configs %}
+{% for wg_config in wireguard_configs %}
+  - path: /etc/wireguard/{{ wg_config.interface }}.conf
+    owner: root:root
+    permissions: '0600'
+    encoding: b64
+    content: {{ wg_config.content_b64 }}
+{% endfor %}
+{% endif %}
+
+runcmd:
+  # Enable IP forwarding
+  - sysctl -w net.ipv4.ip_forward=1
+  - echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
+{% if wireguard_configs %}
+{% for wg_config in wireguard_configs %}
+  # Enable and start {{ wg_config.interface }}
+  - systemctl enable wg-quick@{{ wg_config.interface }}
+  - systemctl start wg-quick@{{ wg_config.interface }}
+{% endfor %}
+{% endif %}
+  # Ensure SSH remains accessible
+  - systemctl enable ssh
+  - systemctl start ssh
