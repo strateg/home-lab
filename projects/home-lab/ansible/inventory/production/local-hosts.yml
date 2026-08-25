@@ -1,0 +1,27 @@
+---
+# Ansible inventory for local home-lab hosts
+# Source of truth: topology instances (projects/home-lab/topology/instances/devices/)
+# ADR 0072: Secrets via SOPS, ADR 0083: Node initialization contract
+
+all:
+  children:
+    local:
+      hosts:
+        srv-orangepi5:
+          # IP from topology: inst.vlan.management host 20 = 10.0.99.20
+          ansible_host: 10.0.99.20
+          ansible_user: automator
+          ansible_ssh_private_key_file: ~/.ssh/id_ed25519_automation
+          ansible_python_interpreter: /usr/bin/python3
+          # Device metadata
+          topology_ref: inst.srv-orangepi5
+          management_vlan: 99
+          management_ip: 10.0.99.20
+
+    edge_nodes:
+      hosts:
+        srv-orangepi5:
+
+    container_hosts:
+      hosts:
+        srv-orangepi5:

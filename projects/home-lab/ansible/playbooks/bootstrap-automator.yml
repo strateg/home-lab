@@ -1,0 +1,89 @@
+---
+# Bootstrap playbook: Create automator user for automation access
+# ADR 0072: Unified Secrets Management
+# ADR 0083: Unified Node Initialization Contract
+#
+# This playbook creates the 'automator' service account on target hosts.
+# Run once during initial device bootstrap, then switch to automator user.
+#
+# Usage (with personal account that has sudo):
+#   ansible-playbook -i inventory/production playbooks/bootstrap-automator.yml \
+#     -e target_host=srv-orangepi5 \
+#     -e ansible_user=strateg \
+#     -e ansible_ssh_private_key_file=~/.ssh/id_ed25519 \
+#     --ask-become-pass
+
+- name: Bootstrap automator service account
+  hosts: "{{ target_host }}"
+  gather_facts: true
+  become: true
+
+  vars:
+    automator_user: automator
+    automator_comment: "Automation service account for Ansible/CI"
+    automator_shell: /bin/bash
+    automator_groups:
+      - sudo
+      - docker
+    # SSH public key for automator (from ~/.ssh/id_ed25519_automation.pub)
+    automator_ssh_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBosuRdLN04RCNDSqbaqZ7CNnnowzq/Dij/wxr5uzetx automation@home-lab"
+
+  tasks:
+    - name: Ensure required groups exist
+      ansible.builtin.group:
+        name: "{{ item }}"
+        state: present
+      loop: "{{ automator_groups }}"
+      ignore_errors: true  # docker group may not exist yet
+
+    - name: Create automator user
+      ansible.builtin.user:
+        name: "{{ automator_user }}"
+        comment: "{{ automator_comment }}"
+        shell: "{{ automator_shell }}"
+        groups: "{{ automator_groups }}"
+        append: true
+        create_home: true
+        state: present
+
+    - name: Configure SSH authorized_keys for automator
+      ansible.posix.authorized_key:
+        user: "{{ automator_user }}"
+        key: "{{ automator_ssh_key }}"
+        state: present
+        exclusive: false
+
+    - name: Configure passwordless sudo for automator
+      ansible.builtin.copy:
+        dest: /etc/sudoers.d/automator
+        content: |
+          # Automation service account - passwordless sudo
+          # Created by bootstrap-automator.yml playbook
+          automator ALL=(ALL) NOPASSWD: ALL
+        owner: root
+        group: root
+        mode: '0440'
+        validate: 'visudo -cf %s'
+
+    - name: Verify automator user setup
+      ansible.builtin.command:
+        cmd: id {{ automator_user }}
+      register: automator_id
+      changed_when: false
+
+    - name: Display automator user info
+      ansible.builtin.debug:
+        msg: "{{ automator_id.stdout }}"
+
+    - name: Test SSH key authentication
+      ansible.builtin.debug:
+        msg: |
+          Automator user created successfully.
+          Test access with:
+            ssh -i ~/.ssh/id_ed25519_automation automator@{{ ansible_host }}
+
+          Then update Ansible inventory to use automator user.
+
+  tags:
+    - bootstrap
+    - automator
