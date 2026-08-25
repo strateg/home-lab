@@ -18,10 +18,14 @@ power:
   source_ref: pdu-rack
   max_watts: 20
 
-# USB peripheral providing network connectivity (onboard PHY damaged)
+# USB peripherals
 peripherals:
+  # USB-Ethernet hub providing network connectivity (onboard PHY damaged)
   - ref: inst.peripheral.usb_hub_eth.bluecloud-001
     role: primary_network
+  # WiFi 6 adapter for wireless connectivity
+  - ref: inst.peripheral.usb_wifi.asus-ax55-nano-001
+    role: wifi
 
 # Host network binding - management VLAN for SSH/admin access
 # USB-Ethernet adapter configured as VLAN trunk on MikroTik ether3:

@@ -1,0 +1,113 @@
+@class: class.peripheral.usb_wifi_adapter
+@title: USB WiFi Adapter
+@description: |
+  USB WiFi adapter peripheral device. Provides wireless network connectivity
+  via USB interface, commonly used to add WiFi 6/5/4 support to desktop PCs
+  or upgrade existing WiFi capabilities on laptops.
+@layer: L1
+@version: 1.0.0
+
+properties:
+  required:
+    - wifi_standard
+    - usb_version
+    - frequency_bands
+  optional:
+    - chipset
+    - speed_class
+    - max_speed_24ghz_mbps
+    - max_speed_5ghz_mbps
+    - antenna_type
+    - antenna_count
+    - antenna_gain_dbi
+    - connector_type
+    - form_factor
+    - dimensions_mm
+    - weight_grams
+    - security_protocols
+    - features
+    - supported_os
+    - notes
+
+property_schemas:
+  wifi_standard:
+    type: string
+    enum: [wifi4, wifi5, wifi6, wifi6e, wifi7]
+    description: Primary WiFi standard (802.11n/ac/ax/ax-6e/be)
+  usb_version:
+    type: string
+    enum: ["2.0", "3.0", "3.1", "3.2"]
+    description: USB interface version
+  frequency_bands:
+    type: array
+    items:
+      type: string
+      enum: ["2.4GHz", "5GHz", "6GHz"]
+    description: Supported frequency bands
+  chipset:
+    type: string
+    description: WiFi controller chipset (e.g., Realtek, MediaTek, Intel)
+  speed_class:
+    type: string
+    description: Marketing speed class (e.g., AX1800, AX3000)
+  max_speed_24ghz_mbps:
+    type: integer
+    description: Maximum theoretical speed on 2.4 GHz band in Mbps
+  max_speed_5ghz_mbps:
+    type: integer
+    description: Maximum theoretical speed on 5 GHz band in Mbps
+  antenna_type:
+    type: string
+    enum: [internal, external, detachable]
+    default: internal
+    description: Antenna configuration
+  antenna_count:
+    type: integer
+    description: Number of antennas (for MIMO configuration)
+  antenna_gain_dbi:
+    type: number
+    description: Peak antenna gain in dBi
+  connector_type:
+    type: string
+    enum: [usb_a, usb_c]
+    default: usb_a
+    description: USB connector type on device side
+  form_factor:
+    type: string
+    enum: [nano, dongle, dongle_antenna]
+    default: dongle
+    description: Physical form factor
+  dimensions_mm:
+    type: object
+    properties:
+      width: { type: number }
+      length: { type: number }
+      height: { type: number }
+  weight_grams:
+    type: number
+    description: Weight in grams
+  security_protocols:
+    type: array
+    items:
+      type: string
+    description: Supported security protocols (WPA2, WPA3, etc.)
+  features:
+    type: array
+    items:
+      type: string
+    description: Additional features (MU-MIMO, OFDMA, BSS Coloring, etc.)
+  supported_os:
+    type: array
+    items:
+      type: string
+    description: Supported operating systems
+
+required_capabilities: []
+
+optional_capabilities: []
+
+enabled_capabilities: []
+
+invariants:
+  - wifi6 or higher requires 5GHz band support
+  - usb_version 3.0+ recommended for wifi6 full performance

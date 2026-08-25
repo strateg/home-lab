@@ -1,0 +1,75 @@
+@object: obj.peripheral.asus.usb_ax55_nano
+@extends: class.peripheral.usb_wifi_adapter
+@title: ASUS USB-AX55 Nano WiFi 6 USB Adapter
+@version: 1.0.0
+
+vendor: ASUS
+model: USB-AX55 Nano
+
+wifi_standard: wifi6
+usb_version: "2.0"
+frequency_bands:
+  - "2.4GHz"
+  - "5GHz"
+
+speed_class: AX1800
+max_speed_24ghz_mbps: 574
+max_speed_5ghz_mbps: 1201
+
+antenna_type: internal
+antenna_count: 2
+antenna_gain_dbi: 3
+
+connector_type: usb_a
+form_factor: nano
+dimensions_mm:
+  width: 16
+  length: 25.5
+  height: 9
+weight_grams: 4
+
+security_protocols:
+  - WPA2-Personal
+  - WPA2-Enterprise
+  - WPA3-Personal
+
+features:
+  - MU-MIMO
+  - OFDMA
+  - BSS_Coloring
+  - 2x2_dual_band
+
+supported_os:
+  - windows_10
+  - windows_11
+
+hardware_specs:
+  wifi:
+    standards:
+      - IEEE_802.11a
+      - IEEE_802.11b
+      - IEEE_802.11g
+      - IEEE_802.11n
+      - IEEE_802.11ac
+      - IEEE_802.11ax
+    bands:
+      2.4GHz:
+        speed_mbps: 574
+        channel_width: [20, 40]
+      5GHz:
+        speed_mbps: 1201
+        channel_width: [20, 40, 80]
+    mimo: 2x2
+    product_segment: AX1800
+  usb:
+    interface: USB_2.0_Type_A
+    note: Compact design limits actual throughput vs WiFi 6 standard
+
+enabled_capabilities: []
+
+notes: |
+  ASUS USB-AX55 Nano - Ultra-compact WiFi 6 (802.11ax) USB adapter.
+  World's smallest AX1800 package at 25.5 x 16 x 9 mm.
+  Dual-band 2x2 MIMO with MU-MIMO and OFDMA support.
+  Note: USB 2.0 interface limits actual throughput below WiFi 6 theoretical maximum.
+  Ideal for leaving plugged in permanently due to nano form factor.

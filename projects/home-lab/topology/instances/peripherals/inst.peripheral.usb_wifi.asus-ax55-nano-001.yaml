@@ -1,0 +1,12 @@
+@instance: inst.peripheral.usb_wifi.asus-ax55-nano-001
+@extends: obj.peripheral.asus.usb_ax55_nano
+@group: peripherals
+@version: 1.0.0
+source_id: usb-wifi-asus-ax55-nano-001
+notes: |
+  ASUS USB-AX55 Nano WiFi 6 adapter (AX1800).
+  Attached to srv-orangepi5 for wireless connectivity.
+  MAC address stored in secrets.
+
+# MAC address stored in SOPS-encrypted secrets
+secrets_ref: secrets.peripherals.usb-wifi-asus-ax55-nano-001
