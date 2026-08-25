@@ -11,6 +11,15 @@
 device_type: smart_tv
 connection_type: wifi
 
+# Hardware specifications with port inventory for physical link validation
+hardware_specs:
+  interfaces:
+    ethernet:
+      - name: ethernet
+        speed_mbps: 1000
+        connector: rj45
+        description: Built-in Ethernet port (RJ45)
+
 # Smart TV capabilities
 streaming_services:
   - netflix

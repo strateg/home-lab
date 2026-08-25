@@ -1,0 +1,170 @@
+@object: obj.device.sony_bravia_a90j
+@extends: class.device.iot_endpoint
+@title: Sony Bravia XR A90J OLED TV
+@description: |
+  Sony Bravia XR A90J Master Series OLED 4K Ultra HD Smart TV.
+  Features Cognitive Processor XR, Google TV, and extensive connectivity.
+  Supports 4K/120Hz, VRR, ALLM for gaming (PS5 optimized).
+@version: 1.0.0
+
+vendor: Sony
+model_series: Bravia XR A90J Master Series
+device_type: smart_tv
+
+# Display specifications
+display:
+  panel_type: OLED
+  diagonal_inches: 55
+  diagonal_cm: 139
+  resolution: 3840x2160
+  resolution_name: 4K Ultra HD
+  aspect_ratio: "16:9"
+  native_refresh_rate_hz: 60
+  supported_refresh_rates_hz: [24, 25, 30, 50, 60, 100, 120]
+  brightness_cdm2: 450
+  viewing_angle_h: 178
+  viewing_angle_v: 178
+  hdr_formats:
+    - HDR10
+    - HLG
+    - Dolby_Vision
+
+# Processor and picture technology
+processor:
+  name: Cognitive Processor XR
+  features:
+    - XR_TRILUMINOS_PRO
+    - XR_OLED_CONTRAST_PRO
+    - XR_Motion_Clarity
+
+# Smart TV platform
+smart_platform:
+  os: Google TV
+  os_base: Android TV
+  storage_gb: 16
+  voice_assistants:
+    - Google_Assistant
+    - Amazon_Alexa
+  airplay2: true
+  chromecast_builtin: true
+
+# Hardware specifications with port inventory
+hardware_specs:
+  interfaces:
+    ethernet:
+      - name: ethernet
+        speed_mbps: 1000
+        connector: rj45
+        description: Gigabit Ethernet (RJ-45)
+    wifi:
+      - name: wifi
+        standards:
+          - IEEE_802.11a
+          - IEEE_802.11b
+          - IEEE_802.11g
+          - IEEE_802.11n
+          - IEEE_802.11ac
+        bands: [2.4GHz, 5GHz]
+        description: Dual-band WiFi 5 (802.11ac)
+    bluetooth:
+      - name: bluetooth
+        version: "4.2"
+        profiles: [HID, HOGP, SPP, A2DP, AVRCP]
+        ble: true
+        description: Bluetooth 4.2 with BLE
+    hdmi:
+      - name: hdmi1
+        version: "2.1"
+        features: [4K120, eARC, ALLM, VRR]
+        bandwidth_gbps: 48
+        hdcp: "2.3"
+        location: side
+      - name: hdmi2
+        version: "2.1"
+        features: [4K120, ALLM, VRR]
+        bandwidth_gbps: 48
+        hdcp: "2.3"
+        location: bottom
+      - name: hdmi3
+        version: "2.0"
+        features: [4K60]
+        hdcp: "2.3"
+        location: bottom
+      - name: hdmi4
+        version: "2.0"
+        features: [4K60]
+        hdcp: "2.3"
+        location: bottom
+    usb:
+      - name: usb1
+        type: usb_a
+        version: "2.0"
+        location: side
+      - name: usb2
+        type: usb_a
+        version: "2.0"
+        location: side
+      - name: usb3
+        type: usb_a
+        version: "2.0"
+        location: bottom
+
+# Audio
+audio:
+  output_watts: 60
+  speaker_type: Acoustic Surface Audio+
+  formats:
+    - Dolby_Digital
+    - Dolby_Digital_Plus
+    - Dolby_Atmos
+    - DTS
+    - DTS_X
+
+# Physical dimensions
+dimensions:
+  without_stand:
+    width_mm: 1223
+    height_mm: 709
+    depth_mm: 41
+  with_stand:
+    width_mm: 1223
+    height_mm: 776
+    depth_mm: 317
+  weight_kg: 18.6
+  package_weight_kg: 29
+  vesa_pattern: 300x300
+
+# Power specifications
+power:
+  input_voltage: "AC 110-240V"
+  input_frequency: "50/60 Hz"
+  annual_consumption_kwh: 185
+  standby_watts: 0.5
+
+# Gaming features
+gaming:
+  input_lag_ms: 8.5
+  vrr: true
+  allm: true
+  ps5_optimized: true
+  hdmi_4k120: true
+
+# Network requirements
+network_requirements:
+  bandwidth_mbps: 25
+  latency_sensitive: true
+  ports:
+    - 443/tcp
+    - 80/tcp
+    - 53/udp
+
+# Streaming services
+streaming_services:
+  - Netflix
+  - YouTube
+  - Amazon_Prime_Video
+  - Disney_Plus
+  - Apple_TV
+  - BRAVIA_CORE
+
+enabled_capabilities: []

@@ -1,21 +1,19 @@
 @instance: inst.device.tv-sony-bravia
-@extends: obj.device.smart_tv
+@extends: obj.device.sony_bravia_a90j
 @group: devices
-@version: 1.1.0
-source_id: tv-sony-bravia-aj9
+@version: 1.2.0
+source_id: tv-sony-bravia-a90j
 status: active
 notes: |
-  Sony Bravia AJ9 Android TV.
+  Sony Bravia XR-55A90J Master Series OLED TV.
   Connected via Ethernet to Chateau ether2, default LAN (Estonian exit).
   For German streaming: use WiFi SSID "VPN-Germany" or VPN app on TV.
 
-# Device identification
-device_name: "Sony Bravia AJ9"
-manufacturer: Sony
-model: Bravia AJ9 (XR-55A90J)
+# Device identification (inherited specs from object)
+device_name: "Sony Bravia XR-55A90J"
 
 # Network configuration
-# MAC addresses stored in secrets/instances/tv-sony-bravia.yaml
+# MAC addresses stored in secrets
 secrets_ref: secrets.instances.tv-sony-bravia
 
 # Primary connection: Ethernet (ether2 on Chateau)
@@ -26,20 +24,18 @@ router_ref: rtr-mikrotik-chateau
 # Default LAN - Estonian exit (direct via ISP)
 vlan_ref: inst.vlan.lan
 
-# IP assignment via DHCP
+# IP assignment via DHCP with static lease
 ip_address: 192.168.88.215
 dhcp_static_lease: true
 
-# Streaming services used
-streaming_services:
-  - netflix
-  - youtube
-  - amazon_prime
-  - ard_mediathek
-  - zdf_mediathek
-  - arte
+# Additional streaming services used (German content)
+additional_streaming_services:
+  - ARD_Mediathek
+  - ZDF_Mediathek
+  - Arte
 
 # VPN options for German content
 vpn_options:
-  wifi_ssid: "VPN-Germany"  # VLAN 55, routes through wg0 to VPS Frankfurt
-  native_vpn_app: true      # TV supports VPN apps (Android TV)
+  wifi_ssid: "VPN-Germany"
+  wifi_vlan_ref: inst.vlan.vpn_germany
+  native_vpn_app: true
