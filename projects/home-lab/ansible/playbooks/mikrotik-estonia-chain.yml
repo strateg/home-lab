@@ -1,0 +1,174 @@
+---
+# MikroTik Estonia Chain WireGuard Configuration
+# Deploys wg1 interface for VPS -> Chateau -> Internet exit chain
+#
+# Usage:
+#   cd projects/home-lab/ansible
+#   ansible-playbook playbooks/mikrotik-estonia-chain.yml -e @../secrets/instances/rtr-mikrotik-chateau.yaml -e @../secrets/tunnels/wg-home-to-oci.yaml
+
+- name: Configure MikroTik wg1 for Estonia chain
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    mikrotik_host: "192.168.88.1"
+    wg1_interface_name: "wg1"
+    wg1_tunnel_ip: "10.100.1.1/30"
+    vps_public_key: "vj9gNvWsm0BHjWPK5WkJGiB3/Rlqah/bLUuCYFikDTw="
+    vps_endpoint: "92.5.172.16"
+    vps_endpoint_port: 51821
+    vps_allowed_ips: "10.100.1.2/32,10.100.0.6/32"
+    persistent_keepalive: 25
+
+  tasks:
+    - name: Get automator credentials from secrets
+      ansible.builtin.set_fact:
+        mikrotik_user: "{{ automator.username }}"
+        mikrotik_pass: "{{ automator.password }}"
+        wg_private_key: "{{ mikrotik.private_key }}"
+        wg_preshared_key: "{{ preshared_key }}"
+
+    - name: Check if wg1 interface exists
+      ansible.builtin.uri:
+        url: "https://{{ mikrotik_host }}/rest/interface/wireguard?name={{ wg1_interface_name }}"
+        user: "{{ mikrotik_user }}"
+        password: "{{ mikrotik_pass }}"
+        method: GET
+        validate_certs: false
+      register: wg1_check
+      ignore_errors: true
+
+    - name: Create wg1 WireGuard interface
+      ansible.builtin.uri:
+        url: "https://{{ mikrotik_host }}/rest/interface/wireguard"
+        user: "{{ mikrotik_user }}"
+        password: "{{ mikrotik_pass }}"
+        method: POST
+        validate_certs: false
+        body_format: json
+        body:
+          name: "{{ wg1_interface_name }}"
+          private-key: "{{ wg_private_key }}"
+          mtu: "1420"
+          comment: "Estonia exit chain - managed by topology"
+        status_code: [200, 201]
+      when: wg1_check.json | default([]) | length == 0
+      register: wg1_created
+
+    - name: Check if VPS peer exists on wg1
+      ansible.builtin.uri:
+        url: "https://{{ mikrotik_host }}/rest/interface/wireguard/peers?interface={{ wg1_interface_name }}"
+        user: "{{ mikrotik_user }}"
+        password: "{{ mikrotik_pass }}"
+        method: GET
+        validate_certs: false
+      register: wg1_peers
+      ignore_errors: true
+
+    - name: Add VPS peer to wg1
+      ansible.builtin.uri:
+        url: "https://{{ mikrotik_host }}/rest/interface/wireguard/peers"
+        user: "{{ mikrotik_user }}"
+        password: "{{ mikrotik_pass }}"
+        method: POST
+        validate_certs: false
+        body_format: json
+        body:
+          interface: "{{ wg1_interface_name }}"
+          public-key: "{{ vps_public_key }}"
+          preshared-key: "{{ wg_preshared_key }}"
+          endpoint-address: "{{ vps_endpoint }}"
+          endpoint-port: "{{ vps_endpoint_port }}"
+          allowed-address: "{{ vps_allowed_ips }}"
+          persistent-keepalive: "{{ persistent_keepalive }}s"
+          comment: "VPS Estonia exit - managed by topology"
+        status_code: [200, 201]
+      when: wg1_peers.json | default([]) | length == 0
+
+    - name: Check if wg1 has IP address
+      ansible.builtin.uri:
+        url: "https://{{ mikrotik_host }}/rest/ip/address?interface={{ wg1_interface_name }}"
+        user: "{{ mikrotik_user }}"
+        password: "{{ mikrotik_pass }}"
+        method: GET
+        validate_certs: false
+      register: wg1_ip
+      ignore_errors: true
+
+    - name: Assign IP to wg1
+      ansible.builtin.uri:
+        url: "https://{{ mikrotik_host }}/rest/ip/address"
+        user: "{{ mikrotik_user }}"
+        password: "{{ mikrotik_pass }}"
+        method: POST
+        validate_certs: false
+        body_format: json
+        body:
+          address: "{{ wg1_tunnel_ip }}"
+          interface: "{{ wg1_interface_name }}"
+          comment: "Estonia chain tunnel - managed by topology"
+        status_code: [200, 201]
+      when: wg1_ip.json | default([]) | length == 0
+
+    - name: Check if wg1 is in LAN list
+      ansible.builtin.uri:
+        url: "https://{{ mikrotik_host }}/rest/interface/list/member?interface={{ wg1_interface_name }}"
+        user: "{{ mikrotik_user }}"
+        password: "{{ mikrotik_pass }}"
+        method: GET
+        validate_certs: false
+      register: wg1_list
+      ignore_errors: true
+
+    - name: Add wg1 to LAN interface list
+      ansible.builtin.uri:
+        url: "https://{{ mikrotik_host }}/rest/interface/list/member"
+        user: "{{ mikrotik_user }}"
+        password: "{{ mikrotik_pass }}"
+        method: POST
+        validate_certs: false
+        body_format: json
+        body:
+          interface: "{{ wg1_interface_name }}"
+          list: "LAN"
+          comment: "Trust Estonia chain - managed by topology"
+        status_code: [200, 201]
+      when: wg1_list.json | default([]) | length == 0
+
+    - name: Check NAT rule for Estonia exit
+      ansible.builtin.uri:
+        url: "https://{{ mikrotik_host }}/rest/ip/firewall/nat?src-address=10.100.0.6/32"
+        user: "{{ mikrotik_user }}"
+        password: "{{ mikrotik_pass }}"
+        method: GET
+        validate_certs: false
+      register: nat_check
+      ignore_errors: true
+
+    - name: Add NAT masquerade for Estonia exit (10.100.0.6)
+      ansible.builtin.uri:
+        url: "https://{{ mikrotik_host }}/rest/ip/firewall/nat"
+        user: "{{ mikrotik_user }}"
+        password: "{{ mikrotik_pass }}"
+        method: POST
+        validate_certs: false
+        body_format: json
+        body:
+          chain: "srcnat"
+          action: "masquerade"
+          src-address: "10.100.0.6/32"
+          out-interface-list: "WAN"
+          comment: "VPN Estonia chain exit - 10.100.0.6 - managed by topology"
+        status_code: [200, 201]
+      when: nat_check.json | default([]) | length == 0
+
+    - name: Display completion message
+      ansible.builtin.debug:
+        msg: |
+          MikroTik wg1 Estonia chain configured:
+            Interface: {{ wg1_interface_name }}
+            Tunnel IP: {{ wg1_tunnel_ip }}
+            VPS Endpoint: {{ vps_endpoint }}:{{ vps_endpoint_port }}
+
+          The MikroTik will initiate connection to VPS.
+          VPS must be listening on port {{ vps_endpoint_port }}.

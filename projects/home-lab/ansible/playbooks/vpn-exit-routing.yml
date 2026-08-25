@@ -1,0 +1,284 @@
+---
+# VPN Exit Routing Playbook
+# Configures VPS for automatic exit routing based on source IP:
+#   - 10.100.0.3 (vpn-home, vpn-germany) → Germany exit via ens3
+#   - 10.100.0.6 (vpn-estonia) → Estonia exit via Chateau (10.100.0.1)
+#
+# Usage:
+#   cd projects/home-lab/ansible
+#   ansible-playbook -i inventory/production/cloud-hosts.yml playbooks/vpn-exit-routing.yml
+
+- name: Configure VPN exit routing on VPS gateway
+  hosts: vpn_gateways
+  gather_facts: true
+  become: true
+
+  vars:
+    # Tunnel network
+    tunnel_network: "10.100.0.0/24"
+
+    # Jolla tunnel IPs per profile
+    jolla_germany_ip: "10.100.0.3"   # vpn-home, vpn-germany → direct exit
+    jolla_estonia_ip: "10.100.0.6"   # vpn-estonia → chain via Chateau
+
+    # Chateau (Estonia exit gateway)
+    chateau_tunnel_ip: "10.100.0.1"
+
+    # Routing table
+    estonia_routing_table: "estonia_chain"
+    estonia_routing_table_id: 100
+
+    # Interfaces
+    public_interface: "ens3"
+    wireguard_interface: "wg0"
+    estonia_wireguard_interface: "wg1"
+
+  pre_tasks:
+    - name: Verify WireGuard interface exists
+      ansible.builtin.command: ip link show {{ wireguard_interface }}
+      register: wg_check
+      changed_when: false
+      failed_when: wg_check.rc != 0
+
+    - name: Display configuration summary
+      ansible.builtin.debug:
+        msg: |
+          VPN Exit Routing Configuration:
+            Host: {{ inventory_hostname }}
+            WireGuard: {{ wireguard_interface }}
+            Public: {{ public_interface }}
+
+            Automatic routing by source IP:
+              {{ jolla_germany_ip }} → Germany exit (masquerade via {{ public_interface }})
+              {{ jolla_estonia_ip }} → Estonia exit (forward via {{ chateau_tunnel_ip }})
+
+  tasks:
+    # =========================================================================
+    # IP Forwarding
+    # =========================================================================
+    - name: Enable IP forwarding
+      ansible.posix.sysctl:
+        name: net.ipv4.ip_forward
+        value: "1"
+        sysctl_set: true
+        state: present
+        reload: true
+
+    # =========================================================================
+    # Routing Table for Estonia Chain
+    # =========================================================================
+    - name: Add Estonia routing table to rt_tables
+      ansible.builtin.lineinfile:
+        path: /etc/iproute2/rt_tables
+        line: "{{ estonia_routing_table_id }} {{ estonia_routing_table }}"
+        regexp: "^{{ estonia_routing_table_id }}\\s+"
+        state: present
+        create: true
+        mode: "0644"
+
+    # =========================================================================
+    # iptables Rules
+    # =========================================================================
+    - name: Install iptables-persistent
+      ansible.builtin.apt:
+        name: iptables-persistent
+        state: present
+        update_cache: true
+
+    - name: Allow forwarding from wg0 to public interface
+      ansible.builtin.iptables:
+        chain: FORWARD
+        in_interface: "{{ wireguard_interface }}"
+        out_interface: "{{ public_interface }}"
+        jump: ACCEPT
+        comment: "VPN exit - wg0 to internet"
+      notify: Save iptables rules
+
+    - name: Allow established/related back to wg0
+      ansible.builtin.iptables:
+        chain: FORWARD
+        in_interface: "{{ public_interface }}"
+        out_interface: "{{ wireguard_interface }}"
+        ctstate: ESTABLISHED,RELATED
+        jump: ACCEPT
+        comment: "VPN exit - return traffic"
+      notify: Save iptables rules
+
+    - name: Allow wg0 hairpin (peer-to-peer and Estonia chain)
+      ansible.builtin.iptables:
+        chain: FORWARD
+        in_interface: "{{ wireguard_interface }}"
+        out_interface: "{{ wireguard_interface }}"
+        jump: ACCEPT
+        comment: "VPN hairpin - peer-to-peer and Estonia chain"
+      notify: Save iptables rules
+
+    - name: Masquerade tunnel traffic to internet (Germany exit)
+      ansible.builtin.iptables:
+        table: nat
+        chain: POSTROUTING
+        source: "{{ tunnel_network }}"
+        out_interface: "{{ public_interface }}"
+        jump: MASQUERADE
+        comment: "VPN Germany exit - masquerade to internet"
+      notify: Save iptables rules
+
+    # =========================================================================
+    # WireGuard wg1 Interface for Estonia Chain
+    # =========================================================================
+    - name: Deploy wg1 config for Estonia chain
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../../../../generated/home-lab/wireguard/vps-wg1.conf"
+        dest: /etc/wireguard/wg1.conf
+        mode: "0600"
+      notify: Restart wg1
+
+    - name: Start wg1 interface (async - Chateau may not be connected yet)
+      ansible.builtin.shell: |
+        systemctl enable wg-quick@wg1 || true
+        wg-quick up wg1 2>&1 || echo "wg1 started (peer may not be connected)"
+      changed_when: true
+      async: 10
+      poll: 0
+      register: wg1_start
+
+    - name: Wait briefly for wg1
+      ansible.builtin.pause:
+        seconds: 3
+
+    # =========================================================================
+    # Policy Routing for Estonia Chain (via wg1)
+    # =========================================================================
+    - name: Create systemd service for Estonia routing at boot
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/estonia-chain-routing.service
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Estonia VPN Chain Routing
+          After=wg-quick@wg1.service
+          Wants=wg-quick@wg1.service
+
+          [Service]
+          Type=oneshot
+          RemainAfterExit=yes
+          ExecStart=/bin/bash -c 'ip route replace default dev {{ estonia_wireguard_interface }} table {{ estonia_routing_table }} 2>/dev/null || true; ip rule show | grep -q "from {{ jolla_estonia_ip }} lookup {{ estonia_routing_table }}" || ip rule add from {{ jolla_estonia_ip }} lookup {{ estonia_routing_table }} priority 100'
+          ExecStop=/bin/bash -c 'ip rule del from {{ jolla_estonia_ip }} lookup {{ estonia_routing_table }} 2>/dev/null || true'
+
+          [Install]
+          WantedBy=multi-user.target
+      notify: Enable estonia-chain-routing service
+
+    - name: Apply Estonia routing now
+      ansible.builtin.shell: |
+        ip route replace default dev {{ estonia_wireguard_interface }} table {{ estonia_routing_table }} 2>/dev/null || true
+        ip rule show | grep -q "from {{ jolla_estonia_ip }} lookup {{ estonia_routing_table }}" || \
+          ip rule add from {{ jolla_estonia_ip }} lookup {{ estonia_routing_table }} priority 100
+      changed_when: true
+
+    # =========================================================================
+    # iptables rules for wg0 <-> wg1 forwarding
+    # =========================================================================
+    - name: Allow forwarding from wg0 to wg1 (Estonia chain)
+      ansible.builtin.iptables:
+        chain: FORWARD
+        in_interface: wg0
+        out_interface: "{{ estonia_wireguard_interface }}"
+        jump: ACCEPT
+        comment: "Estonia chain - wg0 to wg1"
+      notify: Save iptables rules
+
+    - name: Allow forwarding from wg1 to wg0 (Estonia return)
+      ansible.builtin.iptables:
+        chain: FORWARD
+        in_interface: "{{ estonia_wireguard_interface }}"
+        out_interface: wg0
+        jump: ACCEPT
+        comment: "Estonia chain - wg1 to wg0"
+      notify: Save iptables rules
+
+    # =========================================================================
+    # Update WireGuard AllowedIPs for Estonia profile IP
+    # =========================================================================
+    - name: Check current WireGuard config
+      ansible.builtin.slurp:
+        src: /etc/wireguard/wg0.conf
+      register: wg_config_content
+
+    - name: Add Estonia IP to Jolla peer AllowedIPs if missing
+      ansible.builtin.replace:
+        path: /etc/wireguard/wg0.conf
+        regexp: '(# Peer: inst\.device\.jolla-phone-2026.*?AllowedIPs\s*=\s*)(\S+)'
+        replace: '\1\2, {{ jolla_estonia_ip }}/32'
+      when: "jolla_estonia_ip not in (wg_config_content.content | b64decode)"
+      notify: Reload WireGuard
+
+  handlers:
+    - name: Save iptables rules
+      ansible.builtin.shell: |
+        iptables-save > /etc/iptables/rules.v4
+      changed_when: true
+
+    - name: Restart wg1
+      ansible.builtin.systemd:
+        name: wg-quick@wg1
+        state: restarted
+        daemon_reload: true
+
+    - name: Restart networkd-dispatcher
+      ansible.builtin.systemd:
+        name: networkd-dispatcher
+        state: restarted
+        daemon_reload: true
+
+    - name: Enable estonia-chain-routing service
+      ansible.builtin.systemd:
+        name: estonia-chain-routing
+        enabled: true
+        daemon_reload: true
+
+    - name: Reload WireGuard
+      ansible.builtin.shell: |
+        wg syncconf wg0 <(wg-quick strip wg0)
+      args:
+        executable: /bin/bash
+      changed_when: true
+
+  post_tasks:
+    - name: Verify routing configuration
+      ansible.builtin.shell: |
+        echo "=== IP Rules ==="
+        ip rule show | grep -E "{{ jolla_estonia_ip }}|{{ estonia_routing_table }}" || echo "No Estonia rules found"
+        echo ""
+        echo "=== Estonia Routing Table ==="
+        ip route show table {{ estonia_routing_table }} 2>/dev/null || echo "Table empty or not found"
+        echo ""
+        echo "=== WireGuard Peers ==="
+        wg show wg0 allowed-ips
+      register: routing_status
+      changed_when: false
+
+    - name: Display routing status
+      ansible.builtin.debug:
+        msg: "{{ routing_status.stdout }}"
+
+    - name: Display usage instructions
+      ansible.builtin.debug:
+        msg: |
+          VPN Exit Routing configured successfully!
+
+          Automatic routing by source IP (no manual switching needed):
+
+            vpn-home.conf / vpn-germany.conf (Address: {{ jolla_germany_ip }})
+              → Traffic exits via German IP ({{ public_interface }})
+
+            vpn-estonia.conf (Address: {{ jolla_estonia_ip }})
+              → Traffic forwards to Chateau ({{ chateau_tunnel_ip }})
+              → Exits via Estonian home IP
+
+          Just import the desired .conf profile on Jolla and connect!
+
+  tags:
+    - vpn
+    - routing
+    - exit
