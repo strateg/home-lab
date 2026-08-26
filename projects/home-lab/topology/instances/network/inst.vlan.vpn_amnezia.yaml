@@ -5,9 +5,10 @@
 source_id: net-vpn-amnezia
 status: staged
 notes: |
-  VLAN for devices requiring AmneziaWG VPN exit.
-  All traffic routed through AmneziaWG container to external VPN server.
-  Use cases: censorship bypass, DPI evasion, obfuscated VPN.
+  VLAN for devices requiring Russian IP address via AmneziaWG.
+  All traffic routed through AmneziaWG container to VPN server in Russia.
+  Use cases: accessing Russian services (Yandex, VK, Russian streaming),
+  bypassing geo-restrictions, DPI evasion via AWG obfuscation.
 
 # VLAN configuration (VLAN 57 ∈ VPN block 50-59)
 vlan_id: 57
@@ -22,8 +23,9 @@ vpn_routing:
   container_ref: docker-amneziawg
   routing_mark: "0x39"
   exit_type: amneziawg
-  # Server details configured in container config
-  exit_location: TBD
+  exit_country: RU
+  exit_location: Russia
+  endpoint: 178.130.51.136:4714
 
 # Trust zone - isolated from main LAN (shares zone with other VPN VLANs)
 trust_zone_ref: inst.trust_zone.vpn_tunnel

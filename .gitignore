@@ -185,3 +185,9 @@ coverage-contract.xml
 
 # Codewhale state
 .codewhale/
+
+# AmneziaWG/WireGuard config files (contain private keys)
+amnezia*.conf
+*.wg.conf
+awg*.conf
+configs/mikrotik/containers/amneziawg/awg0.conf

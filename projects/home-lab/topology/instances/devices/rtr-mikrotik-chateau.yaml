@@ -157,16 +157,16 @@ observed_runtime:
         bridge: bridge
         vlan_id: 30
       status: staged
-    # VPN-Amnezia WiFi — VLAN 57, routes through AmneziaWG container
-    wifi_vpn_amnezia:
-      name: wifi-vpn-amnezia
+    # VPN-Russia WiFi — VLAN 57, routes through AmneziaWG container to Russia
+    wifi_vpn_russia:
+      name: wifi-vpn-russia
       master_interface: wifi1
-      ssid: "VPN-Amnezia"
+      ssid: "VPN-Russia"
       mode: ap
       security: wpa2-psk
       vlan_id: 57
       datapath:
-        name: dp-vpn-amnezia
+        name: dp-vpn-russia
         bridge: bridge
         vlan_id: 57
       status: staged
