@@ -1,0 +1,42 @@
+@instance: svc-amneziawg
+@extends: obj.service.amneziawg
+@group: services
+@version: 1.0.0
+source_id: svc-amneziawg
+notes: |
+  AmneziaWG VPN client for obfuscated internet exit.
+  Runs as container on MikroTik Chateau, serves VLAN 57 clients.
+  Provides DPI-resistant VPN tunnel for censorship bypass.
+
+port: 51821
+protocol: udp
+trust_zone_ref: inst.trust_zone.vpn_tunnel
+vpn_type: amneziawg
+@description: AmneziaWG VPN client for obfuscated exit
+critical: false
+status: staged
+
+runtime:
+  type: container
+  target_ref: rtr-mikrotik-chateau
+  container_ref: docker-amneziawg
+  network_binding_ref: inst.vlan.vpn_amnezia
+
+features:
+  - DPI evasion via packet obfuscation
+  - Censorship bypass
+  - WireGuard-compatible but obfuscated
+  - Isolated VLAN routing
+
+# External VPN server connection details
+vpn_server:
+  # Endpoint configured in secrets
+  endpoint_ref: secrets.amneziawg.endpoint
+  # AWG-specific parameters in secrets
+  awg_params_ref: secrets.amneziawg.params
+
+# Serves this VLAN
+serves_vlan_ref: inst.vlan.vpn_amnezia
+
+# Routing policy
+routing_policy_ref: inst.routing_policy.vpn_amnezia

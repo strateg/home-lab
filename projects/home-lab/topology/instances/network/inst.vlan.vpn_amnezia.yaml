@@ -1,0 +1,37 @@
+@instance: inst.vlan.vpn_amnezia
+@extends: obj.network.vlan.vpn_tunnel
+@group: network
+@version: 1.0.0
+source_id: net-vpn-amnezia
+status: staged
+notes: |
+  VLAN for devices requiring AmneziaWG VPN exit.
+  All traffic routed through AmneziaWG container to external VPN server.
+  Use cases: censorship bypass, DPI evasion, obfuscated VPN.
+
+# VLAN configuration (VLAN 57 ∈ VPN block 50-59)
+vlan_id: 57
+cidr: 192.168.57.0/24
+gateway: 192.168.57.1
+dhcp_range: 192.168.57.100-192.168.57.200
+
+# VPN routing specifics - uses container, not direct tunnel
+vpn_routing:
+  enabled: true
+  # AmneziaWG runs as container, traffic routes through veth
+  container_ref: docker-amneziawg
+  routing_mark: "0x39"
+  exit_type: amneziawg
+  # Server details configured in container config
+  exit_location: TBD
+
+# Trust zone - isolated from main LAN (shares zone with other VPN VLANs)
+trust_zone_ref: inst.trust_zone.vpn_tunnel
+
+# Managed by MikroTik Chateau
+managed_by_ref: rtr-mikrotik-chateau
+
+ip_allocations:
+  - device_ref: rtr-mikrotik-chateau
+    host: 1
+    purpose: gateway, DNS, DHCP

@@ -1,0 +1,74 @@
+@instance: inst.routing_policy.vpn_amnezia
+@extends: obj.network.routing_policy.vpn_vlan
+@group: network
+@version: 1.0.0
+source_id: policy-vpn-amnezia
+status: staged
+notes: |
+  Routes all traffic from VLAN 57 (VPN Amnezia) through AmneziaWG container.
+  Container runs on veth interface and tunnels traffic via AWG protocol.
+
+  Traffic flow:
+    Client (192.168.57.x) -> vlan57 -> mangle mark ->
+    routing table awg-tunnel -> veth-awg (172.18.20.2) ->
+    AmneziaWG container -> AWG tunnel -> VPN server -> Internet
+
+# Policy identification
+policy_name: vpn-amnezia-routing
+policy_description: Route VLAN 57 traffic through AmneziaWG container
+
+# Source: VLAN 57 subnet
+source_match:
+  type: subnet
+  value: 192.168.57.0/24
+  vlan_ref: inst.vlan.vpn_amnezia
+
+# Target: AmneziaWG container via veth
+target_gateway:
+  type: container_veth
+  value: veth-awg
+  container_ref: docker-amneziawg
+  next_hop: 172.18.20.2
+
+# Routing mark (unique for AWG)
+routing_mark: "0x39"
+priority: 100
+enabled: true
+
+# MikroTik implementation details
+mikrotik_config:
+  # 1. Mangle rules to mark connections from VLAN 57.
+  #    dst_address is negated so traffic to local VLAN is not tunneled.
+  mangle_rules:
+    - chain: prerouting
+      src_address: 192.168.57.0/24
+      dst_address: "!192.168.57.0/24"
+      action: mark-connection
+      new_connection_mark: vpn-amnezia
+      passthrough: true
+    - chain: prerouting
+      connection_mark: vpn-amnezia
+      src_address: 192.168.57.0/24
+      action: mark-routing
+      new_routing_mark: awg-tunnel
+      passthrough: false
+
+  # 2. Routing table for AWG traffic
+  routing_table:
+    name: awg-tunnel
+    fib: true
+
+  # 3. Route in AWG routing table -> container veth
+  routes:
+    - dst_address: 0.0.0.0/0
+      gateway: 172.18.20.2
+      routing_table: awg-tunnel
+
+  # 4. MSS clamping for tunnel MTU issues
+  mss_clamp:
+    chain: forward
+    out_interface: veth-awg
+    new_mss: 1360
+
+# Managed by
+managed_by_ref: rtr-mikrotik-chateau

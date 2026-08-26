@@ -7,7 +7,8 @@ status: active
 notes: |
   Trust zone for devices routed through VPN tunnels.
   Multiple VLANs can reference this zone with different tunnels:
-  - inst.vlan.vpn_germany → wg-home-to-oci (Frankfurt)
+  - inst.vlan.vpn_germany → wg-home-to-oci (Frankfurt, native WireGuard)
+  - inst.vlan.vpn_amnezia → docker-amneziawg (AmneziaWG container)
   - (future) inst.vlan.vpn_usa → wg-home-to-usa
   - (future) inst.vlan.vpn_uk → wg-home-to-uk
 

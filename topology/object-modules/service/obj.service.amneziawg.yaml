@@ -1,0 +1,23 @@
+@object: obj.service.amneziawg
+@extends: class.service.vpn
+@title: Service AmneziaWG
+@version: 1.0.0
+
+model: AmneziaWG
+vendor: amnezia
+notes: |
+  AmneziaWG is a fork of WireGuard with DPI evasion features.
+  Adds junk packets and header obfuscation to bypass censorship.
+  Compatible with WireGuard protocol but with additional parameters:
+  - Jc (junk packet count)
+  - Jmin/Jmax (junk packet size range)
+  - S1/S2 (magic headers)
+  - H1-H4 (init/response headers)
+
+enabled_capabilities:
+- cap.service.vpn.runtime
+- cap.service.vpn.tunnel
+vendor_capabilities:
+- vendor.service.amneziawg.runtime
+- vendor.service.amneziawg.config
+- vendor.service.amneziawg.obfuscation

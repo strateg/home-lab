@@ -30,6 +30,7 @@ address_space:
     - inst.vlan.guest
     - inst.vlan.iot
     - inst.vlan.vpn_germany
+    - inst.vlan.vpn_amnezia
     - inst.vlan.management
     - inst.vlan.servers
 

@@ -1,0 +1,68 @@
+@instance: docker-amneziawg
+@extends: obj.routeros.container.generic
+@group: routeros_container
+@version: 1.0.0
+source_id: docker-amneziawg
+notes: |
+  AmneziaWG client container for obfuscated VPN exit.
+  Routes traffic from VLAN 57 through AWG tunnel to external server.
+  Uses dedicated veth interface (172.18.20.0/30) isolated from other containers.
+
+  Traffic flow:
+    VLAN 57 clients -> mangle marks -> routing table awg-tunnel ->
+    veth-awg (172.18.20.2) -> this container -> AWG tunnel -> Internet
+
+host_ref: rtr-mikrotik-chateau
+
+# Dedicated veth network for AWG (isolated from container bridge 172.18.0.0/24)
+network:
+  type: dedicated_veth
+  veth_name: veth-awg
+  address: 172.18.20.2/30
+  gateway: 172.18.20.1
+  # Router side IP configured in rtr-mikrotik-chateau
+
+runtime:
+  # AmneziaWG MikroTik-compatible image
+  # Options:
+  #   - catesin/awg-mikrotik:3.0 (supports AWG 1.5/2.0/3.0)
+  #   - ucodes/awg-mikrotik:latest
+  image: catesin/awg-mikrotik:3.0
+  architecture: arm64
+  root_dir: /usb1/containers/amneziawg
+  start_on_boot: true
+  logging: true
+
+  # Container mounts for AWG configuration
+  mounts:
+    - name: awg_conf
+      src: /usb1/containers/amneziawg/config
+      dst: /etc/amnezia/amneziawg
+
+  # Environment variables (optional, depends on image)
+  env: {}
+
+# AWG-specific configuration (stored in mounted config directory)
+awg_config:
+  config_file: awg0.conf
+  # AWG parameters (junk packets, headers) provided by VPN server
+  # These are AmneziaWG-specific obfuscation settings:
+  #   Jc  - junk packet count
+  #   Jmin/Jmax - junk packet size range
+  #   S1/S2 - magic headers
+  #   H1-H4 - init/response headers
+  parameters:
+    interface: awg0
+    # Endpoint, keys, and AWG parameters configured in secrets
+    # Reference: projects/home-lab/secrets/instances/docker-amneziawg.yaml
+
+# Routing policy reference
+routing_policy_ref: inst.routing_policy.vpn_amnezia
+
+# VLAN this container serves
+serves_vlan_ref: inst.vlan.vpn_amnezia
+
+# NAT configuration on container (iptables inside container)
+container_nat:
+  enabled: true
+  masquerade_interface: awg0

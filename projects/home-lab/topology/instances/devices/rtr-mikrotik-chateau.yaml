@@ -42,12 +42,22 @@ observed_runtime:
     dhcp_pool: 192.168.55.100-192.168.55.200
     routing_policy_ref: inst.routing_policy.vpn_germany
     status: active
+  vpn_amnezia_vlan:
+    vlan_ref: inst.vlan.vpn_amnezia
+    vlan_id: 57
+    interface: vlan57
+    cidr: 192.168.57.0/24
+    gateway: 192.168.57.1
+    dhcp_pool: 192.168.57.100-192.168.57.200
+    routing_policy_ref: inst.routing_policy.vpn_amnezia
+    container_ref: docker-amneziawg
+    status: staged
   # ADR-0109/0110: VLANs now managed via inst.vlan.* instances
   # Security matrix rules generated from inst.security_matrix.mikrotik
   containers:
     bridge_interface: containers
     bridge_ip: 172.18.0.1/24
-    veth_ports: [veth1]
+    veth_ports: [veth1, veth-awg]
     registry_url: https://registry-1.docker.io
     running:
       - name: nginx:latest
@@ -55,6 +65,21 @@ observed_runtime:
         interface: veth1
         root_dir: /usb1/containers/nginx
         start_on_boot: true
+    # AmneziaWG container with dedicated veth (isolated from container bridge)
+    amneziawg:
+      name: amneziawg
+      image: catesin/awg-mikrotik:3.0
+      interface: veth-awg
+      # Dedicated /30 subnet for AWG routing (not on container bridge)
+      veth_address: 172.18.20.2/30
+      veth_gateway: 172.18.20.1
+      router_side_ip: 172.18.20.1/30
+      root_dir: /usb1/containers/amneziawg
+      config_dir: /usb1/containers/amneziawg/config
+      start_on_boot: true
+      logging: true
+      container_ref: docker-amneziawg
+      status: staged
   wifi:
     wifi1:
       band: 5ghz-ax
@@ -132,6 +157,19 @@ observed_runtime:
         bridge: bridge
         vlan_id: 30
       status: staged
+    # VPN-Amnezia WiFi — VLAN 57, routes through AmneziaWG container
+    wifi_vpn_amnezia:
+      name: wifi-vpn-amnezia
+      master_interface: wifi1
+      ssid: "VPN-Amnezia"
+      mode: ap
+      security: wpa2-psk
+      vlan_id: 57
+      datapath:
+        name: dp-vpn-amnezia
+        bridge: bridge
+        vlan_id: 57
+      status: staged
   dns:
     servers: [1.1.1.1, 8.8.8.8]
     dynamic_servers: [85.253.0.130, 85.253.0.2]
@@ -151,6 +189,12 @@ observed_runtime:
       src_address: 10.100.1.0/24
       out_interface_list: WAN
       comment: "VPN Estonia chain exit (wg1 traffic via Chateau)"
+    # AmneziaWG container NAT: masquerade traffic going to AWG container
+    # Traffic path: VLAN 57 (192.168.57.x) -> veth-awg -> container -> AWG tunnel
+    - chain: srcnat
+      action: masquerade
+      out_interface: veth-awg
+      comment: "NAT for AmneziaWG container traffic"
     # General masquerade for all other LAN traffic
     - chain: srcnat
       action: masquerade
