@@ -21,8 +21,8 @@ tunnel_name: wg0
 # Tunnel network
 tunnel_network: 10.100.0.0/24
 
-# MTU reduced for double encapsulation headroom
-mtu: 1380
+# MTU 1420 is standard for WireGuard
+mtu: 1420
 
 # Endpoint A: MikroTik Chateau (client/initiator)
 # Behind LTE/NAT, initiates connection to VPS

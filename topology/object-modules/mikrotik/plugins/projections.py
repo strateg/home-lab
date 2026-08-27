@@ -247,6 +247,9 @@ def _build_routing_policy_entry(row: dict[str, Any], *, managed_by_ref: str) -> 
     mss_clamp = mikrotik_config.get("mss_clamp", {})
     if not isinstance(mss_clamp, dict):
         mss_clamp = {}
+    fasttrack = mikrotik_config.get("fasttrack", {})
+    if not isinstance(fasttrack, dict):
+        fasttrack = {}
 
     return {
         "instance_id": instance_id,
@@ -260,6 +263,7 @@ def _build_routing_policy_entry(row: dict[str, Any], *, managed_by_ref: str) -> 
         "routes": [route for route in routes if isinstance(route, dict)],
         "nat_rules": [nat for nat in nat_rules if isinstance(nat, dict)],
         "mss_clamp": mss_clamp if mss_clamp.get("new_mss") else None,
+        "fasttrack": fasttrack if fasttrack.get("enabled") else None,
         "managed_by_ref": managed_by_ref,
         "staged": _is_staged_row(row),
     }

@@ -24,8 +24,8 @@ tunnel_name: wg1
 # Tunnel network (separate from wg0)
 tunnel_network: 10.100.1.0/24
 
-# MTU reduced for double encapsulation headroom
-mtu: 1380
+# MTU 1420 is standard for WireGuard (no double encapsulation on exit tunnel)
+mtu: 1420
 
 # Endpoint A: MikroTik Chateau (for Estonia exit)
 endpoint_a:

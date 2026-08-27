@@ -80,5 +80,11 @@ mikrotik_config:
       action: masquerade
       comment: "NAT for VPN-Germany VLAN55 via wg1"
 
+  # 5. Fasttrack for established VPN connections (performance optimization)
+  fasttrack:
+    enabled: true
+    connection_mark: vpn-germany
+    comment: "VPN-Germany fasttrack"
+
 # Managed by
 managed_by_ref: rtr-mikrotik-chateau

@@ -189,6 +189,25 @@ resource "routeros_ip_firewall_mangle" "{{ policy.name }}_mss_clamp" {
   comment          = "{{ policy.policy_name }} MSS clamp - managed by topology"
 }
 {% endif %}
+{% if policy.fasttrack %}
+
+# Fasttrack for established VPN connections (performance optimization)
+resource "routeros_ip_firewall_filter" "{{ policy.name }}_fasttrack" {
+  chain            = "forward"
+  action           = "fasttrack-connection"
+  connection_mark  = "{{ policy.fasttrack.get('connection_mark', policy.name) }}"
+  connection_state = "established,related"
+  comment          = "{{ policy.fasttrack.get('comment', policy.policy_name + ' fasttrack') }} - managed by topology"
+}
+
+resource "routeros_ip_firewall_filter" "{{ policy.name }}_fasttrack_accept" {
+  chain            = "forward"
+  action           = "accept"
+  connection_mark  = "{{ policy.fasttrack.get('connection_mark', policy.name) }}"
+  connection_state = "established,related"
+  comment          = "{{ policy.fasttrack.get('comment', policy.policy_name + ' fasttrack') }} accept - managed by topology"
+}
+{% endif %}
 {% if has_security_matrix %}
 
 # Tunnel egress: allow new connections from {{ policy.source_subnet }} out via {{ policy.tunnel_interface }}.
