@@ -49,8 +49,10 @@ endpoint_b:
   tunnel_ip: 10.100.1.2/24
   listen_port: 51821
   # public_endpoint loaded from secrets
+  # 0.0.0.0/0 required for exit traffic routing
   allowed_ips:
     - 10.100.1.2/32
+    - 0.0.0.0/0
 
 # Road-warrior peers for EXIT profiles (vpn-germany, vpn-estonia)
 road_warrior_peers:
