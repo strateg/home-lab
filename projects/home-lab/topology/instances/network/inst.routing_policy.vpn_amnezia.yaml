@@ -64,11 +64,31 @@ mikrotik_config:
       gateway: 172.18.20.2
       routing_table: awg-tunnel
 
-  # 4. MSS clamping for tunnel MTU issues
+  # 4. Static route for VPN endpoint via WAN (prevent routing loop)
+  #    Container must reach VPN server directly, not through AWG tunnel.
+  #    Derived from inst.vlan.vpn_amnezia.vpn_routing.endpoint
+  endpoint_routes:
+    - dst_address: 178.130.51.136/32
+      gateway: ether1
+      distance: 1
+      comment: "AmneziaWG VPN endpoint - bypass tunnel"
+
+  # 5. MSS clamping for tunnel MTU issues
   mss_clamp:
     chain: forward
     out_interface: veth-awg
-    new_mss: 1360
+    new_mss: 1340
+
+  # 6. Firewall rules for container traffic
+  #    Container must be able to reach VPN endpoint via WAN.
+  #    Traffic flow: container (172.18.20.2) -> veth-awg -> ether1 -> VPN server
+  firewall_rules:
+    - chain: forward
+      action: accept
+      in_interface: veth-awg
+      out_interface: ether1
+      comment: "AWG container WAN egress - allow VPN tunnel establishment"
+      priority: high  # Must be placed before any drop-all rules
 
 # Managed by
 managed_by_ref: rtr-mikrotik-chateau

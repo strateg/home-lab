@@ -83,7 +83,21 @@ ssh "$ROUTER_USER@$ROUTER_HOST" <<MIKROTIK_CONTAINER
 MIKROTIK_CONTAINER
 
 echo ""
-echo "Step 5: Wait for image pull and start container"
+echo "Step 5: Add VPN endpoint route (prevent routing loop)"
+ssh "$ROUTER_USER@$ROUTER_HOST" <<'MIKROTIK_ROUTE'
+# Remove existing endpoint route if any
+/ip route remove [find comment~"AmneziaWG VPN endpoint"]
+
+# Add static route for VPN endpoint via WAN
+# This prevents routing loop: container traffic to VPN server must not go through tunnel
+/ip route add dst-address=178.130.51.136/32 gateway=ether1 distance=1 \
+    comment="AmneziaWG VPN endpoint - bypass tunnel"
+
+:put "VPN endpoint route added"
+MIKROTIK_ROUTE
+
+echo ""
+echo "Step 6: Wait for image pull and start container"
 ssh "$ROUTER_USER@$ROUTER_HOST" <<'MIKROTIK_START'
 # Wait for image to be pulled (check status)
 :local maxwait 120

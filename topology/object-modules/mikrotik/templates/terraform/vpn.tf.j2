@@ -26,11 +26,11 @@ resource "routeros_ip_address" "{{ iface.name }}" {
 }
 {% endif %}
 
-# Add {{ iface.name }} to LAN interface list (firewall trust)
-resource "routeros_interface_list_member" "{{ iface.name }}_lan" {
+# Add {{ iface.name }} to {{ iface.interface_list | default('LAN') }} interface list
+resource "routeros_interface_list_member" "{{ iface.name }}_{{ iface.interface_list | default('LAN') | lower | replace('_', '') }}" {
   interface = routeros_interface_wireguard.{{ iface.name }}.name
-  list      = "LAN"
-  comment   = "Trust WireGuard {{ iface.name }} - managed by topology"
+  list      = "{{ iface.interface_list | default('LAN') }}"
+  comment   = "WireGuard {{ iface.name }} in {{ iface.interface_list | default('LAN') }} - managed by topology"
 }
 
 # Peers for {{ iface.name }}
@@ -153,6 +153,42 @@ resource "routeros_ip_route" "{{ policy.name }}_route_{{ loop.index }}" {
 {% endif %}
 }
 {% endfor %}
+{% for nat in policy.nat_rules %}
+
+resource "routeros_ip_firewall_nat" "{{ policy.name }}_nat_{{ loop.index }}" {
+  chain  = "{{ nat.chain }}"
+  action = "{{ nat.action }}"
+{% if nat.get('src_address') %}
+  src_address = "{{ nat.src_address }}"
+{% endif %}
+{% if nat.get('out_interface') %}
+  out_interface = "{{ nat.out_interface }}"
+{% endif %}
+{% if nat.get('out_interface_list') %}
+  out_interface_list = "{{ nat.out_interface_list }}"
+{% endif %}
+  comment = "{{ nat.get('comment', policy.policy_name + ' NAT') }} - managed by topology"
+}
+{% endfor %}
+{% if policy.mss_clamp %}
+
+# MSS clamping for tunnel MTU issues
+resource "routeros_ip_firewall_mangle" "{{ policy.name }}_mss_clamp" {
+  chain            = "{{ policy.mss_clamp.get('chain', 'forward') }}"
+  action           = "change-mss"
+  protocol         = "tcp"
+  tcp_flags        = "syn"
+{% if policy.mss_clamp.get('out_interface') %}
+  out_interface    = "{{ policy.mss_clamp.get('out_interface') }}"
+{% endif %}
+{% if policy.mss_clamp.get('in_interface') %}
+  in_interface     = "{{ policy.mss_clamp.get('in_interface') }}"
+{% endif %}
+  new_mss          = {{ policy.mss_clamp.get('new_mss') }}
+  passthrough      = true
+  comment          = "{{ policy.policy_name }} MSS clamp - managed by topology"
+}
+{% endif %}
 {% if has_security_matrix %}
 
 # Tunnel egress: allow new connections from {{ policy.source_subnet }} out via {{ policy.tunnel_interface }}.

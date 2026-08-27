@@ -164,12 +164,13 @@ observed_runtime:
       ssid: "VPN-Russia"
       mode: ap
       security: wpa2-psk
+      passphrase: "VpnRussia2024!"
       vlan_id: 57
       datapath:
         name: dp-vpn-russia
         bridge: bridge
         vlan_id: 57
-      status: staged
+      status: active
   dns:
     servers: [1.1.1.1, 8.8.8.8]
     dynamic_servers: [85.253.0.130, 85.253.0.2]

@@ -241,6 +241,12 @@ def _build_routing_policy_entry(row: dict[str, Any], *, managed_by_ref: str) -> 
     routes = mikrotik_config.get("routes", [])
     if not isinstance(routes, list):
         routes = []
+    nat_rules = mikrotik_config.get("nat_rules", [])
+    if not isinstance(nat_rules, list):
+        nat_rules = []
+    mss_clamp = mikrotik_config.get("mss_clamp", {})
+    if not isinstance(mss_clamp, dict):
+        mss_clamp = {}
 
     return {
         "instance_id": instance_id,
@@ -252,6 +258,8 @@ def _build_routing_policy_entry(row: dict[str, Any], *, managed_by_ref: str) -> 
         "mangle_rules": [rule for rule in mangle_rules if isinstance(rule, dict)],
         "routing_table": routing_table,
         "routes": [route for route in routes if isinstance(route, dict)],
+        "nat_rules": [nat for nat in nat_rules if isinstance(nat, dict)],
+        "mss_clamp": mss_clamp if mss_clamp.get("new_mss") else None,
         "managed_by_ref": managed_by_ref,
         "staged": _is_staged_row(row),
     }
@@ -894,6 +902,16 @@ def _extract_wireguard_tunnels(
         # Mark that secrets are needed (not stored in projection)
         peer_config["preshared_key"] = True  # Indicates preshared key is used
 
+        # Determine interface list for MikroTik firewall
+        # Priority: local_endpoint.mikrotik_interface_list > firewall.mikrotik_interface_list > "LAN"
+        interface_list = local_endpoint.get("mikrotik_interface_list")
+        if not interface_list:
+            firewall_cfg = inst_data.get("firewall", {})
+            if isinstance(firewall_cfg, dict):
+                interface_list = firewall_cfg.get("mikrotik_interface_list")
+        if not interface_list:
+            interface_list = "LAN"
+
         # Initialize interface if not seen yet
         if tunnel_name not in interfaces_by_name:
             interfaces_by_name[tunnel_name] = {
@@ -901,6 +919,7 @@ def _extract_wireguard_tunnels(
                 "address": interface_address,
                 "listen_port": listen_port if listen_port > 0 else None,
                 "mtu": mtu,
+                "interface_list": interface_list,
                 "peers": [],
             }
         else:
