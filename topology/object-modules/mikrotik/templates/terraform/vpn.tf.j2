@@ -208,6 +208,28 @@ resource "routeros_ip_firewall_filter" "{{ policy.name }}_fasttrack_accept" {
   comment          = "{{ policy.fasttrack.get('comment', policy.policy_name + ' fasttrack') }} accept - managed by topology"
 }
 {% endif %}
+{% for rule in policy.notrack %}
+
+# Notrack rule for WireGuard performance
+resource "routeros_ip_firewall_raw" "{{ policy.name }}_notrack_{{ loop.index }}" {
+  chain    = "{{ rule.get('chain', 'prerouting') }}"
+  action   = "notrack"
+  protocol = "{{ rule.get('protocol', 'udp') }}"
+{% if rule.get('dst_port') %}
+  dst_port = "{{ rule.get('dst_port') }}"
+{% endif %}
+{% if rule.get('src_port') %}
+  src_port = "{{ rule.get('src_port') }}"
+{% endif %}
+{% if rule.get('src_address') %}
+  src_address = "{{ rule.get('src_address') }}"
+{% endif %}
+{% if rule.get('dst_address') %}
+  dst_address = "{{ rule.get('dst_address') }}"
+{% endif %}
+  comment  = "{{ rule.get('comment', policy.policy_name + ' notrack') }} - managed by topology"
+}
+{% endfor %}
 {% if has_security_matrix %}
 
 # Tunnel egress: allow new connections from {{ policy.source_subnet }} out via {{ policy.tunnel_interface }}.

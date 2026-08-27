@@ -86,5 +86,16 @@ mikrotik_config:
     connection_mark: vpn-germany
     comment: "VPN-Germany fasttrack"
 
+  # 6. Notrack for WireGuard UDP (bypass conntrack for better performance)
+  notrack:
+    - chain: prerouting
+      protocol: udp
+      dst_port: 51821
+      comment: "WireGuard wg1 notrack inbound"
+    - chain: output
+      protocol: udp
+      src_port: 51821
+      comment: "WireGuard wg1 notrack outbound"
+
 # Managed by
 managed_by_ref: rtr-mikrotik-chateau

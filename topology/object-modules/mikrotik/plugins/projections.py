@@ -250,6 +250,9 @@ def _build_routing_policy_entry(row: dict[str, Any], *, managed_by_ref: str) -> 
     fasttrack = mikrotik_config.get("fasttrack", {})
     if not isinstance(fasttrack, dict):
         fasttrack = {}
+    notrack = mikrotik_config.get("notrack", [])
+    if not isinstance(notrack, list):
+        notrack = []
 
     return {
         "instance_id": instance_id,
@@ -264,6 +267,7 @@ def _build_routing_policy_entry(row: dict[str, Any], *, managed_by_ref: str) -> 
         "nat_rules": [nat for nat in nat_rules if isinstance(nat, dict)],
         "mss_clamp": mss_clamp if mss_clamp.get("new_mss") else None,
         "fasttrack": fasttrack if fasttrack.get("enabled") else None,
+        "notrack": [rule for rule in notrack if isinstance(rule, dict)],
         "managed_by_ref": managed_by_ref,
         "staged": _is_staged_row(row),
     }
