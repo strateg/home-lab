@@ -23,6 +23,11 @@ resource "routeros_ip_address" "{{ iface.name }}" {
   address   = "{{ iface.address }}"
   interface = routeros_interface_wireguard.{{ iface.name }}.name
   comment   = "WireGuard {{ iface.name }} IP - managed by topology"
+
+  lifecycle {
+    # vrf not supported via REST API in RouterOS 7.x
+    ignore_changes = [vrf]
+  }
 }
 {% endif %}
 
