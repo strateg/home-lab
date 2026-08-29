@@ -40,7 +40,11 @@ resource "routeros_wifi" "{{ iface.name | replace('-', '_') }}" {
 {% if sec.ft_over_ds is defined and sec.ft_over_ds %}
     ft_over_ds = "true"
 {% endif %}
-{% if 'vpn' in sec.name or 'germany' in sec.name %}
+{% if 'sweden' in sec.name %}
+    passphrase = var.wifi_vpn_sweden_passphrase
+{% elif 'russia' in sec.name %}
+    passphrase = var.wifi_vpn_russia_passphrase
+{% elif 'vpn' in sec.name or 'germany' in sec.name %}
     passphrase = var.wifi_vpn_germany_passphrase
 {% elif 'guest' in sec.name %}
     passphrase = var.wifi_guest_passphrase
@@ -100,7 +104,11 @@ resource "routeros_wifi" "{{ iface.name | replace('-', '_') }}" {
 {% if sec.ft_over_ds is defined and sec.ft_over_ds %}
     ft_over_ds = "true"
 {% endif %}
-{% if 'vpn' in sec.name or 'germany' in sec.name %}
+{% if 'sweden' in sec.name %}
+    passphrase = var.wifi_vpn_sweden_passphrase
+{% elif 'russia' in sec.name %}
+    passphrase = var.wifi_vpn_russia_passphrase
+{% elif 'vpn' in sec.name or 'germany' in sec.name %}
     passphrase = var.wifi_vpn_germany_passphrase
 {% elif 'guest' in sec.name %}
     passphrase = var.wifi_guest_passphrase

@@ -99,6 +99,20 @@ variable "wifi_vpn_germany_passphrase" {
   default     = ""
 }
 
+variable "wifi_vpn_sweden_passphrase" {
+  description = "WiFi passphrase for VPN-Sweden network"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "wifi_vpn_russia_passphrase" {
+  description = "WiFi passphrase for VPN-Russia network"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 variable "wifi_guest_passphrase" {
   description = "WiFi passphrase for Guest network"
   type        = string
