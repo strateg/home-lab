@@ -1,0 +1,39 @@
+@instance: inst.vlan.vpn_sweden
+@extends: obj.network.vlan.vpn_tunnel
+@group: network
+@version: 1.0.0
+source_id: net-vpn-sweden
+status: active
+notes: |
+  VLAN for devices requiring Swedish IP address via AmneziaWG.
+  All traffic routed through AmneziaWG container to VPN server in Sweden.
+  Use cases: privacy, EU services, bypassing geo-restrictions, DPI evasion.
+  WiFi AP: VPN-Sweden
+
+# VLAN configuration (VLAN 58 ∈ VPN block 50-59)
+vlan_id: 58
+cidr: 192.168.58.0/24
+gateway: 192.168.58.1
+dhcp_range: 192.168.58.100-192.168.58.200
+
+# VPN routing specifics - uses container, not direct tunnel
+vpn_routing:
+  enabled: true
+  # AmneziaWG runs as container, traffic routes through veth
+  container_ref: docker-amneziawg-sweden
+  routing_mark: "0x3A"
+  exit_type: amneziawg
+  exit_country: SE
+  exit_location: Sweden
+  endpoint: 146.70.206.133:4512
+
+# Trust zone - isolated from main LAN (shares zone with other VPN VLANs)
+trust_zone_ref: inst.trust_zone.vpn_tunnel
+
+# Managed by MikroTik Chateau
+managed_by_ref: rtr-mikrotik-chateau
+
+ip_allocations:
+  - device_ref: rtr-mikrotik-chateau
+    host: 1
+    purpose: gateway, DNS, DHCP

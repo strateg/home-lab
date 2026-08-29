@@ -32,14 +32,14 @@ echo ""
 echo "Step 1: Create veth interface for AWG container"
 ssh "$ROUTER_USER@$ROUTER_HOST" <<'MIKROTIK_VETH'
 # Create veth interface for AmneziaWG container
-/interface veth remove [find name=veth-awg]
-/interface veth add name=veth-awg address=172.18.20.2/30 gateway=172.18.20.1
+/interface veth remove [find name=veth-awg-ru]
+/interface veth add name=veth-awg-ru address=172.18.20.2/30 gateway=172.18.20.1
 
 # Add IP to router side
 /ip address remove [find address="172.18.20.1/30"]
-/ip address add address=172.18.20.1/30 interface=veth-awg comment="AWG container gateway"
+/ip address add address=172.18.20.1/30 interface=veth-awg-ru comment="AWG container gateway"
 
-:put "veth-awg interface created"
+:put "veth-awg-ru interface created"
 MIKROTIK_VETH
 
 echo ""
@@ -72,7 +72,7 @@ ssh "$ROUTER_USER@$ROUTER_HOST" <<MIKROTIK_CONTAINER
 # Pull and configure container
 /container add \\
     remote-image=$AWG_IMAGE \\
-    interface=veth-awg \\
+    interface=veth-awg-ru \\
     root-dir=/usb1/containers/amneziawg/rootfs \\
     mounts=awg_conf \\
     logging=yes \\

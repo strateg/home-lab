@@ -244,9 +244,38 @@ resource "routeros_ip_firewall_filter" "{{ policy.name }}_tunnel_egress" {
   comment       = "{{ policy.policy_name }} tunnel egress - managed by topology"
   place_before  = routeros_ip_firewall_filter.zone_drop_all_forward.id
 
-  depends_on = [routeros_interface_wireguard.wg0]
+  depends_on = [
+    routeros_interface_wireguard.wg0,
+    routeros_ip_firewall_filter.zone_drop_all_forward
+  ]
 }
 {% endif %}
+{% for rule in policy.get('firewall_rules', []) %}
+
+# Container/tunnel WAN egress rule
+resource "routeros_ip_firewall_filter" "{{ policy.name }}_fw_{{ loop.index }}" {
+  chain         = "{{ rule.get('chain', 'forward') }}"
+  action        = "{{ rule.get('action', 'accept') }}"
+{% if rule.get('in_interface') %}
+  in_interface  = "{{ rule.in_interface }}"
+{% endif %}
+{% if rule.get('out_interface') %}
+  out_interface = "{{ rule.out_interface }}"
+{% endif %}
+{% if rule.get('src_address') %}
+  src_address   = "{{ rule.src_address }}"
+{% endif %}
+{% if rule.get('dst_address') %}
+  dst_address   = "{{ rule.dst_address }}"
+{% endif %}
+  comment       = "{{ rule.get('comment', policy.policy_name + ' firewall rule') }} - managed by topology"
+{% if has_security_matrix %}
+  place_before  = routeros_ip_firewall_filter.zone_drop_all_forward.id
+
+  depends_on = [routeros_ip_firewall_filter.zone_drop_all_forward]
+{% endif %}
+}
+{% endfor %}
 {% endif %}
 {% endfor %}
 {% else %}

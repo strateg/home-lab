@@ -4,20 +4,20 @@
 @version: 1.0.0
 source_id: docker-amneziawg
 notes: |
-  AmneziaWG client container for obfuscated VPN exit.
-  Routes traffic from VLAN 57 through AWG tunnel to external server.
+  AmneziaWG client container for obfuscated VPN exit to Russia.
+  Routes traffic from VLAN 57 through AWG tunnel to Russian server.
   Uses dedicated veth interface (172.18.20.0/30) isolated from other containers.
 
   Traffic flow:
-    VLAN 57 clients -> mangle marks -> routing table awg-tunnel ->
-    veth-awg (172.18.20.2) -> this container -> AWG tunnel -> Internet
+    VLAN 57 clients -> mangle marks -> routing table awg-russia ->
+    veth-awg-ru (172.18.20.2) -> this container -> AWG tunnel -> Internet
 
 host_ref: rtr-mikrotik-chateau
 
 # Dedicated veth network for AWG (isolated from container bridge 172.18.0.0/24)
 network:
   type: dedicated_veth
-  veth_name: veth-awg
+  veth_name: veth-awg-ru
   address: 172.18.20.2/30
   gateway: 172.18.20.1
   # Router side IP configured in rtr-mikrotik-chateau

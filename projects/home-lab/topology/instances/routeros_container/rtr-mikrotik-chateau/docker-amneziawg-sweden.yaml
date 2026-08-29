@@ -1,0 +1,56 @@
+@instance: docker-amneziawg-sweden
+@extends: obj.routeros.container.generic
+@group: routeros_container
+@version: 1.0.0
+source_id: docker-amneziawg-sweden
+notes: |
+  AmneziaWG client container for obfuscated VPN exit to Sweden.
+  Routes traffic from VLAN 58 through AWG tunnel to Swedish server.
+  Uses dedicated veth interface (172.18.21.0/30) isolated from other containers.
+
+  Traffic flow:
+    VLAN 58 clients -> mangle marks -> routing table awg-sweden ->
+    veth-awg-se (172.18.21.2) -> this container -> AWG tunnel -> Internet
+
+host_ref: rtr-mikrotik-chateau
+
+# Dedicated veth network for AWG Sweden (isolated from other containers)
+network:
+  type: dedicated_veth
+  veth_name: veth-awg-se
+  address: 172.18.21.2/30
+  gateway: 172.18.21.1
+  # Router side IP configured in rtr-mikrotik-chateau
+
+runtime:
+  # AmneziaWG MikroTik-compatible image
+  image: catesin/awg-mikrotik:3.0
+  architecture: arm64
+  root_dir: /usb1/containers/amneziawg-sweden
+  start_on_boot: true
+  logging: true
+
+  # Container mounts for AWG configuration
+  mounts:
+    - name: awg_conf
+      src: /usb1/containers/amneziawg-sweden/config
+      dst: /etc/amnezia/amneziawg
+
+  env: {}
+
+# AWG-specific configuration (stored in mounted config directory)
+awg_config:
+  config_file: awg0.conf
+  parameters:
+    interface: awg0
+
+# Routing policy reference
+routing_policy_ref: inst.routing_policy.vpn_sweden
+
+# VLAN this container serves
+serves_vlan_ref: inst.vlan.vpn_sweden
+
+# NAT configuration on container (iptables inside container)
+container_nat:
+  enabled: true
+  masquerade_interface: awg0

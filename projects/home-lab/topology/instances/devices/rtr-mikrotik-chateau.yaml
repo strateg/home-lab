@@ -57,7 +57,7 @@ observed_runtime:
   containers:
     bridge_interface: containers
     bridge_ip: 172.18.0.1/24
-    veth_ports: [veth1, veth-awg]
+    veth_ports: [veth1, veth-awg-ru, veth-awg-se]
     registry_url: https://registry-1.docker.io
     running:
       - name: nginx:latest
@@ -69,7 +69,7 @@ observed_runtime:
     amneziawg:
       name: amneziawg
       image: catesin/awg-mikrotik:3.0
-      interface: veth-awg
+      interface: veth-awg-ru
       # Dedicated /30 subnet for AWG routing (not on container bridge)
       veth_address: 172.18.20.2/30
       veth_gateway: 172.18.20.1
@@ -171,6 +171,20 @@ observed_runtime:
         bridge: bridge
         vlan_id: 57
       status: active
+    # VPN-Sweden WiFi — VLAN 58, routes through AmneziaWG container to Sweden
+    wifi_vpn_sweden:
+      name: wifi-vpn-sweden
+      master_interface: wifi1
+      ssid: "VPN-Sweden"
+      mode: ap
+      security: wpa2-psk
+      passphrase: "VpnSweden2024!"
+      vlan_id: 58
+      datapath:
+        name: dp-vpn-sweden
+        bridge: bridge
+        vlan_id: 58
+      status: active
   dns:
     servers: [1.1.1.1, 8.8.8.8]
     dynamic_servers: [85.253.0.130, 85.253.0.2]
@@ -190,12 +204,18 @@ observed_runtime:
       src_address: 10.100.1.0/24
       out_interface_list: WAN
       comment: "VPN Estonia chain exit (wg1 traffic via Chateau)"
-    # AmneziaWG container NAT: masquerade traffic going to AWG container
-    # Traffic path: VLAN 57 (192.168.57.x) -> veth-awg -> container -> AWG tunnel
+    # AmneziaWG Russia container NAT: masquerade traffic going to Russia AWG container
+    # Traffic path: VLAN 57 (192.168.57.x) -> veth-awg-ru -> container -> AWG tunnel
     - chain: srcnat
       action: masquerade
-      out_interface: veth-awg
-      comment: "NAT for AmneziaWG container traffic"
+      out_interface: veth-awg-ru
+      comment: "NAT for AmneziaWG Russia container traffic"
+    # AmneziaWG Sweden container NAT: masquerade traffic going to Sweden AWG container
+    # Traffic path: VLAN 58 (192.168.58.x) -> veth-awg-se -> container -> AWG tunnel
+    - chain: srcnat
+      action: masquerade
+      out_interface: veth-awg-se
+      comment: "NAT for AmneziaWG Sweden container traffic"
     # General masquerade for all other LAN traffic
     - chain: srcnat
       action: masquerade
@@ -211,6 +231,13 @@ observed_runtime:
     forward_rules: 24
     notes: ADR-0110 zone firewall rules managed via security_matrix
     # Zone policies now auto-generated from inst.security_matrix.mikrotik
+    # Critical baseline rules that must exist regardless of zone firewall
+    baseline_rules:
+      - chain: forward
+        action: accept
+        in_interface_list: LAN
+        out_interface_list: WAN
+        comment: "Allow LAN to WAN"
   wireguard:
     configured: true
     interfaces:

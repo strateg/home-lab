@@ -31,6 +31,7 @@ address_space:
     - inst.vlan.iot
     - inst.vlan.vpn_germany
     - inst.vlan.vpn_amnezia
+    - inst.vlan.vpn_sweden
     - inst.vlan.management
     - inst.vlan.servers
 

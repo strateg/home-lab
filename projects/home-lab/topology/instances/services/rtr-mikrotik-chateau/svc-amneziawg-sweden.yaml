@@ -1,0 +1,41 @@
+@instance: svc-amneziawg-sweden
+@extends: obj.service.amneziawg
+@group: services
+@version: 1.0.0
+source_id: svc-amneziawg-sweden
+notes: |
+  AmneziaWG VPN client for obfuscated internet exit to Sweden.
+  Runs as container on MikroTik Chateau, serves VLAN 58 clients.
+  Provides DPI-resistant VPN tunnel for privacy and EU access.
+
+port: 51822
+protocol: udp
+trust_zone_ref: inst.trust_zone.vpn_tunnel
+vpn_type: amneziawg
+@description: AmneziaWG VPN client for Sweden exit
+critical: false
+status: active
+
+runtime:
+  type: container
+  target_ref: rtr-mikrotik-chateau
+  container_ref: docker-amneziawg-sweden
+  network_binding_ref: inst.vlan.vpn_sweden
+
+features:
+  - DPI evasion via packet obfuscation
+  - Privacy protection
+  - WireGuard-compatible but obfuscated
+  - Isolated VLAN routing
+  - EU exit point
+
+# External VPN server connection details
+vpn_server:
+  endpoint_ref: secrets.amneziawg_sweden.endpoint
+  awg_params_ref: secrets.amneziawg_sweden.params
+
+# Serves this VLAN
+serves_vlan_ref: inst.vlan.vpn_sweden
+
+# Routing policy
+routing_policy_ref: inst.routing_policy.vpn_sweden

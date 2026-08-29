@@ -97,5 +97,51 @@ mikrotik_config:
       src_port: 51821
       comment: "WireGuard wg1 notrack outbound"
 
+  # 7. Isolation firewall rules (ADR-0110)
+  #    VPN VLAN must not access internal networks
+  firewall_rules:
+    # Block access to LAN (legacy user network)
+    - chain: forward
+      action: drop
+      src_address: 192.168.55.0/24
+      dst_address: 192.168.88.0/24
+      comment: "VPN-Germany: block access to LAN"
+    # Block access to User VLAN
+    - chain: forward
+      action: drop
+      src_address: 192.168.55.0/24
+      dst_address: 192.168.10.0/24
+      comment: "VPN-Germany: block access to User VLAN"
+    # Block access to Management
+    - chain: forward
+      action: drop
+      src_address: 192.168.55.0/24
+      dst_address: 10.0.99.0/24
+      comment: "VPN-Germany: block access to Management"
+    # Block access to Servers
+    - chain: forward
+      action: drop
+      src_address: 192.168.55.0/24
+      dst_address: 10.0.100.0/24
+      comment: "VPN-Germany: block access to Servers"
+    # Block cross-VPN access (Russia VLAN)
+    - chain: forward
+      action: drop
+      src_address: 192.168.55.0/24
+      dst_address: 192.168.57.0/24
+      comment: "VPN-Germany: block access to VPN-Russia"
+    # Block cross-VPN access (Sweden VLAN)
+    - chain: forward
+      action: drop
+      src_address: 192.168.55.0/24
+      dst_address: 192.168.58.0/24
+      comment: "VPN-Germany: block access to VPN-Sweden"
+    # Kill-switch: block direct WAN egress (must go through wg1)
+    - chain: forward
+      action: drop
+      src_address: 192.168.55.0/24
+      out_interface: ether1
+      comment: "VPN-Germany kill-switch: block direct WAN"
+
 # Managed by
 managed_by_ref: rtr-mikrotik-chateau

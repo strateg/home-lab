@@ -253,6 +253,9 @@ def _build_routing_policy_entry(row: dict[str, Any], *, managed_by_ref: str) -> 
     notrack = mikrotik_config.get("notrack", [])
     if not isinstance(notrack, list):
         notrack = []
+    firewall_rules = mikrotik_config.get("firewall_rules", [])
+    if not isinstance(firewall_rules, list):
+        firewall_rules = []
 
     return {
         "instance_id": instance_id,
@@ -268,6 +271,7 @@ def _build_routing_policy_entry(row: dict[str, Any], *, managed_by_ref: str) -> 
         "mss_clamp": mss_clamp if mss_clamp.get("new_mss") else None,
         "fasttrack": fasttrack if fasttrack.get("enabled") else None,
         "notrack": [rule for rule in notrack if isinstance(rule, dict)],
+        "firewall_rules": [rule for rule in firewall_rules if isinstance(rule, dict)],
         "managed_by_ref": managed_by_ref,
         "staged": _is_staged_row(row),
     }
@@ -1191,6 +1195,7 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
             "interface": "",
         },
         "addresses": [],
+        "firewall_baseline_rules": [],
     }
     if len(routers) == 1:
         router_data = routers[0].get("instance_data") if isinstance(routers[0].get("instance_data"), dict) else {}
@@ -1233,6 +1238,14 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
                 bridge_if = str(containers.get("bridge_interface") or "containers").strip() or "containers"
                 if bridge_ip:
                     runtime_baseline["addresses"].append({"address": bridge_ip, "interface": bridge_if})
+            # Extract firewall baseline rules (critical rules that must exist regardless of zone firewall)
+            firewall_cfg = observed.get("firewall")
+            if isinstance(firewall_cfg, dict):
+                baseline_rules = firewall_cfg.get("baseline_rules")
+                if isinstance(baseline_rules, list):
+                    for rule in baseline_rules:
+                        if isinstance(rule, dict):
+                            runtime_baseline["firewall_baseline_rules"].append(rule)
 
     # Build VLAN CIDR index for reference resolution (ADR-0111)
     # Uses all network rows (not just MikroTik-managed vlans) for cross-device references

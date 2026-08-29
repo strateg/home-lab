@@ -53,11 +53,12 @@ connectivity:
 secrets_ref: secrets.instances.boox-go-103-lumi
 connection_type: wifi
 
-# VLAN assignment - VPN Germany for geo-bypass
-vlan_ref: inst.vlan.vpn_germany
+# VLAN assignment - main LAN (connects to Chateau* SSID)
+# For German content: manually connect to VPN-Germany SSID
+vlan_ref: inst.vlan.lan
 
-# Static IP assignment (DHCP reservation on MikroTik)
-static_ip: 192.168.55.49
+# DHCP (no static reservation needed for LAN)
+static_ip: null
 
 # Supported formats
 supported_formats:

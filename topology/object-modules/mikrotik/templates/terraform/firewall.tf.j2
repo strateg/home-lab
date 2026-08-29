@@ -113,3 +113,46 @@ resource "routeros_ip_firewall_nat" "runtime_nat_{{ loop.index }}" {
 
 {% endfor %}
 {% endif %}
+
+{% if runtime_baseline.firewall_baseline_rules %}
+# Firewall baseline rules (critical rules that must exist regardless of zone firewall)
+{% for rule in runtime_baseline.firewall_baseline_rules %}
+resource "routeros_ip_firewall_filter" "baseline_rule_{{ loop.index }}" {
+  chain  = "{{ rule.get('chain', 'forward') }}"
+  action = "{{ rule.get('action', 'accept') }}"
+{% if rule.get('in_interface') %}
+  in_interface = "{{ rule.get('in_interface') }}"
+{% endif %}
+{% if rule.get('out_interface') %}
+  out_interface = "{{ rule.get('out_interface') }}"
+{% endif %}
+{% if rule.get('in_interface_list') %}
+  in_interface_list = "{{ rule.get('in_interface_list') }}"
+{% endif %}
+{% if rule.get('out_interface_list') %}
+  out_interface_list = "{{ rule.get('out_interface_list') }}"
+{% endif %}
+{% if rule.get('src_address') %}
+  src_address = "{{ rule.get('src_address') }}"
+{% endif %}
+{% if rule.get('dst_address') %}
+  dst_address = "{{ rule.get('dst_address') }}"
+{% endif %}
+{% if rule.get('protocol') %}
+  protocol = "{{ rule.get('protocol') }}"
+{% endif %}
+{% if rule.get('dst_port') %}
+  dst_port = "{{ rule.get('dst_port') }}"
+{% endif %}
+{% if rule.get('connection_state') %}
+  connection_state = "{{ rule.get('connection_state') }}"
+{% endif %}
+{% if rule.get('comment') %}
+  comment = "{{ rule.get('comment') }} - managed by topology"
+{% else %}
+  comment = "baseline firewall rule - managed by topology"
+{% endif %}
+}
+
+{% endfor %}
+{% endif %}
