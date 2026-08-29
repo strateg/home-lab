@@ -216,8 +216,30 @@ def _build_firewall_entry(row: dict[str, Any], *, managed_by_ref: str) -> dict[s
     }
 
 
-def _build_routing_policy_entry(row: dict[str, Any], *, managed_by_ref: str) -> dict[str, Any]:
-    """Extract policy-based routing configuration from network row."""
+def _build_routing_policy_entry(
+    row: dict[str, Any],
+    *,
+    managed_by_ref: str,
+    vlan_cidr_index: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """Extract policy-based routing configuration from network row.
+
+    Args:
+        row: Network instance row from compiled JSON.
+        managed_by_ref: Device instance ID managing this policy.
+        vlan_cidr_index: VLAN instance_id -> CIDR mapping for resolving refs.
+
+    Supports VLAN reference resolution (ADR-0111 extension):
+        - source_match.vlan_ref -> source_subnet (if value not provided)
+        - firewall_rules[].src_vlan_ref -> src_address
+        - firewall_rules[].dst_vlan_ref -> dst_address
+        - mangle_rules[].src_vlan_ref -> src_address
+        - mangle_rules[].dst_vlan_ref -> dst_address
+        - nat_rules[].src_vlan_ref -> src_address
+    """
+    if vlan_cidr_index is None:
+        vlan_cidr_index = {}
+
     inst_data = row.get("instance_data", {}) or {}
     mikrotik_config = inst_data.get("mikrotik_config", {}) or {}
     if not isinstance(mikrotik_config, dict):
@@ -231,6 +253,31 @@ def _build_routing_policy_entry(row: dict[str, Any], *, managed_by_ref: str) -> 
 
     instance_id = str(row.get("instance_id", "")).strip()
     name = instance_id.replace("inst.routing_policy.", "").replace(".", "_").replace("-", "_")
+
+    # Resolve source_subnet from vlan_ref if value not provided
+    source_subnet = str(source_match.get("value", "")).strip()
+    if not source_subnet:
+        source_vlan_ref = str(source_match.get("vlan_ref", "")).strip()
+        if source_vlan_ref:
+            source_subnet = vlan_cidr_index.get(source_vlan_ref, "")
+
+    # Helper to resolve vlan refs in rule dicts
+    def resolve_rule_refs(rule: dict[str, Any]) -> dict[str, Any]:
+        """Resolve vlan_ref fields to actual CIDRs in a rule dict."""
+        resolved = dict(rule)
+        # src_vlan_ref -> src_address
+        src_ref = str(rule.get("src_vlan_ref", "")).strip()
+        if src_ref and not rule.get("src_address"):
+            cidr = vlan_cidr_index.get(src_ref)
+            if cidr:
+                resolved["src_address"] = cidr
+        # dst_vlan_ref -> dst_address
+        dst_ref = str(rule.get("dst_vlan_ref", "")).strip()
+        if dst_ref and not rule.get("dst_address"):
+            cidr = vlan_cidr_index.get(dst_ref)
+            if cidr:
+                resolved["dst_address"] = cidr
+        return resolved
 
     mangle_rules = mikrotik_config.get("mangle_rules", [])
     if not isinstance(mangle_rules, list):
@@ -257,21 +304,26 @@ def _build_routing_policy_entry(row: dict[str, Any], *, managed_by_ref: str) -> 
     if not isinstance(firewall_rules, list):
         firewall_rules = []
 
+    # Resolve vlan refs in all rule types
+    resolved_mangle = [resolve_rule_refs(r) for r in mangle_rules if isinstance(r, dict)]
+    resolved_nat = [resolve_rule_refs(r) for r in nat_rules if isinstance(r, dict)]
+    resolved_firewall = [resolve_rule_refs(r) for r in firewall_rules if isinstance(r, dict)]
+
     return {
         "instance_id": instance_id,
         "name": name,
         "policy_name": str(inst_data.get("policy_name", "")).strip() or name,
         "enabled": bool(inst_data.get("enabled", True)),
-        "source_subnet": str(source_match.get("value", "")).strip(),
+        "source_subnet": source_subnet,
         "tunnel_interface": str(target_gateway.get("value", "")).strip(),
-        "mangle_rules": [rule for rule in mangle_rules if isinstance(rule, dict)],
+        "mangle_rules": resolved_mangle,
         "routing_table": routing_table,
         "routes": [route for route in routes if isinstance(route, dict)],
-        "nat_rules": [nat for nat in nat_rules if isinstance(nat, dict)],
+        "nat_rules": resolved_nat,
         "mss_clamp": mss_clamp if mss_clamp.get("new_mss") else None,
         "fasttrack": fasttrack if fasttrack.get("enabled") else None,
         "notrack": [rule for rule in notrack if isinstance(rule, dict)],
-        "firewall_rules": [rule for rule in firewall_rules if isinstance(rule, dict)],
+        "firewall_rules": resolved_firewall,
         "managed_by_ref": managed_by_ref,
         "staged": _is_staged_row(row),
     }
@@ -1078,6 +1130,10 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
 
     default_router_id = next(iter(sorted(router_ids)), "")
 
+    # Build VLAN CIDR index early for reference resolution in routing policies
+    # Uses all network rows (not just MikroTik-managed vlans) for cross-device references
+    vlan_cidr_index = _build_vlan_cidr_index(network)
+
     for idx, row in enumerate(network):
         _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.network[{idx}]")
         object_ref = _require_object_ref(row, path=f"compiled_json.instances.network[{idx}]")
@@ -1120,7 +1176,9 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
             if not managed_by_ref and len(router_ids) == 1:
                 managed_by_ref = default_router_id
             if managed_by_ref in router_ids:
-                routing_policies.append(_build_routing_policy_entry(row, managed_by_ref=managed_by_ref))
+                routing_policies.append(_build_routing_policy_entry(
+                    row, managed_by_ref=managed_by_ref, vlan_cidr_index=vlan_cidr_index
+                ))
 
     # Extract firewall policies from dedicated firewall group.
     for idx, row in enumerate(firewall_rows):
@@ -1247,11 +1305,8 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
                         if isinstance(rule, dict):
                             runtime_baseline["firewall_baseline_rules"].append(rule)
 
-    # Build VLAN CIDR index for reference resolution (ADR-0111)
-    # Uses all network rows (not just MikroTik-managed vlans) for cross-device references
-    vlan_cidr_index = _build_vlan_cidr_index(network)
-
     # Extract WireGuard tunnel configurations for MikroTik routers
+    # Note: vlan_cidr_index was built earlier for routing policy resolution
     wireguard_data = _extract_wireguard_tunnels(network, router_ids, vlan_cidr_index)
 
     # Extract WiFi configurations from router instances

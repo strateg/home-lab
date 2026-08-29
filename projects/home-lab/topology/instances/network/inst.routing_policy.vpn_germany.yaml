@@ -1,7 +1,7 @@
 @instance: inst.routing_policy.vpn_germany
 @extends: obj.network.routing_policy.vpn_vlan
 @group: network
-@version: 1.0.0
+@version: 1.1.0
 source_id: policy-vpn-germany
 status: active
 notes: |
@@ -12,14 +12,15 @@ notes: |
     - wg0: Admin tunnel for LAN access (inst.tunnel.wg-home-to-oci)
     - wg1: Exit tunnel for internet traffic (inst.tunnel.wg-exit)
 
+  v1.1.0: Use vlan_ref instead of hardcoded CIDRs (ADR-0111 extension)
+
 # Policy identification
 policy_name: vpn-germany-routing
 policy_description: Route VLAN 55 traffic through WireGuard to Frankfurt VPS
 
-# Source: VLAN 55 subnet
+# Source: VLAN 55 subnet (CIDR resolved from vlan_ref)
 source_match:
   type: subnet
-  value: 192.168.55.0/24
   vlan_ref: inst.vlan.vpn_germany
 
 # Target: WireGuard tunnel (wg1 for exit traffic per ADR-0112)
@@ -37,27 +38,20 @@ enabled: true
 # MikroTik implementation details
 mikrotik_config:
   # 1. Mangle rules to mark connections from VLAN 55.
-  #    dst_address is negated so traffic to the local VLAN (incl. gateway
-  #    192.168.55.1) is never pushed into the tunnel.
+  #    dst_address is negated so traffic to the local VLAN (incl. gateway)
+  #    is never pushed into the tunnel. Negation requires literal address.
   mangle_rules:
     - chain: prerouting
-      src_address: 192.168.55.0/24
-      dst_address: "!192.168.55.0/24"
+      src_vlan_ref: inst.vlan.vpn_germany
+      dst_address: "!192.168.55.0/24"  # negation - local traffic excluded
       action: mark-connection
       new_connection_mark: vpn-germany
       passthrough: true
     - chain: prerouting
       connection_mark: vpn-germany
       # src_address restricts mark-routing to the ORIGINATING direction only.
-      # Reply packets (server -> phone) carry the same connection-mark; without
-      # this match they would also get routing-mark vpn-tunnel and be routed
-      # back into wg1 (the table's only route is 0.0.0.0/0 via wg1), so TCP
-      # SYN-ACKs never reached the client while fasttracked UDP still worked.
-      src_address: 192.168.55.0/24
+      src_vlan_ref: inst.vlan.vpn_germany
       action: mark-routing
-      # RouterOS 7: new-routing-mark must be an existing routing table name,
-      # so the mark equals the table below and triggers a direct lookup
-      # (no separate /routing/rule needed).
       new_routing_mark: vpn-tunnel
       passthrough: false
 
@@ -75,10 +69,10 @@ mikrotik_config:
   # 4. NAT for VLAN 55 traffic through wg1
   nat_rules:
     - chain: srcnat
-      src_address: 192.168.55.0/24
+      src_vlan_ref: inst.vlan.vpn_germany
       out_interface: wg1
       action: masquerade
-      comment: "NAT for VPN-Germany VLAN55 via wg1"
+      comment: "NAT for VPN-Germany via wg1"
 
   # 5. Fasttrack for established VPN connections (performance optimization)
   fasttrack:
@@ -98,48 +92,48 @@ mikrotik_config:
       comment: "WireGuard wg1 notrack outbound"
 
   # 7. Isolation firewall rules (ADR-0110)
-  #    VPN VLAN must not access internal networks
+  #    VPN VLAN must not access internal networks. Uses vlan_refs for DRY.
   firewall_rules:
     # Block access to LAN (legacy user network)
     - chain: forward
       action: drop
-      src_address: 192.168.55.0/24
-      dst_address: 192.168.88.0/24
+      src_vlan_ref: inst.vlan.vpn_germany
+      dst_vlan_ref: inst.vlan.lan
       comment: "VPN-Germany: block access to LAN"
     # Block access to User VLAN
     - chain: forward
       action: drop
-      src_address: 192.168.55.0/24
-      dst_address: 192.168.10.0/24
+      src_vlan_ref: inst.vlan.vpn_germany
+      dst_vlan_ref: inst.vlan.user
       comment: "VPN-Germany: block access to User VLAN"
     # Block access to Management
     - chain: forward
       action: drop
-      src_address: 192.168.55.0/24
-      dst_address: 10.0.99.0/24
+      src_vlan_ref: inst.vlan.vpn_germany
+      dst_vlan_ref: inst.vlan.management
       comment: "VPN-Germany: block access to Management"
     # Block access to Servers
     - chain: forward
       action: drop
-      src_address: 192.168.55.0/24
-      dst_address: 10.0.100.0/24
+      src_vlan_ref: inst.vlan.vpn_germany
+      dst_vlan_ref: inst.vlan.servers
       comment: "VPN-Germany: block access to Servers"
     # Block cross-VPN access (Russia VLAN)
     - chain: forward
       action: drop
-      src_address: 192.168.55.0/24
-      dst_address: 192.168.57.0/24
+      src_vlan_ref: inst.vlan.vpn_germany
+      dst_vlan_ref: inst.vlan.vpn_amnezia
       comment: "VPN-Germany: block access to VPN-Russia"
     # Block cross-VPN access (Sweden VLAN)
     - chain: forward
       action: drop
-      src_address: 192.168.55.0/24
-      dst_address: 192.168.58.0/24
+      src_vlan_ref: inst.vlan.vpn_germany
+      dst_vlan_ref: inst.vlan.vpn_sweden
       comment: "VPN-Germany: block access to VPN-Sweden"
     # Kill-switch: block direct WAN egress (must go through wg1)
     - chain: forward
       action: drop
-      src_address: 192.168.55.0/24
+      src_vlan_ref: inst.vlan.vpn_germany
       out_interface: ether1
       comment: "VPN-Germany kill-switch: block direct WAN"
 

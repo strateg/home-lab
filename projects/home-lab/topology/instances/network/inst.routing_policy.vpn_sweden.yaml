@@ -1,7 +1,7 @@
 @instance: inst.routing_policy.vpn_sweden
 @extends: obj.network.routing_policy.vpn_vlan
 @group: network
-@version: 1.0.0
+@version: 1.1.0
 source_id: policy-vpn-sweden
 status: active
 notes: |
@@ -13,14 +13,15 @@ notes: |
     routing table awg-sweden -> veth-awg-se (172.18.21.2) ->
     AmneziaWG container -> AWG tunnel -> VPN server Sweden -> Internet
 
+  v1.1.0: Use vlan_ref instead of hardcoded CIDRs (ADR-0111 extension)
+
 # Policy identification
 policy_name: vpn-sweden-routing
 policy_description: Route VLAN 58 traffic through AmneziaWG Sweden container
 
-# Source: VLAN 58 subnet
+# Source: VLAN 58 subnet (CIDR resolved from vlan_ref)
 source_match:
   type: subnet
-  value: 192.168.58.0/24
   vlan_ref: inst.vlan.vpn_sweden
 
 # Target: AmneziaWG Sweden container via veth
@@ -41,14 +42,14 @@ mikrotik_config:
   #    dst_address is negated so traffic to local VLAN is not tunneled.
   mangle_rules:
     - chain: prerouting
-      src_address: 192.168.58.0/24
-      dst_address: "!192.168.58.0/24"
+      src_vlan_ref: inst.vlan.vpn_sweden
+      dst_address: "!192.168.58.0/24"  # negation - local traffic excluded
       action: mark-connection
       new_connection_mark: vpn-sweden
       passthrough: true
     - chain: prerouting
       connection_mark: vpn-sweden
-      src_address: 192.168.58.0/24
+      src_vlan_ref: inst.vlan.vpn_sweden
       action: mark-routing
       new_routing_mark: awg-sweden
       passthrough: false
@@ -91,43 +92,43 @@ mikrotik_config:
     # Block access to LAN (legacy user network)
     - chain: forward
       action: drop
-      src_address: 192.168.58.0/24
-      dst_address: 192.168.88.0/24
+      src_vlan_ref: inst.vlan.vpn_sweden
+      dst_vlan_ref: inst.vlan.lan
       comment: "VPN-Sweden: block access to LAN"
     # Block access to User VLAN
     - chain: forward
       action: drop
-      src_address: 192.168.58.0/24
-      dst_address: 192.168.10.0/24
+      src_vlan_ref: inst.vlan.vpn_sweden
+      dst_vlan_ref: inst.vlan.user
       comment: "VPN-Sweden: block access to User VLAN"
     # Block access to Management
     - chain: forward
       action: drop
-      src_address: 192.168.58.0/24
-      dst_address: 10.0.99.0/24
+      src_vlan_ref: inst.vlan.vpn_sweden
+      dst_vlan_ref: inst.vlan.management
       comment: "VPN-Sweden: block access to Management"
     # Block access to Servers
     - chain: forward
       action: drop
-      src_address: 192.168.58.0/24
-      dst_address: 10.0.100.0/24
+      src_vlan_ref: inst.vlan.vpn_sweden
+      dst_vlan_ref: inst.vlan.servers
       comment: "VPN-Sweden: block access to Servers"
     # Block cross-VPN access (Russia VLAN)
     - chain: forward
       action: drop
-      src_address: 192.168.58.0/24
-      dst_address: 192.168.57.0/24
+      src_vlan_ref: inst.vlan.vpn_sweden
+      dst_vlan_ref: inst.vlan.vpn_amnezia
       comment: "VPN-Sweden: block access to VPN-Russia"
     # Block cross-VPN access (Germany VLAN)
     - chain: forward
       action: drop
-      src_address: 192.168.58.0/24
-      dst_address: 192.168.55.0/24
+      src_vlan_ref: inst.vlan.vpn_sweden
+      dst_vlan_ref: inst.vlan.vpn_germany
       comment: "VPN-Sweden: block access to VPN-Germany"
     # Kill-switch: block direct WAN egress (must go through container)
     - chain: forward
       action: drop
-      src_address: 192.168.58.0/24
+      src_vlan_ref: inst.vlan.vpn_sweden
       out_interface: ether1
       comment: "VPN-Sweden kill-switch: block direct WAN"
 
