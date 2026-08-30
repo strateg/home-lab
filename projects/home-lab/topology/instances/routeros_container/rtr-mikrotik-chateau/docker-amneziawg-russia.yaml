@@ -33,6 +33,7 @@ network:
 
 runtime:
   # AWG-Proxy C-based image
+  name: awg-proxy-russia
   image: ghcr.io/timbrs/awg-proxy:latest
   architecture: arm64
   root_dir: /usb1/containers/awg-proxy-russia
