@@ -20,7 +20,7 @@ dhcp_range: 192.168.57.100-192.168.57.200
 vpn_routing:
   enabled: true
   # AmneziaWG runs as container, traffic routes through veth
-  container_ref: docker-amneziawg
+  container_ref: docker-amneziawg-russia
   routing_mark: "0x39"
   exit_type: amneziawg
   exit_country: RU
