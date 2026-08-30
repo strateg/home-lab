@@ -12,6 +12,13 @@ notes: |
     VLAN 58 clients -> mangle marks -> routing table awg-sweden ->
     veth-awg-se (172.18.21.2) -> this container -> AWG tunnel -> Internet
 
+  Performance notes:
+    - Current image (catesin/awg-mikrotik) is Go-based
+    - For 100-150% better throughput, consider C-based alternative:
+      ghcr.io/timbrs/awg-proxy:latest (see github.com/timbrs/amneziawg-mikrotik-c)
+    - Native WireGuard on MikroTik is ~3x faster than containerized AWG
+    - ARM64 (IPQ6000) has NEON SIMD but container may not fully utilize it
+
 host_ref: rtr-mikrotik-chateau
 
 # Dedicated veth network for AWG Sweden (isolated from other containers)
