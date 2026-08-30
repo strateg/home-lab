@@ -1,35 +1,40 @@
 @instance: inst.routing_policy.vpn_amnezia
 @extends: obj.network.routing_policy.vpn_vlan
 @group: network
-@version: 1.1.0
+@version: 1.0.0
 source_id: policy-vpn-russia
 status: active
 notes: |
-  Routes all traffic from VLAN 57 (VPN Russia) through AmneziaWG container.
-  Container runs on veth interface and tunnels traffic via AWG protocol.
+  Routes all traffic from VLAN 57 (VPN Russia) through AWG-Proxy architecture.
+
+  Architecture (v2.0.0 - awg-proxy):
+    - MikroTik native WireGuard handles encryption (wg-awg-russia)
+    - awg-proxy container adds AWG 3.0 obfuscation
+    - Traffic routes directly to WG interface (not veth)
 
   Traffic flow:
     Client (192.168.57.x) -> vlan57 -> mangle mark ->
-    routing table awg-russia -> veth-awg-ru (172.18.20.2) ->
-    AmneziaWG container -> AWG tunnel -> VPN server Russia -> Internet
+    routing table awg-russia -> wg-awg-russia (WireGuard) ->
+    awg-proxy container (172.18.22.2) -> AWG obfuscation ->
+    VPN server Russia -> Internet
 
+  v2.0.0: Migrated to awg-proxy with native WireGuard routing
   v1.1.0: Use vlan_ref instead of hardcoded CIDRs (ADR-0111 extension)
 
 # Policy identification
 policy_name: vpn-russia-routing
-policy_description: Route VLAN 57 traffic through AmneziaWG Russia container
+policy_description: Route VLAN 57 traffic through AWG-Proxy Russia
 
 # Source: VLAN 57 subnet (CIDR resolved from vlan_ref)
 source_match:
   type: subnet
   vlan_ref: inst.vlan.vpn_amnezia
 
-# Target: AmneziaWG container via veth
+# Target: WireGuard interface (native MikroTik WG, not container veth)
 target_gateway:
-  type: container_veth
-  value: veth-awg-ru
-  container_ref: docker-amneziawg
-  next_hop: 172.18.20.2
+  type: wireguard_interface
+  value: wg-awg-russia
+  container_ref: docker-amneziawg-russia
 
 # Routing mark (unique for AWG Russia)
 routing_mark: "0x39"
@@ -59,33 +64,40 @@ mikrotik_config:
     name: awg-russia
     fib: true
 
-  # 3. Route in AWG routing table -> container veth
+  # 3. Route in AWG routing table -> WireGuard interface
   routes:
     - dst_address: 0.0.0.0/0
-      gateway: 172.18.20.2
+      gateway: wg-awg-russia
       routing_table: awg-russia
 
-  # 4. Static route for VPN endpoint via WAN (prevent routing loop)
-  #    NOTE: Not needed for container-based AWG. Container handles this via
-  #    PreUp script in awg0.conf: "ip route add <endpoint> via 172.18.20.1"
-  #    MikroTik default route (from DHCP) handles the rest.
-  #    Removed endpoint_routes - was using gateway=ether1 which doesn't work
-  #    when MikroTik is behind NAT (WAN via DHCP from upstream router).
-
-  # 5. MSS clamping for tunnel MTU issues
+  # 4. MSS clamping for tunnel MTU issues
   mss_clamp:
     chain: forward
-    out_interface: veth-awg-ru
-    new_mss: 1340
+    out_interface: wg-awg-russia
+    new_mss: 1360
 
-  # 6. Firewall rules for container traffic and isolation
+  # 5. Firewall rules for tunnel traffic and isolation
   firewall_rules:
+    # Allow VPN VLAN to tunnel egress
+    - chain: forward
+      action: accept
+      src_vlan_ref: inst.vlan.vpn_amnezia
+      out_interface: wg-awg-russia
+      comment: "VPN-Russia tunnel egress"
+      priority: high
+    # Allow tunnel ingress to VPN VLAN
+    - chain: forward
+      action: accept
+      in_interface: wg-awg-russia
+      dst_vlan_ref: inst.vlan.vpn_amnezia
+      comment: "VPN-Russia tunnel ingress"
+      priority: high
     # Container must reach VPN endpoint via WAN
     - chain: forward
       action: accept
       in_interface: veth-awg-ru
       out_interface: ether1
-      comment: "AWG Russia container WAN egress"
+      comment: "AWG-Proxy Russia container WAN egress"
       priority: high
     # Isolation rules (ADR-0110) - VPN VLAN must not access internal networks
     # Block access to LAN (legacy user network)
@@ -124,20 +136,26 @@ mikrotik_config:
       src_vlan_ref: inst.vlan.vpn_amnezia
       dst_vlan_ref: inst.vlan.vpn_germany
       comment: "VPN-Russia: block access to VPN-Germany"
-    # Kill-switch: block direct WAN egress (must go through container)
+    # Kill-switch: block direct WAN egress (must go through tunnel)
     - chain: forward
       action: drop
       src_vlan_ref: inst.vlan.vpn_amnezia
       out_interface: ether1
       comment: "VPN-Russia kill-switch: block direct WAN"
 
-  # 7. NAT rule for container traffic to WAN
+  # 6. NAT rules
   nat_rules:
+    # NAT for VPN tunnel (masquerade to tunnel IP)
     - chain: srcnat
       action: masquerade
-      src_address: 172.18.20.0/30
+      out_interface: wg-awg-russia
+      comment: "NAT for VPN-Russia tunnel"
+    # NAT for container traffic to WAN (for VPN endpoint connection)
+    - chain: srcnat
+      action: masquerade
+      src_address: 172.18.22.0/30
       out_interface: ether1
-      comment: "NAT for AWG Russia container WAN egress"
+      comment: "NAT for AWG-Proxy Russia container WAN egress"
 
 # Managed by
 managed_by_ref: rtr-mikrotik-chateau

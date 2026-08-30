@@ -1,0 +1,91 @@
+@instance: docker-amneziawg-russia
+@extends: obj.routeros.container.generic
+@group: routeros_container
+@version: 1.0.0
+source_id: docker-amneziawg-russia
+notes: |
+  AWG-Proxy container for obfuscated VPN exit to Russia.
+  Uses C-based awg-proxy (ghcr.io/timbrs/awg-proxy) for better performance.
+
+  Architecture (v2.0.0 - awg-proxy):
+    - MikroTik native WireGuard interface (wg-awg-russia) handles encryption
+    - awg-proxy container adds AWG 3.0 obfuscation (S1-S4, H1-H4, HeaderProtectionKey)
+    - Traffic flow: WG interface -> veth -> awg-proxy -> VPN server
+
+  Traffic flow:
+    VLAN 57 clients -> mangle marks -> routing table awg-russia ->
+    wg-awg-russia (WireGuard) -> veth-awg-ru (172.18.22.2) ->
+    awg-proxy container -> AWG obfuscation -> VPN server Russia -> Internet
+
+  Performance (vs old Go-based catesin/awg-mikrotik):
+    - C-based proxy: 100-150% better throughput
+    - Native WG encryption: ~3x faster than userspace
+    - Minimal container footprint (~200KB)
+
+host_ref: rtr-mikrotik-chateau
+
+# Dedicated veth network for AWG-Proxy Russia
+network:
+  type: dedicated_veth
+  veth_name: veth-awg-ru
+  address: 172.18.22.2/30
+  gateway: 172.18.22.1
+
+runtime:
+  # AWG-Proxy C-based image
+  image: ghcr.io/timbrs/awg-proxy:latest
+  architecture: arm64
+  root_dir: /usb1/containers/awg-proxy-russia
+  start_on_boot: true
+  logging: true
+  privileged: true
+
+  # No mounts needed - awg-proxy uses environment variables
+  mounts: []
+
+  # AWG 3.0 obfuscation parameters (from VPN provider config)
+  env:
+    AWG_LISTEN: ":51820"
+    AWG_REMOTE_REF: secrets.amneziawg_russia.endpoint
+    AWG_JC: "7"
+    AWG_JMIN: "10"
+    AWG_JMAX: "80"
+    AWG_S1: "299"
+    AWG_S2: "838"
+    AWG_S3: "1181"
+    AWG_S4: "12"
+    AWG_H1: "1"
+    AWG_H2: "2"
+    AWG_H3: "3"
+    AWG_H4: "4"
+    AWG_SERVER_PUB_REF: secrets.amneziawg_russia.server_public_key
+    AWG_CLIENT_PUB_REF: secrets.amneziawg_russia.client_public_key
+    AWG_HEADER_PROTECTION_KEY_REF: secrets.amneziawg_russia.header_protection_key
+    AWG_MODE: "normal"
+
+# WireGuard interface on MikroTik side (handles encryption)
+wireguard_interface:
+  name: wg-awg-russia
+  listen_port: 51825
+  private_key_ref: secrets.amneziawg_russia.client_private_key
+  # Tunnel IP assigned by VPN provider
+  address: 100.98.32.29/32
+  peer:
+    public_key_ref: secrets.amneziawg_russia.server_public_key
+    preshared_key_ref: secrets.amneziawg_russia.preshared_key
+    # Endpoint is the awg-proxy container
+    endpoint: 172.18.22.2:51820
+    allowed_ips:
+      - 0.0.0.0/0
+    persistent_keepalive: 25
+
+# Routing policy reference
+routing_policy_ref: inst.routing_policy.vpn_amnezia
+
+# VLAN this container serves
+serves_vlan_ref: inst.vlan.vpn_amnezia
+
+# NAT for VPN tunnel (on WG interface, not container)
+tunnel_nat:
+  enabled: true
+  out_interface: wg-awg-russia
