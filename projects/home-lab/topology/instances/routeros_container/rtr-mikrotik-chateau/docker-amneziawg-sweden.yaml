@@ -4,52 +4,80 @@
 @version: 1.0.0
 source_id: docker-amneziawg-sweden
 notes: |
-  AmneziaWG client container for obfuscated VPN exit to Sweden.
-  Routes traffic from VLAN 58 through AWG tunnel to Swedish server.
-  Uses dedicated veth interface (172.18.21.0/30) isolated from other containers.
+  AWG-Proxy container for obfuscated VPN exit to Sweden.
+  Uses C-based awg-proxy (ghcr.io/timbrs/awg-proxy) for better performance.
+
+  Architecture (v2.0.0 - awg-proxy):
+    - MikroTik native WireGuard interface (wg-awg-sweden) handles encryption
+    - awg-proxy container adds AWG 3.0 obfuscation (S1-S4, H1-H4, HeaderProtectionKey)
+    - Traffic flow: WG interface -> veth -> awg-proxy -> VPN server
 
   Traffic flow:
     VLAN 58 clients -> mangle marks -> routing table awg-sweden ->
-    veth-awg-se (172.18.21.2) -> this container -> AWG tunnel -> Internet
+    wg-awg-sweden (WireGuard) -> veth-awg-se (172.18.23.2) ->
+    awg-proxy container -> AWG obfuscation -> VPN server Sweden -> Internet
 
-  Performance notes:
-    - Current image (catesin/awg-mikrotik) is Go-based
-    - For 100-150% better throughput, consider C-based alternative:
-      ghcr.io/timbrs/awg-proxy:latest (see github.com/timbrs/amneziawg-mikrotik-c)
-    - Native WireGuard on MikroTik is ~3x faster than containerized AWG
-    - ARM64 (IPQ6000) has NEON SIMD but container may not fully utilize it
+  Performance (vs old Go-based catesin/awg-mikrotik):
+    - C-based proxy: 100-150% better throughput
+    - Native WG encryption: ~3x faster than userspace
+    - Minimal container footprint (~200KB)
 
 host_ref: rtr-mikrotik-chateau
 
-# Dedicated veth network for AWG Sweden (isolated from other containers)
+# Dedicated veth network for AWG-Proxy Sweden
 network:
   type: dedicated_veth
   veth_name: veth-awg-se
-  address: 172.18.21.2/30
-  gateway: 172.18.21.1
-  # Router side IP configured in rtr-mikrotik-chateau
+  address: 172.18.23.2/30
+  gateway: 172.18.23.1
 
 runtime:
-  # AmneziaWG MikroTik-compatible image
-  image: catesin/awg-mikrotik:3.0
+  # AWG-Proxy C-based image
+  image: ghcr.io/timbrs/awg-proxy:latest
   architecture: arm64
-  root_dir: /usb1/containers/amneziawg-sweden
+  root_dir: /usb1/containers/awg-proxy-sweden
   start_on_boot: true
   logging: true
+  privileged: true
 
-  # Container mounts for AWG configuration
-  mounts:
-    - name: awg_conf
-      src: /usb1/containers/amneziawg-sweden/config
-      dst: /etc/amnezia/amneziawg
+  # No mounts needed - awg-proxy uses environment variables
+  mounts: []
 
-  env: {}
+  # AWG 3.0 obfuscation parameters (from VPN provider config)
+  env:
+    AWG_LISTEN: ":51820"
+    AWG_REMOTE_REF: secrets.amneziawg_sweden.endpoint
+    AWG_JC: "5"
+    AWG_JMIN: "10"
+    AWG_JMAX: "80"
+    AWG_S1: "438"
+    AWG_S2: "20"
+    AWG_S3: "159"
+    AWG_S4: "12"
+    AWG_H1: "1"
+    AWG_H2: "2"
+    AWG_H3: "3"
+    AWG_H4: "4"
+    AWG_SERVER_PUB_REF: secrets.amneziawg_sweden.server_public_key
+    AWG_CLIENT_PUB_REF: secrets.amneziawg_sweden.client_public_key
+    AWG_HEADER_PROTECTION_KEY_REF: secrets.amneziawg_sweden.header_protection_key
+    AWG_MODE: "normal"
 
-# AWG-specific configuration (stored in mounted config directory)
-awg_config:
-  config_file: awg0.conf
-  parameters:
-    interface: awg0
+# WireGuard interface on MikroTik side (handles encryption)
+wireguard_interface:
+  name: wg-awg-sweden
+  listen_port: 51824
+  private_key_ref: secrets.amneziawg_sweden.client_private_key
+  # Tunnel IP assigned by VPN provider
+  address: 100.98.75.120/32
+  peer:
+    public_key_ref: secrets.amneziawg_sweden.server_public_key
+    preshared_key_ref: secrets.amneziawg_sweden.preshared_key
+    # Endpoint is the awg-proxy container
+    endpoint: 172.18.23.2:51820
+    allowed_ips:
+      - 0.0.0.0/0
+    persistent_keepalive: 25
 
 # Routing policy reference
 routing_policy_ref: inst.routing_policy.vpn_sweden
@@ -57,7 +85,7 @@ routing_policy_ref: inst.routing_policy.vpn_sweden
 # VLAN this container serves
 serves_vlan_ref: inst.vlan.vpn_sweden
 
-# NAT configuration on container (iptables inside container)
-container_nat:
+# NAT for VPN tunnel (on WG interface, not container)
+tunnel_nat:
   enabled: true
-  masquerade_interface: awg0
+  out_interface: wg-awg-sweden

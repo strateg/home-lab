@@ -1,35 +1,40 @@
 @instance: inst.routing_policy.vpn_sweden
 @extends: obj.network.routing_policy.vpn_vlan
 @group: network
-@version: 1.1.0
+@version: 1.0.0
 source_id: policy-vpn-sweden
 status: active
 notes: |
-  Routes all traffic from VLAN 58 (VPN Sweden) through AmneziaWG container.
-  Container runs on veth interface and tunnels traffic via AWG protocol.
+  Routes all traffic from VLAN 58 (VPN Sweden) through AWG-Proxy architecture.
+
+  Architecture (v2.0.0 - awg-proxy):
+    - MikroTik native WireGuard handles encryption (wg-awg-sweden)
+    - awg-proxy container adds AWG 3.0 obfuscation
+    - Traffic routes directly to WG interface (not veth)
 
   Traffic flow:
     Client (192.168.58.x) -> vlan58 -> mangle mark ->
-    routing table awg-sweden -> veth-awg-se (172.18.21.2) ->
-    AmneziaWG container -> AWG tunnel -> VPN server Sweden -> Internet
+    routing table awg-sweden -> wg-awg-sweden (WireGuard) ->
+    awg-proxy container (172.18.23.2) -> AWG obfuscation ->
+    VPN server Sweden -> Internet
 
+  v2.0.0: Migrated to awg-proxy with native WireGuard routing
   v1.1.0: Use vlan_ref instead of hardcoded CIDRs (ADR-0111 extension)
 
 # Policy identification
 policy_name: vpn-sweden-routing
-policy_description: Route VLAN 58 traffic through AmneziaWG Sweden container
+policy_description: Route VLAN 58 traffic through AWG-Proxy Sweden
 
 # Source: VLAN 58 subnet (CIDR resolved from vlan_ref)
 source_match:
   type: subnet
   vlan_ref: inst.vlan.vpn_sweden
 
-# Target: AmneziaWG Sweden container via veth
+# Target: WireGuard interface (native MikroTik WG, not container veth)
 target_gateway:
-  type: container_veth
-  value: veth-awg-se
+  type: wireguard_interface
+  value: wg-awg-sweden
   container_ref: docker-amneziawg-sweden
-  next_hop: 172.18.21.2
 
 # Routing mark (unique for AWG Sweden)
 routing_mark: "0x3A"
@@ -59,33 +64,40 @@ mikrotik_config:
     name: awg-sweden
     fib: true
 
-  # 3. Route in AWG routing table -> container veth
+  # 3. Route in AWG routing table -> WireGuard interface
   routes:
     - dst_address: 0.0.0.0/0
-      gateway: 172.18.21.2
+      gateway: wg-awg-sweden
       routing_table: awg-sweden
 
-  # 4. Static route for VPN endpoint via WAN (prevent routing loop)
-  #    NOTE: Not needed for container-based AWG. Container handles this via
-  #    PreUp script in awg0.conf: "ip route add <endpoint> via 172.18.21.1"
-  #    MikroTik default route (from DHCP) handles the rest.
-  #    Removed endpoint_routes - was using gateway=ether1 which doesn't work
-  #    when MikroTik is behind NAT (WAN via DHCP from upstream router).
-
-  # 5. MSS clamping for tunnel MTU issues
+  # 4. MSS clamping for tunnel MTU issues
   mss_clamp:
     chain: forward
-    out_interface: veth-awg-se
-    new_mss: 1340
+    out_interface: wg-awg-sweden
+    new_mss: 1360
 
-  # 6. Firewall rules for container traffic and isolation
+  # 5. Firewall rules for tunnel traffic and isolation
   firewall_rules:
+    # Allow VPN VLAN to tunnel egress
+    - chain: forward
+      action: accept
+      src_vlan_ref: inst.vlan.vpn_sweden
+      out_interface: wg-awg-sweden
+      comment: "VPN-Sweden tunnel egress"
+      priority: high
+    # Allow tunnel ingress to VPN VLAN
+    - chain: forward
+      action: accept
+      in_interface: wg-awg-sweden
+      dst_vlan_ref: inst.vlan.vpn_sweden
+      comment: "VPN-Sweden tunnel ingress"
+      priority: high
     # Container must reach VPN endpoint via WAN
     - chain: forward
       action: accept
       in_interface: veth-awg-se
       out_interface: ether1
-      comment: "AWG Sweden container WAN egress - allow VPN tunnel establishment"
+      comment: "AWG-Proxy Sweden container WAN egress"
       priority: high
     # Isolation rules (ADR-0110) - VPN VLAN must not access internal networks
     # Block access to LAN (legacy user network)
@@ -124,21 +136,26 @@ mikrotik_config:
       src_vlan_ref: inst.vlan.vpn_sweden
       dst_vlan_ref: inst.vlan.vpn_germany
       comment: "VPN-Sweden: block access to VPN-Germany"
-    # Kill-switch: block direct WAN egress (must go through container)
+    # Kill-switch: block direct WAN egress (must go through tunnel)
     - chain: forward
       action: drop
       src_vlan_ref: inst.vlan.vpn_sweden
       out_interface: ether1
       comment: "VPN-Sweden kill-switch: block direct WAN"
 
-  # 7. NAT rule for container traffic to WAN
-  #    Masquerade container traffic going to ether1
+  # 6. NAT rules
   nat_rules:
+    # NAT for VPN tunnel (masquerade to tunnel IP)
     - chain: srcnat
       action: masquerade
-      src_address: 172.18.21.0/30
+      out_interface: wg-awg-sweden
+      comment: "NAT for VPN-Sweden tunnel"
+    # NAT for container traffic to WAN (for VPN endpoint connection)
+    - chain: srcnat
+      action: masquerade
+      src_address: 172.18.23.0/30
       out_interface: ether1
-      comment: "NAT for AWG Sweden container WAN egress"
+      comment: "NAT for AWG-Proxy Sweden container WAN egress"
 
 # Managed by
 managed_by_ref: rtr-mikrotik-chateau
