@@ -46,7 +46,7 @@ runtime:
   # AWG 3.0 obfuscation parameters (from VPN provider config)
   env:
     AWG_LISTEN: ":51820"
-    AWG_REMOTE_REF: secrets.amneziawg_sweden.endpoint
+    AWG_REMOTE_REF: secrets.mikrotik.amneziawg.sweden.endpoint
     AWG_JC: "5"
     AWG_JMIN: "10"
     AWG_JMAX: "80"
@@ -58,21 +58,21 @@ runtime:
     AWG_H2: "2"
     AWG_H3: "3"
     AWG_H4: "4"
-    AWG_SERVER_PUB_REF: secrets.amneziawg_sweden.server_public_key
-    AWG_CLIENT_PUB_REF: secrets.amneziawg_sweden.client_public_key
-    AWG_HEADER_PROTECTION_KEY_REF: secrets.amneziawg_sweden.header_protection_key
+    AWG_SERVER_PUB_REF: secrets.mikrotik.amneziawg.sweden.server_public_key
+    AWG_CLIENT_PUB_REF: secrets.mikrotik.amneziawg.sweden.client_public_key
+    AWG_HEADER_PROTECTION_KEY_REF: secrets.mikrotik.amneziawg.sweden.header_protection_key
     AWG_MODE: "normal"
 
 # WireGuard interface on MikroTik side (handles encryption)
 wireguard_interface:
   name: wg-awg-sweden
   listen_port: 51824
-  private_key_ref: secrets.amneziawg_sweden.client_private_key
+  private_key_ref: secrets.mikrotik.amneziawg.sweden.client_private_key
   # Tunnel IP assigned by VPN provider
   address: 100.98.75.120/32
   peer:
-    public_key_ref: secrets.amneziawg_sweden.server_public_key
-    preshared_key_ref: secrets.amneziawg_sweden.preshared_key
+    public_key_ref: secrets.mikrotik.amneziawg.sweden.server_public_key
+    preshared_key_ref: secrets.mikrotik.amneziawg.sweden.preshared_key
     # Endpoint is the awg-proxy container
     endpoint: 172.18.23.2:51820
     allowed_ips:

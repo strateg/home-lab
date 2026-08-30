@@ -37,8 +37,8 @@ features:
 
 # External VPN server connection details
 vpn_server:
-  endpoint_ref: secrets.amneziawg_russia.endpoint
-  awg_params_ref: secrets.amneziawg_russia.params
+  endpoint_ref: secrets.mikrotik.amneziawg.russia.endpoint
+  # AWG parameters are inline in container definition
 
 # Serves this VLAN
 serves_vlan_ref: inst.vlan.vpn_amnezia
