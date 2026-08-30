@@ -196,6 +196,10 @@ def _build_mikrotik_values(payload: dict[str, Any]) -> dict[str, Any]:
         result["wifi_main_passphrase"] = wifi["main_passphrase"]
     if wifi.get("vpn_germany_passphrase"):
         result["wifi_vpn_germany_passphrase"] = wifi["vpn_germany_passphrase"]
+    if wifi.get("vpn_russia_passphrase"):
+        result["wifi_vpn_russia_passphrase"] = wifi["vpn_russia_passphrase"]
+    if wifi.get("vpn_sweden_passphrase"):
+        result["wifi_vpn_sweden_passphrase"] = wifi["vpn_sweden_passphrase"]
     if wifi.get("guest_passphrase"):
         result["wifi_guest_passphrase"] = wifi["guest_passphrase"]
     if wifi.get("iot_passphrase"):
