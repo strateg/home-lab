@@ -66,12 +66,11 @@ mikrotik_config:
       routing_table: awg-russia
 
   # 4. Static route for VPN endpoint via WAN (prevent routing loop)
-  #    Container must reach VPN server directly, not through AWG tunnel.
-  endpoint_routes:
-    - dst_address: 178.130.51.136/32
-      gateway: ether1
-      distance: 1
-      comment: "AmneziaWG Russia endpoint - bypass tunnel"
+  #    NOTE: Not needed for container-based AWG. Container handles this via
+  #    PreUp script in awg0.conf: "ip route add <endpoint> via 172.18.20.1"
+  #    MikroTik default route (from DHCP) handles the rest.
+  #    Removed endpoint_routes - was using gateway=ether1 which doesn't work
+  #    when MikroTik is behind NAT (WAN via DHCP from upstream router).
 
   # 5. MSS clamping for tunnel MTU issues
   mss_clamp:
