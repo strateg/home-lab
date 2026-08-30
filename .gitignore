@@ -191,3 +191,7 @@ amnezia*.conf
 *.wg.conf
 awg*.conf
 configs/mikrotik/containers/amneziawg/awg0.conf
+
+# VPN config files with secrets
+*.conf
+!configs/**/*.conf
