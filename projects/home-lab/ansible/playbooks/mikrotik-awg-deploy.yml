@@ -1,0 +1,326 @@
+---
+# AmneziaWG (AWG) Tunnel Deployment for MikroTik
+#
+# Deploys/updates AWG WireGuard interfaces, peers, and container environments.
+# This playbook manages AWG tunnels (Russia, Sweden) via REST API.
+#
+# Usage:
+#   # Deploy all AWG tunnels
+#   ansible-playbook -i inventory playbooks/mikrotik-awg-deploy.yml
+#
+#   # Deploy only Russia tunnel
+#   ansible-playbook -i inventory playbooks/mikrotik-awg-deploy.yml --tags russia
+#
+#   # Deploy only Sweden tunnel
+#   ansible-playbook -i inventory playbooks/mikrotik-awg-deploy.yml --tags sweden
+#
+#   # Dry run (check mode)
+#   ansible-playbook -i inventory playbooks/mikrotik-awg-deploy.yml --check
+#
+# Requirements:
+#   - MikroTik with RouterOS 7.x
+#   - Container package installed
+#   - AWG secrets in secrets/terraform/mikrotik.yaml
+
+- name: Deploy AmneziaWG Tunnels to MikroTik
+  hosts: rtr-mikrotik-chateau
+  gather_facts: false
+  connection: local
+
+  vars:
+    mikrotik_api_url: "https://{{ ansible_host }}:{{ mikrotik_api_port | default(443) }}"
+
+    # AWG tunnel definitions
+    awg_tunnels:
+      russia:
+        wg_interface: wg-awg-russia
+        wg_listen_port: 51825
+        container_name: awg-proxy-russia
+        container_veth: veth-awg-ru
+        container_ip: 172.18.22.2
+        tunnel_address: "{{ awg_secrets.amneziawg.russia.tunnel_address }}"
+        client_private_key: "{{ awg_secrets.amneziawg.russia.client_private_key }}"
+        client_public_key: "{{ awg_secrets.amneziawg.russia.client_public_key }}"
+        server_public_key: "{{ awg_secrets.amneziawg.russia.server_public_key }}"
+        preshared_key: "{{ awg_secrets.amneziawg.russia.preshared_key }}"
+        endpoint: "{{ awg_secrets.amneziawg.russia.endpoint }}"
+        header_protection_key: "{{ awg_secrets.amneziawg.russia.header_protection_key }}"
+        awg_params:
+          jc: "7"
+          jmin: "10"
+          jmax: "80"
+          s1: "299"
+          s2: "838"
+          s3: "1181"
+          s4: "12"
+          h1: "1"
+          h2: "2"
+          h3: "3"
+          h4: "4"
+        tags: [russia, awg]
+
+      sweden:
+        wg_interface: wg-awg-sweden
+        wg_listen_port: 51824
+        container_name: awg-proxy-sweden
+        container_veth: veth-awg-se
+        container_ip: 172.18.23.2
+        tunnel_address: "{{ awg_secrets.amneziawg.sweden.tunnel_address }}"
+        client_private_key: "{{ awg_secrets.amneziawg.sweden.client_private_key | default(awg_secrets.amneziawg.russia.client_private_key) }}"
+        client_public_key: "{{ awg_secrets.amneziawg.sweden.client_public_key | default(awg_secrets.amneziawg.russia.client_public_key) }}"
+        server_public_key: "{{ awg_secrets.amneziawg.sweden.server_public_key }}"
+        preshared_key: "{{ awg_secrets.amneziawg.sweden.preshared_key }}"
+        endpoint: "{{ awg_secrets.amneziawg.sweden.endpoint }}"
+        header_protection_key: "{{ awg_secrets.amneziawg.sweden.header_protection_key }}"
+        awg_params:
+          jc: "5"
+          jmin: "10"
+          jmax: "80"
+          s1: "438"
+          s2: "20"
+          s3: "159"
+          s4: "12"
+          h1: "1"
+          h2: "2"
+          h3: "3"
+          h4: "4"
+        tags: [sweden, awg]
+
+  pre_tasks:
+    - name: Load MikroTik API credentials and AWG secrets from SOPS
+      community.sops.load_vars:
+        file: "{{ playbook_dir }}/../../secrets/terraform/mikrotik.yaml"
+        name: awg_secrets
+      delegate_to: localhost
+      tags: [always]
+
+    - name: Set MikroTik API credentials
+      ansible.builtin.set_fact:
+        mikrotik_user: "{{ awg_secrets.mikrotik.username }}"
+        mikrotik_password: "{{ awg_secrets.mikrotik.password }}"
+      tags: [always]
+
+  tasks:
+    # =========================================================================
+    # AWG Russia Tunnel
+    # =========================================================================
+
+    - name: Deploy AWG Russia tunnel
+      tags: [russia, awg]
+      block:
+        - name: "[Russia] Get WireGuard interface"
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/interface/wireguard?name={{ awg_tunnels.russia.wg_interface }}"
+            method: GET
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            return_content: true
+          register: wg_russia_interface
+
+        - name: "[Russia] Update WireGuard interface private key"
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/interface/wireguard/{{ wg_russia_interface.json[0]['.id'] }}"
+            method: PATCH
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            body_format: json
+            body:
+              private-key: "{{ awg_tunnels.russia.client_private_key }}"
+            status_code: [200, 201]
+          when: wg_russia_interface.json | length > 0
+          register: wg_russia_updated
+          changed_when: wg_russia_updated.status in [200, 201]
+
+        - name: "[Russia] Get WireGuard peer"
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/interface/wireguard/peers?interface={{ awg_tunnels.russia.wg_interface }}"
+            method: GET
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            return_content: true
+          register: wg_russia_peer
+
+        - name: "[Russia] Update WireGuard peer keys"
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/interface/wireguard/peers/{{ wg_russia_peer.json[0]['.id'] }}"
+            method: PATCH
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            body_format: json
+            body:
+              public-key: "{{ awg_tunnels.russia.server_public_key }}"
+              preshared-key: "{{ awg_tunnels.russia.preshared_key }}"
+            status_code: [200, 201]
+          when: wg_russia_peer.json | length > 0
+          register: wg_russia_peer_updated
+          changed_when: wg_russia_peer_updated.status in [200, 201]
+
+        - name: "[Russia] Get container info"
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/container?name={{ awg_tunnels.russia.container_name }}"
+            method: GET
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            return_content: true
+          register: container_russia
+
+        - name: "[Russia] Stop container for env update"
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/container/stop"
+            method: POST
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            body_format: json
+            body:
+              .id: "{{ container_russia.json[0]['.id'] }}"
+            status_code: [200, 201, 400]
+          when: container_russia.json | length > 0 and container_russia.json[0].running == 'true'
+          register: container_russia_stopped
+
+        - name: "[Russia] Wait for container to stop"
+          ansible.builtin.pause:
+            seconds: 3
+          when: container_russia_stopped is changed
+
+        - name: "[Russia] Build container env string"
+          ansible.builtin.set_fact:
+            russia_env_string: >-
+              AWG_LISTEN=:51820,AWG_REMOTE={{ awg_tunnels.russia.endpoint }},AWG_JC={{ awg_tunnels.russia.awg_params.jc }},AWG_JMIN={{ awg_tunnels.russia.awg_params.jmin }},AWG_JMAX={{ awg_tunnels.russia.awg_params.jmax }},AWG_S1={{ awg_tunnels.russia.awg_params.s1 }},AWG_S2={{ awg_tunnels.russia.awg_params.s2 }},AWG_S3={{ awg_tunnels.russia.awg_params.s3 }},AWG_S4={{ awg_tunnels.russia.awg_params.s4 }},AWG_H1={{ awg_tunnels.russia.awg_params.h1 }},AWG_H2={{ awg_tunnels.russia.awg_params.h2 }},AWG_H3={{ awg_tunnels.russia.awg_params.h3 }},AWG_H4={{ awg_tunnels.russia.awg_params.h4 }},AWG_SERVER_PUB={{ awg_tunnels.russia.server_public_key }},AWG_CLIENT_PUB={{ awg_tunnels.russia.client_public_key }},AWG_HEADER_PROTECTION_KEY={{ awg_tunnels.russia.header_protection_key }},AWG_MODE=normal
+
+        - name: "[Russia] Update container environment"
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/container/{{ container_russia.json[0]['.id'] }}"
+            method: PATCH
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            body_format: json
+            body:
+              env: "{{ russia_env_string | regex_replace('\\s+', '') }}"
+            status_code: [200, 201]
+          when: container_russia.json | length > 0
+          register: container_russia_env_updated
+          changed_when: container_russia_env_updated.status in [200, 201]
+
+        - name: "[Russia] Start container"
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/container/start"
+            method: POST
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            body_format: json
+            body:
+              .id: "{{ container_russia.json[0]['.id'] }}"
+            status_code: [200, 201, 400]
+          when: container_russia.json | length > 0
+
+        - name: "[Russia] Wait for container to start"
+          ansible.builtin.pause:
+            seconds: 5
+
+    # =========================================================================
+    # AWG Sweden Tunnel (similar structure)
+    # =========================================================================
+
+    - name: Deploy AWG Sweden tunnel
+      tags: [sweden, awg]
+      block:
+        - name: "[Sweden] Get WireGuard interface"
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/interface/wireguard?name={{ awg_tunnels.sweden.wg_interface }}"
+            method: GET
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            return_content: true
+          register: wg_sweden_interface
+
+        - name: "[Sweden] Update WireGuard interface private key"
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/interface/wireguard/{{ wg_sweden_interface.json[0]['.id'] }}"
+            method: PATCH
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            body_format: json
+            body:
+              private-key: "{{ awg_tunnels.sweden.client_private_key }}"
+            status_code: [200, 201]
+          when: wg_sweden_interface.json | length > 0
+          register: wg_sweden_updated
+
+        - name: "[Sweden] Get WireGuard peer"
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/interface/wireguard/peers?interface={{ awg_tunnels.sweden.wg_interface }}"
+            method: GET
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            return_content: true
+          register: wg_sweden_peer
+
+        - name: "[Sweden] Update WireGuard peer keys"
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/interface/wireguard/peers/{{ wg_sweden_peer.json[0]['.id'] }}"
+            method: PATCH
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            body_format: json
+            body:
+              public-key: "{{ awg_tunnels.sweden.server_public_key }}"
+              preshared-key: "{{ awg_tunnels.sweden.preshared_key }}"
+            status_code: [200, 201]
+          when: wg_sweden_peer.json | length > 0
+
+    # =========================================================================
+    # Verification
+    # =========================================================================
+
+    - name: Verify AWG tunnel status
+      tags: [always, verify]
+      block:
+        - name: Get WireGuard peers status
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/interface/wireguard/peers"
+            method: GET
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            return_content: true
+          register: all_wg_peers
+
+        - name: Display AWG tunnel status
+          ansible.builtin.debug:
+            msg: |
+              AWG Tunnel Status:
+              ==================
+              {% for peer in all_wg_peers.json %}
+              {% if 'awg' in peer.interface %}
+              Interface: {{ peer.interface }}
+                Public Key: {{ peer['public-key'][:20] }}...
+                Last Handshake: {{ peer['last-handshake'] | default('never') }}
+                RX: {{ peer.rx | default('0') }}
+                TX: {{ peer.tx | default('0') }}
+              {% endif %}
+              {% endfor %}
