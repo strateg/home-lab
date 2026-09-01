@@ -101,10 +101,41 @@ vpn_exit_profiles:
       - 10.100.1.6/32  # Jolla vpn-estonia
     next_hop: 10.100.1.1  # Chateau wg1 tunnel IP
     routing_table: estonia_chain
+    table_id: 100
     ip_rules:
       - "ip rule add from 10.100.1.6 lookup estonia_chain priority 100"
     ip_routes:
       - "ip route add default via 10.100.1.1 dev wg1 table estonia_chain"
+
+  # Russia Chain: policy route through Chateau -> AWG Russia
+  russia_chain:
+    description: Chained exit via Russian IP (Chateau -> AWG Russia)
+    tunnel_interface: wg1
+    mode: policy_route
+    clients:
+      - 10.100.1.7/32  # Jolla vpn-russia
+    next_hop: 10.100.1.1  # Chateau wg1 tunnel IP
+    routing_table: russia_chain
+    table_id: 101
+    ip_rules:
+      - "ip rule add from 10.100.1.7 lookup russia_chain priority 101"
+    ip_routes:
+      - "ip route add default via 10.100.1.1 dev wg1 table russia_chain"
+
+  # Sweden Chain: policy route through Chateau -> AWG Sweden
+  sweden_chain:
+    description: Chained exit via Swedish IP (Chateau -> AWG Sweden)
+    tunnel_interface: wg1
+    mode: policy_route
+    clients:
+      - 10.100.1.8/32  # Jolla vpn-sweden
+    next_hop: 10.100.1.1  # Chateau wg1 tunnel IP
+    routing_table: sweden_chain
+    table_id: 102
+    ip_rules:
+      - "ip rule add from 10.100.1.8 lookup sweden_chain priority 102"
+    ip_routes:
+      - "ip route add default via 10.100.1.1 dev wg1 table sweden_chain"
 
 # Capabilities from cloud provider
 enabled_capabilities:

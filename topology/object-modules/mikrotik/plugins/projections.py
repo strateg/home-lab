@@ -915,7 +915,9 @@ def _extract_wireguard_tunnels(
                 interface_address = f"{local_ip}/30"
 
         local_role = str(local_endpoint.get("role", "")).strip()
-        listen_port = int(local_endpoint.get("listen_port", 0) or 0) if local_role == "server" else 0
+        # Use explicit listen_port if set, otherwise 0 for client mode
+        # (ADR-0112: clients can have listen_port for legacy peer support)
+        listen_port = int(local_endpoint.get("listen_port", 0) or 0)
         mtu = int(inst_data.get("mtu", 1420) or 1420)
 
         # Build peer config for remote endpoint

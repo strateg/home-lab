@@ -11,7 +11,11 @@
 # WireGuard Interface: {{ iface.name }}
 resource "routeros_interface_wireguard" "{{ iface.name }}" {
   name        = "{{ iface.name }}"
-  listen_port = {{ iface.listen_port if iface.listen_port else (51820 + loop.index0) }}
+{% if iface.listen_port and iface.listen_port > 0 %}
+  listen_port = {{ iface.listen_port }}
+{% else %}
+  listen_port = {{ 13230 + loop.index }}  # Client mode: arbitrary port (not listening for incoming)
+{% endif %}
   private_key = var.wireguard_{{ iface.name }}_private_key
   mtu         = {{ iface.mtu if iface.mtu else 1420 }}
   comment     = "WireGuard {{ iface.name }} - managed by topology"
