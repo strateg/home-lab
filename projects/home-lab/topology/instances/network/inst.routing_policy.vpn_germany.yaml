@@ -81,11 +81,15 @@ mikrotik_config:
     comment: "VPN-Germany fasttrack"
 
   # 6. Notrack for WireGuard UDP (bypass conntrack for better performance)
+  #    IMPORTANT: in_interface=ether1 restricts to WAN-originated packets only.
+  #    Without this, transit traffic from LAN to VPS:51821 would be notracked,
+  #    breaking NAT/masquerade (conntrack required for NAT).
   notrack:
     - chain: prerouting
       protocol: udp
       dst_port: 51821
-      comment: "WireGuard wg1 notrack inbound"
+      in_interface: ether1
+      comment: "WireGuard wg1 notrack inbound from WAN"
     - chain: output
       protocol: udp
       src_port: 51821

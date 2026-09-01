@@ -236,6 +236,12 @@ resource "routeros_ip_firewall_raw" "{{ policy.name }}_notrack_{{ loop.index }}"
 {% if rule.get('dst_address') %}
   dst_address = "{{ rule.get('dst_address') }}"
 {% endif %}
+{% if rule.get('in_interface') %}
+  in_interface = "{{ rule.get('in_interface') }}"
+{% endif %}
+{% if rule.get('out_interface') %}
+  out_interface = "{{ rule.get('out_interface') }}"
+{% endif %}
   comment  = "{{ rule.get('comment', policy.policy_name + ' notrack') }} - managed by topology"
 }
 {% endfor %}
