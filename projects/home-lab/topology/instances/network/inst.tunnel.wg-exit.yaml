@@ -80,8 +80,7 @@ road_warrior_peers:
         dns: "1.1.1.1, 1.0.0.1"
         exit_mode: direct
         exit_country: DE
-        # Fix routing loop when AllowedIPs=0.0.0.0/0 captures endpoint traffic
-        preserve_endpoint_route: true
+        # Mobile client - no PreUp needed (connects via mobile network)
 
       - name: vpn-estonia
         description: "Exit via Estonian IP (MikroTik WAN)"
@@ -94,8 +93,7 @@ road_warrior_peers:
         exit_mode: chained
         exit_country: EE
         next_hop: 10.100.1.1
-        # Fix routing loop when client is on same network as exit node
-        preserve_endpoint_route: true
+        # Mobile client - no PreUp needed (connects via mobile network)
 
       - name: vpn-russia
         description: "Exit via Russian IP (MikroTik AWG Russia)"
@@ -108,7 +106,7 @@ road_warrior_peers:
         exit_mode: chained
         exit_country: RU
         next_hop: 10.100.1.1
-        preserve_endpoint_route: true
+        # Mobile client - no PreUp needed (connects via mobile network)
         # MikroTik routes this to AWG Russia tunnel (wg-awg-russia)
         mikrotik_routing_table: awg-russia
 
@@ -123,7 +121,7 @@ road_warrior_peers:
         exit_mode: chained
         exit_country: SE
         next_hop: 10.100.1.1
-        preserve_endpoint_route: true
+        # Mobile client - no PreUp needed (connects via mobile network)
         # MikroTik routes this to AWG Sweden tunnel (wg-awg-sweden)
         mikrotik_routing_table: awg-sweden
 
