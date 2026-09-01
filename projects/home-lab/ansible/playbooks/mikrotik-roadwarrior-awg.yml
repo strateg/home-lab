@@ -1,0 +1,274 @@
+---
+# Road-warrior AWG routing for MikroTik
+#
+# Deploys mangle and firewall rules for routing traffic from wg1 road-warriors
+# (10.100.1.7 -> AWG Russia, 10.100.1.8 -> AWG Sweden)
+#
+# Usage:
+#   cd projects/home-lab/ansible
+#   ansible-playbook -i inventory-overrides/production/hosts.yml playbooks/mikrotik-roadwarrior-awg.yml
+#   ansible-playbook -i inventory-overrides/production/hosts.yml playbooks/mikrotik-roadwarrior-awg.yml --tags russia
+#   ansible-playbook -i inventory-overrides/production/hosts.yml playbooks/mikrotik-roadwarrior-awg.yml --tags sweden
+
+- name: Configure road-warrior AWG routing on MikroTik
+  hosts: rtr-mikrotik-chateau
+  gather_facts: false
+  connection: local
+
+  vars:
+    mikrotik_api_url: "https://{{ ansible_host }}:{{ mikrotik_api_port | default(443) }}"
+
+    # Road-warrior profiles that chain through AWG tunnels
+    roadwarrior_routes:
+      russia:
+        source_ip: 10.100.1.7
+        routing_mark: awg-russia
+        wg_interface: wg-awg-russia
+        comment_prefix: "RW-Russia"
+        tags: [russia, awg]
+      sweden:
+        source_ip: 10.100.1.8
+        routing_mark: awg-sweden
+        wg_interface: wg-awg-sweden
+        comment_prefix: "RW-Sweden"
+        tags: [sweden, awg]
+
+  pre_tasks:
+    - name: Load MikroTik API credentials from SOPS
+      community.sops.load_vars:
+        file: "{{ playbook_dir }}/../../secrets/terraform/mikrotik.yaml"
+        name: mikrotik_secrets
+      delegate_to: localhost
+      tags: [always]
+
+    - name: Set MikroTik API credentials
+      ansible.builtin.set_fact:
+        mikrotik_user: "{{ mikrotik_secrets.mikrotik.username }}"
+        mikrotik_password: "{{ mikrotik_secrets.mikrotik.password }}"
+      tags: [always]
+
+  tasks:
+    # =========================================================================
+    # Russia road-warrior routing
+    # =========================================================================
+    - name: Deploy Russia road-warrior routing
+      tags: [russia, awg]
+      block:
+        - name: "[Russia] Check mangle rule exists"
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/ip/firewall/mangle?comment={{ roadwarrior_routes.russia.comment_prefix }}:+route+to+AWG"
+            method: GET
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            return_content: true
+          register: russia_mangle_check
+
+        - name: "[Russia] Create mangle rule for routing"
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/ip/firewall/mangle"
+            method: PUT
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            body_format: json
+            body:
+              chain: prerouting
+              in-interface: wg1
+              src-address: "{{ roadwarrior_routes.russia.source_ip }}"
+              action: mark-routing
+              new-routing-mark: "{{ roadwarrior_routes.russia.routing_mark }}"
+              passthrough: "false"
+              comment: "{{ roadwarrior_routes.russia.comment_prefix }}: route to AWG"
+            status_code: [200, 201]
+          when: russia_mangle_check.json | length == 0
+          register: russia_mangle_created
+
+        - name: "[Russia] Check forward accept rule (egress)"
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/ip/firewall/filter?comment={{ roadwarrior_routes.russia.comment_prefix }}:+forward+egress"
+            method: GET
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            return_content: true
+          register: russia_fw_egress_check
+
+        - name: "[Russia] Create forward accept rule (egress)"
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/ip/firewall/filter"
+            method: PUT
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            body_format: json
+            body:
+              chain: forward
+              action: accept
+              in-interface: wg1
+              out-interface: "{{ roadwarrior_routes.russia.wg_interface }}"
+              src-address: "{{ roadwarrior_routes.russia.source_ip }}"
+              comment: "{{ roadwarrior_routes.russia.comment_prefix }}: forward egress"
+            status_code: [200, 201]
+          when: russia_fw_egress_check.json | length == 0
+
+        - name: "[Russia] Check forward accept rule (ingress)"
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/ip/firewall/filter?comment={{ roadwarrior_routes.russia.comment_prefix }}:+forward+ingress"
+            method: GET
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            return_content: true
+          register: russia_fw_ingress_check
+
+        - name: "[Russia] Create forward accept rule (ingress)"
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/ip/firewall/filter"
+            method: PUT
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            body_format: json
+            body:
+              chain: forward
+              action: accept
+              in-interface: "{{ roadwarrior_routes.russia.wg_interface }}"
+              out-interface: wg1
+              dst-address: "{{ roadwarrior_routes.russia.source_ip }}"
+              comment: "{{ roadwarrior_routes.russia.comment_prefix }}: forward ingress"
+            status_code: [200, 201]
+          when: russia_fw_ingress_check.json | length == 0
+
+    # =========================================================================
+    # Sweden road-warrior routing
+    # =========================================================================
+    - name: Deploy Sweden road-warrior routing
+      tags: [sweden, awg]
+      block:
+        - name: "[Sweden] Check mangle rule exists"
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/ip/firewall/mangle?comment={{ roadwarrior_routes.sweden.comment_prefix }}:+route+to+AWG"
+            method: GET
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            return_content: true
+          register: sweden_mangle_check
+
+        - name: "[Sweden] Create mangle rule for routing"
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/ip/firewall/mangle"
+            method: PUT
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            body_format: json
+            body:
+              chain: prerouting
+              in-interface: wg1
+              src-address: "{{ roadwarrior_routes.sweden.source_ip }}"
+              action: mark-routing
+              new-routing-mark: "{{ roadwarrior_routes.sweden.routing_mark }}"
+              passthrough: "false"
+              comment: "{{ roadwarrior_routes.sweden.comment_prefix }}: route to AWG"
+            status_code: [200, 201]
+          when: sweden_mangle_check.json | length == 0
+          register: sweden_mangle_created
+
+        - name: "[Sweden] Check forward accept rule (egress)"
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/ip/firewall/filter?comment={{ roadwarrior_routes.sweden.comment_prefix }}:+forward+egress"
+            method: GET
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            return_content: true
+          register: sweden_fw_egress_check
+
+        - name: "[Sweden] Create forward accept rule (egress)"
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/ip/firewall/filter"
+            method: PUT
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            body_format: json
+            body:
+              chain: forward
+              action: accept
+              in-interface: wg1
+              out-interface: "{{ roadwarrior_routes.sweden.wg_interface }}"
+              src-address: "{{ roadwarrior_routes.sweden.source_ip }}"
+              comment: "{{ roadwarrior_routes.sweden.comment_prefix }}: forward egress"
+            status_code: [200, 201]
+          when: sweden_fw_egress_check.json | length == 0
+
+        - name: "[Sweden] Check forward accept rule (ingress)"
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/ip/firewall/filter?comment={{ roadwarrior_routes.sweden.comment_prefix }}:+forward+ingress"
+            method: GET
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            return_content: true
+          register: sweden_fw_ingress_check
+
+        - name: "[Sweden] Create forward accept rule (ingress)"
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/ip/firewall/filter"
+            method: PUT
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            body_format: json
+            body:
+              chain: forward
+              action: accept
+              in-interface: "{{ roadwarrior_routes.sweden.wg_interface }}"
+              out-interface: wg1
+              dst-address: "{{ roadwarrior_routes.sweden.source_ip }}"
+              comment: "{{ roadwarrior_routes.sweden.comment_prefix }}: forward ingress"
+            status_code: [200, 201]
+          when: sweden_fw_ingress_check.json | length == 0
+
+    # =========================================================================
+    # Verification
+    # =========================================================================
+    - name: Verify road-warrior AWG routing
+      tags: [always, verify]
+      block:
+        - name: Get mangle rules
+          ansible.builtin.uri:
+            url: "{{ mikrotik_api_url }}/rest/ip/firewall/mangle?in-interface=wg1"
+            method: GET
+            user: "{{ mikrotik_user }}"
+            password: "{{ mikrotik_password }}"
+            force_basic_auth: true
+            validate_certs: false
+            return_content: true
+          register: mangle_rules
+
+        - name: Display mangle rules
+          ansible.builtin.debug:
+            msg: |
+              Road-warrior AWG Mangle Rules (wg1):
+              =====================================
+              {% for rule in mangle_rules.json %}
+              {{ rule.comment | default('No comment') }}
+                src: {{ rule['src-address'] | default('any') }}
+                action: {{ rule.action }}
+                routing-mark: {{ rule['new-routing-mark'] | default('none') }}
+              {% endfor %}

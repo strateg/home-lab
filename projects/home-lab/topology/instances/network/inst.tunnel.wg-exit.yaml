@@ -5,15 +5,18 @@
 source_id: inst.tunnel.wg-exit
 status: active
 notes: |
-  WireGuard EXIT tunnel (wg1) for ESTONIA exit traffic ONLY.
-  PURPOSE: Estonian IP exit. ISOLATED from LAN - no local access.
+  WireGuard EXIT tunnel (wg1) for chained exit traffic.
+  PURPOSE: Exit through MikroTik (Estonia/Russia/Sweden). ISOLATED from LAN.
 
   Architecture (ADR-0112):
     - wg0: Admin tunnel + Germany exit (inst.tunnel.wg-home-to-oci)
-    - wg1: Estonia exit ONLY (this file)
+    - wg1: Chained exit (this file) - traffic exits via MikroTik
 
-  Traffic flow:
-    vpn-estonia: Client (10.100.1.x) -> VPS wg1 -> MikroTik wg1 -> WAN -> Estonian IP
+  Traffic flows:
+    vpn-germany: Client -> VPS wg1 -> VPS WAN -> German IP (direct exit)
+    vpn-estonia: Client -> VPS wg1 -> MikroTik wg1 -> WAN -> Estonian IP
+    vpn-russia:  Client -> VPS wg1 -> MikroTik wg1 -> AWG Russia -> Russian IP
+    vpn-sweden:  Client -> VPS wg1 -> MikroTik wg1 -> AWG Sweden -> Swedish IP
 
   ISOLATION: wg1 interface on MikroTik is in VPN_EXIT interface list,
   which has firewall rules blocking ALL access to LAN VLANs.
@@ -33,12 +36,20 @@ endpoint_a:
   role: client
   tunnel_ip: 10.100.1.1/24
   persistent_keepalive: 25
-  # MikroTik tunnel endpoint - only its own IP
-  # Estonia chain routing is handled by policy routing on VPS (ip rule),
-  # NOT by WireGuard AllowedIPs. Using 0.0.0.0/0 here would route ALL
-  # traffic to MikroTik, breaking vpn-germany direct exit.
+  # MikroTik tunnel endpoint with 0.0.0.0/0 for chained exit routing.
+  # WireGuard AllowedIPs controls which DESTINATIONS this peer can receive.
+  # For chained exit (Estonia/Russia/Sweden), VPS must route internet traffic
+  # (dst 8.8.8.8 etc) to MikroTik. WireGuard doesn't understand next-hop routing,
+  # it matches packet DESTINATION against AllowedIPs.
+  #
+  # Policy routing (ip rule) on VPS determines WHICH packets go to MikroTik:
+  # - src 10.100.1.3 (vpn-germany) → table main → exits directly via VPS
+  # - src 10.100.1.6 (vpn-estonia) → table 100 → routes to MikroTik via wg1
+  # - src 10.100.1.7 (vpn-russia) → table 101 → routes to MikroTik via wg1
+  # - src 10.100.1.8 (vpn-sweden) → table 102 → routes to MikroTik via wg1
   allowed_ips:
     - 10.100.1.1/32
+    - 0.0.0.0/0
   # CRITICAL: Interface list is VPN_EXIT (isolated from LAN)
   mikrotik_interface_list: VPN_EXIT
 
@@ -83,6 +94,36 @@ road_warrior_peers:
         next_hop: 10.100.1.1
         # Fix routing loop when client is on same network as exit node
         preserve_endpoint_route: true
+
+      - name: vpn-russia
+        description: "Exit via Russian IP (MikroTik AWG Russia)"
+        tunnel_ip: 10.100.1.7/32
+        tunnel_ipv6: fd00::7/128  # Dummy IPv6 to blackhole IPv6 traffic
+        routes:
+          - 0.0.0.0/0
+          - "::/0"  # Capture IPv6 to prevent leaks
+        dns: "1.1.1.1, 1.0.0.1"
+        exit_mode: chained
+        exit_country: RU
+        next_hop: 10.100.1.1
+        preserve_endpoint_route: true
+        # MikroTik routes this to AWG Russia tunnel (wg-awg-russia)
+        mikrotik_routing_table: awg-russia
+
+      - name: vpn-sweden
+        description: "Exit via Swedish IP (MikroTik AWG Sweden)"
+        tunnel_ip: 10.100.1.8/32
+        tunnel_ipv6: fd00::8/128  # Dummy IPv6 to blackhole IPv6 traffic
+        routes:
+          - 0.0.0.0/0
+          - "::/0"  # Capture IPv6 to prevent leaks
+        dns: "1.1.1.1, 1.0.0.1"
+        exit_mode: chained
+        exit_country: SE
+        next_hop: 10.100.1.1
+        preserve_endpoint_route: true
+        # MikroTik routes this to AWG Sweden tunnel (wg-awg-sweden)
+        mikrotik_routing_table: awg-sweden
 
   - device_ref: ws-nixos
     persistent_keepalive: 25
@@ -135,17 +176,29 @@ vps_nat:
     source_networks:
       - 10.100.1.0/24
     out_interface: ens3
-  # Policy routing for Estonia exit
+  # Policy routing for chained exit (Estonia, Russia, Sweden)
   policy_routes:
     - name: estonia_chain
-      description: "Route Estonia profile to MikroTik for exit"
+      description: "Route Estonia profile to MikroTik for WAN exit"
       source_ip: 10.100.1.6/32
       table_id: 100
       next_hop: 10.100.1.1
       via_interface: wg1
+    - name: russia_chain
+      description: "Route Russia profile to MikroTik for AWG Russia exit"
+      source_ip: 10.100.1.7/32
+      table_id: 101
+      next_hop: 10.100.1.1
+      via_interface: wg1
+    - name: sweden_chain
+      description: "Route Sweden profile to MikroTik for AWG Sweden exit"
+      source_ip: 10.100.1.8/32
+      table_id: 102
+      next_hop: 10.100.1.1
+      via_interface: wg1
   ip_forward: true
 
-# NAT configuration on MikroTik (for Estonia exit)
+# NAT configuration on MikroTik (for Estonia exit via WAN)
 chateau_nat:
   enabled: true
   masquerade:
@@ -154,9 +207,64 @@ chateau_nat:
     out_interface_list: WAN
     comment: "VPN exit tunnel masquerade to Estonian IP"
 
+# MikroTik routing rules for road-warrior AWG exit
+# These rules mark traffic from wg1 with specific source IPs and route to AWG tunnels
+chateau_routing:
+  # Mangle rules for road-warrior AWG routing (in addition to VLAN-based rules)
+  mangle_rules:
+    # Russia exit for road-warriors (10.100.1.7)
+    - chain: prerouting
+      in_interface: wg1
+      src_address: 10.100.1.7/32
+      action: mark-routing
+      new_routing_mark: awg-russia
+      passthrough: false
+      comment: "Road-warrior Russia: route to AWG Russia"
+    # Sweden exit for road-warriors (10.100.1.8)
+    - chain: prerouting
+      in_interface: wg1
+      src_address: 10.100.1.8/32
+      action: mark-routing
+      new_routing_mark: awg-sweden
+      passthrough: false
+      comment: "Road-warrior Sweden: route to AWG Sweden"
+
+  # Firewall rules for road-warrior AWG traffic
+  firewall_rules:
+    # Allow wg1 road-warriors to AWG Russia tunnel
+    - chain: forward
+      action: accept
+      in_interface: wg1
+      out_interface: wg-awg-russia
+      src_address: 10.100.1.7/32
+      comment: "Road-warrior to AWG Russia egress"
+    # Allow AWG Russia ingress back to wg1
+    - chain: forward
+      action: accept
+      in_interface: wg-awg-russia
+      out_interface: wg1
+      dst_address: 10.100.1.7/32
+      comment: "AWG Russia to road-warrior ingress"
+    # Allow wg1 road-warriors to AWG Sweden tunnel
+    - chain: forward
+      action: accept
+      in_interface: wg1
+      out_interface: wg-awg-sweden
+      src_address: 10.100.1.8/32
+      comment: "Road-warrior to AWG Sweden egress"
+    # Allow AWG Sweden ingress back to wg1
+    - chain: forward
+      action: accept
+      in_interface: wg-awg-sweden
+      out_interface: wg1
+      dst_address: 10.100.1.8/32
+      comment: "AWG Sweden to road-warrior ingress"
+
 # Use cases for this tunnel
 use_cases:
   - Road-warrior internet exit via German IP (vpn-germany profile)
   - Road-warrior internet exit via Estonian IP (vpn-estonia profile)
+  - Road-warrior internet exit via Russian IP (vpn-russia profile via AWG)
+  - Road-warrior internet exit via Swedish IP (vpn-sweden profile via AWG)
   - Geo-bypass for streaming services
   - Privacy exit nodes with country selection

@@ -223,6 +223,12 @@ observed_runtime:
         in_interface_list: LAN
         out_interface_list: WAN
         comment: "Allow LAN to WAN"
+      # VPN_EXIT zone can reach internet for vpn-estonia exit
+      - chain: forward
+        action: accept
+        in_interface_list: VPN_EXIT
+        out_interface_list: WAN
+        comment: "Allow VPN_EXIT to WAN (vpn-estonia exit)"
   wireguard:
     configured: true
     interfaces:

@@ -17,6 +17,7 @@ zone_refs:
   - inst.trust_zone.guest
   - inst.trust_zone.iot
   - inst.trust_zone.vpn_tunnel
+  - inst.trust_zone.vpn_exit  # Road-warrior VPN exit zone (10.100.1.0/24)
   - inst.trust_zone.user
   - inst.trust_zone.servers
   - inst.trust_zone.management

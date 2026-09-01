@@ -175,3 +175,52 @@ When applying MikroTik Terraform to a router with existing configuration:
 - VLAN interfaces → IP addresses → DHCP pools → DHCP servers → DHCP networks
 - DNS records → Firewall address-lists → Firewall filter rules
 - WireGuard interface → WireGuard peers → Routing tables → Mangle rules → Routes
+
+### Troubleshooting Infrastructure Problems (Topology-First Workflow)
+
+**CRITICAL:** All infrastructure problems MUST be solved through the topology-first approach. Never make manual fixes to generated files or directly on devices without updating topology.
+
+**Workflow cycle:**
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  1. ANALYZE problem → identify affected topology instances          │
+│         ↓                                                           │
+│  2. FIX in topology → edit instance/class/object YAML files        │
+│         ↓                                                           │
+│  3. COMPILE → task build or compile-topology.py                     │
+│         ↓                                                           │
+│  4. DEPLOY → terraform apply / ansible / wireguard deploy           │
+│         ↓                                                           │
+│  5. TEST → verify the fix works                                     │
+│         ↓                                                           │
+│  6. If error → go back to step 1 (ANALYZE)                         │
+│         ↓                                                           │
+│  7. SUCCESS → commit changes to topology                            │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Key principles:**
+1. **Topology is source of truth** - all fixes go into `topology/` or `projects/*/topology/instances/`
+2. **Never edit generated files** - changes to `generated/` will be overwritten
+3. **Never make manual device fixes** - changes made directly on MikroTik/VPS without topology update will drift
+4. **Analyze TOPOLOGY before querying devices** - understand security matrix, rule ordering, VLANs, routing policies in topology FIRST. Only query devices to verify topology matches reality.
+5. **One fix at a time** - compile and test after each change to isolate issues
+
+**Analysis order (before querying devices):**
+1. Security matrix (`inst.security_matrix.*`) - zone trust levels, allowed flows
+2. Trust zones (`inst.trust_zone.*`) - what networks belong to which zone
+3. Routing policies (`inst.routing_policy.*`) - mangle marks, routing tables
+4. Tunnel configs (`inst.tunnel.*`) - WireGuard peers, AllowedIPs
+5. Device baseline rules (`rtr-*.yaml` → `baseline_rules`) - firewall rule ordering
+6. Generated output (`generated/**/firewall.tf`, `vpn.tf`) - verify generated rules are correct
+7. ONLY THEN query devices to find discrepancies between topology and actual state
+
+**Example troubleshooting flow (VPN not working):**
+1. Analyze: Check `inst.tunnel.*`, `inst.routing_policy.*`, `inst.trust_zone.*` for the affected VPN
+2. Fix: Add missing firewall rule to `rtr-mikrotik-chateau.yaml` baseline_rules
+3. Compile: `task build`
+4. Deploy: `cd .work/native/home-lab/terraform/mikrotik && terraform apply`
+5. Test: Connect to VPN, check IP
+6. If still broken: Analyze generated `firewall.tf`, `vpn.tf` to understand what was generated
+7. Iterate until fixed

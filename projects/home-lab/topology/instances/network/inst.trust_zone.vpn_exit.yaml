@@ -14,14 +14,34 @@ notes: |
 
 zone_name: vpn-exit
 
-# Firewall policy: internet-only, complete isolation from internal networks
+# Trust level 0 - lowest, isolated from all internal networks
+trust_level: 0
+isolated: true
+
+# Additional networks for this zone
+additional_networks:
+  - cidr: 10.100.1.0/24
+    comment: "WireGuard exit tunnel (wg1) road-warrior network"
+
+# Firewall policy: internet-only via multiple exit paths
 firewall_policy:
-  # Allow outbound to internet ONLY (via VPN exit tunnel)
+  # Allow outbound to internet via different exit tunnels
   outbound:
+    # vpn-estonia: exit via MikroTik WAN (through wg1 back to VPS not needed here)
     - action: accept
       destination: untrusted
-      via_interface: wg1
-      comment: "Allow internet via VPN exit tunnel"
+      out_interface_list: WAN
+      comment: "Allow internet via MikroTik WAN (vpn-estonia)"
+    # vpn-russia: exit via AWG Russia tunnel
+    - action: accept
+      destination: untrusted
+      via_interface: wg-awg-russia
+      comment: "Allow internet via AWG Russia tunnel (vpn-russia)"
+    # vpn-sweden: exit via AWG Sweden tunnel
+    - action: accept
+      destination: untrusted
+      via_interface: wg-awg-sweden
+      comment: "Allow internet via AWG Sweden tunnel (vpn-sweden)"
 
   # Allow established/related return traffic
   inbound:

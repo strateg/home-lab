@@ -1,0 +1,84 @@
+@instance: inst.routing_policy.rw_russia
+@extends: obj.network.routing_policy.vpn_vlan
+@group: network
+@version: 1.0.0
+source_id: policy-rw-russia
+status: active
+notes: |
+  Routes road-warrior traffic from wg1 (10.100.1.7) through AWG Russia tunnel.
+
+  Architecture:
+    - Road-warrior connects to VPS wg1, gets IP 10.100.1.7
+    - VPS forwards to MikroTik wg1
+    - MikroTik marks traffic and routes to wg-awg-russia
+    - awg-proxy container adds AWG obfuscation
+    - Traffic exits via VPN Russia server
+
+  Traffic flow:
+    Jolla Phone (10.100.1.7) -> VPS wg1 -> MikroTik wg1 ->
+    mangle mark -> routing table awg-russia ->
+    wg-awg-russia -> awg-proxy -> VPN Russia -> Internet
+
+# Policy identification
+policy_name: rw-russia-routing
+policy_description: Route road-warrior 10.100.1.7 through AWG Russia
+
+# Source: specific IP address (not VLAN)
+source_match:
+  type: ip_address
+  value: "10.100.1.7"
+
+# Target: WireGuard interface (reuse existing AWG Russia tunnel)
+target_gateway:
+  type: wireguard_interface
+  value: wg-awg-russia
+  container_ref: docker-amneziawg-russia
+
+# Reuse existing awg-russia routing table
+routing_mark: "0x39"
+priority: 110
+enabled: true
+
+# MikroTik implementation details
+mikrotik_config:
+  # 1. Mangle rules to mark connections from 10.100.1.7
+  mangle_rules:
+    - chain: prerouting
+      src_address: "10.100.1.7"
+      dst_address: "!10.100.1.0/24"
+      action: mark-connection
+      new_connection_mark: vpn-rw-russia
+      passthrough: true
+    - chain: prerouting
+      connection_mark: vpn-rw-russia
+      src_address: "10.100.1.7"
+      action: mark-routing
+      new_routing_mark: awg-russia
+      passthrough: false
+
+  # 2. Use existing awg-russia routing table (no need to recreate)
+  # routing_table is already created by inst.routing_policy.vpn_amnezia
+
+  # 3. Firewall rules for wg1 <-> wg-awg-russia traffic
+  firewall_rules:
+    # Allow road-warrior egress to AWG tunnel
+    - chain: forward
+      action: accept
+      in_interface: wg1
+      out_interface: wg-awg-russia
+      src_address: "10.100.1.7"
+      comment: "RW-Russia: forward egress"
+      priority: high
+    # Allow tunnel ingress to road-warrior
+    - chain: forward
+      action: accept
+      in_interface: wg-awg-russia
+      out_interface: wg1
+      dst_address: "10.100.1.7"
+      comment: "RW-Russia: forward ingress"
+      priority: high
+
+  # NAT is handled by existing vpn_amnezia policy (masquerade on wg-awg-russia)
+
+# Managed by
+managed_by_ref: rtr-mikrotik-chateau

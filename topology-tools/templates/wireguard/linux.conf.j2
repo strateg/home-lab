@@ -13,7 +13,13 @@ Address = {{ endpoint_b.tunnel_ip }}
 ListenPort = {{ endpoint_b.listen_port | default(51820) }}
 PrivateKey = {{ vps_keys.private_key }}
 MTU = {{ mtu }}
-{% if routing.get('policy_routing', {}).get('enabled', false) %}
+{% if vps_nat.policy_routes | default([]) | length > 0 %}
+# Table = off: Disable automatic routing based on AllowedIPs.
+# We handle routing manually via ip rules (policy_routes).
+# This allows 0.0.0.0/0 in AllowedIPs for chained exit peers
+# without breaking direct exit peers (vpn-germany).
+Table = off
+{% elif routing.get('policy_routing', {}).get('enabled', false) %}
 # Policy routing: traffic from {{ routing.policy_routing.source_ip | default('specific sources') }} uses table {{ routing.policy_routing.table_id }}
 Table = {{ routing.policy_routing.table_id }}
 {% endif %}
