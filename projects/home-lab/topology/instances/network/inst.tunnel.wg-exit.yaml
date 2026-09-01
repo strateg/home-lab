@@ -80,6 +80,8 @@ road_warrior_peers:
         dns: "1.1.1.1, 1.0.0.1"
         exit_mode: direct
         exit_country: DE
+        # Fix routing loop when AllowedIPs=0.0.0.0/0 captures endpoint traffic
+        preserve_endpoint_route: true
 
       - name: vpn-estonia
         description: "Exit via Estonian IP (MikroTik WAN)"
@@ -137,6 +139,8 @@ road_warrior_peers:
         dns: "1.1.1.1, 1.0.0.1"
         exit_mode: direct
         exit_country: DE
+        # Fix routing loop when AllowedIPs=0.0.0.0/0 captures endpoint traffic
+        preserve_endpoint_route: true
 
   - device_ref: rtr-slate
     persistent_keepalive: 25
@@ -147,6 +151,8 @@ road_warrior_peers:
         routes:
           - 0.0.0.0/0
           - "::/0"
+        # Fix routing loop when AllowedIPs=0.0.0.0/0 captures endpoint traffic
+        preserve_endpoint_route: true
         dns: "1.1.1.1, 1.0.0.1"
         exit_mode: direct
         exit_country: DE
