@@ -227,11 +227,16 @@ def _build_mikrotik_values(payload: dict[str, Any]) -> dict[str, Any]:
             result[f"{prefix}_awg_server_pub"] = awg_country["server_public_key"]
         if awg_country.get("header_protection_key"):
             result[f"{prefix}_awg_header_protection_key"] = awg_country["header_protection_key"]
+        # AWG_CLIENT_PUB - the public key that remote AWG server expects from us
+        if awg_country.get("client_public_key"):
+            result[f"{prefix}_awg_client_pub"] = awg_country["client_public_key"]
+        # WG peer public key - must be SERVER's key for end-to-end WG encryption
+        # MikroTik WG encrypts to remote server, awg-proxy just adds obfuscation in transit
+        if awg_country.get("server_public_key"):
+            result[f"{prefix}_wg_peer_public_key"] = awg_country["server_public_key"]
         # WireGuard interface keys (MikroTik -> container)
         if awg_country.get("client_private_key"):
             result[f"{prefix}_wg_private_key"] = awg_country["client_private_key"]
-        if awg_country.get("client_public_key"):
-            result[f"{prefix}_wg_peer_public_key"] = awg_country["client_public_key"]
         if awg_country.get("preshared_key"):
             result[f"{prefix}_wg_peer_preshared_key"] = awg_country["preshared_key"]
 

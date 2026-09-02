@@ -118,10 +118,7 @@ resource "routeros_container" "{{ container.tf_name }}" {
 resource "routeros_container_envs" "{{ container.tf_name }}_{{ env.key | lower }}" {
   name  = "{{ container.name }}"
   key   = "{{ env.key }}"
-{% if env.key == "AWG_CLIENT_PUB" and container.wireguard_interface %}
-  # Use Terraform-generated public key (matches WireGuard interface private key)
-  value = wireguard_asymmetric_key.{{ container.tf_name }}.public_key
-{% elif env.is_secret %}
+{% if env.is_secret %}
   value = var.{{ env.var_name }}
 {% else %}
   value = "{{ env.value }}"
