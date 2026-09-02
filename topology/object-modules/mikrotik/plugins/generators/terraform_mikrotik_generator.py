@@ -173,6 +173,10 @@ class TerraformMikroTikGenerator(BaseGenerator):
             "has_security_matrix": bool(router_matrix and router_matrix.get("zones")),
             # MAC-based VLAN assignments from device instances
             "mac_vlan_assignments": projection.get("mac_vlan_assignments", []),
+            # Container configurations for routeros_container resources
+            "containers": projection.get("containers", []),
+            # Container capability flag for wireguard provider
+            "has_containers": bool(projection.get("containers", [])),
             # Capability flags for conditional blocks in templates
             **normalized_caps,
         }

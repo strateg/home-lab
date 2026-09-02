@@ -2,6 +2,22 @@
 
 Load `docs/ai/AGENT-RULEBOOK.md` before any code changes.
 
+## Critical Rules
+
+**NEVER edit files in `generated/` folder directly.** This includes:
+- `generated/**/*.tf` (Terraform files)
+- `generated/**/*.tfvars` (Terraform variables)
+- `generated/**/*.yaml` (generated configs)
+- Any other file under `generated/`
+
+Instead, modify:
+- Topology files: `topology/`, `projects/*/topology/instances/`
+- Generators: `topology/object-modules/*/plugins/generators/`
+- Templates: `topology/object-modules/*/templates/`
+- Projections: `topology/object-modules/*/plugins/projections.py`
+
+Then compile and regenerate: `.venv/bin/python topology-tools/compile-topology.py`
+
 ## Quick Context
 
 | Aspect | Value |
@@ -9,7 +25,7 @@ Load `docs/ai/AGENT-RULEBOOK.md` before any code changes.
 | Architecture | Infrastructure-as-Data, Class → Object → Instance |
 | Source of truth | `topology/topology.yaml`, `topology/class-modules/`, `topology/object-modules/` |
 | Project instances | `projects/home-lab/topology/instances/` |
-| Generated outputs | `generated/` (DO NOT EDIT) |
+| Generated outputs | `generated/` (DO NOT EDIT - see Critical Rules above) |
 | Principle | Edit topology → compile → generate → apply |
 
 ## Commands

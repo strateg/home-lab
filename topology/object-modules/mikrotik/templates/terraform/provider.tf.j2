@@ -5,6 +5,12 @@ terraform {
       source  = "{{ mikrotik_provider_source }}"
       version = "{{ mikrotik_provider_version }}"
     }
+{% if has_containers %}
+    wireguard = {
+      source  = "OJFord/wireguard"
+      version = "~> 0.3"
+    }
+{% endif %}
   }
 }
 
@@ -14,3 +20,7 @@ provider "routeros" {
   password = var.mikrotik_password
   insecure = var.mikrotik_insecure
 }
+
+{% if has_containers %}
+provider "wireguard" {}
+{% endif %}

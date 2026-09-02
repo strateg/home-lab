@@ -151,6 +151,9 @@ def _build_mikrotik_values(payload: dict[str, Any]) -> dict[str, Any]:
     mac_assignments = payload.get("mac_vlan_assignments", [])
     if not isinstance(mac_assignments, list):
         mac_assignments = []
+    amneziawg = payload.get("amneziawg", {})
+    if not isinstance(amneziawg, dict):
+        amneziawg = {}
 
     peers = wireguard.get("peers", [])
     if not isinstance(peers, list):
@@ -210,6 +213,27 @@ def _build_mikrotik_values(payload: dict[str, Any]) -> dict[str, Any]:
         result["adguard_password"] = containers["adguard_password"]
     if containers.get("tailscale_authkey"):
         result["tailscale_authkey"] = containers["tailscale_authkey"]
+
+    # AmneziaWG container secrets (Russia and Sweden exits)
+    for country in ["russia", "sweden"]:
+        awg_country = amneziawg.get(country, {})
+        if not isinstance(awg_country, dict):
+            continue
+        prefix = f"awg_proxy_{country}"
+        # AWG tunnel parameters (container -> remote AWG server)
+        if awg_country.get("endpoint"):
+            result[f"{prefix}_awg_remote"] = awg_country["endpoint"]
+        if awg_country.get("server_public_key"):
+            result[f"{prefix}_awg_server_pub"] = awg_country["server_public_key"]
+        if awg_country.get("header_protection_key"):
+            result[f"{prefix}_awg_header_protection_key"] = awg_country["header_protection_key"]
+        # WireGuard interface keys (MikroTik -> container)
+        if awg_country.get("client_private_key"):
+            result[f"{prefix}_wg_private_key"] = awg_country["client_private_key"]
+        if awg_country.get("client_public_key"):
+            result[f"{prefix}_wg_peer_public_key"] = awg_country["client_public_key"]
+        if awg_country.get("preshared_key"):
+            result[f"{prefix}_wg_peer_preshared_key"] = awg_country["preshared_key"]
 
     return result
 
