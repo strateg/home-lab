@@ -10,14 +10,14 @@ notes: |
   Architecture:
     - Road-warrior connects to VPS wg1, gets IP 10.100.1.7
     - VPS forwards to MikroTik wg1
-    - MikroTik marks traffic and routes to wg-awg-russia
+    - MikroTik marks traffic and routes to wg-awg-russia-v2
     - awg-proxy container adds AWG obfuscation
     - Traffic exits via VPN Russia server
 
   Traffic flow:
     Jolla Phone (10.100.1.7) -> VPS wg1 -> MikroTik wg1 ->
     mangle mark -> routing table awg-russia ->
-    wg-awg-russia -> awg-proxy -> VPN Russia -> Internet
+    wg-awg-russia-v2 -> awg-proxy -> VPN Russia -> Internet
 
 # Policy identification
 policy_name: rw-russia-routing
@@ -31,8 +31,8 @@ source_match:
 # Target: WireGuard interface (reuse existing AWG Russia tunnel)
 target_gateway:
   type: wireguard_interface
-  value: wg-awg-russia
-  container_ref: docker-amneziawg-russia
+  value: wg-awg-russia-v2
+  container_ref: docker-amneziawg-russia-v2
 
 # Reuse existing awg-russia routing table
 routing_mark: "0x39"
@@ -59,26 +59,26 @@ mikrotik_config:
   # 2. Use existing awg-russia routing table (no need to recreate)
   # routing_table is already created by inst.routing_policy.vpn_amnezia
 
-  # 3. Firewall rules for wg1 <-> wg-awg-russia traffic
+  # 3. Firewall rules for wg1 <-> wg-awg-russia-v2 traffic
   firewall_rules:
     # Allow road-warrior egress to AWG tunnel
     - chain: forward
       action: accept
       in_interface: wg1
-      out_interface: wg-awg-russia
+      out_interface: wg-awg-russia-v2
       src_address: "10.100.1.7"
       comment: "RW-Russia: forward egress"
       priority: high
     # Allow tunnel ingress to road-warrior
     - chain: forward
       action: accept
-      in_interface: wg-awg-russia
+      in_interface: wg-awg-russia-v2
       out_interface: wg1
       dst_address: "10.100.1.7"
       comment: "RW-Russia: forward ingress"
       priority: high
 
-  # NAT is handled by existing vpn_amnezia policy (masquerade on wg-awg-russia)
+  # NAT is handled by existing vpn_amnezia policy (masquerade on wg-awg-russia-v2)
 
 # Managed by
 managed_by_ref: rtr-mikrotik-chateau

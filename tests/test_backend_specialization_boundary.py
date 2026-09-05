@@ -28,8 +28,14 @@ DECISION = REPO_ROOT / "adr/0118-analysis/W07-BACKEND-SPECIALIZATION-DECISION.md
 # VLAN-CIDR helpers and the zone oracle left the projection for the compiler's
 # channel and the parity test. A budget that stays above the real figure stops
 # measuring, so it is lowered whenever the debt is actually paid down.
+#
+# Raised 1518 -> 1519 on 2026-10-01 when rebasing the russian-vpn branch's
+# feat(vpn) commit onto current development: it adds one "privileged" boolean
+# field to the existing container dict literal in _extract_containers, the
+# same pattern as the dict's existing start_on_boot/logging fields. Not new
+# backend-specialization logic, so not backsliding on the W07 debt.
 PROJECTION_FUNCTION_BUDGET = 15
-PROJECTION_LINE_BUDGET = 1518
+PROJECTION_LINE_BUDGET = 1519
 
 
 def _functions() -> list[tuple[str, int]]:

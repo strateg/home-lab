@@ -197,6 +197,12 @@ observed_runtime:
       action: masquerade
       out_interface: veth-awg-ru
       comment: "NAT for AmneziaWG Russia container traffic"
+    # AmneziaWG Russia v2 container NAT: masquerade traffic going to Russia v2 AWG container
+    # Traffic path: VLAN 57 (192.168.57.x) -> veth-awg-ru2 -> container -> AWG tunnel
+    - chain: srcnat
+      action: masquerade
+      out_interface: veth-awg-ru2
+      comment: "NAT for AmneziaWG Russia v2 container traffic"
     # AmneziaWG Sweden container NAT: masquerade traffic going to Sweden AWG container
     # Traffic path: VLAN 58 (192.168.58.x) -> veth-awg-se -> container -> AWG tunnel
     - chain: srcnat

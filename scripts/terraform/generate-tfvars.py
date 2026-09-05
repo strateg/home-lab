@@ -214,8 +214,8 @@ def _build_mikrotik_values(payload: dict[str, Any]) -> dict[str, Any]:
     if containers.get("tailscale_authkey"):
         result["tailscale_authkey"] = containers["tailscale_authkey"]
 
-    # AmneziaWG container secrets (Russia and Sweden exits)
-    for country in ["russia", "sweden"]:
+    # AmneziaWG container secrets (Russia, Russia v2, Sweden exits)
+    for country in ["russia", "russia_v2", "sweden"]:
         awg_country = amneziawg.get(country, {})
         if not isinstance(awg_country, dict):
             continue
