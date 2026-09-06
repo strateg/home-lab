@@ -1,0 +1,49 @@
+@object: obj.peripheral.bt.logitech.m720
+@extends: class.peripheral.bluetooth.hid
+@title: Logitech M720 Triathlon Multi-Device Mouse
+@version: 1.0.0
+
+# Vendor identification
+vendor: Logitech
+model: M720 Triathlon
+
+# Bluetooth properties (from class.peripheral.bluetooth)
+bt_version: "4.0"
+bt_profiles:
+  - HID
+  - HOGP
+bt_class: class_2
+range_meters: 10
+battery_type: replaceable_aa
+battery_life_hours: 720  # 24 months typical
+multi_device_pairing: true
+max_paired_devices: 3
+
+# Alternative connection (USB Unifying receiver)
+alt_connection_type: usb_receiver
+
+# HID properties (from class.peripheral.bluetooth.hid)
+hid_type: mouse
+buttons_count: 8
+scroll_wheel: true
+dpi_range:
+  min: 400
+  max: 1000
+programmable: true
+form_factor: ergonomic
+
+dimensions_mm:
+  width: 74
+  length: 115
+  height: 45
+weight_grams: 135  # with battery
+
+enabled_capabilities: []
+
+notes: |
+  Logitech M720 Triathlon - Multi-device wireless mouse.
+  Supports up to 3 devices via Bluetooth or Logitech Unifying receiver.
+  Easy-Switch button to toggle between paired devices.
+  Hyper-fast scroll wheel with click-to-click mode.
+  Sculpted ergonomic shape for right-handed users.
+  Powered by single AA battery (up to 24 months).

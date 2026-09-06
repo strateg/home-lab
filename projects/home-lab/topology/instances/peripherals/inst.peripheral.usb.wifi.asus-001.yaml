@@ -1,0 +1,13 @@
+@instance: inst.peripheral.usb.wifi.asus-001
+@extends: obj.peripheral.usb.asus.ax55_nano
+@group: peripherals
+@version: 1.0.0
+
+# Secrets reference for sensitive data
+# Contains: device_id, mac_address, linux_interface
+secrets_ref: secrets.peripherals.usb-wifi-asus-001
+
+notes: |
+  ASUS USB-AX55 Nano WiFi 6 adapter instance.
+  Attached to srv-orangepi5 for wireless connectivity.
+  All identifiers stored in secrets.

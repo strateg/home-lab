@@ -11,7 +11,8 @@ endpoint_a:
   port: ether3
 endpoint_b:
   device_ref: srv-orangepi5
-  port: end1  # actual: USB adapter inst.peripheral.usb_hub_eth.bluecloud-001
+  port: usb_hub_eth  # logical port via peripheral
+  via_peripheral: inst.peripheral.usb.hub.bluecloud-001
 creates_channel_ref: inst.chan.eth.chateau_to_orangepi5
 length_m: 1.5
 shielding: utp

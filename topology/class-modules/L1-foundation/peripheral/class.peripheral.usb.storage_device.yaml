@@ -1,0 +1,84 @@
+@class: class.peripheral.usb.storage_device
+@extends: class.peripheral.usb
+@title: USB Storage Device
+@description: |
+  USB peripheral that provides storage functionality.
+  Covers USB flash drives, external SSDs/HDDs, and card readers.
+
+  Physical properties (L1) are defined here.
+  Logical storage properties (capacity, filesystem, mount)
+  belong to L3 (class.storage.media) and are referenced
+  via provides_ref.
+
+  Device serial number and identifiers stored in secrets_ref.
+@layer: L1
+@version: 1.0.0
+
+properties:
+  required:
+    - storage_type
+  optional:
+    - capacity_gb
+    - interface_speed_mbps
+    - read_speed_mbps
+    - write_speed_mbps
+    - encryption_hardware
+    - dimensions_mm
+    - weight_grams
+
+property_schemas:
+  storage_type:
+    type: string
+    enum:
+      - flash_drive     # USB flash drive / thumb drive
+      - external_ssd    # External SSD enclosure
+      - external_hdd    # External HDD enclosure
+      - card_reader     # SD/microSD card reader
+      - optical_drive   # External CD/DVD/BD drive
+    description: Type of storage device
+  capacity_gb:
+    type: number
+    description: |
+      Storage capacity in GB.
+      For card readers, this is max supported card size.
+  interface_speed_mbps:
+    type: integer
+    description: USB interface speed in Mbps (theoretical max)
+  read_speed_mbps:
+    type: integer
+    description: Typical sequential read speed in MB/s
+  write_speed_mbps:
+    type: integer
+    description: Typical sequential write speed in MB/s
+  encryption_hardware:
+    type: boolean
+    default: false
+    description: Has hardware encryption support
+  dimensions_mm:
+    type: object
+    properties:
+      width: { type: number }
+      length: { type: number }
+      height: { type: number }
+    description: Physical dimensions in millimeters
+  weight_grams:
+    type: number
+    description: Weight in grams
+
+# Storage device form factors
+form_factor_enum:
+  - nano           # Ultra-compact flash drive
+  - standard       # Standard USB stick
+  - portable       # Portable SSD/HDD
+  - enclosure      # Drive enclosure with removable media
+
+required_capabilities: []
+
+optional_capabilities: []
+
+enabled_capabilities: []
+
+invariants:
+  - provides_ref should point to storage.media instance (L3)
+  - serial_number stored in secrets_ref
+  - capacity_gb is informational; actual capacity in storage.media

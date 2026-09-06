@@ -1,0 +1,62 @@
+@class: class.peripheral.usb
+@extends: class.peripheral
+@title: USB Peripheral Device
+@description: |
+  Base class for peripherals connected via USB interface.
+  Defines USB-specific physical properties common to all USB devices.
+@layer: L1
+@version: 1.0.0
+
+properties:
+  required:
+    - usb_version
+  optional:
+    - connector_type
+    - usb_host_connector
+    - power_delivery
+    - cable_type
+
+property_schemas:
+  usb_version:
+    type: string
+    enum: ["1.1", "2.0", "3.0", "3.1", "3.2", "4.0"]
+    description: USB interface version
+  connector_type:
+    type: string
+    enum: [usb_a, usb_c, micro_usb, mini_usb]
+    default: usb_a
+    description: Connector type on the device side (plugs into host)
+  usb_host_connector:
+    type: string
+    enum: [usb_a, usb_c, micro_usb]
+    description: |
+      Alternative name for connector_type.
+      Use connector_type for new definitions.
+    deprecated: true
+  power_delivery:
+    type: boolean
+    default: false
+    description: Supports USB Power Delivery (PD)
+  cable_type:
+    type: string
+    enum: [integrated, detachable, braided]
+    description: Cable attachment type
+
+# USB-specific form factors
+form_factor_enum:
+  - nano
+  - dongle
+  - dongle_antenna
+  - dock
+  - inline
+  - adapter
+
+required_capabilities: []
+
+optional_capabilities: []
+
+enabled_capabilities: []
+
+invariants:
+  - usb_version 3.0+ recommended for high-bandwidth devices
+  - USB 4.0 requires usb_c connector

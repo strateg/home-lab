@@ -18,21 +18,21 @@ power:
   source_ref: pdu-rack
   max_watts: 20
 
-# USB peripherals
+# USB peripherals (migrated to new naming convention)
 peripherals:
-  # USB-Ethernet hub providing network connectivity (onboard PHY damaged)
-  - ref: inst.peripheral.usb_hub_eth.bluecloud-001
+  # USB-C Hub with Ethernet providing network connectivity (onboard PHY damaged)
+  - ref: inst.peripheral.usb.hub.bluecloud-001
     role: primary_network
   # WiFi 6 adapter for wireless connectivity
-  - ref: inst.peripheral.usb_wifi.asus-ax55-nano-001
+  - ref: inst.peripheral.usb.wifi.asus-001
     role: wifi
 
 # Host network binding - management VLAN for SSH/admin access
 # USB-Ethernet adapter configured as VLAN trunk on MikroTik ether3:
 #   PVID=99 (management - native), tagged=100 (servers for Docker)
-# Interface name derived from MAC in secrets (usb_eth_interface key)
+# Interface name derived from MAC in secrets (linux_interface key)
 network:
-  interface_from_peripheral: inst.peripheral.usb_hub_eth.bluecloud-001
+  interface_from_peripheral: inst.peripheral.usb.hub.bluecloud-001
   vlan_ref: inst.vlan.management
   host: 20
   gateway: 10.0.99.1

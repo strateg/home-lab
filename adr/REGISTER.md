@@ -117,3 +117,4 @@
 | [0113](0113-kernel-runtime-decomposition-registry-scheduler-facade.md) | Kernel Runtime Decomposition into Registry, Scheduler, and Facade | Implemented | 2026-07-13 | - | - |
 | [0114](0114-taiga-architecture-harmonization.md) | TAIGA Architecture Harmonization across Toolchain, Library, Extension, and Project Planes | Proposed | 2026-07-30 | - | - |
 | [0115](0115-incremental-hash-based-deploy-idempotency.md) | Incremental Hash-Based Deploy Idempotency Contract | Proposed | 2026-08-02 | - | - |
+| [0116](0116-peripheral-device-model-and-connection-type-hierarchy.md) | Peripheral Device Model and Connection-Type Hierarchy | Implemented | 2026-09-06 | - | - |

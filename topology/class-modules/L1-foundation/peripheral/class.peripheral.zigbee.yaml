@@ -1,0 +1,43 @@
+@class: class.peripheral.zigbee
+@extends: class.peripheral
+@title: Zigbee Peripheral Device
+@description: |
+  Base class for Zigbee peripherals.
+  Covers Zigbee coordinators, routers, and end devices
+  for IoT/home automation.
+
+  STUB: Properties to be expanded when devices are added.
+@layer: L1
+@version: 1.0.0
+@status: stub
+
+properties:
+  required:
+    - zigbee_role
+  optional:
+    - host_connection
+    - zigbee_version
+    - supported_clusters
+
+property_schemas:
+  zigbee_role:
+    type: string
+    enum: [coordinator, router, end_device]
+    description: Role in Zigbee network
+  host_connection:
+    type: string
+    enum: [usb, ethernet, integrated]
+    description: How the Zigbee device connects to host
+  zigbee_version:
+    type: string
+    enum: ["3.0", "pro"]
+    description: Zigbee protocol version
+  supported_clusters:
+    type: array
+    items:
+      type: string
+    description: Supported Zigbee clusters
+
+required_capabilities: []
+optional_capabilities: []
+enabled_capabilities: []

@@ -1,0 +1,14 @@
+@instance: inst.peripheral.usb.hub.bluecloud-001
+@extends: obj.peripheral.usb.bluecloud.hub_gbe
+@group: peripherals
+@version: 1.0.0
+
+# Secrets reference for sensitive data
+# Contains: device_id, mac_address, linux_interface
+secrets_ref: secrets.peripherals.usb-hub-bluecloud-001
+
+notes: |
+  Bluecloud USB-C Hub with Gigabit Ethernet instance.
+  Provides primary network connectivity to srv-orangepi5.
+  Portable peripheral - can be moved between hosts.
+  All identifiers (MAC, interface name) stored in secrets.

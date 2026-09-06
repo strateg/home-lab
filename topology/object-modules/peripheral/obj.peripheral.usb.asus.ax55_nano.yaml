@@ -1,0 +1,50 @@
+@object: obj.peripheral.usb.asus.ax55_nano
+@extends: class.peripheral.usb.network_adapter
+@title: ASUS USB-AX55 Nano WiFi 6 Adapter
+@version: 1.0.0
+
+# Vendor identification
+vendor: ASUS
+model: USB-AX55 Nano
+
+# USB connection properties (from class.peripheral.usb)
+usb_version: "2.0"
+connector_type: usb_a
+
+# Network adapter properties (from class.peripheral.usb.network_adapter)
+network_type: wifi
+chipset: MediaTek
+antenna_type: internal
+antenna_count: 2
+antenna_gain_dbi: 3
+form_factor: nano
+
+dimensions_mm:
+  width: 16
+  length: 25.5
+  height: 9
+weight_grams: 4
+
+# WiFi-specific details (informational, logical properties)
+# Note: These are informational for the object definition.
+# Runtime wifi config is managed by the OS, not topology.
+wifi_specs:
+  standard: wifi6  # 802.11ax
+  bands: ["2.4GHz", "5GHz"]
+  speed_class: AX1800
+  max_speed_24ghz_mbps: 574
+  max_speed_5ghz_mbps: 1201
+  mimo: 2x2
+  features:
+    - MU-MIMO
+    - OFDMA
+    - BSS_Coloring
+
+enabled_capabilities: []
+
+notes: |
+  ASUS USB-AX55 Nano - Ultra-compact WiFi 6 (802.11ax) USB adapter.
+  World's smallest AX1800 package at 25.5 x 16 x 9 mm.
+  Dual-band 2x2 MIMO with MU-MIMO and OFDMA support.
+  Note: USB 2.0 interface limits actual throughput below WiFi 6 theoretical maximum.
+  Ideal for leaving plugged in permanently due to nano form factor.

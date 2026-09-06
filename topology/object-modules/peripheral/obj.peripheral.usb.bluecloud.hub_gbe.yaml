@@ -1,0 +1,46 @@
+@object: obj.peripheral.usb.bluecloud.hub_gbe
+@extends: class.peripheral.usb.hub
+@title: Bluecloud USB-C Hub with Gigabit Ethernet
+@version: 1.0.0
+
+# Vendor identification
+vendor: Bluecloud
+model: USB-C Hub + Gigabit Ethernet Adapter
+
+# USB connection properties (from class.peripheral.usb)
+usb_version: "3.1"
+connector_type: usb_c
+cable_type: braided
+
+# Hub properties (from class.peripheral.usb.hub)
+downstream_ports_count: 3
+downstream_port_type: usb_a
+downstream_port_version: "3.1"
+powered: false
+casing_material: aluminum
+form_factor: dongle
+
+# Integrated functions
+integrated_functions:
+  - ethernet_gigabit
+
+dimensions_mm:
+  width: 21
+  length: 116
+  height: 15
+
+# Ethernet chipset (informational)
+ethernet_specs:
+  chipset: RTL8153
+  speeds: [10, 100, 1000]
+  connector: rj45
+
+enabled_capabilities: []
+
+notes: |
+  Bluecloud USB-C hub with integrated Gigabit Ethernet adapter.
+  Adds Ethernet port + 3 USB-A ports via single USB-C connection.
+  Aluminum casing with braided cable.
+  Compatible with Abitti DigabiOS (tested ABITTI2332G Strontium).
+
+  MAC address and linux_interface stored in secrets_ref.

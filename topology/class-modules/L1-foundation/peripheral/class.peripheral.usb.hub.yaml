@@ -1,0 +1,93 @@
+@class: class.peripheral.usb.hub
+@extends: class.peripheral.usb
+@title: USB Hub
+@description: |
+  USB hub peripheral that expands USB port availability.
+  May include integrated functions (Ethernet, card reader, etc.)
+  which are modeled as separate provides_ref entries.
+
+  For combo hubs (e.g., USB-C hub with Ethernet):
+    - The hub itself is modeled with this class
+    - Integrated network adapter is referenced via integrated_functions
+    - Network interface details are in secrets_ref
+@layer: L1
+@version: 1.0.0
+
+properties:
+  required:
+    - downstream_ports_count
+  optional:
+    - downstream_port_type
+    - downstream_port_version
+    - powered
+    - power_per_port_ma
+    - integrated_functions
+    - casing_material
+    - dimensions_mm
+
+property_schemas:
+  downstream_ports_count:
+    type: integer
+    minimum: 1
+    maximum: 16
+    description: Number of downstream USB ports
+  downstream_port_type:
+    type: string
+    enum: [usb_a, usb_c, mixed]
+    default: usb_a
+    description: Type of downstream USB ports
+  downstream_port_version:
+    type: string
+    enum: ["2.0", "3.0", "3.1", "3.2", "4.0"]
+    description: USB version of downstream ports (may differ from upstream)
+  powered:
+    type: boolean
+    default: false
+    description: Has external power supply (powered hub)
+  power_per_port_ma:
+    type: integer
+    description: Power delivery per port in milliamps
+  integrated_functions:
+    type: array
+    items:
+      type: string
+      enum:
+        - ethernet_gigabit
+        - ethernet_2.5g
+        - card_reader_sd
+        - card_reader_microsd
+        - hdmi_output
+        - displayport_output
+        - audio_jack
+        - pd_passthrough
+    description: |
+      Additional functions integrated into the hub.
+      Network functions require secrets_ref for MAC/interface.
+  casing_material:
+    type: string
+    enum: [plastic, aluminum, metal]
+    description: External casing material
+  dimensions_mm:
+    type: object
+    properties:
+      width: { type: number }
+      length: { type: number }
+      height: { type: number }
+    description: Physical dimensions in millimeters
+
+# Hub form factors
+form_factor_enum:
+  - dongle       # Compact inline hub
+  - dock         # Desktop docking station style
+  - brick        # Box-shaped powered hub
+
+required_capabilities: []
+
+optional_capabilities: []
+
+enabled_capabilities: []
+
+invariants:
+  - integrated ethernet functions require secrets_ref for MAC
+  - powered hubs typically support more power per port
+  - downstream_port_version cannot exceed upstream usb_version

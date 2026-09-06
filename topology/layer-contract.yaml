@@ -76,10 +76,33 @@ class_layers:
     allowed_layers: [L1]
   class.device.iot_endpoint:
     allowed_layers: [L1]
-  class.peripheral.usb_ethernet_adapter:
+  # Peripheral classes - new hierarchy (ADR TBD)
+  class.peripheral:
     allowed_layers: [L1]
-  class.peripheral.usb_hub_ethernet:
+  class.peripheral.usb:
     allowed_layers: [L1]
+  class.peripheral.usb.network_adapter:
+    allowed_layers: [L1]
+  class.peripheral.usb.hub:
+    allowed_layers: [L1]
+  class.peripheral.usb.storage_device:
+    allowed_layers: [L1]
+  class.peripheral.bluetooth:
+    allowed_layers: [L1]
+  class.peripheral.bluetooth.hid:
+    allowed_layers: [L1]
+  class.peripheral.thunderbolt:
+    allowed_layers: [L1]
+    status: stub
+  class.peripheral.nfc:
+    allowed_layers: [L1]
+    status: stub
+  class.peripheral.zigbee:
+    allowed_layers: [L1]
+    status: stub
+  class.peripheral.zwave:
+    allowed_layers: [L1]
+    status: stub
 
   # L2 - Network (bridges, VLANs, firewall)
   class.network.data_link:

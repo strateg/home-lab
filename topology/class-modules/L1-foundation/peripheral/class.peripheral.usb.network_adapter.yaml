@@ -1,0 +1,84 @@
+@class: class.peripheral.usb.network_adapter
+@extends: class.peripheral.usb
+@title: USB Network Adapter
+@description: |
+  USB peripheral that provides network connectivity.
+  Covers Ethernet adapters, WiFi adapters, and LTE/5G modems.
+
+  Physical properties (L1) are defined here.
+  Logical network properties (MAC, IP, VLAN) belong to L2
+  and are referenced via provides_ref or stored in secrets.
+
+  Network interface name (linux_interface) is derived from MAC
+  and stored in secrets_ref.
+@layer: L1
+@version: 1.0.0
+
+properties:
+  required:
+    - network_type
+  optional:
+    - chipset
+    - antenna_type
+    - antenna_count
+    - antenna_gain_dbi
+    - dimensions_mm
+    - weight_grams
+
+property_schemas:
+  network_type:
+    type: string
+    enum: [ethernet, wifi, lte, 5g, combo]
+    description: |
+      Type of network connectivity provided:
+        - ethernet: Wired Ethernet (RJ45)
+        - wifi: Wireless LAN (802.11)
+        - lte: LTE cellular modem
+        - 5g: 5G cellular modem
+        - combo: Combined (e.g., LTE + WiFi)
+  chipset:
+    type: string
+    description: |
+      Network controller chipset.
+      Examples: RTL8153, AX88179, MT7921, Qualcomm X55
+  antenna_type:
+    type: string
+    enum: [internal, external, detachable]
+    default: internal
+    description: Antenna configuration (for wireless types)
+  antenna_count:
+    type: integer
+    minimum: 1
+    maximum: 8
+    description: Number of antennas (for MIMO)
+  antenna_gain_dbi:
+    type: number
+    description: Peak antenna gain in dBi
+  dimensions_mm:
+    type: object
+    properties:
+      width: { type: number }
+      length: { type: number }
+      height: { type: number }
+    description: Physical dimensions in millimeters
+  weight_grams:
+    type: number
+    description: Weight in grams
+
+# Network-type specific form factors
+form_factor_enum:
+  - nano           # Ultra-compact (e.g., ASUS AX55 Nano)
+  - dongle         # Standard USB stick form
+  - dongle_antenna # Dongle with external antenna
+  - adapter        # Inline adapter (cable style)
+
+required_capabilities: []
+
+optional_capabilities: []
+
+enabled_capabilities: []
+
+invariants:
+  - antenna properties only applicable for wifi/lte/5g types
+  - provides_ref should point to network interface instance (L2)
+  - mac_address stored in secrets_ref, not in topology

@@ -1,0 +1,13 @@
+@instance: inst.peripheral.bt.hid.logitech-m720-001
+@extends: obj.peripheral.bt.logitech.m720
+@group: peripherals
+@version: 1.0.0
+
+# Secrets reference for sensitive data
+# Contains: device_id, pairing_mac (for each paired host)
+secrets_ref: secrets.peripherals.bt-hid-logitech-m720-001
+
+notes: |
+  Logitech M720 Triathlon multi-device mouse instance.
+  Connected via Bluetooth to multiple hosts.
+  All identifiers and pairing info stored in secrets.

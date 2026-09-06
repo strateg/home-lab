@@ -1,0 +1,68 @@
+@class: class.peripheral
+@title: Peripheral Device (Abstract Base)
+@description: |
+  Abstract base class for all peripheral devices.
+  Peripherals are physical devices that connect to a host system
+  via various connection types (USB, Bluetooth, Thunderbolt, etc.)
+  and provide logical functionality at higher layers.
+
+  Layer Model:
+    - L1 (Physical): Peripheral device itself (this class)
+    - L2-L5 (Logical): Functionality provided (network, storage, audio, etc.)
+
+  The peripheral references what it provides via `provides_ref`.
+@layer: L1
+@version: 1.0.0
+@abstract: true
+
+properties:
+  required: []
+  optional:
+    - vendor
+    - model
+    - secrets_ref
+    - provides_ref
+    - form_factor
+    - notes
+
+property_schemas:
+  vendor:
+    type: string
+    description: Device manufacturer/vendor name
+  model:
+    type: string
+    description: Device model name/number
+  secrets_ref:
+    type: string
+    format: secrets_ref
+    description: |
+      Reference to SOPS-encrypted secrets file containing:
+      - device_id (serial number, asset tag)
+      - mac_address (if applicable)
+      - linux_interface (derived interface name)
+      - pairing keys (for wireless)
+  provides_ref:
+    type: string
+    format: instance_ref
+    description: |
+      Reference to the logical entity this peripheral provides.
+      Examples:
+        - Network adapter provides L2 network interface
+        - Storage device provides L3 storage media
+        - Audio device provides L5 audio endpoint
+  form_factor:
+    type: string
+    description: Physical form factor (defined by subclasses)
+  notes:
+    type: string
+    description: Additional notes about the device
+
+required_capabilities: []
+
+optional_capabilities: []
+
+enabled_capabilities: []
+
+invariants:
+  - secrets_ref should be used for sensitive data (IDs, MACs, keys)
+  - provides_ref links L1 peripheral to higher-layer logical entity

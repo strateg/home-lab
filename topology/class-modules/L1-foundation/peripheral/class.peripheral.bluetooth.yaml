@@ -1,0 +1,102 @@
+@class: class.peripheral.bluetooth
+@extends: class.peripheral
+@title: Bluetooth Peripheral Device
+@description: |
+  Base class for peripherals connected via Bluetooth.
+  Defines Bluetooth-specific properties common to all BT devices.
+
+  Note: Some devices support multiple connection types
+  (e.g., Bluetooth + USB receiver). Model each connection
+  method as separate peripheral or use multi_connection property.
+@layer: L1
+@version: 1.0.0
+
+properties:
+  required:
+    - bt_version
+  optional:
+    - bt_profiles
+    - bt_class
+    - range_meters
+    - battery_type
+    - battery_life_hours
+    - multi_device_pairing
+    - max_paired_devices
+    - alt_connection_type
+
+property_schemas:
+  bt_version:
+    type: string
+    enum: ["3.0", "4.0", "4.1", "4.2", "5.0", "5.1", "5.2", "5.3", "5.4"]
+    description: Bluetooth version
+  bt_profiles:
+    type: array
+    items:
+      type: string
+      enum:
+        - A2DP      # Advanced Audio Distribution (stereo audio)
+        - AVRCP     # Audio/Video Remote Control
+        - HFP       # Hands-Free Profile
+        - HSP       # Headset Profile
+        - HID       # Human Interface Device (keyboard, mouse)
+        - HOGP      # HID over GATT (BLE HID)
+        - SPP       # Serial Port Profile
+        - PAN       # Personal Area Network
+        - PBAP      # Phonebook Access
+        - MAP       # Message Access
+        - GATT      # Generic Attribute (BLE services)
+    description: Supported Bluetooth profiles
+  bt_class:
+    type: string
+    enum: [class_1, class_2, class_3]
+    default: class_2
+    description: |
+      Bluetooth power class:
+        - class_1: 100m range, 100mW
+        - class_2: 10m range, 2.5mW (most common)
+        - class_3: 1m range, 1mW
+  range_meters:
+    type: integer
+    description: Effective operating range in meters
+  battery_type:
+    type: string
+    enum: [rechargeable, replaceable_aa, replaceable_aaa, coin_cell, none]
+    description: Battery type (none for USB-powered BT adapters)
+  battery_life_hours:
+    type: integer
+    description: Estimated battery life in hours
+  multi_device_pairing:
+    type: boolean
+    default: false
+    description: Can pair with multiple hosts simultaneously
+  max_paired_devices:
+    type: integer
+    default: 1
+    description: Maximum number of paired host devices
+  alt_connection_type:
+    type: string
+    enum: [usb_receiver, usb_wired, none]
+    default: none
+    description: |
+      Alternative connection method if available.
+      For devices like Logitech M720 that support both BT and USB receiver.
+
+# Bluetooth device form factors
+form_factor_enum:
+  - in_ear         # Earbuds
+  - over_ear       # Headphones
+  - speaker        # Bluetooth speaker
+  - compact        # Small peripheral (mouse, keyboard)
+  - full_size      # Full-size keyboard
+  - dongle         # USB Bluetooth adapter
+
+required_capabilities: []
+
+optional_capabilities: []
+
+enabled_capabilities: []
+
+invariants:
+  - bt_version 4.0+ required for BLE profiles (HOGP, GATT)
+  - pairing_mac stored in secrets_ref
+  - battery_life_hours only applicable if battery_type != none

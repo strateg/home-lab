@@ -1,0 +1,42 @@
+@class: class.peripheral.zwave
+@extends: class.peripheral
+@title: Z-Wave Peripheral Device
+@description: |
+  Base class for Z-Wave peripherals.
+  Covers Z-Wave controllers and devices
+  for home automation.
+
+  STUB: Properties to be expanded when devices are added.
+@layer: L1
+@version: 1.0.0
+@status: stub
+
+properties:
+  required:
+    - zwave_role
+  optional:
+    - host_connection
+    - zwave_frequency
+    - zwave_plus
+
+property_schemas:
+  zwave_role:
+    type: string
+    enum: [controller, secondary_controller, device]
+    description: Role in Z-Wave network
+  host_connection:
+    type: string
+    enum: [usb, ethernet, integrated]
+    description: How the Z-Wave device connects to host
+  zwave_frequency:
+    type: string
+    enum: [eu_868, us_908, au_921, jp_922]
+    description: Z-Wave frequency band (region-specific)
+  zwave_plus:
+    type: boolean
+    default: false
+    description: Z-Wave Plus certified
+
+required_capabilities: []
+optional_capabilities: []
+enabled_capabilities: []

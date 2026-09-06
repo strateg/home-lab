@@ -1,0 +1,45 @@
+@class: class.peripheral.thunderbolt
+@extends: class.peripheral
+@title: Thunderbolt Peripheral Device
+@description: |
+  Base class for peripherals connected via Thunderbolt interface.
+  Covers docks, eGPUs, high-speed storage, and displays.
+
+  STUB: Properties to be expanded when devices are added.
+@layer: L1
+@version: 1.0.0
+@status: stub
+
+properties:
+  required:
+    - tb_version
+  optional:
+    - connector_type
+    - daisy_chain_support
+    - max_bandwidth_gbps
+    - power_delivery_watts
+
+property_schemas:
+  tb_version:
+    type: string
+    enum: ["3", "4", "5"]
+    description: Thunderbolt version
+  connector_type:
+    type: string
+    enum: [usb_c, thunderbolt]
+    default: usb_c
+    description: Physical connector type
+  daisy_chain_support:
+    type: boolean
+    default: false
+    description: Supports daisy-chaining
+  max_bandwidth_gbps:
+    type: integer
+    description: Maximum bandwidth in Gbps
+  power_delivery_watts:
+    type: integer
+    description: Power delivery capability in watts
+
+required_capabilities: []
+optional_capabilities: []
+enabled_capabilities: []

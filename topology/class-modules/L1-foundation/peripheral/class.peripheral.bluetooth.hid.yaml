@@ -1,0 +1,96 @@
+@class: class.peripheral.bluetooth.hid
+@extends: class.peripheral.bluetooth
+@title: Bluetooth HID Device
+@description: |
+  Bluetooth Human Interface Device (HID) peripheral.
+  Covers keyboards, mice, trackpads, game controllers, etc.
+
+  These devices typically do not provide higher-layer logical
+  entities and are modeled at L1 only. The provides_ref
+  is optional and used only for special cases (e.g., keyboard
+  with integrated hub).
+@layer: L1
+@version: 1.0.0
+
+properties:
+  required:
+    - hid_type
+  optional:
+    - buttons_count
+    - scroll_wheel
+    - dpi_range
+    - programmable
+    - backlit
+    - layout
+    - key_switch_type
+    - dimensions_mm
+    - weight_grams
+
+property_schemas:
+  hid_type:
+    type: string
+    enum:
+      - mouse
+      - keyboard
+      - trackpad
+      - presenter   # Presentation clicker
+      - gamepad
+      - combo       # Keyboard + trackpad combo
+    description: Type of HID device
+  buttons_count:
+    type: integer
+    description: Number of buttons (for mice, gamepads)
+  scroll_wheel:
+    type: boolean
+    default: false
+    description: Has scroll wheel (for mice)
+  dpi_range:
+    type: object
+    properties:
+      min: { type: integer }
+      max: { type: integer }
+    description: DPI range for mice
+  programmable:
+    type: boolean
+    default: false
+    description: Has programmable buttons/macros
+  backlit:
+    type: boolean
+    default: false
+    description: Has backlighting (for keyboards)
+  layout:
+    type: string
+    enum: [us, uk, de, ru, iso, ansi]
+    description: Keyboard layout (for keyboards)
+  key_switch_type:
+    type: string
+    enum: [membrane, mechanical, scissor, optical]
+    description: Key switch type (for keyboards)
+  dimensions_mm:
+    type: object
+    properties:
+      width: { type: number }
+      length: { type: number }
+      height: { type: number }
+    description: Physical dimensions in millimeters
+  weight_grams:
+    type: number
+    description: Weight in grams
+
+# HID device form factors
+form_factor_enum:
+  - compact       # Compact/travel size
+  - full_size     # Standard full-size
+  - ergonomic     # Ergonomic design
+  - gaming        # Gaming-oriented design
+
+required_capabilities: []
+
+optional_capabilities: []
+
+enabled_capabilities: []
+
+invariants:
+  - HID profile required in bt_profiles
+  - layout only applicable for keyboards
+  - dpi_range only applicable for mice

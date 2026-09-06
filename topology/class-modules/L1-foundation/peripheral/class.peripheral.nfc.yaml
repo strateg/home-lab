@@ -1,0 +1,42 @@
+@class: class.peripheral.nfc
+@extends: class.peripheral
+@title: NFC Peripheral Device
+@description: |
+  Base class for NFC (Near Field Communication) peripherals.
+  Covers NFC readers, writers, and peer devices.
+
+  STUB: Properties to be expanded when devices are added.
+@layer: L1
+@version: 1.0.0
+@status: stub
+
+properties:
+  required:
+    - nfc_type
+  optional:
+    - host_connection
+    - supported_standards
+    - read_range_cm
+
+property_schemas:
+  nfc_type:
+    type: string
+    enum: [reader, writer, reader_writer, peer]
+    description: NFC device type
+  host_connection:
+    type: string
+    enum: [usb, integrated, bluetooth]
+    description: How the NFC device connects to host
+  supported_standards:
+    type: array
+    items:
+      type: string
+      enum: [iso14443a, iso14443b, iso15693, felica, nfc_a, nfc_b, nfc_f]
+    description: Supported NFC standards
+  read_range_cm:
+    type: integer
+    description: Maximum read range in centimeters
+
+required_capabilities: []
+optional_capabilities: []
+enabled_capabilities: []
