@@ -95,8 +95,49 @@ class FirewallProxmoxGenerator(BaseGenerator):
             self._publish_empty_contracts(ctx)
             return self.make_result(diagnostics)
 
-        # TODO: Check for inst.security_matrix.proxmox
-        # For now, emit info that this is a stub
+        # R03 fix: Check for active Proxmox security matrix
+        # If matrix exists but generator is STUB, this must FAIL to prevent
+        # false sense of security from successful pipeline
+        proxmox_matrix_found = False
+        proxmox_matrix_id = ""
+        network_rows = payload.get("network", [])
+        if isinstance(network_rows, list):
+            for row in network_rows:
+                if not isinstance(row, dict):
+                    continue
+                instance_id = str(row.get("instance_id", "")).strip()
+                object_ref = str(row.get("object_ref", "")).strip()
+                # Check for security_matrix.proxmox instances
+                if "security_matrix" in object_ref and "proxmox" in instance_id.lower():
+                    proxmox_matrix_found = True
+                    proxmox_matrix_id = instance_id
+                    break
+
+        if proxmox_matrix_found:
+            # Active matrix exists but enforcement not implemented - FAIL
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E9303",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        f"Proxmox security matrix '{proxmox_matrix_id}' is defined but "
+                        "firewall generator is STUB. Cannot guarantee security enforcement. "
+                        "Either implement the generator or remove the matrix definition."
+                    ),
+                    path="generator:firewall_proxmox",
+                )
+            )
+            self._publish_empty_contracts(ctx)
+            return self.make_result(
+                diagnostics=diagnostics,
+                output_data={
+                    "status": "error",
+                    "message": f"Active matrix {proxmox_matrix_id} requires implementation",
+                },
+            )
+
+        # No active matrix - STUB info is acceptable
         diagnostics.append(
             self.emit_diagnostic(
                 code="I9302",
@@ -104,7 +145,7 @@ class FirewallProxmoxGenerator(BaseGenerator):
                 stage=stage,
                 message=(
                     "Proxmox firewall generator is a STUB. "
-                    "Create inst.security_matrix.proxmox when ready to implement."
+                    "No active security matrix found - skipping."
                 ),
                 path="generator:firewall_proxmox",
             )
@@ -117,7 +158,7 @@ class FirewallProxmoxGenerator(BaseGenerator):
             diagnostics=diagnostics,
             output_data={
                 "status": "stub",
-                "message": "Proxmox firewall generator not yet implemented",
+                "message": "Proxmox firewall generator not yet implemented (no active matrix)",
             },
         )
 

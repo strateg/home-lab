@@ -208,6 +208,71 @@ def test_bundle_checksum_verification_detects_modification(tmp_path: Path) -> No
     )
 
 
+def test_bundle_checksum_verification_detects_extra_files(tmp_path: Path) -> None:
+    """R04: Extra files not in checksums.sha256 must be detected."""
+    generated_root = _build_generated_root(tmp_path)
+    bundles_root = tmp_path / ".work" / "deploy" / "bundles"
+    info = create_bundle(project_id="home-lab", generated_root=generated_root, bundles_root=bundles_root)
+
+    # Add an extra file not in checksums
+    extra_file = info.bundle_path / "artifacts" / "generated" / "home-lab" / "terraform" / "malicious.tf"
+    extra_file.write_text('resource "evil" "backdoor" {}\n', encoding="utf-8")
+
+    ok, mismatches = verify_bundle_checksums(info.bundle_path)
+    assert ok is False, "Extra file should be detected"
+    assert any("extra:" in item or "unlisted:" in item for item in mismatches), f"Expected 'extra' or 'unlisted' in {mismatches}"
+
+
+def test_bundle_checksum_verification_rejects_empty_checksum_file(tmp_path: Path) -> None:
+    """R04: Empty checksums.sha256 must not pass verification."""
+    generated_root = _build_generated_root(tmp_path)
+    bundles_root = tmp_path / ".work" / "deploy" / "bundles"
+    info = create_bundle(project_id="home-lab", generated_root=generated_root, bundles_root=bundles_root)
+
+    # Truncate checksums file
+    checksum_path = info.bundle_path / "checksums.sha256"
+    checksum_path.write_text("", encoding="utf-8")
+
+    ok, mismatches = verify_bundle_checksums(info.bundle_path)
+    assert ok is False, "Empty checksum file should fail"
+    assert len(mismatches) > 0
+
+
+def test_bundle_checksum_verification_detects_path_traversal(tmp_path: Path) -> None:
+    """R04: Path traversal attempts in checksums must be rejected."""
+    generated_root = _build_generated_root(tmp_path)
+    bundles_root = tmp_path / ".work" / "deploy" / "bundles"
+    info = create_bundle(project_id="home-lab", generated_root=generated_root, bundles_root=bundles_root)
+
+    # Inject path traversal into checksums
+    checksum_path = info.bundle_path / "checksums.sha256"
+    original = checksum_path.read_text(encoding="utf-8")
+    malicious_line = "a" * 64 + "  ../../../etc/passwd\n"
+    checksum_path.write_text(original + malicious_line, encoding="utf-8")
+
+    ok, mismatches = verify_bundle_checksums(info.bundle_path)
+    assert ok is False, "Path traversal should be rejected"
+    assert any("traversal" in item.lower() or "invalid" in item.lower() or "outside" in item.lower()
+               for item in mismatches), f"Expected traversal error in {mismatches}"
+
+
+def test_bundle_checksum_verification_detects_duplicate_entries(tmp_path: Path) -> None:
+    """R04: Duplicate entries in checksums must be rejected."""
+    generated_root = _build_generated_root(tmp_path)
+    bundles_root = tmp_path / ".work" / "deploy" / "bundles"
+    info = create_bundle(project_id="home-lab", generated_root=generated_root, bundles_root=bundles_root)
+
+    # Add duplicate entry
+    checksum_path = info.bundle_path / "checksums.sha256"
+    original = checksum_path.read_text(encoding="utf-8")
+    first_line = original.splitlines()[0]
+    checksum_path.write_text(original + first_line + "\n", encoding="utf-8")
+
+    ok, mismatches = verify_bundle_checksums(info.bundle_path)
+    assert ok is False, "Duplicate entries should be rejected"
+    assert any("duplicate" in item.lower() for item in mismatches), f"Expected 'duplicate' in {mismatches}"
+
+
 def test_bundle_create_is_idempotent_for_existing_immutable_bundle(tmp_path: Path) -> None:
     generated_root = _build_generated_root(tmp_path)
     bundles_root = tmp_path / ".work" / "deploy" / "bundles"
@@ -216,3 +281,46 @@ def test_bundle_create_is_idempotent_for_existing_immutable_bundle(tmp_path: Pat
 
     assert first.bundle_id == second.bundle_id
     assert second.existing is True
+
+
+def test_bundle_secret_files_have_restricted_permissions(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """R05: Decrypted secrets must have restricted permissions (0600 files, 0700 dirs)."""
+    generated_root = _build_generated_root(tmp_path)
+    bundles_root = tmp_path / ".work" / "deploy" / "bundles"
+    secrets_root = tmp_path / "projects" / "home-lab" / "secrets"
+    _write(secrets_root / "instances" / "node-a.yaml", "encrypted: true\n")
+    _write(secrets_root / "instances" / "node-b.yaml", "encrypted: true\n")
+
+    def fake_run(cmd: list[str], capture_output: bool, text: bool, check: bool) -> SimpleNamespace:
+        return SimpleNamespace(returncode=0, stdout="username: admin\npassword: secret\n", stderr="")
+
+    monkeypatch.setattr("scripts.orchestration.deploy.bundle.subprocess.run", fake_run)
+
+    info = create_bundle(
+        project_id="home-lab",
+        generated_root=generated_root,
+        bundles_root=bundles_root,
+        inject_secrets=True,
+        secrets_root=secrets_root,
+    )
+
+    secrets_dir = info.bundle_path / "artifacts" / "secrets"
+    assert secrets_dir.exists()
+
+    # Verify secrets directory has restricted permissions (0700)
+    secrets_dir_mode = secrets_dir.stat().st_mode & 0o777
+    assert secrets_dir_mode == 0o700, f"Secrets directory should be 0700, got {oct(secrets_dir_mode)}"
+
+    # Verify all secret files have restricted permissions (0600)
+    for secret_file in secrets_dir.rglob("*"):
+        if secret_file.is_file():
+            file_mode = secret_file.stat().st_mode & 0o777
+            assert file_mode == 0o600, f"Secret file {secret_file} should be 0600, got {oct(file_mode)}"
+
+    # Verify parent directories of secrets also have restricted permissions
+    instances_dir = secrets_dir / "instances"
+    if instances_dir.exists():
+        instances_mode = instances_dir.stat().st_mode & 0o777
+        assert instances_mode == 0o700, f"Secrets subdirectory should be 0700, got {oct(instances_mode)}"

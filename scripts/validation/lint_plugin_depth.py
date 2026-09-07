@@ -29,24 +29,62 @@ def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
+def _load_yaml(path: Path) -> dict[str, Any]:
+    """Load YAML file safely."""
+    with path.open("r", encoding="utf-8") as handle:
+        return yaml.safe_load(handle) or {}
+
+
+def _resolve_includes(manifest_path: Path) -> list[Path]:
+    """R06 fix: Resolve includes from a manifest file recursively."""
+    result: list[Path] = []
+    if not manifest_path.exists():
+        return result
+
+    manifest_data = _load_yaml(manifest_path)
+    includes = manifest_data.get("includes", [])
+    if not isinstance(includes, list):
+        return result
+
+    manifest_dir = manifest_path.parent
+    for include in includes:
+        if not isinstance(include, str):
+            continue
+        include_path = (manifest_dir / include).resolve()
+        if include_path.exists():
+            result.append(include_path)
+            # Recursively resolve nested includes
+            result.extend(_resolve_includes(include_path))
+
+    return result
+
+
 def _discover_manifests(repo_root: Path) -> list[Path]:
-    """Discover all plugin manifest files in deterministic order."""
-    manifests = [repo_root / "topology-tools" / "plugins" / "plugins.yaml"]
+    """Discover all plugin manifest files in deterministic order.
+
+    R06 fix: Now processes `includes:` directives to discover sharded manifests.
+    """
+    manifests: list[Path] = []
+
+    # Root framework manifest and its includes
+    root_manifest = repo_root / "topology-tools" / "plugins" / "plugins.yaml"
+    if root_manifest.exists():
+        manifests.append(root_manifest)
+        manifests.extend(_resolve_includes(root_manifest))
+
     manifests.extend(sorted((repo_root / "topology" / "class-modules").rglob("plugins.yaml")))
     manifests.extend(sorted((repo_root / "topology" / "object-modules").rglob("plugins.yaml")))
+
     # Project manifests
     projects_root = repo_root / "projects"
     if projects_root.exists():
         for project_dir in sorted(projects_root.iterdir()):
             if project_dir.is_dir():
                 manifests.extend(sorted(project_dir.rglob("plugins.yaml")))
-    return [m for m in manifests if m.exists()]
 
-
-def _load_yaml(path: Path) -> dict[str, Any]:
-    """Load YAML file safely."""
-    with path.open("r", encoding="utf-8") as handle:
-        return yaml.safe_load(handle) or {}
+    # Deduplicate while preserving order
+    seen: set[Path] = set()
+    return [m for m in manifests if m.exists() and m not in seen and not seen.add(m)]
 
 
 def build_dependency_graph(manifests: list[Path]) -> dict[str, set[str]]:

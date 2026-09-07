@@ -16,6 +16,7 @@ without patching module globals (host-surface normalization done in S9).
 from __future__ import annotations
 
 import concurrent.futures
+import time
 import traceback
 from typing import TYPE_CHECKING, Any, Callable, Protocol
 
@@ -216,7 +217,9 @@ def execute_phase_parallel(
             if not wavefront:
                 continue  # No valid plugins to execute in this wavefront
 
-            futures: dict[concurrent.futures.Future[PluginExecutionEnvelope], str] = {}
+            # R09 fix: Track submission time for proper timeout enforcement
+            futures: dict[concurrent.futures.Future[PluginExecutionEnvelope], tuple[str, float, float]] = {}
+            # futures[future] = (plugin_id, submit_time, timeout_seconds)
             snapshots_by_plugin: dict[str, PluginInputSnapshot] = {}
             for plugin_id in wavefront:
                 if trace_execution:
@@ -318,13 +321,15 @@ def execute_phase_parallel(
                     # Submit to real subinterpreter pool (ADR 0063 Phase 3: delegate to scheduler)
                     snapshots_by_plugin[plugin_id] = snapshot
                     serialized_spec = SerializablePluginSpec.from_plugin_spec(spec)
+                    submit_time = time.monotonic()
                     future = executor.submit(
                         isolated_worker,
                         snapshot.__dict__,
                         str(host.base_path),
                         serialized_spec.to_dict(),
                     )
-                    futures[future] = plugin_id
+                    timeout_secs = float(spec.timeout) if spec.timeout else 60.0
+                    futures[future] = (plugin_id, submit_time, timeout_secs)
                 elif spec.execution_mode == "main_interpreter" or has_real_subinterpreters:
                     # Execute inline in main interpreter (ADR 0097 D1: main owns state)
                     # This includes: main_interpreter mode, or subinterpreter fallback on Py3.14+
@@ -358,6 +363,7 @@ def execute_phase_parallel(
                         )
                 else:
                     # Python <3.14: use ThreadPoolExecutor for parallel execution
+                    submit_time = time.monotonic()
                     future = executor.submit(
                         host._execute_plugin_envelope_local,
                         plugin_id=plugin_id,
@@ -367,45 +373,30 @@ def execute_phase_parallel(
                         snapshot=snapshot,
                         timeout=spec.timeout,
                     )
-                    futures[future] = plugin_id
+                    timeout_secs = float(spec.timeout) if spec.timeout else 60.0
+                    futures[future] = (plugin_id, submit_time, timeout_secs)
 
-            for future in concurrent.futures.as_completed(futures):
-                plugin_id = futures[future]
-                spec = host.specs.get(plugin_id)
-                if spec is None:
-                    continue
-                try:
-                    envelope = future.result(timeout=spec.timeout if has_real_subinterpreters else None)
-                    result = host._commit_envelope_result(
-                        ctx=ctx,
-                        pipeline_state=pipeline_state,
-                        spec=spec,
-                        stage=stage,
-                        phase=phase,
-                        envelope=envelope,
-                        contract_warnings=contract_warnings,
-                        contract_errors=contract_errors,
-                    )
-                    results_by_plugin[plugin_id] = result
-                    if trace_execution:
-                        host._trace_event(
-                            event="plugin_result",
-                            stage=stage,
-                            phase=phase,
-                            plugin_id=plugin_id,
-                            status=result.status,
-                        )
-                except Exception as exc:
-                    snapshot = snapshots_by_plugin.get(plugin_id)
-                    if snapshot is not None and host._is_cross_interpreter_shareability_error(exc):
-                        envelope = host._execute_plugin_envelope_local(
-                            plugin_id=plugin_id,
-                            spec=spec,
-                            stage=stage,
-                            phase=phase,
-                            snapshot=snapshot,
-                            timeout=spec.timeout,
-                        )
+            # R09 fix: Calculate global timeout for as_completed()
+            # Use maximum of all plugin timeouts + buffer for completion processing
+            if futures:
+                max_timeout = max(t[2] for t in futures.values()) + 5.0  # 5s buffer
+            else:
+                max_timeout = 60.0
+
+            try:
+                for future in concurrent.futures.as_completed(futures, timeout=max_timeout):
+                    plugin_id, submit_time, timeout_secs = futures[future]
+                    spec = host.specs.get(plugin_id)
+                    if spec is None:
+                        continue
+
+                    # R09 fix: Calculate remaining time based on submission
+                    elapsed = time.monotonic() - submit_time
+                    remaining = max(0.1, timeout_secs - elapsed)
+
+                    try:
+                        # Use remaining time for result timeout
+                        envelope = future.result(timeout=remaining if has_real_subinterpreters else None)
                         result = host._commit_envelope_result(
                             ctx=ctx,
                             pipeline_state=pipeline_state,
@@ -424,24 +415,88 @@ def execute_phase_parallel(
                                 phase=phase,
                                 plugin_id=plugin_id,
                                 status=result.status,
-                                message="fallback to local envelope path",
                             )
+                    except Exception as exc:
+                        snapshot = snapshots_by_plugin.get(plugin_id)
+                        if snapshot is not None and host._is_cross_interpreter_shareability_error(exc):
+                            envelope = host._execute_plugin_envelope_local(
+                                plugin_id=plugin_id,
+                                spec=spec,
+                                stage=stage,
+                                phase=phase,
+                                snapshot=snapshot,
+                                timeout=spec.timeout,
+                            )
+                            result = host._commit_envelope_result(
+                                ctx=ctx,
+                                pipeline_state=pipeline_state,
+                                spec=spec,
+                                stage=stage,
+                                phase=phase,
+                                envelope=envelope,
+                                contract_warnings=contract_warnings,
+                                contract_errors=contract_errors,
+                            )
+                            results_by_plugin[plugin_id] = result
+                            if trace_execution:
+                                host._trace_event(
+                                    event="plugin_result",
+                                    stage=stage,
+                                    phase=phase,
+                                    plugin_id=plugin_id,
+                                    status=result.status,
+                                    message="fallback to local envelope path",
+                                )
+                            continue
+                        failed = PluginResult.failed(
+                            plugin_id=plugin_id,
+                            api_version=spec.api_version,
+                            diagnostics=[
+                                PluginDiagnostic(
+                                    code="E4102",
+                                    severity="error",
+                                    stage=stage.value,
+                                    phase=phase.value,
+                                    message=f"Plugin crashed in parallel execution: {exc}",
+                                    path="kernel",
+                                    plugin_id="kernel",
+                                )
+                            ],
+                            error_traceback=traceback.format_exc(),
+                        )
+                        results_by_plugin[plugin_id] = failed
+                        if trace_execution:
+                            host._trace_event(
+                                event="plugin_result",
+                                stage=stage,
+                                phase=phase,
+                                plugin_id=plugin_id,
+                                status=failed.status,
+                                message=str(exc),
+                            )
+            except TimeoutError:
+                # R09 fix: Global timeout expired - create timeout results for pending futures
+                for future, (plugin_id, submit_time, timeout_secs) in futures.items():
+                    if plugin_id in results_by_plugin:
+                        continue  # Already processed
+                    spec = host.specs.get(plugin_id)
+                    if spec is None:
                         continue
+                    future.cancel()  # Try to cancel
                     failed = PluginResult.failed(
                         plugin_id=plugin_id,
-                        api_version=spec.api_version,
+                        api_version=spec.api_version if spec else "1.0.0",
                         diagnostics=[
                             PluginDiagnostic(
-                                code="E4102",
+                                code="E4103",
                                 severity="error",
                                 stage=stage.value,
                                 phase=phase.value,
-                                message=f"Plugin crashed in parallel execution: {exc}",
-                                path="kernel",
+                                message=f"Plugin execution timed out after {timeout_secs:.1f}s",
+                                path="kernel.scheduler",
                                 plugin_id="kernel",
                             )
                         ],
-                        error_traceback=traceback.format_exc(),
                     )
                     results_by_plugin[plugin_id] = failed
                     if trace_execution:
@@ -451,7 +506,7 @@ def execute_phase_parallel(
                             phase=phase,
                             plugin_id=plugin_id,
                             status=failed.status,
-                            message=str(exc),
+                            message="timeout",
                         )
 
     return [results_by_plugin[plugin_id] for plugin_id in plugin_ids if plugin_id in results_by_plugin]

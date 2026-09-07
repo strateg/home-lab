@@ -40,7 +40,8 @@ tasks:
       - "{{.PYTHON}} -m pytest -o addopts= tests/plugin_contract/test_ai_advisory_contract_runtime.py -q"
 
   ci-coverage:
-    desc: Run repository test suite with coverage report for CI
+    desc: Run repository test suite with coverage report for CI (parallel with xdist)
     # H1.6: 75% threshold (canonical from pyproject.toml)
+    # R08 fix: Use -n auto for parallel test execution with pytest-xdist
     cmds:
-      - "{{.PYTHON}} -m pytest -o addopts= tests -v --cov=topology-tools --cov-report=xml --cov-fail-under=75"
+      - "{{.PYTHON}} -m pytest -o addopts= tests -v -n auto --cov=topology-tools --cov-report=xml --cov-fail-under=75"

@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -21,6 +22,10 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+# Restricted permissions for secrets (ADR 0085, R05 fix)
+_SECRET_DIR_MODE = 0o700  # Owner-only access to directories containing secrets
+_SECRET_FILE_MODE = 0o600  # Owner-only read/write for secret files
 
 import jsonschema
 import yaml
@@ -98,10 +103,8 @@ def create_bundle(
         shutil.copytree(generated, generated_artifacts_root)
 
         if decrypted_secrets:
-            for rel_path, content in decrypted_secrets.items():
-                target = artifacts_root / "secrets" / rel_path
-                target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_text(content, encoding="utf-8")
+            secrets_base = artifacts_root / "secrets"
+            _write_secrets_with_restricted_permissions(secrets_base, decrypted_secrets)
 
         created_at = utc_now()
         manifest = build_manifest(
@@ -251,27 +254,89 @@ def write_checksums(bundle_root: Path) -> None:
 
 
 def verify_bundle_checksums(bundle_root: Path) -> tuple[bool, list[str]]:
+    """Verify bundle integrity by comparing checksums with actual files.
+
+    R04 fix: Performs comprehensive verification including:
+    - All files in bundle must be listed in checksums (no extra files)
+    - All files in checksums must exist in bundle (no missing files)
+    - All checksums must match (no modifications)
+    - No duplicate entries allowed
+    - No path traversal attempts allowed
+    - Checksum file must not be empty
+    - Hash format must be valid (64 hex characters for SHA256)
+    """
     root = bundle_root.resolve()
     checksum_path = root / CHECKSUM_FILE_NAME
     if not checksum_path.exists():
         return False, [f"missing:{CHECKSUM_FILE_NAME}"]
 
     mismatches: list[str] = []
-    for line in checksum_path.read_text(encoding="utf-8").splitlines():
-        item = line.strip()
-        if not item:
-            continue
+    listed_files: set[str] = set()
+    seen_paths: set[str] = set()
+
+    lines = checksum_path.read_text(encoding="utf-8").splitlines()
+    non_empty_lines = [line.strip() for line in lines if line.strip()]
+
+    # R04: Empty checksum file is invalid
+    if not non_empty_lines:
+        return False, ["empty:checksums.sha256 contains no entries"]
+
+    for item in non_empty_lines:
         digest, _, rel = item.partition("  ")
+
+        # Validate line format
         if not digest or not rel:
             mismatches.append(f"malformed:{item}")
             continue
-        file_path = root / rel
+
+        # R04: Validate hash format (SHA256 = 64 hex chars)
+        if len(digest) != 64 or not all(c in "0123456789abcdef" for c in digest.lower()):
+            mismatches.append(f"invalid-hash:{rel}:{digest[:16]}...")
+            continue
+
+        # R04: Detect path traversal attempts
+        if ".." in rel or rel.startswith("/"):
+            mismatches.append(f"path-traversal:{rel}")
+            continue
+
+        # Normalize and resolve path to detect traversal via symlinks
+        try:
+            file_path = (root / rel).resolve()
+            if not str(file_path).startswith(str(root)):
+                mismatches.append(f"path-outside-bundle:{rel}")
+                continue
+        except (ValueError, OSError):
+            mismatches.append(f"invalid-path:{rel}")
+            continue
+
+        # R04: Detect duplicate entries
+        if rel in seen_paths:
+            mismatches.append(f"duplicate:{rel}")
+            continue
+        seen_paths.add(rel)
+
+        # Check file exists
         if not file_path.exists():
             mismatches.append(f"missing:{rel}")
             continue
+
+        # Check checksum matches
         actual = sha256_file(file_path)
         if actual != digest:
             mismatches.append(f"mismatch:{rel}")
+            continue
+
+        listed_files.add(rel)
+
+    # R04: Detect extra files not in checksums
+    actual_files = {
+        f.relative_to(root).as_posix()
+        for f in _iter_bundle_files(root)
+    }
+    extra_files = actual_files - listed_files
+    for extra in sorted(extra_files):
+        mismatches.append(f"unlisted:{extra}")
+
     return len(mismatches) == 0, mismatches
 
 
@@ -405,6 +470,44 @@ def _infer_mechanism_from_artifact(bootstrap_rel: Path) -> str:
     if leaf.endswith(".rsc"):
         return "netinstall"
     return "unknown"
+
+
+def _write_secrets_with_restricted_permissions(secrets_base: Path, decrypted_secrets: dict[str, str]) -> None:
+    """Write decrypted secrets with restricted permissions (R05 fix).
+
+    Creates directories with 0700 and files with 0600 to prevent
+    unauthorized access by other local users.
+    """
+    # Create secrets root directory with restricted permissions
+    secrets_base.mkdir(parents=True, exist_ok=True)
+    os.chmod(secrets_base, _SECRET_DIR_MODE)
+
+    # Track directories we've created to set permissions once
+    created_dirs: set[Path] = {secrets_base}
+
+    for rel_path, content in decrypted_secrets.items():
+        target = secrets_base / rel_path
+
+        # Create parent directories with restricted permissions
+        parent = target.parent
+        if parent not in created_dirs and not parent.exists():
+            parent.mkdir(parents=True, exist_ok=True)
+            # Set permissions on all new parent directories
+            current = parent
+            while current != secrets_base and current not in created_dirs:
+                os.chmod(current, _SECRET_DIR_MODE)
+                created_dirs.add(current)
+                current = current.parent
+
+        # Write file with restricted permissions
+        # Use os.open + os.fdopen to atomically create with correct mode
+        fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, _SECRET_FILE_MODE)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(content)
+        except Exception:
+            os.close(fd)
+            raise
 
 
 def _decrypt_secrets(secrets_root: Path) -> dict[str, str]:

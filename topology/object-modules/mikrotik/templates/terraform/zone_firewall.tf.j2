@@ -79,18 +79,29 @@ resource "routeros_ip_firewall_filter" "zone_established_related" {
 # ==============================================================================
 # 2. Policy Override ACCEPT Rules
 # ==============================================================================
+{# R02 fix: Support VLAN-scoped overrides via src_address/dst_address #}
 {% for override in policy_overrides %}
 {% if override.get('action') == 'accept' %}
 {% set override_name = override.get('name', 'unnamed').replace('-', '_').replace('.', '_') %}
 {% set from_zone = override.get('from_zone_ref', '').replace('inst.trust_zone.', '').replace('.', '_') %}
 {% set to_zone = override.get('to_zone_ref', '').replace('inst.trust_zone.', '').replace('.', '_') %}
+{% set src_addr = override.get('src_address', '') %}
+{% set dst_addr = override.get('dst_address', '') %}
 {% set ports = override.get('ports', {}) %}
 {% if ports.get('tcp') %}
 resource "routeros_ip_firewall_filter" "zone_override_{{ override_name }}_tcp" {
   chain            = "forward"
   action           = "accept"
+{% if src_addr %}
+  src_address      = "{{ src_addr }}"
+{% else %}
   src_address_list = "zone-{{ from_zone }}"
+{% endif %}
+{% if dst_addr %}
+  dst_address      = "{{ dst_addr }}"
+{% else %}
   dst_address_list = "zone-{{ to_zone }}"
+{% endif %}
   protocol         = "tcp"
   dst_port         = "{{ ports.get('tcp') | join(',') }}"
   comment          = "ADR-0110 R6: {{ override.get('comment', override.get('name', 'override')) }} - managed by topology"
@@ -102,8 +113,16 @@ resource "routeros_ip_firewall_filter" "zone_override_{{ override_name }}_tcp" {
 resource "routeros_ip_firewall_filter" "zone_override_{{ override_name }}_udp" {
   chain            = "forward"
   action           = "accept"
+{% if src_addr %}
+  src_address      = "{{ src_addr }}"
+{% else %}
   src_address_list = "zone-{{ from_zone }}"
+{% endif %}
+{% if dst_addr %}
+  dst_address      = "{{ dst_addr }}"
+{% else %}
   dst_address_list = "zone-{{ to_zone }}"
+{% endif %}
   protocol         = "udp"
   dst_port         = "{{ ports.get('udp') | join(',') }}"
   comment          = "ADR-0110 R6: {{ override.get('comment', override.get('name', 'override')) }} - managed by topology"
@@ -115,8 +134,16 @@ resource "routeros_ip_firewall_filter" "zone_override_{{ override_name }}_udp" {
 resource "routeros_ip_firewall_filter" "zone_override_{{ override_name }}" {
   chain            = "forward"
   action           = "accept"
+{% if src_addr %}
+  src_address      = "{{ src_addr }}"
+{% else %}
   src_address_list = "zone-{{ from_zone }}"
+{% endif %}
+{% if dst_addr %}
+  dst_address      = "{{ dst_addr }}"
+{% else %}
   dst_address_list = "zone-{{ to_zone }}"
+{% endif %}
   comment          = "ADR-0110 R6: {{ override.get('comment', override.get('name', 'override')) }} - managed by topology"
   place_before     = routeros_ip_firewall_filter.zone_drop_all_forward.id
 }

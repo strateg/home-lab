@@ -736,6 +736,18 @@ def _extract_security_matrix(
         if isinstance(obj_overrides, list):
             policy_overrides = obj_overrides + policy_overrides
 
+        # R02 fix: Resolve src_vlan_ref/dst_vlan_ref to src_address/dst_address
+        # This ensures VLAN-scoped overrides are not silently ignored by the template
+        for override in policy_overrides:
+            if not isinstance(override, dict):
+                continue
+            src_vlan_ref = str(override.get("src_vlan_ref", "")).strip()
+            if src_vlan_ref and src_vlan_ref in vlan_cidr_map:
+                override["src_address"] = vlan_cidr_map[src_vlan_ref]
+            dst_vlan_ref = str(override.get("dst_vlan_ref", "")).strip()
+            if dst_vlan_ref and dst_vlan_ref in vlan_cidr_map:
+                override["dst_address"] = vlan_cidr_map[dst_vlan_ref]
+
         # Apply R6 overrides to matrix
         for override in policy_overrides:
             if not isinstance(override, dict):
