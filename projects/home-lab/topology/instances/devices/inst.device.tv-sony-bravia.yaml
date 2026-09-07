@@ -1,32 +1,23 @@
 @instance: inst.device.tv-sony-bravia
 @extends: obj.device.sony_bravia_a90j
 @group: devices
-@version: 1.2.0
+@version: 1.0.0
 source_id: tv-sony-bravia-a90j
 status: active
 notes: |
   Sony Bravia XR-55A90J Master Series OLED TV.
   Connected via Ethernet to Chateau ether2, default LAN (Estonian exit).
   For German streaming: use WiFi SSID "VPN-Germany" or VPN app on TV.
+  ADR 0117: L2 network properties moved to inst.iot_interface.tv-sony-bravia
 
-# Device identification (inherited specs from object)
+# L1 device identification
 device_name: "Sony Bravia XR-55A90J"
 
-# Network configuration
-# MAC addresses stored in secrets
+# Secrets (MAC address, device identifiers)
 secrets_ref: secrets.instances.tv-sony-bravia
 
-# Primary connection: Ethernet (ether2 on Chateau)
-connection_type: ethernet
-physical_port: ether2
-router_ref: rtr-mikrotik-chateau
-
-# Default LAN - Estonian exit (direct via ISP)
-vlan_ref: inst.vlan.lan
-
-# IP assignment via DHCP with static lease
-ip_address: 192.168.88.215
-dhcp_static_lease: true
+# L2 network interface reference (ADR 0117)
+provides_ref: inst.iot_interface.tv-sony-bravia
 
 # Additional streaming services used (German content)
 additional_streaming_services:
@@ -34,8 +25,7 @@ additional_streaming_services:
   - ZDF_Mediathek
   - Arte
 
-# VPN options for German content
+# VPN options for German content (L1 device capability info)
 vpn_options:
   wifi_ssid: "VPN-Germany"
-  wifi_vlan_ref: inst.vlan.vpn_germany
   native_vpn_app: true

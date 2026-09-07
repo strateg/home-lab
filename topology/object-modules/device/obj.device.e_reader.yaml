@@ -7,9 +7,9 @@
   Requires WiFi for cloud sync, book downloads, and app updates.
 @version: 1.0.0
 
-# Fixed properties for e-readers
-device_type: other
-connection_type: wifi
+# Fixed properties for e-readers (L1 only - ADR 0117)
+# connection_type moved to L2 class.network.iot_interface
+device_type: e_reader
 
 # Typical network requirements
 network_requirements:

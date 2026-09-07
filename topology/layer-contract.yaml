@@ -126,6 +126,9 @@ class_layers:
     allowed_layers: [L2]
   class.network.security_matrix:
     allowed_layers: [L2]
+  class.network.iot_interface:
+    allowed_layers: [L2]
+    description: L2 network interface for IoT devices (ADR 0117)
 
   # L3 - Storage/Data (pools, volumes, media, data assets)
   class.storage.pool:

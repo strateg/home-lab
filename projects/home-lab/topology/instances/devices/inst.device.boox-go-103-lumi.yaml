@@ -8,19 +8,25 @@ notes: |
   BOOX Go 10.3 Gen II Lumi e-ink tablet with Android 15.
   Front-lit display, stylus support, WiFi/Bluetooth.
   Locked bootloader - no custom OS installation possible.
-  Static IP: 192.168.55.49 (VPN Germany VLAN)
+  ADR 0117: L2 network properties moved to inst.iot_interface.boox-go-103-lumi
 
 # Firmware and OS references (ADR0064)
 firmware_ref: inst.firmware.boox.go103.arm64
 os_refs:
 - inst.os.android.15.arm64.boox
 
-# Device identification
+# L1 device identification
 device_name: "BOOX Go 10.3 Gen II Lumi"
 manufacturer: Onyx BOOX
 model: Go 10.3 Gen II Lumi
 
-# Hardware specifications
+# Secrets (MAC address, device identifiers)
+secrets_ref: secrets.instances.boox-go-103-lumi
+
+# L2 network interface reference (ADR 0117)
+provides_ref: inst.iot_interface.boox-go-103-lumi
+
+# Hardware specifications (L1 physical properties)
 hardware:
   display:
     size_inches: 10.3
@@ -40,25 +46,13 @@ hardware:
     pressure_levels: 4096
     latency_ms: 25
 
-# Connectivity
+# Connectivity capabilities (L1 physical)
 connectivity:
   wifi:
     - 2.4GHz
     - 5GHz
   bluetooth: "5.1"
   speakers: stereo
-
-# Network configuration
-# MAC address stored in secrets/instances/boox-go-103-lumi.yaml
-secrets_ref: secrets.instances.boox-go-103-lumi
-connection_type: wifi
-
-# VLAN assignment - main LAN (connects to Chateau* SSID)
-# For German content: manually connect to VPN-Germany SSID
-vlan_ref: inst.vlan.lan
-
-# DHCP (no static reservation needed for LAN)
-static_ip: null
 
 # Supported formats
 supported_formats:

@@ -28,7 +28,7 @@ classes:
   class.compute.workload.vm:
     version: 1.2.0
   class.device.iot_endpoint:
-    version: 1.0.0
+    version: 2.0.0
   class.firmware:
     version: 1.0.0
   class.network.bridge:
@@ -36,6 +36,8 @@ classes:
   class.network.data_link:
     version: 1.0.0
   class.network.firewall_policy:
+    version: 1.0.0
+  class.network.iot_interface:
     version: 1.0.0
   class.network.physical_link:
     version: 1.0.0
@@ -59,11 +61,27 @@ classes:
     version: 1.0.0
   class.os:
     version: 1.0.0
-  class.peripheral.usb_ethernet_adapter:
+  class.peripheral:
     version: 1.0.0
-  class.peripheral.usb_hub_ethernet:
+  class.peripheral.bluetooth:
     version: 1.0.0
-  class.peripheral.usb_wifi_adapter:
+  class.peripheral.bluetooth.hid:
+    version: 1.0.0
+  class.peripheral.nfc:
+    version: 1.0.0
+  class.peripheral.thunderbolt:
+    version: 1.0.0
+  class.peripheral.usb:
+    version: 1.0.0
+  class.peripheral.usb.hub:
+    version: 1.0.0
+  class.peripheral.usb.network_adapter:
+    version: 1.0.0
+  class.peripheral.usb.storage_device:
+    version: 1.0.0
+  class.peripheral.zigbee:
+    version: 1.0.0
+  class.peripheral.zwave:
     version: 1.0.0
   class.power.pdu:
     version: 1.0.0
@@ -201,6 +219,9 @@ objects:
   obj.network.firewall_policy.iot_isolated:
     version: 1.0.0
     class_ref: class.network.firewall_policy
+  obj.network.iot_interface.generic:
+    version: 1.0.0
+    class_ref: class.network.iot_interface
   obj.network.lte_channel:
     version: 1.0.0
     class_ref: class.network.data_link
@@ -366,12 +387,15 @@ objects:
   obj.pdu.generic.managed:
     version: 1.0.0
     class_ref: class.power.pdu
-  obj.peripheral.asus.usb_ax55_nano:
+  obj.peripheral.bt.logitech.m720:
     version: 1.0.0
-    class_ref: class.peripheral.usb_wifi_adapter
-  obj.peripheral.bluecloud.usbc_hub_gbe:
+    class_ref: class.peripheral.bluetooth.hid
+  obj.peripheral.usb.asus.ax55_nano:
     version: 1.0.0
-    class_ref: class.peripheral.usb_hub_ethernet
+    class_ref: class.peripheral.usb.network_adapter
+  obj.peripheral.usb.bluecloud.hub_gbe:
+    version: 1.0.0
+    class_ref: class.peripheral.usb.hub
   obj.proxmox.lxc.debian12.base:
     version: 1.1.0
     class_ref: class.compute.workload.lxc

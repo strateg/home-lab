@@ -7,9 +7,9 @@
   Requires WiFi for home network connectivity.
 @version: 1.0.0
 
-# Fixed properties for smartphones
-device_type: other
-connection_type: wifi
+# Fixed properties for smartphones (L1 only - ADR 0117)
+# connection_type moved to L2 class.network.iot_interface
+device_type: smartphone
 
 # Typical network requirements
 network_requirements:

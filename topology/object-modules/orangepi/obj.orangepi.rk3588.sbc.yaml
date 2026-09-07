@@ -18,6 +18,17 @@ hardware_specs:
         Onboard RTL8211F GbE (platform fe1c0000.ethernet, rk_gmac-dwmac driver).
         Named end1 by the Armbian rk35xx vendor kernel. Currently non-functional
         due to PHY initialization failure (Cannot attach to PHY error -19).
+    - name: usb_hub_eth
+      role: trunk_uplink
+      speed_mbps: 1000
+      standard: gbe
+      duplex: full
+      status: active
+      via_peripheral: true
+      description: >-
+        USB-Ethernet adapter port provided via USB hub peripheral. Interface
+        name derived from adapter MAC address (enxAABBCCDDEEFF format).
+        Used as primary network interface when onboard PHY is non-functional.
     usb_ports:
     - name: usb3.0
       type: usb_a

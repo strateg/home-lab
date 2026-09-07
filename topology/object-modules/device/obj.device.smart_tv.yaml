@@ -7,9 +7,9 @@
   Can be assigned to VPN VLAN for geo-location bypass.
 @version: 1.0.0
 
-# Fixed properties for smart TVs
+# Fixed properties for smart TVs (L1 only - ADR 0117)
+# connection_type moved to L2 class.network.iot_interface
 device_type: smart_tv
-connection_type: wifi
 
 # Hardware specifications with port inventory for physical link validation
 hardware_specs:

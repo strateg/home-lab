@@ -1,0 +1,11 @@
+@object: obj.network.iot_interface.generic
+@extends: class.network.iot_interface
+@title: Generic IoT Device Network Interface
+@description: |
+  Generic L2 network interface object for IoT devices.
+  Used for WiFi or Ethernet connected IoT endpoints.
+  Created per ADR 0117 for layer separation.
+@version: 1.0.0
+
+# No fixed properties - all set by instances
+enabled_capabilities: []

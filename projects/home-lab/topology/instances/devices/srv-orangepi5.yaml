@@ -10,6 +10,19 @@ notes: |
     - Docker: servers VLAN 100 (10.0.100.23) - tagged
   Connected to rtr-mikrotik-chateau ether3 via USB-Ethernet adapter (onboard PHY damaged).
   ADR 0107 workload_defaults applied; migrated to Armbian on NVMe (2026-08-03).
+# Ports - including peripheral-provided interfaces
+# The onboard end1 is inherited from obj.orangepi.rk3588.sbc but is non-functional (PHY damaged).
+# usb_hub_eth is provided by the USB-C hub peripheral as the primary network interface.
+ports:
+  - name: usb_hub_eth
+    role: trunk_uplink
+    speed_mbps: 1000
+    standard: gbe
+    via_peripheral: inst.peripheral.usb.hub.bluecloud-001
+    description: >-
+      USB-C hub Gigabit Ethernet port providing primary network connectivity.
+      Interface name derived from adapter MAC (linux_interface in secrets).
+
 firmware_ref: inst.firmware.uboot.generic.arm64
 os_refs:
 - inst.os.armbian.26.5.arm64.edge

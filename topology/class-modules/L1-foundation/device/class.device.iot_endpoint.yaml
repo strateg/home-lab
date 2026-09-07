@@ -1,11 +1,12 @@
 @class: class.device.iot_endpoint
 @title: IoT Endpoint Device
 @description: |
-  Network-connected IoT device (smart TV, speaker, camera, etc.)
-  that connects to home network but doesn't run custom software.
-  Managed through VLAN assignment and firewall policies.
+  L1 physical representation of network-connected IoT device.
+  Network attachment properties (VLAN, IP, connection type) are at L2
+  via provides_ref link to class.network.iot_interface.
+  Refactored per ADR 0117 for clean layer separation.
 @layer: L1
-@version: 1.0.0
+@version: 2.0.0
 
 properties:
   required:
@@ -14,12 +15,12 @@ properties:
   optional:
     - manufacturer
     - model
-    - mac_address
     - secrets_ref
-    - ip_address
-    - static_ip
-    - vlan_ref
-    - connection_type
+    - provides_ref
+    - firmware_ref
+    - os_refs
+    - hardware
+    - connectivity
     - notes
 
 property_schemas:
@@ -36,40 +37,42 @@ property_schemas:
       - streaming_device
       - game_console
       - iot_hub
+      - e_reader
+      - smartphone
+      - tablet
       - other
     description: Type of IoT device
-  mac_address:
-    type: string
-    pattern: "^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$"
-    description: Device MAC address (prefer secrets_ref for encrypted storage)
-  secrets_ref:
-    type: string
-    format: secrets_ref
-    description: Reference to secrets file containing mac_address (e.g., secrets.instances.device-name)
-  static_ip:
-    type: string
-    format: ipv4
-    description: Static IP for DHCP reservation
   manufacturer:
     type: string
     description: Device manufacturer
   model:
     type: string
     description: Device model
-  ip_address:
+  secrets_ref:
     type: string
-    format: ipv4
-    description: Static IP (optional, can use DHCP)
-  vlan_ref:
+    format: secrets_ref
+    description: Reference to secrets file containing MAC address and device identifiers
+  provides_ref:
     type: string
     format: instance_ref
-    target_class: class.network.vlan
-    description: VLAN assignment for this device
-  connection_type:
+    target_class: class.network.iot_interface
+    description: Reference to L2 network interface instance this device provides
+  firmware_ref:
     type: string
-    enum: [wifi, ethernet]
-    default: wifi
-    description: Network connection type
+    format: instance_ref
+    description: Reference to firmware instance
+  os_refs:
+    type: array
+    items:
+      type: string
+      format: instance_ref
+    description: References to OS instances
+  hardware:
+    type: object
+    description: Physical hardware specifications (display, CPU, RAM, storage, etc.)
+  connectivity:
+    type: object
+    description: Physical connectivity capabilities (wifi bands, bluetooth version, etc.)
 
 required_capabilities: []
 

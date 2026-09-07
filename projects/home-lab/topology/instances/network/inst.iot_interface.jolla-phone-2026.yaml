@@ -1,0 +1,21 @@
+@instance: inst.iot_interface.jolla-phone-2026
+@extends: obj.network.iot_interface.generic
+@group: network
+@version: 1.0.0
+source_id: iot-interface-jolla-phone-2026
+notes: |
+  L2 network interface for Jolla Phone 2026.
+  Default: Chateau/Chateau* SSIDs (trusted user LAN, no VPN).
+  Whitelisted for VPN-Germany SSID (VLAN 55 -> wg0 tunnel).
+
+# Reference to L1 device
+device_ref: inst.device.jolla-phone-2026
+
+# WiFi connection
+connection_type: wifi
+
+# VLAN assignment - trusted user LAN
+vlan_ref: inst.vlan.lan
+
+# DHCP (no static IP for mobile device)
+ip_assignment: dhcp

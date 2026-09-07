@@ -1,0 +1,21 @@
+@instance: inst.iot_interface.boox-go-103-lumi
+@extends: obj.network.iot_interface.generic
+@group: network
+@version: 1.0.0
+source_id: iot-interface-boox-go-103-lumi
+notes: |
+  L2 network interface for BOOX Go 10.3 e-reader.
+  Connects via WiFi to Chateau* SSID (main LAN).
+  For German content: manually connect to VPN-Germany SSID.
+
+# Reference to L1 device
+device_ref: inst.device.boox-go-103-lumi
+
+# WiFi connection
+connection_type: wifi
+
+# VLAN assignment - main LAN
+vlan_ref: inst.vlan.lan
+
+# DHCP (no static reservation)
+ip_assignment: dhcp

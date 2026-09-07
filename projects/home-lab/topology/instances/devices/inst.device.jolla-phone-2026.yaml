@@ -9,19 +9,25 @@ notes: |
   Day1 launch event device - 12GB/256GB configuration.
   Includes Android App Support 15 for running Android applications.
   Privacy-focused mobile computing with Privacy Switch, RGB LED, replaceable battery.
-  Specifications verified from official Jolla store and community forum.
+  ADR 0117: L2 network properties moved to inst.iot_interface.jolla-phone-2026
 
 # Firmware and OS references (ADR0064)
 firmware_ref: inst.firmware.jolla.jp2.arm64
 os_refs:
 - inst.os.sailfish.finnlayson.arm64.jolla
 
-# Device identification
+# L1 device identification
 device_name: "Jolla Phone 2026"
 manufacturer: Jolla
 model: JP2
 
-# Hardware specifications (verified from forum post and official store)
+# Secrets (MAC address, IMEI, device identifiers)
+secrets_ref: secrets.instances.jolla-phone-2026
+
+# L2 network interface reference (ADR 0117)
+provides_ref: inst.iot_interface.jolla-phone-2026
+
+# Hardware specifications (L1 physical properties)
 hardware:
   display:
     size_inches: 6.38
@@ -54,7 +60,7 @@ hardware:
     - compass
     - ambient_light
 
-# Connectivity (verified from official specs)
+# Connectivity capabilities (L1 physical)
 connectivity:
   cellular:
     - 5G NR
@@ -79,7 +85,7 @@ connectivity:
     - GLONASS
     - BEIDOU
 
-# Camera specifications (verified from official specs - Sony cameras)
+# Camera specifications
 cameras:
   rear:
     main:
@@ -94,7 +100,7 @@ cameras:
     megapixels: 32
     aperture: f/2.4
 
-# Operating System
+# Operating System (L1 software stack)
 operating_system:
   name: Sailfish OS
   version: 5.2.0.13
@@ -120,28 +126,11 @@ features:
     - vpn_built_in
     - tracker_blocking
 
-# Network configuration
-# WiFi MAC (wlan0), IMEI1, IMEI2 stored in secrets/instances/jolla-phone-2026.yaml
-secrets_ref: secrets.instances.jolla-phone-2026
-connection_type: wifi
-
 # Dual-SIM configuration
 dual_sim: true
 sim_slots: 2
 
-# VLAN assignment - trusted user LAN (native VLAN, 192.168.88.0/24).
-# Default home network for the device: connecting to Chateau/Chateau* SSIDs
-# lands it in the trusted user zone with plain internet (no VPN).
-# The device additionally stays whitelisted for the VPN-Germany SSID: the
-# wifi-vpn-germany access-list (see rtr-mikrotik-chateau wifi_vpn_germany
-# access_list and playbooks/mikrotik-vpn-germany-access-list.yml) assigns
-# VLAN 55 -> wg0 tunnel ONLY when it connects to that SSID.
-vlan_ref: inst.vlan.lan
-
-# DHCP (no static IP for mobile device)
-static_ip: null
-
-# Supported formats and capabilities
+# Supported formats
 supported_formats:
   documents:
     - PDF

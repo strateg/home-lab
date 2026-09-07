@@ -1,0 +1,25 @@
+@instance: inst.iot_interface.tv-sony-bravia
+@extends: obj.network.iot_interface.generic
+@group: network
+@version: 1.0.0
+source_id: iot-interface-tv-sony-bravia
+notes: |
+  L2 network interface for Sony Bravia TV.
+  Primary: Ethernet to Chateau ether2, default LAN (Estonian exit).
+  VPN option: WiFi SSID "VPN-Germany" for German streaming.
+
+# Reference to L1 device
+device_ref: inst.device.tv-sony-bravia
+
+# Primary connection: Ethernet
+connection_type: ethernet
+physical_port: ether2
+router_ref: rtr-mikrotik-chateau
+
+# VLAN assignment - default LAN
+vlan_ref: inst.vlan.lan
+
+# IP assignment via DHCP with static lease
+ip_assignment: dhcp_reservation
+static_ip: 192.168.88.215
+dhcp_static_lease: true

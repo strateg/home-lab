@@ -1,0 +1,63 @@
+@class: class.network.iot_interface
+@title: IoT Device Network Interface
+@description: |
+  L2 network interface representation for IoT devices.
+  Separates network attachment properties from physical device (L1).
+  Created per ADR 0117 to fix layer mixing in class.device.iot_endpoint.
+@layer: L2
+@version: 1.0.0
+
+properties:
+  required:
+    - device_ref
+    - connection_type
+  optional:
+    - vlan_ref
+    - ip_assignment
+    - static_ip
+    - dhcp_static_lease
+    - physical_port
+    - router_ref
+    - notes
+
+property_schemas:
+  device_ref:
+    type: string
+    format: instance_ref
+    target_class: class.device.iot_endpoint
+    description: Reference to the L1 IoT device this interface belongs to
+  connection_type:
+    type: string
+    enum: [wifi, ethernet]
+    description: Network connection type
+  vlan_ref:
+    type: string
+    format: instance_ref
+    target_class: class.network.vlan
+    description: VLAN assignment for this interface
+  ip_assignment:
+    type: string
+    enum: [dhcp, static, dhcp_reservation]
+    default: dhcp
+    description: IP address assignment method
+  static_ip:
+    type: string
+    format: ipv4
+    description: Static IP address (when ip_assignment is static or dhcp_reservation)
+  dhcp_static_lease:
+    type: boolean
+    default: false
+    description: Whether DHCP server should reserve a static lease for this device
+  physical_port:
+    type: string
+    description: Physical port on router/switch (e.g., ether2)
+  router_ref:
+    type: string
+    format: instance_ref
+    description: Reference to router/switch device for wired connections
+
+required_capabilities: []
+
+optional_capabilities: []
+
+enabled_capabilities: []
