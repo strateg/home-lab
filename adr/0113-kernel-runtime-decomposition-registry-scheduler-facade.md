@@ -67,7 +67,7 @@ kernel/
 │   └── legacy_executor.py        # thread_legacy execute_plugin + data-bus contract
 │                                 #   diagnostics (D13 quarantine)
 ├── pipeline_runtime.py           # PipelineState (envelope commit, invalidation)
-├── plugin_runner.py              # run_plugin_once(snapshot, spec) -> envelope
+├── plugin_runner.py              # run_plugin_once(snapshot, plugin) -> envelope
 └── plugin_registry.py            # facade (~800 LOC): frozen public API, wiring,
                                   #   introspection, re-exports
 ```

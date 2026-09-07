@@ -44,6 +44,12 @@ def execute_plugin_isolated(
     snapshot-backed plugin execution and returns a proposal envelope to the main
     interpreter for validation and commit.
 
+    Follows the same execution contract as run_plugin_once() (ADR 0097 D2, ADR 0080 §5.3):
+    - Creates PluginExecutionScope for per-invocation isolation
+    - Calls execute_phase() for proper phase dispatch
+    - Returns PluginExecutionEnvelope with result and published_messages
+    - Puts error traceback in PluginResult.error_traceback, not in PluginDiagnostic
+
     Args:
         snapshot_dict: PluginInputSnapshot as dict (for pickling)
         base_path_str: Base path for plugin loading (as string)
@@ -57,6 +63,8 @@ def execute_plugin_isolated(
         main interpreter. All data is passed via serialized arguments.
     """
     import sys
+    import time
+    import traceback
     from pathlib import Path
 
     # Reconstruct base path
@@ -68,11 +76,15 @@ def execute_plugin_isolated(
         sys.path.insert(0, str(base_path))
 
     # Import kernel modules in subinterpreter
+    from kernel.plugin_base import Phase as SubPhase
     from kernel.plugin_base import PluginContext as SubPluginContext
     from kernel.plugin_base import PluginDiagnostic as SubPluginDiagnostic
     from kernel.plugin_base import PluginExecutionEnvelope as SubEnvelope
+    from kernel.plugin_base import PluginExecutionScope as SubPluginExecutionScope
     from kernel.plugin_base import PluginInputSnapshot as SubSnapshot
     from kernel.plugin_base import PluginKind as SubPluginKind
+    from kernel.plugin_base import PluginResult as SubPluginResult
+    from kernel.plugin_base import PluginStatus as SubPluginStatus
     from kernel.plugin_base import Stage as SubStage
     from kernel.scheduler.snapshot_builder import SerializablePluginSpec
 
@@ -96,44 +108,68 @@ def execute_plugin_isolated(
 
     minimal = MinimalSpec(serialized_spec_dict)
 
+    # Resolve stage and phase enums
+    stage = SubStage(snapshot.stage.value if hasattr(snapshot.stage, "value") else snapshot.stage)
+    phase = SubPhase(snapshot.phase.value if hasattr(snapshot.phase, "value") else snapshot.phase)
+
+    start_time = time.perf_counter()
+
     try:
         plugin_class = loader._load_entry_point(minimal)  # type: ignore[arg-type]
         instance = plugin_class(spec.id, spec.api_version)
 
-        # Build snapshot-backed context
+        # Build snapshot-backed context (ADR 0097 D3)
         ctx = SubPluginContext.from_snapshot(snapshot)
 
-        # Execute plugin
-        stage = SubStage(snapshot.stage.value if hasattr(snapshot.stage, "value") else snapshot.stage)
-        result = instance.execute(ctx, stage)
-
-        # Build envelope
-        return SubEnvelope(
-            plugin_id=spec.id,
-            result=result,
-            proposed_context_updates=ctx._pending_updates if hasattr(ctx, "_pending_updates") else {},
-            proposed_diagnostics=list(ctx._pending_diagnostics) if hasattr(ctx, "_pending_diagnostics") else [],
+        # Set up PluginExecutionScope for per-invocation isolation (ADR 0080 §9.2, ADR 0097 AC20)
+        scope = SubPluginExecutionScope(
+            plugin_id=snapshot.plugin_id,
+            allowed_dependencies=snapshot.allowed_dependencies,
+            phase=phase,
+            config=ctx.config.copy(),
+            stage=stage,
+            produced_key_scopes=dict(snapshot.produced_key_scopes),
         )
+        token = ctx._set_execution_scope(scope)
+
+        try:
+            # Execute plugin via execute_phase() for proper phase dispatch (ADR 0080 §5.3)
+            result = instance.execute_phase(ctx, stage, phase)
+            result.duration_ms = (time.perf_counter() - start_time) * 1000
+
+            # Build envelope with proper fields (ADR 0097 D4)
+            return SubEnvelope(
+                result=result,
+                published_messages=ctx.drain_outbox(),
+            )
+        finally:
+            ctx._clear_execution_scope(token)
 
     except Exception as exc:
-        import traceback
-
-        return SubEnvelope(
+        duration_ms = (time.perf_counter() - start_time) * 1000
+        # Error traceback goes in PluginResult.error_traceback, not PluginDiagnostic (ADR 0063 §7)
+        result = SubPluginResult(
             plugin_id=spec.id,
-            result=None,
-            proposed_context_updates={},
-            proposed_diagnostics=[
+            api_version=spec.api_version,
+            status=SubPluginStatus.FAILED,
+            duration_ms=duration_ms,
+            diagnostics=[
                 SubPluginDiagnostic(
                     code="E4102",
                     severity="error",
-                    stage=str(snapshot.stage),
-                    phase=str(snapshot.phase),
+                    stage=stage.value,
+                    phase=phase.value,
                     message=f"Plugin crashed in isolated interpreter: {exc}",
                     path=f"plugin:{spec.id}:subinterpreter",
                     plugin_id="kernel",
-                    traceback=traceback.format_exc(),
                 )
             ],
+            error_traceback=traceback.format_exc(),
+        )
+        return SubEnvelope(
+            result=result,
+            published_messages=[],
+            execution_metadata={"runner_error": str(exc)},
         )
 
 
