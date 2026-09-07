@@ -299,10 +299,18 @@ def verify_bundle_checksums(bundle_root: Path) -> tuple[bool, list[str]]:
             mismatches.append(f"path-traversal:{rel}")
             continue
 
-        # Normalize and resolve path to detect traversal via symlinks
+        # F03 fix: Normalize and resolve path to detect traversal via symlinks
+        # Use is_relative_to() instead of string prefix to handle sibling directories
         try:
-            file_path = (root / rel).resolve()
-            if not str(file_path).startswith(str(root)):
+            raw_path = root / rel
+            # F03: Reject symlinks in immutable bundles - they can escape containment
+            if raw_path.is_symlink():
+                mismatches.append(f"symlink-not-allowed:{rel}")
+                continue
+            file_path = raw_path.resolve()
+            resolved_root = root.resolve()
+            # F03: Use is_relative_to() for proper path containment check
+            if not file_path.is_relative_to(resolved_root):
                 mismatches.append(f"path-outside-bundle:{rel}")
                 continue
         except (ValueError, OSError):
@@ -329,10 +337,7 @@ def verify_bundle_checksums(bundle_root: Path) -> tuple[bool, list[str]]:
         listed_files.add(rel)
 
     # R04: Detect extra files not in checksums
-    actual_files = {
-        f.relative_to(root).as_posix()
-        for f in _iter_bundle_files(root)
-    }
+    actual_files = {f.relative_to(root).as_posix() for f in _iter_bundle_files(root)}
     extra_files = actual_files - listed_files
     for extra in sorted(extra_files):
         mismatches.append(f"unlisted:{extra}")

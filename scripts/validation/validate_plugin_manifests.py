@@ -6,10 +6,15 @@ from __future__ import annotations
 import argparse
 import ast
 import json
+
+# F06 fix: Use shared manifest discovery module (add repo root to path for CLI execution)
+import sys
 from pathlib import Path
 
 import jsonschema
-import yaml
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from scripts.validation.manifest_discovery import discover_manifests, load_yaml
 
 
 def _repo_root() -> Path:
@@ -19,53 +24,6 @@ def _repo_root() -> Path:
 def _load_schema(path: Path) -> dict:
     with path.open("r", encoding="utf-8") as handle:
         return json.load(handle)
-
-
-def _load_yaml(path: Path) -> dict:
-    """Load YAML file safely."""
-    with path.open("r", encoding="utf-8") as handle:
-        return yaml.safe_load(handle) or {}
-
-
-def _resolve_includes(manifest_path: Path) -> list[Path]:
-    """R06 fix: Resolve includes from a manifest file recursively."""
-    result: list[Path] = []
-    if not manifest_path.exists():
-        return result
-
-    manifest_data = _load_yaml(manifest_path)
-    includes = manifest_data.get("includes", [])
-    if not isinstance(includes, list):
-        return result
-
-    manifest_dir = manifest_path.parent
-    for include in includes:
-        if not isinstance(include, str):
-            continue
-        include_path = (manifest_dir / include).resolve()
-        if include_path.exists():
-            result.append(include_path)
-            result.extend(_resolve_includes(include_path))
-
-    return result
-
-
-def _discover_manifests(repo_root: Path) -> list[Path]:
-    """R06 fix: Discover all plugin manifest files including sharded includes."""
-    manifests: list[Path] = []
-
-    # Root framework manifest and its includes
-    root_manifest = repo_root / "topology-tools" / "plugins" / "plugins.yaml"
-    if root_manifest.exists():
-        manifests.append(root_manifest)
-        manifests.extend(_resolve_includes(root_manifest))
-
-    manifests.extend(sorted((repo_root / "topology" / "class-modules").rglob("plugins.yaml")))
-    manifests.extend(sorted((repo_root / "topology" / "object-modules").rglob("plugins.yaml")))
-
-    # Deduplicate
-    seen: set[Path] = set()
-    return [m for m in manifests if m.exists() and not (m in seen or seen.add(m))]
 
 
 def _resolve_entry_manifest_relative(manifest_dir: Path, entry: str) -> Path | None:
@@ -233,7 +191,11 @@ def main(argv: list[str] | None = None) -> int:
     repo_root = _repo_root()
     schema_path = repo_root / "topology-tools" / "schemas" / "plugin-manifest.schema.json"
     schema = _load_schema(schema_path)
-    manifests = _discover_manifests(repo_root)
+    # F06 fix: Use shared manifest discovery with warning collection
+    discovery_warnings: list[str] = []
+    manifests = discover_manifests(repo_root, warnings=discovery_warnings)
+    for w in discovery_warnings:
+        print(f"WARN discovery: {w}")
     warnings: list[str] = []
 
     if not manifests:
@@ -245,8 +207,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"ERROR: missing manifest: {manifest_path}")
             return 1
 
-        with manifest_path.open("r", encoding="utf-8") as handle:
-            manifest = yaml.safe_load(handle) or {}
+        manifest = load_yaml(manifest_path)
 
         try:
             jsonschema.validate(manifest, schema)

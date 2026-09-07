@@ -105,6 +105,25 @@ class TerraformMikroTikGenerator(BaseGenerator):
         # Extract security matrix from projection (ADR 0110)
         router_matrix = projection.get("security_matrix", {})
 
+        # F05: Fail-closed check for unresolved VLAN refs in policy overrides
+        unresolved_refs = router_matrix.get("unresolved_vlan_refs", [])
+        if unresolved_refs:
+            for ref_info in unresolved_refs:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E9210",
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            f"Policy override '{ref_info.get('override', 'unnamed')}' references "
+                            f"unknown VLAN '{ref_info.get('ref', '')}' in {ref_info.get('field', '')}. "
+                            "Cannot generate firewall rules with unresolved VLAN restrictions."
+                        ),
+                        path="generator:terraform_mikrotik:security_matrix",
+                    )
+                )
+            return self.make_result(diagnostics)
+
         # Extract capability flags from projection
         caps = projection.get("capabilities", {})
         # Normalize has_qos for backwards compatibility (can be basic or advanced)

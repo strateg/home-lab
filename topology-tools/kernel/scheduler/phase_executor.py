@@ -390,8 +390,43 @@ def execute_phase_parallel(
                     if spec is None:
                         continue
 
-                    # R09 fix: Calculate remaining time based on submission
+                    # F02/R09 fix: Enforce individual deadline before accepting result
+                    # A result that arrives after its individual timeout must be rejected
                     elapsed = time.monotonic() - submit_time
+
+                    # F02: Check if individual deadline was exceeded BEFORE accepting result
+                    if elapsed > timeout_secs:
+                        # Result arrived after deadline - reject it even if future completed
+                        failed = PluginResult.failed(
+                            plugin_id=plugin_id,
+                            api_version=spec.api_version,
+                            diagnostics=[
+                                PluginDiagnostic(
+                                    code="E4103",
+                                    severity="error",
+                                    stage=stage.value,
+                                    phase=phase.value,
+                                    message=(
+                                        f"Plugin exceeded individual deadline: completed in {elapsed:.1f}s "
+                                        f"but timeout was {timeout_secs:.1f}s"
+                                    ),
+                                    path="kernel.scheduler",
+                                    plugin_id="kernel",
+                                )
+                            ],
+                        )
+                        results_by_plugin[plugin_id] = failed
+                        if trace_execution:
+                            host._trace_event(
+                                event="plugin_result",
+                                stage=stage,
+                                phase=phase,
+                                plugin_id=plugin_id,
+                                status=failed.status,
+                                message="deadline exceeded",
+                            )
+                        continue
+
                     remaining = max(0.1, timeout_secs - elapsed)
 
                     try:

@@ -736,17 +736,40 @@ def _extract_security_matrix(
         if isinstance(obj_overrides, list):
             policy_overrides = obj_overrides + policy_overrides
 
-        # R02 fix: Resolve src_vlan_ref/dst_vlan_ref to src_address/dst_address
+        # R02/F05 fix: Resolve src_vlan_ref/dst_vlan_ref to src_address/dst_address
         # This ensures VLAN-scoped overrides are not silently ignored by the template
+        # F05: Track unresolved refs for fail-closed semantics
+        unresolved_vlan_refs: list[dict[str, str]] = []
         for override in policy_overrides:
             if not isinstance(override, dict):
                 continue
+            override_name = str(override.get("name", "unnamed"))
             src_vlan_ref = str(override.get("src_vlan_ref", "")).strip()
-            if src_vlan_ref and src_vlan_ref in vlan_cidr_map:
-                override["src_address"] = vlan_cidr_map[src_vlan_ref]
+            if src_vlan_ref:
+                if src_vlan_ref in vlan_cidr_map:
+                    override["src_address"] = vlan_cidr_map[src_vlan_ref]
+                else:
+                    # F05: Record unresolved ref for fail-closed enforcement
+                    unresolved_vlan_refs.append(
+                        {
+                            "override": override_name,
+                            "field": "src_vlan_ref",
+                            "ref": src_vlan_ref,
+                        }
+                    )
             dst_vlan_ref = str(override.get("dst_vlan_ref", "")).strip()
-            if dst_vlan_ref and dst_vlan_ref in vlan_cidr_map:
-                override["dst_address"] = vlan_cidr_map[dst_vlan_ref]
+            if dst_vlan_ref:
+                if dst_vlan_ref in vlan_cidr_map:
+                    override["dst_address"] = vlan_cidr_map[dst_vlan_ref]
+                else:
+                    # F05: Record unresolved ref for fail-closed enforcement
+                    unresolved_vlan_refs.append(
+                        {
+                            "override": override_name,
+                            "field": "dst_vlan_ref",
+                            "ref": dst_vlan_ref,
+                        }
+                    )
 
         # Apply R6 overrides to matrix
         for override in policy_overrides:
@@ -777,6 +800,8 @@ def _extract_security_matrix(
             "zones": zone_data,
             "matrix": matrix,
             "policy_overrides": policy_overrides,
+            # F05: Include unresolved refs for fail-closed enforcement by generator
+            "unresolved_vlan_refs": unresolved_vlan_refs,
         }
 
     return {}
@@ -1143,19 +1168,23 @@ def _extract_containers(
                 # Secret reference: strip _REF suffix, generate Terraform variable name
                 actual_key = key[:-4]  # Remove "_REF" suffix
                 var_name = f"{tf_name}_{actual_key.lower()}"
-                envs.append({
-                    "key": actual_key,
-                    "var_name": var_name,
-                    "secrets_ref": str(value),
-                    "is_secret": True,
-                })
+                envs.append(
+                    {
+                        "key": actual_key,
+                        "var_name": var_name,
+                        "secrets_ref": str(value),
+                        "is_secret": True,
+                    }
+                )
             else:
                 # Literal value
-                envs.append({
-                    "key": key,
-                    "value": str(value),
-                    "is_secret": False,
-                })
+                envs.append(
+                    {
+                        "key": key,
+                        "value": str(value),
+                        "is_secret": False,
+                    }
+                )
 
         # Extract notes for comment
         notes = str(row.get("notes", "")).strip()
@@ -1207,22 +1236,24 @@ def _extract_containers(
                 "peer": peer_config,
             }
 
-        containers.append({
-            "instance_id": instance_id,
-            "name": container_name,
-            "tf_name": tf_name,
-            "image": str(runtime.get("image", "")).strip(),
-            "root_dir": str(runtime.get("root_dir", "")).strip(),
-            "start_on_boot": bool(runtime.get("start_on_boot", True)),
-            "logging": bool(runtime.get("logging", True)),
-            "comment": comment,
-            "veth_name": veth_name,
-            "veth_address": veth_address,
-            "veth_gateway": veth_gateway,
-            "envs": envs,
-            "wireguard_interface": wireguard_interface,
-            "managed_by_ref": host_ref,
-        })
+        containers.append(
+            {
+                "instance_id": instance_id,
+                "name": container_name,
+                "tf_name": tf_name,
+                "image": str(runtime.get("image", "")).strip(),
+                "root_dir": str(runtime.get("root_dir", "")).strip(),
+                "start_on_boot": bool(runtime.get("start_on_boot", True)),
+                "logging": bool(runtime.get("logging", True)),
+                "comment": comment,
+                "veth_name": veth_name,
+                "veth_address": veth_address,
+                "veth_gateway": veth_gateway,
+                "envs": envs,
+                "wireguard_interface": wireguard_interface,
+                "managed_by_ref": host_ref,
+            }
+        )
 
     return sorted(containers, key=lambda c: c.get("name", ""))
 
@@ -1379,9 +1410,9 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
             if not managed_by_ref and len(router_ids) == 1:
                 managed_by_ref = default_router_id
             if managed_by_ref in router_ids:
-                routing_policies.append(_build_routing_policy_entry(
-                    row, managed_by_ref=managed_by_ref, vlan_cidr_index=vlan_cidr_index
-                ))
+                routing_policies.append(
+                    _build_routing_policy_entry(row, managed_by_ref=managed_by_ref, vlan_cidr_index=vlan_cidr_index)
+                )
 
     # Extract firewall policies from dedicated firewall group.
     for idx, row in enumerate(firewall_rows):

@@ -16,6 +16,7 @@ from scripts.orchestration.deploy.bundle import (  # noqa: E402
     inspect_bundle,
     list_bundles,
     resolve_bundle_schema_path,
+    sha256_file,
     validate_bundle_manifest,
     verify_bundle_checksums,
 )
@@ -220,7 +221,9 @@ def test_bundle_checksum_verification_detects_extra_files(tmp_path: Path) -> Non
 
     ok, mismatches = verify_bundle_checksums(info.bundle_path)
     assert ok is False, "Extra file should be detected"
-    assert any("extra:" in item or "unlisted:" in item for item in mismatches), f"Expected 'extra' or 'unlisted' in {mismatches}"
+    assert any(
+        "extra:" in item or "unlisted:" in item for item in mismatches
+    ), f"Expected 'extra' or 'unlisted' in {mismatches}"
 
 
 def test_bundle_checksum_verification_rejects_empty_checksum_file(tmp_path: Path) -> None:
@@ -252,8 +255,9 @@ def test_bundle_checksum_verification_detects_path_traversal(tmp_path: Path) -> 
 
     ok, mismatches = verify_bundle_checksums(info.bundle_path)
     assert ok is False, "Path traversal should be rejected"
-    assert any("traversal" in item.lower() or "invalid" in item.lower() or "outside" in item.lower()
-               for item in mismatches), f"Expected traversal error in {mismatches}"
+    assert any(
+        "traversal" in item.lower() or "invalid" in item.lower() or "outside" in item.lower() for item in mismatches
+    ), f"Expected traversal error in {mismatches}"
 
 
 def test_bundle_checksum_verification_detects_duplicate_entries(tmp_path: Path) -> None:
@@ -273,6 +277,62 @@ def test_bundle_checksum_verification_detects_duplicate_entries(tmp_path: Path) 
     assert any("duplicate" in item.lower() for item in mismatches), f"Expected 'duplicate' in {mismatches}"
 
 
+def test_bundle_checksum_verification_rejects_symlinks(tmp_path: Path) -> None:
+    """F03: Symlinks in bundle must be rejected to prevent containment escape."""
+    generated_root = _build_generated_root(tmp_path)
+    bundles_root = tmp_path / ".work" / "deploy" / "bundles"
+    info = create_bundle(project_id="home-lab", generated_root=generated_root, bundles_root=bundles_root)
+
+    # Create external file and symlink to it from inside bundle
+    external_dir = tmp_path / "external"
+    external_dir.mkdir()
+    external_file = external_dir / "secret.txt"
+    external_file.write_text("external secret data\n", encoding="utf-8")
+
+    # Create symlink inside bundle pointing to external file
+    symlink_path = info.bundle_path / "artifacts" / "generated" / "home-lab" / "terraform" / "external.tf"
+    symlink_path.symlink_to(external_file)
+
+    # Add symlink to checksums with correct hash of target
+    checksum_path = info.bundle_path / "checksums.sha256"
+    original = checksum_path.read_text(encoding="utf-8")
+    external_hash = sha256_file(external_file)
+    symlink_rel = "artifacts/generated/home-lab/terraform/external.tf"
+    checksum_path.write_text(original + f"{external_hash}  {symlink_rel}\n", encoding="utf-8")
+
+    ok, mismatches = verify_bundle_checksums(info.bundle_path)
+    assert ok is False, "Symlinks should be rejected"
+    assert any("symlink" in item.lower() for item in mismatches), f"Expected 'symlink' error in {mismatches}"
+
+
+def test_bundle_checksum_verification_rejects_sibling_prefix_escape(tmp_path: Path) -> None:
+    """F03: Sibling directory with matching prefix must not pass containment check."""
+    generated_root = _build_generated_root(tmp_path)
+    bundles_root = tmp_path / ".work" / "deploy" / "bundles"
+    info = create_bundle(project_id="home-lab", generated_root=generated_root, bundles_root=bundles_root)
+
+    # Create sibling directory with matching prefix (e.g., bundle is "b-123", sibling is "b-123-external")
+    sibling_dir = info.bundle_path.parent / f"{info.bundle_path.name}-external"
+    sibling_dir.mkdir()
+    sibling_file = sibling_dir / "malicious.txt"
+    sibling_file.write_text("malicious content\n", encoding="utf-8")
+
+    # Try to reference sibling file via relative path that looks valid
+    # This tests that is_relative_to() is used instead of startswith()
+    checksum_path = info.bundle_path / "checksums.sha256"
+    original = checksum_path.read_text(encoding="utf-8")
+    sibling_hash = sha256_file(sibling_file)
+    # Use path traversal to escape - this should be caught by traversal check
+    malicious_rel = f"../{info.bundle_path.name}-external/malicious.txt"
+    checksum_path.write_text(original + f"{sibling_hash}  {malicious_rel}\n", encoding="utf-8")
+
+    ok, mismatches = verify_bundle_checksums(info.bundle_path)
+    assert ok is False, "Sibling directory escape should be rejected"
+    assert any(
+        "traversal" in item.lower() or "outside" in item.lower() for item in mismatches
+    ), f"Expected traversal/outside error in {mismatches}"
+
+
 def test_bundle_create_is_idempotent_for_existing_immutable_bundle(tmp_path: Path) -> None:
     generated_root = _build_generated_root(tmp_path)
     bundles_root = tmp_path / ".work" / "deploy" / "bundles"
@@ -283,9 +343,7 @@ def test_bundle_create_is_idempotent_for_existing_immutable_bundle(tmp_path: Pat
     assert second.existing is True
 
 
-def test_bundle_secret_files_have_restricted_permissions(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_bundle_secret_files_have_restricted_permissions(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """R05: Decrypted secrets must have restricted permissions (0600 files, 0700 dirs)."""
     generated_root = _build_generated_root(tmp_path)
     bundles_root = tmp_path / ".work" / "deploy" / "bundles"

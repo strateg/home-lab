@@ -112,6 +112,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # F07 fix: Fetch depth=2 ensures HEAD~1 exists for push event diff
+          fetch-depth: 2
 
       - name: Setup Python
         uses: actions/setup-python@v5

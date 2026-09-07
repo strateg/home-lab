@@ -95,23 +95,65 @@ class FirewallProxmoxGenerator(BaseGenerator):
             self._publish_empty_contracts(ctx)
             return self.make_result(diagnostics)
 
-        # R03 fix: Check for active Proxmox security matrix
-        # If matrix exists but generator is STUB, this must FAIL to prevent
-        # false sense of security from successful pipeline
+        # F01/R03 fix: Check for active Proxmox security matrix using canonical model structure
+        # The canonical effective model uses instances.{group}[].instance.extends_object
+        # We detect Proxmox enforcement via managed_by_ref pointing to a Proxmox host,
+        # not by checking instance_id name (which is fragile and non-capability-based)
         proxmox_matrix_found = False
         proxmox_matrix_id = ""
-        network_rows = payload.get("network", [])
-        if isinstance(network_rows, list):
-            for row in network_rows:
-                if not isinstance(row, dict):
-                    continue
-                instance_id = str(row.get("instance_id", "")).strip()
-                object_ref = str(row.get("object_ref", "")).strip()
-                # Check for security_matrix.proxmox instances
-                if "security_matrix" in object_ref and "proxmox" in instance_id.lower():
-                    proxmox_matrix_found = True
-                    proxmox_matrix_id = instance_id
-                    break
+
+        # F01: Get instances from canonical structure (instances.network, not network)
+        instances = payload.get("instances", {})
+        if not isinstance(instances, dict):
+            instances = {}
+        network_rows = instances.get("network", [])
+        if not isinstance(network_rows, list):
+            network_rows = []
+
+        # Build index of Proxmox hosts from device instances
+        # A host is Proxmox if it extends an object containing "proxmox" in the object ref
+        device_rows = instances.get("device", [])
+        if not isinstance(device_rows, list):
+            device_rows = []
+        proxmox_host_ids: set[str] = set()
+        for dev_row in device_rows:
+            if not isinstance(dev_row, dict):
+                continue
+            dev_instance_id = str(dev_row.get("instance_id", "")).strip()
+            dev_instance_block = dev_row.get("instance", {})
+            if not isinstance(dev_instance_block, dict):
+                continue
+            # F01: Use canonical extends_object field
+            extends_obj = str(dev_instance_block.get("extends_object", "")).strip()
+            # Check if device is Proxmox-based (extends proxmox object)
+            if "proxmox" in extends_obj.lower():
+                proxmox_host_ids.add(dev_instance_id)
+
+        # Now check network instances for security_matrix managed by Proxmox hosts
+        for row in network_rows:
+            if not isinstance(row, dict):
+                continue
+            instance_id = str(row.get("instance_id", "")).strip()
+            instance_block = row.get("instance", {})
+            if not isinstance(instance_block, dict):
+                continue
+            # F01: Use canonical extends_object field
+            extends_obj = str(instance_block.get("extends_object", "")).strip()
+            if "security_matrix" not in extends_obj:
+                continue
+
+            # F01: Check managed_by_ref to determine enforcer
+            # This is capability-based, not name-based detection
+            inst_data = row.get("instance_data", {})
+            if not isinstance(inst_data, dict):
+                inst_data = {}
+            managed_by_ref = str(inst_data.get("managed_by_ref", "")).strip()
+
+            # Matrix is Proxmox-managed if managed_by_ref points to a Proxmox host
+            if managed_by_ref and managed_by_ref in proxmox_host_ids:
+                proxmox_matrix_found = True
+                proxmox_matrix_id = instance_id
+                break
 
         if proxmox_matrix_found:
             # Active matrix exists but enforcement not implemented - FAIL
@@ -143,10 +185,7 @@ class FirewallProxmoxGenerator(BaseGenerator):
                 code="I9302",
                 severity="info",
                 stage=stage,
-                message=(
-                    "Proxmox firewall generator is a STUB. "
-                    "No active security matrix found - skipping."
-                ),
+                message=("Proxmox firewall generator is a STUB. " "No active security matrix found - skipping."),
                 path="generator:firewall_proxmox",
             )
         )

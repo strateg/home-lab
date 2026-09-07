@@ -56,9 +56,10 @@ jobs:
             ${{ runner.os }}-pip-
 
       - name: Install dependencies
+        # F04 fix: Use .[dev] to get pytest-xdist for -n auto parallel execution
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pytest pytest-cov pyyaml jsonschema
+          python -m pip install -e .[dev]
 
       - name: Setup Task CLI
         uses: arduino/setup-task@v2
@@ -91,9 +92,10 @@ jobs:
           python-version: '3.14'
 
       - name: Install dependencies
+        # F04 fix: Use .[dev] to get pytest-xdist for -n auto parallel execution
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pytest pytest-cov pyyaml jsonschema
+          python -m pip install -e .[dev]
 
       - name: Setup Task CLI
         uses: arduino/setup-task@v2
@@ -125,9 +127,10 @@ jobs:
           python-version: '3.14'
 
       - name: Install dependencies
+        # F04 fix: Use .[dev] to get pytest-xdist for -n auto parallel execution
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pytest pytest-cov pyyaml jsonschema
+          python -m pip install -e .[dev]
 
       - name: Setup Task CLI
         uses: arduino/setup-task@v2
@@ -159,9 +162,10 @@ jobs:
           python-version: '3.14'
 
       - name: Install dependencies
+        # F04 fix: Use .[dev] for consistency with other jobs
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pytest pyyaml jsonschema
+          python -m pip install -e .[dev]
 
       - name: Setup Task CLI
         uses: arduino/setup-task@v2
@@ -187,9 +191,10 @@ jobs:
           python-version: '3.14'
 
       - name: Install dependencies
+        # F04 fix: Use .[dev] to get pytest-xdist for -n auto parallel execution
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pytest pyyaml jsonschema
+          python -m pip install -e .[dev]
 
       - name: Setup Task CLI
         uses: arduino/setup-task@v2
@@ -213,8 +218,10 @@ jobs:
           python-version: '3.14'
 
       - name: Install dependencies
+        # F04 fix: Use .[dev] for consistency
         run: |
-          python -m pip install pyyaml jsonschema
+          python -m pip install --upgrade pip
+          python -m pip install -e .[dev]
 
       - name: Setup Task CLI
         uses: arduino/setup-task@v2
@@ -250,9 +257,10 @@ jobs:
           python-version: '3.14'
 
       - name: Install dependencies
+        # F04 fix: Use .[dev] for consistency
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pyyaml jsonschema
+          python -m pip install -e .[dev]
 
       - name: Setup Task CLI
         uses: arduino/setup-task@v2
