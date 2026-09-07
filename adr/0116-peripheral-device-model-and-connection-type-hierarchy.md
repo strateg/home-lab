@@ -29,6 +29,47 @@ The peripheral device model had several architectural issues:
 | Missing classes | 1 | Bluetooth, NFC, etc. |
 | Naming violations | 2 | Instance naming patterns |
 
+### Host vs Peripheral Distinction
+
+The model distinguishes two roles in the peripheral attachment relationship:
+
+| Role | Definition | Examples |
+| ---- | ---------- | -------- |
+| **Host** | Device to which peripherals are connected. Has USB ports, Bluetooth adapter, or other connection interfaces. Consumes functionality provided by peripherals. | `srv-orangepi5`, `rtr-mikrotik-chateau`, laptop, desktop |
+| **Peripheral** | Device connected to a host to provide specific logical functionality. Cannot operate independently without a host. | USB WiFi adapter, USB hub, Bluetooth mouse, USB flash drive |
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ HOST (L1 Device)                                                │
+│   - class.compute.edge_node, class.router, class.compute.*     │
+│   - Has connection interfaces (USB ports, BT, TB)               │
+│   - Declares attached peripherals via `peripherals[]` array     │
+│                                                                 │
+│   peripherals:                                                  │
+│     - ref: inst.peripheral.usb.hub.bluecloud-001               │
+│       role: primary_network                                     │
+│     - ref: inst.peripheral.usb.wifi.asus-001                   │
+│       role: wifi                                                │
+└─────────────────────────────────────────────────────────────────┘
+          │
+          │ attached_to (implicit via host.peripherals[])
+          ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ PERIPHERAL (L1 Device)                                          │
+│   - class.peripheral.*                                          │
+│   - Physical device with connection-specific properties         │
+│   - Provides logical functionality to host                      │
+└─────────────────────────────────────────────────────────────────┘
+          │
+          │ provides_ref
+          ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ LOGICAL ENTITY (L2/L3/L5)                                       │
+│   - Network interface, storage media, audio endpoint, etc.      │
+│   - Consumed by host OS/applications                            │
+└─────────────────────────────────────────────────────────────────┘
+```
+
 ### Layer Model Clarification
 
 Peripherals follow a two-layer model:
