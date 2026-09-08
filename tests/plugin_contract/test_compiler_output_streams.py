@@ -87,8 +87,37 @@ def test_ai_advisory_recommendations_log_to_stderr(tmp_path: Path, capsys) -> No
 
 
 def test_compile_summary_stays_on_stdout(tmp_path: Path, capsys) -> None:
+    """Test summary output with default diagnostics disabled."""
     mod = _load_compiler_module()
     compiler = _compiler(mod, tmp_path)
+
+    compiler._print_summary(total=3, errors=0, warnings=1, infos=2, emit_effective=True)
+
+    captured = capsys.readouterr()
+    assert "Compile summary: total=3 errors=0 warnings=1 infos=2" in captured.out
+    # With diagnostics disabled (default), paths are not printed
+    assert "Diagnostics JSON:" not in captured.out
+    assert "Effective JSON:" not in captured.out
+    assert captured.err == ""
+
+
+def test_compile_summary_with_diagnostics_enabled(tmp_path: Path, capsys) -> None:
+    """Test summary output with diagnostics enabled shows paths."""
+    mod = _load_compiler_module()
+    out_dir = tmp_path / "compiler-output-streams"
+    compiler = mod.V5Compiler(
+        manifest_path=mod.DEFAULT_MANIFEST,
+        output_json=out_dir / "effective-topology.json",
+        diagnostics_json=out_dir / "diagnostics.json",
+        diagnostics_txt=out_dir / "diagnostics.txt",
+        error_catalog_path=mod.DEFAULT_ERROR_CATALOG,
+        strict_model_lock=False,
+        fail_on_warning=False,
+        require_new_model=True,
+        enable_plugins=True,
+        plugins_manifest_path=mod.DEFAULT_PLUGINS_MANIFEST,
+        enable_diagnostics=True,
+    )
 
     compiler._print_summary(total=3, errors=0, warnings=1, infos=2, emit_effective=True)
 
