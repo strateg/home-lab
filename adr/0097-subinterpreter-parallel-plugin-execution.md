@@ -2,7 +2,7 @@
 
 - Status: Implemented
 - Date: 2026-04-15
-- Revised: 2026-04-21; 2026-07-13 (D10 amended by ADR 0113)
+- Revised: 2026-04-21; 2026-07-13 (D10 amended by ADR 0113); 2026-09-08 (D15-D17 cooperative cancellation)
 - Implementation Complete: PR1-PR5
 - Depends on: ADR 0063, ADR 0080, ADR 0086, ADR 0098
 - Follow-up: ADR 0099 (test architecture migration for snapshot/envelope/pipeline-state runtime)
@@ -350,7 +350,79 @@ This ADR is implemented when all conditions are true:
 11. authoritative compiled model state is committed in main interpreter, not mutated inside worker plugins;
 12. the primary execution path no longer depends on worker merge-back into shared `PluginContext._published_data`;
 13. legacy context-owned data/event bus APIs are compatibility-only and are not extended as primary runtime architecture;
-14. representative compiler, validator, and generator paths execute through snapshot/envelope/commit flow without ambient shared-state mutation.
+14. representative compiler, validator, and generator paths execute through snapshot/envelope/commit flow without ambient shared-state mutation;
+15. `PluginContext.is_cancelled()` returns cancellation status for `main_interpreter`/`thread_legacy` modes;
+16. `PluginInputSnapshot` supports optional `cancel_event` field;
+17. scheduler sets cancellation event when plugin exceeds deadline;
+18. plugins MAY check cancellation and return early; bounded shutdown enforces deadline regardless.
+
+### D15. Cooperative Cancellation Contract
+
+Workers MAY periodically check cancellation status via `ctx.is_cancelled()`.
+
+**Cancellation signal flow:**
+
+1. Scheduler creates `threading.Event` per plugin invocation
+2. Scheduler sets event when plugin exceeds deadline
+3. Worker checks `ctx.is_cancelled()` at safe points
+4. Worker returns early or raises `CancellationError`
+5. Envelope marked with cancellation metadata
+
+**Execution mode support:**
+
+| Mode | Cancellation Mechanism | Notes |
+|------|------------------------|-------|
+| `main_interpreter` | `threading.Event` shared via snapshot | Full cooperative support |
+| `thread_legacy` | `threading.Event` shared via snapshot | Full cooperative support |
+| `subinterpreter` | Not supported | Cross-interpreter limitation; bounded wait only |
+
+For `subinterpreter` mode, Python 3.14 does not support cross-interpreter signaling.
+Scheduler uses bounded shutdown (`shutdown(wait=False)`) instead.
+
+### D16. Cancellation API
+
+`PluginInputSnapshot` extends with optional cancellation event:
+
+```python
+cancel_event: threading.Event | None = None  # None for subinterpreter mode
+```
+
+`PluginContext` exposes cancellation check:
+
+```python
+def is_cancelled(self) -> bool:
+    """Check if execution should be cancelled.
+
+    Plugins SHOULD check this periodically during long operations.
+    Returns False for subinterpreter mode (no cross-interpreter signaling).
+    """
+```
+
+`PluginResult` extends with cancellation factory:
+
+```python
+@classmethod
+def cancelled(cls, plugin_id: str, api_version: str = "1.x") -> PluginResult:
+    """Create cancellation result for cooperative timeout."""
+```
+
+### D17. Plugin Implementation Guidelines for Cancellation
+
+Plugins performing iterative or long-running work SHOULD check cancellation:
+
+```python
+for item in large_collection:
+    if ctx.is_cancelled():
+        return PluginResult.cancelled(self.plugin_id, self.api_version)
+    process(item)
+```
+
+Plugins MAY ignore cancellation if:
+- Operation is atomic (single computation)
+- Operation is very fast (< 100ms typical)
+- Partial completion would leave inconsistent state
+
+Cancellation is advisory, not mandatory. Scheduler enforces deadline via bounded shutdown regardless of plugin cooperation.
 
 ## Summary
 
