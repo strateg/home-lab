@@ -77,50 +77,27 @@ def _derive_mikrotik_capability_flags(routers: list[dict[str, Any]]) -> dict[str
     }
 
 
-def _load_object_properties(object_ref: str) -> dict[str, Any]:
-    """Load properties from object module YAML file."""
-    from pathlib import Path
+def _get_object_properties(object_ref: str, objects_map: dict[str, Any]) -> dict[str, Any]:
+    """Get properties from compiled object map (effective topology).
 
-    import yaml
+    Args:
+        object_ref: Object reference (e.g., "obj.network.vlan.servers")
+        objects_map: The objects dict from compiled_json["objects"]
 
-    # Determine repo root from this file's location
-    this_file = Path(__file__).resolve()
-    # This file is at topology/object-modules/mikrotik/plugins/projections.py
-    # Object modules are at topology/object-modules/<domain>/obj.<domain>.<name>.yaml
-    object_modules_root = this_file.parents[2]
-
-    # Parse object_ref: obj.network.vlan.servers -> network/obj.network.vlan.servers.yaml
-    parts = object_ref.split(".")
-    if len(parts) < 3:
+    Returns:
+        Properties dict from object definition, or empty dict if not found.
+    """
+    if not object_ref or not isinstance(objects_map, dict):
         return {}
 
-    domain = parts[1]  # e.g., "network"
-    object_file = object_modules_root / domain / f"{object_ref}.yaml"
-
-    if not object_file.exists():
+    obj_data = objects_map.get(object_ref)
+    if not isinstance(obj_data, dict):
         return {}
 
-    try:
-        raw = object_file.read_text(encoding="utf-8")
-        # Topology object modules use @-prefixed metadata keys; plain PyYAML can reject
-        # some unquoted forms, so normalize only metadata keys before parsing.
-        normalized_lines: list[str] = []
-        for line in raw.splitlines():
-            stripped = line.lstrip()
-            indent = line[: len(line) - len(stripped)]
-            if stripped.startswith("@") and ":" in stripped:
-                key, rest = stripped.split(":", 1)
-                normalized_lines.append(f'{indent}"{key}":{rest}')
-            else:
-                normalized_lines.append(line)
-        payload = yaml.safe_load("\n".join(normalized_lines)) or {}
-        if isinstance(payload, dict):
-            props = payload.get("properties", {})
-            if isinstance(props, dict):
-                return props
-        return {}
-    except Exception:
-        return {}
+    props = obj_data.get("properties")
+    if isinstance(props, dict):
+        return props
+    return {}
 
 
 def _is_staged_row(row: dict[str, Any]) -> bool:
@@ -129,13 +106,15 @@ def _is_staged_row(row: dict[str, Any]) -> bool:
     return status == "modeled" or "currently not configured" in notes
 
 
-def _build_vlan_entry(row: dict[str, Any], *, managed_by_ref: str) -> dict[str, Any]:
+def _build_vlan_entry(
+    row: dict[str, Any], *, managed_by_ref: str, objects_map: dict[str, Any]
+) -> dict[str, Any]:
     """Extract VLAN configuration from network row."""
     object_ref = _resolved_object_ref(row)
     inst_data = row.get("instance_data", {}) or {}
 
-    # Load properties from object module file (defaults)
-    props = _load_object_properties(object_ref)
+    # Get properties from compiled object map (effective topology)
+    props = _get_object_properties(object_ref, objects_map)
 
     # Instance data overrides object properties
     vlan_id = inst_data.get("vlan_id") or props.get("vlan_id")
@@ -173,11 +152,13 @@ def _build_vlan_entry(row: dict[str, Any], *, managed_by_ref: str) -> dict[str, 
     }
 
 
-def _build_bridge_entry(row: dict[str, Any], *, managed_by_ref: str) -> dict[str, Any]:
+def _build_bridge_entry(
+    row: dict[str, Any], *, managed_by_ref: str, objects_map: dict[str, Any]
+) -> dict[str, Any]:
     """Extract bridge configuration from network row."""
     object_ref = _resolved_object_ref(row)
     inst_data = row.get("instance_data", {}) or {}
-    props = _load_object_properties(object_ref)
+    props = _get_object_properties(object_ref, objects_map)
     ip_addr = str(inst_data.get("ip") or "").strip()
     cidr = str(inst_data.get("cidr") or "").strip()
     if not cidr and ip_addr:
@@ -197,10 +178,12 @@ def _build_bridge_entry(row: dict[str, Any], *, managed_by_ref: str) -> dict[str
     }
 
 
-def _build_firewall_entry(row: dict[str, Any], *, managed_by_ref: str) -> dict[str, Any]:
+def _build_firewall_entry(
+    row: dict[str, Any], *, managed_by_ref: str, objects_map: dict[str, Any]
+) -> dict[str, Any]:
     """Extract firewall policy from network row."""
     object_ref = _resolved_object_ref(row)
-    props = _load_object_properties(object_ref)
+    props = _get_object_properties(object_ref, objects_map)
     inst_data = row.get("instance_data", {}) or {}
 
     return {
@@ -575,6 +558,7 @@ def _extract_bridge_vlans(
 def _extract_security_matrix(
     network_rows: list[dict[str, Any]],
     router_ids: set[str],
+    objects_map: dict[str, Any],
 ) -> dict[str, Any]:
     """Extract security matrix configuration for MikroTik routers.
 
@@ -622,7 +606,7 @@ def _extract_security_matrix(
             cidr = str(net_inst_data.get("cidr", "")).strip()
             # Fallback to object properties for CIDR
             if not cidr:
-                props = _load_object_properties(net_object_ref)
+                props = _get_object_properties(net_object_ref, objects_map)
                 cidr = str(props.get("cidr", "")).strip()
             if trust_zone_ref:
                 vlan_zone_map[vlan_instance] = trust_zone_ref
@@ -645,8 +629,8 @@ def _extract_security_matrix(
             zone_instance = str(net_row.get("instance_id", "")).strip()
             if zone_instance not in zone_refs:
                 continue
-            # Load properties from object
-            props = _load_object_properties(net_object_ref)
+            # Get properties from compiled object map
+            props = _get_object_properties(net_object_ref, objects_map)
             net_inst_data = net_row.get("instance_data", {})
             if not isinstance(net_inst_data, dict):
                 net_inst_data = {}
@@ -730,8 +714,8 @@ def _extract_security_matrix(
         policy_overrides = inst_data.get("policy_overrides", [])
         if not isinstance(policy_overrides, list):
             policy_overrides = []
-        # Also get object-level overrides
-        props = _load_object_properties(object_ref)
+        # Also get object-level overrides from compiled object map
+        props = _get_object_properties(object_ref, objects_map)
         obj_overrides = props.get("policy_overrides", [])
         if isinstance(obj_overrides, list):
             policy_overrides = obj_overrides + policy_overrides
@@ -807,7 +791,9 @@ def _extract_security_matrix(
     return {}
 
 
-def _build_vlan_cidr_index(network_rows: list[dict[str, Any]]) -> dict[str, str]:
+def _build_vlan_cidr_index(
+    network_rows: list[dict[str, Any]], objects_map: dict[str, Any]
+) -> dict[str, str]:
     """Build VLAN instance_id -> CIDR index for reference resolution (ADR-0111).
 
     This includes ALL VLANs from network rows, not just MikroTik-managed ones,
@@ -815,6 +801,7 @@ def _build_vlan_cidr_index(network_rows: list[dict[str, Any]]) -> dict[str, str]
 
     Args:
         network_rows: Network instance rows from compiled JSON.
+        objects_map: The objects dict from compiled_json["objects"].
 
     Returns:
         Dict mapping instance_id (e.g., "inst.vlan.servers") to CIDR (e.g., "192.0.2.0/24").
@@ -835,9 +822,9 @@ def _build_vlan_cidr_index(network_rows: list[dict[str, Any]]) -> dict[str, str]
             inst_data = {}
         cidr = str(inst_data.get("cidr", "")).strip()
 
-        # Fallback to object module properties (load from disk)
+        # Fallback to object properties from compiled object map
         if not cidr:
-            props = _load_object_properties(object_ref)
+            props = _get_object_properties(object_ref, objects_map)
             cidr = str(props.get("cidr", "")).strip()
 
         if cidr:
@@ -1335,6 +1322,11 @@ def _extract_mac_vlan_assignments(
 
 def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     """Build stable view for MikroTik Terraform generator."""
+    # Extract objects map for property lookups (ADR contract: use compiled topology only)
+    objects_map = compiled_json.get("objects", {})
+    if not isinstance(objects_map, dict):
+        objects_map = {}
+
     groups = _instance_groups(compiled_json)
     devices = _group_rows(groups, canonical=GROUP_DEVICES)
     network = _group_rows(groups, canonical=GROUP_NETWORK)
@@ -1366,7 +1358,7 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
 
     # Build VLAN CIDR index early for reference resolution in routing policies
     # Uses all network rows (not just MikroTik-managed vlans) for cross-device references
-    vlan_cidr_index = _build_vlan_cidr_index(network)
+    vlan_cidr_index = _build_vlan_cidr_index(network, objects_map)
 
     for idx, row in enumerate(network):
         _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.network[{idx}]")
@@ -1382,7 +1374,7 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
             if not managed_by_ref and host_ref in router_ids:
                 managed_by_ref = host_ref
             if managed_by_ref in router_ids:
-                bridges.append(_build_bridge_entry(row, managed_by_ref=managed_by_ref))
+                bridges.append(_build_bridge_entry(row, managed_by_ref=managed_by_ref, objects_map=objects_map))
 
         # Extract VLANs managed by MikroTik routers.
         # Note: routing_policy objects (e.g. obj.network.routing_policy.vpn_vlan)
@@ -1402,7 +1394,7 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
                             managed_by_ref = device_ref
                             break
             if managed_by_ref in router_ids:
-                vlan_entry = _build_vlan_entry(row, managed_by_ref=managed_by_ref)
+                vlan_entry = _build_vlan_entry(row, managed_by_ref=managed_by_ref, objects_map=objects_map)
                 vlans.append(vlan_entry)
 
         # Extract policy-based routing (e.g. VPN VLAN via WireGuard) managed by MikroTik routers.
@@ -1425,7 +1417,7 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
         if not managed_by_ref and len(router_ids) == 1:
             managed_by_ref = default_router_id
         if managed_by_ref in router_ids:
-            firewall_policies.append(_build_firewall_entry(row, managed_by_ref=managed_by_ref))
+            firewall_policies.append(_build_firewall_entry(row, managed_by_ref=managed_by_ref, objects_map=objects_map))
 
     selected_services: list[dict[str, Any]] = []
     for idx, row in enumerate(service_rows):
@@ -1550,7 +1542,7 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     bridge_vlans = _extract_bridge_vlans(routers, wifi_data)
 
     # Extract security matrix for zone-based firewall (ADR 0110)
-    security_matrix = _extract_security_matrix(network, router_ids)
+    security_matrix = _extract_security_matrix(network, router_ids, objects_map)
 
     # Build VLAN ID index for MAC-based assignments
     vlan_id_index: dict[str, int] = {}

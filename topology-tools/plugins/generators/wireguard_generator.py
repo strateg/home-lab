@@ -104,62 +104,37 @@ def _resolve_device_public_ip(compiled: dict[str, Any], device_ref: str, secrets
     return None
 
 
-def _load_object_properties(object_ref: str) -> dict[str, Any]:
-    """Load properties from object module YAML file.
+def _get_object_properties(object_ref: str, objects_map: dict[str, Any]) -> dict[str, Any]:
+    """Get properties from compiled object map (effective topology).
 
     Args:
         object_ref: Object reference (e.g., "obj.network.vlan.servers")
+        objects_map: The objects dict from compiled_json["objects"]
 
     Returns:
-        Properties dict from object module, or empty dict if not found.
+        Properties dict from object definition, or empty dict if not found.
     """
-    import yaml
-
-    # Determine repo root from this file's location
-    this_file = Path(__file__).resolve()
-    # This file is at topology-tools/plugins/generators/wireguard_generator.py
-    # Object modules are at topology/object-modules/<domain>/obj.<domain>.<name>.yaml
-    repo_root = this_file.parents[3]
-    object_modules_root = repo_root / "topology" / "object-modules"
-
-    # Parse object_ref: obj.network.vlan.servers -> network/obj.network.vlan.servers.yaml
-    parts = object_ref.split(".")
-    if len(parts) < 3:
+    if not object_ref or not isinstance(objects_map, dict):
         return {}
 
-    domain = parts[1]  # e.g., "network"
-    object_file = object_modules_root / domain / f"{object_ref}.yaml"
-
-    if not object_file.exists():
+    obj_data = objects_map.get(object_ref)
+    if not isinstance(obj_data, dict):
         return {}
 
-    try:
-        raw = object_file.read_text(encoding="utf-8")
-        # Topology object modules use @-prefixed metadata keys; normalize before parsing
-        normalized_lines: list[str] = []
-        for line in raw.splitlines():
-            stripped = line.lstrip()
-            indent = line[: len(line) - len(stripped)]
-            if stripped.startswith("@") and ":" in stripped:
-                key, rest = stripped.split(":", 1)
-                normalized_lines.append(f'{indent}"{key}":{rest}')
-            else:
-                normalized_lines.append(line)
-        payload = yaml.safe_load("\n".join(normalized_lines)) or {}
-        if isinstance(payload, dict):
-            props = payload.get("properties", {})
-            if isinstance(props, dict):
-                return props
-        return {}
-    except Exception:
-        return {}
+    props = obj_data.get("properties")
+    if isinstance(props, dict):
+        return props
+    return {}
 
 
-def _build_vlan_cidr_index(network_rows: list[dict[str, Any]]) -> dict[str, str]:
+def _build_vlan_cidr_index(
+    network_rows: list[dict[str, Any]], objects_map: dict[str, Any]
+) -> dict[str, str]:
     """Build VLAN instance_id -> CIDR index for reference resolution (ADR-0111).
 
     Args:
         network_rows: Network instance rows from compiled JSON.
+        objects_map: The objects dict from compiled_json["objects"].
 
     Returns:
         Dict mapping instance_id (e.g., "inst.vlan.servers") to CIDR (e.g., "10.0.30.0/24").
@@ -180,9 +155,9 @@ def _build_vlan_cidr_index(network_rows: list[dict[str, Any]]) -> dict[str, str]
             inst_data = {}
         cidr = str(inst_data.get("cidr", "")).strip()
 
-        # Fallback to object module properties (load from disk)
+        # Fallback to object properties from compiled object map
         if not cidr:
-            props = _load_object_properties(object_ref)
+            props = _get_object_properties(object_ref, objects_map)
             cidr = str(props.get("cidr", "")).strip()
 
         if cidr:
@@ -309,11 +284,16 @@ def build_wireguard_projection(
             ]
         }
     """
+    # Extract objects map for property lookups (ADR contract: use compiled topology only)
+    objects_map = compiled.get("objects", {})
+    if not isinstance(objects_map, dict):
+        objects_map = {}
+
     groups = _instance_groups(compiled)
     network_instances = _group_rows(groups, canonical=GROUP_NETWORK)
 
     # Build VLAN CIDR index for reference resolution (ADR-0111)
-    vlan_cidr_index = _build_vlan_cidr_index(network_instances)
+    vlan_cidr_index = _build_vlan_cidr_index(network_instances, objects_map)
     tunnels: list[dict[str, Any]] = []
 
     for inst in network_instances:
