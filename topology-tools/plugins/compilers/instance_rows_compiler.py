@@ -1424,18 +1424,26 @@ class InstanceRowsCompiler(CompilerPlugin):
 
         validated_rows: list[dict[str, Any]] | None = None
         fallback_triggered = False
+        fallback_reason = ""
         if ctx.is_snapshot_backed:
             subscribed_validated_rows = ctx.subscribe(self._VALIDATED_ROWS_PLUGIN_ID, "validated_rows")
             if isinstance(subscribed_validated_rows, list):
                 validated_rows = [row for row in subscribed_validated_rows if isinstance(row, dict)]
+            else:
+                fallback_triggered = True
+                fallback_reason = "wrong type (expected list)"
         else:
             try:
                 subscribed_validated_rows = ctx.subscribe(self._VALIDATED_ROWS_PLUGIN_ID, "validated_rows")
                 if isinstance(subscribed_validated_rows, list):
                     validated_rows = [row for row in subscribed_validated_rows if isinstance(row, dict)]
+                else:
+                    fallback_triggered = True
+                    fallback_reason = "wrong type (expected list)"
             except PluginDataExchangeError:
                 validated_rows = None
                 fallback_triggered = True
+                fallback_reason = "publication unavailable"
 
         if fallback_triggered:
             diagnostics.append(
@@ -1443,7 +1451,7 @@ class InstanceRowsCompiler(CompilerPlugin):
                     code="I7953",
                     severity="info",
                     stage=stage,
-                    message="validated_rows unavailable; using legacy fallback path.",
+                    message=f"validated_rows {fallback_reason}; using legacy fallback path.",
                     path="pipeline:compile",
                 )
             )

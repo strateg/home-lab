@@ -819,7 +819,8 @@ def emit_effective_artifact(
         )
         return
 
-    if artifact_owner("effective_json") == "core":
+    effective_json_owner = artifact_owner("effective_json")
+    if effective_json_owner == "core":
         output_json.parent.mkdir(parents=True, exist_ok=True)
         output_json.write_text(
             json.dumps(effective_payload, ensure_ascii=True, indent=2, default=str),
@@ -830,6 +831,17 @@ def emit_effective_artifact(
             severity="info",
             stage="emit",
             message="Compile success.",
+            path=_diag_path(repo_root=repo_root, path=output_json),
+            confidence=1.0,
+        )
+        return
+
+    if effective_json_owner == "disabled":
+        add_diag(
+            code="I9001",
+            severity="info",
+            stage="emit",
+            message="Compile success (effective JSON artifact disabled).",
             path=_diag_path(repo_root=repo_root, path=output_json),
             confidence=1.0,
         )

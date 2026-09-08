@@ -93,18 +93,26 @@ def _seed_resolver_payloads(
     required_bundles: list[str],
     available_bundles: list[str] | None = None,
     missing_bundle_definitions: list[str] | None = None,
+    product_profile: dict[str, Any] | None = None,
+    project_bundles: list[str] | None = None,
+    project_id: str = "home-lab",
+    profile_present: bool = True,
 ) -> None:
     _publish(
         ctx,
         _SOHO_RESOLVER_PLUGIN_ID,
         {
             "soho_profile_resolution": {
+                "profile_present": profile_present,
                 "required_bundles": required_bundles,
                 "available_bundles": available_bundles or required_bundles,
                 "missing_bundle_definitions": missing_bundle_definitions or [],
             },
             "effective_product_bundles": required_bundles,
             "available_product_bundles": available_bundles or required_bundles,
+            "project_product_profile": product_profile or {},
+            "project_product_bundles": project_bundles or [],
+            "project_id": project_id,
         },
     )
 
@@ -128,6 +136,13 @@ def test_soho_validator_manifest_requires_resolver_payloads() -> None:
 def test_soho_validator_warns_when_product_profile_is_missing(tmp_path: Path) -> None:
     validator = SohoProductProfileValidator("base.validator.soho_product_profile")
     ctx = _ctx(tmp_path, {"project": "home-lab"})
+    # Seed publications with profile_present=False to simulate missing profile
+    _seed_resolver_payloads(
+        ctx,
+        required_bundles=[],
+        profile_present=False,
+        product_profile=None,
+    )
 
     result = _run_validator(validator, ctx)
 
@@ -139,19 +154,20 @@ def test_soho_validator_warns_when_product_profile_is_missing(tmp_path: Path) ->
 
 def test_soho_validator_fails_for_migrated_hard_missing_bundles(tmp_path: Path) -> None:
     validator = SohoProductProfileValidator("base.validator.soho_product_profile")
+    product_profile = {
+        "profile_id": "soho.standard.v1",
+        "deployment_class": "managed-soho",
+        "site_class": "single-site",
+        "user_band": "1-25",
+        "operator_mode": "single-operator",
+        "release_channel": "stable",
+        "migration_state": "migrated-hard",
+    }
     ctx = _ctx(
         tmp_path,
         {
             "project": "home-lab",
-            "product_profile": {
-                "profile_id": "soho.standard.v1",
-                "deployment_class": "managed-soho",
-                "site_class": "single-site",
-                "user_band": "1-25",
-                "operator_mode": "single-operator",
-                "release_channel": "stable",
-                "migration_state": "migrated-hard",
-            },
+            "product_profile": product_profile,
             "product_bundles": ["bundle.edge-routing", "bundle.network-segmentation"],
         },
     )
@@ -167,6 +183,8 @@ def test_soho_validator_fails_for_migrated_hard_missing_bundles(tmp_path: Path) 
             "bundle.observability",
             "bundle.update-management",
         ],
+        product_profile=product_profile,
+        project_bundles=["bundle.edge-routing", "bundle.network-segmentation"],
     )
 
     result = _run_validator(validator, ctx)
@@ -177,38 +195,36 @@ def test_soho_validator_fails_for_migrated_hard_missing_bundles(tmp_path: Path) 
 
 def test_soho_validator_fails_on_invalid_state_transition(tmp_path: Path) -> None:
     validator = SohoProductProfileValidator("base.validator.soho_product_profile")
+    product_profile = {
+        "profile_id": "soho.standard.v1",
+        "deployment_class": "starter",
+        "site_class": "single-site",
+        "user_band": "1-25",
+        "operator_mode": "single-operator",
+        "release_channel": "stable",
+        "migration_state": "migrated-soft",
+        "previous_migration_state": "migrated-hard",
+    }
+    project_bundles = [
+        "bundle.edge-routing",
+        "bundle.network-segmentation",
+        "bundle.secrets-governance",
+        "bundle.remote-access",
+        "bundle.operator-workflows",
+    ]
     ctx = _ctx(
         tmp_path,
         {
             "project": "home-lab",
-            "product_profile": {
-                "profile_id": "soho.standard.v1",
-                "deployment_class": "starter",
-                "site_class": "single-site",
-                "user_band": "1-25",
-                "operator_mode": "single-operator",
-                "release_channel": "stable",
-                "migration_state": "migrated-soft",
-                "previous_migration_state": "migrated-hard",
-            },
-            "product_bundles": [
-                "bundle.edge-routing",
-                "bundle.network-segmentation",
-                "bundle.secrets-governance",
-                "bundle.remote-access",
-                "bundle.operator-workflows",
-            ],
+            "product_profile": product_profile,
+            "product_bundles": project_bundles,
         },
     )
     _seed_resolver_payloads(
         ctx,
-        required_bundles=[
-            "bundle.edge-routing",
-            "bundle.network-segmentation",
-            "bundle.secrets-governance",
-            "bundle.remote-access",
-            "bundle.operator-workflows",
-        ],
+        required_bundles=project_bundles,
+        product_profile=product_profile,
+        project_bundles=project_bundles,
     )
 
     result = _run_validator(validator, ctx)
@@ -225,6 +241,13 @@ def test_soho_validator_blocks_legacy_when_sunset_is_reached(tmp_path: Path) -> 
         legacy_end_date="2026-04-01",
         today="2026-04-09",
     )
+    # Seed publications with profile_present=False to simulate missing profile
+    _seed_resolver_payloads(
+        ctx,
+        required_bundles=[],
+        profile_present=False,
+        product_profile=None,
+    )
 
     result = _run_validator(validator, ctx)
 
@@ -238,19 +261,20 @@ def test_soho_validator_blocks_legacy_when_sunset_is_reached(tmp_path: Path) -> 
 
 def test_soho_validator_treats_legacy_profile_as_hard_after_sunset(tmp_path: Path) -> None:
     validator = SohoProductProfileValidator("base.validator.soho_product_profile")
+    product_profile = {
+        "profile_id": "soho.standard.v1",
+        "deployment_class": "starter",
+        "site_class": "single-site",
+        "user_band": "1-25",
+        "operator_mode": "single-operator",
+        "release_channel": "stable",
+        "migration_state": "legacy",
+    }
     ctx = _ctx(
         tmp_path,
         {
             "project": "home-lab",
-            "product_profile": {
-                "profile_id": "soho.standard.v1",
-                "deployment_class": "starter",
-                "site_class": "single-site",
-                "user_band": "1-25",
-                "operator_mode": "single-operator",
-                "release_channel": "stable",
-                "migration_state": "legacy",
-            },
+            "product_profile": product_profile,
             "product_bundles": ["bundle.edge-routing"],
         },
         legacy_end_date="2026-04-01",
@@ -265,6 +289,8 @@ def test_soho_validator_treats_legacy_profile_as_hard_after_sunset(tmp_path: Pat
             "bundle.remote-access",
             "bundle.operator-workflows",
         ],
+        product_profile=product_profile,
+        project_bundles=["bundle.edge-routing"],
     )
 
     result = _run_validator(validator, ctx)

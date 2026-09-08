@@ -853,3 +853,24 @@ codes:
     stage: build
     title: Resources Matched
     hint: No action required.
+  # ADR 0097 Instance Rows Pipeline Fallback Observability
+  I7950:
+    severity: info
+    stage: compile
+    title: Secret Resolved Rows Fallback
+    hint: Instance rows compiler using legacy fallback path due to unavailable or invalid publication.
+  I7951:
+    severity: info
+    stage: compile
+    title: Resolved Rows Fallback
+    hint: Instance rows compiler using legacy fallback path due to unavailable or invalid publication.
+  I7952:
+    severity: info
+    stage: compile
+    title: Prepared Rows Fallback
+    hint: Instance rows compiler using legacy fallback path due to unavailable or invalid publication.
+  I7953:
+    severity: info
+    stage: compile
+    title: Validated Rows Fallback
+    hint: Instance rows compiler using legacy fallback path due to unavailable or invalid publication.

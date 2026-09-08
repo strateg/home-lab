@@ -18,18 +18,26 @@ class InstanceRowsPrepareCompiler(InstanceRowsCompiler):
 
         resolved_rows = None
         fallback_triggered = False
+        fallback_reason = ""
         if ctx.is_snapshot_backed:
             subscribed_resolved_rows = ctx.subscribe(self._RESOLVED_ROWS_PLUGIN_ID, "resolved_rows")
             if isinstance(subscribed_resolved_rows, list):
                 resolved_rows = [row for row in subscribed_resolved_rows if isinstance(row, dict)]
+            else:
+                fallback_triggered = True
+                fallback_reason = "wrong type (expected list)"
         else:
             try:
                 subscribed_resolved_rows = ctx.subscribe(self._RESOLVED_ROWS_PLUGIN_ID, "resolved_rows")
                 if isinstance(subscribed_resolved_rows, list):
                     resolved_rows = [row for row in subscribed_resolved_rows if isinstance(row, dict)]
+                else:
+                    fallback_triggered = True
+                    fallback_reason = "wrong type (expected list)"
             except PluginDataExchangeError:
                 resolved_rows = None
                 fallback_triggered = True
+                fallback_reason = "publication unavailable"
 
         if fallback_triggered:
             diagnostics.append(
@@ -37,7 +45,7 @@ class InstanceRowsPrepareCompiler(InstanceRowsCompiler):
                     code="I7951",
                     severity="info",
                     stage=stage,
-                    message="resolved_rows unavailable; using legacy fallback path.",
+                    message=f"resolved_rows {fallback_reason}; using legacy fallback path.",
                     path="pipeline:compile",
                 )
             )

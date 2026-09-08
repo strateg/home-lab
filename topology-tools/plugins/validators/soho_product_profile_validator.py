@@ -90,7 +90,10 @@ class SohoProductProfileValidator(ValidatorJsonPlugin):
         )
         sunset_enforced = self._is_legacy_sunset_enforced(ctx)
 
-        if not isinstance(product_profile, dict):
+        # Check profile_present from resolution (not isinstance check on product_profile)
+        # to distinguish "profile missing" from "profile present but empty"
+        profile_present = bool(resolution.get("profile_present"))
+        if not profile_present:
             diagnostics.append(
                 self.emit_diagnostic(
                     code="W7941",
