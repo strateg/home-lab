@@ -1,4 +1,5 @@
 {
+  "bridge_vlans": [],
   "bridges": [],
   "capabilities": {
     "has_containers": false,
@@ -13,8 +14,10 @@
     "has_wifi": false,
     "has_wireguard": false
   },
+  "containers": [],
   "counts": {
     "bridges": 0,
+    "containers": 0,
     "firewall_policies": 0,
     "networks": 2,
     "routers": 1,
@@ -24,7 +27,6 @@
     "wireguard_tunnels": 0
   },
   "firewall_policies": [],
-  "routing_policies": [],
   "mac_vlan_assignments": [],
   "networks": [
     {
@@ -51,6 +53,7 @@
       "object_ref": "obj.mikrotik.chateau_lte7_ax"
     }
   ],
+  "routing_policies": [],
   "runtime_baseline": {
     "addresses": [],
     "dhcp": {
@@ -63,6 +66,7 @@
       "server_name": ""
     },
     "dns_servers": [],
+    "firewall_baseline_rules": [],
     "nat": []
   },
   "security_matrix": {},
@@ -83,6 +87,7 @@
     "securities": []
   },
   "wireguard": {
+    "interfaces": [],
     "tunnels": [],
     "wireguard_address": "",
     "wireguard_listen_port": 51820,

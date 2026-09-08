@@ -105,6 +105,7 @@ def _validate_v5_commands(secrets_mode: str) -> list[list[str]]:
             "--strict-model-lock",
             "--secrets-mode",
             secrets_mode,
+            "--diagnostics",
         ],
     ]
     governance_mode = os.environ.get("ADR0088_GOVERNANCE_MODE", "enforce").strip().lower()

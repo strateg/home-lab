@@ -127,6 +127,7 @@ class DeployWorkspace:
             self.repo_rel(self.repo_root / "generated" / "diagnostics.json"),
             "--diagnostics-txt",
             self.repo_rel(self.repo_root / "generated" / "diagnostics.txt"),
+            "--diagnostics",
             "--artifacts-root",
             artifacts_root_path.as_posix(),
         ]

@@ -11,14 +11,36 @@ sys.path.insert(0, str(V5_TOOLS))
 
 from kernel import PluginContext, PluginRegistry, PluginStatus
 from kernel.plugin_base import Stage
+from tests.helpers.plugin_execution import publish_for_test
 
 PLUGIN_ID = "base.validator.instance_placeholders"
+_ANNOTATION_RESOLVER_ID = "base.compiler.annotation_resolver"
+
+# Minimal annotation_formats required by the validator
+_DEFAULT_ANNOTATION_FORMATS = {
+    "string": {"kind": "primitive", "type": "string"},
+    "int": {"kind": "primitive", "type": "integer"},
+    "number": {"kind": "primitive", "type": "number"},
+    "bool": {"kind": "primitive", "type": "boolean"},
+    "mac": {"kind": "regex", "type": "string", "pattern": r"^(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$"},
+    "ipv4": {"kind": "network", "type": "string", "validator": "ipv4"},
+    "ipv6": {"kind": "network", "type": "string", "validator": "ipv6"},
+    "cidr": {"kind": "network", "type": "string", "validator": "cidr"},
+    "hostname": {"kind": "regex", "type": "string", "pattern": r"^(?=.{1,253}$)(?!-)[A-Za-z0-9-]{1,63}(?<!-)"},
+    "uri": {"kind": "uri", "type": "string", "validator": "uri"},
+    "iso8601": {"kind": "datetime", "type": "string", "validator": "iso8601"},
+}
 
 
 def _registry() -> PluginRegistry:
     registry = PluginRegistry(V5_TOOLS)
     registry.load_manifest(V5_TOOLS / "plugins" / "plugins.yaml")
     return registry
+
+
+def _seed_annotation_formats(ctx: PluginContext) -> None:
+    """Seed annotation_formats publication required by validator."""
+    publish_for_test(ctx, _ANNOTATION_RESOLVER_ID, "annotation_formats", _DEFAULT_ANNOTATION_FORMATS)
 
 
 def _context(
@@ -39,7 +61,7 @@ def _context(
     if instance_overrides is not None:
         row["instance_overrides"] = instance_overrides
 
-    return PluginContext(
+    ctx = PluginContext(
         topology_path="test",
         profile="test",
         model_lock={},
@@ -53,6 +75,8 @@ def _context(
         },
         instance_bindings={"instance_bindings": {"devices": [row]}},
     )
+    _seed_annotation_formats(ctx)
+    return ctx
 
 
 def test_placeholder_plugin_valid_overrides():
@@ -174,6 +198,7 @@ def test_placeholder_plugin_accepts_hardware_identity_mac_addresses():
             }
         },
     )
+    _seed_annotation_formats(ctx)
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.SUCCESS
@@ -217,6 +242,7 @@ def test_placeholder_plugin_rejects_invalid_hardware_identity_mac():
             }
         },
     )
+    _seed_annotation_formats(ctx)
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
@@ -265,6 +291,7 @@ def test_placeholder_plugin_accepts_wireless_alias_and_cellular_mac():
             }
         },
     )
+    _seed_annotation_formats(ctx)
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.SUCCESS
@@ -347,6 +374,7 @@ def test_placeholder_plugin_accepts_optional_secret_annotations():
             }
         },
     )
+    _seed_annotation_formats(ctx)
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.SUCCESS
