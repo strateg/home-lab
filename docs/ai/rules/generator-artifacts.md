@@ -1,8 +1,8 @@
 ---
-@pack: generator-artifacts
-@version: 1.0
-@tokens: ~375
-@adr: [0074, 0075, 0078, 0104]
+"@pack": generator-artifacts
+"@version": 1.0
+"@tokens": ~375
+"@adr": [0074, 0075, 0078, 0104]
 ---
 
 # AI Rule Pack: Generator Artifacts

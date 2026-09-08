@@ -1,8 +1,8 @@
 ---
-@pack: plugin-runtime
-@version: 1.0
-@tokens: ~450
-@adr: [0063, 0065, 0080, 0097]
+"@pack": plugin-runtime
+"@version": 1.0
+"@tokens": ~450
+"@adr": [0063, 0065, 0080, 0097]
 ---
 
 # AI Rule Pack: Plugin Runtime

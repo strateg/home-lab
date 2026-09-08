@@ -1,8 +1,8 @@
 ---
-@pack: topology-model
-@version: 1.1
-@tokens: ~500
-@adr: [0062, 0071, 0088, 0107]
+"@pack": topology-model
+"@version": 1.1
+"@tokens": ~500
+"@adr": [0062, 0071, 0088, 0107]
 ---
 
 # AI Rule Pack: Topology Model
@@ -35,16 +35,20 @@
 
 ## Layer Boundaries (L0-L7)
 
+<!-- GENERATED:LAYER_TABLE:START -->
+
 | Layer | Scope | Examples |
 |-------|-------|----------|
-| L0 | Physical | Hardware, racks, power |
-| L1 | Network | VLANs, bridges, IPs |
-| L2 | Storage | Disks, volumes, mounts |
-| L3 | Compute | VMs, containers, hosts |
-| L4 | Platform | Kubernetes, Proxmox |
-| L5 | Services | Applications, databases |
-| L6 | Observability | Monitoring, logging |
-| L7 | Access | Users, permissions |
+| L0 | Meta | Global defaults, version, policies |
+| L1 | Foundation | Devices, routers, power, firmware, physical links |
+| L2 | Network | Bridges, VLANs, firewall, QoS, tunnels |
+| L3 | Storage | Storage pools, volumes, data assets |
+| L4 | Platform | VMs, LXC, containers, workloads |
+| L5 | Application | Services, applications, DNS, VPN |
+| L6 | Observability | Healthchecks, alerts, dashboards |
+| L7 | Operations | Backups, workflows, policies, schedules |
+
+<!-- GENERATED:LAYER_TABLE:END -->
 
 ## Anti-Patterns
 

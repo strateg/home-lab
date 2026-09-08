@@ -1,8 +1,8 @@
 ---
-@pack: testing-ci
-@version: 1.0
-@tokens: ~425
-@adr: [0066, 0070, 0077, 0080]
+"@pack": testing-ci
+"@version": 1.0
+"@tokens": ~425
+"@adr": [0066, 0070, 0077, 0080]
 ---
 
 # AI Rule Pack: Testing and CI

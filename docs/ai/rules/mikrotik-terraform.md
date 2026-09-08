@@ -1,8 +1,8 @@
 ---
-@pack: mikrotik-terraform
-@version: 1.0
-@tokens: ~500
-@adr: [0072, 0074, 0110]
+"@pack": mikrotik-terraform
+"@version": 1.0
+"@tokens": ~500
+"@adr": [0072, 0074, 0110]
 ---
 
 # AI Rule Pack: MikroTik Terraform

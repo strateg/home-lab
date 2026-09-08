@@ -1,8 +1,8 @@
 ---
-@pack: host-placement
-@version: 1.1
-@tokens: ~800
-@adr: [0107]
+"@pack": host-placement
+"@version": 1.1
+"@tokens": ~800
+"@adr": [0107]
 ---
 
 # AI Rule Pack: Host Placement Defaults
@@ -73,7 +73,7 @@ Use @on markers in object `defaults:` section to inherit from host:
 ```yaml
 # obj.proxmox.lxc.debian12.base.yaml
 @object: obj.proxmox.lxc.debian12.base
-@version: 1.1.0
+"@version": 1.1.0
 
 defaults:
   trust_zone_ref: "@on:host.trust_zone_ref?"

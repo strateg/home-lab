@@ -243,10 +243,16 @@ tasks:
     cmds:
       - "{{.PYTHON}} scripts/validation/report_ai_usage_metrics.py --project-id home-lab --output-json build/diagnostics/ai-usage-metrics.json"
 
+  ai-layer-table:
+    desc: Validate AI rules layer table matches canonical layer-contract.yaml
+    cmds:
+      - "{{.PYTHON}} scripts/generators/generate_ai_layer_table.py --check"
+
   agent-rules:
     desc: Validate AI agent rulebook consistency per ADR0096
     cmds:
       - "{{.PYTHON}} scripts/validation/validate_agent_rules.py --output-json build/diagnostics/agent-rules.json"
+      - "{{.PYTHON}} scripts/generators/generate_ai_layer_table.py --check"
 
   agent-rules-strict:
     desc: Validate AI agent rulebook with strict mode (fail on warnings)

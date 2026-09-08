@@ -1,8 +1,8 @@
 ---
-@pack: network-security
-@version: 1.0
-@tokens: ~600
-@adr: [0109, 0110, 0111]
+"@pack": network-security
+"@version": 1.0
+"@tokens": ~600
+"@adr": [0109, 0110, 0111]
 ---
 
 # AI Rule Pack: Network Security Matrix

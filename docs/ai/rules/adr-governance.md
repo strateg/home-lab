@@ -1,8 +1,8 @@
 ---
-@pack: adr-governance
-@version: 1.0
-@tokens: ~525
-@adr: [0080, 0095, 0096]
+"@pack": adr-governance
+"@version": 1.0
+"@tokens": ~525
+"@adr": [0080, 0095, 0096]
 ---
 
 # AI Rule Pack: ADR Governance

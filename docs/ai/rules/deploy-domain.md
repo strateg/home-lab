@@ -1,8 +1,8 @@
 ---
-@pack: deploy-domain
-@version: 1.0
-@tokens: ~400
-@adr: [0083, 0084, 0085, 0090]
+"@pack": deploy-domain
+"@version": 1.0
+"@tokens": ~400
+"@adr": [0083, 0084, 0085, 0090]
 ---
 
 # AI Rule Pack: Deploy Domain

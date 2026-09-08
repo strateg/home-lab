@@ -1,8 +1,8 @@
 ---
-@pack: secrets
-@version: 1.0
-@tokens: ~375
-@adr: [0072, 0073, 0085]
+"@pack": secrets
+"@version": 1.0
+"@tokens": ~375
+"@adr": [0072, 0073, 0085]
 ---
 
 # AI Rule Pack: Secrets

@@ -1,8 +1,8 @@
 ---
-@pack: acceptance-tuc
-@version: 1.0
-@tokens: ~500
-@adr: [0066, 0070, 0080, 0089]
+"@pack": acceptance-tuc
+"@version": 1.0
+"@tokens": ~500
+"@adr": [0066, 0070, 0080, 0089]
 ---
 
 # AI Rule Pack: Acceptance TUC

@@ -1,8 +1,8 @@
 ---
-@pack: capability-model
-@version: 1.0
-@tokens: ~800
-@adr: [0088, 0106]
+"@pack": capability-model
+"@version": 1.0
+"@tokens": ~800
+"@adr": [0088, 0106]
 ---
 
 # AI Rule Pack: Capability Model
