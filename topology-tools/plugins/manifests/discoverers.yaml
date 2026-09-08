@@ -21,6 +21,7 @@ plugins:
   - key: manifest_loader_summary
     scope: pipeline_shared
   description: Loads class/object module plugin manifests during discover bootstrap.
+  execution_mode: subinterpreter
 - id: base.discover.boundary
   execution_mode: subinterpreter
   kind: discoverer

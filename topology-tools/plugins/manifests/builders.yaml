@@ -93,6 +93,7 @@ plugins:
   - key: artifact_family_summary
     scope: pipeline_shared
   description: Aggregates ADR0093 artifact family planning/report metadata into build summary output.
+  execution_mode: subinterpreter
 - id: base.builder.generator_readiness_evidence
   execution_mode: subinterpreter
   kind: builder
