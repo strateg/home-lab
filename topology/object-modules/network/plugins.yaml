@@ -21,3 +21,4 @@ plugins:
         key: ethernet_ports_by_object
         required: false
     description: Validates ethernet cable/channel contracts and legacy data-link endpoint semantics.
+    execution_mode: subinterpreter
