@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 
 import yaml
@@ -15,53 +14,12 @@ from kernel.plugin_base import (
     Stage,
     ValidatorJsonPlugin,
 )
+from plugins.validators.policy_path_helper import parse_policy_date, resolve_policy_path
 from yaml_loader import load_yaml_file
 
 
 class GeneratorRollbackEscalationValidator(ValidatorJsonPlugin):
     """Warn when generators remain in rollback mode beyond policy threshold."""
-
-    @staticmethod
-    def _parse_date(value: Any) -> datetime | None:
-        if not isinstance(value, str) or not value.strip():
-            return None
-        try:
-            return datetime.strptime(value.strip(), "%Y-%m-%d").replace(tzinfo=UTC)
-        except ValueError:
-            return None
-
-    @staticmethod
-    def _resolve_repo_root(ctx: PluginContext) -> Path:
-        raw = ctx.config.get("repo_root")
-        if isinstance(raw, str) and raw.strip():
-            return Path(raw.strip()).resolve()
-        return Path(__file__).resolve().parents[3]
-
-    @staticmethod
-    def _resolve_framework_root(ctx: PluginContext) -> Path | None:
-        class_modules_root_raw = ctx.config.get("class_modules_root")
-        if isinstance(class_modules_root_raw, str) and class_modules_root_raw.strip():
-            class_modules_root = Path(class_modules_root_raw.strip()).resolve()
-            return class_modules_root.parent.parent
-        object_modules_root_raw = ctx.config.get("object_modules_root")
-        if isinstance(object_modules_root_raw, str) and object_modules_root_raw.strip():
-            object_modules_root = Path(object_modules_root_raw.strip()).resolve()
-            return object_modules_root.parent.parent
-        return None
-
-    def _resolve_policy_path(self, *, ctx: PluginContext, value: str) -> Path:
-        candidate = Path(value.strip())
-        if candidate.is_absolute():
-            return candidate.resolve()
-        repo_path = (self._resolve_repo_root(ctx) / candidate).resolve()
-        if repo_path.exists():
-            return repo_path
-        framework_root = self._resolve_framework_root(ctx)
-        if framework_root is not None:
-            framework_path = (framework_root / candidate).resolve()
-            if framework_path.exists():
-                return framework_path
-        return repo_path
 
     def _load_policy(
         self,
@@ -82,7 +40,7 @@ class GeneratorRollbackEscalationValidator(ValidatorJsonPlugin):
                 )
             )
             return {}, diagnostics
-        policy_path = self._resolve_policy_path(ctx=ctx, value=policy_path_raw)
+        policy_path = resolve_policy_path(config=ctx.config, value=policy_path_raw)
         if not policy_path.exists() or not policy_path.is_file():
             diagnostics.append(
                 self.emit_diagnostic(
@@ -163,7 +121,7 @@ class GeneratorRollbackEscalationValidator(ValidatorJsonPlugin):
         policy_map = dict(generator_policy)
         policy_map.update(overrides)
 
-        config_today = self._parse_date(ctx.config.get("rollback_today"))
+        config_today = parse_policy_date(ctx.config.get("rollback_today"))
         today = config_today or datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
 
         summary: dict[str, Any] = {
@@ -186,7 +144,7 @@ class GeneratorRollbackEscalationValidator(ValidatorJsonPlugin):
             summary["rollback_generators"] += 1
             item = policy_map.get(plugin_id)
             started_at_raw = item.get("rollback_started_at") if isinstance(item, dict) else None
-            started_at = self._parse_date(started_at_raw)
+            started_at = parse_policy_date(started_at_raw)
             if started_at is None:
                 summary["events"].append(
                     {

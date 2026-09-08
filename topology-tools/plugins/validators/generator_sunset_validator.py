@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 
 import yaml
@@ -15,6 +14,7 @@ from kernel.plugin_base import (
     Stage,
     ValidatorJsonPlugin,
 )
+from plugins.validators.policy_path_helper import parse_policy_date, resolve_policy_path
 from yaml_loader import load_yaml_file
 
 _SUPPORTED_MODES = {"legacy", "migrating", "migrated", "rollback"}
@@ -22,39 +22,6 @@ _SUPPORTED_MODES = {"legacy", "migrating", "migrated", "rollback"}
 
 class GeneratorSunsetValidator(ValidatorJsonPlugin):
     """Escalate legacy-mode ADR0093 targets from warning to error at hard_error_date."""
-
-    @staticmethod
-    def _resolve_repo_root(ctx: PluginContext) -> Path:
-        raw = ctx.config.get("repo_root")
-        if isinstance(raw, str) and raw.strip():
-            return Path(raw.strip()).resolve()
-        return Path(__file__).resolve().parents[3]
-
-    @staticmethod
-    def _resolve_framework_root(ctx: PluginContext) -> Path | None:
-        class_modules_root_raw = ctx.config.get("class_modules_root")
-        if isinstance(class_modules_root_raw, str) and class_modules_root_raw.strip():
-            class_modules_root = Path(class_modules_root_raw.strip()).resolve()
-            return class_modules_root.parent.parent
-        object_modules_root_raw = ctx.config.get("object_modules_root")
-        if isinstance(object_modules_root_raw, str) and object_modules_root_raw.strip():
-            object_modules_root = Path(object_modules_root_raw.strip()).resolve()
-            return object_modules_root.parent.parent
-        return None
-
-    def _resolve_policy_path(self, *, ctx: PluginContext, value: str) -> Path:
-        candidate = Path(value.strip())
-        if candidate.is_absolute():
-            return candidate.resolve()
-        repo_path = (self._resolve_repo_root(ctx) / candidate).resolve()
-        if repo_path.exists():
-            return repo_path
-        framework_root = self._resolve_framework_root(ctx)
-        if framework_root is not None:
-            framework_path = (framework_root / candidate).resolve()
-            if framework_path.exists():
-                return framework_path
-        return repo_path
 
     def _load_policy_schedule(
         self,
@@ -67,7 +34,7 @@ class GeneratorSunsetValidator(ValidatorJsonPlugin):
         if not isinstance(policy_path_raw, str) or not policy_path_raw.strip():
             return {}, diagnostics
 
-        policy_path = self._resolve_policy_path(ctx=ctx, value=policy_path_raw)
+        policy_path = resolve_policy_path(config=ctx.config, value=policy_path_raw)
         if not policy_path.exists() or not policy_path.is_file():
             diagnostics.append(
                 self.emit_diagnostic(
@@ -129,15 +96,6 @@ class GeneratorSunsetValidator(ValidatorJsonPlugin):
             return {}, diagnostics
         return dict(raw_schedule), diagnostics
 
-    @staticmethod
-    def _parse_date(value: Any) -> datetime | None:
-        if not isinstance(value, str) or not value.strip():
-            return None
-        try:
-            return datetime.strptime(value.strip(), "%Y-%m-%d").replace(tzinfo=UTC)
-        except ValueError:
-            return None
-
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
 
@@ -155,7 +113,7 @@ class GeneratorSunsetValidator(ValidatorJsonPlugin):
             )
             return self.make_result(diagnostics=diagnostics)
 
-        config_today = self._parse_date(ctx.config.get("sunset_today"))
+        config_today = parse_policy_date(ctx.config.get("sunset_today"))
         today = config_today or datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
 
         schedule, policy_diags = self._load_policy_schedule(ctx=ctx, stage=stage)
@@ -206,8 +164,8 @@ class GeneratorSunsetValidator(ValidatorJsonPlugin):
                 summary["warnings"] += 1
                 continue
 
-            sunset_date = self._parse_date(item.get("compatibility_sunset"))
-            hard_error_date = self._parse_date(item.get("hard_error_date"))
+            sunset_date = parse_policy_date(item.get("compatibility_sunset"))
+            hard_error_date = parse_policy_date(item.get("hard_error_date"))
             if sunset_date is None or hard_error_date is None or hard_error_date < sunset_date:
                 diagnostics.append(
                     self.emit_diagnostic(
