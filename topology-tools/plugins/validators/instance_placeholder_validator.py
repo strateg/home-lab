@@ -16,15 +16,13 @@ from __future__ import annotations
 import datetime as dt
 import ipaddress
 import re
-from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
 from field_annotations import parse_field_annotation
 from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage, ValidatorJsonPlugin
-from yaml_loader import load_yaml_file
 
-DEFAULT_FORMAT_REGISTRY = Path(__file__).resolve().parents[1] / "data" / "instance-field-formats.yaml"
+_ANNOTATION_RESOLVER_PLUGIN_ID = "base.compiler.annotation_resolver"
 DEFAULT_ENFORCEMENT_MODE = "enforce"
 SUPPORTED_ENFORCEMENT_MODES = {"warn", "warn+gate-new", "enforce"}
 DEFAULT_GATE_STATUSES = {"modeled", "mapped"}
@@ -90,43 +88,20 @@ class InstancePlaceholderValidator(ValidatorJsonPlugin):
         stage: Stage,
         diagnostics: list[PluginDiagnostic],
     ) -> dict[str, dict[str, Any]]:
-        configured = ctx.config.get("format_registry_path")
-        registry_path = Path(configured) if isinstance(configured, str) and configured else DEFAULT_FORMAT_REGISTRY
-        if not registry_path.is_absolute():
-            registry_path = (Path(__file__).resolve().parents[1] / registry_path).resolve()
-
-        try:
-            payload = load_yaml_file(registry_path) or {}
-        except Exception as exc:  # pragma: no cover - defensive path
-            diagnostics.append(
-                self.emit_diagnostic(
-                    code="E3201",
-                    severity="error",
-                    stage=stage,
-                    message=f"Cannot load ADR0068 format registry '{registry_path}': {exc}",
-                    path="plugin:base.validator.instance_placeholders",
-                )
-            )
-            return {}
-
-        formats = payload.get("formats")
+        """Subscribe to annotation_formats from annotation_resolver compiler."""
+        formats = ctx.subscribe(_ANNOTATION_RESOLVER_PLUGIN_ID, "annotation_formats")
         if not isinstance(formats, dict):
             diagnostics.append(
                 self.emit_diagnostic(
                     code="E3201",
                     severity="error",
                     stage=stage,
-                    message=f"ADR0068 format registry '{registry_path}' must contain mapping 'formats'.",
+                    message="annotation_formats not available from annotation_resolver compiler.",
                     path="plugin:base.validator.instance_placeholders",
                 )
             )
             return {}
-
-        result: dict[str, dict[str, Any]] = {}
-        for name, spec in formats.items():
-            if isinstance(name, str) and isinstance(spec, dict):
-                result[name] = spec
-        return result
+        return formats
 
     def _load_enforcement_policy(
         self,

@@ -924,10 +924,10 @@ plugins:
   - validate
   phase: post
   order: 140
-  depends_on: []
+  depends_on:
+  - base.compiler.annotation_resolver
   timeout: 30
   config:
-    format_registry_path: ../data/instance-field-formats.yaml
     enforcement_mode: enforce
     gate_statuses:
     - modeled
@@ -935,9 +935,6 @@ plugins:
   config_schema:
     type: object
     properties:
-      format_registry_path:
-        type: string
-        description: Path to ADR0068 placeholder format registry.
       enforcement_mode:
         type: string
         enum:
@@ -955,6 +952,10 @@ plugins:
         - mapped
         description: Instance statuses treated as strict in warn+gate-new mode.
     required: []
+  consumes:
+  - from_plugin: base.compiler.annotation_resolver
+    key: annotation_formats
+    required: true
   description: Validates ADR0068 @required/@optional placeholders and instance_overrides.
   execution_mode: subinterpreter
 - id: base.validator.host_os_refs
