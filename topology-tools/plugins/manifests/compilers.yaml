@@ -69,7 +69,7 @@ plugins:
   - key: host_workload_defaults_index
     scope: pipeline_shared
   description: Builds host_workload_defaults_index for @on directive resolution (ADR 0107 D12).
-  execution_mode: main_interpreter
+  execution_mode: subinterpreter
 - id: base.compiler.annotation_resolver
   execution_mode: subinterpreter
   kind: compiler
@@ -266,7 +266,7 @@ plugins:
     key: host_workload_defaults_index
     required: true
   description: Resolves @on:host.X and @on:root.X directives in prepared instance rows (ADR 0107 D12).
-  execution_mode: main_interpreter
+  execution_mode: subinterpreter
 - id: base.compiler.instance_rows_validate
   kind: compiler
   entry: ../compilers/instance_rows_validate_compiler.py:InstanceRowsValidateCompiler
