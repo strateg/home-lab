@@ -25,9 +25,18 @@ def compilation_owner(*, enable_plugins: bool, pipeline_mode: str, rule_name: st
     return "core"
 
 
-def artifact_owner(*, enable_plugins: bool, pipeline_mode: str, artifact_name: str) -> str:
+def artifact_owner(
+    *,
+    enable_plugins: bool,
+    pipeline_mode: str,
+    artifact_name: str,
+    enable_diagnostics: bool = True,
+) -> str:
     if not enable_plugins:
         return "core"
-    if artifact_name == "effective_json" and pipeline_mode == "plugin-first":
-        return "plugin"
+    if artifact_name == "effective_json":
+        if not enable_diagnostics:
+            return "disabled"
+        if pipeline_mode == "plugin-first":
+            return "plugin"
     return "core"

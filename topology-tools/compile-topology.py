@@ -195,6 +195,7 @@ class V5Compiler:
         plugins_manifest_path: Path | None = None,
         parallel_plugins: bool = True,
         trace_execution: bool = False,
+        enable_diagnostics: bool = False,
         plugin_contract_warnings: bool = False,
         plugin_contract_errors: bool = True,
         workspace_root: Path | None = None,
@@ -244,6 +245,7 @@ class V5Compiler:
         self.plugins_manifest_path = plugins_manifest_path or DEFAULT_PLUGINS_MANIFEST
         self.parallel_plugins = parallel_plugins
         self.trace_execution = trace_execution
+        self.enable_diagnostics = enable_diagnostics
         self.plugin_contract_warnings = plugin_contract_warnings
         self.plugin_contract_errors = plugin_contract_errors
         self.workspace_root = workspace_root or DEFAULT_WORKSPACE_ROOT
@@ -314,6 +316,7 @@ class V5Compiler:
             enable_plugins=self.enable_plugins,
             pipeline_mode=self.pipeline_mode,
             artifact_name=artifact_name,
+            enable_diagnostics=self.enable_diagnostics,
         )
 
         self._init_plugin_registry()
@@ -766,7 +769,17 @@ class V5Compiler:
             return None
         return payload
 
+    def _count_diagnostics(self) -> tuple[int, int, int, int]:
+        """Count diagnostics by severity without writing files."""
+        total = len(self._diagnostics)
+        errors = sum(1 for d in self._diagnostics if d.severity == "error")
+        warnings = sum(1 for d in self._diagnostics if d.severity == "warning")
+        infos = sum(1 for d in self._diagnostics if d.severity == "info")
+        return total, errors, warnings, infos
+
     def _write_diagnostics(self) -> tuple[int, int, int, int]:
+        if not self.enable_diagnostics:
+            return self._count_diagnostics()
         self._write_execution_trace()
         plugin_stats = self._plugin_registry.get_stats() if self._plugin_registry else None
         plugin_manifests = self._plugin_registry.manifests if self._plugin_registry else None
@@ -806,10 +819,16 @@ class V5Compiler:
 
     def _print_summary(self, *, total: int, errors: int, warnings: int, infos: int, emit_effective: bool) -> None:
         print(f"Compile summary: total={total} errors={errors} warnings={warnings} infos={infos}")
-        print(f"Diagnostics JSON: {self.diagnostics_json}")
-        print(f"Diagnostics TXT:  {self.diagnostics_txt}")
-        if emit_effective and errors == 0:
-            print(f"Effective JSON:   {self.output_json}")
+        if self.enable_diagnostics:
+            print(f"Diagnostics JSON: {self.diagnostics_json}")
+            print(f"Diagnostics TXT:  {self.diagnostics_txt}")
+            if emit_effective and errors == 0:
+                print(f"Effective JSON:   {self.output_json}")
+        elif errors > 0:
+            # Print errors to stderr when diagnostics files are disabled
+            for diag in self._diagnostics:
+                if diag.severity == "error":
+                    print(f"[ERROR] {diag.code} ({diag.stage}) {diag.path}: {diag.message}", file=sys.stderr)
 
     def _fail_early(self) -> int:
         """Write diagnostics and return failure exit code (thin orchestrator helper)."""

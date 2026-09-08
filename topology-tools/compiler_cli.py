@@ -178,6 +178,11 @@ def build_parser(config: CompilerCliDependencies) -> argparse.ArgumentParser:
         help="Write stage/phase/plugin execution trace to diagnostics directory.",
     )
     parser.add_argument(
+        "--diagnostics",
+        action="store_true",
+        help="Write diagnostic files to disk (effective-topology.json, diagnostics.json, diagnostics.txt). When omitted, only errors are printed to console.",
+    )
+    parser.add_argument(
         "--plugin-contract-warnings",
         action="store_true",
         help="Emit W800x warnings for undeclared produces/consumes runtime usage.",
@@ -331,6 +336,7 @@ def run_cli(config: CompilerCliDependencies, argv: Sequence[str] | None = None) 
         plugins_manifest_path=config.resolve_repo_path(args.plugins_manifest),
         parallel_plugins=args.parallel_plugins,
         trace_execution=args.trace_execution,
+        enable_diagnostics=args.diagnostics,
         plugin_contract_warnings=args.plugin_contract_warnings,
         plugin_contract_errors=args.plugin_contract_errors,
         workspace_root=config.resolve_repo_path(args.workspace_root),
