@@ -24,6 +24,7 @@ from ..plugin_base import (
     PluginDataExchangeError,
     PluginDiagnostic,
     PluginResult,
+    PluginStatus,
 )
 from .parallel_executor import compute_wavefronts
 from .snapshot_builder import SerializablePluginSpec
@@ -198,7 +199,9 @@ def execute_phase_parallel(
     wavefronts = compute_wavefronts(plugin_ids, host.specs, host._plugin_sort_key)
     blocked: set[str] = set(config_validation_failed)
 
-    with executor:
+    # F02/R09: Use manual executor management for bounded shutdown
+    # Don't use `with executor:` as it calls shutdown(wait=True) which blocks indefinitely
+    try:
         for raw_wavefront in wavefronts:
             wavefront: list[str] = []
             for plugin_id in raw_wavefront:
@@ -397,9 +400,12 @@ def execute_phase_parallel(
                     # F02: Check if individual deadline was exceeded BEFORE accepting result
                     if elapsed > timeout_secs:
                         # Result arrived after deadline - reject it even if future completed
-                        failed = PluginResult.failed(
+                        # Use TIMEOUT status per runtime contract (PluginStatus.TIMEOUT)
+                        timeout_result = PluginResult(
                             plugin_id=plugin_id,
                             api_version=spec.api_version,
+                            status=PluginStatus.TIMEOUT,
+                            duration_ms=elapsed * 1000,
                             diagnostics=[
                                 PluginDiagnostic(
                                     code="E4103",
@@ -415,7 +421,7 @@ def execute_phase_parallel(
                                 )
                             ],
                         )
-                        results_by_plugin[plugin_id] = failed
+                        results_by_plugin[plugin_id] = timeout_result
                         if trace_execution:
                             host._trace_event(
                                 event="plugin_result",
@@ -511,16 +517,20 @@ def execute_phase_parallel(
                             )
             except TimeoutError:
                 # R09 fix: Global timeout expired - create timeout results for pending futures
+                # Use TIMEOUT status per runtime contract (PluginStatus.TIMEOUT)
                 for future, (plugin_id, submit_time, timeout_secs) in futures.items():
                     if plugin_id in results_by_plugin:
                         continue  # Already processed
                     spec = host.specs.get(plugin_id)
                     if spec is None:
                         continue
-                    future.cancel()  # Try to cancel
-                    failed = PluginResult.failed(
+                    future.cancel()  # Try to cancel (only works for not-yet-started tasks)
+                    elapsed = time.monotonic() - submit_time
+                    timeout_result = PluginResult(
                         plugin_id=plugin_id,
                         api_version=spec.api_version if spec else "1.0.0",
+                        status=PluginStatus.TIMEOUT,
+                        duration_ms=elapsed * 1000,
                         diagnostics=[
                             PluginDiagnostic(
                                 code="E4103",
@@ -533,15 +543,21 @@ def execute_phase_parallel(
                             )
                         ],
                     )
-                    results_by_plugin[plugin_id] = failed
+                    results_by_plugin[plugin_id] = timeout_result
                     if trace_execution:
                         host._trace_event(
                             event="plugin_result",
                             stage=stage,
                             phase=phase,
                             plugin_id=plugin_id,
-                            status=failed.status,
+                            status=timeout_result.status,
                             message="timeout",
                         )
+    finally:
+        # F02/R09: Bounded shutdown - don't wait indefinitely for hung workers
+        # cancel_futures=True cancels pending (not-yet-started) tasks
+        # wait=False returns immediately without waiting for running tasks
+        # Running tasks may continue as "zombie workers" but stage returns bounded
+        executor.shutdown(wait=False, cancel_futures=True)
 
     return [results_by_plugin[plugin_id] for plugin_id in plugin_ids if plugin_id in results_by_plugin]

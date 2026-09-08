@@ -248,6 +248,11 @@ codes:
     stage: validate
     title: Plugin Crashed
     hint: Plugin raised unhandled exception; check traceback.
+  E4103:
+    severity: error
+    stage: validate
+    title: Plugin Timeout
+    hint: Plugin exceeded its configured timeout. Increase timeout in manifest or optimize plugin execution.
   W4001:
     severity: warning
     stage: load
