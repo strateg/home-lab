@@ -16,6 +16,8 @@ without patching module globals (host-surface normalization done in S9).
 from __future__ import annotations
 
 import concurrent.futures
+import dataclasses
+import threading
 import time
 import traceback
 from typing import TYPE_CHECKING, Any, Callable, Protocol
@@ -221,8 +223,12 @@ def execute_phase_parallel(
                 continue  # No valid plugins to execute in this wavefront
 
             # R09 fix: Track submission time for proper timeout enforcement
-            futures: dict[concurrent.futures.Future[PluginExecutionEnvelope], tuple[str, float, float]] = {}
-            # futures[future] = (plugin_id, submit_time, timeout_seconds)
+            # ADR 0097 D15: Also track cancel_event for cooperative cancellation
+            futures: dict[
+                concurrent.futures.Future[PluginExecutionEnvelope],
+                tuple[str, float, float, threading.Event | None],
+            ] = {}
+            # futures[future] = (plugin_id, submit_time, timeout_seconds, cancel_event)
             snapshots_by_plugin: dict[str, PluginInputSnapshot] = {}
             for plugin_id in wavefront:
                 if trace_execution:
@@ -322,6 +328,7 @@ def execute_phase_parallel(
                 # - "main_interpreter" → inline in main interpreter (no cross-interpreter sharing)
                 if spec.execution_mode == "subinterpreter" and has_real_subinterpreters:
                     # Submit to real subinterpreter pool (ADR 0063 Phase 3: delegate to scheduler)
+                    # ADR 0097 D15: No cancel_event for subinterpreter (cross-interpreter limitation)
                     snapshots_by_plugin[plugin_id] = snapshot
                     serialized_spec = SerializablePluginSpec.from_plugin_spec(spec)
                     submit_time = time.monotonic()
@@ -332,7 +339,7 @@ def execute_phase_parallel(
                         serialized_spec.to_dict(),
                     )
                     timeout_secs = float(spec.timeout) if spec.timeout else 60.0
-                    futures[future] = (plugin_id, submit_time, timeout_secs)
+                    futures[future] = (plugin_id, submit_time, timeout_secs, None)
                 elif spec.execution_mode == "main_interpreter" or has_real_subinterpreters:
                     # Execute inline in main interpreter (ADR 0097 D1: main owns state)
                     # This includes: main_interpreter mode, or subinterpreter fallback on Py3.14+
@@ -366,6 +373,10 @@ def execute_phase_parallel(
                         )
                 else:
                     # Python <3.14: use ThreadPoolExecutor for parallel execution
+                    # ADR 0097 D15: Create cancel_event for cooperative cancellation
+                    cancel_event = threading.Event()
+                    snapshot_with_cancel = dataclasses.replace(snapshot, cancel_event=cancel_event)
+                    snapshots_by_plugin[plugin_id] = snapshot_with_cancel
                     submit_time = time.monotonic()
                     future = executor.submit(
                         host._execute_plugin_envelope_local,
@@ -373,11 +384,11 @@ def execute_phase_parallel(
                         spec=spec,
                         stage=stage,
                         phase=phase,
-                        snapshot=snapshot,
+                        snapshot=snapshot_with_cancel,
                         timeout=spec.timeout,
                     )
                     timeout_secs = float(spec.timeout) if spec.timeout else 60.0
-                    futures[future] = (plugin_id, submit_time, timeout_secs)
+                    futures[future] = (plugin_id, submit_time, timeout_secs, cancel_event)
 
             # R09 fix: Calculate global timeout for as_completed()
             # Use maximum of all plugin timeouts + buffer for completion processing
@@ -388,7 +399,7 @@ def execute_phase_parallel(
 
             try:
                 for future in concurrent.futures.as_completed(futures, timeout=max_timeout):
-                    plugin_id, submit_time, timeout_secs = futures[future]
+                    plugin_id, submit_time, timeout_secs, cancel_event = futures[future]
                     spec = host.specs.get(plugin_id)
                     if spec is None:
                         continue
@@ -399,6 +410,9 @@ def execute_phase_parallel(
 
                     # F02: Check if individual deadline was exceeded BEFORE accepting result
                     if elapsed > timeout_secs:
+                        # ADR 0097 D15: Set cancel_event to signal running plugin
+                        if cancel_event is not None:
+                            cancel_event.set()
                         # Result arrived after deadline - reject it even if future completed
                         # Use TIMEOUT status per runtime contract (PluginStatus.TIMEOUT)
                         timeout_result = PluginResult(
@@ -428,7 +442,7 @@ def execute_phase_parallel(
                                 stage=stage,
                                 phase=phase,
                                 plugin_id=plugin_id,
-                                status=failed.status,
+                                status=timeout_result.status,
                                 message="deadline exceeded",
                             )
                         continue
@@ -518,12 +532,15 @@ def execute_phase_parallel(
             except TimeoutError:
                 # R09 fix: Global timeout expired - create timeout results for pending futures
                 # Use TIMEOUT status per runtime contract (PluginStatus.TIMEOUT)
-                for future, (plugin_id, submit_time, timeout_secs) in futures.items():
+                for future, (plugin_id, submit_time, timeout_secs, cancel_event) in futures.items():
                     if plugin_id in results_by_plugin:
                         continue  # Already processed
                     spec = host.specs.get(plugin_id)
                     if spec is None:
                         continue
+                    # ADR 0097 D15: Set cancel_event to signal running plugin
+                    if cancel_event is not None:
+                        cancel_event.set()
                     future.cancel()  # Try to cancel (only works for not-yet-started tasks)
                     elapsed = time.monotonic() - submit_time
                     timeout_result = PluginResult(

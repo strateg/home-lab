@@ -11,6 +11,7 @@ Updated to match ADR 0063 expanded specification:
 
 from __future__ import annotations
 
+import threading
 from abc import ABC, abstractmethod
 from collections.abc import Iterator, Mapping, MutableMapping
 from contextvars import ContextVar, Token
@@ -312,6 +313,27 @@ class PluginResult:
             output_data={"skip_reason": reason} if reason else None,
         )
 
+    @classmethod
+    def cancelled(
+        cls,
+        plugin_id: str,
+        api_version: str = "1.x",
+        duration_ms: float = 0.0,
+    ) -> PluginResult:
+        """Create cancellation result for cooperative timeout (ADR 0097 D16).
+
+        Used when a plugin detects cancellation via ctx.is_cancelled() and
+        returns early. Distinct from TIMEOUT which indicates scheduler-enforced
+        deadline without plugin cooperation.
+        """
+        return cls(
+            plugin_id=plugin_id,
+            api_version=api_version,
+            status=PluginStatus.TIMEOUT,
+            duration_ms=duration_ms,
+            output_data={"cancellation": "cooperative"},
+        )
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         result: dict[str, Any] = {
@@ -419,7 +441,12 @@ class InputViewSpec:
 
 @dataclass(frozen=True)
 class PluginInputSnapshot:
-    """Immutable plugin-visible input for the envelope-model execution path."""
+    """Immutable plugin-visible input for the envelope-model execution path.
+
+    ADR 0097 D16: Optional cancel_event for cooperative cancellation.
+    - For main_interpreter/thread_legacy: threading.Event set by scheduler on deadline
+    - For subinterpreter: None (cross-interpreter limitation, uses bounded shutdown)
+    """
 
     plugin_id: str
     stage: Stage
@@ -450,6 +477,8 @@ class PluginInputSnapshot:
     subscriptions: dict[tuple[str, str], SubscriptionValue] = field(default_factory=dict)
     allowed_dependencies: frozenset[str] = field(default_factory=frozenset)
     produced_key_scopes: dict[str, str] = field(default_factory=dict)
+    # ADR 0097 D16: Cooperative cancellation event (None for subinterpreter mode)
+    cancel_event: threading.Event | None = field(default=None, compare=False, hash=False)
 
 
 @dataclass(frozen=True)
@@ -587,6 +616,8 @@ class PluginContext:
     # ADR 0097 envelope-model primary path (compatibility with legacy path retained)
     _snapshot: PluginInputSnapshot | None = field(default=None, repr=False)
     _outbox: list[PublishedMessage] = field(default_factory=list, repr=False)
+    # ADR 0097 D16: Cooperative cancellation event
+    _cancel_event: threading.Event | None = field(default=None, repr=False)
 
     # Inter-plugin data exchange (ADR 0065) - Data Plane
     _published_data: dict[str, dict[str, Any]] = field(default_factory=dict, repr=False)
@@ -631,6 +662,8 @@ class PluginContext:
             compiled_file=snapshot.compiled_file,
         )
         ctx._snapshot = snapshot
+        # ADR 0097 D16: Copy cancel_event for cooperative cancellation
+        ctx._cancel_event = snapshot.cancel_event
         return ctx
 
     def _get_execution_scope(self) -> PluginExecutionScope | None:
@@ -640,6 +673,22 @@ class PluginContext:
     def is_snapshot_backed(self) -> bool:
         """Return True when context is executing on ADR-0097 snapshot/envelope path."""
         return self._snapshot is not None
+
+    def is_cancelled(self) -> bool:
+        """Check if execution should be cancelled (ADR 0097 D15-D16).
+
+        Plugins SHOULD check this periodically during long operations.
+        Returns False for subinterpreter mode (no cross-interpreter signaling).
+
+        Example usage:
+            for item in large_collection:
+                if ctx.is_cancelled():
+                    return PluginResult.cancelled(self.plugin_id, self.api_version)
+                process(item)
+        """
+        if self._cancel_event is not None:
+            return self._cancel_event.is_set()
+        return False
 
     @property
     def active_config(self) -> Mapping[str, Any]:
