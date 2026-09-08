@@ -19,6 +19,19 @@ class SohoProfileResolverCompiler(CompilerPlugin):
 
         project_manifest = self._load_project_manifest(ctx)
         product_profile = project_manifest.get("product_profile") if isinstance(project_manifest, dict) else None
+        # Extract project-level data for downstream validators
+        project_id = (
+            str(project_manifest.get("project", "")).strip()
+            if isinstance(project_manifest, dict)
+            else ""
+        ) or str(ctx.config.get("project_id", "")).strip()
+        project_bundles_raw = project_manifest.get("product_bundles", []) if isinstance(project_manifest, dict) else []
+        project_bundles = (
+            sorted({str(b).strip() for b in project_bundles_raw if isinstance(b, str) and str(b).strip()})
+            if isinstance(project_bundles_raw, list)
+            else []
+        )
+
         if not isinstance(product_profile, dict):
             resolution = {
                 "profile_present": False,
@@ -34,6 +47,9 @@ class SohoProfileResolverCompiler(CompilerPlugin):
                 soho_profile_resolution=resolution,
                 effective_product_bundles=[],
                 available_product_bundles=[],
+                project_product_profile={},
+                project_product_bundles=project_bundles,
+                project_id=project_id,
             )
             return self.make_result(diagnostics=diagnostics, output_data=resolution)
 
@@ -83,6 +99,9 @@ class SohoProfileResolverCompiler(CompilerPlugin):
             soho_profile_resolution=resolution,
             effective_product_bundles=resolution["required_bundles"],
             available_product_bundles=resolution["available_bundles"],
+            project_product_profile=product_profile,
+            project_product_bundles=project_bundles,
+            project_id=project_id,
         )
 
         return self.make_result(diagnostics=diagnostics, output_data=resolution)

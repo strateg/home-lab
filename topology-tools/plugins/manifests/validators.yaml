@@ -1166,6 +1166,15 @@ plugins:
   - from_plugin: base.compiler.soho_profile_resolver
     key: available_product_bundles
     required: true
+  - from_plugin: base.compiler.soho_profile_resolver
+    key: project_product_profile
+    required: true
+  - from_plugin: base.compiler.soho_profile_resolver
+    key: project_product_bundles
+    required: true
+  - from_plugin: base.compiler.soho_profile_resolver
+    key: project_id
+    required: true
   description: Validates ADR0089 product_profile contract and emits machine-readable migration state report.
   execution_mode: subinterpreter
 - id: base.validator.generator_migration_status

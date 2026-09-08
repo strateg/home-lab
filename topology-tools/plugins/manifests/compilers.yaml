@@ -459,6 +459,12 @@ plugins:
     scope: pipeline_shared
   - key: available_product_bundles
     scope: pipeline_shared
+  - key: project_product_profile
+    scope: pipeline_shared
+  - key: project_product_bundles
+    scope: pipeline_shared
+  - key: project_id
+    scope: pipeline_shared
   description: Resolves ADR0089 canonical SOHO profile contract and effective required bundle set.
 - id: base.compiler.security_matrix
   execution_mode: subinterpreter

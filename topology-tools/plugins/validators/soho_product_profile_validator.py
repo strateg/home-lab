@@ -63,21 +63,31 @@ class SohoProductProfileValidator(ValidatorJsonPlugin):
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
-        project_manifest = self._load_project_manifest(ctx)
-        if project_manifest is None:
+        # Subscribe to compiler publications instead of re-reading project YAML
+        product_profile = ctx.subscribe(_SOHO_PROFILE_RESOLVER_PLUGIN, "project_product_profile")
+        project_bundles_raw = ctx.subscribe(_SOHO_PROFILE_RESOLVER_PLUGIN, "project_product_bundles")
+        resolution = ctx.subscribe(_SOHO_PROFILE_RESOLVER_PLUGIN, "soho_profile_resolution")
+        project_id = ctx.subscribe(_SOHO_PROFILE_RESOLVER_PLUGIN, "project_id")
+        project_id = str(project_id).strip() if isinstance(project_id, str) else ""
+
+        if not isinstance(resolution, dict):
+            # Compiler failed or not run; cannot validate
             diagnostics.append(
                 self.emit_diagnostic(
                     code="E7941",
                     severity="error",
                     stage=stage,
-                    message="project manifest is unavailable; cannot validate SOHO product profile contract.",
+                    message="soho_profile_resolution unavailable from compiler; cannot validate SOHO profile.",
                     path="pipeline:validate",
                 )
             )
             return self.make_result(diagnostics=diagnostics)
 
-        product_profile = project_manifest.get("product_profile")
-        bundle_ids = self._bundle_ids(project_manifest)
+        bundle_ids = (
+            {str(b).strip() for b in project_bundles_raw if isinstance(b, str) and str(b).strip()}
+            if isinstance(project_bundles_raw, list)
+            else set()
+        )
         sunset_enforced = self._is_legacy_sunset_enforced(ctx)
 
         if not isinstance(product_profile, dict):
@@ -105,7 +115,7 @@ class SohoProductProfileValidator(ValidatorJsonPlugin):
                 )
             report = self._build_state_report(
                 ctx=ctx,
-                project_manifest=project_manifest,
+                project_id=project_id,
                 migration_state=_STATE_FALLBACK,
                 effective_migration_state="migrated-hard" if sunset_enforced else _STATE_FALLBACK,
                 profile_id="(missing)",
@@ -133,7 +143,7 @@ class SohoProductProfileValidator(ValidatorJsonPlugin):
         if schema_errors:
             report = self._build_state_report(
                 ctx=ctx,
-                project_manifest=project_manifest,
+                project_id=project_id,
                 migration_state=str(product_profile.get("migration_state", _STATE_FALLBACK)),
                 effective_migration_state=str(product_profile.get("migration_state", _STATE_FALLBACK)),
                 profile_id=str(product_profile.get("profile_id", "")),
@@ -247,7 +257,7 @@ class SohoProductProfileValidator(ValidatorJsonPlugin):
 
         report = self._build_state_report(
             ctx=ctx,
-            project_manifest=project_manifest,
+            project_id=project_id,
             migration_state=migration_state,
             effective_migration_state=effective_migration_state,
             profile_id=profile_id,
@@ -335,27 +345,6 @@ class SohoProductProfileValidator(ValidatorJsonPlugin):
         return required, available, missing_catalog
 
     @staticmethod
-    def _bundle_ids(project_manifest: dict[str, Any]) -> set[str]:
-        raw = project_manifest.get("product_bundles", [])
-        if not isinstance(raw, list):
-            return set()
-        return {str(item).strip() for item in raw if isinstance(item, str) and str(item).strip()}
-
-    @staticmethod
-    def _load_project_manifest(ctx: PluginContext) -> dict[str, Any] | None:
-        path_raw = ctx.config.get("project_manifest_path")
-        if not isinstance(path_raw, str) or not path_raw.strip():
-            return None
-        path = Path(path_raw.strip())
-        if not path.is_absolute():
-            repo_root = SohoProductProfileValidator._resolve_repo_root(ctx)
-            path = repo_root / path
-        if not path.exists():
-            return None
-        payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-        return payload if isinstance(payload, dict) else None
-
-    @staticmethod
     def _resolve_repo_root(ctx: PluginContext) -> Path:
         repo_root_raw = ctx.config.get("repo_root")
         if isinstance(repo_root_raw, str) and repo_root_raw.strip():
@@ -419,7 +408,7 @@ class SohoProductProfileValidator(ValidatorJsonPlugin):
         self,
         *,
         ctx: PluginContext,
-        project_manifest: dict[str, Any],
+        project_id: str,
         migration_state: str,
         effective_migration_state: str,
         profile_id: str,
@@ -429,7 +418,7 @@ class SohoProductProfileValidator(ValidatorJsonPlugin):
         available_bundles: set[str],
         diagnostics: list[PluginDiagnostic],
     ) -> dict[str, Any]:
-        project_id = str(project_manifest.get("project", ctx.config.get("project_id", "unknown"))).strip() or "unknown"
+        project_id = project_id.strip() or str(ctx.config.get("project_id", "unknown")).strip() or "unknown"
         has_error = any(item.severity == "error" for item in diagnostics)
         has_warning = any(item.severity == "warning" for item in diagnostics)
         status = "red" if has_error else ("yellow" if has_warning else "green")
