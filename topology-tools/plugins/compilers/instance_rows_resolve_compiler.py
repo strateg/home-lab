@@ -17,6 +17,7 @@ class InstanceRowsResolveCompiler(InstanceRowsCompiler):
             return self.make_result(diagnostics, output_data={"resolved_rows": []})
 
         secret_resolved_rows = None
+        fallback_triggered = False
         if ctx.is_snapshot_backed:
             subscribed_secret_resolved_rows = ctx.subscribe(
                 self._SECRET_RESOLVED_ROWS_PLUGIN_ID, "secret_resolved_rows"
@@ -32,6 +33,18 @@ class InstanceRowsResolveCompiler(InstanceRowsCompiler):
                     secret_resolved_rows = [row for row in subscribed_secret_resolved_rows if isinstance(row, dict)]
             except PluginDataExchangeError:
                 secret_resolved_rows = None
+                fallback_triggered = True
+
+        if fallback_triggered:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="I7950",
+                    severity="info",
+                    stage=stage,
+                    message="secret_resolved_rows unavailable; using legacy fallback path (instance binding re-read).",
+                    path="pipeline:compile",
+                )
+            )
 
         rows = self._build_resolved_rows(
             ctx=ctx,

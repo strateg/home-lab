@@ -23,7 +23,18 @@ class InstanceRowsValidateCompiler(InstanceRowsCompiler):
             return self.make_result(diagnostics, output_data={"validated_rows": []})
 
         # ADR 0107: Try on_prepared_rows first, then fallback to prepared_rows
-        prepared_rows = self._get_source_rows(ctx)
+        prepared_rows, fallback_triggered = self._get_source_rows(ctx)
+
+        if fallback_triggered:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="I7952",
+                    severity="info",
+                    stage=stage,
+                    message="prepared_rows unavailable; using legacy fallback path.",
+                    path="pipeline:compile",
+                )
+            )
 
         rows = self._build_validated_rows(
             ctx=ctx,
@@ -34,38 +45,43 @@ class InstanceRowsValidateCompiler(InstanceRowsCompiler):
         ctx.publish("validated_rows", rows)
         return self.make_result(diagnostics, output_data={"validated_rows": rows})
 
-    def _get_source_rows(self, ctx: PluginContext) -> list | None:
+    def _get_source_rows(self, ctx: PluginContext) -> tuple[list | None, bool]:
         """Get source rows with ADR 0107 fallback chain.
 
         Tries on_prepared_rows first (@on resolved), then prepared_rows.
+
+        Returns:
+            Tuple of (rows, fallback_triggered). fallback_triggered is True when
+            falling back to legacy YAML re-read path in non-snapshot mode.
         """
         # Try on_prepared_rows first (ADR 0107)
         if ctx.is_snapshot_backed:
             try:
                 on_prepared = ctx.subscribe(self._ON_PREPARED_ROWS_PLUGIN_ID, "on_prepared_rows")
                 if isinstance(on_prepared, list) and on_prepared:
-                    return [row for row in on_prepared if isinstance(row, dict)]
+                    return [row for row in on_prepared if isinstance(row, dict)], False
             except (PluginDataExchangeError, KeyError):
                 pass
 
             # Fallback to prepared_rows
             subscribed = ctx.subscribe(self._PREPARED_ROWS_PLUGIN_ID, "prepared_rows")
             if isinstance(subscribed, list):
-                return [row for row in subscribed if isinstance(row, dict)]
+                return [row for row in subscribed if isinstance(row, dict)], False
         else:
             # Non-snapshot mode: try both with exception handling
             try:
                 on_prepared = ctx.subscribe(self._ON_PREPARED_ROWS_PLUGIN_ID, "on_prepared_rows")
                 if isinstance(on_prepared, list) and on_prepared:
-                    return [row for row in on_prepared if isinstance(row, dict)]
+                    return [row for row in on_prepared if isinstance(row, dict)], False
             except PluginDataExchangeError:
                 pass
 
             try:
                 subscribed = ctx.subscribe(self._PREPARED_ROWS_PLUGIN_ID, "prepared_rows")
                 if isinstance(subscribed, list):
-                    return [row for row in subscribed if isinstance(row, dict)]
+                    return [row for row in subscribed if isinstance(row, dict)], False
             except PluginDataExchangeError:
                 pass
 
-        return None
+        # Both sources unavailable - will trigger legacy fallback
+        return None, True

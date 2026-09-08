@@ -17,6 +17,7 @@ class InstanceRowsPrepareCompiler(InstanceRowsCompiler):
             return self.make_result(diagnostics, output_data={"prepared_rows": []})
 
         resolved_rows = None
+        fallback_triggered = False
         if ctx.is_snapshot_backed:
             subscribed_resolved_rows = ctx.subscribe(self._RESOLVED_ROWS_PLUGIN_ID, "resolved_rows")
             if isinstance(subscribed_resolved_rows, list):
@@ -28,6 +29,18 @@ class InstanceRowsPrepareCompiler(InstanceRowsCompiler):
                     resolved_rows = [row for row in subscribed_resolved_rows if isinstance(row, dict)]
             except PluginDataExchangeError:
                 resolved_rows = None
+                fallback_triggered = True
+
+        if fallback_triggered:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="I7951",
+                    severity="info",
+                    stage=stage,
+                    message="resolved_rows unavailable; using legacy fallback path.",
+                    path="pipeline:compile",
+                )
+            )
 
         rows = self._build_prepared_rows(
             ctx=ctx,

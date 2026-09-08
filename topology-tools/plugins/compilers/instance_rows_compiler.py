@@ -1423,6 +1423,7 @@ class InstanceRowsCompiler(CompilerPlugin):
             return self.make_result(diagnostics, output_data={"normalized_rows": []})
 
         validated_rows: list[dict[str, Any]] | None = None
+        fallback_triggered = False
         if ctx.is_snapshot_backed:
             subscribed_validated_rows = ctx.subscribe(self._VALIDATED_ROWS_PLUGIN_ID, "validated_rows")
             if isinstance(subscribed_validated_rows, list):
@@ -1434,6 +1435,18 @@ class InstanceRowsCompiler(CompilerPlugin):
                     validated_rows = [row for row in subscribed_validated_rows if isinstance(row, dict)]
             except PluginDataExchangeError:
                 validated_rows = None
+                fallback_triggered = True
+
+        if fallback_triggered:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="I7953",
+                    severity="info",
+                    stage=stage,
+                    message="validated_rows unavailable; using legacy fallback path.",
+                    path="pipeline:compile",
+                )
+            )
 
         rows = (
             validated_rows
