@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 # Architecture aliases for normalization across platforms
 # Canonical forms: x86_64, i386, arm64, riscv64
 ARCH_ALIASES: dict[str, str] = {

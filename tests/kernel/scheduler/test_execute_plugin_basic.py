@@ -24,6 +24,7 @@ from kernel import (  # noqa: E402
     PluginStatus,
 )
 from kernel.plugin_base import Stage  # noqa: E402
+
 from tests.helpers.plugin_execution import publish_for_test  # noqa: E402
 
 

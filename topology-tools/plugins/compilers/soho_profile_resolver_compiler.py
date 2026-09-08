@@ -21,9 +21,7 @@ class SohoProfileResolverCompiler(CompilerPlugin):
         product_profile = project_manifest.get("product_profile") if isinstance(project_manifest, dict) else None
         # Extract project-level data for downstream validators
         project_id = (
-            str(project_manifest.get("project", "")).strip()
-            if isinstance(project_manifest, dict)
-            else ""
+            str(project_manifest.get("project", "")).strip() if isinstance(project_manifest, dict) else ""
         ) or str(ctx.config.get("project_id", "")).strip()
         project_bundles_raw = project_manifest.get("product_bundles", []) if isinstance(project_manifest, dict) else []
         project_bundles = (

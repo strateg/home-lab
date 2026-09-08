@@ -148,9 +148,7 @@ def commit_envelope_result(
         failure_commit_keys = commit_keys_on_failure(spec)
         if not failure_commit_keys:
             return result
-        filtered_messages = [
-            message for message in envelope.published_messages if message.key in failure_commit_keys
-        ]
+        filtered_messages = [message for message in envelope.published_messages if message.key in failure_commit_keys]
         if not filtered_messages:
             return result
         envelope_to_commit = PluginExecutionEnvelope(

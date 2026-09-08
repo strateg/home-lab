@@ -106,9 +106,7 @@ def _is_staged_row(row: dict[str, Any]) -> bool:
     return status == "modeled" or "currently not configured" in notes
 
 
-def _build_vlan_entry(
-    row: dict[str, Any], *, managed_by_ref: str, objects_map: dict[str, Any]
-) -> dict[str, Any]:
+def _build_vlan_entry(row: dict[str, Any], *, managed_by_ref: str, objects_map: dict[str, Any]) -> dict[str, Any]:
     """Extract VLAN configuration from network row."""
     object_ref = _resolved_object_ref(row)
     inst_data = row.get("instance_data", {}) or {}
@@ -152,9 +150,7 @@ def _build_vlan_entry(
     }
 
 
-def _build_bridge_entry(
-    row: dict[str, Any], *, managed_by_ref: str, objects_map: dict[str, Any]
-) -> dict[str, Any]:
+def _build_bridge_entry(row: dict[str, Any], *, managed_by_ref: str, objects_map: dict[str, Any]) -> dict[str, Any]:
     """Extract bridge configuration from network row."""
     object_ref = _resolved_object_ref(row)
     inst_data = row.get("instance_data", {}) or {}
@@ -178,9 +174,7 @@ def _build_bridge_entry(
     }
 
 
-def _build_firewall_entry(
-    row: dict[str, Any], *, managed_by_ref: str, objects_map: dict[str, Any]
-) -> dict[str, Any]:
+def _build_firewall_entry(row: dict[str, Any], *, managed_by_ref: str, objects_map: dict[str, Any]) -> dict[str, Any]:
     """Extract firewall policy from network row."""
     object_ref = _resolved_object_ref(row)
     props = _get_object_properties(object_ref, objects_map)
@@ -791,9 +785,7 @@ def _extract_security_matrix(
     return {}
 
 
-def _build_vlan_cidr_index(
-    network_rows: list[dict[str, Any]], objects_map: dict[str, Any]
-) -> dict[str, str]:
+def _build_vlan_cidr_index(network_rows: list[dict[str, Any]], objects_map: dict[str, Any]) -> dict[str, str]:
     """Build VLAN instance_id -> CIDR index for reference resolution (ADR-0111).
 
     This includes ALL VLANs from network rows, not just MikroTik-managed ones,

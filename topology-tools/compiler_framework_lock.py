@@ -16,14 +16,9 @@ import yaml
 from framework_lock import _git_remote as framework_lock_git_remote
 from framework_lock import _git_revision as framework_lock_git_revision
 from framework_lock import _load_yaml as framework_lock_load_yaml
-from framework_lock import (
-    compute_framework_integrity,
-    default_framework_manifest_path,
-)
+from framework_lock import compute_framework_integrity, default_framework_manifest_path
 from framework_lock import resolve_paths as resolve_framework_lock_paths
-from framework_lock import (
-    verify_framework_lock,
-)
+from framework_lock import verify_framework_lock
 
 if TYPE_CHECKING:
     from framework_lock import FrameworkLockPaths

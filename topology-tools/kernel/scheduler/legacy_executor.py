@@ -140,8 +140,7 @@ def attach_data_bus_contract_diagnostics(
                     stage=stage.value,
                     phase=phase.value,
                     message=(
-                        f"Plugin '{spec.id}' published keys {published_keys} "
-                        "without manifest produces declaration."
+                        f"Plugin '{spec.id}' published keys {published_keys} " "without manifest produces declaration."
                     ),
                     path=f"plugin:{spec.id}",
                     plugin_id="kernel",
@@ -180,8 +179,7 @@ def attach_data_bus_contract_diagnostics(
                     stage=stage.value,
                     phase=phase.value,
                     message=(
-                        f"Plugin '{spec.id}' consumed keys {consumed_keys} "
-                        "without manifest consumes declaration."
+                        f"Plugin '{spec.id}' consumed keys {consumed_keys} " "without manifest consumes declaration."
                     ),
                     path=f"plugin:{spec.id}",
                     plugin_id="kernel",

@@ -84,9 +84,7 @@ def _graph(
 ) -> tuple[list[str], dict[str, SimpleNamespace], Callable[[str], tuple[int, str]]]:
     """Build (plugin_ids, specs, sort_key) from {id: (order, depends_on)}."""
     plugin_ids = list(entries)
-    specs = {
-        plugin_id: SimpleNamespace(depends_on=list(deps)) for plugin_id, (_, deps) in entries.items()
-    }
+    specs = {plugin_id: SimpleNamespace(depends_on=list(deps)) for plugin_id, (_, deps) in entries.items()}
     orders = {plugin_id: order for plugin_id, (order, _) in entries.items()}
 
     def sort_key(plugin_id: str) -> tuple[int, str]:

@@ -64,15 +64,10 @@ from .registry import (
     SpecValidator,
 )
 from .scheduler import HAS_REAL_SUBINTERPRETERS as _HAS_REAL_SUBINTERPRETERS
-from .scheduler import (
-    ExecutionPlanner,
-    SerializablePluginSpec,
-    SnapshotBuilder,
-    execute_plugin_isolated,
-    get_parallel_executor,
-)
+from .scheduler import ExecutionPlanner, SerializablePluginSpec, SnapshotBuilder
 from .scheduler import context_bridge as _context_bridge
 from .scheduler import envelope_pipeline as _envelope_pipeline
+from .scheduler import execute_plugin_isolated, get_parallel_executor
 from .scheduler import legacy_executor as _legacy_executor
 from .scheduler import phase_executor as _phase_executor
 from .scheduler import preflight as _preflight

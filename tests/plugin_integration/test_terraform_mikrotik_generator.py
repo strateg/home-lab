@@ -513,7 +513,7 @@ def _full_topology_fixture() -> dict:
                     },
                 ],
                 "services": [],
-            }
+            },
         }
     )
 

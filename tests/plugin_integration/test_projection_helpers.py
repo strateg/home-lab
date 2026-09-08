@@ -201,9 +201,7 @@ def test_mikrotik_projection_extracts_routing_policies() -> None:
     assert policy["managed_by_ref"] == "rtr-mk"
     # routing_policy objects contain "vlan" in their object ref (obj.network.routing_policy.vpn_vlan)
     # and must not leak into the VLAN projection.
-    assert "inst.routing_policy.vpn_germany" not in [
-        vlan.get("instance_id") for vlan in projection["vlans"]
-    ]
+    assert "inst.routing_policy.vpn_germany" not in [vlan.get("instance_id") for vlan in projection["vlans"]]
 
 
 def test_mikrotik_projection_extracts_wifi_interfaces() -> None:

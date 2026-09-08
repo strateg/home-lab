@@ -53,11 +53,7 @@ QUARANTINE_ALLOWED_IMPORTERS: dict[str, set[str]] = {
 
 
 def _kernel_py_files() -> list[Path]:
-    files = [
-        p
-        for p in sorted(KERNEL.rglob("*.py"))
-        if "__pycache__" not in p.parts
-    ]
+    files = [p for p in sorted(KERNEL.rglob("*.py")) if "__pycache__" not in p.parts]
     assert files, f"kernel package not found at {KERNEL}"
     return files
 
@@ -129,19 +125,12 @@ def test_dependency_direction_invariant():
             targets = [base[0]] if base else list(aliases)
             for target in targets:
                 target_layer = LAYERS.get(target)
-                assert target_layer is not None, (
-                    f"{importer}: import of unclassified kernel "
-                    f"component {target!r}"
-                )
+                assert target_layer is not None, f"{importer}: import of unclassified kernel " f"component {target!r}"
                 if target_layer > importer_layer:
                     violations.append(
-                        f"{importer} (layer {importer_layer}) imports "
-                        f"{target} (layer {target_layer})"
+                        f"{importer} (layer {importer_layer}) imports " f"{target} (layer {target_layer})"
                     )
-    assert not violations, (
-        "kernel layering violated (ADR 0113 Rule 1):\n  "
-        + "\n  ".join(violations)
-    )
+    assert not violations, "kernel layering violated (ADR 0113 Rule 1):\n  " + "\n  ".join(violations)
 
 
 def test_d13_quarantine_importer_set_frozen():

@@ -51,9 +51,7 @@ def mirror_context_into_pipeline_state(ctx: PluginContext, pipeline_state: Pipel
 
 def sync_pipeline_state_to_context(ctx: PluginContext, pipeline_state: PipelineState) -> None:
     """Expose committed pipeline state through legacy context accessors."""
-    ctx._published_data = {
-        plugin_id: payload.copy() for plugin_id, payload in pipeline_state.committed_data.items()
-    }
+    ctx._published_data = {plugin_id: payload.copy() for plugin_id, payload in pipeline_state.committed_data.items()}
     ctx._published_meta = pipeline_state.published_meta.copy()
     setattr(ctx, "_pipeline_state", pipeline_state)
 

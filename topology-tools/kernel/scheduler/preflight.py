@@ -97,8 +97,7 @@ def validate_model_versions(
                     stage=stage.value,
                     phase=Phase.RUN.value,
                     message=(
-                        f"Unsupported core_model_version '{core_model_version}'. "
-                        f"Kernel supports: {MODEL_VERSIONS}"
+                        f"Unsupported core_model_version '{core_model_version}'. " f"Kernel supports: {MODEL_VERSIONS}"
                     ),
                     path="model.lock:core_model_version",
                     plugin_id="kernel",

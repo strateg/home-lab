@@ -15,6 +15,7 @@ V5_TOOLS = Path(__file__).resolve().parents[3] / "topology-tools"
 sys.path.insert(0, str(V5_TOOLS))
 
 from kernel import PluginContext, PluginDataExchangeError  # noqa: E402
+
 from tests.helpers.plugin_execution import publish_for_test  # noqa: E402
 
 

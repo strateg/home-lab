@@ -46,7 +46,9 @@ class StageExecutionHost(Protocol):
     specs: dict[str, PluginSpec]
     _results: list[PluginResult]
 
-    def get_execution_order(self, stage: Stage, profile: Optional[str] = None, phase: Phase = Phase.RUN) -> list[str]: ...
+    def get_execution_order(
+        self, stage: Stage, profile: Optional[str] = None, phase: Phase = Phase.RUN
+    ) -> list[str]: ...
 
     def _trace_event(
         self,

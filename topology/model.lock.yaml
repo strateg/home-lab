@@ -59,6 +59,12 @@ classes:
     version: 1.0.0
   class.os:
     version: 1.0.0
+  class.peripheral.usb_ethernet_adapter:
+    version: 1.0.0
+  class.peripheral.usb_hub_ethernet:
+    version: 1.0.0
+  class.peripheral.usb_wifi_adapter:
+    version: 1.0.0
   class.power.pdu:
     version: 1.0.0
   class.power.ups:
@@ -112,6 +118,9 @@ objects:
     version: 1.0.0
     class_ref: class.device.iot_endpoint
   obj.device.smartphone:
+    version: 1.0.0
+    class_ref: class.device.iot_endpoint
+  obj.device.sony_bravia_a90j:
     version: 1.0.0
     class_ref: class.device.iot_endpoint
   obj.docker.container.generic:
@@ -357,6 +366,12 @@ objects:
   obj.pdu.generic.managed:
     version: 1.0.0
     class_ref: class.power.pdu
+  obj.peripheral.asus.usb_ax55_nano:
+    version: 1.0.0
+    class_ref: class.peripheral.usb_wifi_adapter
+  obj.peripheral.bluecloud.usbc_hub_gbe:
+    version: 1.0.0
+    class_ref: class.peripheral.usb_hub_ethernet
   obj.proxmox.lxc.debian12.base:
     version: 1.1.0
     class_ref: class.compute.workload.lxc
@@ -399,6 +414,9 @@ objects:
   obj.service.alertmanager:
     version: 1.0.0
     class_ref: class.service.alerting
+  obj.service.amneziawg:
+    version: 1.0.0
+    class_ref: class.service.vpn
   obj.service.docker_host:
     version: 1.0.0
     class_ref: class.service.web_application

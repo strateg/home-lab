@@ -161,9 +161,7 @@ def test_fast_plugin_returns_success() -> None:
         ),
         patch.object(registry, "_build_input_snapshot", return_value=_make_snapshot(plugin_id)),
         patch.object(registry, "_validate_required_consumes_snapshot", return_value=[]),
-        patch.object(
-            registry, "_commit_envelope_result", return_value=PluginResult.success(plugin_id, "2.0")
-        ),
+        patch.object(registry, "_commit_envelope_result", return_value=PluginResult.success(plugin_id, "2.0")),
     ):
         results = phase_executor.execute_phase_parallel(
             host=registry,

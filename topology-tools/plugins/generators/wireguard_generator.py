@@ -127,9 +127,7 @@ def _get_object_properties(object_ref: str, objects_map: dict[str, Any]) -> dict
     return {}
 
 
-def _build_vlan_cidr_index(
-    network_rows: list[dict[str, Any]], objects_map: dict[str, Any]
-) -> dict[str, str]:
+def _build_vlan_cidr_index(network_rows: list[dict[str, Any]], objects_map: dict[str, Any]) -> dict[str, str]:
     """Build VLAN instance_id -> CIDR index for reference resolution (ADR-0111).
 
     Args:
@@ -248,7 +246,9 @@ def _resolve_vps_nat(
         # Forward rules (use actual tunnel interface name, not hardcoded wg0)
         iptables_rules.append(f"-I FORWARD 1 -i {tunnel_name} -o {tunnel_name} -j ACCEPT")
         iptables_rules.append(f"-I FORWARD 1 -i {tunnel_name} -o {out_interface} -j ACCEPT")
-        iptables_rules.append(f"-I FORWARD 2 -i {out_interface} -o {tunnel_name} -m state --state RELATED,ESTABLISHED -j ACCEPT")
+        iptables_rules.append(
+            f"-I FORWARD 2 -i {out_interface} -o {tunnel_name} -m state --state RELATED,ESTABLISHED -j ACCEPT"
+        )
         # NAT rules for each source network
         for cidr in source_networks:
             iptables_rules.append(f"-t nat -A POSTROUTING -s {cidr} -o {out_interface} -j MASQUERADE")
