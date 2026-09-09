@@ -47,7 +47,10 @@ This dual-network pattern exists across ALL container platforms, not just Router
 | Docker-in-LXC | PVE→LXC | nested docker0 | LXC veth | nested NAT |
 | Kubernetes Pod | K8s node | CNI network | Service/Ingress | ingress |
 
-**Key Insight:** LXC containers are an exception — they attach directly to L2 bridge, so `primary = service`. All other container platforms have distinct runtime and service networks.
+**Key Insight:** ALL platforms have dual-network semantics. The difference is `service.exposure` type:
+- `l2` (LXC): Service IP assigned directly to container interface (no NAT)
+- `dnat` (RouterOS): NAT rule maps service IP → primary address
+- `port_publish` (Docker): Host binds service IP:port → container port
 
 ### Working Example: AmneziaWG Containers
 
@@ -89,59 +92,78 @@ Replace flat `network:` block with explicit dual-network model for ALL container
 ```yaml
 # Universal dual-network model
 network:
-  # Primary: where container actually lives (runtime network)
+  # Primary: HOW container attaches to network (runtime attachment)
   primary:
-    type: bridge | dedicated_veth | host_network | l2_direct | cni
-    bridge_ref: inst.bridge.containers     # For bridge/l2_direct types
-    address: 172.18.0.210/24               # Static IP on primary network
-    gateway: 172.18.0.1                    # Valid gateway for this network
+    type: bridge | dedicated_veth | host_network | cni
+    bridge_ref: inst.bridge.containers     # For bridge type
+    interface: eth0                        # Container interface name
+    address: 172.18.0.210/24               # Static IP (for NAT-based)
+    gateway: 172.18.0.1                    # Valid gateway (for NAT-based)
     veth_name: veth-adguard                # For dedicated_veth
     cni_network: calico                    # For K8s CNI
-    vlan_ref: inst.vlan.servers            # For l2_direct (LXC)
-    host: 60                               # For l2_direct IP derivation
 
-  # Service: how clients reach this container (exposure)
+  # Service: HOW clients reach this container (exposure method)
   service:
-    exposure: dnat | port_publish | ingress | none
-    vlan_ref: inst.vlan.lan                # Which VLAN clients are on
-    host: 210                              # Host number for this service
+    exposure: l2 | dnat | port_publish | routed | ingress | none
+    vlan_ref: inst.vlan.lan                # VLAN for IP derivation
+    host: 210                              # Host number for IP derivation
     ports:                                 # For port_publish/dnat
       - "53:53/udp"
       - "80:80"
-    # _resolved_ip derived from vlan_ref + host (client-facing)
+    # _resolved_ip derived from vlan_ref + host
+    # WHERE this IP goes depends on exposure type:
+    #   l2 → primary.interface
+    #   dnat → NAT rule target
+    #   port_publish → host bind address
 ```
 
 ### D2: Network Type Semantics (Universal)
 
-| Type | Description | Primary Network | Platforms |
-|------|-------------|-----------------|-----------|
-| `bridge` | Shared container bridge | 172.17.x.x (Docker), 172.18.x.x (RouterOS) | Docker, RouterOS |
-| `dedicated_veth` | Isolated /30 point-to-point | 172.18.x.x/30 | RouterOS |
-| `host_network` | Host's network stack | Host IP | Docker, RouterOS |
-| `l2_direct` | Direct L2 bridge attachment | VLAN IP | Proxmox LXC |
-| `cni` | Kubernetes CNI plugin | Pod network | Kubernetes |
+`primary.type` describes HOW the container attaches to the network:
 
-### D2a: Platform-Type Matrix
+| Type | Description | Platforms |
+|------|-------------|-----------|
+| `bridge` | Shared container/host bridge | Docker, RouterOS, **LXC** |
+| `dedicated_veth` | Isolated /30 point-to-point | RouterOS |
+| `host_network` | Host's network stack directly | Docker, RouterOS |
+| `cni` | Kubernetes CNI plugin | Kubernetes |
 
-| Platform | Default `primary.type` | Requires `service`? | IP Derivation |
-|----------|------------------------|---------------------|---------------|
-| Proxmox LXC | `l2_direct` | No (implicit) | `primary.vlan_ref + host` |
-| Docker (Linux) | `bridge` | Yes | `service.vlan_ref + host` |
-| RouterOS (bridge) | `bridge` | Yes | `service.vlan_ref + host` |
-| RouterOS (veth) | `dedicated_veth` | No | `primary.address` |
-| Docker host_network | `host_network` | No | host IP |
-| Kubernetes | `cni` | Yes (ingress) | Service ClusterIP |
+### D2a: Exposure Method Semantics
+
+`service.exposure` describes WHERE the derived IP is assigned:
+
+| Exposure | IP Assignment | NAT Layer | Platforms |
+|----------|---------------|-----------|-----------|
+| `l2` | Container's primary interface | None | **LXC** |
+| `dnat` | Virtual; NAT rule to primary.address | Yes | RouterOS |
+| `port_publish` | Host bind; port map to container | Yes | Docker |
+| `routed` | Policy routing table | None | RouterOS |
+| `ingress` | K8s Ingress controller | Depends | Kubernetes |
+| `none` | Not exposed externally | N/A | All |
+
+### D2b: Platform-Type Matrix (Symmetric)
+
+| Platform | `primary.type` | `service.exposure` | IP Derivation |
+|----------|---------------|-------------------|---------------|
+| Proxmox LXC | `bridge` | `l2` | `service.vlan_ref + host` → eth0 |
+| Docker (Linux) | `bridge` | `port_publish` | `service.vlan_ref + host` → bind |
+| RouterOS (bridge) | `bridge` | `dnat` | `service.vlan_ref + host` → NAT |
+| RouterOS (veth) | `dedicated_veth` | `routed` | `primary.address` |
+| Docker host_network | `host_network` | `none` | Host IP |
+| Kubernetes | `cni` | `ingress` | ClusterIP |
+
+**Symmetry:** All platforms use `service.vlan_ref + host` for IP derivation (except explicit `primary.address`).
 
 ### D3: Exposure Methods (Universal)
 
 | Exposure | Mechanism | Platform | Generated Artifacts |
 |----------|-----------|----------|---------------------|
+| `l2` | IP on container interface | LXC | Proxmox network config |
 | `dnat` | NAT destination rule | RouterOS | `dst-nat` in MikroTik firewall |
 | `port_publish` | Docker -p flag | Docker | Compose `ports:` section |
 | `ingress` | K8s Ingress/Service | Kubernetes | Ingress YAML |
 | `routed` | Policy routing | RouterOS | Mangle rules, routing tables |
 | `none` | No external exposure | All | Internal service only |
-| (implicit) | L2 direct | LXC | Bridge port on VLAN |
 
 ### D4: Backward Compatibility
 
@@ -178,14 +200,14 @@ Gateway derivation:
 | Code | Severity | Platform | Rule |
 |------|----------|----------|------|
 | `W7870` | Warning | All | Flat network structure with both bridge_ref and vlan_ref |
-| `E7871` | Error | RouterOS | primary.gateway missing when primary.type = bridge |
+| `E7871` | Error | RouterOS | primary.gateway missing when service.exposure = dnat |
 | `E7872` | Error | All | service.vlan_ref without service.exposure |
-| `E7873` | Error | All | service.exposure conflicts with primary.type |
+| `E7873` | Error | All | service.exposure not valid for platform |
 | `W7874` | Warning | RouterOS | Derived _resolved_gateway differs from primary.gateway |
-| `E7875` | Error | LXC | primary.type != l2_direct for Proxmox LXC |
+| `E7875` | Error | LXC | service.exposure != l2 for Proxmox LXC |
 | `E7876` | Error | Docker | service.ports missing when exposure = port_publish |
 | `E7877` | Error | All | primary.type not supported by platform |
-| `W7878` | Warning | Docker | service.exposure missing (defaults to port_publish) |
+| `W7878` | Warning | All | service block missing (platform default applied) |
 
 ### D7: Object Template Update
 
@@ -266,9 +288,9 @@ network:
 serves_vlan_ref: inst.vlan.vpn_amnezia  # Unchanged
 ```
 
-### D11: Proxmox LXC Model (l2_direct)
+### D11: Proxmox LXC Model (l2 exposure)
 
-LXC containers use `l2_direct` — IP derivation happens at primary level:
+LXC containers use `exposure: l2` — service IP assigned directly to container interface:
 
 ```yaml
 # lxc-grafana.yaml
@@ -277,15 +299,22 @@ LXC containers use `l2_direct` — IP derivation happens at primary level:
 host_ref: srv-gamayun
 network:
   primary:
-    type: l2_direct
-    # Inherited from host via @on:
-    # bridge_ref: inst.bridge.servers
+    type: bridge
+    bridge_ref: inst.bridge.vmbr0   # Inherited via @on
+    interface: eth0
+  service:
+    exposure: l2                    # L2 direct - IP goes to eth0
     vlan_ref: inst.vlan.servers
     host: 60
-  # No service block — L2 direct, primary IS the service IP
 ```
 
-Compiler derives `_resolved_ip: 10.0.30.60/24` from `primary.vlan_ref + host`.
+Compiler derives `_resolved_ip: 10.0.30.60/24` from `service.vlan_ref + host`.
+For `exposure: l2`, this IP is assigned to `primary.interface` (eth0).
+
+**Symmetry with other platforms:**
+- LXC: `service._resolved_ip` → `primary.interface`
+- Docker: `service._resolved_ip` → host bind address
+- RouterOS: `service._resolved_ip` → NAT rule destination
 
 ### D12: Docker on Linux Model (port_publish)
 
@@ -347,8 +376,11 @@ defaults:
 defaults:
   network:
     primary:
-      type: l2_direct
+      type: bridge
       bridge_ref: "@on:host.network.bridge_ref?"
+      interface: "@on:host.network.interface?:eth0"
+    service:
+      exposure: l2    # LXC default: IP on container interface
       # vlan_ref + host at instance level
 ```
 
