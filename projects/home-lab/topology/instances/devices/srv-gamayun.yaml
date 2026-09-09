@@ -20,7 +20,7 @@ workload_defaults:
     interface: eth0
     bridge_ref: inst.bridge.vmbr0
     vlan_ref: inst.vlan.servers
-    # gateway derived from vlan_ref (10.0.100.1) per ADR0111
+    gateway: 10.0.100.1  # From vlan_ref (inst.vlan.servers)
     firewall: false
   dns:
     nameserver: 192.168.88.1

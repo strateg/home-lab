@@ -1305,6 +1305,31 @@ capabilities:
     stability: stable
     derived: true
 
+  - @capability: cap.os.pkg.rpm
+    title: RPM Package Manager
+    summary: Uses RPM (Red Hat/Fedora/SailfishOS) package manager.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+
+  # SailfishOS
+  - @capability: cap.os.sailfish
+    title: SailfishOS
+    summary: Jolla SailfishOS mobile operating system.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+
+  - @capability: cap.os.sailfish.52
+    title: SailfishOS 5.2
+    summary: SailfishOS 5.2 (Finnlayson) release.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+
   # CPU Architectures
   - @capability: cap.arch.x86_64
     title: x86-64 Architecture
@@ -2209,6 +2234,13 @@ capabilities:
     layer: L0
     stability: stable
 
+  - @capability: cap.firmware.boot.linux
+    title: Linux Boot
+    summary: Device boots directly into Linux kernel.
+    domain: firmware
+    layer: L0
+    stability: stable
+
   - @capability: cap.firmware.boot.uefi
     title: UEFI Boot
     summary: Device supports UEFI boot mode.
@@ -2270,6 +2302,13 @@ capabilities:
   - @capability: cap.firmware.boox
     title: Boox Firmware
     summary: Onyx Boox e-reader firmware.
+    domain: firmware
+    layer: L0
+    stability: stable
+
+  - @capability: cap.firmware.jolla
+    title: Jolla Firmware
+    summary: Jolla mobile device firmware.
     domain: firmware
     layer: L0
     stability: stable

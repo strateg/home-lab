@@ -16,7 +16,8 @@ trust_zone_ref: inst.trust_zone.vpn_tunnel
 runtime:
   type: vm
   target_ref: vps-oracle-frankfurt
-  network_binding_ref: inst.vlan.vpn_germany
+  # Network: listens on WireGuard tunnel IP 10.100.0.2 (wg0)
+  # No VLAN binding - cloud VM uses tunnel for LAN access
 
 databases:
   - name: geoservices

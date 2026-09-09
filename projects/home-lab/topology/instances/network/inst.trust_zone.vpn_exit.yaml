@@ -14,8 +14,8 @@ notes: |
 
 zone_name: vpn-exit
 
-# Trust level 0 - lowest, isolated from all internal networks
-trust_level: 0
+# Security level 1 - lower than vpn_tunnel (2), isolated from all internal networks
+security_level: 1
 isolated: true
 
 # Additional networks for this zone
