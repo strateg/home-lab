@@ -119,4 +119,4 @@
 | [0115](0115-incremental-hash-based-deploy-idempotency.md) | Incremental Hash-Based Deploy Idempotency Contract | Proposed | 2026-08-02 | - | - |
 | [0116](0116-peripheral-device-model-and-connection-type-hierarchy.md) | Peripheral Device Model and Connection-Type Hierarchy | Implemented | 2026-09-06 | - | - |
 | [0117](0117-iot-endpoint-layer-mixing-technical-debt.md) | IoT Endpoint Layer Separation | Implemented | 2026-09-06 | - | - |
-| [0118](0118-routeros-container-dual-network-model.md) | RouterOS Container Dual Network Model | Proposed | 2026-09-09 | - | - |
+| [0118](0118-universal-container-network-model.md) | Universal Container Network Model | Proposed | 2026-09-09 | - | - |
