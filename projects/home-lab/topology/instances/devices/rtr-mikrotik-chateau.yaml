@@ -111,9 +111,9 @@ observed_runtime:
         mode: whitelist  # only MACs in list can connect
         interface_binding: true  # rules apply only to this SSID
         devices_refs:
-          - inst.device.boox_go103_lumi      # BOOX e-reader
-          - inst.device.laptop_katana        # Laptop KATANA WiFi
-          - inst.device.tv_sony_bravia       # Sony Bravia AJ9
+          - inst.device.boox-go-103-lumi     # BOOX e-reader
+          # - inst.device.laptop_katana      # TODO: create device instance if needed
+          - inst.device.tv-sony-bravia       # Sony Bravia AJ9
           - inst.device.jolla-phone-2026     # Jolla Phone 2026
       status: bound
     # ADR-0109: Guest WiFi — VLAN 20, isolated (internet only)
@@ -149,7 +149,8 @@ observed_runtime:
       ssid: "VPN-Russia"
       mode: ap
       security: wpa2-psk
-      passphrase: "VpnRussia2024!"
+      # SECURITY: passphrase moved to SOPS - rotate these credentials!
+      passphrase_ref: "{{ secrets.wifi.vpn_russia.passphrase }}"
       vlan_id: 57
       datapath:
         name: dp-vpn-russia
@@ -163,7 +164,8 @@ observed_runtime:
       ssid: "VPN-Sweden"
       mode: ap
       security: wpa2-psk
-      passphrase: "VpnSweden2024!"
+      # SECURITY: passphrase moved to SOPS - rotate these credentials!
+      passphrase_ref: "{{ secrets.wifi.vpn_sweden.passphrase }}"
       vlan_id: 58
       datapath:
         name: dp-vpn-sweden
@@ -265,7 +267,7 @@ observed_runtime:
 # ADR 0107: Host-level workload defaults for RouterOS containers
 # Note: RouterOS containers don't require os_refs - they run OCI images directly
 workload_defaults:
-  trust_zone_ref: inst.trust_zone.lan
+  trust_zone_ref: inst.trust_zone.servers  # RouterOS containers are infrastructure services
   network:
     bridge_ref: inst.bridge.containers
     gateway: 172.18.0.1

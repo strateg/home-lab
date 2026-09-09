@@ -4,6 +4,6 @@
 @version: 1.0.0
 source_id: data-wireguard
 notes: WireGuard keys and peer configuration (stored in RouterOS)
-host_ref: mikrotik-chateau
+host_ref: rtr-mikrotik-chateau
 criticality: critical
 backup_policy: daily

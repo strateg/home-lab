@@ -4,6 +4,6 @@
 @version: 1.0.0
 source_id: data-mikrotik-config
 notes: RouterOS configuration exports
-host_ref: mikrotik-chateau
+host_ref: rtr-mikrotik-chateau
 criticality: critical
 backup_policy: daily

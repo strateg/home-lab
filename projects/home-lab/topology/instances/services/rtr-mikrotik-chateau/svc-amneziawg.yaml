@@ -22,9 +22,8 @@ critical: false
 status: active
 
 runtime:
-  type: container
-  target_ref: rtr-mikrotik-chateau
-  container_ref: docker-amneziawg-russia
+  type: routeros_container
+  target_ref: docker-amneziawg-russia
   network_binding_ref: inst.vlan.vpn_amnezia
 
 features:

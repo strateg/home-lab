@@ -17,9 +17,8 @@ critical: false
 status: active
 
 runtime:
-  type: container
-  target_ref: rtr-mikrotik-chateau
-  container_ref: docker-amneziawg-sweden
+  type: routeros_container
+  target_ref: docker-amneziawg-sweden
   network_binding_ref: inst.vlan.vpn_sweden
 
 features:

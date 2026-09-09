@@ -4,7 +4,7 @@
 @version: 1.0.0
 source_id: data-adguard
 notes: AdGuard Home configuration and work data (USB storage)
-host_ref: mikrotik-chateau
+host_ref: rtr-mikrotik-chateau
 criticality: high
 backup_policy: daily
 engine: adguard

@@ -9,4 +9,4 @@ network:
   vlan_ref: inst.vlan.servers
   host: 240
 runtime:
-  image: nextcloud:latest
+  image: nextcloud:28  # pinned version, avoid :latest for reproducibility

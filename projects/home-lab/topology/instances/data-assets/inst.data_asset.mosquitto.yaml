@@ -4,5 +4,5 @@
 @version: 1.0.0
 source_id: data-mosquitto
 notes: Mosquitto MQTT broker configuration and persistence (USB storage)
-host_ref: mikrotik-chateau
+host_ref: rtr-mikrotik-chateau
 criticality: medium
