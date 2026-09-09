@@ -3,14 +3,19 @@
 @group: network
 @version: 1.0.0
 source_id: security-matrix-proxmox
+# DISABLED: Generator is STUB, enable when firewall_proxmox_generator is implemented
+status: disabled
 notes: |
   Internal enforcement matrix for srv-gamayun Proxmox VE.
   Manages LXC/VM isolation within the servers zone via Proxmox Firewall CT-level rules.
   Scope: intra-zone only. Inter-zone policies belong to inst.security_matrix.mikrotik.
   Generated output: generated/home-lab/terraform/proxmox/firewall.tf (planned)
 
+  STATUS: Disabled until firewall_proxmox_generator is implemented (see E9303).
+
 # ADR-0110 M1-B: one matrix = one enforcer
-managed_by_ref: srv-gamayun
+# TEMPORARILY COMMENTED: uncomment when generator is ready
+# managed_by_ref: srv-gamayun
 
 zone_refs:
   - inst.trust_zone.servers

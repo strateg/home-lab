@@ -57,10 +57,12 @@ paired_hosts:
    rm usb-wifi-asus-ax55-nano-001.yaml
    ```
 
-## New vs Old File Mapping
+## Migration Status (Updated 2026-09-09)
 
-| Old File | New File |
-|----------|----------|
-| usb-hub-eth-bluecloud-001.yaml | usb-hub-bluecloud-001.yaml |
-| usb-wifi-asus-ax55-nano-001.yaml | usb-wifi-asus-001.yaml |
-| (new) | bt-hid-logitech-m720-001.yaml |
+| Old File | New File | Status |
+|----------|----------|--------|
+| usb-hub-eth-bluecloud-001.yaml | usb-hub-bluecloud-001.yaml | **RENAMED** |
+| usb-wifi-asus-ax55-nano-001.yaml | usb-wifi-asus-001.yaml | **RENAMED** |
+| (new) | bt-hid-logitech-m720-001.yaml | **TODO** - see .TODO file |
+
+Note: Files renamed but content not modified. Verify device_id fields are present.

@@ -628,15 +628,28 @@ def _extract_security_matrix(
             net_inst_data = net_row.get("instance_data", {})
             if not isinstance(net_inst_data, dict):
                 net_inst_data = {}
-            security_level = net_inst_data.get("security_level") or props.get("security_level", 0)
-            isolated = net_inst_data.get("isolated") or props.get("isolated", False)
+            # Use explicit None check to preserve 0/False values from instance
+            inst_sec_level = net_inst_data.get("security_level")
+            security_level = inst_sec_level if inst_sec_level is not None else props.get("security_level", 0)
+            inst_isolated = net_inst_data.get("isolated")
+            isolated = inst_isolated if inst_isolated is not None else props.get("isolated", False)
             name = net_inst_data.get("name") or props.get("name", zone_instance)
+            # Build CIDRs from VLANs
+            vlan_cidrs = [vlan_cidr_map[v] for v in zone_vlans.get(zone_instance, []) if v in vlan_cidr_map]
+            # Add additional_networks (overlay CIDRs like VPN tunnels)
+            additional_networks = net_inst_data.get("additional_networks", [])
+            if isinstance(additional_networks, list):
+                for net in additional_networks:
+                    if isinstance(net, dict):
+                        cidr = str(net.get("cidr", "")).strip()
+                        if cidr and cidr not in vlan_cidrs:
+                            vlan_cidrs.append(cidr)
             zone_data[zone_instance] = {
                 "name": name,
                 "security_level": int(security_level) if security_level is not None else 0,
                 "isolated": bool(isolated),
                 "vlans": zone_vlans.get(zone_instance, []),
-                "cidrs": [vlan_cidr_map[v] for v in zone_vlans.get(zone_instance, []) if v in vlan_cidr_map],
+                "cidrs": vlan_cidrs,
             }
 
         # Calculate matrix cells using R1-R6 rules
@@ -1246,6 +1259,10 @@ def _extract_mac_vlan_assignments(
     Finds devices with both vlan_ref and secrets_ref, then builds
     assignment entries for bridge host generation.
 
+    Supports ADR 0117 L1/L2 separation:
+    - Direct: device has vlan_ref and secrets_ref
+    - Indirect: device has provides_ref -> L2 iot_interface has vlan_ref/secrets_ref
+
     Args:
         all_groups: All instance groups from compiled JSON.
         vlan_id_index: Mapping of vlan instance_id to vlan_id.
@@ -1266,6 +1283,23 @@ def _extract_mac_vlan_assignments(
     """
     assignments: list[dict[str, Any]] = []
 
+    # Build L2 interface index: interface_id -> {vlan_ref, secrets_ref, device_ref}
+    # ADR 0117: IoT interfaces are in network group with iot_interface in instance_id
+    l2_interface_index: dict[str, dict[str, str]] = {}
+    network_rows = all_groups.get("network", [])
+    for net_row in network_rows:
+        net_instance_id = str(net_row.get("instance_id", "")).strip()
+        if "iot_interface" not in net_instance_id:
+            continue
+        net_inst_data = net_row.get("instance_data", {})
+        if not isinstance(net_inst_data, dict):
+            continue
+        l2_interface_index[net_instance_id] = {
+            "vlan_ref": str(net_inst_data.get("vlan_ref", "")).strip(),
+            "secrets_ref": str(net_inst_data.get("secrets_ref", "")).strip(),
+            "device_ref": str(net_inst_data.get("device_ref", "")).strip(),
+        }
+
     # Check devices group for device instances with vlan_ref
     devices = all_groups.get("devices", [])
 
@@ -1278,8 +1312,19 @@ def _extract_mac_vlan_assignments(
         if not isinstance(inst_data, dict):
             continue
 
+        # Try direct vlan_ref/secrets_ref on device first
         vlan_ref = str(inst_data.get("vlan_ref", "")).strip()
         secrets_ref = str(inst_data.get("secrets_ref", "")).strip()
+
+        # ADR 0117: If not found, check provides_ref for L2 interface
+        if not vlan_ref or not secrets_ref:
+            provides_ref = str(inst_data.get("provides_ref", "")).strip()
+            if provides_ref and provides_ref in l2_interface_index:
+                l2_data = l2_interface_index[provides_ref]
+                if not vlan_ref:
+                    vlan_ref = l2_data.get("vlan_ref", "")
+                if not secrets_ref:
+                    secrets_ref = l2_data.get("secrets_ref", "")
 
         if not vlan_ref or not secrets_ref:
             continue

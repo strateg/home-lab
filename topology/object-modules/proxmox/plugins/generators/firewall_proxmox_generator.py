@@ -112,7 +112,7 @@ class FirewallProxmoxGenerator(BaseGenerator):
 
         # Build index of Proxmox hosts from device instances
         # A host is Proxmox if it extends an object containing "proxmox" in the object ref
-        device_rows = instances.get("device", [])
+        device_rows = instances.get("devices", [])
         if not isinstance(device_rows, list):
             device_rows = []
         proxmox_host_ids: set[str] = set()
