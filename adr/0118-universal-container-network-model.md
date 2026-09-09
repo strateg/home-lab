@@ -615,5 +615,6 @@ network_traits:
 - ADR-0109: Network Segmentation with Zone-Based Architecture
 - ADR-0110: Security Matrix and Trust Zone Configuration
 - ADR-0111: IP Address Derivation from VLAN
+- ADR-0119: Firewall Rule Ordering Contract
 - [MikroTik Container Documentation](https://help.mikrotik.com/docs/display/ROS/Container)
 - D02 audit finding: 2026-09-09-topology-remediation-review.md
