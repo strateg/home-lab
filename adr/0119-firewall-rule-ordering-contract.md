@@ -63,11 +63,13 @@ P₁ ≺ P₂ ≺ P₃ ≺ P₄ ≺ P₅ ≺ P₆ ≺ P₇
 |-------|------|-------------|---------|-------|
 | P₁ | ESTABLISHED | 0-99 | Stateful tracking | forward |
 | P₂ | ICMP | 100-199 | Diagnostic | forward |
-| P₃ | OVERRIDE_ACCEPT | 200-299 | ADR 0110 policy_overrides | forward |
-| P₄ | CONTAINER_FORWARD | 300-399 | ADR 0118 exposure forward | forward |
+| P₃ | POLICY_ACCEPT | 200-299 | Explicit policy allows | forward |
+| P₄ | PUBLICATION_FORWARD | 300-399 | Publication forward WITH policy | forward |
 | P₅ | MATRIX_DENY | 400-599 | ADR 0110 R2,R4,R5 deny | forward |
 | P₆ | MATRIX_ALLOW | 600-799 | ADR 0110 R3 allow (optional) | forward |
 | P₇ | DROP_ALL | 1000 | Implicit deny | forward |
+
+**Key Change (F01):** P₄ now requires `policy_ref`. NAT does NOT grant access.
 
 ### D2: Anchor Rule Pattern
 
@@ -336,16 +338,20 @@ def build_ordered_rules(rules: List[Rule], anchors: List[Anchor]) -> List[Rule]:
 
 ### D8: Validator Rules
 
+Codes allocated in range **7970-7979** (see ADR 0118 D18 for rationale).
+
 | Code | Severity | Rule |
 |------|----------|------|
-| `E7890` | Error | Rule missing `class` assignment |
-| `E7891` | Error | Rule `place_before` target not found |
-| `E7892` | Error | Circular dependency detected |
-| `E7893` | Error | Class order violation (P₃ rule after P₅ rule) |
-| `W7894` | Warning | Conflicting rules in same class without specificity order |
-| `W7895` | Warning | Rule specificity = 0 (matches everything) |
-| `E7896` | Error | Missing anchor for priority class |
-| `E7897` | Error | DROP_ALL anchor not terminal (has rules after) |
+| `E7970` | Error | Rule missing `class` assignment |
+| `E7971` | Error | Rule `place_before` target not found |
+| `E7972` | Error | Circular dependency detected |
+| `E7973` | Error | Class order violation (P₃ rule after P₅ rule) |
+| `W7974` | Warning | Conflicting rules in same class without specificity order |
+| `W7975` | Warning | Rule specificity = 0 (matches everything) |
+| `E7976` | Error | Missing anchor for priority class |
+| `E7977` | Error | DROP_ALL anchor not terminal (has rules after) |
+| `E7978` | Error | Publication forward rule without policy_ref (F01) |
+| `E7979` | Error | NAT rule without corresponding forward rule |
 
 ### D9: NAT Chain Ordering
 

@@ -1,11 +1,13 @@
 # ADR 0118: Universal Container Network Model
 
-- Status: Proposed
+- Status: Proposed (Request Changes per 2026-09-09 security review)
 - Date: 2026-09-09
+- Revised: 2026-09-09 (F01-F10 findings integrated)
 - Related: ADR-0107 (Host Placement Defaults), ADR-0111 (IP Derivation), ADR-0041 (Workload Network Attachments)
 - Problem: D02 from 2026-09-09 topology audit (gateway mismatch)
 - Analysis: SPC Protocol
 - Scope: All container platforms (RouterOS, Docker, LXC, future K8s)
+- Review: [2026-09-09-adr0118-network-model-security-review.md](../docs/reports/2026-09-09-adr0118-network-model-security-review.md)
 
 ## Context
 
@@ -563,6 +565,132 @@ policy_overrides:
 | 12 | Generator | Add forward rules for NAT'd traffic | Medium |
 | 13 | Validators | Enable E7880-E7883 security validators | After phase 11 |
 | 14 | Deploy | Apply Terraform with new NAT/forward rules | **High** |
+
+## Review Findings Integration (2026-09-09)
+
+This section addresses findings F01-F10 from the security review.
+
+### D15: Model Restructure (F01, F07 Response)
+
+**Finding:** Exposure mechanism conflated with permission. Forced symmetry not orthogonal.
+
+**Resolution:** Restructure from `primary/service` to `attachments[] → publications[] → policies[]`:
+
+```yaml
+# REVISED MODEL (pending implementation)
+# L4 workload:
+network:
+  primary_attachment: backend  # Default attachment ID
+  attachments:
+    - id: backend
+      driver: veth
+      network_ref: inst.bridge.containers
+      address:
+        allocation: static
+        host: 210
+      gateway: derive_from_network
+
+# L5 service (separate instance):
+publications:
+  - id: dns
+    backend_attachment_ref: docker-adguard.backend
+    mechanism: dnat
+    frontend:
+      network_ref: inst.vlan.lan
+      host: 210
+      address_owner_ref: rtr-mikrotik-chateau
+      announcement: interface_address
+    ports:
+      - {protocol: udp, frontend: 53, backend: 53}
+      - {protocol: tcp, frontend: 53, backend: 53}
+    policy_ref: policy.dns-approved-clients  # REQUIRED (F01)
+    enforcer_ref: rtr-mikrotik-chateau
+```
+
+**Key Principle (F01):** `mechanism` describes delivery, NOT permission. Every publication requires `policy_ref`.
+
+### D16: Explicit Zone Policy Defaults (F02 Response)
+
+**Finding:** `isolated=true` allows egress to untrusted in current compiler.
+
+**Resolution:** Replace single `isolated` flag with explicit defaults:
+
+```yaml
+# inst.trust_zone.container_runtime.yaml
+ingress_default: deny
+egress_default: deny     # F02: explicit deny, not derived
+intra_zone_default: deny
+exceptions:
+  - dns_to_upstream
+  - ntp_to_upstream
+```
+
+### D17: Address Ownership (F03 Response)
+
+**Finding:** VIP .210-.212 lack owner, ARP, DHCP exclusion.
+
+**Resolution:** Address lifecycle contract:
+
+```yaml
+# Publication frontend address
+frontend:
+  network_ref: inst.vlan.lan
+  host: 210
+  address_owner_ref: rtr-mikrotik-chateau  # Who responds to ARP
+  announcement: interface_address           # How address is reachable
+  dhcp_exclude: true                        # Auto-exclude from pool
+
+# INVARIANTS:
+# 1. address_owner_ref REQUIRED for VIP
+# 2. VIP ∉ DHCP pool (validated)
+# 3. announcement mechanism defined
+```
+
+### D18: Diagnostic Code Renumbering (F09 Response)
+
+**Finding:** Codes 7870-7888 already used by vm_refs_validator and lxc_refs_validator.
+
+**Resolution:** Allocate range **7950-7979** for ADR 0118/0119:
+
+| Old | New | Rule |
+|-----|-----|------|
+| W7870 | W7950 | Flat network deprecated |
+| E7871-E7878 | E7951-E7958 | Network model validators |
+| E7880-E7883 | E7960-E7963 | Security integration validators |
+
+### D19: Kubernetes Deferred (F08 Response)
+
+**Finding:** K8s model (cni + ingress) doesn't match Kubernetes reality.
+
+**Resolution:** Remove K8s from v1 scope. Mark as future extension:
+
+```yaml
+# NOT SUPPORTED IN V1:
+# - primary.type: cni
+# - service.exposure: ingress
+# See: Future Extension section
+```
+
+### D20: Example Corrections (F10 Response)
+
+| Issue | Location | Fix |
+|-------|----------|-----|
+| D8 DNAT without ports | D8 example | Add ports[] |
+| D11/D12 wrong CIDR | Examples | Use 10.0.100.0/24 |
+| W7874 gateway compare | Validator | Remove (expected for DNAT) |
+| docker0 vs bridge | D12 | Clarify Docker network naming |
+
+### D21: Acceptance Matrix (From Review)
+
+| Scenario | Expected |
+|----------|----------|
+| AdGuard DNS from approved client | ALLOW |
+| AdGuard UI from user/IoT/guest | DENY (management only) |
+| Mosquitto from undeclared source | DENY even with DNAT |
+| Container → router management | DENY by default |
+| Same-bridge lateral traffic | Per intra_zone policy |
+| VIP in DHCP / duplicate VIP | Compile ERROR |
+| LXC without publication | IP preserved, no auto-expose |
 
 ## Alternatives Considered
 
