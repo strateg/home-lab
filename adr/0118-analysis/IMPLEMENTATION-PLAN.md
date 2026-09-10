@@ -45,6 +45,21 @@ Measured by running the commands, not quoted:
 | Acceptance coverage A01-A24 | 0 of 24 |
 | Files to change, excluding new files and tests | 43 |
 
+## Runtime contract binding every new plugin
+
+Added by the step 7 compliance check, which found these constraints registered
+but not carried into the gates. They apply to every plugin this plan creates and
+are exit conditions of the gate that introduces it, not separate work.
+
+| Constraint | Requirement | Verified by |
+|---|---|---|
+| Stage affinity | A compiler runs at compile, a validator at validate; deploy stays outside the six stages | `task validate:plugin-manifests` |
+| Manifest exchange | Every input and output declared through `depends_on`, `consumes`, `produces`; no hidden filesystem reads | `task test:plugin-contract` |
+| Execution mode | New plugins run as `subinterpreter`: read from the snapshot, write to the outbox, return an execution envelope; no mutation of `ctx`, no `plugin_registry` access, no dynamic import | ADR 0097 contract tests |
+| Single owner of `compiled_json` | The intent and plan compilers publish their own projections; no back-dependency onto `effective_model`, so no cycle is created | Manifest DAG check |
+| Discovery order | Framework, then class, then object, then project; unchanged by this plan | Registry tests |
+| Framework lock | `framework.lock` is refreshed only in the change that actually alters framework integrity, not in documentation changes | `task framework:verify-lock` |
+
 ## Gate plan
 
 Each gate lists what it delivers, what blocks it, and how it is declared closed.
