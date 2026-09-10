@@ -121,3 +121,16 @@
 | [0117](0117-iot-endpoint-layer-mixing-technical-debt.md) | IoT Endpoint Layer Separation | Implemented | 2026-09-06 | - | - |
 | [0118](0118-universal-container-network-model.md) | Universal Container Network Model | Proposed | 2026-09-09 | - | - |
 | [0119](0119-firewall-rule-ordering-contract.md) | Firewall Rule Ordering Contract | Proposed | 2026-09-09 | - | - |
+
+## ADR 0118/0119 revision — 2026-09-10
+
+- ADR 0118 remains **Proposed**: one attachment/publication/policy model replaces
+  the contradictory earlier D1-D21; capability-qualified scope and explicit legacy boundary.
+- ADR 0119 remains **Proposed**: one authorization-preserving plan replaces
+  producer priorities; formal obligations, safe transition and observed-state contract.
+- ADR 0110 remains **Implemented** for its existing R1-R6 behavior; added an
+  explicit cross-reference to the unimplemented strict-profile proposal.
+- Supporting contracts: [migration and acceptance](0118-analysis/MIGRATION-AND-ACCEPTANCE.md),
+  [formal obligations](0119-analysis/FORMAL-CONTRACT.md),
+  [assurance profile](0119-analysis/ASSURANCE-PROFILE.md).
+- No topology migration, backend qualification or compliance approval is implied.

@@ -30,6 +30,28 @@ rule_packs:
     files_glob:
       - "topology/**"
       - "projects/*/topology/**"
+  network-security:
+    path: docs/ai/rules/network-security.md
+    source_adr: ["0109", "0110", "0111", "0118", "0119"]
+    files_glob:
+      - "adr/011[0189]*"
+      - "adr/0118-analysis/**"
+      - "adr/0119-analysis/**"
+      - "projects/*/topology/instances/network/**"
+      - "projects/*/topology/instances/services/**"
+      - "projects/*/topology/instances/routeros_container/**"
+      - "projects/*/topology/instances/docker/**"
+      - "projects/*/topology/instances/lxc/**"
+      - "projects/*/topology/instances/vm/**"
+      - "topology/class-modules/L2-network/**"
+      - "topology/class-modules/L4-platform/**"
+      - "topology-tools/plugins/compilers/*security*"
+      - "topology-tools/plugins/compilers/*network*"
+      - "topology-tools/plugins/compilers/*ip_derivation*"
+      - "topology-tools/plugins/validators/*network*"
+      - "topology-tools/plugins/generators/*firewall*"
+      - "topology-tools/plugins/generators/*docker_compose*"
+      - "topology/object-modules/mikrotik/**"
   host-placement:
     path: docs/ai/rules/host-placement.md
     source_adr: ["0107"]
@@ -378,3 +400,22 @@ rules:
       - "task compile:default (0 E6810-E6815 errors)"
       - "pytest tests/plugin_integration/test_on_directive_object_defaults.py"
     source_adr: ["0107"]
+
+  - id: NET-001
+    scope: network-security
+    trigger: "Network security policy, attachment/publication, enforcement ordering or strict-profile design changes"
+    rule_pack: network-security
+    must:
+      - "Keep ADR0110 legacy behavior distinct from the Proposed ADR0118/0119 strict profile."
+      - "For the proposed profile separate attachments, publications and bound policies; validate all paths and address ownership."
+      - "Preserve original-flow authorization, one compiler-owned plan, deterministic order and verified transitions."
+      - "Report requirement-linked counterexamples and distinguish design, offline, backend and live evidence."
+    never:
+      - "Do not grant access from NAT, trust level, specificity or producer priority in the strict profile."
+      - "Do not claim proposed schemas, backend coverage or DoD compliance are implemented."
+    validate:
+      - "task validate:adr-consistency"
+      - "task validate:agent-rules"
+      - "task validate:agent-rules-strict"
+      - "ADR0118 acceptance gates for implementation; governance checks alone are insufficient"
+    source_adr: ["0109", "0110", "0111", "0118", "0119"]

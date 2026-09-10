@@ -1,748 +1,203 @@
 # ADR 0118: Universal Container Network Model
 
-- Status: Proposed (Request Changes per 2026-09-09 security review)
+- Status: Proposed
 - Date: 2026-09-09
-- Revised: 2026-09-09 (F01-F10 findings integrated)
-- Related: ADR-0107 (Host Placement Defaults), ADR-0111 (IP Derivation), ADR-0041 (Workload Network Attachments)
-- Problem: D02 from 2026-09-09 topology audit (gateway mismatch)
-- Analysis: SPC Protocol
-- Scope: All container platforms (RouterOS, Docker, LXC, future K8s)
-- Review: [2026-09-09-adr0118-network-model-security-review.md](../docs/reports/2026-09-09-adr0118-network-model-security-review.md)
+- Revised: 2026-09-10 (single intent model; replaces all earlier D1-D21 text)
+- Related: ADR-0004, ADR-0041, ADR-0086, ADR-0088, ADR-0106, ADR-0107, ADR-0110, ADR-0111, ADR-0119
+- Scope: Network intent for workloads and services; capability-qualified backends
+- Implementation: Not implemented; approval of this proposal is not deployment approval
+- Analysis: [Migration and acceptance](0118-analysis/MIGRATION-AND-ACCEPTANCE.md)
 
 ## Context
 
-### Problem Statement
+The current AdGuard workload combines an inherited container bridge/gateway
+(`172.18.0.0/24`) with a client-facing VLAN address
+(`192.168.88.210/24`). These describe different interfaces but occupy one
+`network` block. Fixing one gateway field does not resolve address ownership,
+service permissions, or bypass paths.
 
-RouterOS containers on MikroTik have conflicting network configuration in the topology model:
-
-```yaml
-# docker-adguard effective state (after compile)
-network:
-  bridge_ref: inst.bridge.containers   # From host workload_defaults (@on)
-  gateway: 172.18.0.1                  # From host workload_defaults (@on)
-  vlan_ref: inst.vlan.lan              # Explicit in instance
-  host: 210                            # Explicit in instance
-  _resolved_ip: 192.168.88.210/24      # Derived from vlan_ref
-  _resolved_gateway: 192.168.88.1      # Derived from vlan_ref
-```
-
-**Conflict:** `gateway` (172.18.0.1) ≠ `_resolved_gateway` (192.168.88.1)
-
-### Root Cause Analysis
-
-MikroTik RouterOS containers have a dual-network reality:
-
-1. **Runtime network** — container physically exists on an internal bridge (172.18.0.0/24)
-2. **Service network** — clients reach the container via VLAN IP (192.168.88.x) through NAT
-
-Current model conflates these two distinct concepts into a single `network:` block.
-
-### Universal Applicability
-
-This dual-network pattern exists across ALL container platforms, not just RouterOS:
-
-| Platform | Host | Primary Network | Service Network | Exposure |
-|----------|------|-----------------|-----------------|----------|
-| RouterOS container | MikroTik | veth 172.18.x.x | VLAN 192.168.x.x | DNAT |
-| Docker (Linux) | OrangePi/ARM | docker0 172.17.x.x | Host VLAN | port publish |
-| LXC (Proxmox) | PVE | vmbr0 L2 direct | Same as primary | implicit |
-| Docker-in-LXC | PVE→LXC | nested docker0 | LXC veth | nested NAT |
-| Kubernetes Pod | K8s node | CNI network | Service/Ingress | ingress |
-
-**Key Insight:** ALL platforms have dual-network semantics. The difference is `service.exposure` type:
-- `l2` (LXC): Service IP assigned directly to container interface (no NAT)
-- `dnat` (RouterOS): NAT rule maps service IP → primary address
-- `port_publish` (Docker): Host binds service IP:port → container port
-
-### Working Example: AmneziaWG Containers
-
-AmneziaWG containers use a cleaner model without VLAN derivation:
-
-```yaml
-# docker-amneziawg-russia.yaml
-network:
-  type: dedicated_veth
-  veth_name: veth-awg-ru
-  address: 172.18.22.2/30
-  gateway: 172.18.22.1
-  # No vlan_ref — traffic routing handled by MikroTik routing tables
-
-serves_vlan_ref: inst.vlan.vpn_amnezia  # Declarative: which VLAN's traffic flows here
-```
-
-This works because:
-- No IP derivation conflict (no vlan_ref)
-- `serves_vlan_ref` declares routing relationship, not network attachment
-- Gateway is valid for actual container network
-
-### Affected Containers
-
-| Container | Current Model | Gateway Conflict |
-|-----------|---------------|------------------|
-| docker-adguard | bridge + vlan_ref | YES |
-| docker-mosquitto | bridge + vlan_ref | YES |
-| docker-tailscale | bridge + vlan_ref | YES |
-| docker-amneziawg-russia | dedicated_veth only | NO |
-| docker-amneziawg-sweden | dedicated_veth only | NO |
+Earlier revisions forced every platform into `primary/service`, then appended
+a competing `attachments/publications/policies` model. This edition replaces
+both descriptions with one contract. Historical text remains in Git, not as
+alternative instructions. The joint review's findings remain evidence, not policy.
 
 ## Decision
 
-### D1: Universal `network.primary` and `network.service` Structure
-
-Replace flat `network:` block with explicit dual-network model for ALL container platforms:
-
-```yaml
-# Universal dual-network model
-network:
-  # Primary: HOW container attaches to network (runtime attachment)
-  primary:
-    type: bridge | dedicated_veth | host_network | cni
-    bridge_ref: inst.bridge.containers     # For bridge type
-    interface: eth0                        # Container interface name
-    address: 172.18.0.210/24               # Static IP (for NAT-based)
-    gateway: 172.18.0.1                    # Valid gateway (for NAT-based)
-    veth_name: veth-adguard                # For dedicated_veth
-    cni_network: calico                    # For K8s CNI
-
-  # Service: HOW clients reach this container (exposure method)
-  service:
-    exposure: l2 | dnat | port_publish | routed | ingress | none
-    vlan_ref: inst.vlan.lan                # VLAN for IP derivation
-    host: 210                              # Host number for IP derivation
-    ports:                                 # For port_publish/dnat
-      - "53:53/udp"
-      - "80:80"
-    # _resolved_ip derived from vlan_ref + host
-    # WHERE this IP goes depends on exposure type:
-    #   l2 → primary.interface
-    #   dnat → NAT rule target
-    #   port_publish → host bind address
-```
-
-### D2: Network Type Semantics (Universal)
-
-`primary.type` describes HOW the container attaches to the network:
-
-| Type | Description | Platforms |
-|------|-------------|-----------|
-| `bridge` | Shared container/host bridge | Docker, RouterOS, **LXC** |
-| `dedicated_veth` | Isolated /30 point-to-point | RouterOS |
-| `host_network` | Host's network stack directly | Docker, RouterOS |
-| `cni` | Kubernetes CNI plugin | Kubernetes |
-
-### D2a: Exposure Method Semantics
-
-`service.exposure` describes WHERE the derived IP is assigned:
-
-| Exposure | IP Assignment | NAT Layer | Platforms |
-|----------|---------------|-----------|-----------|
-| `l2` | Container's primary interface | None | **LXC** |
-| `dnat` | Virtual; NAT rule to primary.address | Yes | RouterOS |
-| `port_publish` | Host bind; port map to container | Yes | Docker |
-| `routed` | Policy routing table | None | RouterOS |
-| `ingress` | K8s Ingress controller | Depends | Kubernetes |
-| `none` | Not exposed externally | N/A | All |
-
-### D2b: Platform-Type Matrix (Symmetric)
-
-| Platform | `primary.type` | `service.exposure` | IP Derivation |
-|----------|---------------|-------------------|---------------|
-| Proxmox LXC | `bridge` | `l2` | `service.vlan_ref + host` → eth0 |
-| Docker (Linux) | `bridge` | `port_publish` | `service.vlan_ref + host` → bind |
-| RouterOS (bridge) | `bridge` | `dnat` | `service.vlan_ref + host` → NAT |
-| RouterOS (veth) | `dedicated_veth` | `routed` | `primary.address` |
-| Docker host_network | `host_network` | `none` | Host IP |
-| Kubernetes | `cni` | `ingress` | ClusterIP |
-
-**Symmetry:** All platforms use `service.vlan_ref + host` for IP derivation (except explicit `primary.address`).
-
-### D3: Exposure Methods (Universal)
-
-| Exposure | Mechanism | Platform | Generated Artifacts |
-|----------|-----------|----------|---------------------|
-| `l2` | IP on container interface | LXC | Proxmox network config |
-| `dnat` | NAT destination rule | RouterOS | `dst-nat` in MikroTik firewall |
-| `port_publish` | Docker -p flag | Docker | Compose `ports:` section |
-| `ingress` | K8s Ingress/Service | Kubernetes | Ingress YAML |
-| `routed` | Policy routing | RouterOS | Mangle rules, routing tables |
-| `none` | No external exposure | All | Internal service only |
-
-### D4: Backward Compatibility
-
-Flat `network:` structure triggers migration warning:
-
-```yaml
-# DEPRECATED: Flat structure with mixed semantics
-network:
-  bridge_ref: inst.bridge.containers
-  gateway: 172.18.0.1
-  vlan_ref: inst.vlan.lan
-  host: 210
-```
-
-Compiler emits `W7870: Deprecated flat network structure, migrate to primary/service model`.
-
-### D5: IP Derivation Modification
-
-Extend ADR-0111 IP derivation:
-
-| Pattern | Source | Target Field |
-|---------|--------|--------------|
-| `network.vlan_ref + host` | Legacy | `network._resolved_ip` |
-| `network.service.vlan_ref + host` | New | `network.service._resolved_ip` |
-| `network.primary.address` | Explicit | No derivation needed |
-
-Gateway derivation:
-- `network._resolved_gateway` — derived from `vlan_ref` (legacy, may conflict)
-- `network.service._resolved_gateway` — derived, for documentation only
-- `network.primary.gateway` — explicit, used for container routing
-
-### D6: Validator Rules (Universal)
-
-| Code | Severity | Platform | Rule |
-|------|----------|----------|------|
-| `W7870` | Warning | All | Flat network structure with both bridge_ref and vlan_ref |
-| `E7871` | Error | RouterOS | primary.gateway missing when service.exposure = dnat |
-| `E7872` | Error | All | service.vlan_ref without service.exposure |
-| `E7873` | Error | All | service.exposure not valid for platform |
-| `W7874` | Warning | RouterOS | Derived _resolved_gateway differs from primary.gateway |
-| `E7875` | Error | LXC | service.exposure != l2 for Proxmox LXC |
-| `E7876` | Error | Docker | service.ports missing when exposure = port_publish |
-| `E7877` | Error | All | primary.type not supported by platform |
-| `W7878` | Warning | All | service block missing (platform default applied) |
-
-### D7: Object Template Update
-
-```yaml
-# obj.routeros.container.generic.yaml
-defaults:
-  trust_zone_ref: "@on:host.trust_zone_ref?"
-  network:
-    primary:
-      type: bridge
-      bridge_ref: "@on:host.network.bridge_ref?"
-      gateway: "@on:host.network.gateway?"
-    # service: defined in instance if needed
-```
-
-### D8: Instance Migration
-
-**Before:**
-```yaml
-# docker-adguard.yaml
-@instance: docker-adguard
-@extends: obj.routeros.container.generic
-host_ref: rtr-mikrotik-chateau
-network:
-  vlan_ref: inst.vlan.lan
-  host: 210
-runtime:
-  image: adguard/adguardhome
-```
-
-**After:**
-```yaml
-# docker-adguard.yaml
-@instance: docker-adguard
-@extends: obj.routeros.container.generic
-host_ref: rtr-mikrotik-chateau
-network:
-  primary:
-    # Inherited from host via @on
-    address: 172.18.0.210/24  # Explicit static IP
-  service:
-    vlan_ref: inst.vlan.lan
-    host: 210
-    exposure: dnat
-runtime:
-  image: adguard/adguardhome
-```
-
-### D9: MikroTik Generator Updates
-
-Generator produces NAT rules from service exposure:
-
-```hcl
-# For exposure: dnat
-resource "routeros_ip_firewall_nat" "dnat_docker_adguard" {
-  chain       = "dstnat"
-  action      = "dst-nat"
-  dst_address = "192.168.88.210"   # From service._resolved_ip
-  to_addresses = "172.18.0.210"    # From primary.address
-  comment     = "DNAT: docker-adguard (LAN -> container bridge)"
-}
-```
-
-### D10: AmneziaWG Pattern Preserved
-
-Containers with `primary` only (no `service`) remain valid:
-
-```yaml
-# docker-amneziawg-russia.yaml — no changes needed
-network:
-  primary:
-    type: dedicated_veth
-    veth_name: veth-awg-ru
-    address: 172.18.22.2/30
-    gateway: 172.18.22.1
-  # No service block — routing handled via routing_policy_ref
-
-serves_vlan_ref: inst.vlan.vpn_amnezia  # Unchanged
-```
-
-### D11: Proxmox LXC Model (l2 exposure)
-
-LXC containers use `exposure: l2` — service IP assigned directly to container interface:
-
-```yaml
-# lxc-grafana.yaml
-@instance: lxc-grafana
-@extends: obj.proxmox.lxc.debian12.grafana
-host_ref: srv-gamayun
-network:
-  primary:
-    type: bridge
-    bridge_ref: inst.bridge.vmbr0   # Inherited via @on
-    interface: eth0
-  service:
-    exposure: l2                    # L2 direct - IP goes to eth0
-    vlan_ref: inst.vlan.servers
-    host: 60
-```
-
-Compiler derives `_resolved_ip: 10.0.30.60/24` from `service.vlan_ref + host`.
-For `exposure: l2`, this IP is assigned to `primary.interface` (eth0).
-
-**Symmetry with other platforms:**
-- LXC: `service._resolved_ip` → `primary.interface`
-- Docker: `service._resolved_ip` → host bind address
-- RouterOS: `service._resolved_ip` → NAT rule destination
-
-### D12: Docker on Linux Model (port_publish)
-
-Docker containers on Linux hosts use `bridge` + `port_publish`:
-
-```yaml
-# docker-grafana.yaml (OrangePi)
-@instance: docker-grafana
-@extends: obj.docker.container.generic
-host_ref: srv-orangepi5
-network:
-  primary:
-    type: bridge
-    network_name: docker0  # Or custom network
-  service:
-    exposure: port_publish
-    vlan_ref: inst.vlan.servers
-    host: 210
-    ports:
-      - "3000:3000"
-runtime:
-  image: grafana/grafana:latest
-```
-
-Generated `docker-compose.yml` includes:
-```yaml
-services:
-  grafana:
-    ports:
-      - "10.0.30.210:3000:3000"  # Bind to service IP
-```
-
-### D13: Object Template Updates for All Platforms
-
-**RouterOS container template:**
-```yaml
-# obj.routeros.container.generic.yaml
-defaults:
-  network:
-    primary:
-      type: bridge
-      bridge_ref: "@on:host.network.bridge_ref?"
-      gateway: "@on:host.network.gateway?"
-```
-
-**Docker container template:**
-```yaml
-# obj.docker.container.generic.yaml
-defaults:
-  network:
-    primary:
-      type: bridge
-      network_name: "@on:host.docker.default_network?:bridge"
-```
-
-**Proxmox LXC template:**
-```yaml
-# obj.proxmox.lxc.debian12.base.yaml
-defaults:
-  network:
-    primary:
-      type: bridge
-      bridge_ref: "@on:host.network.bridge_ref?"
-      interface: "@on:host.network.interface?:eth0"
-    service:
-      exposure: l2    # LXC default: IP on container interface
-      # vlan_ref + host at instance level
-```
-
-### D14: Security Matrix Integration (ADR 0110)
-
-Container network model must integrate with zone-based firewall (ADR 0110).
-
-#### D14a: Container Runtime Zone
-
-Containers with NAT-based exposure (`dnat`, `port_publish`) run on internal networks
-not visible to security matrix. Solution: define container runtime zone.
-
-```yaml
-# New trust zone for container internal networks
-inst.trust_zone.container_runtime:
-  security_level: 4        # Same as servers (internal infrastructure)
-  isolated: true           # Cannot initiate to external zones
-  description: "Container runtime internal networks (bridges, veths)"
-
-# Internal network (not a real VLAN)
-inst.network.container_bridge:
-  cidr: 172.18.0.0/24
-  trust_zone_ref: inst.trust_zone.container_runtime
-  internal_only: true      # Not in VLAN table, internal bridge only
-```
-
-#### D14b: Zone Assignment by Exposure Type
-
-| Exposure | Container Zone | Service Zone | Firewall Path |
-|----------|---------------|--------------|---------------|
-| `l2` | Same as service | service.vlan_ref → zone | Direct forward |
-| `dnat` | container_runtime | service.vlan_ref → zone | NAT + forward |
-| `port_publish` | container_runtime | Host zone | Host INPUT + forward |
-| `routed` | container_runtime | Policy routes | Mangle + forward |
-
-#### D14c: Generated Firewall Artifacts
-
-For `exposure: dnat`:
-
-```hcl
-# 1. Address list entry for container
-resource "routeros_ip_firewall_addr_list" "container_docker_adguard" {
-  list    = "zone-container_runtime"
-  address = "172.18.0.210"           # primary.address
-  comment = "ADR-0118: docker-adguard container IP"
-}
-
-# 2. dst-nat rule: service IP → primary IP
-resource "routeros_ip_firewall_nat" "dnat_docker_adguard_dns" {
-  chain        = "dstnat"
-  action       = "dst-nat"
-  dst_address  = "192.168.88.210"    # service._resolved_ip
-  to_addresses = "172.18.0.210"      # primary.address
-  protocol     = "udp"
-  dst_port     = "53"
-  comment      = "ADR-0118: DNAT docker-adguard DNS"
-}
-
-# 3. Forward rule for NAT'd traffic
-resource "routeros_ip_firewall_filter" "forward_dnat_docker_adguard_dns" {
-  chain       = "forward"
-  action      = "accept"
-  dst_address = "172.18.0.210"
-  protocol    = "udp"
-  dst_port    = "53"
-  comment     = "ADR-0118: Allow NAT'd traffic to docker-adguard"
-  place_before = routeros_ip_firewall_filter.zone_drop_all_forward.id
-}
-```
-
-For `exposure: l2`:
-
-```hcl
-# No NAT rules needed - container IP is directly in zone address list
-# Zone forward rules from ADR 0110 apply directly
-```
-
-#### D14d: Security Matrix Extension
-
-```yaml
-# inst.security_matrix.mikrotik.yaml extension
-address_space:
-  vlan_refs:
-    - inst.vlan.lan
-    - inst.vlan.servers
-    # ... existing VLANs
-
-  # NEW: Internal container networks (not VLANs)
-  internal_networks:
-    - network_ref: inst.network.container_bridge
-      zone_ref: inst.trust_zone.container_runtime
-
-# Policy override for container access
-policy_overrides:
-  - name: user-to-container-services
-    from_zone_ref: inst.trust_zone.user
-    to_zone_ref: inst.trust_zone.container_runtime
-    action: accept
-    comment: Allow users to reach container services via DNAT
-```
-
-#### D14e: Validator Rules for Security Integration
-
-| Code | Severity | Rule |
-|------|----------|------|
-| `E7880` | Error | `exposure: dnat` requires `service.ports` |
-| `E7881` | Error | `primary.address` must be within known internal network |
-| `W7882` | Warning | Container zone not in security matrix address_space |
-| `E7883` | Error | NAT to zone with higher security_level without policy_override |
-
-## Consequences
-
-### Benefits
-
-1. **Universal model** — same pattern for RouterOS, Docker, LXC, K8s
-2. **No gateway conflict** — primary.gateway is always valid for container
-3. **Explicit semantics** — clear separation of runtime vs exposure
-4. **Extensible** — supports future platforms and exposure methods
-5. **Generator clarity** — platform-specific artifacts derived from universal schema
-6. **Reduced cognitive load** — one mental model for all containers
-
-### Trade-offs
-
-1. **Schema complexity** — nested network structure
-2. **Migration effort** — ~30 instances need structural update
-3. **Learning curve** — operators must understand dual-network model
-4. **Compiler changes** — IP derivation must handle multiple patterns
-
-### Implementation Estimate
-
-| Component | Files | Effort |
-|-----------|-------|--------|
-| Base workload class schema | 1 | 1h |
-| RouterOS container object template | 1 | 30m |
-| Docker container object template | 1 | 30m |
-| Proxmox LXC object template | 1 | 30m |
-| IP derivation compiler (all types) | 1 | 3h |
-| Validators (W7870-W7878) | 1 | 3h |
-| MikroTik projection/generator | 2 | 3h |
-| Docker Compose generator | 1 | 2h |
-| Proxmox LXC projection | 1 | 1h |
-| RouterOS instance migration | 5 | 1h |
-| Docker instance migration | 10 | 2h |
-| LXC instance migration | 9 | 2h |
-| Tests (all platforms) | 5 | 3h |
-| Documentation | 1 | 1h |
-| **Subtotal (network model)** | ~31 | **~24h** |
-| | | |
-| **Security Integration (D14)** | | |
-| Trust zone: container_runtime | 2 | 1h |
-| Internal network class/instance | 2 | 1h |
-| Security matrix extension | 1 | 1h |
-| NAT rule generator (dnat exposure) | 1 | 3h |
-| Forward rule generator for DNAT | 1 | 2h |
-| Validators (E7880-E7883) | 1 | 2h |
-| Security integration tests | 2 | 2h |
-| **Subtotal (security)** | ~10 | **~12h** |
-| | | |
-| **Grand Total** | ~41 | **~36h** |
-
-### Migration Path
-
-| Phase | Scope | Action | Risk |
-|-------|-------|--------|------|
-| 1 | Schema | Add `primary`/`service` structure support | None |
-| 2 | Objects | Update all platform object templates | None |
-| 3 | Compiler | Support both flat and nested patterns | None |
-| 4 | Validators | Add W7870 warning for flat structure | Warning only |
-| 5a | RouterOS | Migrate 5 container instances | Low |
-| 5b | Docker | Migrate 10 container instances | Low |
-| 5c | LXC | Migrate 9 container instances | Low |
-| 6 | Generators | Update all platform generators | Medium |
-| 7 | Validators | Enable E7871-E7878 error validators | After migration |
-| | | | |
-| **Security Integration (D14)** | | | |
-| 8 | Trust Zone | Create inst.trust_zone.container_runtime | None |
-| 9 | Network | Create inst.network.container_bridge | None |
-| 10 | Matrix | Extend security_matrix with internal_networks | Low |
-| 11 | Generator | Add NAT rule generation for dnat exposure | Medium |
-| 12 | Generator | Add forward rules for NAT'd traffic | Medium |
-| 13 | Validators | Enable E7880-E7883 security validators | After phase 11 |
-| 14 | Deploy | Apply Terraform with new NAT/forward rules | **High** |
-
-## Review Findings Integration (2026-09-09)
-
-This section addresses findings F01-F10 from the security review.
-
-### D15: Model Restructure (F01, F07 Response)
-
-**Finding:** Exposure mechanism conflated with permission. Forced symmetry not orthogonal.
-
-**Resolution:** Restructure from `primary/service` to `attachments[] → publications[] → policies[]`:
-
-```yaml
-# REVISED MODEL (pending implementation)
-# L4 workload:
-network:
-  primary_attachment: backend  # Default attachment ID
-  attachments:
-    - id: backend
-      driver: veth
-      network_ref: inst.bridge.containers
-      address:
-        allocation: static
-        host: 210
-      gateway: derive_from_network
-
-# L5 service (separate instance):
-publications:
-  - id: dns
-    backend_attachment_ref: docker-adguard.backend
-    mechanism: dnat
-    frontend:
-      network_ref: inst.vlan.lan
-      host: 210
-      address_owner_ref: rtr-mikrotik-chateau
-      announcement: interface_address
-    ports:
-      - {protocol: udp, frontend: 53, backend: 53}
-      - {protocol: tcp, frontend: 53, backend: 53}
-    policy_ref: policy.dns-approved-clients  # REQUIRED (F01)
-    enforcer_ref: rtr-mikrotik-chateau
-```
-
-**Key Principle (F01):** `mechanism` describes delivery, NOT permission. Every publication requires `policy_ref`.
-
-### D16: Explicit Zone Policy Defaults (F02 Response)
-
-**Finding:** `isolated=true` allows egress to untrusted in current compiler.
-
-**Resolution:** Replace single `isolated` flag with explicit defaults:
-
-```yaml
-# inst.trust_zone.container_runtime.yaml
-ingress_default: deny
-egress_default: deny     # F02: explicit deny, not derived
-intra_zone_default: deny
-exceptions:
-  - dns_to_upstream
-  - ntp_to_upstream
-```
-
-### D17: Address Ownership (F03 Response)
-
-**Finding:** VIP .210-.212 lack owner, ARP, DHCP exclusion.
-
-**Resolution:** Address lifecycle contract:
-
-```yaml
-# Publication frontend address
-frontend:
-  network_ref: inst.vlan.lan
-  host: 210
-  address_owner_ref: rtr-mikrotik-chateau  # Who responds to ARP
-  announcement: interface_address           # How address is reachable
-  dhcp_exclude: true                        # Auto-exclude from pool
-
-# INVARIANTS:
-# 1. address_owner_ref REQUIRED for VIP
-# 2. VIP ∉ DHCP pool (validated)
-# 3. announcement mechanism defined
-```
-
-### D18: Diagnostic Code Renumbering (F09 Response)
-
-**Finding:** Codes 7870-7888 already used by vm_refs_validator and lxc_refs_validator.
-
-**Resolution:** Allocate range **7950-7979** for ADR 0118/0119:
-
-| Old | New | Rule |
-|-----|-----|------|
-| W7870 | W7950 | Flat network deprecated |
-| E7871-E7878 | E7951-E7958 | Network model validators |
-| E7880-E7883 | E7960-E7963 | Security integration validators |
-
-### D19: Kubernetes Deferred (F08 Response)
-
-**Finding:** K8s model (cni + ingress) doesn't match Kubernetes reality.
-
-**Resolution:** Remove K8s from v1 scope. Mark as future extension:
-
-```yaml
-# NOT SUPPORTED IN V1:
-# - primary.type: cni
-# - service.exposure: ingress
-# See: Future Extension section
-```
-
-### D20: Example Corrections (F10 Response)
-
-| Issue | Location | Fix |
-|-------|----------|-----|
-| D8 DNAT without ports | D8 example | Add ports[] |
-| D11/D12 wrong CIDR | Examples | Use 10.0.100.0/24 |
-| W7874 gateway compare | Validator | Remove (expected for DNAT) |
-| docker0 vs bridge | D12 | Clarify Docker network naming |
-
-### D21: Acceptance Matrix (From Review)
-
-| Scenario | Expected |
-|----------|----------|
-| AdGuard DNS from approved client | ALLOW |
-| AdGuard UI from user/IoT/guest | DENY (management only) |
-| Mosquitto from undeclared source | DENY even with DNAT |
-| Container → router management | DENY by default |
-| Same-bridge lateral traffic | Per intra_zone policy |
-| VIP in DHCP / duplicate VIP | Compile ERROR |
-| LXC without publication | IP preserved, no auto-expose |
-
-## Alternatives Considered
-
-### A1: Platform-Specific Models (Status Quo Extended)
-
-Keep separate network schemas per platform, only fix RouterOS gateway conflict.
-
-**Rejected because:**
-- No unified mental model across platforms
-- Duplicate concepts (exposure, IP derivation) per platform
-- Harder to add new platforms (K8s, Podman, etc.)
-- Each generator must understand its own network model
-
-### A2a: Bridge-only (remove vlan_ref)
-
-Remove VLAN derivation, use NAT for all access.
-
-**Rejected because:**
-- Loses declarative "service on VLAN X" semantics
-- All IPs must be manually assigned
-- No client-facing IP in topology model
-
-### A2b: VLAN-only (remove bridge_ref)
-
-Attach containers directly to VLAN.
-
-**Rejected because:**
-- Doesn't match MikroTik container reality (separate bridge)
-- Breaks container isolation
-- Would require reconfiguring actual MikroTik networking
-
-### A3: Capability-Based Network Traits
-
-Define network capabilities, let platforms declare which they support:
-```yaml
-network_traits:
-  - cap.network.primary.l2_direct
-  - cap.network.service.dnat
-```
-
-**Rejected because:**
-- Over-engineering for current needs
-- Higher complexity without proportional benefit
-- Can be added later if needed (ADR 0106 foundation exists)
-
-## References
-
-- ADR-0041: L4 Workload Network Attachment Typing (networks[] array pattern)
-- ADR-0107: Host Placement Defaults (@on directive)
-- ADR-0109: Network Segmentation with Zone-Based Architecture
-- ADR-0110: Security Matrix and Trust Zone Configuration
-- ADR-0111: IP Address Derivation from VLAN
-- ADR-0119: Firewall Rule Ordering Contract
-- [MikroTik Container Documentation](https://help.mikrotik.com/docs/display/ROS/Container)
-- D02 audit finding: 2026-09-09-topology-remediation-review.md
+### D1. Three questions, three concepts
+
+| Question | Concept | Authoritative owner |
+|---|---|---|
+| Where is the workload connected? | Attachment | L4 workload; references L2 substrate |
+| How can a client reach a service? | Publication | L5 service; references its runtime attachment |
+| Who may initiate which traffic? | Policy | L2 network policy, explicitly bound by workloads/services |
+
+An attachment exists without any publication. A directly connected LXC does not
+need a second IP or NAT. A publication defines delivery, **never permission**.
+A route or tunnel does not imply a publication or a permit.
+
+All entities remain Class -> Object -> Instance. Embedded records have stable
+local IDs; references to them use `workload_ref + attachment_id`, not ambiguous
+dotted concatenation. Class schemas define fields, objects supply reusable
+defaults, project instances bind real resources. `@group` remains a shard key;
+layers are derived under ADR 0102, not selected by a directory or instance field.
+
+### D2. Attachments own runtime addressing
+
+A workload's proposed `network.schema_version: 2` contains `attachments[]`.
+Each attachment declares:
+
+- stable `id`, driver requirements, L2 `network_ref`, and interface identity;
+- allocation mode: static from a referenced prefix plus host offset, managed
+  dynamic allocation, or shared host stack;
+- optional explicit default-route selection, with at most one default per
+  address family/routing domain unless an explicit multipath contract exists;
+- network policy bindings for direct/egress traffic, when required.
+
+L2 owns prefixes, gateways, zone membership and routing domains. A bridge is
+not necessarily an IP network: use its declared prefix only when present,
+otherwise reference a modeled address domain. Do not invent VLANs for bridges,
+point-to-point links or overlays. Multiple attachments are valid.
+
+Static addresses and gateways derive from the **same attachment's** address
+domain (ADR 0111 generalized beyond VLANs). Explicit point-to-point addresses
+are permitted with ownership and prefix checks. Off-link gateways require a
+modeled route supported by the backend; no gateway is copied from a publication.
+Host defaults follow ADR 0107; missing values never grant access or select a
+different network. Dynamic allocation requires an authoritative, freshness-bound
+binding before enforcement; unsupported dynamics fail rather than become `any`.
+
+### D3. Publications own delivery and bind authorization
+
+A service's proposed `network.schema_version: 2` contains `publications[]`.
+Each publication has:
+
+- stable `id` and backend `workload_ref + attachment_id`, consistent with
+  `runtime.target_ref`;
+- delivery mechanism: `direct`, `dnat`, or `host_publish` in v1;
+- frontend address reference/allocation and address owner where distinct from
+  the attachment; protocol and explicit frontend/backend port mappings;
+- required `policy_ref` and intended enforcement binding(s).
+
+`direct` references the attachment's existing address, without allocating a
+second one. `host_publish` binds an address actually owned by the host.
+`dnat` changes the destination but must preserve the original client/publication
+identity for authorization. A proxy that loses client identity needs a separate,
+verified application identity contract; a network allowlist is insufficient.
+
+Publication ports and policy selectors are intersected. Backend-only rules
+must not accidentally permit unpublished ports, other publications, or direct
+access to a backend. Direct backend access needs its own explicit binding.
+Absence of publications means **no publication-generated permit**, not proof
+that the workload is unreachable.
+
+### D4. One policy algebra; explicit compatibility boundary
+
+The proposed `strict` profile permits a flow only if it matches an approved
+explicit permit, satisfies all applicable constraints, and matches no mandatory
+deny. All other flows are denied, including intra-zone and outbound traffic.
+A permit intersecting a mandatory deny is a blocking authoring conflict with a
+counterexample; it is not resolved by position or specificity. Default deny is
+the absence of permission, not a mandatory deny that prevents every exception.
+
+Policies declare direction, bounded source/destination selectors, protocol/
+ports or typed non-port protocol constraints, owner and rationale. Missing
+selectors are invalid, not wildcards. Intentional broad selectors must be explicit
+and reviewed; inherited `false`, empty values and zero are not replaced by truthy
+defaults. Publication bindings restrict reusable L2 policies to the exact service
+endpoint. Non-publication traffic uses explicit attachment/network bindings.
+
+L2 policies reference network/zone/address-domain selectors, not L4/L5 instances.
+L4/L5 point downward to these policies; compilers perform reverse joins to
+materialize endpoints. Do not add upward L2 -> service dependencies or a parallel
+policy database. Application identity/access constraints stay at L5; their
+declared restrictions must be preserved, not inferred from IP membership.
+L7 owns approvals, operations and time-bounded exceptions, not duplicate rules.
+
+ADR 0110's existing R1-R6 behavior remains the **legacy** profile. Its
+`isolated` flag is not deny-all egress, and trust level is not authorization.
+A future strict schema must explicitly select profile/version for the deployment
+scope. Missing selection remains legacy only in the legacy parser; mixed profiles
+on one managed boundary fail until an explicit, reviewed composition exists.
+No silent conversion of R1/R2/R3 permits into strict permits or new defaults into
+currently supported fields is allowed.
+
+### D5. Address lifecycle is part of correctness
+
+Before a publication is deployable, prove:
+
+1. Uniqueness in its routing domain, consistency with interface/prefix/gateway,
+   and compatible ownership if sharing an IP across distinct listeners.
+2. A real owner and announcement/routing mechanism (e.g. interface ownership,
+   managed neighbor announcement, or routed prefix). NAT alone does not own a VIP.
+3. No collision with DHCP pools, reservations, active leases or existing listeners.
+   IP sharing requires identical owner semantics and disjoint listener matches.
+4. Generated dependencies create ownership and safe policy before exposure;
+   removal/reallocation revokes flows and stale state before address reuse.
+
+DHCP exclusions are generated only from reviewed address intent. A static pool
+check does not prove absence of an active lease: deploy preflight is required.
+IPv4/IPv6 allocations, overlapping VRFs and nested workloads are checked in their
+own domains; a global string comparison of IP addresses is insufficient.
+
+### D6. Universal concepts, evidence-qualified capabilities
+
+| Target | Representation | v1 qualification requirement |
+|---|---|---|
+| RouterOS container | Bridge/veth attachment + optional DNAT | Ownership, original-flow binding, routed and bridge paths |
+| Proxmox LXC/VM | Direct attachment + optional direct publication | Working host/guest/bridge enforcement, not a router-only assumption |
+| Linux Docker | Bridge or shared stack + optional host publication | Actual backend hooks, bind ownership, direct routing and host-local paths |
+| Nested Docker/LXC | Multiple attachments and transformations | End-to-end composition; never assume one NAT layer |
+| AWG/Tailscale routing workloads | Attachments + explicit route/tunnel policy | Allowed routes, peer/source validation and no forbidden WAN fallback |
+| Kubernetes/ingress/other runtime | Same conceptual questions | Deferred until discovery, identity, path and backend conformance contracts exist |
+
+These are modeling targets, **not a supported-platform certification matrix**.
+Use ADR 0106 capability checks and versioned conformance evidence, never object
+name matching. If a backend cannot enforce a required property, refuse the
+candidate or choose a stronger topology boundary; do not approximate silently.
+Host-network and same-kernel workloads are not independent security boundaries.
+
+For every path (L2, routed, host INPUT/OUTPUT, tunnel, direct backend, IPv6,
+offload/acceleration), a policy enforcement point or verified disablement must
+be demonstrated. A flag such as `firewall: true` does not establish enforcement.
+
+### D7. Small authoring surface, complete diagnostics
+
+Users author attachments, publications and policy bindings. They do not author
+compiler order numbers, anchors, derived addresses or provider resource IDs.
+
+All new fields above are a **proposed schema**, not valid current-project YAML.
+The implementation must register schemas, reference directions and capabilities
+before instance migration. Legacy flat inputs are accepted only if conversion
+is unambiguous; mixed/conflicting data blocks migration with an explanation.
+No auto-generated permit may be accepted merely to make a migration pass.
+
+Use stable semantic requirement IDs `NET-ATTACHMENT`, `NET-ADDRESS-OWNER`,
+`NET-POLICY-BINDING`, `NET-PATH-COVERAGE`, `NET-PROFILE` in design/evidence.
+Numeric diagnostic ranges previously suggested here are withdrawn pending a
+registry collision check and allocation in the implementation change.
+
+## Consequences and alternatives
+
+- One address belongs to one attachment or explicit frontend owner, not a
+  platform-dependent interpretation of a single field.
+- Policy is independent of delivery, while backends remain free to lower it
+  differently under ADR 0119.
+- This requires coordinated schemas, consumers, migration and evidence. Adding
+  YAML alone is not completion; no fixed hourly estimate is asserted.
+- Rejected: universal dual IPs, NAT-as-permission, automatic trust-level permits
+  in strict mode, per-platform duplicated intent models.
+- Deferred: runtime-specific mechanisms without an executable conformance suite.
+
+## Acceptance and references
+
+Architecture review may accept this contract separately from implementation.
+Strict readiness requires every gate in the
+[migration and acceptance plan](0118-analysis/MIGRATION-AND-ACCEPTANCE.md).
+The [assurance profile](0119-analysis/ASSURANCE-PROFILE.md) defines the bounded
+DoD/NIST alignment claim; it is not ATO, STIG compliance or formal certification.
+
+- [ADR 0119: verified lowering and application](0119-firewall-rule-ordering-contract.md)
+- [ADR 0110: legacy matrix semantics](0110-universal-network-zone-vlan-mechanism.md)
+- [ADR 0111: address derivation](0111-ip-address-derivation-from-vlan.md)
+- [ADR 0107: host defaults](0107-host-placement-defaults-and-on-directive.md)
+- [Joint review, 2026-09-09](../docs/reports/2026-09-09-adr0118-0119-joint-security-mathematics-review.md)

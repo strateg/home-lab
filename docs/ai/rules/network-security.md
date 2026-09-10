@@ -1,11 +1,17 @@
 ---
 "@pack": network-security
-"@version": 1.0
-"@tokens": ~600
-"@adr": [0109, 0110, 0111]
+"@version": 1.1
+"@tokens": ~1000
+"@adr": [0109, 0110, 0111, 0118, 0119]
 ---
 
 # AI Rule Pack: Network Security Matrix
+
+## Status boundary
+
+ADR 0109-0111 describe current legacy behavior. ADR 0118/0119 are **Proposed**:
+their strict profile and new schemas are not implemented. Do not insert proposed
+fields into active topology or claim strict enforcement from documentation gates.
 
 ## Quick Reference
 
@@ -43,7 +49,10 @@
 | R4 | Uphill (lower→higher level) | DENY |
 | R5 | Same security_level | DENY (needs override) |
 
-**Evaluation order:** R6 → R1 → R2 → R3/R4/R5
+**Evaluation order:** R6 → R1 → R2 → R3/R4/R5.
+The implemented internal enforcement plane uses R1b (same-zone deny); the
+perimeter plane uses R1 allow. R2 permits isolated-zone egress to untrusted,
+so isolated is not a universal egress deny.
 
 ## Trust Zones (SOHO Profile)
 
@@ -118,3 +127,40 @@ network:
 | `topology-tools/plugins/compilers/ip_derivation_compiler.py` | IP resolution |
 | `topology/object-modules/mikrotik/templates/terraform/zone_firewall.tf.j2` | Firewall generation |
 | `projects/home-lab/topology/instances/network/inst.security_matrix.mikrotik.yaml` | Active matrix |
+
+## Proposed intent/enforcement contract (ADR 0118/0119)
+
+Apply these as design constraints when implementing the proposal, not as claims
+about the legacy runtime:
+
+1. Separate L4 attachments, L5 publications and explicitly bound L2 policies.
+   Keep C->O->I, derived layers, downward refs and ADR 0107 host defaults.
+2. Delivery/NAT, trust level and connection state do not mint permissions.
+   Strict permits require explicit approval; mandatory deny wins, conflicting
+   authoring blocks compilation. Default deny is the absence of a permit.
+3. Runtime gateway derives from its attachment; frontend VIP needs real owner,
+   announcement and DHCP/lease/listener collision checks.
+4. Preserve original-flow authorization across NAT and all actual paths,
+   including host, bridge, direct backend, IPv6, tunnel and acceleration.
+5. One compiler-owned plan; generators render validated projections only.
+   Preserve six lifecycle stages and manifest exchanges.
+6. Canonical semantic order, not hash slots, producer priorities or specificity
+   scores. Unsupported semantics/capabilities block strict candidates.
+7. Safe transitions, bounded revocation, authorized rollback and actual device
+   read-back are required before claiming deployed correctness.
+8. Report source -> requirement -> flow/path witness -> minimal source fix ->
+   reproducer and digests. Keep design/offline/backend/live evidence distinct.
+9. No numeric diagnostic reservation until registry collision checks; no
+   DoD/STIG/ATO claim without tailored baseline and assessment evidence.
+
+See [ADR 0118](../../../adr/0118-universal-container-network-model.md),
+[ADR 0119](../../../adr/0119-firewall-rule-ordering-contract.md) and their
+supporting acceptance/assurance contracts.
+
+## Documentation validation
+
+- `task validate:adr-consistency`
+- `task validate:agent-rules`
+- `task validate:agent-rules-strict`
+
+These validate governance only; runtime acceptance remains the ADR gate matrix.

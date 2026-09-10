@@ -8,6 +8,22 @@
 - Related: ADR-0109 (Network Segmentation), ADR-0111 (IP Address Derivation), ADR-0063 (Plugin Microkernel), ADR-0074 (V5 Generator Architecture)
 - Implementation: [Network Security Implementation Plan](../docs/plans/network-security-implementation-plan.md)
 
+## Proposed strict-profile boundary (2026-09-10)
+
+[ADR 0118](0118-universal-container-network-model.md) and
+[ADR 0119](0119-firewall-rule-ordering-contract.md) propose a separate,
+explicitly versioned strict profile. They do not change this ADR's implemented
+R1-R6 behavior or enable a disabled backend. In particular, existing isolated
+zones can reach untrusted destinations under R2, and R3 grants downhill access.
+These are legacy semantics, not strict deny-by-default guarantees.
+
+Future adoption must explicitly select and validate the new profile, register
+its schemas and migrate all consumers for that scope. Missing profile selection
+in legacy inputs retains legacy behavior; a strict candidate cannot silently
+fall back. New strict grants require review rather than automatic conversion of
+trust-level-derived permissions. This note records the proposal relationship,
+not an implemented runtime feature or a supersession of this ADR.
+
 ## SPC Revision Note (2026-06-22)
 
 SPC Step 6 incorporates two architectural decisions (IP derivation moved to ADR-0111):
