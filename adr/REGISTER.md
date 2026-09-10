@@ -195,3 +195,7 @@
   Compliance claims remain bounded by the assurance profile.
 - ADR 0110 stays **Implemented**; its R1-R6 legacy behavior is unchanged, and the
   strict profile is not active anywhere.
+- Implementation planning followed in the same SPC cycle: the gate-by-gate
+  [implementation plan](0118-analysis/IMPLEMENTATION-PLAN.md) derives structure
+  from AD-01..AD-10, uses the gate as its unit, and records four open decisions
+  with owners. It authorizes no code, migration or deployment.

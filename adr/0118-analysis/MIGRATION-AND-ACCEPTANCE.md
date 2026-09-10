@@ -169,6 +169,9 @@ These are design boundaries, not an instruction to migrate or enable devices.
 | G7 Runtime | Positive/negative/failure tests on actual declared paths | Untested L2/IPv6/host/tunnel/offload path; unmet availability | Not run |
 | G8 Qualification | Backend/version profile, evidence pack and human risk approval | Missing HA requirement/evidence or stale baseline | Not qualified |
 
+The gate-by-gate implementation plan derived from these gates is in
+[implementation plan](IMPLEMENTATION-PLAN.md).
+
 G1-G4 precede migration of instances. All active consumers (IP derivation,
 matrix projection, RouterOS/Docker/Proxmox generators, docs, deploy) must switch
 together for a migrated scope; comparison mode does not authorize deployment.
