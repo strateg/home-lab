@@ -1,6 +1,6 @@
 # ADR 0119 — Formal contract and bounded proof obligations
 
-Status: normative supporting contract of the **Proposed** ADR 0119.
+Status: normative supporting contract of the **Accepted** ADR 0119 (gate G0a, 2026-09-10).
 No theorem below is a claim that the current runtime or live lab satisfies it.
 
 ## 1. Domain and assumptions

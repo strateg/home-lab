@@ -1,6 +1,6 @@
 # ADR 0118/0119 — authoring examples
 
-Status: illustrative companion to **Proposed rev 3.1**.
+Status: illustrative companion to **Accepted rev 3.1** (gate G0a, 2026-09-10).
 The [final architecture proposal](FINAL-ARCHITECTURE-PROPOSAL.md) defines meaning;
 the ADRs remain authoritative. These fragments are not accepted by current
 schemas and must not be copied into active topology before schema registration.

@@ -1,6 +1,7 @@
 # ADR 0118/0119 — Migration and acceptance
 
-Status: supporting plan for **Proposed** ADRs; no migration or live apply performed.
+Status: supporting plan for **Accepted** ADRs 0118/0119 (gate G0a closed 2026-09-10);
+no migration, backend qualification or live apply performed.
 Baseline: WSL repository `/home/nixos/workspaces/home-lab`, branch `development`,
 HEAD `c788237e379a32150ad328b2596cf86678981edc` (the revision-freeze commit).
 The earlier pointer `ce8018754db0bd28d67568a8f7fb755236c9d8a9` was its parent and
@@ -157,7 +158,7 @@ These are design boundaries, not an instruction to migrate or enable devices.
 
 | Gate | Deliverable | Must block on | Current evidence |
 |---|---|---|---|
-| G0a Architecture | Coherent ADR pair, route/NAT ownership, core authority, Terraform/Ansible boundary, scoped key semantics and independent review | Contradictions or unassigned hard requirements | Rewritten; human review pending |
+| G0a Architecture | Coherent ADR pair, route/NAT ownership, core authority, Terraform/Ansible boundary, scoped key semantics and independent review | Contradictions or unassigned hard requirements | **Closed 2026-09-10**: accepted after two applicability reviews; ADR 0118/0119 status Accepted |
 | G0b Assurance | Named owners for HA-01..HA-10, tailoring record, approved threat model and availability objectives | Any unnamed accountable owner; absent tailoring record | Not started; owner assignment is a human decision |
 | G1 Schema | Context-scoped network_intent_version, local-key grammar, typed collection relations, profiles, diagnostics and authoring budget check | Unknown/mixed versions; code collision; upward dependency; unexplained budget excess | Not implemented |
 | G2 Normalize | Legacy adapter, canonical intent and provenance; derive-review-freeze for candidates; no permit expansion | Ambiguous flat data, lost false/zero, mismatched gateways/owners, candidate rendered as a permit | Not implemented |
@@ -267,5 +268,5 @@ Findings from the SPC review of this revision, recorded in the
 
 See [revision evidence](REVISION-EVIDENCE-2026-09-10.md) for the commands run for
 the preceding revision, and the [rebuild record](SPC-REBUILD-2026-09-10.md) for
-this one. Passing those checks does not close A01-A23, G1-G8, backend support or
+this one. Passing those checks does not close A01-A24, G1-G8, backend support or
 compliance assessment.
