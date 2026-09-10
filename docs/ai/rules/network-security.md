@@ -1,6 +1,6 @@
 ---
 "@pack": network-security
-"@version": 1.1
+"@version": 1.4
 "@tokens": ~1000
 "@adr": [0109, 0110, 0111, 0118, 0119]
 ---
@@ -9,9 +9,13 @@
 
 ## Status boundary
 
-ADR 0109-0111 describe current legacy behavior. ADR 0118/0119 are **Proposed**:
-their strict profile and new schemas are not implemented. Do not insert proposed
-fields into active topology or claim strict enforcement from documentation gates.
+ADR 0109-0111 describe current legacy behavior and remain the **implemented**
+runtime. ADR 0118/0119 are **Accepted as target architecture** (gate G0a) but
+**not implemented**: gates G1-G8 are open, no backend is qualified, and the strict
+profile is active nowhere. Acceptance changes what to build toward, not what runs.
+Do not insert the new fields into active topology, do not treat `attachments` or
+`publications` as valid instance keys yet, and do not claim strict enforcement from
+documentation gates.
 
 ## Quick Reference
 
@@ -152,6 +156,36 @@ about the legacy runtime:
    reproducer and digests. Keep design/offline/backend/live evidence distinct.
 9. No numeric diagnostic reservation until registry collision checks; no
    DoD/STIG/ATO claim without tailored baseline and assessment evidence.
+10. Legacy R1-R6 outcomes are stated in the ADR 0118 D4.1 translation table.
+    R1a same-zone allow, R2 isolated egress and R3 downhill grant **nothing** in
+    strict; R6 overrides become reviewable candidates. A candidate never
+    authorizes traffic and is never rendered. Filling strict policies follows
+    derive -> review -> freeze, writing results back to sources.
+11. Workload/publication authors never override consumer-derived address/gateway,
+    routing domain, zone, rule positions/anchors, provider IDs or digests. L2
+    domain owners still declare their authoritative domain inputs. Repetition belongs on the object level; the instance surface is
+    measured against the authoring budget in the migration plan.
+12. On a default-allow backend the ADR 0110 final drop-all and `E7854` remain in
+    force; in strict it is the rendered terminal default deny, emitted by the plan
+    compiler and confirmed by read-back.
+
+13. Rev 3 uses named mappings, stable local identity and explicit disabled records;
+    list values replace as a whole. Static address uses address.allocation/host.
+14. Baseline policies are permit/binding_only or deny/scope_guard. Template alone
+    grants nothing; publication disable/delete revokes its binding, not other
+    grants. Original/frontend port coordinates remain distinct from backend mapping.
+15. Rev 3.1 assigns route/tunnel constraints and interface NAT to L2; L4 realization
+    points down to L2 endpoints. Existing VPN remains versioned legacy until
+    extension qualification; shared chains still require proven composition.
+16. Backend-neutral plan authority belongs to framework/core, not platform objects;
+    this is ownership, not an ADR 0086 runtime ACL. Preserve Terraform/Ansible
+    resource domains and ADR 0057 RouterOS ownership; transfers require an ADR change.
+17. Local keys belong to class schemas, not ADR 0088 metadata tokens. Nested
+    schema_version uses distinct network_intent_version contexts at G1; no global
+    remapping to @version. Typed collection refs need one canonical contract.
+18. Design approval covers the [final architecture proposal](../../../adr/0118-analysis/FINAL-ARCHITECTURE-PROPOSAL.md),
+    not plugin count, backend order or implementation sequence. Resource ownership
+    and independent management/recovery requirements are architectural constraints.
 
 See [ADR 0118](../../../adr/0118-universal-container-network-model.md),
 [ADR 0119](../../../adr/0119-firewall-rule-ordering-contract.md) and their

@@ -27,16 +27,32 @@ Set subtraction defines authorization for reasoning and future normalization;
 it does not authorize silently trimming a mistaken permit in v1.
 Default deny is outside `P_e`, not an element of `D_e`.
 
+Baseline policy activation is permit/binding_only or deny/scope_guard. Missing
+binding is no grant. Publication disable/delete removes its bound permit from
+the next desired epoch, not the reusable template or independent bindings.
+Live revocation is a time-bounded transition, not a property of source editing.
+Approval is tied to resolved semantics, not merely owner/rationale fields.
+A scope guard uses concrete L2 selectors with an explicit original/current
+tuple view and execution context. Evaluate all applicable views along the flow
+path; a frontend restriction cannot silently become a backend-subnet restriction.
+
 For a publication, its eligible flows are the intersection of its port/direction/
 frontend mapping, referenced permit and service restrictions. A standalone L2
 permit template is not automatically emitted as a second broad accept when
-used through a publication binding. Explicit independent network bindings are
+used through a publication binding. Policy ports are evaluated in original
+client-facing coordinates; backend port mapping is a transformation. Empty
+resolved intersections are rejected. Explicit independent network bindings are
 reviewed separately; they must not unintentionally broaden a publication.
 
 Threats include compromised endpoints, spoofing, lateral movement, identity
 staleness, bypass paths, generator defects, stale conntrack, drift and partial
 apply. Trusted assumptions (kernel, enforcer, compiler, identity authority,
 cryptographic roots and physical control) are recorded with evidence.
+L2 route constraints and interface-scoped NAT carry no grants. Feasible paths
+include tunnel failure/fallback and proxy control-plane traffic, not just service
+publications. Versioned legacy/strict scope labels do not prove independence of
+shared execution contexts. Disabled/planned intent remains in requirement inventory,
+but is not part of active permits or evidence of installed enforcement.
 Compromise of that trusted base and covert channels need additional controls.
 
 ## 2. Obligations

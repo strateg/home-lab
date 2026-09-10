@@ -1,12 +1,20 @@
 # ADR 0119: Firewall Rule Ordering Contract
 
-- Status: Proposed
+- Status: Accepted
+- Revised: 2026-09-10 rev 3.1 (applicability review: ownership, routing/NAT, contexts and migration scope)
+- Revised: 2026-09-10 rev 3 (final architecture proposal; implementation choices deferred)
 - Date: 2026-09-09
 - Revised: 2026-09-10 (authorization-preserving compilation and verified application)
+- Revised: 2026-09-10 rev 2 (SPC rebuild: plan ownership vs enforcer scope, legacy
+  terminal-rule obligation, provisional diagnostic identity; no decision withdrawn)
 - Related: ADR-0086, ADR-0090, ADR-0094, ADR-0110, ADR-0118
 - Scope: Lowering network intent into deterministic, verified enforcement plans
 - Implementation: Not implemented; no backend has qualified under this contract
 - Analysis: [Formal obligations](0119-analysis/FORMAL-CONTRACT.md), [assurance profile](0119-analysis/ASSURANCE-PROFILE.md)
+
+- Final design: [Architecture proposal](0118-analysis/FINAL-ARCHITECTURE-PROPOSAL.md)
+- Historical implementation exploration (not adopted): [Analysis](0118-analysis/FINAL-IMPLEMENTATION-PROPOSAL.md),
+  [verification evidence](0118-analysis/FINAL-PROPOSAL-EVIDENCE-2026-09-10.md)
 
 ## Context
 
@@ -31,11 +39,34 @@ topology intent -> normalized security intent -> enforcement plan
                -> guarded apply -> observed-state evidence
 ```
 
-One security-plan compiler owns the canonical plan, including filter, NAT,
-routing, state and dispatch dependencies. Source compilers may publish declared
+One logical security-plan authority owns the canonical plan, including filter, NAT,
+routing, state and dispatch dependencies. Backend-neutral semantics belong to
+framework/core; platform object modules own capabilities and lowering/rendering,
+not a second derivation of zone membership, grants or conflicts. Backend-specific
+requirements enter through declared contracts before validation. This is ownership,
+not a runtime visibility ACL; ADR 0086 remains in force.
+Source compilers may publish declared
 intent fragments; generators render the validated plan and do not create
 independent permits, reorder it, or rediscover topology. Device baseline and VPN
 rules must participate too. Unknown pre-existing rules are not assumed harmless.
+
+**Plan ownership does not replace enforcer ownership.** ADR 0110's M1-B rule
+stands: one security matrix instance names exactly one enforcer through
+`managed_by_ref`, and that reference keeps meaning the scope a device enforces.
+What changes is that the ordering algorithm is no longer per-matrix. The relation
+is one logical plan authority producing one projection per enforcer:
+
+```text
+intent fragments (matrices, publications, baseline, VPN)
+   -> one logical security-plan authority
+      -> per-enforcer plan projection (scope = that enforcer's managed_by_ref)
+         -> backend rendering
+```
+
+Two enforcers therefore keep independent rule sets and independent capability
+qualification, while overlapping or conflicting intent between them is resolved
+once in the plan semantics, instead of by whichever generator ran last. Nothing here
+enables a disabled enforcer or merges two enforcement planes.
 
 For every accepted flow there must be a current explicit permit and no applicable
 mandatory deny. Required legitimate flows must also work: blocking everything is
@@ -79,7 +110,10 @@ All plugin exchanges use `depends_on`, `consumes`, `produces`; stage affinity
 and ADR 0097 snapshot/envelope rules remain unchanged. Validation gates block
 downstream artifacts for invalid candidates. Diagnostics may still be produced.
 Deploy/reconcile is outside these six compiler stages and uses ADR 0090 runners
-with immutable bundle input; it is not a seventh compiler stage.
+with immutable bundle input; it is not a seventh compiler stage. The number and
+identity of plugins/processes and concrete API calls remain implementation choices.
+Moving semantic authority into a platform object or changing Terraform/Ansible
+resource ownership is an architectural change, not such a choice.
 
 ### D4. Deterministic order without semantic guessing
 
@@ -108,6 +142,16 @@ lower and upper ordering constraints. Anchor support itself must be verified.
 Terraform dependency order is not a proof of the device's packet-processing
 order. The final read-back must normalize to the intended plan.
 
+On a default-allow backend the terminal deny is a backend obligation, not an
+optional rule. ADR 0110's mandatory final drop-all and its `E7854` check remain in
+force for RouterOS; in this contract that rule is the rendering of the reachable
+terminal default deny required by the formal contract, it is emitted by the plan
+compiler rather than by a template, and read-back must confirm that no executable rule
+follows it within the corresponding managed sequence. This is not a global
+last-resource position across the entire device. Earlier accepts, external
+dispatch and adjacent contexts must not bypass the scope; they require separate
+path evidence. The legacy final-drop requirement remains unchanged.
+
 ### D5. NAT, state and bypasses do not mint permissions
 
 - Publication authorization binds original source, frontend, protocol, ports,
@@ -134,7 +178,16 @@ in this ADR does not make a RouterOS, Docker or Proxmox implementation support i
 
 ### D6. Safe transition and observed-state contract
 
-DeployRunner must implement a capability-qualified state machine:
+Deployment orchestration through the existing runner boundary must satisfy a
+capability-qualified state machine; this does not prescribe a new runner,
+controller or concrete backend commands. Preserve Terraform infrastructure
+ownership and Ansible OS/service/runtime ownership; RouterOS post-bootstrap
+desired configuration remains Terraform-owned under ADR 0057. Orchestration owns
+sequencing, observation and evidence, not a second desired-state writer.
+State/guard mutations must be delegated by the resource-domain owner with explicit
+reconciliation. Transferring ownership away from Terraform requires a separate
+architectural amendment to ADR 0057/0119; inability to meet transition guarantees
+blocks qualification rather than authorizing an unreviewed workaround:
 
 ```text
 candidate -> preflight -> staged/guarded -> activated
@@ -145,7 +198,10 @@ candidate -> preflight -> staged/guarded -> activated
 Preflight verifies bundle integrity, review authorization, expected current plan,
 device/backend versions, exclusive writer/lease, clock/identity freshness, address
 ownership and active lease conflicts. OOB management and a tested recovery plan
-are required before any potentially locking change.
+are required before any potentially locking change. L7 recovery intent identifies
+the L1/L2 management path and independent failure domain; management-zone UI over
+the same affected router is not evidence of OOB. Missing independent recovery
+prerequisites block activation.
 
 Stage atomically where supported. Otherwise install verified restrictive guards,
 revoke stale sessions and change rules/addresses in a bounded sequence. Never
@@ -165,7 +221,10 @@ must still detect drift outside the managed chain that can bypass it.
 Rollback is not permission to resurrect revoked grants. Restore only a plan
 still authorized by the current security epoch, otherwise retain restrictive
 guards and require operator recovery. Automatic rollback that reopens access
-is forbidden. Unexpected writer/drift or evidence failure blocks completion.
+is forbidden. Unexpected writer/drift or evidence failure blocks completion. Each resource has
+one writer; transferring ownership is an explicit guarded transition, never
+concurrent competing management. Author, approver, scope owner and writer are
+distinct responsibilities even if one operator holds several roles.
 
 ### D7. Human and AI feedback use the same evidence
 
@@ -190,6 +249,9 @@ Semantic obligation IDs `SEC-AUTH`, `SEC-AVAIL`, `SEC-PATH`, `SEC-NAT`,
 `SEC-ORDER`, `SEC-STATE`, `SEC-TRANSITION` are specified in the
 [formal contract](0119-analysis/FORMAL-CONTRACT.md). Allocate numeric diagnostics
 centrally with collision tests at implementation time, not in speculative tables.
+Before that allocation a diagnostic is identified by its obligation ID plus a
+provisional prefixed code, so tooling and reports have a stable key without
+occupying a numeric range that ADR 0110 and ADR 0111 already use.
 
 ## Consequences and acceptance
 
@@ -201,7 +263,10 @@ A full solver for arbitrary platform code is not required: begin with a bounded,
 typed subset and reject unsupported semantics. Small reference-model tests,
 differential backend tests and live tests have distinct claims.
 
-Acceptance of architecture requires a coherent threat model and formal contract.
+Acceptance of architecture requires the coherent threat model, formal contract
+and decisions AD-01..AD-10 in the [final architecture proposal](0118-analysis/FINAL-ARCHITECTURE-PROPOSAL.md).
+Backend selection, plugin decomposition and implementation sequence are not part
+of this approval.
 Implementation readiness requires the
 [shared acceptance gates](0118-analysis/MIGRATION-AND-ACCEPTANCE.md) and
 [assurance profile](0119-analysis/ASSURANCE-PROFILE.md).

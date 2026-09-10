@@ -119,8 +119,8 @@
 | [0115](0115-incremental-hash-based-deploy-idempotency.md) | Incremental Hash-Based Deploy Idempotency Contract | Proposed | 2026-08-02 | - | - |
 | [0116](0116-peripheral-device-model-and-connection-type-hierarchy.md) | Peripheral Device Model and Connection-Type Hierarchy | Implemented | 2026-09-06 | - | - |
 | [0117](0117-iot-endpoint-layer-mixing-technical-debt.md) | IoT Endpoint Layer Separation | Implemented | 2026-09-06 | - | - |
-| [0118](0118-universal-container-network-model.md) | Universal Container Network Model | Proposed | 2026-09-09 | - | - |
-| [0119](0119-firewall-rule-ordering-contract.md) | Firewall Rule Ordering Contract | Proposed | 2026-09-09 | - | - |
+| [0118](0118-universal-container-network-model.md) | Universal Container Network Model | Accepted | 2026-09-09 | - | - |
+| [0119](0119-firewall-rule-ordering-contract.md) | Firewall Rule Ordering Contract | Accepted | 2026-09-09 | - | - |
 
 ## ADR 0118/0119 revision — 2026-09-10
 
@@ -134,3 +134,64 @@
   [formal obligations](0119-analysis/FORMAL-CONTRACT.md),
   [assurance profile](0119-analysis/ASSURANCE-PROFILE.md).
 - No topology migration, backend qualification or compliance approval is implied.
+
+## ADR 0118/0119 revision 2 — 2026-09-10 (SPC rebuild)
+
+- ADR 0118 stays **Proposed**: adds D4.1 legacy-to-strict translation, a
+  derived-field contract and D8 making the authoring surface a measured property.
+- ADR 0119 stays **Proposed**: states plan ownership against ADR 0110's M1-B
+  enforcer ownership and restores the explicit terminal-deny obligation.
+- ADR 0110 stays **Implemented**; its R1-R6 behavior and `managed_by_ref`
+  semantics are unchanged and now referenced explicitly by the proposal.
+- Change record: [SPC rebuild](0118-analysis/SPC-REBUILD-2026-09-10.md).
+- Still no migration, backend qualification, deployment or compliance approval.
+
+## ADR 0118/0119 implementation analysis — 2026-09-10
+
+- [Final implementation proposal](0118-analysis/FINAL-IMPLEMENTATION-PROPOSAL.md)
+  and [reproducible evidence](0118-analysis/FINAL-PROPOSAL-EVIDENCE-2026-09-10.md).
+- Recommends named source mappings, explicit binding lifecycle, two compiler
+  plugins and a qualified transaction-based pilot; records baseline failures.
+- Analysis only: these refinements are not adopted into normative rev 2 yet.
+  Both ADRs remain **Proposed**; no runtime change, migration or deployment.
+
+## ADR 0118/0119 revision 3 — final architecture proposal, 2026-09-10
+
+- Both ADRs remain **Proposed**; [final architecture proposal](0118-analysis/FINAL-ARCHITECTURE-PROPOSAL.md)
+  is the current design review target, with synchronized examples/formal contract.
+- Resolves named identity/inheritance, allocation ownership, binding lifecycle,
+  original/frontend coordinate semantics, bounded profile and writer responsibilities.
+- Supersedes rev 2 array authoring sketches and blanket consumer/domain input
+  confusion. Earlier implementation exploration is historical and not adopted.
+- No plugin count, backend priority, execution tool, code change or deployment
+  is approved by this design revision. Human architectural acceptance is pending.
+
+## ADR 0118/0119 revision 3.1 — applicability corrections, 2026-09-10
+
+- [Final proposal](0118-analysis/FINAL-ARCHITECTURE-PROPOSAL.md) updated from the
+  [rev 3 applicability review](../docs/reports/2026-09-10-adr0118-0119-rev3-applicability-review.md).
+- [Review response and evidence](0118-analysis/REV3-APPLICABILITY-RESPONSE.md)
+  records accepted conditions, qualified claims and fresh static counts.
+- Adds route/tunnel/interface-NAT ownership, downward runtime realization,
+  framework/core semantic authority and the existing Terraform/Ansible boundary.
+- Clarifies scoped network version keys, local-key grammar, zone migration,
+  planned-intent visibility, shared-chain composition and OOB prerequisites.
+- Runtime, topology and generated artifacts are unchanged by the revision itself.
+
+## ADR 0118/0119 architecture acceptance — 2026-09-10 (gate G0a)
+
+- Both ADRs move from **Proposed** to **Accepted**: the architecture contract
+  AD-01..AD-10 is adopted as the project's target network model.
+- Basis: [rev 3.1 applicability review](../docs/reports/2026-09-10-adr0118-0119-rev31-applicability-review.md),
+  which found all five rev 3 conditions closed, plus the
+  [SPC acceptability review](../docs/reports/2026-09-10-adr0118-0119-spc-acceptability-review.md).
+- Two remaining documentation defects were corrected before acceptance: the legacy
+  upward `container_ref` inventory is 6 files, not 4, and authored `routing_mark`
+  appears in 9 files, both now in the migration plan section 2C; acceptance scenario
+  A24 makes single-source derivation of zone membership and `vlan_cidr_map` checkable.
+- **What acceptance does not mean.** Gate G0b (named owners for HA-01..HA-10 and the
+  tailoring record) is **not** closed. Gates G1-G8 are open, A01-A24 are unclosed, no
+  backend is qualified, and no deployment, migration or device change is authorized.
+  Compliance claims remain bounded by the assurance profile.
+- ADR 0110 stays **Implemented**; its R1-R6 legacy behavior is unchanged, and the
+  strict profile is not active anywhere.
