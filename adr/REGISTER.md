@@ -199,3 +199,13 @@
   [implementation plan](0118-analysis/IMPLEMENTATION-PLAN.md) derives structure
   from AD-01..AD-10, uses the gate as its unit, and records four open decisions
   with owners. It authorizes no code, migration or deployment.
+
+## ADR 0118/0119 implementation-plan review — 2026-09-11
+
+- [Plan revision 2](0118-analysis/IMPLEMENTATION-PLAN.md) replaces the unsupported
+  independent-prework claim and missing I01-I41 registry with W01-W12 dependencies.
+- [Review](0118-analysis/IMPLEMENTATION-PLAN-REVIEW-2026-09-11.md) records findings,
+  baseline evidence and corrections: numeric diagnostics at G1, pre-validation
+  specialization, immutable bundle closure at G4, scoped conformance and safe ownership.
+- ADRs remain **Accepted**, implementation unimplemented; G0b/G1-G8 and A01-A24
+  are not closed by this documentation review. No source migration or deployment.

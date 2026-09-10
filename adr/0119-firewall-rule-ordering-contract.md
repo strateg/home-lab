@@ -16,6 +16,9 @@
 - Historical implementation exploration (not adopted): [Analysis](0118-analysis/FINAL-IMPLEMENTATION-PROPOSAL.md),
   [verification evidence](0118-analysis/FINAL-PROPOSAL-EVIDENCE-2026-09-10.md)
 
+- Implementation planning: [Reviewed gate plan](0118-analysis/IMPLEMENTATION-PLAN.md),
+  [review and corrections, 2026-09-11](0118-analysis/IMPLEMENTATION-PLAN-REVIEW-2026-09-11.md)
+
 ## Context
 
 Independent matrix, publication, VPN and baseline generators currently compete
