@@ -1088,14 +1088,14 @@ def _extract_containers(
                 "logging": True,
                 "comment": "AWG-Proxy container...",
                 "veth_name": "veth-awg-ru",
-                "veth_address": "172.18.22.2/30",
-                "veth_gateway": "172.18.22.1",
+                "veth_address": "198.51.100.2/30",
+                "veth_gateway": "198.51.100.1",
                 "envs": [
                     {"key": "AWG_LISTEN", "value": ":51820", "is_secret": False},
                     {"key": "AWG_REMOTE", "var_name": "awg_proxy_russia_awg_remote", "is_secret": True},
                     ...
                 ],
-                "managed_by_ref": "rtr-mikrotik-chateau",
+                "managed_by_ref": "rtr-example",
             }
         ]
     """

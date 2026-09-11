@@ -337,11 +337,12 @@ yielding the same output.
 W01 measured one narrow suite and brought it to 33/33. The wider baseline is
 worse, and recording it here keeps a later green run from being read as progress
 it did not make. All of the following reproduce at `c788237e`, before any
-implementation work in this cycle.
+implementation work in this cycle. All three are now closed; the section stays as
+the record of what the baseline actually was.
 
 | Symptom | Status |
 |---|---|
-| `tests/plugin_contract/test_plugin_level_boundaries.py`: hardcoded product name and local URL host in mikrotik object plugins, 2 failures | Open, unowned |
+| `tests/plugin_contract/test_plugin_level_boundaries.py`: hardcoded product name and private address in the mikrotik projection, 2 failures. Both were inside a docstring illustrating a return shape, not in logic | **Fixed 2026-09-11** by moving the example to documentation-reserved values. Artifacts verified unchanged |
 | `tests/plugin_integration/test_session_compile_fixture.py`: 4 errors, the session fixture compiled without `--diagnostics`, so the effective-json owner resolved to disabled and the file it then read was never written | **Fixed 2026-09-11**; same trap as the netmodel snapshot task hit |
 | `tests/plugin_integration/test_tuc0003_mikrotik_v2.py::test_generator_contains_topology_and_runtime_markers`: the test's own fixture declared VLANs without a `vlan_id`, and the payload carries no objects map to default it from, so the template correctly skipped them and the test then demanded them | **Fixed 2026-09-11** by declaring segment addressing on the fixture's instances. Generation was never at fault: the real artifact emits nine `routeros_interface_vlan` resources, one per non-native VLAN |
 
