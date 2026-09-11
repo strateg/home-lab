@@ -6,6 +6,15 @@ tasks:
     cmds:
       - "{{.PYTHON}} scripts/validation/validate_repo_hygiene.py"
 
+  artifact-parity:
+    desc: Compare two generated artifact trees, excluding declared non-semantic fields (W13)
+    summary: |
+      Usage: task validate:artifact-parity BASELINE=<dir> CANDIDATE=<dir>
+      Generated output is gitignored, so git status proves nothing about it.
+      This compares content hashes of every emitted file.
+    cmds:
+      - "{{.PYTHON}} scripts/validation/compare_artifacts.py {{.BASELINE}} {{.CANDIDATE}}"
+
   workspace-layout:
     desc: Validate root workspace layout (no legacy version roots)
     cmds:

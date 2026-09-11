@@ -279,10 +279,26 @@ Two causes, and only the first is benign.
 That is expected, but it means an artifact comparison is meaningless until the
 declared non-semantic fields are excluded, and today no such list exists.
 
-The three `.state/artifact-plans/*.json` files differed in one pair of runs and
-not in another, listing different `host_vars` paths as obsolete. That points at
-ordering or directory-listing dependence rather than timestamps, and it is
-intermittent, so a single passing comparison proves nothing.
+The three `.state/artifact-plans/*.json` files vary between runs, listing
+different paths as obsolete. **Root cause found 2026-09-11.**
+`topology-tools/plugins/generators/artifact_contract.py:324` computes the obsolete
+set from a live scan of the output root, while sibling generators are writing into
+that same root. Under parallel plugin execution what counts as already-present
+therefore depends on scheduling. Measured over five runs of identical sources:
+`object.orangepi.generator.bootstrap.json` took four distinct values, the mikrotik
+and proxmox plans two each. With `--no-parallel-plugins` the three become stable
+and only the timestamped manifest varies, which isolates the cause to the race
+rather than to the generators' own logic.
+
+The classification is also wrong, not merely unstable: a file another generator
+has just written in this run is not an obsolete leftover of a previous one.
+
+Candidate fixes, for the owner to choose:
+snapshot the output root once before the generate stage and have generators
+consume it, which fixes the race and makes "obsolete" mean what it says;
+or derive the obsolete set from the declared artifact plans instead of the
+filesystem, which is stronger and larger. Serialising the stage hides the race at
+the cost of parallelism and is not a fix.
 
 G4 exits on deterministic artifacts and differential tests. Neither is checkable
 while the same input can produce two outputs, so this is a prerequisite to G4
@@ -294,6 +310,14 @@ judgement; repeated generation of one source producing byte-identical output
 outside that list, demonstrated over enough runs to catch an intermittent case;
 the ordering dependence identified and removed at its source rather than papered
 over by sorting the comparison.
+
+**Partially delivered 2026-09-11.** `scripts/validation/compare_artifacts.py` and
+`task validate:artifact-parity` provide the comparison, applying the exclusion by
+name and printing the justification with it. The artifact plans are deliberately
+not excluded: hiding them would remove the only visible symptom of the race. The
+tool currently reports parity for serial runs and a difference for parallel ones,
+which is the correct answer in both cases. The remaining exit condition is the
+race itself.
 
 Not in W13: changing what any artifact contains. This is about the same input
 yielding the same output.
