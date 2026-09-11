@@ -690,6 +690,48 @@ it belongs in the semantic-difference row. The error was caught by the test
 asserting it, not by rereading the table - which is the argument for pinning a
 characterization in tests rather than in prose.
 
+**Strict resolution with provenance, 2026-09-11: `netmodel/resolve.py`.** G2 asks
+for a source map - not only what an address resolved to, but which authored field,
+inherited default or derived rule produced it. Without that, reviewing a generated
+address has nothing to check it against.
+
+Precedence is explicit and recorded: authored beats object default beats host
+default (`@on:host.X`), and the losers are kept on the resolved value so a
+reviewer sees what was overridden rather than inferring it from absence. Layer
+order in the call does not affect the result - precedence is a property of the
+origin - and that is asserted rather than assumed. A key a layer does not mention
+leaves the layer below in place; `None` is not a value, because a source that
+means "remove this" says `enabled: false`.
+
+Derived values carry `DERIVED` provenance naming the domain and the rule, never
+an authored origin - a source map that sent a reviewer looking for a field the
+schema forbids would be worse than none. The authored request is kept as what the
+derivation replaced, so the intent sits beside the result.
+
+Refusal, never fallback, and each is a test: an unmodeled network, a missing
+`network_ref`, a static request against a prefixless domain, a static request
+with no offset, an address that is not an object. A dynamic allocation resolves to
+no address rather than an invented one, and a domain with no gateway yields none
+rather than the first usable address - which is precisely what the legacy path
+defaulted to, unconditionally, producing gateways outside their own network on
+every shifted subnet.
+
+G2's listed cases are covered: /24, /23 in both halves, shifted /25, /30, the
+network and broadcast offsets, an offset past the end, and one that does not exist
+in a shifted subnet.
+
+**The differential says the replacement changes nothing live.** All 23 addresses
+the pipeline currently renders were resolved through the strict resolver and
+compared: identical, every one inside its own network, gateways included. That is
+the evidence that mounting this does not move a deployed address - not an argument
+that it should not.
+
+*Method note.* The first version of that differential read `resolved_ip`; the
+field is `_resolved_ip`, so it compared nothing and would have passed vacuously.
+It was caught by the guard asserting a minimum comparison count, which is now the
+rule for any differential here: assert that it examined something, or it is not
+evidence.
+
 **Correction to that instruction (revision 4a).** It presumed those codes are
 registered. At baseline `493867d5` they are not. The canonical registry is
 `topology-tools/data/error-catalog.yaml`, indexed by `docs/diagnostics-catalog.md`,

@@ -122,3 +122,83 @@ def test_migrating_the_overlays_would_close_the_delta(model) -> None:
         derived[zone] |= set(overlay_cidrs)
 
     assert derived == rendered
+
+
+# --- address resolution against the live topology -----------------------------
+
+
+def test_the_strict_resolver_reproduces_every_live_address(model) -> None:
+    """The forcing function for W04.
+
+    Every address domain in the topology is an unshifted /24, where last-octet
+    arithmetic and offset arithmetic agree. The compiler's derivation and the
+    strict resolver must therefore produce identical addresses today - and if they
+    do not, one of them is wrong about a source that is currently deployed, which
+    is worth knowing before anything is migrated.
+
+    This is not a test of the legacy path's correctness. It is a test that the
+    replacement does not silently change a live address while the two agree.
+    """
+    import ipaddress
+
+    from netmodel.domains import AddressDomain
+    from netmodel.resolve import Layer, Origin, resolve_attachment
+
+    domains = {domain.domain_id: domain for domain in read_domains(model)}
+    assert domains, "no address domains in the snapshot"
+
+    compared = 0
+    for group, rows in model.get("instances", {}).items():
+        if not isinstance(rows, list):
+            continue
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            data = row.get("instance_data")
+            network = data.get("network") if isinstance(data, dict) else None
+            if not isinstance(network, dict):
+                continue
+
+            # The compiler writes its derived values under a leading underscore.
+            # Reading the wrong key makes this test pass by skipping everything,
+            # which is what the `compared` guard below exists to catch.
+            rendered = network.get("_resolved_ip") or network.get("ip")
+            network_ref = network.get("vlan_ref") or network.get("bridge_ref") or network.get("network_ref")
+            host = network.get("host")
+            if not (isinstance(rendered, str) and isinstance(network_ref, str)):
+                continue
+            if not isinstance(host, int) or isinstance(host, bool):
+                continue
+            if network_ref not in domains:
+                continue
+
+            resolved = resolve_attachment(
+                owner=row.get("instance_id", "?"),
+                local_key="primary",
+                layers=(
+                    Layer(
+                        origin=Origin.AUTHORED,
+                        source_ref=row.get("instance_id", "?"),
+                        values={"network_ref": network_ref, "address": {"allocation": "static", "host": host}},
+                    ),
+                ),
+                domains=domains,
+            )
+
+            assert resolved.address is not None
+            expected = rendered.split("/")[0]
+            assert resolved.address.value == expected, (
+                f"{row.get('instance_id')}: pipeline rendered {expected}, "
+                f"strict resolver derives {resolved.address.value} "
+                f"for host {host} in {domains[network_ref].prefix}"
+            )
+            assert ipaddress.ip_address(resolved.address.value) in domains[network_ref].prefix
+
+            rendered_gateway = network.get("_resolved_gateway")
+            if isinstance(rendered_gateway, str) and domains[network_ref].gateway is not None:
+                assert resolved.gateway is not None
+                assert resolved.gateway.value == rendered_gateway
+
+            compared += 1
+
+    assert compared >= 10, f"only {compared} live addresses compared; the differential is not exercising anything"
