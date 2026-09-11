@@ -185,3 +185,85 @@ def test_the_characterization_document_exists_and_names_the_function() -> None:
 
     assert "_resolve_ip" in text
     assert "latent" in text
+
+
+# --- the derived values reach nothing ------------------------------------------
+
+
+def test_the_derived_values_are_consumed_by_nothing_but_tests() -> None:
+    """Pinned, because the day this changes the defects above become live.
+
+    A generator that starts reading `_resolved_ip` inherits every failure mode in
+    the characterization without anyone touching the compiler. Today nothing
+    reads it, which is why a v2 migration cannot change a rendered address - and
+    that is worth knowing loudly rather than rediscovering.
+    """
+    roots = [REPO_ROOT / "topology-tools", REPO_ROOT / "topology", REPO_ROOT / "scripts"]
+    patterns = ("*.py", "*.j2", "*.yaml", "*.tf")
+
+    readers: list[str] = []
+    for root in roots:
+        for pattern in patterns:
+            for path in root.rglob(pattern):
+                if path == COMPILER:
+                    continue  # the producer
+                text = path.read_text(encoding="utf-8", errors="ignore")
+                if "_resolved_ip" in text or "_resolved_gateway" in text:
+                    readers.append(path.relative_to(REPO_ROOT).as_posix())
+
+    assert readers == [], (
+        f"{readers} now read the legacy derivation's output. Its arithmetic is "
+        "characterized as defective for any non-/24 or shifted network; see "
+        "adr/0118-analysis/W04-IP-DERIVATION-CHARACTERIZATION.md before relying on it."
+    )
+
+
+def test_no_derived_address_reaches_an_artifact() -> None:
+    """Checked address by address, not inferred from a count.
+
+    Two of the 23 do appear in artifacts, and both are there because they are
+    written literally in sources. Counting matches without checking why would
+    have reported those as evidence that the derivation feeds generation.
+    """
+    if not SNAPSHOT.exists():
+        pytest.skip(f"{SNAPSHOT} absent; run `task netmodel:snapshot` first")
+
+    artifacts = REPO_ROOT / "generated"
+    if not artifacts.exists():
+        pytest.skip("generated/ absent; nothing to search")
+
+    model = json.loads(SNAPSHOT.read_text(encoding="utf-8"))
+    derived: list[tuple[str, str]] = []
+    for rows in model.get("instances", {}).values():
+        if not isinstance(rows, list):
+            continue
+        for row in rows:
+            data = row.get("instance_data")
+            network = data.get("network") if isinstance(data, dict) else None
+            resolved = network.get("_resolved_ip") if isinstance(network, dict) else None
+            if isinstance(resolved, str):
+                derived.append((row.get("instance_id", "?"), resolved.split("/")[0]))
+
+    assert len(derived) >= 20, f"only {len(derived)} derived addresses found; the snapshot is not exercising this"
+
+    corpus = "\n".join(
+        path.read_text(encoding="utf-8", errors="ignore")
+        for path in artifacts.rglob("*")
+        if path.is_file()
+    )
+    sources = "\n".join(
+        path.read_text(encoding="utf-8", errors="ignore")
+        for root in (REPO_ROOT / "topology", REPO_ROOT / "projects")
+        for path in root.rglob("*.yaml")
+    )
+
+    unexplained = [
+        (instance, address)
+        for instance, address in derived
+        if address in corpus and address not in sources
+    ]
+
+    assert not unexplained, (
+        "these derived addresses appear in artifacts and are not written literally in any source, "
+        f"so something is consuming the derivation after all: {unexplained}"
+    )

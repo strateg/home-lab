@@ -241,6 +241,24 @@ It has not been changed. There are no output deltas to review while that stays
 true, and the plan requires legacy repair to be its own reviewed change. A guard
 test fails the moment a source introduces a non-/24 or shifted network.
 
+**Its derived values are consumed by nothing.** `_resolved_ip` and
+`_resolved_gateway` are written into the row and read by no generator, template,
+assembler or builder; `ip_derivation_stats` is published and consumed by nobody.
+Of the 23 addresses it derives, 21 appear in no artifact, and the two that do are
+there because they are written literally in sources — checked one at a time, not
+inferred from a count.
+
+The plugin still does useful work: `E7861`–`E7865` catch duplicate hosts, the
+reserved gateway offset, out-of-range hosts and mixed patterns. It is the
+derivation product that is unconsumed, not the plugin.
+
+This bounds two things. A migration of a source to v2 **cannot change a rendered
+address**, because no rendered address comes from here — so artifact parity across
+such a migration is evidence about the rest of the pipeline, not about addressing.
+And the moment anything starts reading those values, every failure mode above
+becomes live without the compiler changing at all; a test pins the current
+non-consumption so that day is visible.
+
 ---
 
 ## 8. Current state
@@ -263,3 +281,4 @@ across every emitted file.
 | Date | Commit | What changed here |
 |---|---|---|
 | 2026-09-11 | `a4112d5c` | First version: sections 1–8 as implemented through the compiler mount |
+| 2026-09-11 | `8a04dd15` | Section 7: the legacy derivation's output reaches nothing, measured address by address; what that bounds for migration |

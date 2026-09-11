@@ -101,6 +101,44 @@ That is the argument for a guard rather than an immediate rewrite. A rewrite
 changes rendered addresses for sources that do not exist yet; a guard makes the
 silent case loud the moment it stops being hypothetical.
 
+## The derived values are not consumed
+
+Measured 2026-09-11, and it changes what any of this costs.
+
+`_resolved_ip` and `_resolved_gateway` are written into the row's network block
+and read by nothing: not a generator, a template, an assembler or a builder. The
+only readers in the tree are tests - the plugin's own, and the differential added
+for W04. `ip_derivation_stats` is published, declared in the manifest, and
+consumed by nobody.
+
+Of the 23 addresses the derivation produces, **21 appear in no artifact at all**.
+The two that do appear - `10.0.99.20` and `172.18.0.2` - are there because they
+are written literally in sources (`local-hosts.yml` and
+`rtr-mikrotik-chateau.yaml`), not because the derivation put them there. Checked
+individually rather than inferred from the count.
+
+Three consequences:
+
+1. **The defects are latent twice over.** The shapes that trigger them do not
+   exist in the topology, and the product that would carry them reaches no
+   artifact. Neither fact excuses the arithmetic; both bound the urgency.
+
+2. **A v2 migration cannot change a rendered address.** There is no rendered
+   address to change. That removes the main risk from moving a source onto the
+   strict resolver, and it means artifact parity across such a migration is
+   evidence about the rest of the pipeline, not about addressing.
+
+3. **The moment anything consumes these values, the defects become live.** A
+   generator that starts reading `_resolved_ip` inherits every failure mode above
+   without touching the compiler. A test pins the current non-consumption so that
+   change is visible when it happens.
+
+What `ip_derivation_compiler` does do, and does usefully, is validate: duplicate
+host numbers (`E7861`), the reserved gateway offset (`E7862`), out-of-range hosts
+(`E7863`), and mixing the derivation pattern with a hardcoded address (`E7865`).
+Those diagnostics are live. It is the derivation product, not the plugin, that is
+unconsumed.
+
 ## What was done here
 
 Nothing was changed in `ip_derivation_compiler`. The plan requires legacy repair
