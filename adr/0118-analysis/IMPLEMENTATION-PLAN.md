@@ -1,19 +1,21 @@
 # ADR 0118/0119 — implementation plan
 
 Status: reviewed implementation plan for the **Accepted** architecture, G0a closed
-2026-09-10. Revision 3, 2026-09-11. **No implementation gate is closed by this plan.**
+2026-09-10. Revision 4, 2026-09-11 (capability satisfaction amendment). **No implementation gate is closed by this plan.**
 No topology migration, code change, secret access, live inspection or deployment
 is authorized by editing this document.
 
 Authority: [ADR 0118](../0118-universal-container-network-model.md),
 [ADR 0119](../0119-firewall-rule-ordering-contract.md) and
-[architecture rev 3.1](FINAL-ARCHITECTURE-PROPOSAL.md).
-[Migration/acceptance](MIGRATION-AND-ACCEPTANCE.md) owns G0..G8 and A01..A24;
+[architecture rev 3.2](FINAL-ARCHITECTURE-PROPOSAL.md).
+[Migration/acceptance](MIGRATION-AND-ACCEPTANCE.md) owns G0..G8 and A01..A32;
 this plan assigns implementation work and evidence to those gates.
 [Review findings](IMPLEMENTATION-PLAN-REVIEW-2026-09-11.md) explain the corrections.
 
-Review baseline: commit `966971f6`, branch development; tree was clean before
-this documentation review. The prior plan is retrievable at that commit.
+Capability amendment baseline: commit `493867d5`, branch development; revision 3
+was clean before this documentation change. The earlier review baseline was
+`966971f6`; the following runtime test results belong to that earlier review,
+not a new execution for revision 4. Prior plans remain retrievable in Git.
 The earlier `769457f5` reference is historical, not the current review baseline.
 The previous plan cited an SPC cycle, but its I01..I41 issue register is not
 present in the searched ADR-analysis/report files. This revision uses the complete
@@ -30,6 +32,7 @@ W01..W12 work register below; it does not invent meanings for the missing IDs.
 | Resource ownership | Preserve ADR 0057 Terraform ownership of RouterOS desired configuration and Ansible OS/service/runtime domain; orchestration is not a second writer |
 | Bundle | Extend the existing versioned bundle manifest with a security section or a hash-bound referenced artifact; no independent parallel source of authority |
 | G0b | Prepare in parallel; blocks assurance claims and closure/live execution of G6-G8. Pure schema/model and isolated controller simulation can proceed without claiming those gates closed |
+| Capabilities | Derive requirements; resolve scoped versioned offers and evidence per ADR 0119 SEC-CAP. Reuse ADR 0106, no parallel registry or flag-as-proof |
 | Estimates | No hours or fixed critical-path duration asserted without scoped deliverables and qualification results |
 
 Historical [implementation exploration](FINAL-IMPLEMENTATION-PROPOSAL.md) is
@@ -39,7 +42,8 @@ recommendation within the accepted architecture, not evidence it already qualifi
 
 ## 2. Evidence baseline and limits
 
-Fresh targeted command, run at the review baseline:
+Historical targeted command at the earlier review baseline `966971f6`
+(not rerun for this architecture amendment):
 
 ```bash
 .venv/bin/python -m pytest \
@@ -66,7 +70,7 @@ remain [recorded evidence](FINAL-PROPOSAL-EVIDENCE-2026-09-10.md), not new runti
 results of this review. Existing /24 compatibility must be demonstrated in W01/W03,
 not assumed from a helper's happy path.
 
-A01..A24 are **unclosed**, not proven to have zero related test coverage.
+A01..A32 are **unclosed**, not proven to have zero related test coverage.
 No live backend is qualified. The former “43 files to change” estimate is removed:
 there was no accompanying reproducible file list. Each W item must enumerate its
 actual touched files before implementation; counts are not acceptance criteria.
@@ -80,15 +84,15 @@ Owners are roles; a human assignee must be recorded before execution.
 |---|---|---|---|
 | W01 Baseline | MikroTik projection/consumer/template contract; targeted tests | None; isolated defect fix | Prerequisite, generator maintainer |
 | W02 Contract unification | layer-contract + reference validator; remove duplicate relation semantics | Existing relation behavior captured; may prepare alongside W01 | G1, schema/runtime maintainer |
-| W03 Schema and IP domains | L2/L4/L5 class definitions, semantic contexts, shared network definitions, local-key grammar, typed flows, diagnostics | W02 canonical relation contract | G1 schema; G2 address semantics, schema owner |
-| W04 Intent and provenance | Core compiler, source/default/@on provenance, domain resolution, candidate adapter | W03; effective-model and provenance channel contracts | G2, compiler maintainer |
+| W03 Schema and IP domains | L2/L4/L5 definitions, contexts, local keys, typed flows/diagnostics; requirement/offer/resolution contracts and ownership; catalog vocabulary and diagnostic-range registration | W02 canonical relation contract | G1 schema; G2 address semantics, schema owner |
+| W04 Intent and provenance | Core compiler, source/default/@on provenance, domain resolution, candidate adapter; derive complete capability requirements | W03; effective-model and provenance channel contracts | G2, compiler maintainer |
 | W05 Legacy projection parity | security_matrix channels and MikroTik projection integration | W01; characterize both existing derivations first | Prerequisite to backend cutover, generator maintainer |
-| W06 Plan and checker | Core security plan, predicates/path/state algebra, independent reference oracle, validate-stage obligations | W04 and bounded capability requirements | G3, security/compiler owner |
-| W07 Backend specialization/render | Versioned RouterOS adapter, complete execution contexts and deterministic rendering; no semantic discovery in generate | W05/W06; target feasibility record | G4, backend owner |
-| W08 Artifact/bundle closure | Assemblers/builders, existing bundle schema/manifest, security artifact digest closure | Contract designed with W06; integrated with W07 | G4 offline closure, build/release owner |
+| W06 Plan and checker | Core plan, predicates/path/state algebra, capability composition/strategies, independent oracle and SEC-CAP validation | W04 and bounded capability requirements | G3, security/compiler owner |
+| W07 Backend specialization/render | Versioned adapter offers, effective applicability, complete execution contexts and deterministic rendering; no negotiation in generate | W05/W06; target feasibility record | G4, backend owner |
+| W08 Artifact/bundle closure | Existing bundle schema/manifest; security/offer/strategy/evidence digest closure and invalidation tests | Contract designed with W06; integrated with W07 | G4 offline closure, build/release owner |
 | W09 Topology/flow inventory | Services, domains, leases, planned intents, zone conflicts, legacy VPN mapping | Inventory now; freeze only after W03/W04; migration requires G1-G4 | G5, topology/flow owner |
-| W10 Transaction/recovery | Existing runner boundary, owner-delegated operations, journal, revocation, OOB/recovery evidence | W08; topology/ownership input and feasibility findings | G6, deploy/scope owner |
-| W11 Conformance/TUCs | Unit/property/differential/negative/fault/live evidence, applicability matrix | Developed with W01-W10, not deferred until G7 | G7, test/qualification owner |
+| W10 Transaction/recovery | Existing runner, owner-delegated operations, fresh effective-capability checks, journal, revocation, OOB/recovery evidence | W08; topology/ownership input and feasibility findings | G6, deploy/scope owner |
+| W11 Conformance/TUCs | Unit/property/differential/negative/fault/live evidence; A25-A32 capability regressions and applicability matrix | Developed with W01-W10, not deferred until G7 | G7, test/qualification owner |
 | W12 Assurance/qualification | HA owners, tailoring, threat model, Q objectives, risk review | Preparation now; G8 needs applicable completed evidence | G0b/G8, human risk owner |
 
 This is the complete local work-ID register. W items can span two gates when
@@ -121,10 +125,11 @@ framework -> class -> object -> project.
 ```text
 discover: backend capability/version descriptors + source metadata contracts
 compile:
+  existing capability catalog/packs + object-derived OS/firmware/capability inputs
   existing C->O->I / @on / effective_model (sole compiled_json_owner)
-    -> core network_intent + source_map + candidate report
+    -> core network_intent + derived capability requirements + source_map + candidate report
     -> core security plan authority
-    -> backend-specialized complete candidate plan
+    -> backend-specialized complete candidate plan + scoped capability witnesses
 validate:
   schema + semantic + capability + ordering/path/state obligations
 generate:
@@ -141,10 +146,10 @@ Exact proposed responsibilities/channels:
 
 | Producer | Required input | Published output / timing |
 |---|---|---|
-| Core network intent compiler | base.compiler.effective_model / effective_model_candidate plus declared provenance inputs | network_intent, source_map, candidate_report; compile/finalize after effective_model |
+| Core network intent compiler | base.compiler.effective_model / effective_model_candidate plus declared provenance/profile inputs | network_intent with capability requirements, source_map, candidate_report; compile/finalize after effective_model |
 | Core security plan compiler | network_intent + capability/profile constraints | semantic_plan, obligation_inventory; compile/finalize after intent |
-| Backend specialization responsibility | semantic_plan + backend capability semantics | complete backend_plan, including guards/transforms/contexts; compile before validation |
-| Validator | intent, complete plan, source map, profile | validation_evidence, bound to exact semantic/plan digest |
+| Backend specialization responsibility | semantic_plan + versioned offers + declared effective context/owner inputs | complete backend_plan, guards/transforms/contexts, selected strategy and candidate capability witnesses; compile before validation |
+| Validator | intent/requirements, complete plan/offers/witnesses, source map, profile | validation_evidence with SEC-CAP results per claim, bound to exact semantic/plan digest |
 | Generator | backend_plan + successful matching validation evidence | artifacts + semantic/resource manifest, no new grant/order decision |
 | Assembler/builder | artifact manifest, plan/evidence digests | validated security section of existing immutable bundle |
 
@@ -172,6 +177,45 @@ effective owner/local key, applied defaults and host reference. If effective_mod
 alone lacks it, preserve it at the owning normalization stage and declare an
 additional channel. Never fabricate a source_map by reverse-reading YAML in generate.
 
+### Capability contracts and stage boundary
+
+The [shared contract](../0119-analysis/CAPABILITY-SATISFACTION-CONTRACT.md) governs
+the proposed channels above. Reuse capability_contract_loader and capability_compiler
+ownership; extend their declared outputs as needed, not hidden catalog rereads or
+a second OS/capability derivation. Discovery finds manifests/descriptors; typed
+loading/resolution remains in the owning compile contracts. Concrete channel names
+and payload schemas are a W03 deliverable, not APIs already present.
+
+W04 derives core requirements from intent/profile; W06/W07 add strategy-specific
+prerequisites without weakening them. Check bounded prerequisite DAGs and complete
+path/state inventory independently from satisfaction. Never union all device flags.
+Effective capability is a join of offers with placement/configuration and owner
+operations, not a new independently authored source.
+
+Two seams that revision 4 left unnamed (revision 4a). First, `discover_capability_preflight`
+is the existing discover-stage plugin (it checks catalog/packs presence, publishes
+`capability_preflight_ok`, raises `E7107`); offer and descriptor discovery extends
+that declared plugin rather than adding a sixth capability plugin. Second,
+`capability_derivation.py` holds the derivation helpers shared by the compiler and
+the validator; a network path reuses them and must not fork a parallel copy.
+`topology-tools/check-capability-contract.py` is a standalone ADR 0062 checker
+whose default catalog path does not exist in the tree; it is not a seam here.
+
+Vocabulary is a W03 deliverable with a hard ordering constraint. The catalog
+reaches runtime as identifiers only — the loader publishes `catalog_ids` and
+`packs_map` and reads no other catalog field — and the contract validator rejects
+any class or object capability outside that set. So an offer cannot be modelled by
+enriching `capability-catalog.yaml`, and every identifier that a requirement, offer
+or A25-A32 test names must be registered in the catalog before it is referenced.
+The [vocabulary debt table](../0119-analysis/CAPABILITY-SATISFACTION-CONTRACT.md)
+lists which identifiers the known enforcement gaps still lack. Registration is
+declaration only: it qualifies nothing and authorizes no generator or template change.
+
+Separate expected configuration at each transition phase from observed current
+state. An authorized planned enablement may be modeled offline; live preconditions
+must be observed before the step relying on them. This does not permit assuming
+that a currently disabled feature is already effective.
+
 ## 4A. Diagnostic and feedback contract
 
 ADR 0119 D7 is normative and had no owner in revision 2. Every blocking
@@ -192,6 +236,8 @@ source reference + field -> requirement ID -> concrete flow/path witness
 | Minimal source fix and runnable reproducer | W06/W11 | G3 |
 | Intent, plan and evidence digests plus tool/backend versions | W08 | G4 |
 
+Capability diagnostics additionally name requirement/offer/strategy, exact context,
+failed or unknown condition, required evidence level and invalidation reason.
 A message that only names a rule, a resource or a template line does not satisfy
 D7. Reports label evidence as design, offline-validated, backend-tested or
 live-observed; missing evidence reads not run or unsupported, never pass. Secrets
@@ -225,6 +271,9 @@ W02/W03 deliver:
 - versioned L4 attachments/access bindings, L5 publications, L2 policy/guard,
   route/tunnel/interface-transform schema and downward realization bindings;
 - shared definitions without 14 independently maintained service-schema copies;
+- versioned requirement/offer/resolution contracts: applicability, typed conditions,
+  units/limits, evidence levels, ownership, provenance and unknown values; reuse
+  catalog/packs and namespace ownership, no per-publication duplicate checklist;
 - network_intent_version in explicit domain contexts, distinct from manifest @version;
 - typed collection traversal, concrete-key error paths, one relation authority;
 - local keys, disable/delete/rename semantics, inherited false/zero/empty cases;
@@ -233,7 +282,31 @@ W02/W03 deliver:
   design-only NET-*/SEC-* provisional codes while retaining semantic requirement IDs,
   as required by ADR 0118 D7.
 
-G1 exits on full positive/negative C->O->I fixtures and A21/A23 schema portions.
+G1 exits on full positive/negative C->O->I fixtures and A21/A23/A25 schema portions.
+Allocate SEC-CAP diagnostics centrally; E8020/E8021 keep their platform/bootstrap
+meaning and must not be reused for network satisfaction failures.
+
+**Correction to that instruction (revision 4a).** It presumed those codes are
+registered. At baseline `493867d5` they are not. The canonical registry is
+`topology-tools/data/error-catalog.yaml`, indexed by `docs/diagnostics-catalog.md`,
+whose governance rule states that new ranges are registered *before*
+implementation. Checking every code raised by the five capability plugins against
+that registry shows three unregistered ad-hoc codes: `E8020` and `E8021`
+(`capability_helpers`) and `E3202` (`capability_contract_validator`). `E8020`/
+`E8021` also sit inside the `E80xx` band already occupied by registered
+`E8001..E8007`, and the `E8xxx` family has no entry in the core-ranges list at all.
+
+W03 therefore owns, before any SEC-CAP code is raised:
+
+- registering `E8020`, `E8021` and `E3202` with their current platform/bootstrap
+  and contract meanings, so that the "keep their meaning" instruction has a subject;
+- reserving a distinct family range for network capability satisfaction and
+  recording it in both the registry and its index, with a collision test;
+- registering the `E8xxx` family in the core-ranges section so the band is owned.
+
+Codes are immutable once released and retired codes may not be reused, so this
+registration is a prerequisite of G1 closure, not clean-up afterwards. It touches
+framework registries rather than the ADR package and is not performed by this plan.
 L2 authoritative prefix/gateway/zone declarations remain valid; only derived
 consumer overrides are rejected. Registering extension schema does not qualify
 dynamic/nested capabilities. Mixed source versions are rejected only in an
@@ -251,6 +324,10 @@ Keep the old ip_derivation input path for legacy compatibility; do not describe 
 known /23 or shifted-/25 defects as an absence of defects. Any legacy repair is
 separate from the new strict resolver with explicitly reviewed output changes.
 
+Derive capability requirements with source/obligation provenance and planned/active
+status; preserve attachment/guard/egress requirements when no publication exists.
+A25 tests requirement completeness and no increase in authoring keys.
+
 Candidate proposals remain outside approved grants and runnable artifact inputs.
 Rejecting an **optional unapproved suggestion** may leave the pipeline green.
 Missing mandatory intent, a conflicting active binding or unready required service
@@ -264,9 +341,17 @@ product-default ports or metadata-as-approval.
 ### G3 — Semantic model, backend prerequisites and independent checks
 
 W06 produces complete bounded authorization/path/state semantics and a validator.
-Test SEC-AUTH, AVAIL, PATH, NAT, ORDER, STATE and transition-model prerequisites,
+Test SEC-AUTH, AVAIL, PATH, NAT, ORDER, STATE, CAP and transition-model prerequisites,
 not merely the sort order. Use an independent reference interpreter; do not make
 the generator and oracle share the same decision code and call agreement proof.
+
+Resolve scoped offers with device/runtime, adapter and owner-operation witnesses;
+check coverage independently, evaluate typed conditions and aggregate resource
+bounds, ensure jointly compatible strategies/modes/owners, reject unknown
+relationships/cycles and choose only proven-equivalent strategies canonically.
+A26-A29/A31/A32 model portions block flag-as-proof, grant expansion and self-attested
+qualification. Missing live evidence remains an activation prerequisite, not an
+excuse to claim unsatisfied offline semantics or to waive later checks.
 
 Before backend specialization, record target version/provider/capability envelope,
 scope, trust assumptions, transform/state semantics and expected fail-closed cases.
@@ -289,9 +374,23 @@ in shared-scope validation; generating a correct managed subchain alone is insuf
 
 W08 extends the **existing** bundle contract. Security content includes profile,
 intent/plan digests, exact artifact/resource inventory and hashes, validation
-evidence, capability/backend versions, ownership and transition requirements.
+evidence, selected offer/contract/backend versions, strategy and conditions,
+ownership and transition requirements. W07 supplies versioned offers; W08 tests
+A27/A30 offline-vs-live status, offer/evidence tampering and invalidation.
+Expected post-transition configuration is explicit, never confused with observation.
+
+A30 needs a decidable boundary to test against, so W08 implements the offer split
+of [contract §4.1](../0119-analysis/CAPABILITY-SATISFACTION-CONTRACT.md): the offer
+semantic core enters the plan digest, the evidence annex is hashed separately and
+bound to the manifest only. The regression is bidirectional and both directions are
+required: mutating the core must change the plan digest and invalidate resolution,
+and re-recording identical semantics with a newer observation must leave the plan
+digest byte-identical. Testing only the first direction proves invalidation while
+leaving the freshness-determinism claim unevidenced.
 A referenced security artifact is permissible only when its hash and schema are
-bound by the root manifest. Missing/tampered/stale evidence blocks build/deploy.
+bound by the root manifest. Missing/tampered/stale evidence required at the current
+gate blocks that gate. Offline build does not require future live observations;
+activation and completion require their respective fresh evidence.
 No free-standing parallel “security manifest” can independently authorize execution.
 
 Assemble validates cross-artifact consistency; build creates immutable input.
@@ -340,6 +439,12 @@ state; no hidden imperative side writer under a controller or wrapper.
 If supported owner operations cannot meet the invariant, stop qualification and
 request the architectural amendment — do not smuggle it into implementation.
 
+Preflight re-evaluates effective-capability conditions and evidence freshness for
+exact subjects/versions/modes/contexts; changed dependencies invalidate resolution.
+A27/A29/A30 verify phase-specific conditions, owner-delegated operations and that
+safe_mode/state_restore cannot restore revoked grants. Missing post-apply evidence
+blocks completion, not construction of a qualified guarded transition.
+
 Journal step preconditions/postconditions, idempotency keys, approved old/new epochs,
 transition envelope, deadlines, stale-session invalidation, retry/reboot recovery,
 audit/resource-failure behavior and current-authority rollback.
@@ -358,7 +463,7 @@ W11 is continuous; tests start with the producing gate. At G7 consolidate the
 matrix below, run positive/negative/fault paths on the actual isolated target,
 and distinguish model, rendered, backend-tested and live-observed evidence.
 
-Each A01..A24 has a test or an explicit scope decision. Unsupported extension cases
+Each A01..A32 has a test or an explicit scope decision. Unsupported extension cases
 must prove refusal/verified disablement for the baseline, not be marked passed
 without evidence. Keep unqualified requirements open for their extension profile.
 No need to claim Docker, Proxmox, IPv6 or AWG success to qualify a bounded RouterOS
@@ -405,10 +510,18 @@ For combined cases, an early pass never substitutes for the later evidence level
 | A22 | G2 candidate isolation | G4 no artifact grant + G7 no accepted flow |
 | A23 | G1 consumer-derived override rejection | G5 migration roles and provenance; valid L2 declarations preserved |
 | A24 | W05 parity + G2/G3 producer ownership | G4 whole-pipeline integration proving no semantic recomputation |
+| A25 | W03/W04 G1/G2 typed requirements and provenance | Full intent inventory, no second author checklist |
+| A26 | W06/W07 G3 scoped composition | G7 effective device/adapter/path coverage, disabled/wrong-scope negatives |
+| A27 | W06 G3 evidence-relative status | W08 G4 offline bundle allowed; W10 G6 activation/completion preconditions enforced |
+| A28 | W06 G3 strategy alternatives/determinism | W07 G4 independent rendered equivalence; G7 applicable backend paths |
+| A29 | W06 G3 owner/recovery model | W10 G6/G7 no side writer or revoked-grant restoration |
+| A30 | W08 G4 digest/dependency invalidation | W10 G6/G7 version/mode/drift/expiry observations |
+| A31 | W06/W11 G3 inventory/evidence trust negatives | G7 complete scope inventory and independently checked qualification |
+| A32 | W06 G3 non-authorizing capability changes | G4/G5 no auto topology/selector/profile/owner fallback |
 
 W08 additionally tests bundle integrity, version compatibility, missing artifact/
 evidence, stale plan hashes and unapproved candidate input. These are supporting
-regressions, not invented replacements for A01..A24.
+regressions, not replacements for A01..A32.
 
 ## 7. Dependency and execution policy
 
@@ -456,7 +569,7 @@ and the applicable TUC quality gates; document unavailable checks as not run.
 
 Compare source -> normalized intent -> plan -> rendered artifacts -> immutable
 bundle -> observed state using exact revision/digest links. Neither a passing
-documentation gate nor this plan's work assignment closes G1-G8 or A01-A24.
+documentation gate nor this plan's work assignment closes G1-G8 or A01-A32.
 
 ### Governance deliverables per gate
 

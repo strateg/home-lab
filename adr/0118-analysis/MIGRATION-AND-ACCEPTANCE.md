@@ -2,10 +2,17 @@
 
 Status: supporting plan for **Accepted** ADRs 0118/0119 (gate G0a closed 2026-09-10);
 no migration, backend qualification or live apply performed.
-Baseline: WSL repository `/home/nixos/workspaces/home-lab`, branch `development`,
-HEAD `c788237e379a32150ad328b2596cf86678981edc` (the revision-freeze commit).
-The earlier pointer `ce8018754db0bd28d67568a8f7fb755236c9d8a9` was its parent and
-is kept only as the base of the preceding revision.
+Rev 3.2 amendment, 2026-09-11: adds capability satisfaction and A25-A32;
+the inventory and historical evidence baselines below are not new runtime results.
+Baseline: WSL repository `/home/nixos/workspaces/home-lab`, branch `development`.
+The rev 3.2 baseline is `493867d5d3169010cb53434f5f2afaa7bbdcfba4`, the branch head
+when the capability amendment was written. The previously stated baseline
+`c788237e379a32150ad328b2596cf86678981edc` (the revision-freeze commit) is five
+commits behind it and was not refreshed when rev 3.2 amended this file; it is kept
+as the base of the rev 3.1 freeze, and `ce8018754db0bd28d67568a8f7fb755236c9d8a9`
+as its parent, one revision earlier. The intervening commits are documentation
+only, so the section 1 topology mapping is unaffected; the pointer is corrected so
+that later digest and evidence claims cite a baseline that is actually current.
 Source checks refreshed 2026-09-10. Previous reports' test counts are historical.
 
 ## 1. Concrete topology mapping
@@ -158,14 +165,14 @@ These are design boundaries, not an instruction to migrate or enable devices.
 
 | Gate | Deliverable | Must block on | Current evidence |
 |---|---|---|---|
-| G0a Architecture | Coherent ADR pair, route/NAT ownership, core authority, Terraform/Ansible boundary, scoped key semantics and independent review | Contradictions or unassigned hard requirements | **Closed 2026-09-10**: accepted after two applicability reviews; ADR 0118/0119 status Accepted |
+| G0a Architecture | Coherent ADR pair, route/NAT/core/resource ownership, scoped keys and capability satisfaction | Contradictions or unassigned hard requirements | **Base closed 2026-09-10** after applicability reviews; rev 3.2 capability amendment adopted at user direction 2026-09-11, not independently reviewed by the earlier reports |
 | G0b Assurance | Named owners for HA-01..HA-10, tailoring record, approved threat model and availability objectives | Any unnamed accountable owner; absent tailoring record | Not started; owner assignment is a human decision |
-| G1 Schema | Context-scoped network_intent_version, local-key grammar, typed collection relations, profiles, diagnostics and authoring budget check | Unknown/mixed versions; code collision; upward dependency; unexplained budget excess | Not implemented |
-| G2 Normalize | Legacy adapter, canonical intent and provenance; derive-review-freeze for candidates; no permit expansion | Ambiguous flat data, lost false/zero, mismatched gateways/owners, candidate rendered as a permit | Not implemented |
-| G3 Semantics | Reference interpreter, complete plan, obligation checker | Unsupported predicates/path/capabilities; mandatory deny conflict | Not implemented |
-| G4 Render | One backend pilot, manifests, deterministic artifacts and differential tests | Generator-created grants; lost original tuple; unstable order | Not implemented |
+| G1 Schema | Context-scoped network_intent_version, local keys/relations, profiles, diagnostics, authoring budget and typed requirement/offer/resolution contracts | Unknown/mixed versions; code collision; upward dependency; unexplained budget excess | Not implemented |
+| G2 Normalize | Legacy adapter, canonical intent and derived capability requirements/provenance; derive-review-freeze, no permit expansion | Ambiguous flat data, lost false/zero, mismatched gateways/owners, candidate rendered as a permit | Not implemented |
+| G3 Semantics | Reference interpreter, complete plan, SEC-CAP compositional witnesses and obligation checker | Unsupported predicates/path/capabilities; mandatory deny conflict | Not implemented |
+| G4 Render | One backend pilot, versioned offers, manifests/digest closure, deterministic artifacts and differential tests | Generator-created grants; lost original tuple; unstable order | Not implemented |
 | G5 Topology | Reviewed service/egress/control-flow inventory, flow-data collection for services lacking ports or source restrictions, and address migration | DHCP/lease collision, absent owner, broad unintended grants, frozen policy without source data | Not implemented |
-| G6 Transition | Bundle integrity, single resource owner, shared-scope composition, modeled independent management/recovery, revocation and read-back | Missing OOB, unproven intermediate state/composition, drift or unsafe rollback | Not implemented |
+| G6 Transition | Bundle integrity, fresh effective-capability checks, single resource owner, shared-scope composition, independent management/recovery, revocation and read-back | Missing OOB, unproven intermediate state/composition, drift or unsafe rollback | Not implemented |
 | G7 Runtime | Positive/negative/failure tests on actual declared paths | Untested L2/IPv6/host/tunnel/offload path; unmet availability | Not run |
 | G8 Qualification | Backend/version profile, evidence pack and human risk approval | Missing HA requirement/evidence or stale baseline | Not qualified |
 
@@ -211,6 +218,54 @@ outputs as the migration source.
 | A22 | Unapproved candidate present in the model | No permit in `A_e`, no rendered rule, no accepted flow; rejecting it leaves the pipeline green |
 | A23 | Instance declares a derived field (address, gateway, position, provider ID, routing mark) | Schema rejects the instance at G1 |
 | A24 | Zone membership, `vlan_cidr_map` and grant derivation across the whole pipeline | Each is derived exactly once, by a core-level plugin; no backend or object module recomputes it. A second producer fails the check |
+
+### Capability satisfaction additions — rev 3.2
+
+The [capability contract](../0119-analysis/CAPABILITY-SATISFACTION-CONTRACT.md)
+adds the following cases without changing A01-A24. All remain **unclosed**.
+
+| ID | Scenario | Expected result |
+|---|---|---|
+| A25 | Attachment/direct/DNAT/binding/route/profile requirements; absent or disabled publications | Complete typed requirements with source/default provenance; no second authored checklist; independent guards/egress retained |
+| A26 | Offers on different devices/hooks/families/VRFs, disabled feature, incompatible adapter/version/modes or exceeded aggregate capacity | No flat-union proof; unsatisfied for demonstrated mismatch at required phase, unverified for missing facts; affected claim blocked |
+| A27 | Offline checks pass but live prerequisites absent; later evidence expires or contradicts observation | Offline candidate build allowed; activation/completion require their own evidence; satisfied/unsatisfied/unverified never collapsed to supported |
+| A28 | Original-tuple match vs earlier gate vs preserved connection identity; permuted offers, unknown transforms and prerequisite cycles | Equivalent valid strategies selected canonically with witnesses; incomplete coverage, cycles and unknown semantics rejected |
+| A29 | safe_mode/state_restore declared, but operation lacks owner delegation or restores revoked grants | No automatic transition qualification, second writer or unauthorized rollback; current-epoch safety still required |
+| A30 | Same capability IDs, changed offer/adapter/version/mode/path/owner; fresh identical observation | Semantic changes invalidate relevant resolution and digest binding; freshness update alone does not perturb semantic plan; evidence hashes remain verified |
+| A31 | Empty or incomplete requirement/path inventory; offer cites only its own support assertion | No vacuous pass or self-attested qualification; explicit justified applicability and independent evidence required |
+| A32 | New offer/capability becomes available or an existing offer cannot meet intent | Approved P/A/Q unchanged by availability alone; no automatic grant, selector expansion, topology/owner change or legacy fallback |
+
+#### Terminal evidence level per case (rev 3.2a)
+
+Rev 3.2 assigned A25-A32 an owning work item and gate but not a terminal evidence
+level, while this document's own rule is that an early pass never substitutes for
+a later level. Without the level, "A26 covered by W06 at G3" is ambiguous between
+a model result and a qualified backend result. Levels are those of the
+[assurance profile](../0119-analysis/ASSURANCE-PROFILE.md); a case is closed only
+at its terminal level, and never by the earlier one alone.
+
+| ID | Lowest level that can produce a first result | Terminal level required to close | Why the earlier level is insufficient |
+|---|---|---|---|
+| A25 | Offline-validated | Offline-validated | Requirement derivation and provenance are decidable from source and schema |
+| A26 | Offline-validated | Backend-tested | Composition across device, adapter and context is a claim about a real backend |
+| A27 | Offline-validated | Live-observed | The case is precisely that offline success does not establish activation |
+| A28 | Offline-validated | Backend-tested | Strategy equivalence must hold in rendered backend behavior, not only in the model |
+| A29 | Design-reviewed | Live-observed | Owner delegation and revoked-grant restoration are properties of an executed transition |
+| A30 | Offline-validated | Offline-validated for digest behavior; live-observed for drift and expiry | Digest invalidation is decidable offline; observed drift is not |
+| A31 | Offline-validated | Backend-tested | Independence of evidence cannot be shown by the same model that produced it |
+| A32 | Offline-validated | Offline-validated | Non-authorization by availability is a property of the model, testable without a device |
+
+A case whose terminal level is unreachable in the selected profile is recorded as a
+scope decision with an owner and a reason, per the tailoring record. It is not
+marked closed, and it is not silently downgraded to the level that happened to run.
+
+Six known enforcement gaps are mapped onto these cases, rather than onto new
+acceptance IDs, in the [vocabulary debt table](../0119-analysis/CAPABILITY-SATISFACTION-CONTRACT.md).
+Each of those rows also needs a catalog identifier that does not exist yet, so
+until W03 registers one, the corresponding requirement is unverified by
+construction. That is a missing-vocabulary condition, distinct from an
+unimplemented check and from an unqualified backend, and it must be reported as
+such rather than as an absent path.
 
 Implement as unit/property/differential tests plus separately numbered TUCs
 following the acceptance-tuc pack. Keep runnable evidence/logs in each TUC folder.
@@ -271,5 +326,5 @@ Findings from the SPC review of this revision, recorded in the
 
 See [revision evidence](REVISION-EVIDENCE-2026-09-10.md) for the commands run for
 the preceding revision, and the [rebuild record](SPC-REBUILD-2026-09-10.md) for
-this one. Passing those checks does not close A01-A24, G1-G8, backend support or
+this one. Passing those checks does not close A01-A32, G1-G8, backend support or
 compliance assessment.

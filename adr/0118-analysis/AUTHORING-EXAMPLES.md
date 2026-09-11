@@ -1,6 +1,7 @@
 # ADR 0118/0119 — authoring examples
 
-Status: illustrative companion to **Accepted rev 3.1** (gate G0a, 2026-09-10).
+Status: illustrative companion to **Accepted rev 3.2** (base gate G0a,
+2026-09-10; capability amendment 2026-09-11).
 The [final architecture proposal](FINAL-ARCHITECTURE-PROPOSAL.md) defines meaning;
 the ADRs remain authoritative. These fragments are not accepted by current
 schemas and must not be copied into active topology before schema registration.
@@ -169,6 +170,27 @@ The nested schema_version above is domain data under the distinct proposed
 network_intent_version contract, not an alias for manifest @version.
 Local record keys use [A-Za-z_][A-Za-z0-9_]*; instance IDs such as dns-test
 are a different namespace and are not renamed by that rule.
+
+## 6A. Derived capability requirements, not extra YAML
+
+These fragments gain no required_capabilities list. The compiler derives needs
+from their meaning; the [capability contract](../0119-analysis/CAPABILITY-SATISFACTION-CONTRACT.md)
+defines scoped offers and evidence:
+
+| Example | Derived requirement, in addition to valid source semantics |
+|---|---|
+| Attachment without publication | Compatible substrate/domain/interface and independent guard/egress path coverage; no grant inferred |
+| Direct publication | Authorized client delivery and adequate host/bridge/routed gates, not merely an IP |
+| DNS DNAT publication | Transform support plus preserved original client/frontend identity; distinguish direct backend and other publications |
+| Workload source binding | Trustworthy ingress provenance/anti-spoofing or qualified stronger identity |
+| Tunnel-only route | Enforced no-direct-fallback behavior in healthy/down/unknown states; separate control-plane grants |
+
+A DNAT capability flag alone does not prove DNS authorization. An adequate
+earlier gate may satisfy the identity obligation without original-tuple matching
+at the final gate, but only with complete path/state evidence. The compiler
+cannot invent a grant or silently choose a different topology to obtain support.
+Missing live evidence leaves activation unverified, not an otherwise valid
+offline candidate forbidden. These are design examples, not backend test results.
 
 ## 7. Legacy and review
 

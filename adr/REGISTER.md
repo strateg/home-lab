@@ -209,3 +209,51 @@
   specialization, immutable bundle closure at G4, scoped conformance and safe ownership.
 - ADRs remain **Accepted**, implementation unimplemented; G0b/G1-G8 and A01-A24
   are not closed by this documentation review. No source migration or deployment.
+
+## ADR 0118/0119 revision 3.2 — capability satisfaction, 2026-09-11
+
+- Both ADRs remain **Accepted**, implementation **not implemented**. At the user's
+  direction the [architecture proposal](0118-analysis/FINAL-ARCHITECTURE-PROPOSAL.md)
+  adds AD-11: derived requirements, scoped offers and evidence-relative resolution.
+- [Shared capability contract](0119-analysis/CAPABILITY-SATISFACTION-CONTRACT.md)
+  reuses ADR 0106 catalog/packs/derivation. No second intent database, runtime stage,
+  automatic topology fallback, grant or transfer of resource ownership is introduced.
+- [Formal contract](0119-analysis/FORMAL-CONTRACT.md) adds SEC-CAP; selected
+  versions/strategies/conditions and evidence bind to intent/plan/bundle digests.
+  Offline candidate readiness remains distinct from fresh live activation evidence.
+- [Plan revision 4](0118-analysis/IMPLEMENTATION-PLAN.md) extends W03/W04/W06/W07/
+  W08/W10/W11 without discarding revision 3 diagnostic, governance, stop/reversibility
+  or entry-condition provisions. [Acceptance](0118-analysis/MIGRATION-AND-ACCEPTANCE.md)
+  adds A25-A32; existing A01-A24 remain unchanged.
+- G0a base acceptance and its historical reviews are retained; those reviews are
+  not independent review evidence for rev 3.2. G0b/G1-G8 and A01-A32 remain open.
+  No catalog/runtime/schema implementation, device change, qualification or deploy.
+
+## ADR 0118/0119 rev 3.2a — capability amendment supplement, 2026-09-11
+
+- SPC review of rev 3.2. Both ADRs remain **Accepted**, implementation **not
+  implemented**. No decision is withdrawn; three under-specified points in AD-11
+  are corrected and the amendment's repository-level premises are re-grounded.
+- **Determinism:** rev 3.2 required offer content to be hash-bound while listing
+  qualification evidence references as offer content, which contradicts its own
+  claim that a fresh identical observation leaves the semantic plan unchanged.
+  [Contract §4.1](0119-analysis/CAPABILITY-SATISFACTION-CONTRACT.md) now splits the
+  offer into a digest-bearing semantic core and a separately hashed evidence annex;
+  [formal contract](0119-analysis/FORMAL-CONTRACT.md) binds the split to `W_g`.
+- **Inventory:** `complete(R_g, Omega_g)` was self-referential. Omega_g now has an
+  external lower bound anchored to the ADR 0118 D6 path list, shared with SEC-PATH.
+- **Status vocabulary:** the tri-state is mapped one-directionally onto the
+  pre-existing `unsupported` flow verdict, so neither collapses into the other.
+- **Corrected premises:** `E8020`/`E8021`/`E3202` are raised in code but are not
+  registered in `topology-tools/data/error-catalog.yaml`, so rev 3.2's instruction
+  to preserve their meaning had no registered subject; the capability catalog
+  reaches runtime as identifiers only and is a closed vocabulary, so offers cannot
+  live in it; the acceptance baseline pointer was five commits stale.
+- **Vocabulary debt:** six recorded enforcement gaps (acceleration/FastTrack, the
+  Docker `DOCKER-USER` versus nftables hook, IPv6 family, the Proxmox generator
+  STUB, the nine unrendered LXC attachments, `untracked` admission) are mapped onto
+  existing A-cases; four still lack any catalog identifier and are therefore
+  unverified by construction until W03 registers one.
+- A25-A32 gain terminal evidence levels. Registers are unchanged: A01-A32 for
+  acceptance, W01-W12 for work. No new ADR, gate, plugin, catalog entry, runtime
+  change, test result, qualification or deployment authorization.

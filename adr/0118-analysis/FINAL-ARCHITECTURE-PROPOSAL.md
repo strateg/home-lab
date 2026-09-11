@@ -1,6 +1,6 @@
 # Финальный архитектурный proposal: network intent и enforcement
 
-**Редакция:** 3.1, 2026-09-10 (applicability corrections). **Статус:** Accepted 2026-09-10 (gate G0a) — утверждённая целевая архитектура; не разрешение на реализацию или deployment.
+**Редакция:** 3.2, 2026-09-11 (capability satisfaction). **Статус:** Accepted: базовый дизайн утверждён 2026-09-10 (gate G0a), поправка AD-11 принята по указанию пользователя 2026-09-11. Это целевая архитектура, не разрешение на реализацию или deployment.
 Это совместное design-приложение [ADR 0118](../0118-universal-container-network-model.md)
 и [ADR 0119](../0119-firewall-rule-ordering-contract.md), а не третий независимый ADR.
 ADR 0118 определяет модель намерений; ADR 0119 — её семантику исполнения.
@@ -481,6 +481,77 @@ workload нет единственной автоматически выбран
 требует проверки всего его пути. Нет автоматической миграции адресов, ролей,
 VLANs или выключенных enforcers ради соответствия рисунку.
 
+## 12A. Capabilities как проверяемый контракт — AD-11
+
+**Решение:** использовать capabilities не только для выбора backend, а для
+проверки выполнимости обязательств intent. Нормативные подробности —
+[Capability satisfaction contract](../0119-analysis/CAPABILITY-SATISFACTION-CONTRACT.md).
+
+Разделяются четыре вопроса: что нужно; что заявлено компонентом; что применимо
+в конкретной конфигурации; что доказано на нужном уровне evidence.
+Declared capability ≠ effective support ≠ evidence ≠ разрешение.
+
+Три контракта входят в существующие intent/plan/evidence:
+1. **Requirements:** core выводит их из attachments/publications/bindings,
+   route constraints и profile, сохраняя source/obligation provenance.
+2. **Offers:** versioned device/runtime/adapter contracts описывают context,
+   predicates/transforms/state semantics, ограничения и prerequisites.
+3. **Resolution evidence:** связывает requirement со strategy, offers, покрытием
+   paths/states, проверенными условиями, evidence и сроком применимости.
+
+Это не три новых обязательных plugin и не четвёртая authored topology-сущность.
+Effective capability — производный join, не параллельная база. ADR 0106 остаётся
+основой классификации; catalog/packs и derivation ownership переиспользуются.
+На publication не появляется второй ручной список inferred requirements.
+
+SEC-CAP проверяет **композицию по каждому применимому пути/состоянию**:
+device/runtime + adapter/version + разрешённые owner operations + context.
+Сумма флагов разных устройств не доказывает end-to-end поддержку. Все выбранные
+strategies должны быть совместимы в одном плане, включая общую ёмкость ресурсов,
+режимы конфигурации и владение; отдельные несовместимые witnesses не складываются.
+DNAT требует сохранения original authorization; workload selector — достоверной
+identity/provenance; tunnel-only egress — проверенного fail-closed fallback.
+safe_mode/state_restore не доказывают допустимость возврата отозванного grant.
+
+Возможны bounded declarative alternatives: original tuple match, более ранний
+полностью покрывающий gate либо сохранённая connection identity. Для доказанно
+эквивалентных вариантов выбор канонический и детерминированный. Изменение topology,
+security boundary, owner или transition envelope требует review; silent fallback
+в host-network/legacy либо расширение selector запрещены.
+
+Результат — satisfied, unsatisfied или unverified **для указанного claim/gate**.
+Отсутствие live evidence не запрещает offline candidate, но блокирует activation;
+доказанная несовместимость блокирует соответствующий executable candidate.
+Неизвестные/пустые inventories и self-attestation не дают vacuous pass.
+SEC-CAP не заменяет SEC-AUTH/AVAIL/PATH/NAT/STATE/TRANSITION и не расширяет P/A.
+
+Offer/contract versions, strategy и semantic conditions входят в plan/bundle
+binding. Evidence привязано к subject, digests, scope и freshness. Изменение версии,
+режима, path или owner инвалидирует затронутое resolution; live timestamps не
+делают semantic plan недетерминированным. Наблюдение не утверждает новые grants.
+Новые runtime/schema/catalog поля в этой редакции не реализованы.
+
+**Уточнения AD-11 (rev 3.2a).** Три пункта AD-11 недоопределены и потому
+непроверяемы в исходной формулировке; они уточняются, а не отменяются.
+
+1. Детерминизм плана при живом evidence возможен только при разделении offer на
+   semantic core и evidence annex: rev 3.2 одновременно требует hash-binding
+   содержимого offer и относит qualification evidence references к этому
+   содержимому. Нормативное разделение — §4.1 [capability contract](../0119-analysis/CAPABILITY-SATISFACTION-CONTRACT.md).
+2. `complete(R_g, Omega_g)` не проверяемо, пока Omega_g определяется самим
+   резолвером. Нижняя граница Omega_g привязана к списку путей D6 (L2, routed,
+   host INPUT/OUTPUT, tunnel, direct backend, IPv6, offload/acceleration).
+3. Три статуса satisfied/unsatisfied/unverified сосуществуют с уже принятым
+   verdict `unsupported` для потока. Отображение одностороннее: unsatisfied и
+   unverified могут давать `unsupported` для затронутого потока, но `unsupported`
+   никогда не превращает unverified в scope decision и не читается как «supported».
+
+Кроме того, словарь capability закрыт и доходит до runtime только идентификаторами,
+поэтому известные дыры enforcement (FastTrack/offload, hook DOCKER-USER против
+nftables, IPv6, Proxmox STUB, отсутствие guard у девяти LXC, приём `untracked`)
+сегодня **невыразимы** как требования. Это долг словаря W03/G1, а не доказанное
+отсутствие пути; до его закрытия соответствующее требование — unverified.
+
 ## 13. Проверка архитектуры на сценариях
 
 Verdicts ниже предполагают отсутствие иных независимых grants и конфликтов.
@@ -534,7 +605,11 @@ rev 3.1 (gate G0a). Перед утверждением исправлены д�
 HA-01..HA-10 и tailoring record) **не закрыт**; G1-G8 открыты; ни один backend
 не квалифицирован; deployment не разрешён.
 
-Design review подтвердил:
+Поправка rev 3.2 добавляет AD-11/SEC-CAP и acceptance A25-A32 по указанию
+пользователя 2026-09-11. Результаты независимых review rev 3.1 не выдаются за
+review этой поправки. G0b/G1-G8 остаются открыты; новая поддержка не заявляется.
+
+Design review rev 3.1 подтвердил:
 - понятия, кардинальности, владельцев и направления refs;
 - source identity/merge/disable, context-scoped keys и allocation ownership;
 - binding/guard algebra, coordinates портов и lifecycle revoke;

@@ -1,6 +1,8 @@
 # ADR 0118: Universal Container Network Model
 
 - Status: Accepted
+- Revised: 2026-09-11 rev 3.2a (SPC supplement: offer digest split, anchored path inventory, vocabulary debt)
+- Revised: 2026-09-11 rev 3.2 (capability requirements, scoped offers and satisfaction evidence)
 - Revised: 2026-09-10 rev 3.1 (applicability review: ownership, routing/NAT, contexts and migration scope)
 - Revised: 2026-09-10 rev 3 (final architecture proposal; implementation choices deferred)
 - Date: 2026-09-09
@@ -247,12 +249,42 @@ HA ownership, multipath and nested transforms require separate qualification.
 Unsupported alternate paths must be covered or verifiably disabled, never ignored.
 Use ADR 0106 capability checks and versioned conformance evidence, never object
 name matching. If a backend cannot enforce a required property, refuse the
-candidate or choose a stronger topology boundary; do not approximate silently.
+candidate or propose a stronger topology boundary for review; do not approximate silently.
 Host-network and same-kernel workloads are not independent security boundaries.
 
 For every path (L2, routed, host INPUT/OUTPUT, tunnel, direct backend, IPv6,
 offload/acceleration), a policy enforcement point or verified disablement must
 be demonstrated. A flag such as `firewall: true` does not establish enforcement.
+
+### D6.1 Capability requirements are derived, not a second intent model
+
+Adopt the shared [capability satisfaction contract](0119-analysis/CAPABILITY-SATISFACTION-CONTRACT.md).
+Attachments, publications, bindings, route constraints and the selected profile
+derive typed requirements with source provenance and NET/SEC obligation IDs.
+Authors do not maintain a second capability checklist per publication. Class
+schemas define meaning; object/adapter contracts declare reusable offers; instance
+placement/configuration determines applicability. Effective capability is a
+derived join, not a new topology level or independent registry.
+
+A declaration says what may be possible, not what is enabled, qualified or
+authorized. DNAT requires preserved original-flow authorization; direct delivery
+requires all-path gates; workload selectors require trustworthy provenance;
+tunnel-only egress requires fail-closed route/fallback semantics. These needs
+cannot be discharged by a flat union of capability names across devices.
+
+Reuse ADR 0106 catalog/packs and derivation ownership. Device, policy, workload
+and operations namespaces keep their existing meaning; neither cap.os.* nor
+a capability named for access can mint a grant. Requirements may constrain
+strategies, not silently select a wider topology, host-network mode or legacy
+fallback. Unsupported realizations require a reviewed source/topology change.
+
+Rev 3.2a adds three constraints without withdrawing any of the above. The D6 path
+list is the lower bound of the inventory a capability claim must cover, so a
+completeness claim is checked against this ADR rather than against the resolver's
+own enumeration. The capability vocabulary is closed and reaches runtime as
+identifiers only, so a path that no registered identifier can name is unverified,
+not absent — several D6 paths are in that state today. And an offer's qualification
+evidence must not participate in plan identity; see the shared contract §4.1.
 
 ### D7. Small authoring surface, complete diagnostics
 

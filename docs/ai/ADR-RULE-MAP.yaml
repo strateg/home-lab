@@ -32,7 +32,7 @@ rule_packs:
       - "projects/*/topology/**"
   network-security:
     path: docs/ai/rules/network-security.md
-    source_adr: ["0109", "0110", "0111", "0118", "0119"]
+    source_adr: ["0106", "0109", "0110", "0111", "0118", "0119"]
     files_glob:
       - "adr/011[0189]*"
       - "adr/0118-analysis/**"
@@ -111,11 +111,17 @@ rule_packs:
       - "taskfiles/acceptance.yml"
   capability-model:
     path: docs/ai/rules/capability-model.md
-    source_adr: ["0106"]
+    source_adr: ["0088", "0106", "0118", "0119"]
     files_glob:
       - "topology-tools/plugins/generators/**"
       - "topology-tools/plugins/validators/**"
       - "topology/class-modules/capability-catalog.yaml"
+      - "topology/class-modules/capability-packs.yaml"
+      - "topology-tools/plugins/compilers/*capability*"
+      - "adr/0118*"
+      - "adr/0118-analysis/**"
+      - "adr/0119*"
+      - "adr/0119-analysis/**"
       - "topology/object-modules/**/enabled_capabilities*"
       - "topology/object-modules/**/initialization_contract*"
   mikrotik-terraform:
@@ -372,7 +378,7 @@ rules:
       - "Use capability checks (has_capability, get_all_capabilities) for device classification."
       - "Use existing cap.os.* for platform detection (not cap.platform.*)."
       - "Use existing cap.workload.runtime.* for workload types."
-      - "Emit errors E8020/E8021 when required capabilities are missing."
+      - "Use E8020/E8021 for missing platform/bootstrap detection, not network satisfaction failures."
     never:
       - "Do not use object_ref/class_ref string matching for device type detection."
       - "Do not implement silent fallbacks for missing capabilities."
@@ -381,6 +387,30 @@ rules:
       - "grep -r 'object_ref.startswith' topology-tools/plugins/ (should return 0)"
       - "grep -r 'in object_ref.lower()' topology-tools/plugins/ (should return 0)"
     source_adr: ["0106"]
+
+  - id: CAP-002
+    scope: capability-model
+    trigger: "ADR0118/0119 capability requirements, offers, qualification or readiness design/implementation"
+    rule_pack: capability-model
+    must:
+      - "Derive requirements with provenance; resolve scoped versioned offers and per-path/state witnesses at the required evidence level."
+      - "Reuse ADR0106 catalog/packs/derivation ownership; distinguish declared, effective and evidenced support."
+      - "Bind selected strategies/conditions/versions and evidence to plan/bundle; invalidate affected resolution on change or expiry."
+      - "Report satisfied, unsatisfied or unverified for each claim; missing live evidence blocks activation, not valid offline candidates."
+      - "Split an offer into a semantic core that enters the plan digest and an evidence annex that is hashed separately and bound only to the manifest."
+      - "Anchor the covered path inventory to the ADR0118 D6 path list, not to the resolver's own enumeration."
+      - "Register a capability identifier and its diagnostic range before any requirement, offer or test references them."
+    never:
+      - "Do not infer permission, all-path coverage, authorized operations or safe rollback from capability flags."
+      - "Do not use flat unions, incomplete inventories, self-attestation or silent topology/profile/owner fallback as satisfaction."
+      - "Do not claim the accepted capability contract is implemented before its gates are evidenced."
+      - "Do not add semantics as extra fields on a capability-catalog entry; the loader reads identifiers only and the extra fields are inert."
+      - "Do not report a path as absent when no registered identifier can name it; that is unverified, and E8020/E8021/E3202 are not precedent for allocation."
+    validate:
+      - "task validate:adr-consistency"
+      - "task validate:agent-rules-strict"
+      - "ADR0118 A25-A32 and SEC-CAP evidence at implementation time"
+    source_adr: ["0106", "0118", "0119"]
 
   - id: HPL-001
     scope: host-placement
@@ -406,16 +436,16 @@ rules:
     trigger: "Network security policy, attachment/publication, enforcement ordering or strict-profile design changes"
     rule_pack: network-security
     must:
-      - "Keep ADR0110 legacy behavior distinct from the Proposed ADR0118/0119 strict profile."
-      - "For the proposed profile separate attachments, publications and bound policies; validate all paths and address ownership."
+      - "Keep ADR0110 legacy behavior distinct from the Accepted but unimplemented ADR0118/0119 strict profile."
+      - "For the target profile separate attachments, publications and bound policies; validate all paths and address ownership."
       - "Preserve original-flow authorization, one compiler-owned plan, deterministic order and verified transitions."
       - "Report requirement-linked counterexamples and distinguish design, offline, backend and live evidence."
     never:
       - "Do not grant access from NAT, trust level, specificity or producer priority in the strict profile."
-      - "Do not claim proposed schemas, backend coverage or DoD compliance are implemented."
+      - "Do not claim target schemas, backend coverage or DoD compliance are implemented."
     validate:
       - "task validate:adr-consistency"
       - "task validate:agent-rules"
       - "task validate:agent-rules-strict"
       - "ADR0118 acceptance gates for implementation; governance checks alone are insufficient"
-    source_adr: ["0109", "0110", "0111", "0118", "0119"]
+    source_adr: ["0106", "0109", "0110", "0111", "0118", "0119"]

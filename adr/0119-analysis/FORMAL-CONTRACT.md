@@ -1,6 +1,7 @@
 # ADR 0119 — Formal contract and bounded proof obligations
 
 Status: normative supporting contract of the **Accepted** ADR 0119 (gate G0a, 2026-09-10).
+Rev 3.2 amendment, 2026-09-11: adds SEC-CAP and evidence-relative satisfaction.
 No theorem below is a claim that the current runtime or live lab satisfies it.
 
 ## 1. Domain and assumptions
@@ -66,6 +67,7 @@ Compromise of that trusted base and covert channels need additional controls.
 | SEC-ORDER | Canonical output is invariant to irrelevant input permutations and satisfies every required edge | Violating edge or different semantic plan |
 | SEC-STATE | Forward and reverse admitted session traffic remains authorized under the active epoch; revocations meet the declared deadline | Old established or related flow survives beyond deadline |
 | SEC-TRANSITION | Every intermediate state admits only the approved time-indexed transition set | Packet trace through partial apply, retry, reboot or rollback |
+| SEC-CAP | Each applicable requirement has a scoped, compositional satisfaction witness at the evidence level required for the claim | Missing offer/condition, wrong context, stale or insufficient evidence, uncovered path/state |
 
 Termination is independent: every reachable execution must reach an allowed
 terminal outcome in bounded steps, or fail validation. Unknown jump targets,
@@ -76,6 +78,71 @@ default deny covers residual flows; an unreachable drop rule proves nothing.
 It does not imply absence of application-layer data exfiltration, malware,
 timing channels or cryptographic weaknesses. `SEC-AVAIL` prevents an acceptability
 claim based solely on an all-drop configuration.
+
+### 2.1 Capability satisfaction (SEC-CAP)
+
+Use the [shared contract](CAPABILITY-SATISFACTION-CONTRACT.md). For a declared
+claim/gate g, let R_g be the requirements derived from intent/profile and complete
+path/state inventory, and L_g(r) the evidence needed for requirement r. Let
+Omega_g(r) contain the applicable modeled path/state cases. Each case includes
+its assumptions and execution contexts; it is not a flattened set of devices.
+
+A positive claim requires:
+
+```text
+complete(R_g, Omega_g) AND
+exists a finite plan-bound witness selection W_g:
+  jointly_compatible(W_g, modes, contexts, capacity, owners, transition) AND
+  for every r in R_g, x in Omega_g(r):
+    exists a bounded strategy witness w in W_g:
+      covers(w, r, x)
+      AND compatible(w.offers, subjects, contexts, versions, conditions)
+      AND owner_authorized(w.operations)
+      AND evidence_adequate(w, L_g(r), scope, digests, freshness)
+```
+
+All witnesses refer to the same candidate plan and jointly feasible configuration.
+Separate witnesses that need mutually exclusive modes, competing writers or more
+aggregate capacity than a shared resource provides do not compose. At an offline
+gate owner_authorized checks the planned operation domain/delegation contract;
+actual execution authorization remains a distinct live prerequisite.
+Witness composition preserves original-flow identity across transforms and the
+authorization/transition constraints. Coverage of the declared inventory is
+checked separately from satisfaction; deleting a requirement or omitting a path
+cannot manufacture success. Empty applicability needs an explicit justified scope
+decision; genuinely absent publications still leave attachment/egress/guard and
+path obligations where applicable. Unknown feasibility is not verified disablement.
+
+Satisfied means a sufficient witness at L_g(r); unsatisfied means a demonstrated
+incompatibility; unverified means missing, unknown, stale or conflicting evidence.
+Both latter results block that claim. Lack of live evidence alone does not refute
+a valid offline witness or forbid producing an offline candidate. Evidence levels
+are distinct claims, not a numeric rank: a live sample cannot replace algebra or
+complete path coverage. Backend tests do not establish current deployment state.
+
+Keep P_e, D_e and authorization A_e independent of offer availability. A capable
+device does not authorize traffic; an incapable one makes a realization unready,
+not its required flows disappear from Q_e. SEC-CAP cannot discharge SEC-AUTH,
+SEC-AVAIL, SEC-PATH, SEC-NAT, SEC-STATE or SEC-TRANSITION by itself.
+
+**Lower bound on Omega_g (rev 3.2a).** `complete(R_g, Omega_g)` is unfalsifiable
+while Omega_g is self-declared, so it is anchored to an external inventory rather
+than to the resolver's own enumeration. For any in-scope enforcement subject,
+Omega_g must contain a case for each path class that ADR 0118 D6 already requires
+to be demonstrated or verifiably disabled — L2, routed, host INPUT/OUTPUT, tunnel,
+direct backend, IPv6 and offload/acceleration — crossed with the address families
+and policy epochs in scope. This is a **lower bound, not the definition**: a
+profile that adds paths adds cases. A path class absent from Omega_g is unverified
+by construction and cannot be closed by a scope decision that names no owner and
+no reason. SEC-PATH consumes the same inventory, so a case dropped from Omega_g is
+simultaneously a SEC-PATH coverage defect, not only a capability reporting defect.
+
+**Digest inputs.** `evidence_adequate` reads the evidence annex; `covers`,
+`compatible` and `jointly_compatible` read only the offer semantic core. The split
+is normative in [§4.1 of the shared contract](CAPABILITY-SATISFACTION-CONTRACT.md).
+Without it the witness selection W_g would depend on evidence timestamps, and two
+runs over identical semantics could yield different plans. A checker that cannot
+demonstrate this independence has not established plan determinism.
 
 ## 3. NAT and identity refinement
 
@@ -153,6 +220,11 @@ qualification. Rollback is evaluated against the current envelope/epoch.
    fragment/ICMP, offload and session-revocation cases.
 6. Fault injection: apply interrupted at each mutation, retry, reboot, concurrent
    writer, stale identity/time, failed read-back and unauthorized rollback.
+
+7. Capability resolution: requirement completeness/provenance; incompatible scope,
+   disabled features, insufficient/stale evidence, alternative strategy equivalence,
+   ownership/rollback constraints, digest invalidation and non-authorizing offers
+   (acceptance cases A25-A32).
 
 Store executable TUC evidence in acceptance-testing under the repository's
 TUC protocol, not here. These are required tests, not results from this revision.

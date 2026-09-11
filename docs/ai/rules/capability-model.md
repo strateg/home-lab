@@ -1,8 +1,8 @@
 ---
 "@pack": capability-model
-"@version": 1.0
-"@tokens": ~800
-"@adr": [0088, 0106]
+"@version": 1.2
+"@tokens": ~1600
+"@adr": [0088, 0106, 0118, 0119]
 ---
 
 # AI Rule Pack: Capability Model
@@ -14,8 +14,9 @@
 | Detection | Use `has_capability()`, never string matching |
 | Platform | `cap.os.*` capabilities (routeros, debian, proxmox) |
 | Bootstrap | Derived from `initialization_contract.mechanism` |
-| Errors | Emit E8020/E8021, never silent fallbacks |
-| New device | Add `initialization_contract` + `enabled_capabilities` |
+| Errors | E8020/E8021 for platform/bootstrap; network satisfaction uses centrally allocated SEC-CAP diagnostics |
+| New device | Add declarations; reuse only already implemented/qualified behavior |
+| Network support | Scoped requirements/offers/evidence, never flag-as-proof |
 
 ## Load When
 
@@ -30,7 +31,7 @@
 1. **NEVER** use object_ref string matching for device type detection
 2. **NEVER** use class_ref string matching for platform detection
 3. **ALWAYS** use capability checks via `has_capability()` or `get_all_capabilities()`
-4. **ALWAYS** emit errors (not fallbacks) when required capability is missing
+4. **ALWAYS** block the affected claim (not silently fall back) when required support is missing; distinguish offline and live evidence
 
 ## Rules
 
@@ -39,7 +40,7 @@
 3. Derive `cap.bootstrap.*` from `initialization_contract.mechanism`.
 4. Derive `cap.vendor.*` from `vendor` field.
 5. Derive `cap.role.*` from `enabled_capabilities`.
-6. Emit E8020/E8021 errors when required capabilities are missing.
+6. Keep E8020/E8021 for missing platform/bootstrap detection; do not reuse them for network semantic satisfaction.
 7. Do not implement silent fallbacks for missing capabilities.
 
 ## Decision Matrix
@@ -64,7 +65,47 @@
    - `cap.os.*` from OS definition
    - `cap.vendor.*` from vendor field
 
-3. No generator/validator changes needed if capabilities are declared
+3. No generator/validator changes are needed only when the existing implementation
+   already supports the same qualified behavior. A declaration cannot implement or
+   qualify a new network, state or transition semantic.
+
+## Network satisfaction (Accepted target design, not implemented)
+
+ADR 0118 D6.1 / ADR 0119 D2.1 and
+[shared contract](../../../adr/0119-analysis/CAPABILITY-SATISFACTION-CONTRACT.md):
+
+1. Derive requirements from intent/profile with provenance; no duplicate per-service
+   authored checklist. Reuse catalog/packs and existing derivation ownership.
+2. Offers include exact subjects/versions/contexts, conditions, bounds and authorized
+   operations. Effective capability is a derived join, not a parallel registry.
+3. Resolve per path/state across device/runtime + adapter + owner operations.
+   has_capability is classification, not end-to-end evidence; never union all flags.
+   Selected witnesses must be jointly compatible in modes, capacity and ownership.
+4. Report satisfied/unsatisfied/unverified for the named claim/gate. Missing live
+   evidence blocks activation, not otherwise valid offline candidate generation.
+5. Use bounded typed alternative strategies; reject incomplete inventories/cycles
+   and unknown semantics. No self-attested qualification or capability-as-permit.
+6. Bind offer versions/strategies/conditions and evidence to plan/bundle; invalidate
+   on relevant drift/version/mode/owner change or expiry. Keep live timestamps out
+   of semantic digests, not out of evidence integrity verification.
+7. Preserve cap.net.*, cap.firewall.*, cap.workload.*, cap.operations.* ownership.
+   No cap.can_access.*, duplicate cap.platform.* or boolean-per-timeout namespace.
+8. safe_mode/state_restore do not prove current-epoch rollback safety or authorize
+   a second writer. Catalog and runtime remain unchanged until implementation gates.
+9. The catalog is a **closed, identifier-only** vocabulary. The loader publishes
+   `catalog_ids`/`packs_map` and reads no other catalog field, and the contract
+   validator rejects class/object capabilities outside that set. So extra fields on
+   a catalog entry are inert, and any identifier a requirement, offer or test names
+   must be registered first. Registration is declaration, never qualification.
+10. Split an offer into a semantic core (enters the plan digest) and an evidence
+    annex (hashed separately, bound to the manifest only). Without the split,
+    recording new qualification evidence rewrites the plan.
+11. Missing vocabulary yields **unverified**, not not-applicable. Report the four
+    conditions distinctly: absent identifier, unimplemented check, absent data,
+    unqualified backend. They have different owners and different remedies.
+12. `E8020`/`E8021`/`E3202` are raised in code but are **not** registered in
+    `topology-tools/data/error-catalog.yaml`. Do not cite them as an example of
+    correct allocation, and register any new capability range before raising it.
 
 ## Error Codes
 
@@ -74,6 +115,12 @@
 | E8002 | Compile | Unknown mechanism value | Use: cloud_init, netinstall, unattended_install, manual |
 | E8020 | Generate | Cannot detect platform | Ensure `cap.os.*` is derived from OS |
 | E8021 | Generate | Missing bootstrap capability | Add `initialization_contract` to object |
+
+Registry status (verified at `493867d5`): `E8001`/`E8002` are registered in
+`topology-tools/data/error-catalog.yaml`; `E8020`, `E8021` and `E3202` are **not**.
+The registry, indexed by `docs/diagnostics-catalog.md`, is the source of truth, and
+its governance requires ranges to be registered before implementation. Treat the
+three as registration debt owned by ADR 0118 W03/G1, not as precedent.
 
 ## Anti-Patterns (PROHIBITED)
 

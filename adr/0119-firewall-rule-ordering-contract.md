@@ -1,13 +1,15 @@
 # ADR 0119: Firewall Rule Ordering Contract
 
 - Status: Accepted
+- Revised: 2026-09-11 rev 3.2a (SPC supplement: SEC-CAP digest split, anchored Omega_g, status mapping)
+- Revised: 2026-09-11 rev 3.2 (scoped capability resolution, SEC-CAP and evidence freshness)
 - Revised: 2026-09-10 rev 3.1 (applicability review: ownership, routing/NAT, contexts and migration scope)
 - Revised: 2026-09-10 rev 3 (final architecture proposal; implementation choices deferred)
 - Date: 2026-09-09
 - Revised: 2026-09-10 (authorization-preserving compilation and verified application)
 - Revised: 2026-09-10 rev 2 (SPC rebuild: plan ownership vs enforcer scope, legacy
   terminal-rule obligation, provisional diagnostic identity; no decision withdrawn)
-- Related: ADR-0086, ADR-0090, ADR-0094, ADR-0110, ADR-0118
+- Related: ADR-0086, ADR-0090, ADR-0094, ADR-0106, ADR-0110, ADR-0118
 - Scope: Lowering network intent into deterministic, verified enforcement plans
 - Implementation: Not implemented; no backend has qualified under this contract
 - Analysis: [Formal obligations](0119-analysis/FORMAL-CONTRACT.md), [assurance profile](0119-analysis/ASSURANCE-PROFILE.md)
@@ -82,9 +84,9 @@ The proposed projection contract has three immutable records:
 
 | Record | Required content |
 |---|---|
-| Security intent | Schema/profile version, canonical source refs, attachments, publications, policy bindings, selector/identity snapshot and validity |
-| Enforcement plan | Intent digest, backend/version/capabilities, execution contexts, typed matches/effects, ordered rules, transforms, path coverage, state/revocation and transition requirements |
-| Validation evidence | Plan digest, validator/tool versions, obligations checked, scope/assumptions, counterexamples and unsupported properties |
+| Security intent | Schema/profile version, canonical source refs, attachments, publications, policy bindings, selector/identity snapshot and validity; derived capability requirements and provenance |
+| Enforcement plan | Intent digest, selected versioned capability offers/strategies/conditions, execution contexts, typed matches/effects, ordered rules, transforms, path coverage, state/revocation and transition requirements |
+| Validation evidence | Plan digest, validator/tool versions, obligation-linked capability resolution witnesses, required evidence levels, scope/assumptions, counterexamples and unsupported properties |
 
 An execution context includes enforcer, routing domain, address family, hook
 and chain. Rules carry stable semantic identity, source provenance and policy/
@@ -98,6 +100,47 @@ are blocking errors in strict mode. Empty selectors are never `any`.
 The concrete manifest channel names and schemas must be registered in the
 implementation PR; these conceptual record names are not existing runtime APIs.
 
+### D2.1 Capability satisfaction is scoped and evidence-relative
+
+The [shared contract](0119-analysis/CAPABILITY-SATISFACTION-CONTRACT.md) defines
+requirements, offers and resolution evidence as facets of D2 records, not three
+mandatory new plugins or an independent registry. SEC-CAP requires each applicable
+requirement on every relevant path/state to have a compositional witness:
+device/runtime + adapter/version + owner-authorized operations + execution context.
+An offer on a different device/hook/family/VRF is not interchangeable support.
+Selected witnesses must compose into one jointly feasible plan, including shared
+capacity, compatible configuration modes and consistent ownership.
+
+Resolution is satisfied, unsatisfied or unverified **at a named evidence level**.
+Known incompatibility blocks the affected executable candidate. Missing later live
+evidence leaves an offline candidate possible, but blocks activation or the
+corresponding qualification claim. Unknown/stale evidence never means supported.
+Incomplete path or requirement inventories cannot yield vacuous success.
+
+Strategies are bounded declarative alternatives, with typed conditions and limits,
+not arbitrary scripts. Original tuple matching, an adequate earlier gate, or
+preserved connection identity may satisfy the same obligation only with complete
+path/state proof. Equivalent valid alternatives use deterministic canonical
+selection; topology/security/transition changes require review, not auto-fallback.
+Capability satisfaction is necessary, not a substitute for SEC-AUTH/AVAIL or the
+other obligations, and never enlarges approved P_e or A_e.
+
+Bind selected offer/contract versions, strategy and semantic conditions to the
+plan and bundle digests. Evidence records bind those digests, exact subject,
+versions/configuration and freshness. Live timestamps remain outside semantic
+digests; evidence artifacts still have integrity hashes. Relevant version, mode,
+ownership, path or condition changes invalidate the affected resolution. Offers
+are not self-attesting qualification; observation cannot grant permissions.
+
+Rev 3.2a makes that boundary decidable: an offer has a semantic core, which enters
+the plan digest, and an evidence annex, which does not. Qualification evidence
+references belong to the annex, so recording a qualification run changes evidence
+status without rewriting the plan, while any change to the core invalidates the
+resolution even when catalog identifiers are unchanged. The satisfaction tri-state
+maps onto the `unsupported` flow verdict in one direction only: an unsatisfied or
+unverified requirement may render the affected flow `unsupported`, but an
+`unsupported` flow never closes the requirement or reads as supported.
+
 ### D3. Preserve the repository lifecycle
 
 | Stage | Responsibility |
@@ -107,7 +150,7 @@ implementation PR; these conceptual record names are not existing runtime APIs.
 | validate | Check schemas, capability coverage, semantics, ordering and proof obligations |
 | generate | Deterministic backend rendering from validated projections only |
 | assemble | Cross-artifact consistency, manifest and provenance checks |
-| build | Immutable candidate bundle; reject incomplete evidence |
+| build | Immutable offline candidate bundle; reject missing evidence required at this gate; activation additionally requires fresh live prerequisites |
 
 All plugin exchanges use `depends_on`, `consumes`, `produces`; stage affinity
 and ADR 0097 snapshot/envelope rules remain unchanged. Validation gates block
@@ -249,7 +292,7 @@ to feedback. Human approval of critical policy/transition changes and secret
 redaction follow ADR 0094 and existing deploy controls.
 
 Semantic obligation IDs `SEC-AUTH`, `SEC-AVAIL`, `SEC-PATH`, `SEC-NAT`,
-`SEC-ORDER`, `SEC-STATE`, `SEC-TRANSITION` are specified in the
+`SEC-ORDER`, `SEC-STATE`, `SEC-TRANSITION`, `SEC-CAP` are specified in the
 [formal contract](0119-analysis/FORMAL-CONTRACT.md). Allocate numeric diagnostics
 centrally with collision tests at implementation time, not in speculative tables.
 Before that allocation a diagnostic is identified by its obligation ID plus a
@@ -267,7 +310,7 @@ typed subset and reject unsupported semantics. Small reference-model tests,
 differential backend tests and live tests have distinct claims.
 
 Acceptance of architecture requires the coherent threat model, formal contract
-and decisions AD-01..AD-10 in the [final architecture proposal](0118-analysis/FINAL-ARCHITECTURE-PROPOSAL.md).
+and decisions AD-01..AD-11 in the [final architecture proposal](0118-analysis/FINAL-ARCHITECTURE-PROPOSAL.md).
 Backend selection, plugin decomposition and implementation sequence are not part
 of this approval.
 Implementation readiness requires the

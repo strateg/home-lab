@@ -71,6 +71,28 @@ No claim of complete control coverage is made by this mapping.
 | Backend-tested | Qualified backend/version and conformance scenarios | Current deployed topology/state |
 | Live-observed | Current plan read-back and scoped live tests | Permanent protection after drift or complete compliance |
 
+### Capability satisfaction evidence (rev 3.2, 2026-09-11)
+
+The [capability contract](CAPABILITY-SATISFACTION-CONTRACT.md) and SEC-CAP bind
+HA-02/05/06/07/10 to concrete offers, execution contexts, versions and witnesses.
+That list is extended (rev 3.2a) to HA-01 and HA-08. HA-01 requires denies to be
+non-bypassable, and an acceleration or hook path that no identifier can name is an
+unproven bypass rather than an absent one, so HA-01 depends on the path inventory
+being externally anchored rather than self-declared. HA-08 requires telemetry to be
+useful and protected, and a resolution record is exactly such telemetry: it carries
+the reason codes, evidence producer and trust basis on which every capability claim
+rests, and inherits HA-08's protection and retention obligations.
+An enabled flag, catalog pack or offer's own assertion is not qualification.
+Record evidence producer, trust basis, target, test/tool version, digests,
+applicability and freshness; independent checks remain necessary.
+
+Report satisfied/unsatisfied/unverified per requirement and claim. Evidence levels
+are not interchangeable: a live sample cannot replace complete path/model checks,
+and offline validation cannot establish current installed behavior. Missing live
+preconditions block activation, not otherwise valid offline candidate generation.
+Post-apply observations gate completion, not the preceding guarded transition.
+Capability records authorize neither policy expansion nor a second resource writer.
+
 Strict deployment requires all applicable requirements at their necessary level.
 Changes in topology, policy, backend version or identity semantics invalidate
 affected evidence and require reassessment. Exceptions have an owner, scope,

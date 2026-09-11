@@ -1,8 +1,8 @@
 ---
 "@pack": network-security
-"@version": 1.4
-"@tokens": ~1000
-"@adr": [0109, 0110, 0111, 0118, 0119]
+"@version": 1.5
+"@tokens": ~1400
+"@adr": [0106, 0109, 0110, 0111, 0118, 0119]
 ---
 
 # AI Rule Pack: Network Security Matrix
@@ -132,7 +132,7 @@ network:
 | `topology/object-modules/mikrotik/templates/terraform/zone_firewall.tf.j2` | Firewall generation |
 | `projects/home-lab/topology/instances/network/inst.security_matrix.mikrotik.yaml` | Active matrix |
 
-## Proposed intent/enforcement contract (ADR 0118/0119)
+## Accepted target intent/enforcement contract (ADR 0118/0119)
 
 Apply these as design constraints when implementing the proposal, not as claims
 about the legacy runtime:
@@ -186,6 +186,17 @@ about the legacy runtime:
 18. Design approval covers the [final architecture proposal](../../../adr/0118-analysis/FINAL-ARCHITECTURE-PROPOSAL.md),
     not plugin count, backend order or implementation sequence. Resource ownership
     and independent management/recovery requirements are architectural constraints.
+
+19. Rev 3.2 derives capability requirements from intent/profile and resolves typed
+    versioned offers with per-path/state witnesses (SEC-CAP). A union of device flags
+    is not composition; has_capability is classification, not proof or permission.
+20. Keep satisfied/unsatisfied/unverified relative to the claim and evidence level.
+    Missing live preconditions block activation, not an otherwise valid offline
+    candidate. Complete inventory and independent evidence prevent vacuous success.
+21. Bind selected offers/strategies/conditions and evidence to intent/plan/bundle;
+    relevant version/mode/path/owner changes invalidate resolution. Preserve ADR 0106
+    namespaces and owner-authorized operations; no silent topology/legacy fallback.
+    See [capability contract](../../../adr/0119-analysis/CAPABILITY-SATISFACTION-CONTRACT.md).
 
 See [ADR 0118](../../../adr/0118-universal-container-network-model.md),
 [ADR 0119](../../../adr/0119-firewall-rule-ordering-contract.md) and their

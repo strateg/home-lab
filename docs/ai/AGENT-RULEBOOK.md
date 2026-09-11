@@ -36,7 +36,7 @@ Load rule packs based on files you're modifying:
 |----------------|-----------|------------|
 | `topology-tools/plugins/**`, `kernel/**` | `plugin-runtime.md` | Preserve stage affinity, declare manifests |
 | `topology/**`, `projects/*/topology/**` | `topology-model.md` | Class → Object → Instance hierarchy |
-| Network security, attachments/publications, firewall ordering, `**/security_matrix*`, `**/trust_zone*`, `**/vlan*` | `network-security.md` | Legacy R1-R6; ADR0118/0119 strict profile is Proposed, not implemented |
+| Network security, attachments/publications, firewall ordering, `**/security_matrix*`, `**/trust_zone*`, `**/vlan*` | `network-security.md` | Legacy R1-R6; ADR0118/0119 target is Accepted, not implemented; scoped capability evidence |
 | `scripts/orchestration/deploy/**` | `deploy-domain.md` | Immutable bundles, runner backends |
 | `**/generators/**`, `generated/**` | `generator-artifacts.md` | Edit sources, not generated |
 | `projects/*/secrets/**` | `secrets.md` | SOPS/age, never plaintext |
@@ -44,7 +44,7 @@ Load rule packs based on files you're modifying:
 | `tests/**`, `.github/workflows/**` | `testing-ci.md` | Run targeted tests + ci |
 | `generated/**/terraform/mikrotik/**` | `mikrotik-terraform.md` | Import existing resources before apply |
 | `acceptance-testing/**` | `acceptance-tuc.md` | TUC folder structure |
-| Device/platform detection | `capability-model.md` | Use capabilities, not string matching |
+| Device/platform detection; network capability satisfaction | `capability-model.md` | Classification via capabilities; network support needs scoped requirements/offers/evidence |
 
 **Default:** If uncertain which pack to load, start with only this rulebook. Add packs as context clarifies.
 
