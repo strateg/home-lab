@@ -7,9 +7,6 @@
 properties:
   # ADR-0110: Canonical CIDR — all derived host IPs (vlan_ref + host) compute from this base.
   # VLAN 100 for intranet services accessible via WireGuard tunnel.
-  vlan_id: 100
-  cidr: 10.0.100.0/24
-  gateway: 10.0.100.1
   mtu: 1500
   dhcp_enabled: false
   dns_servers:

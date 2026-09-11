@@ -10,6 +10,12 @@ notes: |
   Admin access (SSH, WebFig) via management VLAN 10.0.99.1.
   Legacy network — devices will migrate to inst.vlan.user (192.168.10.0/24).
 
+# Segment addressing (ADR 0110 section 1.5): concrete per-segment values
+# belong to the instance; the object carries reusable defaults only.
+vlan_id: 1
+cidr: 192.168.88.0/24
+gateway: 192.168.88.1
+
 trust_zone_ref: inst.trust_zone.user
 managed_by_ref: rtr-mikrotik-chateau
 dhcp_range: 192.168.88.10-192.168.88.254

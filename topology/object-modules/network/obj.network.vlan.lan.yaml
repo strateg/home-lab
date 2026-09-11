@@ -5,9 +5,6 @@
 @version: 1.0.0
 
 properties:
-  vlan_id: 1
-  cidr: 192.168.88.0/24
-  gateway: 192.168.88.1
   mtu: 1500
   dhcp_enabled: true
   dns_servers:

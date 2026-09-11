@@ -8,10 +8,9 @@
 @version: 1.0.0
 
 # Default VLAN ID for VPN tunnel routing (can be overridden in instance)
+# Shared by every VPN VLAN instance, so it carries no concrete addressing:
+# one object cannot supply four segments their own vlan_id, cidr and gateway.
 properties:
-  vlan_id: 50
-  cidr: 192.168.50.0/24
-  gateway: 192.168.50.1
   mtu: 1420  # Match WireGuard MTU
   dhcp_enabled: true
   dns_servers:

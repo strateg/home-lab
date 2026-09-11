@@ -9,6 +9,12 @@ notes: |
   Dual-homed: router accessible via 10.0.99.1 for SSH/WebFig/API.
   User zone devices access router services via 192.168.88.1 (DNS, DHCP).
 
+# Segment addressing (ADR 0110 section 1.5): concrete per-segment values
+# belong to the instance; the object carries reusable defaults only.
+vlan_id: 99
+cidr: 10.0.99.0/24
+gateway: 10.0.99.1
+
 trust_zone_ref: inst.trust_zone.management
 managed_by_ref: rtr-mikrotik-chateau
 

@@ -10,6 +10,12 @@ notes: |
   Trunk port on rtr-mikrotik-chateau ether5 (srv-orangepi5).
 
 bridge_ref: inst.bridge.vmbr0
+# Segment addressing (ADR 0110 section 1.5): concrete per-segment values
+# belong to the instance; the object carries reusable defaults only.
+vlan_id: 100
+cidr: 10.0.100.0/24
+gateway: 10.0.100.1
+
 trust_zone_ref: inst.trust_zone.servers
 managed_by_ref: rtr-mikrotik-chateau
 

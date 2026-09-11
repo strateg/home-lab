@@ -9,6 +9,12 @@ notes: |
   Target network for migration from legacy LAN (192.168.88.0/24).
   Phase 3: migrate devices from inst.vlan.lan.
 
+# Segment addressing (ADR 0110 section 1.5): concrete per-segment values
+# belong to the instance; the object carries reusable defaults only.
+vlan_id: 10
+cidr: 192.168.10.0/24
+gateway: 192.168.10.1
+
 trust_zone_ref: inst.trust_zone.user
 managed_by_ref: rtr-mikrotik-chateau
 dhcp_range: 192.168.10.100-192.168.10.254
