@@ -52,7 +52,8 @@ netmodel/
   plan.py        canonical ordering and digests                             [target]
 ```
 
-Modules marked target are declared, not written.
+All five modules are present. The package is a library: no plugin, no context,
+no I/O beyond reading a snapshot in tests.
 
 ## What each module is evidence for
 
@@ -71,3 +72,9 @@ the semantics. If either side moves, that test says so.
 permit and from nothing else. The strongest guarantee it offers is structural:
 delivery concepts have no representation in it, so none can become a permission,
 and a test enforces that by reading the module's own identifiers.
+
+`plan.py` carries ordering and plan identity. Its property tests are the point:
+every permutation of a rule set must produce the same plan, and the digest must
+move when meaning moves and not otherwise. Writing them found a real error in the
+precedence rules, where a terminal deny was treated as one more deny and so had
+to precede every permit and follow every rule at once.
