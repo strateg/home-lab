@@ -107,3 +107,45 @@ detail:
 
 Until that decision is recorded, W05 stops at characterization and the A24 cutover
 stays blocked. No gate is closed by this document.
+
+
+## Update 2026-09-11 — the selector underneath the divergence
+
+Revisited as preparation for W06/G3, which needs one authority for zone
+membership: a plan built on two answers about which networks are in a zone is
+ambiguous before it is ordered.
+
+The divergence turned out to sit on top of something more basic. The compiler
+selected instances by the **shape of the identifier** - `instance_id.startswith("inst.vlan.")`
+- so it could only ever see networks whose author happened to name them that way.
+An overlay network that is an address domain without being a VLAN was therefore
+unrepresentable, and `additional_networks` on a trust zone is what people wrote
+instead. The divergence is downstream of a selector, not of a disagreement about
+zones.
+
+**Changed:** selection is now by declared class, through a helper that reads
+`class_ref` from `normalized_rows` or the `class` payload's lineage from an
+effective-model row - reading only one shape silently matches nothing in the
+other stage, which is the same mistake that made the validator's lineage walk
+find no declarations. The address-domain set is one named list, so admitting a
+new kind is one edit rather than a new prefix learned by every consumer.
+
+**Measured before changing:** both selectors return the same ten instances on the
+current topology. Artifact parity after: 147 files identical. The change moves
+nothing today; what it removes is the dependency on identifier shape.
+
+**Still blocked.** The cutover itself is unchanged: the two overlay CIDRs
+(`10.100.0.0/24` on `vpn_tunnel`, `10.100.1.0/24` on `vpn_exit`) are still
+declared on the zones and still consumed only by the generator. Making them
+address domains needs a class that carries a prefix and a `trust_zone_ref`
+without rendering a VLAN interface - `class.network.tunnel_link` exists but the
+two instances of it (`inst.tunnel.wg-exit`, `inst.tunnel.wg-home-to-oci`) carry
+neither a CIDR nor a zone reference, so they are link definitions rather than
+domains. That is the next step, and it is a source change with an artifact delta
+to review, not a refactor.
+
+One test was corrected in the process. It asserted the compiler does not consume
+`additional_networks` by searching the source text, and failed on a comment
+explaining why the compiler does not consume it. It now inspects the AST for an
+actual lookup. A substring test cannot distinguish a read from an explanation of
+its absence.

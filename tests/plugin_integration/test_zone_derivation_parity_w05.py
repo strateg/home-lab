@@ -55,14 +55,39 @@ def test_overlay_zones_declare_additional_networks(zone_id: str, cidr: str) -> N
     assert cidr in [str(entry.get("cidr", "")).strip() for entry in declared if isinstance(entry, dict)]
 
 
+def _reads_key(path, key: str) -> bool:
+    """Whether the module actually reads `key`, rather than merely mentioning it.
+
+    A substring test over the source cannot tell a lookup from a comment
+    explaining why the lookup is absent - and it failed on exactly that, when the
+    compiler gained a comment describing this divergence. Consumption is a
+    subscript or a `.get`, so that is what is looked for.
+    """
+    import ast
+
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Subscript):
+            index = node.slice
+            if isinstance(index, ast.Constant) and index.value == key:
+                return True
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "get":
+            for argument in node.args:
+                if isinstance(argument, ast.Constant) and argument.value == key:
+                    return True
+        if isinstance(node, ast.Compare) and isinstance(node.left, ast.Constant) and node.left.value == key:
+            return True  # `"key" in mapping`
+    return False
+
+
 def test_only_the_generator_side_consumes_additional_networks() -> None:
     """The asymmetry is in the code, not in a stale artifact.
 
     If the compiler ever learns `additional_networks`, this test fails and the
     cutover to a single derivation becomes possible. That is the intended signal.
     """
-    assert "additional_networks" in PROJECTIONS.read_text(encoding="utf-8")
-    assert "additional_networks" not in COMPILER.read_text(encoding="utf-8"), (
+    assert _reads_key(PROJECTIONS, "additional_networks"), "the generator side no longer reads it"
+    assert not _reads_key(COMPILER, "additional_networks"), (
         "security_matrix_compiler now handles additional_networks; re-evaluate the "
         "A24 cutover and update this characterization"
     )
@@ -97,3 +122,67 @@ def test_projection_vlan_selector_matches_non_vlan_objects() -> None:
         assert "cidr" not in data, f"{path.stem} would now pollute vlan_cidr_map"
 
     assert matched, "expected routing policies extending a vlan-named object"
+
+
+# --- selection by kind, not by identifier shape --------------------------------
+
+
+def test_the_compiler_selects_by_class_not_by_instance_id_prefix() -> None:
+    """The dependency that had to go before overlays can become domains.
+
+    Reading `inst.vlan.` meant the compiler could only ever see networks whose
+    author named them that way. An overlay network that is an address domain
+    without being a VLAN was unrepresentable, which is *why* two trust zones
+    carry `additional_networks` at all - the divergence is downstream of a
+    selector, not of a disagreement about zones.
+
+    Both selectors returned the same ten instances on the current topology, which
+    is why this moved no artifact. The test asserts the prefix is gone rather than
+    the result, because the result is identical by construction today.
+    """
+    import ast
+
+    tree = ast.parse(COMPILER.read_text(encoding="utf-8"))
+
+    prefixes = [
+        node.args[0].value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "startswith"
+        and node.args
+        and isinstance(node.args[0], ast.Constant)
+        and isinstance(node.args[0].value, str)
+    ]
+
+    assert not [item for item in prefixes if item.startswith("inst.")], (
+        f"the compiler still selects instances by identifier shape: {prefixes}"
+    )
+
+
+def test_the_address_domain_set_is_named_once_and_can_grow() -> None:
+    """One list to extend when an overlay network becomes declarable."""
+    import sys
+
+    sys.path.insert(0, str(REPO_ROOT / "topology-tools"))
+    from plugins.compilers.security_matrix_compiler import SecurityMatrixCompiler
+
+    assert "class.network.vlan" in SecurityMatrixCompiler._ADDRESS_DOMAIN_CLASSES
+
+
+def test_the_class_of_a_row_is_read_from_either_stage_shape() -> None:
+    """normalized_rows carry class_ref; effective-model rows carry a payload.
+
+    Reading only one silently matches nothing in the other stage, which is the
+    same mistake that made the validator's lineage walk find no declarations.
+    """
+    import sys
+
+    sys.path.insert(0, str(REPO_ROOT / "topology-tools"))
+    from plugins.compilers.security_matrix_compiler import SecurityMatrixCompiler
+
+    assert SecurityMatrixCompiler._class_of({"class_ref": "class.network.vlan"}) == "class.network.vlan"
+    assert (
+        SecurityMatrixCompiler._class_of({"class": {"lineage": ["class.network.vlan"]}}) == "class.network.vlan"
+    )
+    assert SecurityMatrixCompiler._class_of({}) is None

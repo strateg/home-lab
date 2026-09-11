@@ -19,6 +19,31 @@ from kernel.plugin_base import CompilerPlugin, PluginContext, PluginDiagnostic, 
 class SecurityMatrixCompiler(CompilerPlugin):
     """Computes zone-to-zone security matrix (ADR 0110)."""
 
+    # An address domain is anything that carries a prefix and can belong to a
+    # trust zone. A VLAN is one kind; a bridge is another; an overlay tunnel
+    # network is a third once it is declarable. ADR 0118 AD-04 generalizes VLAN
+    # into this concept, and selecting by it is what lets the set grow without
+    # every consumer learning a new identifier prefix.
+    _ADDRESS_DOMAIN_CLASSES = ("class.network.vlan",)
+
+    @staticmethod
+    def _class_of(row: dict) -> str | None:
+        """The row's class id, from whichever shape the stage provides.
+
+        `normalized_rows` carry `class_ref` as a string; an effective-model row
+        carries a resolved `class` payload whose `lineage` ends with the id.
+        Reading only one of them silently matches nothing in the other stage.
+        """
+        class_ref = row.get("class_ref")
+        if isinstance(class_ref, str) and class_ref:
+            return class_ref
+        payload = row.get("class")
+        if isinstance(payload, dict):
+            lineage = payload.get("lineage")
+            if isinstance(lineage, list) and lineage:
+                return lineage[-1]
+        return None
+
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         """Build security matrices from inst.security_matrix.* instances."""
         diagnostics: list[PluginDiagnostic] = []
@@ -28,30 +53,42 @@ class SecurityMatrixCompiler(CompilerPlugin):
         if not rows or not isinstance(rows, list):
             return self.make_result(diagnostics=diagnostics)
 
-        # Build indices for zones, VLANs, and security matrices
-        zone_index: dict[str, dict[str, Any]] = {}  # inst.trust_zone.* -> {security_level, isolated, name}
-        vlan_zone_map: dict[str, str] = {}  # inst.vlan.* -> trust_zone_ref
-        vlan_cidr_map: dict[str, str] = {}  # inst.vlan.* -> cidr
-        matrix_instances: list[dict[str, Any]] = []  # inst.security_matrix.* rows
+        # Build indices for zones, address domains, and security matrices
+        zone_index: dict[str, dict[str, Any]] = {}  # zone instance -> {security_level, isolated, name}
+        vlan_zone_map: dict[str, str] = {}  # address domain -> trust_zone_ref
+        vlan_cidr_map: dict[str, str] = {}  # address domain -> cidr
+        matrix_instances: list[dict[str, Any]] = []  # security matrix rows
 
         # First pass: Build indices
+        #
+        # Selection is by declared class, not by the shape of the instance id.
+        # The prefix form read `inst.vlan.` and so could only ever see VLANs whose
+        # author happened to name them that way, and could never see an overlay
+        # network that is an address domain without being a VLAN - which is the
+        # W05 divergence: two trust zones carry `additional_networks` precisely
+        # because there was no way to declare them as domains.
+        #
+        # Measured before the change: both selectors return the same 10 instances
+        # on the current topology, so this moves no artifact today. What it
+        # removes is the dependency on identifier shape.
         for row in rows:
             instance_id = row.get("instance", "") or row.get("instance_id", "")
             if not isinstance(instance_id, str):
                 continue
 
+            class_ref = self._class_of(row)
             extensions = row.get("extensions", {})
             if not isinstance(extensions, dict):
                 extensions = {}
 
             # Index trust zones with security_level and isolated properties
-            if instance_id.startswith("inst.trust_zone."):
+            if class_ref == "class.network.trust_zone":
                 zone_data = self._extract_zone_data(row, extensions, ctx)
                 if zone_data:
                     zone_index[instance_id] = zone_data
 
-            # Index VLANs with their trust_zone_ref
-            elif instance_id.startswith("inst.vlan."):
+            # Index address domains with their trust_zone_ref
+            elif class_ref in self._ADDRESS_DOMAIN_CLASSES:
                 trust_zone_ref = extensions.get("trust_zone_ref") or row.get("trust_zone_ref")
                 if isinstance(trust_zone_ref, str):
                     vlan_zone_map[instance_id] = trust_zone_ref
@@ -62,7 +99,7 @@ class SecurityMatrixCompiler(CompilerPlugin):
                     vlan_cidr_map[instance_id] = cidr
 
             # Collect security matrix instances
-            elif instance_id.startswith("inst.security_matrix."):
+            elif class_ref == "class.network.security_matrix":
                 matrix_instances.append(row)
 
         # Build zone_vlans mapping: zone_ref -> [vlan_refs]
