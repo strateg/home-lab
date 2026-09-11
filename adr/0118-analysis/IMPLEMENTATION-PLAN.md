@@ -646,6 +646,50 @@ the oracle, conflict order included.
 A guard on scaling accompanies each, asserting the shape of the growth rather
 than a wall-clock number, which would only detect how fast the machine is.
 
+### W04 / G2 — the legacy IP derivation, characterized 2026-09-11
+
+G2 says to keep the old `ip_derivation` path and not to describe its known /23 and
+shifted-/25 defects as an absence of defects. Measured rather than restated, in
+`W04-IP-DERIVATION-CHARACTERIZATION.md`.
+
+`_resolve_ip` does not compute an address. It splits the last octet off the CIDR
+and appends the host number to what remains; the prefix length is carried into the
+output and never used in the arithmetic, and the gateway is unconditionally `.1`
+of the printed base.
+
+Three failure modes, measured:
+
+| Mode | Example | Result |
+|---|---|---|
+| Syntactically invalid output | `10.0.30.0/23` host 300 | `10.0.30.300` - not an address. The compiler's own range check uses `num_addresses - 2`, so 300 is legal in a /23 and the string is built |
+| Address outside its own network | `10.0.30.128/25` host 10 | `10.0.30.10`. Valid IPv4, wrong subnet, no diagnostic, interface does not come up |
+| Gateway outside its own network | any shifted subnet | `10.0.30.1` for a `10.0.30.128/25` network |
+
+And one case that is **not** a defect: on a shifted subnet the legacy answer can
+land inside the network and still mean something else, because legacy reads
+`host` as a last octet and the target model reads it as an offset. Both are
+coherent readings of a v1 source, which is why ADR 0118 states the offset meaning
+explicitly rather than leaving it implied - and why migrating a shifted subnet is
+a per-source decision, not a mechanical rewrite.
+
+**The defect is latent, not absent.** All eleven address domains are unshifted
+/24s, where last-octet and offset arithmetic agree exactly. The legacy path is not
+working; it is indistinguishable from working on the only shape present.
+
+So: nothing in `ip_derivation_compiler` was changed. There are no output deltas to
+review while every domain is an unshifted /24, and the plan requires legacy repair
+to be its own reviewed change. Added instead are a characterization test pinning
+every measured row, and a guard that fails the moment a source introduces a
+non-/24 or shifted network, naming the document rather than leaving the next
+reader to rediscover it. A latent silent failure becomes a loud one at the moment
+it stops being hypothetical.
+
+*Correction worth keeping.* The first draft of the characterization table listed
+`10.0.30.64/26` host 70 as an out-of-network defect. `.70` is inside that network;
+it belongs in the semantic-difference row. The error was caught by the test
+asserting it, not by rereading the table - which is the argument for pinning a
+characterization in tests rather than in prose.
+
 **Correction to that instruction (revision 4a).** It presumed those codes are
 registered. At baseline `493867d5` they are not. The canonical registry is
 `topology-tools/data/error-catalog.yaml`, indexed by `docs/diagnostics-catalog.md`,
