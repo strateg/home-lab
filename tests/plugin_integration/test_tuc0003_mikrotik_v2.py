@@ -166,6 +166,12 @@ MIKROTIK_COMPILED_PAYLOAD = {
                 "instance_data": {
                     "managed_by_ref": "rtr-mikrotik-chateau",
                     "bridge_ref": "br-lan",
+                    # This payload carries no objects map, so nothing can supply an
+                    # object-level default: segment addressing has to be declared
+                    # here, which is also where the layering contract puts it.
+                    "vlan_id": 30,
+                    "cidr": "192.168.30.0/24",
+                    "gateway": "192.168.30.1",
                     "dhcp_range": "192.168.30.100-192.168.30.254",
                 },
             },
@@ -175,6 +181,9 @@ MIKROTIK_COMPILED_PAYLOAD = {
                 "instance_data": {
                     "managed_by_ref": "rtr-mikrotik-chateau",
                     "bridge_ref": "br-lan",
+                    "vlan_id": 40,
+                    "cidr": "192.168.40.0/24",
+                    "gateway": "192.168.40.1",
                     "dhcp_range": "192.168.40.100-192.168.40.254",
                 },
             },

@@ -343,10 +343,15 @@ implementation work in this cycle.
 |---|---|
 | `tests/plugin_contract/test_plugin_level_boundaries.py`: hardcoded product name and local URL host in mikrotik object plugins, 2 failures | Open, unowned |
 | `tests/plugin_integration/test_session_compile_fixture.py`: 4 errors, the session fixture compiled without `--diagnostics`, so the effective-json owner resolved to disabled and the file it then read was never written | **Fixed 2026-09-11**; same trap as the netmodel snapshot task hit |
-| `tests/plugin_integration/test_tuc0003_mikrotik_v2.py::test_generator_contains_topology_and_runtime_markers`: no `routeros_interface_vlan` resources are emitted, so the expected `"guest"` interface is absent | Open, unowned. Larger than a flag: it concerns whether VLAN interfaces are generated at all |
+| `tests/plugin_integration/test_tuc0003_mikrotik_v2.py::test_generator_contains_topology_and_runtime_markers`: the test's own fixture declared VLANs without a `vlan_id`, and the payload carries no objects map to default it from, so the template correctly skipped them and the test then demanded them | **Fixed 2026-09-11** by declaring segment addressing on the fixture's instances. Generation was never at fault: the real artifact emits nine `routeros_interface_vlan` resources, one per non-native VLAN |
 
 A suite selected narrowly enough will pass over any of these. Claims about test
 state name the suites they ran.
+
+The TUC entry was first written here as "no VLAN interfaces are emitted", read
+from the assertion message rather than from the artifact. The artifact had all
+nine. A failing assertion names what a test expected, not what the system does;
+the artifact is the evidence.
 
 ### G1 — Registered schema and reference contracts
 
