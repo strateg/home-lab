@@ -337,6 +337,39 @@ value to keep in agreement across three files.
 
 ---
 
+## 7b. Proposals are not permissions
+
+Acceptance item A22: an unapproved candidate present in the model produces no
+permit, no rendered rule and no accepted flow, and rejecting it leaves the
+pipeline green.
+
+The load-bearing word is *present*. Refusing to represent candidates would
+satisfy the letter of A22 and defeat its purpose — the model holds them so a
+reviewer can see what was proposed. So the separation is structural, not a
+remembered check:
+
+* a `Candidate` is a different type from a `Binding` and **has no approval field
+  to flip**. A shared type with an `approved` boolean puts a proposal and a grant
+  on one path with a flag between them, and a flag is one typo from being true;
+* `promote` is the only crossing, it takes a keyword-only approver with no
+  default, and it refuses an approver who is the proposer. Self-approval turns
+  review into a formality that leaves a complete audit trail of nobody having
+  looked;
+* approval activates a template, it never widens one. Promoting a candidate whose
+  selectors do not intersect the template is refused, not resolved permissively.
+
+An unapproved `Binding` is reported as a candidate rather than dropped: a binding
+somebody wrote and nobody approved is precisely what a reviewer needs to see.
+
+**What this is not.** Rejecting a proposal is green; a *missing* required flow
+must still block, and that is `SEC-AVAIL` (`E7084`), which belongs to a plan
+compiler that does not exist yet. The two must never be confused, so this module
+has no vocabulary for the second — a test asserts that neither `Review` nor
+`Candidate` gains a field named for requirement or availability. A green review
+here is evidence about proposals only.
+
+---
+
 ## 8. Current state
 
 | Fact | Value | Measured |
@@ -360,3 +393,4 @@ across every emitted file.
 | 2026-09-11 | `8a04dd15` | Section 7: the legacy derivation's output reaches nothing, measured address by address; what that bounds for migration |
 | 2026-09-11 | `3c06ffbe` | Section 7a: a real source migrated and reverted; the migration unit is the host, and a lineage-resolution bug in the validator that only a real source could reveal |
 | 2026-09-11 | `2525f01e` | Section 7a: the inheritance chain is three links; the v2 shape travels it unchanged, proved by test, with the migrated shape written out |
+| 2026-09-11 | `09f633c0` | Section 7b: candidate isolation (A22) as a type boundary, and what it explicitly does not claim |

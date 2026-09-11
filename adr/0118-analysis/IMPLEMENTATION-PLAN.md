@@ -829,6 +829,38 @@ So W09 has a recipe rather than an open question, and it needs no framework
 change: object module, host `workload_defaults`, instances, together, per host.
 The migrated shape is written out in `MODEL-OPERATION.md` section 7a.
 
+**A22 candidate isolation, 2026-09-11: `netmodel/candidates.py`.** The separation
+between what is proposed and what is authorized is a type boundary rather than a
+remembered check.
+
+A `Candidate` is not a `Binding` and has no approval field to flip. `promote` is
+the only crossing; it takes a keyword-only approver with no default, so no call
+approves implicitly — G2 names `metadata-as-approval` as a fallback that must not
+exist, and the check is over the signature rather than the prose. It refuses an
+approver who is the proposer, because self-approval turns review into a formality
+that leaves a full audit trail of nobody having looked. Approval activates a
+template and never widens one: promoting a candidate whose selectors miss the
+template is refused rather than resolved permissively.
+
+An unapproved `Binding` is reported as a candidate rather than dropped. A binding
+somebody wrote and nobody approved is exactly what a reviewer needs to see, and
+A22 is about candidates being *present* and inert — refusing to represent them
+would satisfy the letter and defeat the point.
+
+The A22 property itself is asserted directly: the authorized set computed with
+candidates in the model is identical to the set computed without them.
+
+**What this does not close.** Rejecting a proposal is green; a missing mandatory
+intent must still block, and that is `SEC-AVAIL` (`E7084`), which belongs to the
+plan compiler. The plan is explicit that "candidate rejected" cannot hide missing
+Q, so the module is given no vocabulary for requirement or availability at all,
+and a test asserts neither `Review` nor `Candidate` gains such a field. A green
+review is evidence about proposals only, and saying so is the difference between
+A22 satisfied and A22 assumed.
+
+15 tests. Remaining for G2: none of the framework work; what is left is source
+migration, which is W09 and gated on G1-G4.
+
 **Correction to that instruction (revision 4a).** It presumed those codes are
 registered. At baseline `493867d5` they are not. The canonical registry is
 `topology-tools/data/error-catalog.yaml`, indexed by `docs/diagnostics-catalog.md`,
