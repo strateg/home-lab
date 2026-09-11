@@ -732,6 +732,43 @@ It was caught by the guard asserting a minimum comparison count, which is now th
 rule for any differential here: assert that it examined something, or it is not
 evidence.
 
+**Mounted in the compiler, 2026-09-11: `base.compiler.network_intent_resolver`.**
+Resolution now publishes a channel, `resolved_network_intent`, carrying each
+effective address, gateway and family together with its source map. A later stage
+consumes one authority instead of deriving addresses again with arithmetic of its
+own, which is how the legacy compiler and the MikroTik generator came to disagree
+about zones (W05) and would have happened again here.
+
+Three deliberate limits, each a test:
+
+* It does not touch a v1 source. The flat block is still `ip_derivation_compiler`'s;
+  replacing that would change rendered addresses nobody has reviewed.
+* It does not fail the stage. It runs before validate, so an unresolvable record
+  is published as unresolved with its reason and
+  `base.validator.network_intent_schema` reports it with the right code. Erroring
+  here too would report one fault twice, with worse paths.
+* It does not guess. A dynamic allocation yields no address, a domain without a
+  gateway yields none rather than the first usable address, an offset the prefix
+  rejects yields nothing. Each is a fallback the legacy path took.
+
+Precedence between authored, object-default and `@on:host.X` values is not
+re-implemented here: `instance_rows` publishes merged rows, so the merge already
+happened upstream. A second precedence table would be a second authority for one
+rule, which is what W02 exists to remove.
+
+One resolver, asserted: a test checks that the compiler and the validator hold the
+same `resolve_offset` object, not merely equivalent code.
+
+16 plugin tests executing through the registry - again the only proof the plugin
+loads, since an empty channel from a plugin that never ran looks exactly like an
+empty channel from v1-only sources. Artifact parity identical across 147 files;
+determinism and strict-lock compiles pass.
+
+*Method note.* The first version of those tests read the channel with
+`ctx.subscribe` after execution and failed on all fourteen: `subscribe` needs an
+active execution scope, and the plugin's is torn down by the time an assertion
+runs. `get_published_data()` reads the bus directly.
+
 **Correction to that instruction (revision 4a).** It presumed those codes are
 registered. At baseline `493867d5` they are not. The canonical registry is
 `topology-tools/data/error-catalog.yaml`, indexed by `docs/diagnostics-catalog.md`,

@@ -316,6 +316,31 @@ plugins:
   description: Validates prepared instance-row shape and builds stage-local normalized row payloads. Consumes on_prepared_rows
     (ADR 0107) with fallback to prepared_rows.
   execution_mode: subinterpreter
+- id: base.compiler.network_intent_resolver
+  kind: compiler
+  entry: ../compilers/network_intent_resolver_compiler.py:NetworkIntentResolverCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: run
+  order: 46
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  produces:
+  - key: resolved_network_intent
+    scope: pipeline_shared
+  description: Resolves v2 attachments to effective addresses and publishes them with provenance (ADR 0118 G2).
+  execution_mode: subinterpreter
 - id: base.compiler.instance_rows
   kind: compiler
   entry: ../compilers/instance_rows_compiler.py:InstanceRowsCompiler
