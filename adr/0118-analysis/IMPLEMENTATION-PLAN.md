@@ -522,6 +522,46 @@ a stale `framework.lock` - the class comments had been edited after the last loc
 refresh. Parity and lock integrity are different claims; a green parity run says
 nothing about the lock.
 
+**Second pass: meaning across records, 2026-09-11.** Shape checking says a record
+is well formed; it says nothing about whether it refers to anything real. The
+validator now runs a second pass, and only when the first found nothing - one
+mistake should produce one message, and cross-record checks over malformed
+records report the first mistake again in a less useful form.
+
+| Code | Rule | Exactness |
+|---|---|---|
+| `E7020` | An attachment names a modeled address domain | Exact |
+| `E7022` | No two enabled attachments claim one host offset in one domain | Exact; a disabled record claims nothing |
+| `E7023` | A static address needs a domain that declares a prefix | Narrow form only: the domain declares no prefix at all |
+| `E7040` | A publication endpoint names an attachment on the workload its service runs on | Exact; the message lists what is declared there |
+| `E7041` | No two publications claim one endpoint, protocol and port | Exact |
+| `E7060` | Only permit/binding_only and deny/scope_guard | Exact |
+| `E7061` | A binding names an existing permit; a guard cannot be bound | Exact |
+| `E7063` | A permit does not overlap a mandatory deny, reported with a concrete witness | Exact |
+| `E7064` | No unbound parameter on a guard; no empty resolved selector | Exact |
+
+**Not implemented, and absence is the honest form.** `E7021` (one default route
+per address family and routing domain) needs the family, which an attachment must
+not author and which nothing yet derives; a per-workload "at most one" check would
+be stricter than the rule and would reject a legitimate dual-stack source. `E7042`
+needs capability resolution. `E7062` and `E7080`..`E7089` are plan-time
+obligations belonging to a plan compiler that does not exist. A check that cannot
+be right yet emits nothing, because a check that is silently wrong is worse than a
+missing one - it is believed.
+
+**The algebra exists twice, with a forcing function.** The plugin cannot import
+`netmodel`: that package sits outside framework distribution deliberately, so an
+external project would not have it. `E7063` is therefore implemented again inside
+the plugin, and a differential test runs both it and `netmodel.policy.authorize`
+over the same cases and requires the same verdict. Without that test the two
+copies would drift and both would keep passing their own tests.
+
+58 plugin tests. Artifact parity: identical across all 147 files. Determinism and
+strict-lock compiles pass. The first run of the new pass failed five existing
+tests whose fixtures were only shape-valid - they named a network no row declared -
+which is the pass doing its job; the fixtures were completed rather than the check
+weakened.
+
 **Correction to that instruction (revision 4a).** It presumed those codes are
 registered. At baseline `493867d5` they are not. The canonical registry is
 `topology-tools/data/error-catalog.yaml`, indexed by `docs/diagnostics-catalog.md`,
