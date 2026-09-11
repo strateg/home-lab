@@ -186,3 +186,105 @@ def test_digest_excludes_time_by_construction() -> None:
     time_words = {"timestamp", "generated_at", "compiled_at", "now", "time", "observed_at"}
     for field in dataclasses.fields(PlanRule) + dataclasses.fields(ExecutionContext) + dataclasses.fields(OrderedRule):
         assert not (set(field.name.split("_")) & time_words), f"{field.name} would put time into plan identity"
+
+
+# --- the two paths must agree --------------------------------------------------
+
+
+def _random_rules(rng: random.Random, count: int, context_names: list[str]) -> list[PlanRule]:
+    contexts = {
+        name: ExecutionContext(enforcer=name, routing_domain="main", family="ipv4", hook="forward", chain="managed")
+        for name in context_names
+    }
+    rules: list[PlanRule] = []
+    for index in range(count):
+        kind = rng.choice(["permit", "permit", "permit", "deny", "terminal"])
+        rules.append(
+            PlanRule(
+                context=contexts[rng.choice(context_names)],
+                effect=Effect.PERMIT if kind == "permit" else Effect.DENY,
+                flow=Flow(
+                    sources=frozenset({f"s{rng.randrange(5)}"}),
+                    destinations=frozenset({f"d{rng.randrange(5)}"}),
+                    protocol=rng.choice(["tcp", "udp"]),
+                    ports=frozenset({rng.randrange(1, 600)}),
+                ),
+                origin=f"r{index}",
+                terminal=(kind == "terminal"),
+            )
+        )
+    return rules
+
+
+def test_the_structural_path_reproduces_the_general_one_exactly() -> None:
+    """The claim that justifies not building the edge set.
+
+    Inside one context the required precedence is a complete bipartite graph plus
+    a sink, both of which two counters describe. Replacing the edges with the
+    counters is only safe if the emitted sequence is identical, tie-breaking
+    included - so both paths run over random inputs and the sequences are
+    compared. An argument would not be evidence here; this is.
+    """
+    from netmodel.plan import _order_by_edges, _order_by_structure
+
+    rng = random.Random(20260911)
+    for _ in range(300):
+        count = rng.randrange(1, 40)
+        names = ["a", "b", "c"][: rng.randrange(1, 4)]
+        rules = _random_rules(rng, count, names)
+
+        by_edges = [entry.rule.origin for entry in _order_by_edges(rules, precedence_edges(rules))]
+        by_structure = [entry.rule.origin for entry in _order_by_structure(rules)]
+
+        assert by_edges == by_structure, f"paths disagree for {count} rules across {names}"
+
+
+def test_ordering_does_not_build_the_edge_set() -> None:
+    """A guard on complexity, not on speed.
+
+    The edge count inside one context is denies x permits plus non-terminals:
+    230,400 for 1,600 rules, millions for a real firewall. This asserts the work
+    stays close to linear rather than asserting a wall-clock number, which would
+    make the test a machine-speed detector.
+    """
+    import time
+
+    def elapsed(count: int) -> float:
+        rules = [permit(f"p{i}", port=1000 + i) for i in range(count)]
+        rules += [guard(f"g{i}", port=i + 1) for i in range(count // 10)]
+        rules.append(terminal())
+        start = time.perf_counter()
+        order_rules(rules)
+        return time.perf_counter() - start
+
+    small = elapsed(400)
+    large = elapsed(1600)
+
+    # Quadratic would be ~16x for a 4x input. Allow generous headroom for a noisy
+    # machine and still fail long before the old behaviour would pass.
+    assert large < small * 8, f"ordering is scaling superlinearly: {small:.4f}s -> {large:.4f}s"
+
+
+def test_a_rule_after_the_terminal_is_caught_by_the_structural_check() -> None:
+    """verify_structure must reject what verify_edges would have rejected."""
+    from netmodel.plan import OrderedRule, verify_structure
+
+    bad = [
+        OrderedRule(rule=terminal(), position=0),
+        OrderedRule(rule=permit("p"), position=1),
+    ]
+
+    with pytest.raises(PlanError, match="follows the terminal"):
+        verify_structure(bad)
+
+
+def test_a_deny_after_a_permit_is_caught_by_the_structural_check() -> None:
+    from netmodel.plan import OrderedRule, verify_structure
+
+    bad = [
+        OrderedRule(rule=permit("p"), position=0),
+        OrderedRule(rule=guard("g"), position=1),
+    ]
+
+    with pytest.raises(PlanError, match="mandatory deny follows a permit"):
+        verify_structure(bad)

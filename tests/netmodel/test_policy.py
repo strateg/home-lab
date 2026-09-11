@@ -276,3 +276,122 @@ def test_delivery_facts_never_appear_in_the_algebra() -> None:
     assert not (
         segments & forbidden
     ), f"delivery concepts must not participate in authorization, found {sorted(segments & forbidden)}"
+
+
+# --- the index must not change any verdict -------------------------------------
+
+
+def _scan_every_pair(grants, guards):
+    """What find_conflicts did before it had an index, kept as the oracle."""
+    from netmodel.policy import Conflict, guard_flow
+
+    found = []
+    for grant in grants:
+        for guard_id, template in sorted(guards.items()):
+            overlap = grant.flow.intersect(guard_flow(template))
+            if overlap is not None:
+                found.append(
+                    Conflict(
+                        binding_id=grant.binding_id,
+                        policy_id=grant.policy_id,
+                        guard_id=guard_id,
+                        witness=overlap.witness(),
+                    )
+                )
+    return found
+
+
+def test_the_index_finds_exactly_what_scanning_every_pair_finds() -> None:
+    """An index that narrows the search must not narrow the answer.
+
+    Endpoints are opaque atoms, so two endpoint sets intersect only if they share
+    a literal member and a lookup by member misses nothing. That is what makes
+    the index exact rather than a heuristic - but "exact by argument" is not
+    evidence, so both are run over random inputs and the results compared,
+    conflict order included.
+    """
+    import random
+
+    rng = random.Random(4242)
+    for _ in range(400):
+        grants = []
+        for index in range(rng.randrange(1, 12)):
+            template = PolicyTemplate(
+                policy_id=f"p{index}",
+                effect=Effect.PERMIT,
+                activation=Activation.BINDING_ONLY,
+                direction="ingress",
+                source=BINDING_SOURCE,
+                destination=BINDING_DESTINATION,
+                protocol=rng.choice(["tcp", "udp"]),
+                ports=frozenset(rng.sample(range(1, 20), rng.randrange(1, 4))),
+                owner="o",
+                rationale="r",
+            )
+            grants.append(
+                resolve_grant(
+                    template,
+                    Binding(
+                        binding_id=f"b{index}",
+                        policy_id=f"p{index}",
+                        sources=frozenset(f"z{k}" for k in rng.sample(range(6), rng.randrange(1, 3))),
+                        destinations=frozenset(f"m{k}" for k in rng.sample(range(4), rng.randrange(1, 3))),
+                        approved=True,
+                    ),
+                )
+            )
+
+        guards = {
+            f"g{j}": PolicyTemplate(
+                policy_id=f"g{j}",
+                effect=Effect.DENY,
+                activation=Activation.SCOPE_GUARD,
+                direction="transit",
+                source=frozenset(f"z{k}" for k in rng.sample(range(6), rng.randrange(1, 3))),
+                destination=frozenset(f"m{k}" for k in rng.sample(range(4), rng.randrange(1, 3))),
+                protocol=rng.choice(["tcp", "udp"]),
+                ports=frozenset(rng.sample(range(1, 20), rng.randrange(1, 4))),
+                owner="o",
+                rationale="r",
+            )
+            for j in range(rng.randrange(1, 8))
+        }
+
+        assert find_conflicts(grants, guards) == _scan_every_pair(grants, guards)
+
+
+def test_a_guard_sharing_no_source_is_never_examined() -> None:
+    """The narrowing is real, not incidental.
+
+    A guard whose sources are disjoint from every grant cannot conflict, and the
+    index must exclude it rather than rely on `intersect` to reject it later.
+    """
+    from netmodel.policy import _guard_index
+
+    template = permit()
+    grant = resolve_grant(template, bound(template, sources=LAN, destinations=MGMT))
+    unrelated = guard("guard.elsewhere")
+
+    index = _guard_index({"guard.elsewhere": unrelated})
+    candidates = set()
+    for source in grant.flow.sources:
+        candidates |= index.get((grant.flow.protocol, source), frozenset())
+
+    assert candidates == set()
+    assert find_conflicts([grant], {"guard.elsewhere": unrelated}) == []
+
+
+def test_every_guard_on_one_source_still_gets_checked() -> None:
+    """The degenerate case degrades to the full scan, which is correct.
+
+    When every guard names the same source, every pair genuinely has to be
+    examined. The index must not quietly skip any of them to look fast.
+    """
+    template = permit(ports=frozenset({53}))
+    grant = resolve_grant(template, bound(template, sources=GUEST, destinations=MGMT))
+    guards = {f"g{i}": guard(f"guard.{i}", ports=frozenset({53})) for i in range(5)}
+
+    conflicts = find_conflicts([grant], guards)
+
+    assert len(conflicts) == 5
+    assert {conflict.guard_id for conflict in conflicts} == set(guards)

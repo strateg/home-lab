@@ -19,6 +19,7 @@ tell an unchanged plan from a changed one, which is the whole reason to have it.
 from __future__ import annotations
 
 import hashlib
+import heapq
 import json
 from dataclasses import dataclass
 from typing import Iterable, Sequence
@@ -150,13 +151,25 @@ def order_rules(rules: Iterable[PlanRule], *, extra_edges: set[tuple[int, int]] 
     Ties among rules that no edge separates are broken by the canonical key, so
     the output does not depend on the order the inputs arrived in. That is what
     makes two runs over the same intent comparable at all.
+
+    Two paths, one meaning. Without caller-supplied edges the required
+    precedence has a closed form and is never materialized - see
+    `_order_by_structure`. With extra edges the general topological sort runs,
+    because an arbitrary edge set has no closed form to exploit.
     """
     rules = list(rules)
     if not rules:
         return []
 
-    edges = precedence_edges(rules) | (extra_edges or set())
+    if not extra_edges:
+        return _order_by_structure(rules)
 
+    edges = precedence_edges(rules) | extra_edges
+    return _order_by_edges(rules, edges)
+
+
+def _order_by_edges(rules: Sequence[PlanRule], edges: set[tuple[int, int]]) -> list[OrderedRule]:
+    """General topological sort over an explicit edge set."""
     cycle = _detect_cycle(rules, edges)
     if cycle is not None:
         raise PlanError("precedence cycle: " + " -> ".join(cycle))
@@ -185,6 +198,114 @@ def order_rules(rules: Iterable[PlanRule], *, extra_edges: set[tuple[int, int]] 
     ordered = [OrderedRule(rule=rules[index], position=position) for position, index in enumerate(emitted)]
     verify_edges(ordered, edges, rules)
     return ordered
+
+
+def _order_by_structure(rules: Sequence[PlanRule]) -> list[OrderedRule]:
+    """The same order, without building the edge set.
+
+    Inside one context the required precedence is two shapes with closed forms:
+    every mandatory deny precedes every permit, which is a complete bipartite
+    graph, and every non-terminal precedes the terminal, which is a sink. Writing
+    them out costs `denies x permits + non-terminals` edges per context - 57,600
+    for 800 rules, millions for a real firewall - to express something two
+    counters already say.
+
+    So the counters are kept instead. A permit waits on its context's remaining
+    denies; a terminal waits on its context's remaining non-terminals. When a
+    counter reaches zero the whole group becomes ready at once, which is the only
+    moment any of them could have become ready anyway.
+
+    This reproduces the general path exactly, including its tie-breaking: ready
+    rules are emitted in canonical-key order regardless of which context they
+    belong to. That equivalence is not an argument, it is a test - random inputs
+    are ordered both ways and the sequences compared.
+    """
+    contexts: dict[tuple[str, ...], dict[str, list[int]]] = {}
+    for index, rule in enumerate(rules):
+        key = rule.context.key()
+        group = contexts.setdefault(key, {"deny": [], "permit": [], "terminal": []})
+        if rule.terminal:
+            group["terminal"].append(index)
+        elif rule.effect is Effect.DENY:
+            group["deny"].append(index)
+        else:
+            group["permit"].append(index)
+
+    pending_denies = {key: len(group["deny"]) for key, group in contexts.items()}
+    pending_non_terminal = {key: len(group["deny"]) + len(group["permit"]) for key, group in contexts.items()}
+
+    ready: list[tuple[tuple, int]] = []
+    for key, group in contexts.items():
+        for index in group["deny"]:
+            heapq.heappush(ready, (rules[index].canonical_key(), index))
+        if not group["deny"]:
+            for index in group["permit"]:
+                heapq.heappush(ready, (rules[index].canonical_key(), index))
+            if not group["permit"]:
+                for index in group["terminal"]:
+                    heapq.heappush(ready, (rules[index].canonical_key(), index))
+
+    emitted: list[int] = []
+    while ready:
+        _, index = heapq.heappop(ready)
+        emitted.append(index)
+        rule = rules[index]
+        if rule.terminal:
+            continue
+
+        key = rule.context.key()
+        group = contexts[key]
+        if rule.effect is Effect.DENY:
+            pending_denies[key] -= 1
+            if pending_denies[key] == 0:
+                for candidate in group["permit"]:
+                    heapq.heappush(ready, (rules[candidate].canonical_key(), candidate))
+        pending_non_terminal[key] -= 1
+        if pending_non_terminal[key] == 0:
+            for candidate in group["terminal"]:
+                heapq.heappush(ready, (rules[candidate].canonical_key(), candidate))
+
+    if len(emitted) != len(rules):  # pragma: no cover - structural edges cannot cycle
+        raise PlanError("not every rule could be ordered; the precedence graph is inconsistent")
+
+    ordered = [OrderedRule(rule=rules[index], position=position) for position, index in enumerate(emitted)]
+    verify_structure(ordered)
+    return ordered
+
+
+def verify_structure(ordered: Sequence[OrderedRule]) -> None:
+    """Check the emitted order against the rules it must satisfy, in one pass.
+
+    The general path verifies its result against the edges it claims to satisfy.
+    This checks the same thing without them: per context, the last deny must come
+    before the first permit, and every non-terminal before every terminal. It
+    re-derives each rule's role rather than trusting the sort that placed it.
+    """
+    last_deny: dict[tuple[str, ...], int] = {}
+    first_permit: dict[tuple[str, ...], int] = {}
+    last_non_terminal: dict[tuple[str, ...], int] = {}
+    first_terminal: dict[tuple[str, ...], int] = {}
+
+    for entry in ordered:
+        key = entry.rule.context.key()
+        if entry.rule.terminal:
+            first_terminal.setdefault(key, entry.position)
+            continue
+        last_non_terminal[key] = entry.position
+        if entry.rule.effect is Effect.DENY:
+            last_deny[key] = entry.position
+        else:
+            first_permit.setdefault(key, entry.position)
+
+    for key, deny_position in last_deny.items():
+        permit_position = first_permit.get(key)
+        if permit_position is not None and deny_position >= permit_position:
+            raise PlanError(f"a mandatory deny follows a permit it constrains in context {key}")
+
+    for key, terminal_position in first_terminal.items():
+        tail = last_non_terminal.get(key)
+        if tail is not None and tail >= terminal_position:
+            raise PlanError(f"a rule follows the terminal default deny in context {key}")
 
 
 def verify_edges(ordered: Sequence[OrderedRule], edges: set[tuple[int, int]], rules: Sequence[PlanRule]) -> None:

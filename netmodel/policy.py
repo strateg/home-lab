@@ -224,12 +224,44 @@ def guard_flow(template: PolicyTemplate) -> Flow:
     )
 
 
+def _guard_index(guards: Mapping[str, PolicyTemplate]) -> dict[tuple[str, str], set[str]]:
+    """Guards keyed by protocol and by each source endpoint they name.
+
+    An overlap needs the protocol to match and the source sets to intersect, so a
+    guard that shares neither cannot conflict with a grant and does not need to
+    be examined. Checking every pair instead costs grants x guards comparisons -
+    320,000 for 800 grants against 400 guards - most of them decided by the first
+    field.
+
+    Endpoints are opaque atoms, which is what makes this index exact rather than
+    a heuristic: two endpoint sets intersect only if they share a literal member,
+    so a lookup by member misses nothing. The algebra never infers containment
+    between endpoints, and this must not start.
+    """
+    index: dict[tuple[str, str], set[str]] = {}
+    for guard_id, guard in guards.items():
+        assert not isinstance(guard.source, str)
+        for source in guard.source:
+            index.setdefault((guard.protocol, source), set()).add(guard_id)
+    return index
+
+
 def find_conflicts(grants: Iterable[Grant], guards: Mapping[str, PolicyTemplate]) -> list[Conflict]:
-    """Every permit that overlaps a mandatory deny, with a flow that shows it."""
+    """Every permit that overlaps a mandatory deny, with a flow that shows it.
+
+    Candidates come from the index; the verdict still comes from `intersect`, so
+    the index narrows what is examined and never decides anything.
+    """
+    index = _guard_index(guards)
     conflicts: list[Conflict] = []
+
     for grant in grants:
-        for guard_id, guard in sorted(guards.items()):
-            overlap = grant.flow.intersect(guard_flow(guard))
+        candidates: set[str] = set()
+        for source in grant.flow.sources:
+            candidates |= index.get((grant.flow.protocol, source), frozenset())
+
+        for guard_id in sorted(candidates):
+            overlap = grant.flow.intersect(guard_flow(guards[guard_id]))
             if overlap is not None:
                 conflicts.append(
                     Conflict(

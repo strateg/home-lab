@@ -606,6 +606,46 @@ requiring both to give the same answer, including the same refusals.
 69 plugin tests, 152 netmodel tests. Artifact parity identical across 147 files
 (both sides counted, not assumed). Determinism and strict-lock compiles pass.
 
+**Complexity, measured 2026-09-11.** The same mistake that exhausted memory on an
+IPv6 prefix - materializing a structure that has a closed form - was present in
+two hot paths. Both were measured before and after; neither changes any output.
+
+*Plan ordering.* `precedence_edges` built the full edge set: inside one context
+that is a complete bipartite graph (every mandatory deny before every permit)
+plus a sink (everything before the terminal). 1,600 rules produced 230,400 edges
+and took 2.18s. Two counters say the same thing - a permit waits on its context's
+remaining denies, a terminal on its context's remaining non-terminals - so the
+counters are kept and the edges are not built. 0.027s, **81x**, and memory falls
+from an edge set to 0.3 MB. 3,200 rules now order in 0.05s, where the old path
+would have built roughly a million edges.
+
+Kahn's tie-breaking is preserved exactly, including across contexts, because
+changing the emitted order would silently change plan identity. That equivalence
+is a test, not an argument: 300 random inputs with mixed contexts, effects and
+terminals are ordered both ways and the sequences compared. The general path
+remains for caller-supplied edges, which have no closed form to exploit.
+`verify_edges` has a counterpart, `verify_structure`, that re-derives each rule's
+role and checks the same property in one pass rather than against a materialized
+set.
+
+*Conflict search.* `find_conflicts` compared every grant against every guard -
+320,000 comparisons for 800 grants against 400 guards, most decided by the first
+field. Guards are now indexed by protocol and by each source endpoint they name.
+This is exact rather than heuristic because endpoints are opaque atoms: two
+endpoint sets intersect only if they share a literal member, so a lookup by
+member misses nothing, and the algebra still never infers containment between
+endpoints. The index narrows what is examined; `intersect` still decides.
+
+The gain scales with how well sources discriminate, and this is stated rather
+than rounded up to an asymptotic claim. Measured at 800 grants: one shared source
+0.60s (the full scan, and correct - those pairs genuinely must be checked), seven
+sources 0.085s, a hundred 0.0066s, all distinct 0.0014s. Equivalence is again a
+test: 400 random inputs, compared against the previous every-pair scan kept as
+the oracle, conflict order included.
+
+A guard on scaling accompanies each, asserting the shape of the growth rather
+than a wall-clock number, which would only detect how fast the machine is.
+
 **Correction to that instruction (revision 4a).** It presumed those codes are
 registered. At baseline `493867d5` they are not. The canonical registry is
 `topology-tools/data/error-catalog.yaml`, indexed by `docs/diagnostics-catalog.md`,
