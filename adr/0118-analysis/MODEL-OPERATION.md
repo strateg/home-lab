@@ -284,6 +284,57 @@ move together, or none do.
 addresses (section 7), so the migration cannot change one. The cost is entirely
 in the inheritance graph.
 
+**The chain is three links, not two.** The object module pulls the values from
+the host:
+
+```yaml
+# obj.docker.container.generic
+defaults:
+  network:
+    network_ref: "@on:host.network.network_ref?"
+    gateway: "@on:host.network.gateway?"
+```
+
+So a per-host migration moves the object module, the host's `workload_defaults`
+and every instance under them, together.
+
+### The v2 shape travels the same chain
+
+Proved, not assumed - `_get_nested_value` walks a dotted path of arbitrary depth,
+and three tests in `test_on_directive_object_defaults.py` assert that it does,
+that the inherited block carries no version 1 key, and that a host path the
+defaults require but the host does not declare is reported (`E6810`) rather than
+silently dropped. Silence there would leave an attachment with no `network_ref`
+and send the author to the instance file, which is the wrong one.
+
+The migrated shape:
+
+```yaml
+# object module
+defaults:
+  network:
+    schema_version: 2
+    attachments:
+      primary:
+        network_ref: "@on:host.network.attachments.primary.network_ref"
+
+# host workload_defaults
+network:
+  schema_version: 2
+  attachments:
+    primary: {network_ref: inst.vlan.servers}
+
+# instance - only what is its own
+network:
+  attachments:
+    primary:
+      address: {allocation: static, host: 210}
+```
+
+The gateway disappears from the chain entirely: in v2 it is a property of the
+address domain, derived, and not authorable on an attachment. That is one fewer
+value to keep in agreement across three files.
+
 ---
 
 ## 8. Current state
@@ -308,3 +359,4 @@ across every emitted file.
 | 2026-09-11 | `a4112d5c` | First version: sections 1–8 as implemented through the compiler mount |
 | 2026-09-11 | `8a04dd15` | Section 7: the legacy derivation's output reaches nothing, measured address by address; what that bounds for migration |
 | 2026-09-11 | `3c06ffbe` | Section 7a: a real source migrated and reverted; the migration unit is the host, and a lineage-resolution bug in the validator that only a real source could reveal |
+| 2026-09-11 | `2525f01e` | Section 7a: the inheritance chain is three links; the v2 shape travels it unchanged, proved by test, with the migrated shape written out |

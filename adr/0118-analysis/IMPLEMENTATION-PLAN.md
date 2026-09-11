@@ -804,6 +804,31 @@ graph.
 that introduces a new authoring shape. Two defects surfaced in one compile that
 71 passing plugin tests did not contain.
 
+**The migration path is mechanically available, 2026-09-11.** Having established
+that migration is per host, the next question is whether the v2 shape can travel
+the inheritance chain at all - and the chain turned out to have three links, not
+two: the object module pulls `network.network_ref` and `network.gateway` from the
+host with `@on` directives, so `obj.docker.container.generic` moves with the host
+and its instances.
+
+`_get_nested_value` walks a dotted path of arbitrary depth, so
+`@on:host.network.attachments.primary.network_ref` resolves with no change to the
+resolver. Three tests assert it rather than leaving it as a reading of the code:
+a v2 attachment inheriting `network_ref` and `driver` from the host while the
+instance keeps only its own address; the inherited block carrying no v1 key, which
+is what makes it acceptable to `E7004`; and a required host path the host does not
+declare being reported as `E6810` rather than silently dropped - silence there
+would leave an attachment without a `network_ref` and the validator would then
+point the author at the instance file, which is the wrong one.
+
+The gateway leaves the chain entirely. In v2 it is a property of the address
+domain, derived, not authorable on an attachment - one fewer value to keep in
+agreement across three files.
+
+So W09 has a recipe rather than an open question, and it needs no framework
+change: object module, host `workload_defaults`, instances, together, per host.
+The migrated shape is written out in `MODEL-OPERATION.md` section 7a.
+
 **Correction to that instruction (revision 4a).** It presumed those codes are
 registered. At baseline `493867d5` they are not. The canonical registry is
 `topology-tools/data/error-catalog.yaml`, indexed by `docs/diagnostics-catalog.md`,

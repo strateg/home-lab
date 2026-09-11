@@ -416,3 +416,165 @@ def test_no_object_defaults_passes_through():
 
     # No vlan_ref added (no @on in object defaults)
     assert "vlan_ref" not in resolved_row.get("network", {})
+
+
+# =============================================================================
+# v2 network intent through the same inheritance chain (ADR 0118, W09)
+# =============================================================================
+
+
+def test_a_v2_attachment_inherits_from_the_host_through_on_directives():
+    """The migration path, proved rather than assumed.
+
+    Migrating a workload to v2 is a per-host change: the object module pulls
+    `network.network_ref` and `network.gateway` from the host with `@on`, the host
+    declares them in v1 shape, and an instance that adds v2 attachments beside
+    them produces a mixed effective block - which is what `E7004` forbids and what
+    migrating one real source actually hit.
+
+    So the question W09 has to answer first is whether the v2 shape can travel the
+    same chain at all. `_get_nested_value` walks a dotted path of arbitrary depth,
+    so it should; this asserts it does, because "should" is not a migration plan.
+    """
+    registry = _registry()
+
+    objects = {
+        "obj.test.docker.v2": {
+            "@object": "obj.test.docker.v2",
+            "defaults": {
+                "network": {
+                    "schema_version": 2,
+                    "attachments": {
+                        "primary": {
+                            "network_ref": "@on:host.network.attachments.primary.network_ref",
+                            "driver": "@on:host.network.attachments.primary.driver?",
+                        }
+                    },
+                }
+            },
+        }
+    }
+    ctx = _context_with_objects(objects)
+
+    host_index = {
+        "srv-test": {
+            "network": {
+                "schema_version": 2,
+                "attachments": {"primary": {"network_ref": "inst.vlan.servers", "driver": "macvlan"}},
+            }
+        }
+    }
+
+    prepared_rows = [
+        {
+            "instance": "docker-test",
+            "object_ref": "obj.test.docker.v2",
+            "row_path": "instance_bindings.docker[0]",
+            "row": {
+                "host_ref": "srv-test",
+                # The instance states only what is its own: the address.
+                "network": {"attachments": {"primary": {"address": {"allocation": "static", "host": 210}}}},
+            },
+        }
+    ]
+
+    _publish_prepared_rows(ctx, prepared_rows)
+    _publish_host_index(ctx, host_index)
+
+    result = registry.execute_plugin(ON_PREPARE_PLUGIN_ID, ctx, Stage.COMPILE)
+
+    assert result.status == PluginStatus.SUCCESS
+    assert [d for d in result.diagnostics if d.severity == "error"] == []
+
+    resolved = result.output_data["on_prepared_rows"][0]["row"]
+    attachment = resolved["network"]["attachments"]["primary"]
+
+    assert attachment["network_ref"] == "inst.vlan.servers"
+    assert attachment["driver"] == "macvlan"
+    # The instance's own value survives the merge beside the inherited ones.
+    assert attachment["address"] == {"allocation": "static", "host": 210}
+    assert resolved["network"]["schema_version"] == 2
+
+
+def test_an_inherited_v2_block_carries_no_v1_key():
+    """What makes the migrated block clean, and therefore acceptable to E7004.
+
+    The v1 chain injects `network_ref` and `gateway` at block level. A v2 chain
+    must put the reference inside the attachment and leave the gateway to the
+    address domain, or the merged block is mixed and the migration cannot land.
+    """
+    registry = _registry()
+
+    objects = {
+        "obj.test.docker.v2": {
+            "@object": "obj.test.docker.v2",
+            "defaults": {
+                "network": {
+                    "schema_version": 2,
+                    "attachments": {"primary": {"network_ref": "@on:host.network.attachments.primary.network_ref"}},
+                }
+            },
+        }
+    }
+    ctx = _context_with_objects(objects)
+    _publish_prepared_rows(
+        ctx,
+        [
+            {
+                "instance": "docker-test",
+                "object_ref": "obj.test.docker.v2",
+                "row_path": "instance_bindings.docker[0]",
+                "row": {"host_ref": "srv-test", "network": {}},
+            }
+        ],
+    )
+    _publish_host_index(
+        ctx,
+        {"srv-test": {"network": {"schema_version": 2, "attachments": {"primary": {"network_ref": "inst.vlan.servers"}}}}},
+    )
+
+    result = registry.execute_plugin(ON_PREPARE_PLUGIN_ID, ctx, Stage.COMPILE)
+    block = result.output_data["on_prepared_rows"][0]["row"]["network"]
+
+    v1_keys = {"vlan_ref", "bridge_ref", "host", "ip", "gateway"} & set(block)
+    assert not v1_keys, f"the inherited v2 block carries version 1 keys {sorted(v1_keys)}"
+
+
+def test_a_missing_host_attachment_is_reported_not_silently_dropped():
+    """A required @on into a v2 path that the host does not declare.
+
+    Silence here would leave an attachment with no network_ref, which the
+    validator would then report as a shape error at a path pointing at the
+    instance - sending the author to the wrong file.
+    """
+    registry = _registry()
+
+    objects = {
+        "obj.test.docker.v2": {
+            "@object": "obj.test.docker.v2",
+            "defaults": {
+                "network": {
+                    "schema_version": 2,
+                    "attachments": {"primary": {"network_ref": "@on:host.network.attachments.primary.network_ref"}},
+                }
+            },
+        }
+    }
+    ctx = _context_with_objects(objects)
+    _publish_prepared_rows(
+        ctx,
+        [
+            {
+                "instance": "docker-test",
+                "object_ref": "obj.test.docker.v2",
+                "row_path": "instance_bindings.docker[0]",
+                "row": {"host_ref": "srv-test", "network": {}},
+            }
+        ],
+    )
+    _publish_host_index(ctx, {"srv-test": {"network": {"schema_version": 2, "attachments": {}}}})
+
+    result = registry.execute_plugin(ON_PREPARE_PLUGIN_ID, ctx, Stage.COMPILE)
+
+    codes = [d.code for d in result.diagnostics]
+    assert "E6810" in codes, f"a missing required host path must be reported, got {codes}"
