@@ -11,6 +11,14 @@ notes: |
   - inst.vlan.vpn_amnezia → docker-amneziawg-russia (AmneziaWG Russia)
   - inst.vlan.vpn_sweden → docker-amneziawg-sweden (AmneziaWG Sweden)
 
+# Zone identity and classification (ADR 0110 section 1.5): these describe this
+# zone, not the shape of VPN tunnel zones in general.
+name: VPN Tunnel Zone
+@description: Devices routed through VPN tunnels (geo-bypass, privacy)
+color: "#9966ff"
+security_level: 2
+isolated: false
+
 zone_name: vpn-tunnel
 
 # Additional networks to include in this zone's address-list

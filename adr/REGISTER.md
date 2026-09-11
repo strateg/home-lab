@@ -257,3 +257,20 @@
 - A25-A32 gain terminal evidence levels. Registers are unchanged: A01-A32 for
   acceptance, W01-W12 for work. No new ADR, gate, plugin, catalog entry, runtime
   change, test result, qualification or deployment authorization.
+
+## ADR 0118 D7 amendment — authoritative-field contract, 2026-09-11
+
+- Adds the inverse of the derived-field contract: an object supplies reusable
+  shape and defaults and must not author a value that identifies or classifies
+  one concrete entity.
+- Established by two findings, not by argument. `obj.network.vlan.vpn_tunnel`
+  declared a VLAN id and prefix that all four instances overrode; the values were
+  reachable by none of them and a fifth VLAN would have inherited a collision.
+  `obj.network.trust_zone.vpn_tunnel` declared a security level and isolation
+  flag correct for one of its two zones and wrong for the other.
+- Both were corrected as parity-preserving layering moves: effective values and
+  rendered artifacts unchanged, verified byte-for-byte.
+- Open and deliberately not folded in: `inst.trust_zone.vpn_exit` still renders
+  as "VPN Tunnel Zone" because it inherited that name. Correcting it changes
+  rendered comments and is a separate reviewed change.
+- No gate closed, nothing qualified, no deployment implied.

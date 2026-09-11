@@ -306,6 +306,33 @@ project-instance fields. A schema accepting consumer overrides fails G1.
 | Provider resource IDs and names | Backend rendering |
 | Intent, plan and evidence digests | ADR 0119 D2 |
 
+**Authoritative-field contract.** The derived-field contract above fixes one
+direction: a consumer must not override what is computed for it. The other
+direction needs the same discipline. An object supplies reusable shape and
+defaults; it must not author a value that identifies or classifies one concrete
+entity, because an object serves many instances and can hold only one such value.
+
+| Value | Belongs to | Reason |
+|---|---|---|
+| Segment addressing: `vlan_id`, `cidr`, `gateway` | The domain instance | One object cannot give several segments their own addressing |
+| Zone identity and classification: name, `security_level`, `isolated` | The zone instance | These are inputs to the policy algebra; a shared object makes them true for one zone and wrong for another |
+| Any reference naming one device, enforcer or scope | The instance | A reference to a concrete resource is a binding, not a default |
+| Shape, limits and policy defaults: MTU, DNS servers, allowed flow shape | The object | Genuinely repeated across instances |
+
+Two findings in this repository established the rule rather than illustrating it.
+`obj.network.vlan.vpn_tunnel` declared a VLAN id and prefix that all four of its
+instances overrode, so the object's values were reachable by none of them and a
+fifth VLAN would have inherited a colliding prefix. `obj.network.trust_zone.vpn_tunnel`
+declared a security level and isolation flag correct for one of its two zones and
+wrong for the other, and its zone name still renders on both.
+
+A schema or a review that accepts an authoritative value on a shared object fails
+G1 in the same way as a consumer-side derived override. Moving such a value is a
+layering change and must be parity-preserving: the effective values, and therefore
+the rendered artifacts, stay identical. A value that cannot be moved without
+changing an artifact is not a layering defect but a behaviour change, and is
+reviewed as one.
+
 **Object-level reuse.** Repeating attachment and publication shape belongs on the
 object level, exactly as it does today; project instances carry only what differs.
 This is the existing Class -> Object -> Instance mechanism, not a new one, and it

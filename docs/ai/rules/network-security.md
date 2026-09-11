@@ -1,6 +1,6 @@
 ---
 "@pack": network-security
-"@version": 1.5
+"@version": 1.6
 "@tokens": ~1400
 "@adr": [0106, 0109, 0110, 0111, 0118, 0119]
 ---
@@ -165,6 +165,12 @@ about the legacy runtime:
     routing domain, zone, rule positions/anchors, provider IDs or digests. L2
     domain owners still declare their authoritative domain inputs. Repetition belongs on the object level; the instance surface is
     measured against the authoring budget in the migration plan.
+11a. Objects supply reusable shape and defaults only. Concrete segment
+    addressing (`vlan_id`, `cidr`, `gateway`), zone identity and classification
+    (name, `security_level`, `isolated`) and any reference naming one device or
+    enforcer belong to the instance: one object serves many instances and can
+    hold only one such value. Moving such a value is parity-preserving; if an
+    artifact changes, it is a behaviour change and reviewed as one.
 12. On a default-allow backend the ADR 0110 final drop-all and `E7854` remain in
     force; in strict it is the rendered terminal default deny, emitted by the plan
     compiler and confirmed by read-back.

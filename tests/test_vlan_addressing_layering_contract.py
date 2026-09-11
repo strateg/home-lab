@@ -90,3 +90,66 @@ def test_segment_addressing_is_unique_across_instances() -> None:
         assert cidr not in seen_prefixes, f"{path.stem} reuses prefix {cidr} of {seen_prefixes.get(cidr)}"
         seen_ids[vlan_id] = path.stem
         seen_prefixes[cidr] = path.stem
+
+
+# Trust zones repeat the pattern: obj.network.trust_zone.vpn_tunnel is shared by
+# two zones whose security classification differs, so classification belongs to
+# each instance.
+ZONE_OBJECTS = sorted((REPO_ROOT / "topology" / "object-modules" / "network").glob("obj.network.trust_zone.*.yaml"))
+ZONE_INSTANCES = sorted(
+    (REPO_ROOT / "projects" / "home-lab" / "topology" / "instances" / "network").glob("inst.trust_zone.*.yaml")
+)
+ZONE_FIELDS = ("name", "security_level", "isolated")
+
+
+@pytest.mark.parametrize("path", ZONE_OBJECTS, ids=lambda p: p.stem)
+def test_shared_zone_object_declares_no_classification(path: Path) -> None:
+    """Only objects serving more than one zone are constrained.
+
+    A single-instance object holding its zone's values is redundant rather than
+    wrong; a shared one is wrong for every instance but at most one.
+    """
+    instances = [
+        inst
+        for inst in ZONE_INSTANCES
+        if str((load_yaml_file(inst) or {}).get("@extends", "")) == (load_yaml_file(path) or {}).get("@object")
+    ]
+    if len(instances) < 2:
+        pytest.skip(f"{path.stem} serves {len(instances)} instance(s); sharing is what makes this a defect")
+
+    leaked = [field for field in ZONE_FIELDS if field in ((load_yaml_file(path) or {}).get("properties") or {})]
+
+    assert not leaked, (
+        f"{path.name} declares {leaked} while serving {len(instances)} zones "
+        f"({', '.join(i.stem for i in instances)}). Classification feeds the policy "
+        f"algebra, so it must be true for the zone that declares it."
+    )
+
+
+def _zone_instances_of(object_path: Path) -> list[Path]:
+    object_id = (load_yaml_file(object_path) or {}).get("@object")
+    return [
+        inst for inst in ZONE_INSTANCES if str((load_yaml_file(inst) or {}).get("@extends", "")) == object_id
+    ]
+
+
+@pytest.mark.parametrize("path", ZONE_INSTANCES, ids=lambda p: p.stem)
+def test_zone_sharing_an_object_classifies_itself(path: Path) -> None:
+    """Required where the object is shared, not everywhere.
+
+    A single-instance object that holds its zone's values is redundant, not
+    wrong, and rewriting those zones would be churn with no defect behind it.
+    Sharing is what makes inherited classification unsound.
+    """
+    extends = str((load_yaml_file(path) or {}).get("@extends", ""))
+    siblings = [inst for inst in ZONE_INSTANCES if str((load_yaml_file(inst) or {}).get("@extends", "")) == extends]
+    if len(siblings) < 2:
+        pytest.skip(f"{path.stem} does not share its object")
+
+    data = load_yaml_file(path) or {}
+    missing = [field for field in ("security_level", "isolated") if data.get(field) is None]
+
+    assert not missing, (
+        f"{path.name} shares {extends} with {len(siblings) - 1} other zone(s) and still "
+        f"inherits {missing}. A shared object cannot classify them both."
+    )

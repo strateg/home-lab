@@ -7,12 +7,10 @@
   Traffic is isolated from local networks but has full internet access via VPN.
 @version: 1.0.0
 
+# Shared by inst.trust_zone.vpn_tunnel and inst.trust_zone.vpn_exit, which differ
+# in security level, isolation and identity. Only the reusable shape of a VPN
+# tunnel zone lives here; each zone classifies itself on its own instance.
 properties:
-  name: VPN Tunnel Zone
-  security_level: 2
-  color: "#9966ff"
-  description: Devices routed through VPN tunnels (geo-bypass, privacy)
-  isolated: false
   reserved: false
   # Allow outbound to untrusted (internet via VPN)
   allowed_outbound:
