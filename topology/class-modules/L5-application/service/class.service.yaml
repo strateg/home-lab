@@ -27,11 +27,11 @@ os_policy: forbidden
 # Version 1 keeps `security.allowed_from` on the service instance, which reads as
 # a permit attached to a delivery fact and is exactly the conflation this removes.
 #
-# Currently inert: nothing in the runtime reads class-level schema declarations,
-# so this constrains no instance today. G1 closes when an enforcing consumer
-# exists. Note also that the compiler records `lineage` but does not merge a
-# parent class payload into its children - a consumer resolves this declaration
-# by walking lineage, not by reading the child class alone.
+# Enforced by base.validator.network_intent_schema, which resolves this
+# declaration along class lineage: the compiler records lineage but does not
+# merge a parent class payload into its children, so a consumer reading the
+# child class alone would find nothing. The block is authored under the
+# `publication` key with schema_version: 2.
 service_publication_schema:
   schema_version:
     type: integer

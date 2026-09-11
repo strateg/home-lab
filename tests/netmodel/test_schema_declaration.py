@@ -10,9 +10,11 @@ Three shapes are declared, one per layer that owns it:
 * publications, on `class.service` (L5);
 * policies and bindings, on `class.network.firewall_policy` (L2).
 
-They also record the state of those declarations: they are inert. Nothing in the
-runtime reads class-level schema declarations, so registering one constrains no
-instance. That is deliberate at this point and is not the end of G1.
+They also record the state of those declarations, which changed once the
+enforcing consumer was written: `base.validator.network_intent_schema` reads all
+three along class lineage and refuses an instance that violates them. The tests
+that asserted nobody read them are inverted rather than deleted, because "the
+consumer disappeared" is a failure worth being told about.
 """
 
 from __future__ import annotations
@@ -70,13 +72,18 @@ def test_the_version_is_scoped_and_not_the_manifest_token(name: str) -> None:
 
 
 @pytest.mark.parametrize("name", sorted(DECLARATIONS))
-def test_each_declaration_states_that_it_is_not_yet_enforced(name: str) -> None:
-    """If this ever stops being true, the comment has to change with it."""
+def test_each_declaration_names_the_consumer_that_enforces_it(name: str) -> None:
+    """A declaration should say what reads it, so a reader can go and check."""
     path, _, _, _ = DECLARATIONS[name]
     text = path.read_text(encoding="utf-8")
 
-    assert "inert" in text
-    assert "class-level schema declarations" in text or "property_schemas" in text
+    assert "base.validator.network_intent_schema" in text, "a declaration should name what enforces it"
+
+    # The phrase, not the bare word: a permit template is legitimately described
+    # as inert until a binding names a subject, and matching that would be a test
+    # flagging correct prose.
+    for stale in ("currently inert", "constrains no instance", "G1 closes when an enforcing consumer"):
+        assert stale.lower() not in text.lower(), f"the declaration still says {stale!r} after it became enforced"
 
 
 @pytest.mark.parametrize(
@@ -239,7 +246,11 @@ def test_rule_position_is_derived_never_authored() -> None:
 def test_the_terminal_deny_is_named_as_a_backend_obligation() -> None:
     text = POLICY_CLASS.read_text(encoding="utf-8")
 
-    assert "E7854" in text, "ADR 0119 ties the terminal drop-all to this code; the declaration must say so"
+    assert "E7082" in text, "ADR 0119 ties the terminal drop-all to this code; the declaration must say so"
+    assert "E7854" not in text, (
+        "E7854 belongs to storage media inventory and has since three months before ADR 0110 claimed it; "
+        "see the erratum in docs/diagnostics-catalog.md"
+    )
 
 
 def test_ports_are_bounded_and_a_non_port_constraint_is_a_separate_shape() -> None:
@@ -265,7 +276,15 @@ def test_nothing_in_the_runtime_reads_class_property_schemas() -> None:
     assert readers == [], f"property_schemas now has a consumer: {readers}; the declaration is no longer inert"
 
 
-def test_nothing_in_the_runtime_reads_the_v2_declarations_either() -> None:
+def test_the_v2_declarations_have_an_enforcing_consumer() -> None:
+    """The inversion that makes G1 real.
+
+    This test asserted the opposite until the enforcing validator existed: that
+    nothing read the declarations, and that registering one therefore constrained
+    no instance. It is kept, inverted, because the claim it measures is the one
+    that matters - a schema with no consumer is a comment, and the way to notice
+    that the consumer has been deleted is to assert it is there.
+    """
     roots = [REPO_ROOT / "topology-tools", REPO_ROOT / "scripts"]
     keys = ("network_intent_schema", "service_publication_schema", "policy_intent_schema")
     readers = sorted(
@@ -278,7 +297,20 @@ def test_nothing_in_the_runtime_reads_the_v2_declarations_either() -> None:
         }
     )
 
-    assert readers == [], f"a v2 declaration now has a consumer: {readers}"
+    assert readers, "no runtime module reads the v2 declarations; they constrain nothing"
+    assert any("network_intent_schema_validator" in path for path in readers)
+
+
+def test_the_consumer_resolves_all_three_shapes() -> None:
+    """One consumer for three declarations, which is why they were declared first."""
+    sys.path.insert(0, str(REPO_ROOT / "topology-tools"))
+    from plugins.validators.network_intent_schema_validator import SHAPES
+
+    assert {shape.schema_key for shape in SHAPES} == {
+        "network_intent_schema",
+        "service_publication_schema",
+        "policy_intent_schema",
+    }
 
 
 def test_a_consumer_must_walk_lineage_because_the_compiler_does_not_merge_it() -> None:

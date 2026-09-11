@@ -113,6 +113,12 @@ generation:
 Strict-policy diagnostics are aligned with the canonical catalog:
 
 - `E7808`: legacy `paths.*` contract detected (unsupported, implemented in Stage 1)
+
+  **Erratum, 2026-09-11:** `E7808` keeps this meaning and `compile-topology.py`
+  keeps emitting it. `governance_contract_validator` had also been emitting it,
+  and `E7801`..`E7805`, for topology-manifest checks - codes the registry assigns
+  to L1 power source relations. Those manifest checks now use `E3301`..`E3312`;
+  the codes listed in this ADR are restored to single ownership.
 - `E7811`: framework version too old (reserved for staged compatibility checks)
 - `E7812`: project schema not supported (reserved for staged compatibility checks)
 - `E7813`: contract migration required (reserved for staged compatibility checks)

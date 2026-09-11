@@ -502,6 +502,28 @@ plugins:
     required: true
   description: Validates workload vlan_tag consistency against VLAN network contracts.
   execution_mode: subinterpreter
+- id: base.validator.network_intent_schema
+  kind: validator_json
+  entry: ../validators/network_intent_schema_validator.py:NetworkIntentSchemaValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 128
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Enforces the v2 network intent, publication and policy shapes declared on L2/L4/L5 classes.
+  execution_mode: subinterpreter
 - id: base.validator.network_mtu_consistency
   kind: validator_json
   entry: ../validators/network_mtu_consistency_validator.py:NetworkMtuConsistencyValidator

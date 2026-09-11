@@ -879,3 +879,298 @@ codes:
     stage: compile
     title: Validated Rows Fallback
     hint: Instance rows compiler using legacy fallback path due to unavailable or invalid publication.
+
+  # ---------------------------------------------------------------------------
+  # ADR 0118 / ADR 0119 - Universal Container Network Model.
+  #
+  # Range E70xx/W70xx/I70xx, allocated 2026-09-11 at gate G1. ADR 0118 D7
+  # withdrew the numeric ranges first suggested there and required allocation
+  # "with a collision test" at implementation time. The check that justified this
+  # block: E70xx was the only band inside the E7xxx core range with no code
+  # claimed by source, catalog, ADR or documentation. E78xx, where ADR 0110 and
+  # ADR 0111 live, is 93/100 occupied and cannot take another family.
+  #
+  # Each code below names a rule the reference model already enforces or an
+  # obligation the ADR 0119 formal contract states. Codes reserved for a rule
+  # nobody has written are deliberately absent: a speculative table is what D7
+  # rejected.
+  # ---------------------------------------------------------------------------
+
+  # Schema and shape (NET-* authoring surface)
+  E7001:
+    severity: error
+    stage: validate
+    title: Unknown Key In Network Intent
+    hint: Remove the key or declare it in the owning class schema; a v2 block admits only declared keys.
+  E7002:
+    severity: error
+    stage: validate
+    title: Invalid Record Key
+    hint: Record keys must match ^[A-Za-z_][A-Za-z0-9_]*$; no dot, hyphen or '@', so a reference path stays unambiguous.
+  E7003:
+    severity: error
+    stage: validate
+    title: Derived Field Authored
+    hint: This field is derived from the referenced domain; remove it rather than restating a value that must agree.
+  E7004:
+    severity: error
+    stage: validate
+    title: Mixed Schema Versions
+    hint: One effective source uses one version; do not mix a v1 flat network block with v2 attachments.
+  E7005:
+    severity: error
+    stage: validate
+    title: Required Field Missing In Network Record
+    hint: Supply the field the class schema marks required; an absent value is not a permissive default.
+  E7006:
+    severity: error
+    stage: validate
+    title: Unsupported Network Schema Version
+    hint: schema_version must be a version this framework declares; it is not the ADR 0088 manifest token.
+  E7007:
+    severity: error
+    stage: validate
+    title: Network Intent Validator Prerequisite Missing
+    hint: >-
+      The validator could not obtain normalized instance rows, so it checked nothing. Kept distinct from E7005
+      because "the check did not run" and "a field is missing" are different facts and a silent pass is neither.
+
+  # Attachment and address domain (NET-ATTACHMENT, NET-ADDRESS-OWNER)
+  E7020:
+    severity: error
+    stage: validate
+    title: Attachment References Unknown Address Domain
+    hint: network_ref must name a modeled address domain; an unmodeled network is refused, never guessed.
+  E7021:
+    severity: error
+    stage: validate
+    title: Multiple Default Routes In One Scope
+    hint: At most one default route per address family and routing domain unless an explicit multipath contract exists.
+  E7022:
+    severity: error
+    stage: validate
+    title: Address Allocation Conflict
+    hint: Two attachments claim one host offset in the same domain; host is an offset from the network address, not a last octet.
+  E7023:
+    severity: error
+    stage: validate
+    title: Address Domain Has No Prefix For Family
+    hint: The referenced domain declares no prefix for the requested address family; declare it on the domain.
+
+  # Publication (delivery, never authorization)
+  E7040:
+    severity: error
+    stage: validate
+    title: Publication Endpoint Not An Attachment
+    hint: endpoint_ref must name an attachment on the workload this service runs on.
+  E7041:
+    severity: error
+    stage: validate
+    title: Publication Port Conflict
+    hint: Two publications claim one protocol and port on one endpoint.
+  E7042:
+    severity: error
+    stage: validate
+    title: Publication Mechanism Unsupported
+    hint: The enforcing capability does not offer this delivery mechanism; a translating mechanism is not a substitute.
+
+  # Policy and binding (NET-POLICY-BINDING, SEC-AUTH authoring)
+  E7060:
+    severity: error
+    stage: validate
+    title: Policy Mode Outside Baseline Profile
+    hint: The baseline admits permit/binding_only and deny/scope_guard; any other pairing has no defined meaning.
+  E7061:
+    severity: error
+    stage: validate
+    title: Binding Target Invalid
+    hint: A binding must reference an existing permit template; a scope guard is activated by its scope and binds nothing.
+  E7062:
+    severity: error
+    stage: validate
+    title: Unapproved Binding Used As Authorization
+    hint: An unapproved candidate never authorizes traffic; owner and rationale are review material, not approval.
+  E7063:
+    severity: error
+    stage: validate
+    title: Permit Overlaps Mandatory Deny
+    hint: Resolve the contradiction in the sources; the compiler will not trim a permit to fit a guard.
+  E7064:
+    severity: error
+    stage: validate
+    title: Empty Resolved Selector
+    hint: An empty resolved set is an error, not 'any'; a placeholder is a parameter a binding fills, never a wildcard.
+
+  # Plan, order and the ADR 0119 obligations
+  E7080:
+    severity: error
+    stage: generate
+    title: Precedence Cycle
+    hint: SEC-ORDER; the rules named in the message require each other to come first. A terminal deny is a role, not an effect.
+  E7081:
+    severity: error
+    stage: generate
+    title: Order Violates Required Edge
+    hint: SEC-ORDER; the emitted plan breaks a precedence edge it claims to satisfy.
+  E7082:
+    severity: error
+    stage: generate
+    title: Terminal Default Deny Missing
+    hint: >-
+      A default-allow backend requires a terminal drop-all closing the scope. Replaces the E7854 that ADR 0110
+      assigned in 2026-06 to a code already held since 2026-03 by storage media inventory; see the erratum in
+      docs/diagnostics-catalog.md.
+  E7083:
+    severity: error
+    stage: validate
+    title: Delivery Without Authorization
+    hint: SEC-AUTH; accepted delivery whose original intent is not in the authorized set.
+  E7084:
+    severity: error
+    stage: validate
+    title: Required Flow Not Admitted
+    hint: SEC-AVAIL; a declared required flow fails under healthy prerequisites. An all-drop plan is not safe, it is broken.
+  E7085:
+    severity: error
+    stage: validate
+    title: Path Bypasses Verified Gate
+    hint: SEC-PATH; a feasible in-scope path crosses no adequate gate and is not demonstrably disabled.
+  E7086:
+    severity: error
+    stage: validate
+    title: Transform Merges Distinct Authorizations
+    hint: SEC-NAT; a composed transform collapses differently authorized originals into one.
+  E7087:
+    severity: error
+    stage: validate
+    title: Session Survives Revocation Deadline
+    hint: SEC-STATE; established or related traffic outlives the active epoch's declared deadline.
+  E7088:
+    severity: error
+    stage: validate
+    title: Unapproved Intermediate Transition
+    hint: SEC-TRANSITION; a partial apply, retry, reboot or rollback state admits a transition outside the approved set.
+  E7089:
+    severity: error
+    stage: validate
+    title: Capability Requirement Without Witness
+    hint: >-
+      SEC-CAP; an applicable requirement has no scoped satisfaction witness at the evidence level the claim needs.
+      Missing evidence is 'not run', never pass.
+
+  W7001:
+    severity: warning
+    stage: validate
+    title: Disabled Network Record Referenced
+    hint: An explicit enabled:false record still exists; a reference to it is an error rather than a silent miss.
+  I7001:
+    severity: info
+    stage: validate
+    title: Network Intent Version In Use
+    hint: Reports which network intent version an effective source resolved to.
+
+  # ---------------------------------------------------------------------------
+  # Topology manifest governance contract, moved here 2026-09-11.
+  #
+  # governance_contract_validator emitted E7801..E7808, E7811, E7812 and
+  # W7809/W7810/W7813 - eight of which docs/diagnostics-catalog.md assigns to
+  # other owners: E7801..E7805 to L1 power source relations, E7808 to the
+  # strict-only legacy paths contract, E7811..E7812 to framework/project
+  # compatibility. All three of those owners implement their meaning, so the
+  # manifest checks were the squatter. Two test suites asserted E7801 for two
+  # unrelated things, which is what a code with two owners costs.
+  #
+  # E33xx was empty in source, catalog, ADR and documentation. Moving restores
+  # single ownership to the eight rather than breaking immutability: each of them
+  # keeps the meaning the registry already documented.
+  # ---------------------------------------------------------------------------
+  E3301:
+    severity: error
+    stage: validate
+    title: Topology Version Invalid
+    hint: topology version must be a non-empty string starting with '5.'.
+  E3302:
+    severity: error
+    stage: validate
+    title: Topology Model Invalid
+    hint: topology model must be 'class-object-instance'.
+  E3303:
+    severity: error
+    stage: validate
+    title: Framework Section Invalid
+    hint: framework must be an object whose declared paths are non-empty strings.
+  E3304:
+    severity: error
+    stage: validate
+    title: Project Section Invalid
+    hint: project must be an object with non-empty active and projects_root.
+  E3305:
+    severity: error
+    stage: validate
+    title: Meta Instance Invalid
+    hint: meta.instance must be a non-empty string.
+  E3306:
+    severity: error
+    stage: validate
+    title: Meta Instance Misaligned
+    hint: meta.instance differs from project.active; aligned values keep resolution deterministic.
+  E3307:
+    severity: error
+    stage: validate
+    title: Meta Status Unknown
+    hint: meta.status must be one of the declared lifecycle values.
+  E3308:
+    severity: error
+    stage: validate
+    title: Meta Metadata Dates Inconsistent
+    hint: meta.metadata.last_updated must not be earlier than created.
+  W3309:
+    severity: warning
+    stage: validate
+    title: Meta Metadata Date Format
+    hint: meta.metadata.created/last_updated should use YYYY-MM-DD.
+  W3310:
+    severity: warning
+    stage: validate
+    title: Changelog Missing Current Version
+    hint: meta.metadata.changelog should contain an entry for the current version.
+  E3311:
+    severity: error
+    stage: validate
+    title: Default Security Policy Ref Unresolved
+    hint: meta.defaults.refs.security_policy_ref must reference a known instance.
+  E3312:
+    severity: error
+    stage: validate
+    title: Default Network Manager Ref Invalid
+    hint: meta.defaults.refs.network_manager_device_ref must reference a known L1 network-class device.
+  W3313:
+    severity: warning
+    stage: validate
+    title: Topology Version Unset
+    hint: topology version is not set; an explicit 5.x version is required.
+
+  # Framework module layout, moved here 2026-09-11 for the same reason as the
+  # governance block above: foundation_layout_validator emitted E7811..E7813 for
+  # framework *paths* while framework_lock.py emits them for framework *version
+  # and schema compatibility*, which is what the registry documents them as.
+  E3320:
+    severity: error
+    stage: validate
+    title: Framework Paths Section Invalid
+    hint: framework must be an object whose module-root paths are non-empty strings.
+  E3321:
+    severity: error
+    stage: validate
+    title: Framework Path Missing
+    hint: A declared framework module root does not exist or is not a directory.
+  E3322:
+    severity: error
+    stage: validate
+    title: Framework Path Has No Modules
+    hint: A declared framework module root contains no YAML module files.
+  E3323:
+    severity: error
+    stage: validate
+    title: Framework Roots Have No Plugin Manifests
+    hint: Framework module roots contain no plugins.yaml manifests.

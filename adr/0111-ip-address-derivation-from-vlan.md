@@ -144,6 +144,20 @@ editing any workload files.
 | W7864 | Warning | Workload has hardcoded IP instead of vlan_ref + host |
 | E7865 | Error | Cannot mix vlan_ref/host with hardcoded ip/gateway |
 
+**Erratum, 2026-09-11.** These five meanings are the documented ones and
+`ip_derivation_compiler` emits them exactly as stated. The defect is elsewhere:
+`storage_l3_refs_validator` also emits `E7861`, `E7862`, `E7863`, `E7865` and
+`E7866` for filesystem and volume-group reference errors, so four of this ADR's
+five codes have two owners and no consumer can tell a duplicate host number from
+a missing `lv_ref`. Measured at gate G1 of ADR 0118; recorded in the frozen
+collision ledger in `tests/test_diagnostic_code_registry.py`. Resolving it means
+moving the storage checks to a free range, as was done for the manifest
+governance and framework layout checks; `E78xx` is at 93 of 100 and cannot
+absorb them.
+
+Note also that these are emitted by a *compiler*, not the validator the rollout
+table below names.
+
 ### 7. Servers Zone Inventory
 
 | Host | Workload | Derived IP | Purpose |

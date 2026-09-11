@@ -63,7 +63,7 @@ def test_foundation_layout_validator_rejects_missing_root_path():
 
     result = registry.execute_plugin(PLUGIN_ID, _context(manifest), Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
-    assert any(diag.code == "E7812" for diag in result.diagnostics)
+    assert any(diag.code == "E3321" for diag in result.diagnostics)
 
 
 def test_foundation_layout_validator_rejects_empty_root_directory(tmp_path: Path):
@@ -80,4 +80,4 @@ def test_foundation_layout_validator_rejects_empty_root_directory(tmp_path: Path
     result = registry.execute_plugin(PLUGIN_ID, _context(manifest), Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     codes = [diag.code for diag in result.diagnostics]
-    assert "E7813" in codes
+    assert "E3322" in codes

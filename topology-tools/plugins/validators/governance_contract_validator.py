@@ -31,7 +31,7 @@ class GovernanceContractValidator(ValidatorYamlPlugin):
         if not isinstance(version, str) or not version:
             diagnostics.append(
                 self.emit_diagnostic(
-                    code="W7813",
+                    code="W3313",
                     severity="warning",
                     stage=stage,
                     message="topology version is not set; explicit 5.x version is required.",
@@ -41,7 +41,7 @@ class GovernanceContractValidator(ValidatorYamlPlugin):
         if not isinstance(version, str) or not version.startswith("5."):
             diagnostics.append(
                 self.emit_diagnostic(
-                    code="E7801",
+                    code="E3301",
                     severity="error",
                     stage=stage,
                     message="topology version must be a non-empty string starting with '5.'.",
@@ -53,7 +53,7 @@ class GovernanceContractValidator(ValidatorYamlPlugin):
         if model != "class-object-instance":
             diagnostics.append(
                 self.emit_diagnostic(
-                    code="E7802",
+                    code="E3302",
                     severity="error",
                     stage=stage,
                     message="topology model must be 'class-object-instance'.",
@@ -65,7 +65,7 @@ class GovernanceContractValidator(ValidatorYamlPlugin):
         if not isinstance(framework, dict):
             diagnostics.append(
                 self.emit_diagnostic(
-                    code="E7803",
+                    code="E3303",
                     severity="error",
                     stage=stage,
                     message="framework section must be an object with required paths.",
@@ -78,7 +78,7 @@ class GovernanceContractValidator(ValidatorYamlPlugin):
                 if not isinstance(value, str) or not value.strip():
                     diagnostics.append(
                         self.emit_diagnostic(
-                            code="E7803",
+                            code="E3303",
                             severity="error",
                             stage=stage,
                             message=f"framework.{key} must be a non-empty string path.",
@@ -90,7 +90,7 @@ class GovernanceContractValidator(ValidatorYamlPlugin):
         if not isinstance(project, dict):
             diagnostics.append(
                 self.emit_diagnostic(
-                    code="E7804",
+                    code="E3304",
                     severity="error",
                     stage=stage,
                     message="project section must be an object with active/projects_root.",
@@ -103,7 +103,7 @@ class GovernanceContractValidator(ValidatorYamlPlugin):
             if not isinstance(active, str) or not active.strip():
                 diagnostics.append(
                     self.emit_diagnostic(
-                        code="E7804",
+                        code="E3304",
                         severity="error",
                         stage=stage,
                         message="project.active must be a non-empty string.",
@@ -113,7 +113,7 @@ class GovernanceContractValidator(ValidatorYamlPlugin):
             if not isinstance(projects_root, str) or not projects_root.strip():
                 diagnostics.append(
                     self.emit_diagnostic(
-                        code="E7804",
+                        code="E3304",
                         severity="error",
                         stage=stage,
                         message="project.projects_root must be a non-empty string.",
@@ -146,7 +146,7 @@ class GovernanceContractValidator(ValidatorYamlPlugin):
         if not isinstance(instance, str) or not instance.strip():
             diagnostics.append(
                 self.emit_diagnostic(
-                    code="E7805",
+                    code="E3305",
                     severity="error",
                     stage=stage,
                     message="meta.instance must be a non-empty string.",
@@ -159,7 +159,7 @@ class GovernanceContractValidator(ValidatorYamlPlugin):
             if isinstance(active, str) and active and isinstance(instance, str) and instance and active != instance:
                 diagnostics.append(
                     self.emit_diagnostic(
-                        code="E7806",
+                        code="E3306",
                         severity="warning",
                         stage=stage,
                         message=(
@@ -173,7 +173,7 @@ class GovernanceContractValidator(ValidatorYamlPlugin):
         if not isinstance(status, str) or status not in self._ALLOWED_STATUSES:
             diagnostics.append(
                 self.emit_diagnostic(
-                    code="E7807",
+                    code="E3307",
                     severity="warning",
                     stage=stage,
                     message=f"meta.status should be one of {sorted(self._ALLOWED_STATUSES)}.",
@@ -207,7 +207,7 @@ class GovernanceContractValidator(ValidatorYamlPlugin):
                 if updated_dt < created_dt:
                     diagnostics.append(
                         self.emit_diagnostic(
-                            code="E7808",
+                            code="E3308",
                             severity="error",
                             stage=stage,
                             message=(
@@ -219,7 +219,7 @@ class GovernanceContractValidator(ValidatorYamlPlugin):
             except ValueError:
                 diagnostics.append(
                     self.emit_diagnostic(
-                        code="W7809",
+                        code="W3309",
                         severity="warning",
                         stage=stage,
                         message="meta.metadata.created/last_updated should use YYYY-MM-DD format.",
@@ -233,7 +233,7 @@ class GovernanceContractValidator(ValidatorYamlPlugin):
             if not has_version:
                 diagnostics.append(
                     self.emit_diagnostic(
-                        code="W7810",
+                        code="W3310",
                         severity="warning",
                         stage=stage,
                         message=f"meta.metadata.changelog does not contain current version '{version}'.",
@@ -278,7 +278,7 @@ class GovernanceContractValidator(ValidatorYamlPlugin):
             if not isinstance(sec_row, dict):
                 diagnostics.append(
                     self.emit_diagnostic(
-                        code="E7811",
+                        code="E3311",
                         severity="error",
                         stage=stage,
                         message=f"meta.defaults.refs.security_policy_ref '{sec_ref}' does not reference a known instance.",
@@ -291,7 +291,7 @@ class GovernanceContractValidator(ValidatorYamlPlugin):
             if not isinstance(mgr_row, dict):
                 diagnostics.append(
                     self.emit_diagnostic(
-                        code="E7812",
+                        code="E3312",
                         severity="error",
                         stage=stage,
                         message=(
@@ -304,7 +304,7 @@ class GovernanceContractValidator(ValidatorYamlPlugin):
             elif mgr_row.get("layer") != "L1":
                 diagnostics.append(
                     self.emit_diagnostic(
-                        code="E7812",
+                        code="E3312",
                         severity="error",
                         stage=stage,
                         message=(
@@ -317,7 +317,7 @@ class GovernanceContractValidator(ValidatorYamlPlugin):
             elif not self._is_network_manager_row(ctx=ctx, row=mgr_row):
                 diagnostics.append(
                     self.emit_diagnostic(
-                        code="E7812",
+                        code="E3312",
                         severity="error",
                         stage=stage,
                         message=(

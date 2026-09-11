@@ -29,10 +29,11 @@ host_ref_target_layers:
 # Version 1 - a flat `network` block with vlan_ref/bridge_ref and host - remains
 # the accepted shape; the two must not be mixed inside one effective source.
 #
-# This declaration is currently inert: nothing in the runtime reads
-# property_schemas, so it constrains no instance today. G1 closes only when an
-# enforcing consumer exists. Registering the shape first means that consumer has
-# a single definition to enforce rather than one invented alongside it.
+# Enforced by base.validator.network_intent_schema, which resolves this
+# declaration along class lineage - the compiler records lineage but does not
+# merge a parent's payload into its children, so a consumer reading only the
+# class an instance names would find nothing here. The block is authored under
+# the `network` key with schema_version: 2; a v1 flat block is left alone.
 network_intent_schema:
   schema_version:
     type: integer

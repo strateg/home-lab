@@ -307,7 +307,7 @@ Findings from the SPC review of this revision, recorded in the
 | S01 plan ownership vs M1-B enforcer ownership | ADR 0119 D1 ownership paragraph |
 | S02 legacy R1-R6 outcome unstated | ADR 0118 D4.1 translation table |
 | S03 legacy evaluation order unreferenced | ADR 0118 D4.1 header |
-| S04 final drop-all and E7854 unreferenced | ADR 0118 D4.1 last row; ADR 0119 D4 |
+| S04 final drop-all unreferenced | ADR 0118 D4.1 last row; ADR 0119 D4. The code is `E7082`: `E7854` was held by storage media inventory three months before ADR 0110 claimed it |
 | S05 ADR 0088 stable-ID basis unreferenced | ADR 0118 D1 |
 | S06 zone/VLAN separation only implicit | ADR 0118 D2 address-domain paragraph |
 | S07 generated outputs prohibition only in appendix | ADR 0118 D1 |

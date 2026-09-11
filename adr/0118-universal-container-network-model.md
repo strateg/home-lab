@@ -200,7 +200,7 @@ profile, so no reader has to infer it.
 | R3 downhill | Implicit allow | **Nothing.** Trust level is not authorization |
 | R4 uphill | Implicit deny | Consistent with default deny; produces no mandatory deny by itself |
 | R5 same level | Implicit deny | Consistent with default deny; produces no mandatory deny by itself |
-| Final drop-all (`E7854`) | Mandatory terminal rule on a default-allow backend | Retained as a backend obligation. In strict it is the rendering of a reachable terminal default deny, not a policy; ADR 0119 D4 owns its placement and read-back |
+| Final drop-all (`E7082`, was `E7854`) | Mandatory terminal rule on a default-allow backend | Retained as a backend obligation. In strict it is the rendering of a reachable terminal default deny, not a policy; ADR 0119 D4 owns its placement and read-back |
 
 Rows that translate to "nothing" are the intended reduction in implicit grants;
 they are also the reason a strict migration needs real flow data rather than a
@@ -359,14 +359,23 @@ No auto-generated permit may be accepted merely to make a migration pass.
 
 Use stable semantic requirement IDs `NET-ATTACHMENT`, `NET-ADDRESS-OWNER`,
 `NET-POLICY-BINDING`, `NET-PATH-COVERAGE`, `NET-PROFILE` in design/evidence.
-Numeric diagnostic ranges previously suggested here are withdrawn pending a
+Numeric diagnostic ranges previously suggested here were withdrawn pending a
 registry collision check and allocation in the implementation change.
 
-Until that allocation exists, diagnostics carry the semantic ID as their stable
-identity and a provisional `NET-*`/`SEC-*` prefixed code, never a number that
-could collide with the allocated `E78xx`/`W78xx` ranges of ADR 0110 and ADR 0111.
-G1 allocates the numeric codes with a collision test and replaces the provisional
-form in one change; the existing 15 network codes keep their meaning.
+**That allocation happened on 2026-09-11 at gate G1: `E70xx`/`W70xx`/`I70xx`.**
+`E7001..E7006` cover schema and shape, `E7020..E7023` attachments and address
+domains, `E7040..E7042` publications, `E7060..E7064` policies and bindings, and
+`E7080..E7089` plan order and the ADR 0119 obligations. The semantic requirement
+IDs remain the stable identity; the provisional `NET-*`/`SEC-*` prefixed code is
+retired. The existing 15 network codes keep their meaning.
+
+The collision check this clause demanded found more than it was looking for. It
+is recorded in `docs/diagnostics-catalog.md`: `E78xx` stands at 93 of 100 with
+fourteen collisions still inside it; 274 codes are emitted with no catalog entry at all,
+against a governance rule requiring registration before implementation; and
+`E7854`, which this ADR cited for the final drop-all, has belonged to storage
+media inventory since three months before ADR 0110 claimed it. The drop-all is
+`E7082`. Both ledgers are frozen by test so they can shrink but not grow.
 
 ### D8. Authoring surface is a measured property
 

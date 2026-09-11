@@ -85,7 +85,7 @@ def test_governance_contract_validator_rejects_invalid_version():
 
     result = registry.execute_plugin(PLUGIN_ID, _context(manifest), Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
-    assert any(diag.code == "E7801" for diag in result.diagnostics)
+    assert any(diag.code == "E3301" for diag in result.diagnostics)
 
 
 def test_governance_contract_validator_keeps_version_warning_semantics_when_version_missing():
@@ -95,8 +95,8 @@ def test_governance_contract_validator_keeps_version_warning_semantics_when_vers
 
     result = registry.execute_plugin(PLUGIN_ID, _context(manifest), Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
-    assert any(diag.code == "W7813" for diag in result.diagnostics)
-    assert any(diag.code == "E7801" for diag in result.diagnostics)
+    assert any(diag.code == "W3313" for diag in result.diagnostics)
+    assert any(diag.code == "E3301" for diag in result.diagnostics)
 
 
 def test_governance_contract_validator_rejects_missing_framework_key():
@@ -106,7 +106,7 @@ def test_governance_contract_validator_rejects_missing_framework_key():
 
     result = registry.execute_plugin(PLUGIN_ID, _context(manifest), Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
-    assert any(diag.code == "E7803" for diag in result.diagnostics)
+    assert any(diag.code == "E3303" for diag in result.diagnostics)
 
 
 def test_governance_contract_validator_warns_on_meta_project_mismatch():
@@ -116,7 +116,7 @@ def test_governance_contract_validator_warns_on_meta_project_mismatch():
 
     result = registry.execute_plugin(PLUGIN_ID, _context(manifest), Stage.VALIDATE)
     assert result.status == PluginStatus.PARTIAL
-    assert any(diag.code == "E7806" for diag in result.diagnostics)
+    assert any(diag.code == "E3306" for diag in result.diagnostics)
 
 
 def test_governance_contract_validator_rejects_metadata_date_order():
@@ -129,7 +129,7 @@ def test_governance_contract_validator_rejects_metadata_date_order():
 
     result = registry.execute_plugin(PLUGIN_ID, _context(manifest), Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
-    assert any(diag.code == "E7808" for diag in result.diagnostics)
+    assert any(diag.code == "E3308" for diag in result.diagnostics)
 
 
 def test_governance_contract_validator_warns_on_changelog_version_gap():
@@ -143,7 +143,7 @@ def test_governance_contract_validator_warns_on_changelog_version_gap():
 
     result = registry.execute_plugin(PLUGIN_ID, _context(manifest), Stage.VALIDATE)
     assert result.status == PluginStatus.PARTIAL
-    assert any(diag.code == "W7810" for diag in result.diagnostics)
+    assert any(diag.code == "W3310" for diag in result.diagnostics)
 
 
 def test_governance_contract_validator_rejects_unknown_default_security_policy_ref():
@@ -154,7 +154,7 @@ def test_governance_contract_validator_rejects_unknown_default_security_policy_r
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
-    assert any(diag.code == "E7811" for diag in result.diagnostics)
+    assert any(diag.code == "E3311" for diag in result.diagnostics)
 
 
 def test_governance_contract_validator_rejects_network_manager_ref_outside_l1():
@@ -168,7 +168,7 @@ def test_governance_contract_validator_rejects_network_manager_ref_outside_l1():
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
-    assert any(diag.code == "E7812" and "must target layer L1" in diag.message for diag in result.diagnostics)
+    assert any(diag.code == "E3312" and "must target layer L1" in diag.message for diag in result.diagnostics)
 
 
 def test_governance_contract_validator_accepts_network_manager_ref_by_class_capabilities():

@@ -39,7 +39,7 @@ owner decision were **not** executed. They remain open, listed below.
 | | D8: new decision making the authoring surface a measured property | S08 |
 | `0119-firewall-rule-ordering-contract.md` | Header revision line | — |
 | | D1: plan ownership versus enforcer ownership; M1-B and `managed_by_ref` preserved; one plan compiler to one projection per enforcer | S01 |
-| | D4: terminal deny on a default-allow backend as a backend obligation, tied to `E7854` and read-back | S04 |
+| | D4: terminal deny on a default-allow backend as a backend obligation, tied to `E7082` (was `E7854`, already held) and read-back | S04 |
 | | D7: provisional diagnostic identity before numeric allocation | S13 |
 | `0118-analysis/MIGRATION-AND-ACCEPTANCE.md` | Baseline pointer updated to the freeze commit, parent retained as history | S17 |
 | | Section 2.1: new passing example, direct attachment without publication | S11 |

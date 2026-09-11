@@ -145,7 +145,7 @@ python -c "import json; m=json.load(open('generated/home-lab/compiled.json')); p
 | E7851 | Error | VLAN CIDRs must not overlap |
 | E7852 | Error | VLAN must have trust_zone_ref |
 | E7853 | Error | policy_override refs must exist |
-| E7854 | Error | Final drop-all rule required |
+| E7082 | Error | Final drop-all rule required. Allocated by ADR 0118/0119 at gate G1; was E7854, which storage media inventory already held. See the erratum in docs/diagnostics-catalog.md |
 | W7855 | Warning | Same security_level needs override |
 | W7856 | Warning | Isolated zone override to non-untrusted |
 | W7857 | Warning | DENY without logging |

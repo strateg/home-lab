@@ -449,6 +449,79 @@ G1 exits on full positive/negative C->O->I fixtures and A21/A23/A25 schema porti
 Allocate SEC-CAP diagnostics centrally; E8020/E8021 keep their platform/bootstrap
 meaning and must not be reused for network satisfaction failures.
 
+**Numeric allocation done, 2026-09-11: `E70xx`/`W70xx`/`I70xx`.** 28 codes, each
+tied to a rule the reference model enforces or an obligation the ADR 0119 formal
+contract states; no reserved-for-later entries, which D7 rejects. `E70xx` was the
+only hundred inside `E7xxx` unclaimed by source, catalog, ADR or documentation.
+
+The collision check D7 required found more than the allocation needed:
+
+| Finding | Measure |
+|---|---|
+| Codes emitted with no catalog entry | 274, against a governance rule requiring registration before implementation |
+| Codes emitted with unrelated meanings by different modules | 30, of which 14 are inside `E78xx` |
+| `E78xx` occupancy | 93 of 100. Nothing new goes there |
+| The checker's own blind spot | `SCAN_DIRS` omitted the top level of `topology-tools/`, hiding every code the compiler itself emits - 4 unregistered and 11 collisions, including the `E7821..E7827` framework-lock family |
+| `E7854` | Claimed by ADR 0110 for the final drop-all on 2026-06-22; held by `storage_media_inventory_validator` since 2026-03-24. The drop-all is now `E7082` |
+| ADR 0110's validator table | Names five modules that do not exist; the checks live in `network_security_validator`, `security_matrix_compiler` and `ip_derivation_compiler`, two of which are compilers |
+
+Two squatters were moved off eight codes the registry documents as belonging to
+other owners: the manifest governance checks and the framework layout checks, now
+`E3301..E3312` and `E3320..E3323`. Collisions fell 38 to 30 and unregistered codes
+280 to 274, with none added. Two test suites had been asserting `E7801` for two
+unrelated things.
+
+Both ledgers are frozen in `tests/test_diagnostic_code_registry.py`: they may
+shrink, they may not grow. Paying the remaining 274 by machine would fill the
+catalog with titles nobody chose, so the debt is recorded rather than invented
+away. Artifact parity across all 147 files was measured before and after: identical.
+
+Still open in this area: `storage_l3_refs_validator` squats on `E7861..E7863`,
+`E7865` and `E7866`, which ADR 0111 documents for IP derivation, and
+`declarative_reference_validator` duplicates several per-domain validators code
+for code. Neither is fixed here; both are named so the next change has a target
+rather than a rediscovery.
+
+**The enforcing consumer exists, 2026-09-11: `base.validator.network_intent_schema`.**
+This is the part that makes G1 real; the plan's own measurement said a declaration
+alone could not close it. One validator reads all three declarations - which is
+why they were declared together first - and resolves each along class `lineage`,
+because the compiler records lineage and merges nothing.
+
+Authored shape per declaration: `network` for attachments, `publication` for
+publications, `policy` for policies and bindings, each carrying `schema_version: 2`.
+A block without that version but with a v2 collection is refused rather than
+guessed at.
+
+Enforced today: `E7001` undeclared key or property, `E7002` record key outside the
+local-key grammar, `E7003` derived or forbidden field authored, `E7004` v1 keys
+beside v2, `E7005` missing required field or malformed record, `E7006` absent or
+unsupported version, `E7007` the validator's own prerequisite. `E7007` is separate
+from `E7005` deliberately: "the check did not run" and "a field is missing" are
+different facts, and a check that cannot run must not report as a pass.
+
+Three copies of the local-key grammar now exist - `netmodel.identity.LOCAL_KEY_RE`,
+the `key_pattern` in each class file, and the validator - and a test asserts all
+three are the same string, so they cannot drift.
+
+Evidence: 38 plugin tests executing through the registry, which is also the only
+proof the plugin loads at all - a validator that emits nothing because it never
+ran is indistinguishable from one that emits nothing because the sources are
+clean. The tests build their context from the real class files rather than a
+fixture copy, so the validator and the declaration cannot drift while the tests
+keep passing. Artifact parity across all 147 files: identical. Every source in the
+tree is v1, so the validator is correctly silent on it.
+
+Two tests in `tests/netmodel/test_schema_declaration.py` were inverted rather than
+deleted: they asserted nothing read the declarations, and now assert that something
+does. "The consumer disappeared" is a failure worth being told about.
+
+Method note. The artifact-parity compile ran without `--strict-model-lock` and so
+passed while `tests/plugin_regression/test_plugin_output_determinism.py` failed on
+a stale `framework.lock` - the class comments had been edited after the last lock
+refresh. Parity and lock integrity are different claims; a green parity run says
+nothing about the lock.
+
 **Correction to that instruction (revision 4a).** It presumed those codes are
 registered. At baseline `493867d5` they are not. The canonical registry is
 `topology-tools/data/error-catalog.yaml`, indexed by `docs/diagnostics-catalog.md`,

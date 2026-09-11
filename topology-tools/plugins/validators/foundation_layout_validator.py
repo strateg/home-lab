@@ -20,7 +20,7 @@ class FoundationLayoutValidator(ValidatorYamlPlugin):
         if not isinstance(framework, dict):
             diagnostics.append(
                 self.emit_diagnostic(
-                    code="E7811",
+                    code="E3320",
                     severity="error",
                     stage=stage,
                     message="framework section must be an object.",
@@ -37,7 +37,7 @@ class FoundationLayoutValidator(ValidatorYamlPlugin):
             if not isinstance(value, str) or not value.strip():
                 diagnostics.append(
                     self.emit_diagnostic(
-                        code="E7811",
+                        code="E3320",
                         severity="error",
                         stage=stage,
                         message=f"framework.{key} must be a non-empty string path.",
@@ -50,7 +50,7 @@ class FoundationLayoutValidator(ValidatorYamlPlugin):
             if not root.exists() or not root.is_dir():
                 diagnostics.append(
                     self.emit_diagnostic(
-                        code="E7812",
+                        code="E3321",
                         severity="error",
                         stage=stage,
                         message=f"framework.{key} path does not exist or is not a directory: '{value}'.",
@@ -63,7 +63,7 @@ class FoundationLayoutValidator(ValidatorYamlPlugin):
             if not yaml_files:
                 diagnostics.append(
                     self.emit_diagnostic(
-                        code="E7813",
+                        code="E3322",
                         severity="error",
                         stage=stage,
                         message=f"framework.{key} directory '{value}' has no YAML module files.",
@@ -76,7 +76,7 @@ class FoundationLayoutValidator(ValidatorYamlPlugin):
         if plugins_manifest_count == 0:
             diagnostics.append(
                 self.emit_diagnostic(
-                    code="E7814",
+                    code="E3323",
                     severity="warning",
                     stage=stage,
                     message="Framework module roots contain no plugins.yaml manifests.",

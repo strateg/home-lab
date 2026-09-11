@@ -77,7 +77,7 @@ individually.
 | **Legacy evaluation order preserved** | ADR 0110 section 2.2 | Yes | Now referenced in ADR 0118 D4.1; was unstated before | — |
 | **M1-B, one matrix per enforcer** | ADR 0110 section 1.3 | Yes | Now stated in ADR 0119 D1; was unstated before | — |
 | **Trust zone and VLAN separation** | ADR 0110 section 1.5 | Yes | Now stated in ADR 0118 D2; was implicit before | — |
-| **Final drop-all and `E7854`** | ADR 0110 section 4.4 | Yes | Now stated in ADR 0118 D4.1 and ADR 0119 D4; was unstated before | — |
+| **Final drop-all and `E7854`** | ADR 0110 section 4.4 | Yes | Now stated in ADR 0118 D4.1 and ADR 0119 D4; was unstated before. *Erratum 2026-09-11: the number was wrong. `E7854` had belonged to storage media inventory since three months before ADR 0110 claimed it; the drop-all is `E7082`.* | — |
 | **IP derivation `vlan_ref` plus `host`** | ADR 0111 | Yes | ADR 0118 D2 keeps the arithmetic; VLAN remains an address domain | — |
 | **Canonical semantic keys** | ADR 0088 | Yes | Now referenced in ADR 0118 D1; was unstated before | — |
 | **Cognitive load is a project criterion** | ADR 0043 | Yes | ADR 0118 D8 plus the migration plan's authoring budget make it measurable; it was an unverifiable claim before | — |

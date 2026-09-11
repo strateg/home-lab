@@ -770,6 +770,42 @@ resource "routeros_ip_firewall_filter" "drop_all_forward" {
 | I7859 | Info | Matrix statistics: X allow, Y deny, Z override across N zones |
 | I7865 | Info | Zone-VLAN mapping: zone X has Y VLANs |
 
+### Erratum, 2026-09-11: these tables are design, not the implementation
+
+Measured at gate G1 of ADR 0118 while allocating a diagnostic range. The tables
+above were written before the code and were never reconciled with it. They are
+kept as the record of the design; the statements below are what the system does.
+
+**Codes this document claims that another owner already held.** Immutability
+(rule 1 in `docs/diagnostics-catalog.md`) decides in favour of the code that
+shipped first, so in both cases this document is the one that must move.
+
+| Claimed here | Real owner | Resolution |
+|---|---|---|
+| `E7854` final drop-all missing | `storage_media_inventory_validator`, since 2026-03-24 - three months before this ADR claimed it | The terminal default deny is **`E7082`** (ADR 0118/0119 allocation) |
+| `W7853` unreachable zone pair | `storage_device_taxonomy_validator` | Unimplemented here; a future implementation allocates from `E70xx`/`W70xx` |
+
+**Codes designed here and never implemented.** `I7859`, `I7865`, `W7854`,
+`W7857` and `W7858` appear in no source file. They are not reserved and not
+in the catalog: an unimplemented number in a design table is not an allocation,
+which is how `E7854` came to be claimed twice.
+
+**Codes with two owners.** `E7850` and `E7851` are emitted both by
+`network_security_validator` for VLAN id and CIDR collisions and by service
+dependency and L1 device taxonomy validators for unrelated errors. `E7861`,
+`E7862`, `E7863` and `E7865` are emitted both by `ip_derivation_compiler` and by
+`storage_l3_refs_validator`. Six collisions inside the range this ADR uses;
+`E78xx` stands at 93 of 100 occupied. Nothing new may be added to it.
+
+**The validator table names five modules that do not exist.**
+`vlan_zone_validator`, `security_matrix_validator`, `ip_derivation_validator`,
+`policy_completeness_validator` and `firewall_audit_validator` are not present in
+the tree. The checks are implemented, but by `network_security_validator`,
+`security_matrix_compiler` and `ip_derivation_compiler` - two of which are
+compilers, not validators, so the stage affinity in that table is wrong too. A
+reader following the table to find the drop-all check finds nothing, which is
+why the `E7854` conflict survived three months unnoticed.
+
 ### 6. Backward Compatibility
 
 - Existing object modules (obj.network.trust_zone.*, obj.network.vlan.*) remain unchanged

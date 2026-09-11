@@ -6,7 +6,17 @@ This script:
 2. Scans source files for diagnostic code usage (E/W/Ixxxx patterns)
 3. Reports undefined codes (used but not in catalog)
 4. Reports unused codes (in catalog but not used)
-5. Generates coverage statistics
+5. Reports code collisions: one code emitted with unrelated meanings
+6. Generates coverage statistics
+
+A collision is the defect the governance rules exist to prevent, and it is not
+the same thing as a shared code. Several modules emitting E4102 "plugin crashed"
+share one meaning and are fine. Two modules emitting one code for a VLAN ID
+collision and for a service dependency error are not: the code no longer
+identifies anything, and every report, filter and runbook keyed on it is wrong.
+
+Sharing is detected structurally - by the emitted message text per module - so
+the check needs no list of blessed exceptions to maintain.
 
 Usage:
     python scripts/validation/sync_error_catalog.py [--fix] [--verbose]
@@ -19,6 +29,7 @@ Exit codes:
 from __future__ import annotations
 
 import argparse
+import ast
 import re
 import sys
 from pathlib import Path
@@ -30,9 +41,13 @@ import yaml
 CODE_PATTERN = re.compile(r"\b([EWI]\d{4})\b")
 
 # Directories to scan for code usage
+# Corrected 2026-09-11: the top level of topology-tools was missing, so every code
+# emitted by compile-topology.py, compiler_runtime.py, framework_lock.py and
+# compiler_framework_lock.py was invisible to this check - including E7808 and the
+# E7821..E7827 framework-lock family, which collide with network validators. A
+# registry check that does not read the compiler itself measures the wrong system.
 SCAN_DIRS = [
-    "topology-tools/kernel",
-    "topology-tools/plugins",
+    "topology-tools",
     "topology/class-modules",
     "topology/object-modules",
     "scripts/orchestration",
@@ -94,6 +109,95 @@ def scan_source_files(repo_root: Path) -> dict[str, list[tuple[Path, int]]]:
                     usage[code].append((path, lineno))
 
     return usage
+
+
+def _message_literal(node: ast.AST) -> str:
+    """Best-effort static text of a message argument, formatting holes removed."""
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    if isinstance(node, ast.JoinedStr):
+        return "".join(part.value for part in node.values if isinstance(part, ast.Constant))
+    if isinstance(node, ast.BinOp):
+        return _message_literal(node.left) + _message_literal(node.right)
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "format":
+        return _message_literal(node.func.value)
+    return ""
+
+
+def scan_emissions(repo_root: Path) -> dict[str, dict[str, set[str]]]:
+    """Map each emitted code to the message text each module emits it with.
+
+    Only actual emissions count - a `code=` keyword or a constant whose name
+    contains CODE. A mention in a docstring is documentation, and treating it as
+    an emission would report the module that documents a code as an owner of it.
+    """
+    emissions: dict[str, dict[str, set[str]]] = {}
+
+    for scan_dir in SCAN_DIRS:
+        dir_path = repo_root / scan_dir
+        if not dir_path.exists():
+            continue
+        for path in dir_path.rglob("*.py"):
+            if any(pattern in path.name for pattern in EXCLUDE_PATTERNS):
+                continue
+            try:
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+            except (OSError, SyntaxError):
+                continue
+
+            module = path.relative_to(repo_root).as_posix()
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.Call):
+                    continue
+                keywords = {kw.arg: kw.value for kw in node.keywords if kw.arg}
+                code_node = keywords.get("code")
+                if not (isinstance(code_node, ast.Constant) and isinstance(code_node.value, str)):
+                    continue
+                code = code_node.value
+                if not CODE_PATTERN.fullmatch(code):
+                    continue
+                message = _message_literal(keywords.get("message") or keywords.get("msg") or ast.Constant(""))
+                emissions.setdefault(code, {}).setdefault(module, set()).add(message.strip()[:120])
+
+    return emissions
+
+
+# Words that carry no meaning for telling two diagnostics apart.
+_STOPWORDS = frozenset(
+    """a an and are as at be but by cannot for from got has have in is it its must
+    no not of on or requires set the to when with without""".split()
+)
+
+
+def _meaning_tokens(message: str) -> set[str]:
+    return {word for word in re.findall(r"[a-z_]{3,}", message.lower())} - _STOPWORDS
+
+
+def find_collisions(emissions: dict[str, dict[str, set[str]]]) -> dict[str, dict[str, set[str]]]:
+    """Codes emitted by several modules whose messages share no subject.
+
+    Comparing message text exactly is too strict to be useful. Eleven generators
+    emitting "compiled_json is empty; cannot generate X artifacts" state one
+    meaning with a different tail each time, and calling that a collision would
+    bury the real ones. Comparing the vocabulary instead asks the question that
+    matters: do these messages talk about the same thing at all?
+
+    Two shared meaningful words is the threshold. Below it a code has been given
+    two jobs - a VLAN id clash and a service dependency error, say - and nothing
+    downstream can tell which one a report refers to.
+    """
+    collisions: dict[str, dict[str, set[str]]] = {}
+    for code, by_module in emissions.items():
+        if len(by_module) < 2:
+            continue
+        per_module = [
+            set().union(*(_meaning_tokens(message) for message in messages)) for messages in by_module.values()
+        ]
+        if any(not tokens for tokens in per_module):
+            continue  # a message we could not read statically proves nothing
+        if len(set.intersection(*per_module)) < 2:
+            collisions[code] = by_module
+    return collisions
 
 
 def analyze_sync(
@@ -221,6 +325,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Exit with error if unused codes are found.",
     )
     parser.add_argument(
+        "--fail-on-collision",
+        action="store_true",
+        help="Exit with error if one code is emitted with unrelated meanings.",
+    )
+    parser.add_argument(
         "--output-json",
         type=Path,
         help="Write report as JSON to specified file.",
@@ -244,6 +353,8 @@ def main(argv: list[str] | None = None) -> int:
     source_usage = scan_source_files(repo_root)
 
     undefined, unused, synced = analyze_sync(catalog_codes, source_usage)
+    emissions = scan_emissions(repo_root)
+    collisions = find_collisions(emissions)
 
     print_report(
         catalog_codes,
@@ -254,6 +365,18 @@ def main(argv: list[str] | None = None) -> int:
         repo_root,
         verbose=args.verbose,
     )
+
+    if collisions:
+        print("\n" + "=" * 60)
+        print(f"CODE COLLISIONS ({len(collisions)}) - one code, unrelated meanings:")
+        print("=" * 60)
+        for code in sorted(collisions):
+            print(f"  {code}:")
+            for module, messages in sorted(collisions[code].items()):
+                sample = sorted(m for m in messages if m)
+                shown = sample[0] if sample else "(message not a literal)"
+                print(f"    {module}")
+                print(f"        {shown}")
 
     # JSON output
     if args.output_json:
@@ -266,6 +389,10 @@ def main(argv: list[str] | None = None) -> int:
             "undefined_codes": sorted(undefined),
             "unused_codes": sorted(unused),
             "synced_codes": sorted(synced),
+            "collisions": {
+                code: {module: sorted(messages) for module, messages in sorted(by_module.items())}
+                for code, by_module in sorted(collisions.items())
+            },
         }
         args.output_json.parent.mkdir(parents=True, exist_ok=True)
         args.output_json.write_text(json.dumps(report, indent=2))
@@ -279,6 +406,10 @@ def main(argv: list[str] | None = None) -> int:
         print(generate_stub_entries(undefined, source_usage))
 
     # Exit code
+    if args.fail_on_collision and collisions:
+        print(f"FAILED: {len(collisions)} codes are emitted with unrelated meanings")
+        return 1
+
     if undefined:
         print("FAILED: Undefined codes must be added to error-catalog.yaml")
         return 1

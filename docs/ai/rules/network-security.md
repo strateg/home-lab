@@ -171,7 +171,7 @@ about the legacy runtime:
     enforcer belong to the instance: one object serves many instances and can
     hold only one such value. Moving such a value is parity-preserving; if an
     artifact changes, it is a behaviour change and reviewed as one.
-12. On a default-allow backend the ADR 0110 final drop-all and `E7854` remain in
+12. On a default-allow backend the ADR 0110 final drop-all and `E7082` remain in
     force; in strict it is the rendered terminal default deny, emitted by the plan
     compiler and confirmed by read-back.
 

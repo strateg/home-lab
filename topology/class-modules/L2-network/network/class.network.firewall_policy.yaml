@@ -70,15 +70,15 @@ property_schemas:
 # Version 1 - `rules` with `default_action` and `priority` above - remains the
 # accepted shape. The two must not be mixed inside one effective source. In
 # version 2 neither the terminal deny nor a rule position is authored: the
-# terminal drop-all is a backend obligation carrying E7854, and positions are
+# terminal drop-all is a backend obligation carrying E7082, and positions are
 # derived from execution precedence (netmodel.plan), never from an author's
 # number.
 #
-# Currently inert: nothing in the runtime reads class-level schema declarations,
-# so this constrains no instance today. G1 closes when an enforcing consumer
-# exists. The compiler records `lineage` but does not merge a parent class
-# payload into its children, so that consumer resolves declarations by walking
-# lineage.
+# Enforced by base.validator.network_intent_schema, which resolves this
+# declaration along class lineage: the compiler records lineage but does not
+# merge a parent class payload into its children. The block is authored under
+# the `policy` key with schema_version: 2; the v1 `rules`/`default_action`/
+# `priority` keys above must not appear beside it.
 policy_intent_schema:
   schema_version:
     type: integer

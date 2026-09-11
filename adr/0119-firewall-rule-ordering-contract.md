@@ -189,8 +189,10 @@ Terraform dependency order is not a proof of the device's packet-processing
 order. The final read-back must normalize to the intended plan.
 
 On a default-allow backend the terminal deny is a backend obligation, not an
-optional rule. ADR 0110's mandatory final drop-all and its `E7854` check remain in
-force for RouterOS; in this contract that rule is the rendering of the reachable
+optional rule. ADR 0110's mandatory final drop-all and its check remain in
+force for RouterOS, now carrying `E7082`; ADR 0110 assigned that check `E7854`,
+a number storage media inventory had already held for three months, so the
+erratum in `docs/diagnostics-catalog.md` moves it into the allocated range; in this contract that rule is the rendering of the reachable
 terminal default deny required by the formal contract, it is emitted by the plan
 compiler rather than by a template, and read-back must confirm that no executable rule
 follows it within the corresponding managed sequence. This is not a global
@@ -293,11 +295,16 @@ redaction follow ADR 0094 and existing deploy controls.
 
 Semantic obligation IDs `SEC-AUTH`, `SEC-AVAIL`, `SEC-PATH`, `SEC-NAT`,
 `SEC-ORDER`, `SEC-STATE`, `SEC-TRANSITION`, `SEC-CAP` are specified in the
-[formal contract](0119-analysis/FORMAL-CONTRACT.md). Allocate numeric diagnostics
-centrally with collision tests at implementation time, not in speculative tables.
-Before that allocation a diagnostic is identified by its obligation ID plus a
-provisional prefixed code, so tooling and reports have a stable key without
-occupying a numeric range that ADR 0110 and ADR 0111 already use.
+[formal contract](0119-analysis/FORMAL-CONTRACT.md).
+
+**Allocated 2026-09-11 at gate G1: `E7080..E7089`.** `E7080` and `E7081` carry
+`SEC-ORDER` - a precedence cycle and an emitted order that breaks an edge it
+claims to satisfy - `E7082` the terminal default deny, and `E7083..E7089` the
+remaining obligations in the order they are listed above. The collision check
+this required is recorded in `docs/diagnostics-catalog.md`: `E70xx` was the only
+band inside `E7xxx` unclaimed by source, catalog, ADR or documentation, while
+`E78xx`, where ADR 0110 and ADR 0111 live, stands at 93 of 100 with fourteen
+collisions still inside it. The provisional prefixed form is retired.
 
 ## Consequences and acceptance
 
