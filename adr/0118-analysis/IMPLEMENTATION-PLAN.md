@@ -518,9 +518,49 @@ to answer. It matches on endpoints alone, ignoring protocol and port, because a
 terminal matching like an ordinary rule would leave the scope open on every port
 the author did not list.
 
-15 tests; 247 in netmodel. Still to come in W06: path and state algebra, NAT
-composition, transition envelopes, and the capability composition that
-`netmodel.capability` now has a shape for.
+15 tests; 247 in netmodel.
+
+**SEC-NAT, 2026-09-11: `netmodel/transform.py`.** A flow event now carries both
+tuples the formal contract requires. The fields are the *current* coordinates -
+what a rule matches at this point in the path - and `original` holds the
+client-facing tuple, `None` when nothing has transformed it.
+
+That split is the obligation: a rule matches current coordinates because that is
+what a device does; authorization is decided on the original, because a
+destination NAT changes where a packet goes and never who was allowed to send it.
+A transform records the original rather than replacing it, and composing two
+transforms keeps the first, since the client-facing tuple is a property of the
+flow and not of the last hop that touched it.
+
+**Two formulations were wrong and the tests said so, which is worth recording.**
+
+The collapse detector first compared *current tuples for equality*. A destination
+NAT preserves the source, so two flows from different zones to one backend never
+become the same tuple - the comparison found nothing, and the scenario it was
+written for was not the one the contract names. The real collapse is that **one
+rule written in backend coordinates decides both flows and cannot see which
+frontend authorized which**, so the grouping is by decision, not by tuple. The
+function takes a `decided_by` callable and stays ignorant of how the decision was
+reached, which keeps it from importing the algebra it is checked against.
+
+The mutant was also overclaimed. It asserted that discarding the original hides
+the collapse; it does not - the sources still differ, so the collapse is still
+found, and what is lost is the client-facing tuple in the report, the thing an
+author needs to know which publication to narrow. The real damage is a different
+substitution, and that is now the mutant: decide authorization on where the packet
+ended up rather than where it came from, and a flow the intent refused is
+permitted by the rule that exists for a different one.
+
+The end-to-end case is demonstrated rather than described: a rule emitted for a
+published path but written in backend coordinates without the frontend's source
+restriction accepts a direct flow, the interpreter accepts it correctly because
+that is what the device would do, and the intent asked in its own coordinates
+never permitted it. Reading only the interpreter calls this fine; reading only the
+intent calls it impossible. The obligation is the comparison.
+
+15 tests; 262 in netmodel. Still to come in W06: path and state algebra,
+transition envelopes, and the capability composition `netmodel.capability` now has
+a shape for.
 
 **A framework lock is not reproducible from a commit alone.** A detached worktree
 at `93c0c2f7` computes `sha256-f43ba202...` where the committed lock says

@@ -30,8 +30,32 @@ class Verdict(Enum):
 
 
 @dataclass(frozen=True, slots=True)
+class Endpoints:
+    """One tuple of who, to whom, over what."""
+
+    source: str
+    destination: str
+    protocol: str
+    port: int
+
+    def key(self) -> tuple[str, str, str, int]:
+        return (self.source, self.destination, self.protocol, self.port)
+
+
+@dataclass(frozen=True, slots=True)
 class FlowEvent:
-    """One concrete flow, in the coordinates the plan matches on."""
+    """One concrete flow, with both tuples the formal contract requires.
+
+    The fields on the event are the **current** coordinates - what a rule at this
+    point in the path matches on. `original` holds the client-facing tuple the
+    flow arrived with, and is `None` when nothing has transformed it.
+
+    Keeping both is what makes SEC-NAT checkable at all. Authorization is decided
+    in original coordinates; a destination NAT changes where a packet goes, never
+    who was allowed to send it. Discard the original and two frontends mapped to
+    one backend become indistinguishable after translation, which is exactly the
+    collapse the obligation names.
+    """
 
     source: str
     destination: str
@@ -42,6 +66,17 @@ class FlowEvent:
     family: str
     hook: str
     chain: str
+    original: Endpoints | None = None
+    publication_id: str | None = None
+
+    @property
+    def current(self) -> Endpoints:
+        return Endpoints(self.source, self.destination, self.protocol, self.port)
+
+    @property
+    def authorizing(self) -> Endpoints:
+        """The tuple authorization is decided on: the original if there is one."""
+        return self.original if self.original is not None else self.current
 
 
 @dataclass(frozen=True, slots=True)
