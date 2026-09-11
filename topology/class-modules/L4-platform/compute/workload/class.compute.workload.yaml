@@ -23,6 +23,82 @@ host_ref_target_layers:
 - L1
 - L4
 
+# Network intent, version 2 (ADR 0118 D2/D9, gate G1).
+#
+# Declared here once for every workload subclass rather than repeated per class.
+# Version 1 - a flat `network` block with vlan_ref/bridge_ref and host - remains
+# the accepted shape; the two must not be mixed inside one effective source.
+#
+# This declaration is currently inert: nothing in the runtime reads
+# property_schemas, so it constrains no instance today. G1 closes only when an
+# enforcing consumer exists. Registering the shape first means that consumer has
+# a single definition to enforce rather than one invented alongside it.
+network_intent_schema:
+  schema_version:
+    type: integer
+    enum: [2]
+    description: >-
+      Network intent version for this workload. Semantic identifier
+      network_intent_version; not the ADR 0088 manifest token that resolves
+      to @version.
+  attachments:
+    type: mapping
+    description: >-
+      Named connections of this workload to L2 address domains. The key is the
+      record identity; it is not repeated in an id field. Keys match
+      ^[A-Za-z_][A-Za-z0-9_]*$ - no dot, hyphen or @ - so a reference path stays
+      unambiguous. Instance identifiers are a different namespace and keep theirs.
+    key_pattern: "^[A-Za-z_][A-Za-z0-9_]*$"
+    value:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          default: true
+          description: >-
+            Explicit false disables an inherited record without deleting it, so a
+            reference to it is an error rather than a silent miss. Null is not a
+            value here.
+        network_ref:
+          type: string
+          format: instance_ref
+          description: The L2 address domain this attachment connects to.
+        interface:
+          type: string
+          description: Interface identity inside the workload.
+        driver:
+          type: string
+          description: >-
+            Attachment mechanism, qualified by capability rather than by product
+            name. Values are registered with the capability that supports them.
+        default_route:
+          type: boolean
+          description: >-
+            At most one default per address family and routing domain unless an
+            explicit multipath contract exists.
+        address:
+          type: object
+          description: >-
+            Allocation intent. Static form is {allocation: static, host: N} where
+            N is a numeric offset from the network address, not a last octet. The
+            effective address and gateway are derived from the referenced domain
+            and must not be restated here.
+          properties:
+            allocation:
+              type: string
+              enum: [static, dynamic, shared_host_stack]
+            host:
+              type: integer
+              minimum: 0
+      required:
+        - network_ref
+      derived_and_forbidden_here:
+        - ip
+        - gateway
+        - zone
+        - routing_domain
+        - address_family
+
 # Nested topology scope (ADR 0087 Phase 5)
 # Workloads can define internal scopes for nested resources
 topology_scope_schema:

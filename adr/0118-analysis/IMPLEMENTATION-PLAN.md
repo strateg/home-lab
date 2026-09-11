@@ -371,6 +371,17 @@ W02/W03 deliver:
   design-only NET-*/SEC-* provisional codes while retaining semantic requirement IDs,
   as required by ADR 0118 D7.
 
+**Measured 2026-09-11: a declaration alone cannot close G1.** Thirty classes
+declare `property_schemas`, and nothing in `topology-tools/` or `scripts/` reads
+them; validators read object `properties`, which is data, not the class schema.
+Registering a shape therefore constrains no instance: it neither breaks the
+existing flat inputs nor enables the new ones. The enforcing consumer is the part
+that makes G1 real, and it is missing rather than assumed. Declaring the shape
+first is still worth doing, so that consumer has one definition to enforce rather
+than one invented alongside it; the v2 attachment shape is now declared on the
+base workload class, tied by test to the grammar and address form the reference
+model enforces.
+
 G1 exits on full positive/negative C->O->I fixtures and A21/A23/A25 schema portions.
 Allocate SEC-CAP diagnostics centrally; E8020/E8021 keep their platform/bootstrap
 meaning and must not be reused for network satisfaction failures.
