@@ -332,6 +332,22 @@ another's output.
 Not in W13: changing what any artifact contains. This is about the same input
 yielding the same output.
 
+### Known-broken baseline beyond W01
+
+W01 measured one narrow suite and brought it to 33/33. The wider baseline is
+worse, and recording it here keeps a later green run from being read as progress
+it did not make. All of the following reproduce at `c788237e`, before any
+implementation work in this cycle.
+
+| Symptom | Status |
+|---|---|
+| `tests/plugin_contract/test_plugin_level_boundaries.py`: hardcoded product name and local URL host in mikrotik object plugins, 2 failures | Open, unowned |
+| `tests/plugin_integration/test_session_compile_fixture.py`: 4 errors, the session fixture compiled without `--diagnostics`, so the effective-json owner resolved to disabled and the file it then read was never written | **Fixed 2026-09-11**; same trap as the netmodel snapshot task hit |
+| `tests/plugin_integration/test_tuc0003_mikrotik_v2.py::test_generator_contains_topology_and_runtime_markers`: no `routeros_interface_vlan` resources are emitted, so the expected `"guest"` interface is absent | Open, unowned. Larger than a flag: it concerns whether VLAN interfaces are generated at all |
+
+A suite selected narrowly enough will pass over any of these. Claims about test
+state name the suites they ran.
+
 ### G1 — Registered schema and reference contracts
 
 W02/W03 deliver:

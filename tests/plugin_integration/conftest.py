@@ -75,6 +75,10 @@ def compiled_topology_session(tmp_path_factory: pytest.TempPathFactory) -> dict[
         str(diagnostics_json),
         "--diagnostics-txt",
         str(diagnostics_txt),
+        # Without this flag the effective_json artifact owner resolves to
+        # "disabled" and no effective.json is written, so the fixture fails on
+        # reading it. Passing --diagnostics-json alone does not enable it.
+        "--diagnostics",
     ]
 
     completed = subprocess.run(
