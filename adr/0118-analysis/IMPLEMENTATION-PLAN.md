@@ -94,8 +94,11 @@ Owners are roles; a human assignee must be recorded before execution.
 | W10 Transaction/recovery | Existing runner, owner-delegated operations, fresh effective-capability checks, journal, revocation, OOB/recovery evidence | W08; topology/ownership input and feasibility findings | G6, deploy/scope owner |
 | W11 Conformance/TUCs | Unit/property/differential/negative/fault/live evidence; A25-A32 capability regressions and applicability matrix | Developed with W01-W10, not deferred until G7 | G7, test/qualification owner |
 | W12 Assurance/qualification | HA owners, tailoring, threat model, Q objectives, risk review | Preparation now; G8 needs applicable completed evidence | G0b/G8, human risk owner |
+| W13 Artifact determinism | Generator ordering and manifest/plan digest inputs; declared non-semantic fields | None; isolated defect characterization, then fix | Prerequisite to G4 closure, generator/build owner |
 
-This is the complete local work-ID register. W items can span two gates when
+This is the complete local work-ID register. W13 was added on 2026-09-11 when
+generation was found to be non-deterministic; it is a baseline defect like W01,
+not a new capability. W items can span two gates when
 schema and executable semantics have different closure evidence. No “twelve
 independent items” claim remains.
 
@@ -250,12 +253,15 @@ second derivation of authorization.
 
 ## 5. Gate deliverables and exit criteria
 
-### Baseline prerequisite — W01/W05
+### Baseline prerequisite — W01/W05/W13
 
 W01: decide which projection keys are required and which have defined empty
 values; make producer/fixture/consumer agree. Required missing data fails clearly.
 Exit: 33/33 targeted tests, including missing-key behavior; no StrictUndefined
 disablement, weakened assertion or snapshot-only suppression.
+**Done 2026-09-11** (`c26232d2`): contract declared on the consumer boundary,
+optional keys given defined empty values, dhcp required once enabled and failing
+with a named diagnostic; baseline reached 33/33.
 
 W05: characterize compiler-versus-generator legacy projection differences, then
 switch consumers to the canonical channel with **identical managed artifacts**
@@ -264,6 +270,33 @@ exclude only documented nonsemantic timestamps from hashes. If there is a real
 behavior difference, separate and review it before advancing.
 No strict semantics, source migration or producer ownership handoff is mixed into
 this parity step. W01 is not a prerequisite for reading/designing W02-W04.
+
+W13: two generations of identical sources differ in 4 of 147 emitted files.
+Two causes, and only the first is benign.
+
+`artifact-manifest.json` carries a `generated_at` timestamp and the SHA-256 of
+`build/effective-topology.json` and `.yaml`, which embed timestamps of their own.
+That is expected, but it means an artifact comparison is meaningless until the
+declared non-semantic fields are excluded, and today no such list exists.
+
+The three `.state/artifact-plans/*.json` files differed in one pair of runs and
+not in another, listing different `host_vars` paths as obsolete. That points at
+ordering or directory-listing dependence rather than timestamps, and it is
+intermittent, so a single passing comparison proves nothing.
+
+G4 exits on deterministic artifacts and differential tests. Neither is checkable
+while the same input can produce two outputs, so this is a prerequisite to G4
+closure rather than work inside it.
+
+Exit: a declared list of non-semantic fields excluded from artifact comparison,
+with the exclusion applied by the comparison itself rather than by reviewer
+judgement; repeated generation of one source producing byte-identical output
+outside that list, demonstrated over enough runs to catch an intermittent case;
+the ordering dependence identified and removed at its source rather than papered
+over by sorting the comparison.
+
+Not in W13: changing what any artifact contains. This is about the same input
+yielding the same output.
 
 ### G1 — Registered schema and reference contracts
 
@@ -570,6 +603,15 @@ and the applicable TUC quality gates; document unavailable checks as not run.
 Compare source -> normalized intent -> plan -> rendered artifacts -> immutable
 bundle -> observed state using exact revision/digest links. Neither a passing
 documentation gate nor this plan's work assignment closes G1-G8 or A01-A32.
+
+**Artifact comparison has a method, and one obvious method is invalid.** Generated
+output is gitignored and untracked, so `git status` reports nothing about it
+whatever the artifacts do; a clean status is not evidence of an unchanged
+artifact. Comparison means generating both sides and comparing content hashes of
+every emitted file, with the declared non-semantic fields of W13 excluded and the
+exclusion list stated in the claim. Where the two sides are different revisions,
+generate each in its own checkout so that neither run inherits the other's output.
+A parity claim without that procedure is not a weak claim, it is an empty one.
 
 ### Governance deliverables per gate
 
