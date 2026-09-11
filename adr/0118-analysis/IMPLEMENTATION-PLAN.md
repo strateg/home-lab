@@ -368,14 +368,29 @@ introduce none of it.
 
 | Symptom | Evidence |
 |---|---|
-| `tests/plugin_regression/conftest.py`: 9 errors. The session fixture runs the compiler, asserts `returncode == 0`, then reads `effective.json` - which was never written | Reproduced by hand: the identical command exits 0 with a clean compile (150 infos, 0 errors) and produces neither `effective.json` nor `diagnostics.json`, despite `--output-json` and `--diagnostics-json` being passed. **The third occurrence of the `--diagnostics` trap**, after the netmodel snapshot task and `test_session_compile_fixture.py`. A flag that silently disables two explicitly requested outputs is the defect; the fixtures are its victims |
+| `tests/plugin_regression/conftest.py`: 9 errors. The session fixture runs the compiler, asserts `returncode == 0`, then reads `effective.json` - which was never written | Reproduced by hand: the identical command exits 0 with a clean compile (150 infos, 0 errors) and produces neither `effective.json` nor `diagnostics.json`, despite `--output-json` and `--diagnostics-json` being passed. **The third occurrence of the `--diagnostics` trap**, after the netmodel snapshot task and `test_session_compile_fixture.py`. A flag that silently disables two explicitly requested outputs is the defect; the fixtures are its victims. **Fixed 2026-09-11 at the source**: all 9 errors gone, `tests/plugin_regression` is 10 passed / 3 skipped |
 | `test_compile_external_project_repo_root.py` (2), `test_init_project_repo.py` (1): a scaffolded external project compiles but emits no `generated/effective-topology.json` | Same at HEAD |
 | `test_generate_tfvars_script.py`: rendered tfvars carry `wireguard_wg1_peers` but not the `wireguard_peers` the test demands | Same at HEAD. Whether the test or the generator is wrong is undetermined; naming it here is not a diagnosis |
 
 The `--diagnostics` trap has now cost three separate debugging sessions. It is
 worth fixing at the source - an explicit `--output-json` should either produce
-the file or fail - rather than adding the flag to a fourth caller. Filed as a
-candidate, not scheduled.
+the file or fail - rather than adding the flag to a fourth caller.
+
+**Fixed 2026-09-11, as preparation for W06.** `--diagnostics` remains the master
+switch, which is a defensible design; the indefensible part was the silence. An
+explicitly given `--output-json`, `--diagnostics-json` or `--diagnostics-txt` now
+enables writing on its own, detected by comparing against the parser's default so
+the always-present defaults do not make the flag meaningless.
+
+This was selected into the W06 preparation because it is the instrument that
+verification uses: a plan compiler is checked by reading the diagnostics and the
+effective model it produces, and a tool that accepts a path, writes nothing and
+exits 0 makes every such check unfalsifiable. It also closed the nine
+`tests/plugin_regression` errors outright - that suite is now 10 passed, 3
+skipped - which is the second time this cycle that a tooling defect turned out to
+be the cause of what looked like nine independent test failures.
+
+Six tests pin both halves: an explicit path enables writing, the defaults do not.
 
 **A framework lock is not reproducible from a commit alone.** A detached worktree
 at `93c0c2f7` computes `sha256-f43ba202...` where the committed lock says

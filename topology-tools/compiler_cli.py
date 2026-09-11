@@ -180,7 +180,7 @@ def build_parser(config: CompilerCliDependencies) -> argparse.ArgumentParser:
     parser.add_argument(
         "--diagnostics",
         action="store_true",
-        help="Write diagnostic files to disk (effective-topology.json, diagnostics.json, diagnostics.txt). When omitted, only errors are printed to console.",
+        help="Write diagnostic files to disk (effective-topology.json, diagnostics.json, diagnostics.txt). When omitted, only errors are printed to console - unless an explicit --output-json, --diagnostics-json or --diagnostics-txt path is given, which enables writing on its own.",
     )
     parser.add_argument(
         "--plugin-contract-warnings",
@@ -293,8 +293,37 @@ def build_parser(config: CompilerCliDependencies) -> argparse.ArgumentParser:
     return parser
 
 
+def _diagnostics_enabled(parser: argparse.ArgumentParser, args: argparse.Namespace) -> bool:
+    """Whether the compiler writes its output files.
+
+    `--diagnostics` is the master switch: without it `_write_diagnostics` returns
+    early and `artifact_owner("effective_json")` resolves to "disabled", so
+    nothing is written. That is a defensible design and an indefensible silence -
+    an explicitly given `--output-json` or `--diagnostics-json` was accepted,
+    ignored, and the compile still exited 0.
+
+    It cost three separate debugging sessions in this project: the netmodel
+    snapshot task, `test_session_compile_fixture.py`, and the nine errors in
+    `tests/plugin_regression`, each of which asked for a file by path and got
+    none. So an explicit path now means what it says.
+
+    The default paths do not enable anything, because they are present on every
+    invocation and treating them as a request would make the flag useless.
+    """
+    if args.diagnostics:
+        return True
+    for option in ("output_json", "diagnostics_json", "diagnostics_txt"):
+        value = getattr(args, option, None)
+        if value is None:
+            continue
+        if str(value) != str(parser.get_default(option)):
+            return True
+    return False
+
+
 def run_cli(config: CompilerCliDependencies, argv: Sequence[str] | None = None) -> int:
-    args = build_parser(config).parse_args(argv)
+    parser = build_parser(config)
+    args = parser.parse_args(argv)
     repo_root = Path(args.repo_root).resolve()
     config.set_repo_root(repo_root)
     manifest_path = config.resolve_topology_path(args.topology)
@@ -336,7 +365,7 @@ def run_cli(config: CompilerCliDependencies, argv: Sequence[str] | None = None) 
         plugins_manifest_path=config.resolve_repo_path(args.plugins_manifest),
         parallel_plugins=args.parallel_plugins,
         trace_execution=args.trace_execution,
-        enable_diagnostics=args.diagnostics,
+        enable_diagnostics=_diagnostics_enabled(parser, args),
         plugin_contract_warnings=args.plugin_contract_warnings,
         plugin_contract_errors=args.plugin_contract_errors,
         workspace_root=config.resolve_repo_path(args.workspace_root),
