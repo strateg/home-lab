@@ -23,6 +23,14 @@ tasks:
         --diagnostics-json build/netmodel/diagnostics.json
         --diagnostics-txt build/netmodel/diagnostics.txt
 
+  inventory:
+    desc: Report what the target model can express from the real topology, and what it cannot
+    cmds:
+      - >-
+        {{.PYTHON}} -c "from netmodel.snapshot import load_snapshot;
+        from netmodel.intent import build_inventory, render_report;
+        print(render_report(build_inventory(load_snapshot())))"
+
   test:
     desc: Run netmodel unit and differential tests
     cmds:
