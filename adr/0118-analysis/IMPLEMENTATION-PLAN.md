@@ -433,6 +433,51 @@ The authority is therefore `base.validator.network_intent_schema`, through
 buys nothing the model needs today, and running both would hand the plan compiler
 two answers about one reference. A test fails if a second owner appears.
 
+### SEC-CAP reference model, 2026-09-11: `netmodel/capability.py`
+
+Selected into the W06 preparation because `SEC-CAP` (`E7089`) is one of G3's own
+obligations and `E7042` was the last allocated code with no mechanism behind it.
+
+The capability satisfaction contract's central claim is a chain of inequalities -
+**declared support is not effective support is not evidence is not permission** -
+and four refusals are structural rather than checked:
+
+* **There is no fourth status.** `satisfied`, `unsatisfied`, `unverified`.
+  "Not applicable" is a scope decision with its own type, so it cannot be returned
+  where a status is expected and read as a pass.
+* **Unknown is not unlimited.** An unstated bound is `Unknown`, a distinct value
+  that raises on `bool()`. A `None` meaning "no limit" at every call site that
+  forgets to check is how an unstated capacity becomes an infinite one.
+* **An empty loop is not proof.** No applicable offer resolves to `unverified`,
+  never `satisfied` - "no applicable offer" and "no incompatibility found" are the
+  same silence and only one means anything.
+* **A version label is not trust.** Offers carry a content digest, witnesses
+  record the digest relied on, and two bodies for one identity and version is an
+  error rather than a discovery-order preference.
+
+`unsatisfied` and `unverified` both block, and stay distinguishable: one is a
+demonstrated incompatibility with a source-level remedy, the other means nobody
+knows. A test asserts a resolution can never be `satisfied` with no witness, which
+is flag-as-proof written out. Another asserts the module has no vocabulary for
+permit, grant, authorize, allow or accept: SEC-CAP is necessary and never
+sufficient, and it cannot discharge SEC-AUTH, AVAIL, PATH, NAT, STATE or
+TRANSITION on its own.
+
+**`E7042` stays unimplemented, and now with a measurement rather than a shrug.**
+The capability catalog holds 303 entries carrying `@capability`, `title`,
+`summary`, `domain`, `layer` and `stability` - and no version, context selector,
+limit, condition, evidence reference or content digest. They are dispatch flags.
+Checking a publication mechanism against them would compare it to a membership
+set, which is exactly the flag-as-proof that A26-A29 block and that the contract
+rules out in one sentence: set membership alone cannot prove network semantics.
+
+What has to exist first is the offer shape, and the contract puts that in G1:
+schemas, metadata contexts and manifest channels registered before use. A test
+pins the catalog's current fields and names what to do the day offer fields
+appear in it.
+
+27 tests; 232 in netmodel.
+
 **A framework lock is not reproducible from a commit alone.** A detached worktree
 at `93c0c2f7` computes `sha256-f43ba202...` where the committed lock says
 `sha256-baee680d...`, while the same revision in the main working tree matches.
