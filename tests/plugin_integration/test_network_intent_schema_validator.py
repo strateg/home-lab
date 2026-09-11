@@ -44,25 +44,38 @@ def _registry() -> PluginRegistry:
 
 
 def _classes() -> dict:
-    """Real declarations, with the lineage the compiler actually produces."""
+    """Real declarations in the shape a plugin actually receives.
+
+    `ctx.classes` holds raw class-module payloads. It does **not** hold `lineage`:
+    that list is added when the effective model is assembled, which happens after
+    the validate stage. An earlier version of this fixture supplied `lineage`
+    anyway, copied from the compiled model, and so every test passed while the
+    plugin could not find a single declaration in the real pipeline.
+
+    So these carry `@extends`, the way the files on disk do, and the chain is
+    followed rather than handed over.
+    """
     workload = load_yaml_file(WORKLOAD_CLASS) or {}
     service = load_yaml_file(SERVICE_CLASS) or {}
     policy = load_yaml_file(POLICY_CLASS) or {}
     return {
         "class.compute.workload": {
-            "lineage": ["class.compute.workload"],
+            "@class": "class.compute.workload",
             "network_intent_schema": workload["network_intent_schema"],
         },
-        # The base's payload is deliberately absent here, as it is in the
-        # compiled model: inheritance records lineage and merges nothing.
-        "class.compute.workload.lxc": {"lineage": ["class.compute.workload", "class.compute.workload.lxc"]},
+        # No schema of its own, and no merged copy of the base's: inheritance
+        # records a parent link and merges nothing.
+        "class.compute.workload.lxc": {
+            "@class": "class.compute.workload.lxc",
+            "@extends": "class.compute.workload",
+        },
         "class.service": {
-            "lineage": ["class.service"],
+            "@class": "class.service",
             "service_publication_schema": service["service_publication_schema"],
         },
-        "class.service.proxy": {"lineage": ["class.service", "class.service.proxy"]},
+        "class.service.proxy": {"@class": "class.service.proxy", "@extends": "class.service"},
         "class.network.firewall_policy": {
-            "lineage": ["class.network.firewall_policy"],
+            "@class": "class.network.firewall_policy",
             "policy_intent_schema": policy["policy_intent_schema"],
         },
     }
@@ -150,7 +163,7 @@ def test_the_schema_is_found_through_lineage_not_on_the_named_class() -> None:
 
     `class.compute.workload.lxc` carries no schema of its own. A consumer reading
     only the class an instance names would find nothing and pass everything, so
-    this test asserts a rejection that is only possible if lineage was walked.
+    this test asserts a rejection that is only possible if the chain was walked.
     """
     result = _run(_workload({"schema_version": 2, "attachments": {"bad-key": {"network_ref": "inst.vlan.lan"}}}))
 
@@ -907,3 +920,77 @@ def test_the_plugin_resolver_agrees_with_the_reference_model() -> None:
                 model_result = None
 
             assert plugin_result == model_result, f"{cidr} offset {offset}: {plugin_result} vs {model_result}"
+
+
+def test_the_chain_is_followed_through_the_payloads_not_a_precomputed_list() -> None:
+    """The shape a plugin receives, asserted so the fixture cannot drift back.
+
+    `ctx.classes` carries raw class-module payloads; `lineage` appears only once
+    the effective model is assembled, after this stage. A fixture that supplied it
+    made every test pass while the plugin found no declaration at all in the real
+    pipeline. This asserts the chain is discovered from the parent link.
+    """
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        classes={
+            "class.deep.base": {
+                "@class": "class.deep.base",
+                "network_intent_schema": (load_yaml_file(WORKLOAD_CLASS) or {})["network_intent_schema"],
+            },
+            "class.deep.middle": {"@class": "class.deep.middle", "@extends": "class.deep.base"},
+            "class.deep.leaf": {"@class": "class.deep.leaf", "@extends": "class.deep.middle"},
+        },
+        objects={},
+        instance_bindings={"instance_bindings": {}},
+    )
+    rows = [
+        _domain(),
+        {
+            "group": "lxc",
+            "instance": "deep-a",
+            "class_ref": "class.deep.leaf",
+            "layer": "L4",
+            "extensions": {"network": {"schema_version": 2, "attachments": {"bad-key": {"network_ref": "x"}}}},
+        },
+    ]
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+
+    # E7002, not E7001: the declaration two levels up was found, so the key was
+    # checked against it rather than the block rejected as undeclared.
+    assert "E7002" in [diag.code for diag in result.diagnostics]
+    assert "E7001" not in [diag.code for diag in result.diagnostics]
+
+
+def test_a_parent_link_that_loops_does_not_hang_the_compile() -> None:
+    """Cycles are module_loader_compiler's to report; this must not spin."""
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        classes={
+            "class.loop.a": {"@class": "class.loop.a", "@extends": "class.loop.b"},
+            "class.loop.b": {"@class": "class.loop.b", "@extends": "class.loop.a"},
+        },
+        objects={},
+        instance_bindings={"instance_bindings": {}},
+    )
+    rows = [
+        {
+            "group": "lxc",
+            "instance": "loop-a",
+            "class_ref": "class.loop.a",
+            "layer": "L4",
+            "extensions": {"network": {"schema_version": 2, "attachments": {}}},
+        }
+    ]
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+
+    assert "E7001" in [diag.code for diag in result.diagnostics]

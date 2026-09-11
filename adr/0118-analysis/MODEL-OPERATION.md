@@ -261,6 +261,31 @@ non-consumption so that day is visible.
 
 ---
 
+## 7a. What a migration actually costs
+
+Measured 2026-09-11 by converting one real source, `docker-grafana`, to v2,
+compiling, and reading the diagnostics. The source was reverted; artifact parity
+was re-checked afterwards and is identical.
+
+**The migration unit is the host, not the workload.** `srv-orangepi5` declares
+`workload_defaults.network` with version 1 keys - `network_ref`, `host: 23`,
+`gateway` - and **19 workloads inherit from it**. Migrating one of them produces
+an effective `network` block containing both the instance's v2 attachments and
+the host's inherited v1 keys, which is precisely the mixture `E7004` forbids and
+`E7001` reports key by key.
+
+That is the rule working, not the rule getting in the way. An instance that
+inherits a v1 host default *is* a v1-flavoured source, and pretending otherwise
+would mean two readings of `host` in one effective block. But it means a
+migration is planned per host: the host defaults and every workload under them
+move together, or none do.
+
+**Addresses are not what makes it expensive.** Nothing renders the derived
+addresses (section 7), so the migration cannot change one. The cost is entirely
+in the inheritance graph.
+
+---
+
 ## 8. Current state
 
 | Fact | Value | Measured |
@@ -282,3 +307,4 @@ across every emitted file.
 |---|---|---|
 | 2026-09-11 | `a4112d5c` | First version: sections 1–8 as implemented through the compiler mount |
 | 2026-09-11 | `8a04dd15` | Section 7: the legacy derivation's output reaches nothing, measured address by address; what that bounds for migration |
+| 2026-09-11 | `3c06ffbe` | Section 7a: a real source migrated and reverted; the migration unit is the host, and a lineage-resolution bug in the validator that only a real source could reveal |

@@ -134,20 +134,50 @@ class NetworkIntentSchemaValidator(ValidatorJsonPlugin):
 
     # --- resolution ---------------------------------------------------------
 
-    def _declaration(self, *, ctx: PluginContext, row: Mapping[str, Any], schema_key: str) -> Mapping[str, Any] | None:
-        """Find a class-level declaration by walking lineage, nearest first.
+    _MAX_LINEAGE_DEPTH = 32
 
-        `lineage` is root-first, so it is reversed here: a subclass that declares
-        its own shape overrides the base rather than being ignored in favour of it.
+    def _lineage(self, *, ctx: PluginContext, class_ref: str) -> list[str]:
+        """The class chain, leaf first, followed through the payloads themselves.
+
+        `ctx.classes` holds raw class-module payloads: the `lineage` list only
+        exists once the effective model is assembled, which happens after this
+        plugin runs. Reading it here silently produced a one-element chain, so a
+        declaration on a base class was never found and every v2 block was
+        rejected as undeclared. Found by migrating one real source rather than by
+        reading the code - a fixture built from the effective-model shape is not
+        the shape a plugin receives.
+
+        The parent link survives normalization under either spelling, so both are
+        accepted. Depth is bounded because a cycle here would hang the compile;
+        cycles are reported by `module_loader_compiler`, whose job that is.
+        """
+        chain: list[str] = []
+        seen: set[str] = set()
+        current: str | None = class_ref
+
+        while isinstance(current, str) and current and current not in seen:
+            if len(chain) >= self._MAX_LINEAGE_DEPTH:
+                break
+            seen.add(current)
+            chain.append(current)
+            payload = ctx.classes.get(current)
+            if not isinstance(payload, Mapping):
+                break
+            parent = payload.get("@extends") or payload.get("extends") or payload.get("parent_class")
+            current = parent if isinstance(parent, str) else None
+        return chain
+
+    def _declaration(self, *, ctx: PluginContext, row: Mapping[str, Any], schema_key: str) -> Mapping[str, Any] | None:
+        """Find a class-level declaration, nearest class first.
+
+        Nearest first, so a subclass that declares its own shape overrides the
+        base rather than being ignored in favour of it.
         """
         class_ref = row.get("class_ref")
-        payload = ctx.classes.get(class_ref) if isinstance(class_ref, str) else None
-        if not isinstance(payload, Mapping):
+        if not isinstance(class_ref, str) or not class_ref:
             return None
 
-        lineage = payload.get("lineage")
-        chain = list(lineage) if isinstance(lineage, list) and lineage else [class_ref]
-        for candidate in reversed(chain):
+        for candidate in self._lineage(ctx=ctx, class_ref=class_ref):
             entry = ctx.classes.get(candidate)
             if isinstance(entry, Mapping) and isinstance(entry.get(schema_key), Mapping):
                 return entry[schema_key]

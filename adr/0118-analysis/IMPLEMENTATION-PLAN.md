@@ -769,6 +769,41 @@ determinism and strict-lock compiles pass.
 active execution scope, and the plugin's is torn down by the time an assertion
 runs. `get_published_data()` reads the bus directly.
 
+**Migrating one real source, 2026-09-11.** `docker-grafana` was converted to v2,
+compiled, and reverted. Two things came out of it that no amount of fixture
+testing would have produced.
+
+*A bug the tests could not see.* The validator resolved class declarations by
+reading `lineage` from `ctx.classes`. That field does not exist there: `ctx.classes`
+holds raw class-module payloads, and `lineage` is added when the effective model
+is assembled, after the validate stage. The chain therefore collapsed to one
+element and no declaration on a base class was ever found - every v2 block would
+have been rejected as undeclared.
+
+The tests passed throughout, because the fixture supplied `lineage`, copied from
+the compiled model. **A fixture built from the wrong stage's shape is not a
+fixture, it is a second implementation of the bug.** The fixture now carries
+`@extends` as the files on disk do, the chain is followed through the payloads,
+and two tests pin it: one resolving a declaration two levels up, one asserting a
+looping parent link does not hang the compile.
+
+*The migration unit is the host, not the workload.* `srv-orangepi5` declares
+`workload_defaults.network` with v1 keys, and 19 workloads inherit from it.
+Migrating one produces an effective block holding both the instance's v2
+attachments and the host's inherited v1 keys - the mixture `E7004` forbids. That
+is the rule working: an instance inheriting a v1 host default is a v1-flavoured
+source, and allowing it would mean two readings of `host` in one block. W09 should
+plan migration per host, moving the defaults and every workload under them
+together.
+
+Addresses are not what makes that expensive: nothing renders the derived
+addresses, so a migration cannot change one. The whole cost is in the inheritance
+graph.
+
+*Method rule.* An empirical migration of one real source belongs in every gate
+that introduces a new authoring shape. Two defects surfaced in one compile that
+71 passing plugin tests did not contain.
+
 **Correction to that instruction (revision 4a).** It presumed those codes are
 registered. At baseline `493867d5` they are not. The canonical registry is
 `topology-tools/data/error-catalog.yaml`, indexed by `docs/diagnostics-catalog.md`,
