@@ -994,3 +994,50 @@ def test_a_parent_link_that_loops_does_not_hang_the_compile() -> None:
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
 
     assert "E7001" in [diag.code for diag in result.diagnostics]
+
+
+def test_the_v2_attachment_relation_has_exactly_one_authority() -> None:
+    """W02: one relation, one owner. This records which owner, and why.
+
+    `reference_validator` is the generic authority for references, and its rule
+    table is declarative - `namespace` plus `field`, read as `row[namespace][field]`.
+    A v2 attachment's reference lives at `network.attachments.<key>.network_ref`,
+    inside a collection, which that table cannot express: it would need traversal
+    the table does not have, and a rule per record key, which does not exist until
+    the source is read.
+
+    It also could not express the target. `reference_validator` splits VLAN and
+    bridge into separate rules with separate `target_classes`; a v2 `network_ref`
+    names an *address domain*, which generalizes both (ADR 0118 AD-04), so the
+    split is the wrong shape for it.
+
+    So the authority is this validator, through `E7020`. The alternative -
+    teaching the relation table collection traversal - is a larger change that
+    buys nothing the model needs today, and running both would give the plan
+    compiler two answers about the same reference. That is exactly what W02 exists
+    to prevent, so this test fails if a second owner appears.
+    """
+    import ast
+
+    source = (REPO_ROOT / "topology-tools/plugins/validators/reference_validator.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+
+    fields: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Dict):
+            continue
+        for key, value in zip(node.keys, node.values):
+            if (
+                isinstance(key, ast.Constant)
+                and key.value == "field"
+                and isinstance(value, ast.Constant)
+                and isinstance(value.value, str)
+            ):
+                fields.add(value.value)
+
+    assert "network_ref" not in fields, (
+        "reference_validator gained a rule for network_ref; the v2 attachment relation is "
+        "owned by base.validator.network_intent_schema (E7020). Two owners means the plan "
+        "compiler gets two answers about one reference."
+    )
+    assert "attachments" not in source, "reference_validator now traverses v2 attachments; pick one authority"

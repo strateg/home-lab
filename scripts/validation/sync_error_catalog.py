@@ -124,6 +124,38 @@ def _message_literal(node: ast.AST) -> str:
     return ""
 
 
+def registered_plugin_entries(repo_root: Path) -> set[str]:
+    """Plugin modules some manifest actually registers.
+
+    A module under `plugins/` that no manifest names never executes, so it cannot
+    own a diagnostic code at runtime. Several such modules exist on purpose: the
+    per-domain reference validators were consolidated into
+    `declarative_reference_validator` and kept as parity oracles, still exercised
+    by tests that compare the two implementations.
+
+    Counting an oracle as a second owner turns a deliberate arrangement into a
+    reported collision, which is worse than not checking - it spends attention on
+    a defect that is not there, and hides the real ones among it.
+    """
+    manifests = repo_root / "topology-tools" / "plugins" / "manifests"
+    if not manifests.exists():
+        return set()
+    text = "\n".join(path.read_text(encoding="utf-8") for path in manifests.glob("*.yaml"))
+    return set(re.findall(r"entry:\s*[\w./]*?([\w.]+)\.py:", text))
+
+
+def _is_runtime_owner(path: Path, repo_root: Path, registered: set[str]) -> bool:
+    """Whether this module's emissions can happen at runtime.
+
+    Only modules under a `plugins/` directory are subject to registration; a
+    library or an entry point is live simply by being imported.
+    """
+    relative = path.relative_to(repo_root).as_posix()
+    if "/plugins/" not in f"/{relative}":
+        return True
+    return path.stem in registered
+
+
 def scan_emissions(repo_root: Path) -> dict[str, dict[str, set[str]]]:
     """Map each emitted code to the message text each module emits it with.
 
@@ -132,6 +164,7 @@ def scan_emissions(repo_root: Path) -> dict[str, dict[str, set[str]]]:
     an emission would report the module that documents a code as an owner of it.
     """
     emissions: dict[str, dict[str, set[str]]] = {}
+    registered = registered_plugin_entries(repo_root)
 
     for scan_dir in SCAN_DIRS:
         dir_path = repo_root / scan_dir
@@ -145,6 +178,8 @@ def scan_emissions(repo_root: Path) -> dict[str, dict[str, set[str]]]:
             except (OSError, SyntaxError):
                 continue
 
+            if not _is_runtime_owner(path, repo_root, registered):
+                continue
             module = path.relative_to(repo_root).as_posix()
             for node in ast.walk(tree):
                 if not isinstance(node, ast.Call):

@@ -14,11 +14,18 @@ grow. The rule starts binding today for everything written from today.
 
 The second ledger is collisions: one code emitted with unrelated meanings. This
 is the defect the rules exist to prevent, and the sync script did not look for
-it. 30 remain, down from 38, after moving two squatters - the manifest
-governance checks and the framework layout checks - off eight codes the registry
-documents as belonging to power source relations, the strict-only paths contract
-and framework version compatibility. Two test suites were asserting E7801 for two
-unrelated things; that is what a code with two owners costs.
+it. 25 remain, down from 38. Eight went when two squatters were moved -
+the manifest governance checks and the framework layout checks - off codes the
+registry documents as belonging to power source relations, the strict-only paths
+contract and framework version compatibility; two test suites had been asserting
+E7801 for two unrelated things, which is what a code with two owners costs.
+
+Five more went when the checker learned that a module no manifest registers
+cannot own a code at runtime. Several such modules exist deliberately: the
+per-domain reference validators were consolidated into
+`declarative_reference_validator` and kept as parity oracles, still exercised by
+tests comparing the two implementations. Counting an oracle as a second owner
+reports a defect that is not there and hides the real ones among it.
 """
 
 from __future__ import annotations
@@ -69,7 +76,7 @@ KNOWN_UNREGISTERED = frozenset(
 KNOWN_COLLISIONS = frozenset(
 (
     "E1001 E2102 E2403 E3001 E3201 E4001 E4102 E7107 E7817 E7821 E7822 E7823 E7825 E7827 E7850 E7851 "
-    "E7863 E7866 E7891 E7894 E7895 E7896 E8002 E9401 E9402 E9701 I9301 I9302 I9401 W3201 "
+    "E7863 E7866 E7891 E7894 E7895 E7896 E8002 E9701 W3201 "
 ).split()
 )
 

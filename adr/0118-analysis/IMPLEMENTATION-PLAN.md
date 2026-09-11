@@ -392,6 +392,47 @@ be the cause of what looked like nine independent test failures.
 
 Six tests pin both halves: an explicit path enables writing, the defaults do not.
 
+### W02, re-measured 2026-09-11 — the duplication is not duplication
+
+Selected into the W06 preparation because a plan built on two answers about one
+relation is ambiguous before it is ordered. The measurement contradicted the
+premise.
+
+`declarative_reference_validator` was listed here as duplicating several
+per-domain validators code for code. It does not. All seven domain registrations
+- power source, network core, service dependency, dns, certificate, backup -
+point at **one** entry, `declarative_reference_validator.py`, each configured with
+its own `enabled_rules`. That is consolidation, and W02's "remove duplicate
+relation semantics" was done before this cycle began.
+
+The per-domain modules still on disk are **not** registered by any manifest and
+never execute. They are retained deliberately as parity oracles: twelve tests in
+`test_declarative_reference_validator_parity.py` run the legacy implementation
+beside the consolidated one and require the same diagnostics - the same
+arrangement this cycle used for `find_conflicts` and `_order_by_edges`. Deleting
+them would delete the evidence that the consolidation preserved behaviour.
+
+**What that exposed was a defect in this cycle's own instrument.** The collision
+checker counted those oracles as second owners, so five collisions it reported
+could not occur at runtime. It now excludes modules under `plugins/` that no
+manifest registers; non-plugin modules stay in, because a library is live by
+being imported. Collisions fall 30 to 25, with nothing added. Reporting a defect
+that is not there is worse than not checking: it spends attention and hides the
+real ones among it.
+
+**What is genuinely open, and now decided.** A v2 attachment's reference lives at
+`network.attachments.<key>.network_ref` - inside a collection. `reference_validator`'s
+rule table is declarative, `namespace` plus `field` read as `row[namespace][field]`,
+and cannot express that without traversal it does not have and a rule per record
+key that does not exist until the source is read. It also splits VLAN and bridge
+into separate rules with separate `target_classes`, while a v2 `network_ref` names
+an *address domain* generalizing both (AD-04), so the split is the wrong shape.
+
+The authority is therefore `base.validator.network_intent_schema`, through
+`E7020`. Teaching the relation table collection traversal is a larger change that
+buys nothing the model needs today, and running both would hand the plan compiler
+two answers about one reference. A test fails if a second owner appears.
+
 **A framework lock is not reproducible from a commit alone.** A detached worktree
 at `93c0c2f7` computes `sha256-f43ba202...` where the committed lock says
 `sha256-baee680d...`, while the same revision in the main working tree matches.

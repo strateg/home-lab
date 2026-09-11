@@ -42,7 +42,7 @@ is full, and the fourteen collisions still inside it are the consequence. Do not
 it. `E70xx` was the only empty band inside `E7xxx` and is now allocated below.
 
 Two ledgers are frozen in `tests/test_diagnostic_code_registry.py`: 274 codes
-that are emitted without a catalog entry, and 30 that are emitted with unrelated
+that are emitted without a catalog entry, and 25 that are emitted with unrelated
 meanings by different modules. Both may shrink; neither may grow. The debt is
 recorded rather than paid because writing 274 titles by machine would fill the
 catalog with entries nobody chose.
