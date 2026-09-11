@@ -48,7 +48,7 @@ netmodel/
   identity.py    record identity, local-key grammar, named-mapping merge   [present]
   domains.py     address domains, numeric offset arithmetic, zone membership [present]
   snapshot.py    read-only reader for the compiled effective model          [present]
-  policy.py      permits, guards, binding algebra                           [target]
+  policy.py      permits, guards, binding algebra                         [present]
   plan.py        canonical ordering and digests                             [target]
 ```
 
@@ -66,3 +66,8 @@ a zone still declares on itself.
 same inputs through the merge the pipeline actually uses and requires agreement,
 because the decision rests on the claim that the existing engine already provides
 the semantics. If either side moves, that test says so.
+
+`policy.py` carries the claim that authorization comes from an approved bound
+permit and from nothing else. The strongest guarantee it offers is structural:
+delivery concepts have no representation in it, so none can become a permission,
+and a test enforces that by reading the module's own identifiers.
