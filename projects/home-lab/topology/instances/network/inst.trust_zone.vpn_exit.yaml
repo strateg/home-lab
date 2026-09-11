@@ -12,12 +12,11 @@ notes: |
   Used by road-warrior clients using vpn-germany/vpn-estonia profiles.
   This zone has the LOWEST trust level (0) for maximum isolation.
 
-# Zone identity. Inherited verbatim from the shared object until now, which is
-# why this zone renders as "VPN Tunnel Zone": see the naming finding in the
-# layering audit. Correcting it changes rendered comments and is a separate
-# reviewed change, not part of this move.
-name: VPN Tunnel Zone
-@description: Devices routed through VPN tunnels (geo-bypass, privacy)
+# Zone identity. Corrected 2026-09-11: this zone had inherited the shared
+# object's name and rendered as "VPN Tunnel Zone" alongside the zone that
+# actually bears it.
+name: VPN Exit Zone
+@description: Road-warrior clients reaching the internet only through the wg1 exit tunnel
 color: "#9966ff"
 
 zone_name: vpn-exit
