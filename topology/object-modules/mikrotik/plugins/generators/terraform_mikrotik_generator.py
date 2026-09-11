@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage
 from plugins.generators.artifact_contract import (
@@ -27,6 +28,71 @@ class TerraformMikroTikGenerator(BaseGenerator):
 
     _DEFAULT_MIKROTIK_HOST = "mikrotik.invalid"
     _DEFAULT_MIKROTIK_PORT = 443
+
+    # Projection contract for runtime_baseline. Optional keys have a defined empty
+    # value: absence and emptiness mean the same thing, and neither grants anything.
+    # Conditionally required keys are only required once their feature is enabled;
+    # a missing one is a projection defect and fails with E9211 rather than an
+    # opaque template error.
+    _RUNTIME_BASELINE_DEFAULTS: dict[str, Any] = {
+        "nat": [],
+        "dns_servers": [],
+        "addresses": [],
+        "firewall_baseline_rules": [],
+    }
+    _DHCP_DEFAULTS: dict[str, Any] = {"enabled": False}
+    _DHCP_REQUIRED_WHEN_ENABLED = (
+        "pool_range",
+        "server_name",
+        "lease_time",
+        "network_cidr",
+        "gateway",
+        "interface",
+    )
+
+    def _normalize_runtime_baseline(
+        self, raw: Any, *, stage: Stage
+    ) -> tuple[dict[str, Any], list[PluginDiagnostic]]:
+        """Apply the runtime_baseline contract before rendering.
+
+        Templates run under StrictUndefined, so every key a template reads must
+        exist. Filling optional keys here keeps a missing-key case rendering an
+        empty section instead of failing, while a feature that is switched on
+        without its data fails with a named diagnostic.
+        """
+        baseline = dict(raw) if isinstance(raw, dict) else {}
+        for key, empty in self._RUNTIME_BASELINE_DEFAULTS.items():
+            value = baseline.get(key)
+            if not isinstance(value, list):
+                baseline[key] = list(empty)
+
+        dhcp = baseline.get("dhcp")
+        baseline["dhcp"] = dict(dhcp) if isinstance(dhcp, dict) else dict(self._DHCP_DEFAULTS)
+        baseline["dhcp"].setdefault("enabled", False)
+
+        if not baseline["dhcp"].get("enabled"):
+            return baseline, []
+
+        missing = [
+            field
+            for field in self._DHCP_REQUIRED_WHEN_ENABLED
+            if not str(baseline["dhcp"].get(field, "")).strip()
+        ]
+        if not missing:
+            return baseline, []
+
+        return baseline, [
+            self.emit_diagnostic(
+                code="E9211",
+                severity="error",
+                stage=stage,
+                message=(
+                    "runtime_baseline.dhcp is enabled but required fields are missing or empty: "
+                    + ", ".join(missing)
+                ),
+                path="generator:terraform_mikrotik:runtime_baseline.dhcp",
+            )
+        ]
 
     def template_root(self, ctx: PluginContext) -> Path:
         return self.object_template_root(ctx, object_id="mikrotik")
@@ -90,16 +156,13 @@ class TerraformMikroTikGenerator(BaseGenerator):
         vlans = projection.get("vlans", [])
         firewall_policies = projection.get("firewall_policies", [])
         routing_policies = projection.get("routing_policies", [])
-        runtime_baseline = projection.get("runtime_baseline", {})
         wireguard = projection.get("wireguard", {})
-        if not isinstance(runtime_baseline, dict):
-            runtime_baseline = {}
-        runtime_baseline.setdefault("dhcp", {})
-        if not isinstance(runtime_baseline.get("dhcp"), dict):
-            runtime_baseline["dhcp"] = {}
-        runtime_baseline.setdefault("dns_servers", [])
-        runtime_baseline.setdefault("nat", [])
-        runtime_baseline["dhcp"].setdefault("enabled", False)
+        runtime_baseline, baseline_diagnostics = self._normalize_runtime_baseline(
+            projection.get("runtime_baseline"), stage=stage
+        )
+        if baseline_diagnostics:
+            diagnostics.extend(baseline_diagnostics)
+            return self.make_result(diagnostics)
         mikrotik_host = self._resolve_mikrotik_host(ctx=ctx, routers=routers)
 
         # Extract security matrix from projection (ADR 0110)
