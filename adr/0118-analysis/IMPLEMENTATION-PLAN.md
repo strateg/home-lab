@@ -311,13 +311,23 @@ outside that list, demonstrated over enough runs to catch an intermittent case;
 the ordering dependence identified and removed at its source rather than papered
 over by sorting the comparison.
 
-**Partially delivered 2026-09-11.** `scripts/validation/compare_artifacts.py` and
+**Closed 2026-09-11.** `scripts/validation/compare_artifacts.py` and
 `task validate:artifact-parity` provide the comparison, applying the exclusion by
 name and printing the justification with it. The artifact plans are deliberately
-not excluded: hiding them would remove the only visible symptom of the race. The
-tool currently reports parity for serial runs and a difference for parallel ones,
-which is the correct answer in both cases. The remaining exit condition is the
-race itself.
+not excluded, so the symptom stays visible if the cause returns.
+
+The race is fixed at its source. The orchestrator takes the artifacts inventory
+when it builds the plugin context, before any stage runs, and generators consume
+it instead of scanning the live output root. Five generations of identical
+sources under the default parallel execution now differ in one file of 147, the
+timestamped manifest, which is the declared exclusion.
+
+The fix also corrected the classification, which is a content change and not
+parity: the orangepi bootstrap plan listed 4 obsolete candidates in one run and 8
+in another, all of them the mikrotik and proxmox generators' fresh output, and now
+lists none. Those entries carried `action: warn` under the default; with
+`artifact_obsolete_action` set to `delete` one generator would have deleted
+another's output.
 
 Not in W13: changing what any artifact contains. This is about the same input
 yielding the same output.

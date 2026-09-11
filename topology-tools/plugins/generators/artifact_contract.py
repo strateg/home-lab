@@ -312,6 +312,28 @@ def _resolve_obsolete_action(ctx: PluginContext) -> str:
     return "warn"
 
 
+def _existing_paths_for_obsolete_check(*, ctx: PluginContext, output_root: Path) -> set[str]:
+    """Files that existed before this run, scoped to the output root.
+
+    Prefer the inventory the orchestrator took before any stage executed. Scanning
+    the output root here instead would count files that sibling generators wrote
+    during this very run, which is both wrong - those are not leftovers - and
+    unstable, because under parallel execution the set depends on scheduling.
+
+    The live scan remains the fallback for a generator driven outside the
+    orchestrator, such as a unit test constructing its own context.
+    """
+    inventory = ctx.config.get("artifact_pre_run_inventory")
+    root = str(output_root.resolve())
+    if isinstance(inventory, list):
+        return {
+            str(path)
+            for path in inventory
+            if isinstance(path, str) and (path == root or path.startswith(root + "/"))
+        }
+    return set(_collect_existing_files(output_root.resolve()))
+
+
 def compute_obsolete_entries(
     *,
     ctx: PluginContext,
@@ -321,7 +343,7 @@ def compute_obsolete_entries(
     ownership_prefix: str | None = None,
 ) -> tuple[list[dict[str, Any]], list[str]]:
     planned_paths = _extract_planned_paths({"planned_outputs": planned_outputs}, ctx=ctx)
-    existing_paths = set(_collect_existing_files(output_root.resolve()))
+    existing_paths = _existing_paths_for_obsolete_check(ctx=ctx, output_root=output_root)
     stale_paths = sorted(existing_paths - planned_paths)
     previous_plan = load_previous_plan(ctx=ctx, plugin_id=plugin_id)
     previous_planned_paths = _extract_planned_paths(previous_plan, ctx=ctx)

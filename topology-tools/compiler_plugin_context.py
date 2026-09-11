@@ -8,6 +8,22 @@ from typing import Any, Callable
 from kernel import PluginContext
 
 
+def _pre_run_artifact_inventory(root: Path) -> list[str]:
+    """Files present under the artifacts root before any stage has run.
+
+    Generators classify an existing file they no longer plan to write as obsolete.
+    Scanning the output root while the generate stage is in flight makes that
+    classification depend on which sibling generators have already finished
+    writing, which under parallel execution differs between runs of identical
+    sources. Taking the inventory here, before any stage executes, both removes
+    the race and matches what obsolete is meant to denote: left over from a
+    previous run rather than written by a sibling during this one.
+    """
+    if not root.exists() or not root.is_dir():
+        return []
+    return sorted(str(path.resolve()) for path in root.rglob("*") if path.is_file())
+
+
 def create_plugin_context(
     *,
     manifest_path: Path,
@@ -136,6 +152,7 @@ def create_plugin_context(
             "product_bundles_root": product_bundles_root_value,
             "require_new_model": require_new_model,
             "generator_artifacts_root": artifacts_root_value,
+            "artifact_pre_run_inventory": _pre_run_artifact_inventory(generator_artifacts_root),
             "workspace_root": workspace_root_value,
             "dist_root": dist_root_value,
             "signing_backend": signing_backend,
