@@ -53,6 +53,10 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
+# netmodel is a root-level development package (ADR 0118/0119 reference model).
+# It is deliberately outside the framework distribution set, so tests import it
+# from the repository root rather than from an installed distribution.
+pythonpath = ["."]
 # H1.1: Coverage moved to CI-only tasks (test:ci-coverage, ci:coverage-gate)
 # Use -n auto for parallel execution with pytest-xdist
 addopts = "-v"

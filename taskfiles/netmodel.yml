@@ -1,0 +1,47 @@
+version: "3"
+
+# Development tasks for the netmodel reference package (ADR 0118/0119).
+# Everything here is read-only against real sources and lock-free by design:
+# the package lives outside framework distribution, so no framework.lock refresh
+# is required while iterating.
+
+tasks:
+  snapshot:
+    desc: Capture the real effective model for netmodel differential tests (passthrough, no strict lock)
+    cmds:
+      - mkdir -p build/netmodel
+      # generate is included because the effective model is only written by that
+      # stage; --artifacts-root redirects its output into build/ so generated/
+      # is never touched. No strict model lock, no secrets.
+      - >-
+        {{.PYTHON}} topology-tools/compile-topology.py
+        --stages discover,compile,validate,generate
+        --secrets-mode passthrough
+        --diagnostics
+        --artifacts-root build/netmodel/artifacts
+        --output-json build/netmodel/effective.json
+        --diagnostics-json build/netmodel/diagnostics.json
+        --diagnostics-txt build/netmodel/diagnostics.txt
+
+  test:
+    desc: Run netmodel unit and differential tests
+    cmds:
+      - "{{.PYTHON}} -m pytest tests/netmodel -q"
+
+  lint:
+    desc: Check formatting of the netmodel package
+    cmds:
+      - "{{.PYTHON}} -m black --check netmodel tests/netmodel"
+      - "{{.PYTHON}} -m isort --check-only netmodel tests/netmodel"
+
+  format:
+    desc: Format the netmodel package
+    cmds:
+      - "{{.PYTHON}} -m black netmodel tests/netmodel"
+      - "{{.PYTHON}} -m isort netmodel tests/netmodel"
+
+  check:
+    desc: Format check plus tests
+    cmds:
+      - task: lint
+      - task: test

@@ -43,6 +43,11 @@ includes:
     dir: .
     vars:
       PYTHON: "{{.PYTHON}}"
+  netmodel:
+    taskfile: ./taskfiles/netmodel.yml
+    dir: .
+    vars:
+      PYTHON: "{{.PYTHON}}"
   framework:
     taskfile: ./taskfiles/framework.yml
     dir: .
