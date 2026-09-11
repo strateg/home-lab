@@ -1,4 +1,5 @@
 @class: class.service.cache
+@extends: class.service
 @title: Service Cache
 @summary: In-memory caching service role.
 @layer: L5

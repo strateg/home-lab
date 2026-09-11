@@ -1,0 +1,122 @@
+@class: class.service
+@title: Service (Abstract Base)
+@summary: Abstract base class for L5 application services.
+@description: |
+  Common base for every service role. Concrete roles (proxy, dns, database, ...)
+  extend this class and add their own capabilities; the base carries only what
+  holds for all of them.
+
+  It exists because the publication shape below has to be declared once. Fourteen
+  independently maintained copies of one contract are fourteen chances for them
+  to diverge, and a consumer that has to choose between them is enforcing nothing.
+@layer: L5
+@version: 1.0.0
+@abstract: true
+
+os_policy: forbidden
+
+# Service publication, version 2 (ADR 0118 AD-02, gate G1).
+#
+# A publication is a delivery fact: it says where a service can be reached and by
+# what mechanism. It is not a permission. Under `A = (P and C) \ D` a publication
+# contributes to C - what the path can carry - and never to P.
+#
+# That is why this shape has no source selector at all. A publication cannot name
+# who may connect, because there is no field here in which to say it; the answer
+# lives in a policy binding (class.network.firewall_policy, policy_intent_schema).
+# Version 1 keeps `security.allowed_from` on the service instance, which reads as
+# a permit attached to a delivery fact and is exactly the conflation this removes.
+#
+# Currently inert: nothing in the runtime reads class-level schema declarations,
+# so this constrains no instance today. G1 closes when an enforcing consumer
+# exists. Note also that the compiler records `lineage` but does not merge a
+# parent class payload into its children - a consumer resolves this declaration
+# by walking lineage, not by reading the child class alone.
+service_publication_schema:
+  schema_version:
+    type: integer
+    enum: [2]
+    description: >-
+      Publication intent version for this service. Semantic identifier
+      service_publication_version; not the ADR 0088 manifest token that resolves
+      to @version.
+  publications:
+    type: mapping
+    description: >-
+      Named ways this service is reachable. The key is the record identity; it is
+      not repeated in an id field. Keys match ^[A-Za-z_][A-Za-z0-9_]*$ - no dot,
+      hyphen or @ - so a reference path stays unambiguous.
+    key_pattern: "^[A-Za-z_][A-Za-z0-9_]*$"
+    value:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          default: true
+          description: >-
+            Explicit false disables an inherited record without deleting it, so a
+            reference to it is an error rather than a silent miss. Null is not a
+            value here.
+        endpoint_ref:
+          type: string
+          description: >-
+            Local key of an attachment on the workload this service runs on, as
+            declared by network_intent_schema.attachments. It names where the
+            service is reachable; it does not repeat the address, which is
+            derived from the attachment's address domain.
+        protocol:
+          type: string
+          enum: [tcp, udp, sctp]
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+          description: The port the service is reached on at this publication.
+        target_port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+          description: >-
+            The port inside the workload, when the mechanism translates. Absent
+            means it equals port; it is never a second, independent publication.
+        mechanism:
+          type: string
+          enum: [direct, destination_nat, reverse_proxy, tunnel]
+          default: direct
+          description: >-
+            How delivery happens. A translating mechanism changes the path, not
+            the authorization: destination_nat here still authorizes nothing.
+        owner:
+          type: string
+          description: Who is accountable for this publication existing.
+        rationale:
+          type: string
+          description: >-
+            Why it exists, for review. Owner and rationale are review material,
+            not approval - approval is a property of a policy binding.
+      required:
+        - endpoint_ref
+        - protocol
+        - port
+      derived_and_forbidden_here:
+        - address
+        - external_address
+        - nat_rule
+        - firewall_rule
+        - rule_position
+        - zone
+      forbidden_here:
+        - allowed_from
+        - source
+        - sources
+        - permit
+        - action
+
+required_capabilities: []
+optional_capabilities: []
+capability_packs: []
+
+invariants:
+- a publication is a delivery fact and authorizes no flow
+- object.class_ref must equal class.id
+- instance overrides must not violate class invariants

@@ -1,4 +1,5 @@
 @class: class.service.vpn
+@extends: class.service
 @title: Service VPN
 @summary: Encrypted tunnel endpoint service role.
 @layer: L5

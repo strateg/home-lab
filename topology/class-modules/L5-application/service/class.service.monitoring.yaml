@@ -1,4 +1,5 @@
 @class: class.service.monitoring
+@extends: class.service
 @title: Service Monitoring
 @summary: Metrics collection and telemetry service role.
 @layer: L5

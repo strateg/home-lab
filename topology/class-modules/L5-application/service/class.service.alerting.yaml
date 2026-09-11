@@ -1,4 +1,5 @@
 @class: class.service.alerting
+@extends: class.service
 @title: Service Alerting
 @summary: Alert routing and notification service role.
 @layer: L5

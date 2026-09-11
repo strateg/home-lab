@@ -1,4 +1,5 @@
 @class: class.service.home_automation
+@extends: class.service
 @title: Service Home Automation
 @summary: Home automation control and message service role.
 @layer: L5

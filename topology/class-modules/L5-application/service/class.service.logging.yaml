@@ -1,4 +1,5 @@
 @class: class.service.logging
+@extends: class.service
 @title: Service Logging
 @summary: Log ingest, forwarding, and retention service role.
 @layer: L5

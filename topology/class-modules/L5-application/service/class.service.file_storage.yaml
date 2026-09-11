@@ -1,4 +1,5 @@
 @class: class.service.file_storage
+@extends: class.service
 @title: Service File Storage
 @summary: File storage and sharing service role.
 @layer: L5

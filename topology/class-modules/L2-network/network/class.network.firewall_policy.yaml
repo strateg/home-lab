@@ -51,6 +51,172 @@ property_schemas:
         comment:
           type: string
 
+# Policy intent, version 2 (ADR 0118 AD-03 / SEC-AUTH, ADR 0119, gate G1).
+#
+# Two shapes exist in the baseline profile and no others, matched exactly by
+# netmodel.policy._ALLOWED_MODES:
+#
+#   permit + binding_only  - inert until a binding names a subject, a target and
+#                            an approver, so a reusable template grants nothing;
+#   deny   + scope_guard   - activated by the scope it is attached to, regardless
+#                            of any publication, and not defeated by a narrower
+#                            permit.
+#
+# Any other pairing has no defined meaning and is refused rather than
+# interpreted. Authorization is `A = (P and C) \ D`: a permit that overlaps a
+# mandatory deny is an authoring conflict for a human to resolve, not an overlap
+# for the compiler to trim.
+#
+# Version 1 - `rules` with `default_action` and `priority` above - remains the
+# accepted shape. The two must not be mixed inside one effective source. In
+# version 2 neither the terminal deny nor a rule position is authored: the
+# terminal drop-all is a backend obligation carrying E7854, and positions are
+# derived from execution precedence (netmodel.plan), never from an author's
+# number.
+#
+# Currently inert: nothing in the runtime reads class-level schema declarations,
+# so this constrains no instance today. G1 closes when an enforcing consumer
+# exists. The compiler records `lineage` but does not merge a parent class
+# payload into its children, so that consumer resolves declarations by walking
+# lineage.
+policy_intent_schema:
+  schema_version:
+    type: integer
+    enum: [2]
+    description: >-
+      Policy intent version for this policy. Semantic identifier
+      policy_intent_version; not the ADR 0088 manifest token that resolves to
+      @version.
+  allowed_modes:
+    type: list
+    description: >-
+      The complete set of effect/activation pairings the baseline profile
+      admits. It is stated here so a consumer enforces a declared set rather
+      than one invented alongside it.
+    items:
+      - effect: permit
+        activation: binding_only
+      - effect: deny
+        activation: scope_guard
+  policies:
+    type: mapping
+    description: >-
+      Reusable constraints. A template on its own authorizes no flow. The key is
+      the record identity; it is not repeated in an id field.
+    key_pattern: "^[A-Za-z_][A-Za-z0-9_]*$"
+    value:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          default: true
+          description: >-
+            Explicit false disables an inherited record without deleting it, so a
+            reference to it is an error rather than a silent miss. Null is not a
+            value here.
+        effect:
+          type: string
+          enum: [permit, deny]
+        activation:
+          type: string
+          enum: [binding_only, scope_guard]
+        direction:
+          type: string
+          enum: [ingress, egress, transit]
+        source:
+          type: string_or_list
+          description: >-
+            Concrete endpoint selectors, or the parameter "{binding: source}" on
+            a permit. A parameter is filled by a binding, never read as a
+            wildcard; a scope guard must name concrete selectors because there is
+            no binding to fill one. An empty resolved set is an error, not "any".
+        destination:
+          type: string_or_list
+          description: >-
+            As source, with the parameter "{binding: destination}".
+        protocol:
+          type: string
+        ports:
+          type: list
+          items:
+            type: integer
+            minimum: 1
+            maximum: 65535
+          description: >-
+            Bounded and non-empty. A constraint that is not about ports is a
+            separate shape, not an empty port set.
+        owner:
+          type: string
+          description: Who is accountable for this constraint.
+        rationale:
+          type: string
+          description: >-
+            Why it exists. Owner and rationale are review material and are not
+            approval - approval is a property of a binding.
+      required:
+        - effect
+        - activation
+        - direction
+        - source
+        - destination
+        - protocol
+        - ports
+        - owner
+        - rationale
+      derived_and_forbidden_here:
+        - position
+        - priority
+        - order
+        - chain
+        - table
+  bindings:
+    type: mapping
+    description: >-
+      What turns a permit template into a grant. A binding without approval is a
+      candidate; it never authorizes traffic, and rejecting one is a valid
+      outcome. Only a permit can be bound: a scope guard is activated by its
+      scope and has nothing to bind.
+    key_pattern: "^[A-Za-z_][A-Za-z0-9_]*$"
+    value:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          default: true
+        policy_ref:
+          type: string
+          description: Local key of a permit template in policies.
+        sources:
+          type: list
+          items:
+            type: string
+          description: Non-empty concrete subject selectors.
+        destinations:
+          type: list
+          items:
+            type: string
+          description: Non-empty concrete target selectors.
+        approved:
+          type: boolean
+          default: false
+          description: >-
+            Absent or false means not approved. The default is refusal, so
+            forgetting the field cannot authorize anything.
+        approved_by:
+          type: string
+          description: >-
+            Who approved it. No approval timestamp is carried: plan identity
+            must not move when nothing about the plan has changed.
+      required:
+        - policy_ref
+        - sources
+        - destinations
+      forbidden_here:
+        - effect
+        - action
+        - position
+        - priority
+
 required_capabilities: []
 
 optional_capabilities:

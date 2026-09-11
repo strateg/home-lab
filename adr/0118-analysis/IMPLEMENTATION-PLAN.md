@@ -354,6 +354,38 @@ from the assertion message rather than from the artifact. The artifact had all
 nine. A failing assertion names what a test expected, not what the system does;
 the artifact is the evidence.
 
+### A second known-broken set, measured 2026-09-11 on the full suite
+
+The three items above were found by running narrow suites. The first full run of
+`tests` in this cycle - 1944 collected, 14:57 - found more, and none of it is in
+the work register. It is recorded here for the same reason: so a later green run
+is not read as progress it did not make.
+
+**1918 passed, 4 failed, 9 errors, 14 skipped.** Each failure was checked against
+a detached worktree at `93c0c2f7` without this cycle's declarations, and the two
+sides are identical - `4 failed, 9 passed, 9 errors` on both. The declarations
+introduce none of it.
+
+| Symptom | Evidence |
+|---|---|
+| `tests/plugin_regression/conftest.py`: 9 errors. The session fixture runs the compiler, asserts `returncode == 0`, then reads `effective.json` - which was never written | Reproduced by hand: the identical command exits 0 with a clean compile (150 infos, 0 errors) and produces neither `effective.json` nor `diagnostics.json`, despite `--output-json` and `--diagnostics-json` being passed. **The third occurrence of the `--diagnostics` trap**, after the netmodel snapshot task and `test_session_compile_fixture.py`. A flag that silently disables two explicitly requested outputs is the defect; the fixtures are its victims |
+| `test_compile_external_project_repo_root.py` (2), `test_init_project_repo.py` (1): a scaffolded external project compiles but emits no `generated/effective-topology.json` | Same at HEAD |
+| `test_generate_tfvars_script.py`: rendered tfvars carry `wireguard_wg1_peers` but not the `wireguard_peers` the test demands | Same at HEAD. Whether the test or the generator is wrong is undetermined; naming it here is not a diagnosis |
+
+The `--diagnostics` trap has now cost three separate debugging sessions. It is
+worth fixing at the source - an explicit `--output-json` should either produce
+the file or fail - rather than adding the flag to a fourth caller. Filed as a
+candidate, not scheduled.
+
+**A framework lock is not reproducible from a commit alone.** A detached worktree
+at `93c0c2f7` computes `sha256-f43ba202...` where the committed lock says
+`sha256-baee680d...`, while the same revision in the main working tree matches.
+Something inside `distribution.include` is therefore not tracked by git, so the
+integrity hash depends on files a fresh clone does not have. This was found while
+building the control run above and is unrelated to the declarations; it matters
+because a lock that cannot be recomputed from source cannot serve as an integrity
+check for anyone but the machine that generated it.
+
 ### G1 — Registered schema and reference contracts
 
 W02/W03 deliver:
@@ -378,9 +410,40 @@ Registering a shape therefore constrains no instance: it neither breaks the
 existing flat inputs nor enables the new ones. The enforcing consumer is the part
 that makes G1 real, and it is missing rather than assumed. Declaring the shape
 first is still worth doing, so that consumer has one definition to enforce rather
-than one invented alongside it; the v2 attachment shape is now declared on the
-base workload class, tied by test to the grammar and address form the reference
-model enforces.
+than one invented alongside it.
+
+**Declared 2026-09-11, all three v2 shapes, one per owning layer.** Attachments on
+`class.compute.workload` (L4); publications on `class.service` (L5); policies and
+bindings on `class.network.firewall_policy` (L2). Each is tied by test to what the
+reference model enforces: the local-key grammar to `netmodel.identity.LOCAL_KEY_RE`,
+and the declared effect/activation pairings to `netmodel.policy._ALLOWED_MODES`
+compared as sets, so a fourth mode cannot be added on one side alone. Artifact
+parity was measured across all 147 emitted files before and after: identical,
+which is the evidence that the declarations are inert rather than the assumption.
+
+*L5 had no shared base.* The fourteen service classes used no `@extends` at all, so
+there was nowhere to declare publications once. `class.service` was added as an
+abstract base and the fourteen now extend it, following the pattern L1
+(`class.peripheral`) and L4 (`class.compute.workload`) already use. This is what
+the bullet above means by "shared definitions without 14 independently maintained
+service-schema copies"; without it the requirement could not be met at all.
+
+*A publication carries no source selector.* Not an omission to fill in later: a
+publication is a delivery fact, contributing to C in `A = (P n C) \ D` and never
+to P, and the guarantee is structural - there is no field in which to author who
+may connect. Today's `security.allowed_from` on a service instance is precisely
+that conflation, and migrating it to a policy binding is W09 source-migration work,
+not a schema default.
+
+**Measured 2026-09-11: class inheritance records lineage but does not merge.** The
+compiler emits `lineage` (root-first) and `parent_class` on every class, and leaves
+the parent's payload on the parent: `class.compute.workload.lxc` does not carry the
+base's `network_intent_schema`, nor `class.service.proxy` the base's
+`service_publication_schema`. A consumer that reads only the class an instance
+names would therefore find no schema on any concrete workload or service. The
+enforcing validator must resolve declarations along `lineage`. This is checked by
+test against the compiled snapshot, so if the merge behaviour ever changes the
+consumer is told rather than silently reading a stale assumption.
 
 G1 exits on full positive/negative C->O->I fixtures and A21/A23/A25 schema portions.
 Allocate SEC-CAP diagnostics centrally; E8020/E8021 keep their platform/bootstrap

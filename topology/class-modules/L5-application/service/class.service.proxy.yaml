@@ -1,4 +1,5 @@
 @class: class.service.proxy
+@extends: class.service
 @title: Service Proxy
 @summary: Reverse proxy and ingress routing service role.
 @layer: L5

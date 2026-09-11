@@ -1,4 +1,5 @@
 @class: class.service.visualization
+@extends: class.service
 @title: Service Visualization
 @summary: Dashboard and visualization service role.
 @layer: L5

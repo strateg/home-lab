@@ -1,4 +1,5 @@
 @class: class.service.web_ui
+@extends: class.service
 @title: Service Web UI
 @summary: Management web interface service role.
 @layer: L5

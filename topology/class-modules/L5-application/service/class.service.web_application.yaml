@@ -1,4 +1,5 @@
 @class: class.service.web_application
+@extends: class.service
 @title: Service Web Application
 @summary: Generic web application service role.
 @layer: L5

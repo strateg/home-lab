@@ -1,4 +1,5 @@
 @class: class.service.database
+@extends: class.service
 @title: Service Database
 @summary: Stateful database service role.
 @layer: L5

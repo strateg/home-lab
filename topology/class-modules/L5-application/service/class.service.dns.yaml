@@ -1,4 +1,5 @@
 @class: class.service.dns
+@extends: class.service
 @title: Service DNS
 @summary: DNS resolver/filter service role.
 @layer: L5
