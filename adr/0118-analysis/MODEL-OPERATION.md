@@ -370,6 +370,56 @@ here is evidence about proposals only.
 
 ---
 
+## 7c. From intent to a plan, and back again
+
+Three modules, and the third deliberately does not know about the first.
+
+| Module | Does | Must not |
+|---|---|---|
+| `netmodel.policy` | decides what the intent authorizes: `A = (P ∩ C) \ D` | — |
+| `netmodel.lower` | translates grants and guards into ordered rules | re-decide authorization |
+| `netmodel.interpret` | reads a plan and says accept / deny / unsupported | import `policy` or `lower` |
+
+That separation is the point of G3, which says in as many words: do not make the
+generator and the oracle share the same decision code and call the agreement a
+proof. An oracle that imports the producer shows only that the code agrees with
+itself. A test asserts the imports are absent.
+
+With them apart, SEC-AUTH stops being an argument and becomes a property over a
+bounded, enumerated flow space:
+
+* **SEC-AUTH** — every flow the plan accepts, the intent authorizes.
+* **SEC-AVAIL** — every required flow, the plan carries.
+* deleting a permit cannot enlarge what is accepted; adding a deny cannot either.
+
+**The mutants are the load-bearing part.** The contract names them and they are
+implemented: an accept-all plan must fail SEC-AUTH, an all-drop plan must fail
+SEC-AVAIL while still satisfying SEC-AUTH. A checker that cannot fail a plan that
+is definitely wrong says nothing about one that looks right. A further test
+refuses the vacuous case directly - a subset claim over an empty set passes and
+proves nothing - by asserting the accepted and authorized sets are non-empty and
+the space is larger than either.
+
+### Three verdicts, not two
+
+`unsupported` is a real outcome. A plan with no terminal rule that matches
+nothing leaves the result to a backend default the interpreter does not know, so
+it says so rather than inventing one: **default-deny is a property of a backend,
+not of a rule list.** Silently returning deny would report a safe result for a
+rule set nobody understood.
+
+### The terminal deny belongs to the plan
+
+ADR 0119 D4 makes it a plan obligation, and the reason is checkable: a terminal
+rule a template adds is a terminal rule the plan cannot reason about, while "is
+anything executable after the drop-all" is exactly what the plan has to answer.
+It also matches differently from an ordinary rule - on endpoints alone, ignoring
+protocol and port - because a terminal that matched like the others would leave
+the scope open on every port the author did not list, which is the opposite of
+closing it.
+
+---
+
 ## 8. Current state
 
 | Fact | Value | Measured |
@@ -394,3 +444,4 @@ across every emitted file.
 | 2026-09-11 | `3c06ffbe` | Section 7a: a real source migrated and reverted; the migration unit is the host, and a lineage-resolution bug in the validator that only a real source could reveal |
 | 2026-09-11 | `2525f01e` | Section 7a: the inheritance chain is three links; the v2 shape travels it unchanged, proved by test, with the migrated shape written out |
 | 2026-09-11 | `09f633c0` | Section 7b: candidate isolation (A22) as a type boundary, and what it explicitly does not claim |
+| 2026-09-11 | `553c2e3b` | Section 7c: lowering, the independent interpreter, and SEC-AUTH/SEC-AVAIL as properties with mutants |

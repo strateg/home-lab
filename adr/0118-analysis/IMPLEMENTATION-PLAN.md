@@ -478,6 +478,50 @@ appear in it.
 
 27 tests; 232 in netmodel.
 
+### W06 / G3 begins, 2026-09-11 — lowering, an independent oracle, and mutants
+
+G3's own instruction shaped the decomposition: *"Use an independent reference
+interpreter; do not make the generator and oracle share the same decision code
+and call agreement proof."* So three modules, and the third does not know the
+first exists.
+
+`netmodel.policy` decides what the intent authorizes. `netmodel.lower` translates
+grants and guards into ordered rules and decides nothing - re-deciding
+authorization there would put one question in two places that could answer
+differently. `netmodel.interpret` reads a plan and returns accept, deny or
+unsupported, importing neither of the others, which a test asserts.
+
+With them apart, the obligations become properties over a bounded enumerated flow
+space rather than arguments: `Accept(R) ⊆ A_e` (SEC-AUTH), `Q_e ⊆ Accept(R)`
+(SEC-AVAIL), and the two monotonicity claims - deleting a permit cannot enlarge
+the accepted set, adding a deny cannot either.
+
+**The mutants carry the weight.** The contract's §6.2 names them and they are
+implemented: an accept-all plan must fail SEC-AUTH, an all-drop plan must fail
+SEC-AVAIL while still satisfying SEC-AUTH. A checker that cannot fail a plan that
+is definitely wrong says nothing about one that looks right. A separate test
+refuses the vacuous case directly, because both obligations are subset claims and
+the cheapest way for a subset claim to pass is for one side to be empty - the same
+failure the address differential had when it read one field name wrong and
+compared nothing.
+
+**Three verdicts, not two.** `unsupported` is a real outcome, not a soft deny. A
+plan with no terminal rule that matches nothing leaves the result to a backend
+default the interpreter does not know; saying so is honest, and silently
+returning deny would report a safe result for a rule set nobody understood.
+Default-deny is a property of a backend, not of a rule list.
+
+**The terminal deny is the plan's.** ADR 0119 D4 says so and the reason is
+checkable: a terminal rule a template adds is one the plan cannot reason about,
+while "is anything executable after the drop-all" is precisely what the plan has
+to answer. It matches on endpoints alone, ignoring protocol and port, because a
+terminal matching like an ordinary rule would leave the scope open on every port
+the author did not list.
+
+15 tests; 247 in netmodel. Still to come in W06: path and state algebra, NAT
+composition, transition envelopes, and the capability composition that
+`netmodel.capability` now has a shape for.
+
 **A framework lock is not reproducible from a commit alone.** A detached worktree
 at `93c0c2f7` computes `sha256-f43ba202...` where the committed lock says
 `sha256-baee680d...`, while the same revision in the main working tree matches.
