@@ -11,7 +11,15 @@ import ipaddress
 
 import pytest
 
-from netmodel.domains import AddressDomain, DomainError, parse_address, parse_prefix, zone_membership, zone_prefixes
+from netmodel.domains import (
+    AddressDomain,
+    DomainError,
+    offset_range,
+    parse_address,
+    parse_prefix,
+    zone_membership,
+    zone_prefixes,
+)
 
 
 def _domain(domain_id: str, cidr: str | None, *, zone: str | None = None, gateway: str | None = None) -> AddressDomain:
@@ -48,7 +56,54 @@ def test_offset_outside_the_prefix_is_refused() -> None:
 
     # The message must say what the usable range is, so the fix is locatable.
     assert "10.0.0.128/25" in str(excinfo.value)
-    assert "0..127" in str(excinfo.value)
+    assert "1..126" in str(excinfo.value)
+
+
+@pytest.mark.parametrize(
+    ("cidr", "low", "high"),
+    [
+        ("10.0.20.0/24", 1, 254),
+        ("10.0.20.0/30", 1, 2),
+        ("10.0.20.0/31", 0, 1),  # RFC 3021: both addresses are hosts
+        ("10.0.20.5/32", 0, 0),
+        ("2001:db8::/64", 1, 2**64 - 1),  # no broadcast; only anycast at 0 reserved
+        ("2001:db8::/127", 0, 1),  # RFC 6164
+        ("2001:db8::1/128", 0, 0),
+    ],
+)
+def test_the_usable_offset_range_matches_the_standard_library(cidr: str, low: int, high: int) -> None:
+    """Corrected 2026-09-11; the earlier version handed out unusable addresses.
+
+    It accepted any offset inside the prefix, so offset 0 resolved to the network
+    address and the top offset to the IPv4 broadcast address. Both are refused by
+    every stack that would have to carry the traffic, and an error that only shows
+    up on the device is the expensive kind.
+
+    The lower bound is checked against `ip_network.hosts()`, which is the
+    standard library's own answer. The upper bound is checked by arithmetic:
+    enumerating an IPv6 /64 asks for 2**64 addresses and never returns.
+    """
+    import itertools
+
+    network = ipaddress.ip_network(cidr, strict=False)
+    assert offset_range(network) == (low, high)
+
+    first_host = next(iter(itertools.islice(network.hosts(), 1)))
+    assert network.network_address + low == first_host
+    assert network.network_address + high in network
+
+
+@pytest.mark.parametrize("cidr", ["10.0.20.0/24", "2001:db8::/64"])
+def test_the_network_and_broadcast_addresses_are_not_host_offsets(cidr: str) -> None:
+    domain = _domain("inst.vlan.probe", cidr)
+    network = ipaddress.ip_network(cidr, strict=False)
+
+    with pytest.raises(DomainError):
+        domain.resolve_host(0)
+
+    if network.version == 4:
+        with pytest.raises(DomainError):
+            domain.resolve_host(network.num_addresses - 1)
 
 
 @pytest.mark.parametrize("host", [-1, True, "4", 2.0])

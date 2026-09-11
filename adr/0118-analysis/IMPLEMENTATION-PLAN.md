@@ -562,6 +562,50 @@ tests whose fixtures were only shape-valid - they named a network no row declare
 which is the pass doing its job; the fixtures were completed rather than the check
 weakened.
 
+**Address domain resolution, 2026-09-11.** `E7021` and `E7024` are now
+implemented, and `E7024` was registered before the code that raises it, as the
+governance rule requires.
+
+`E7021` is scoped by address family derived from the referenced domain's prefix,
+and by a single implicit routing domain - nothing in the sources declares one,
+measured: `routing_domain` appears nowhere except in this cycle's own
+`derived_and_forbidden_here` list, and all eleven modeled domains are IPv4. That
+makes the check exact now and exact when IPv6 arrives; it becomes too permissive
+only if routing domains are introduced, which is the safe direction. The rejected
+alternative - counting default routes per workload - would have been stricter
+than the rule and would reject a correct dual-stack source. A family that cannot
+be read is not a match for anything.
+
+`E7024` refuses a host offset the prefix does not admit. **Building it found a
+defect in the reference model**: `netmodel.domains.resolve_host` accepted any
+offset inside the prefix, so offset 0 resolved to the network address and the top
+offset to the IPv4 broadcast address, and it presented both as host addresses.
+Neither is assignable; a model that derives an unusable address is worse than one
+that refuses, because the error then surfaces on the device instead of in review.
+
+The corrected range has four cases, all checked against the standard library's
+own `hosts()`: a single-address prefix (/32, /128) admits offset 0 only; a
+two-address prefix (/31 per RFC 3021, /127 per RFC 6164) admits both, because a
+point-to-point link has no network or broadcast address to set aside; IPv4
+otherwise gives 1..size-2; IPv6 otherwise gives 1..size-1.
+
+The offset-versus-last-octet distinction is now covered by a test that only
+passes if the difference is real: offset 300 is refused in a /24 and accepted in
+a /16. A validator reading host as a last octet would treat both the same way.
+
+**Method rule, learned expensively.** The range is computed, never enumerated.
+`list(ip_network("2001:db8::/64").hosts())` asks for 2**64 addresses; running it
+to compare implementations exhausted memory and took the machine down. Both the
+helper and the differential test now say so in place, and the differential
+compares chosen offsets arithmetically.
+
+The address algebra exists twice for the same reason the policy algebra does -
+`netmodel` is outside framework distribution - and has its own differential test
+requiring both to give the same answer, including the same refusals.
+
+69 plugin tests, 152 netmodel tests. Artifact parity identical across 147 files
+(both sides counted, not assumed). Determinism and strict-lock compiles pass.
+
 **Correction to that instruction (revision 4a).** It presumed those codes are
 registered. At baseline `493867d5` they are not. The canonical registry is
 `topology-tools/data/error-catalog.yaml`, indexed by `docs/diagnostics-catalog.md`,

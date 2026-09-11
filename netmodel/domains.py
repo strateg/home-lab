@@ -55,18 +55,44 @@ class AddressDomain:
         if host < 0:
             raise DomainError(f"{self.domain_id}: host offset must not be negative, got {host}")
 
-        candidate = self.prefix.network_address + host
-        if candidate not in self.prefix:
+        low, high = offset_range(self.prefix)
+        if host < low or host > high:
             raise DomainError(
-                f"{self.domain_id}: host offset {host} falls outside {self.prefix} "
-                f"(usable offsets 0..{int(self.prefix.broadcast_address) - int(self.prefix.network_address)})"
+                f"{self.domain_id}: host offset {host} is not usable in {self.prefix} "
+                f"(usable offsets {low}..{high})"
             )
-        return candidate
+        return self.prefix.network_address + host
 
     def contains(self, address: IPAddress | str) -> bool:
         if self.prefix is None:
             return False
         return ipaddress.ip_address(str(address)) in self.prefix
+
+
+def offset_range(prefix: IPNetwork) -> tuple[int, int]:
+    """The inclusive range of host offsets a prefix admits.
+
+    Corrected 2026-09-11. The earlier version accepted any offset inside the
+    prefix, which handed out the network address at offset 0 and the broadcast
+    address at the top of an IPv4 subnet as if they were host addresses. Neither
+    is assignable, and a model that derives an unusable address is worse than one
+    that refuses, because the error surfaces on the device rather than in review.
+
+    The two edge cases are real, not decoration: a /31 (RFC 3021) and a /127
+    (RFC 6164) are point-to-point links where both addresses are hosts, and a
+    /32 or /128 is a single host at offset 0.
+
+    Computed, never enumerated: `list(prefix.hosts())` on an IPv6 /64 asks for
+    2**64 addresses and does not return.
+    """
+    size = prefix.num_addresses
+    if prefix.prefixlen == prefix.max_prefixlen:
+        return (0, 0)
+    if prefix.prefixlen == prefix.max_prefixlen - 1:
+        return (0, 1)
+    if prefix.version == 4:
+        return (1, size - 2)
+    return (1, size - 1)
 
 
 def parse_prefix(value: str | None) -> IPNetwork | None:

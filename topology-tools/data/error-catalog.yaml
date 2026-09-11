@@ -956,6 +956,13 @@ codes:
     stage: validate
     title: Address Domain Has No Prefix For Family
     hint: The referenced domain declares no prefix for the requested address family; declare it on the domain.
+  E7024:
+    severity: error
+    stage: validate
+    title: Address Offset Outside Domain
+    hint: >-
+      The host offset does not exist in the referenced prefix. host counts from the network address, so the
+      usable range is 1..(size - 2) for an IPv4 prefix that has a broadcast address.
 
   # Publication (delivery, never authorization)
   E7040:

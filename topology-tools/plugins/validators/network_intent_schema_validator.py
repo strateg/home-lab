@@ -28,12 +28,15 @@ a mandatory deny.
 Some rules in the allocated range are deliberately not implemented here, and
 absence is the honest form for them rather than an approximation:
 
-* `E7021` (one default route per address family and routing domain) needs the
-  family, which an attachment must not author and which nothing yet derives.
-  A per-workload "at most one" check would be stricter than the rule and would
-  reject a legitimate dual-stack source.
 * `E7042` needs capability resolution; `E7062` and `E7080`..`E7089` are plan-time
   obligations and belong to the plan compiler, which does not exist yet.
+
+`E7021` is scoped by address family, derived from the referenced domain's prefix,
+and by a single implicit routing domain - nothing in the sources declares one.
+That makes the check exact today and still exact when IPv6 arrives; if routing
+domains are ever introduced it becomes too permissive, which is the safe
+direction. Scoping it per workload instead would have been stricter than the rule
+and would reject a correct dual-stack source.
 
 A check that cannot be right yet emits nothing. A check that is silently wrong is
 worse than a missing one, because it is believed.
@@ -43,6 +46,8 @@ from __future__ import annotations
 
 import re
 from typing import Any, Iterable, Mapping
+
+from plugins.validators.address_domain_helper import AddressDomainError, family_of, resolve_offset
 
 from kernel.plugin_base import (
     PluginContext,
@@ -428,6 +433,14 @@ class NetworkIntentSchemaValidator(ValidatorJsonPlugin):
                         )
                         continue
 
+                    try:
+                        resolve_offset(cidr, host)
+                    except AddressDomainError as exc:
+                        diagnostics.append(
+                            self._diag("E7024", stage, f"'{path}': {exc}.", f"{path}.address.host")
+                        )
+                        continue
+
                 slot = (network_ref, host)
                 if slot in claimed:
                     diagnostics.append(
@@ -441,6 +454,68 @@ class NetworkIntentSchemaValidator(ValidatorJsonPlugin):
                     )
                 else:
                     claimed[slot] = path
+
+        diagnostics.extend(
+            self._check_default_routes(
+                ctx=ctx, attachments_by_row=attachments_by_row, domains=domains, stage=stage
+            )
+        )
+        return diagnostics
+
+    def _check_default_routes(
+        self,
+        *,
+        ctx: PluginContext,
+        attachments_by_row: dict[str, Mapping[str, Any]],
+        domains: dict[str, Mapping[str, Any]],
+        stage: Stage,
+    ) -> list[PluginDiagnostic]:
+        """At most one default route per address family, per workload.
+
+        The rule is "per address family and routing domain". Nothing in the
+        sources declares a routing domain, so every domain is treated as being in
+        one, which makes this check exact now and too permissive only if routing
+        domains are later introduced. Family is derived from the referenced
+        domain's prefix rather than assumed, so a dual-stack workload with one
+        default route per family passes, which is the case a per-workload count
+        would wrongly reject.
+
+        A family that cannot be determined is not a match for anything: two
+        unreadable prefixes are not thereby the same family.
+        """
+        diagnostics: list[PluginDiagnostic] = []
+
+        for owner in sorted(attachments_by_row):
+            by_family: dict[str, str] = {}
+            for key in sorted(attachments_by_row[owner]):
+                record = attachments_by_row[owner][key]
+                if not isinstance(record, Mapping) or not self._enabled(record):
+                    continue
+                if record.get("default_route") is not True:
+                    continue
+                network_ref = record.get("network_ref")
+                domain = domains.get(network_ref) if isinstance(network_ref, str) else None
+                if domain is None:
+                    continue
+                cidr = self._resolve_field(ctx=ctx, row=domain, key="cidr")
+                family = family_of(cidr) if isinstance(cidr, str) else None
+                if family is None:
+                    continue
+
+                path = f"{owner}.network.attachments.{key}"
+                if family in by_family:
+                    diagnostics.append(
+                        self._diag(
+                            "E7021",
+                            stage,
+                            f"'{path}' sets default_route for {family}, and so does "
+                            f"'{by_family[family]}'. At most one default per address family and routing "
+                            "domain unless an explicit multipath contract exists.",
+                            f"{path}.default_route",
+                        )
+                    )
+                else:
+                    by_family[family] = path
         return diagnostics
 
     def _check_publications(

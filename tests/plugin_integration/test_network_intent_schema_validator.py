@@ -712,3 +712,198 @@ def test_the_plugin_algebra_agrees_with_the_reference_model() -> None:
             f"plugin and reference model disagree for {sources} -> {destinations} "
             f"permit {permit_ports} guard {guard_ports}"
         )
+
+
+# --- address domain resolution -----------------------------------------------
+
+
+def test_an_offset_outside_the_prefix_is_refused() -> None:
+    rows = _workload(
+        {
+            "schema_version": 2,
+            "attachments": {"a": {"network_ref": "inst.vlan.lan", "address": {"allocation": "static", "host": 300}}},
+        }
+    )
+
+    result = _run(rows)
+
+    assert "E7024" in _codes(result)
+    assert any("usable offsets are 1..254" in diag.message for diag in result.diagnostics)
+
+
+def test_the_same_offset_is_valid_in_a_larger_prefix() -> None:
+    """host is an offset, not a last octet, and the difference is visible here.
+
+    300 does not exist in a /24 and is an ordinary address in a /16. A validator
+    that read host as a last octet would reject both or accept both.
+    """
+    rows = _workload(
+        {
+            "schema_version": 2,
+            "attachments": {"a": {"network_ref": "inst.vlan.big", "address": {"allocation": "static", "host": 300}}},
+        }
+    )
+    rows[0] = _domain("inst.vlan.big", "10.4.0.0/16")
+
+    assert _run(rows).diagnostics == []
+
+
+@pytest.mark.parametrize("host", [0, 255])
+def test_the_network_and_broadcast_offsets_are_refused(host: int) -> None:
+    """Neither is assignable, and an address that fails on the device is expensive."""
+    rows = _workload(
+        {
+            "schema_version": 2,
+            "attachments": {"a": {"network_ref": "inst.vlan.lan", "address": {"allocation": "static", "host": host}}},
+        }
+    )
+
+    assert "E7024" in _codes(_run(rows))
+
+
+def test_a_point_to_point_prefix_admits_both_addresses() -> None:
+    """RFC 3021: a /31 has no network or broadcast address to set aside."""
+    rows = _workload(
+        {
+            "schema_version": 2,
+            "attachments": {
+                "a": {"network_ref": "inst.vlan.p2p", "address": {"allocation": "static", "host": 0}},
+            },
+        }
+    )
+    rows[0] = _domain("inst.vlan.p2p", "10.9.9.0/31")
+
+    assert _run(rows).diagnostics == []
+
+
+def test_a_dynamic_address_is_not_range_checked() -> None:
+    rows = _workload(
+        {
+            "schema_version": 2,
+            "attachments": {"a": {"network_ref": "inst.vlan.lan", "address": {"allocation": "dynamic"}}},
+        }
+    )
+
+    assert _run(rows).diagnostics == []
+
+
+# --- default routes ----------------------------------------------------------
+
+
+def test_two_default_routes_in_one_family_are_refused() -> None:
+    rows = _workload(
+        {
+            "schema_version": 2,
+            "attachments": {
+                "a": {"network_ref": "inst.vlan.lan", "default_route": True},
+                "b": {"network_ref": "inst.vlan.dmz", "default_route": True},
+            },
+        }
+    )
+    rows.append(_domain("inst.vlan.dmz", "10.0.30.0/24"))
+
+    result = _run(rows)
+
+    assert "E7021" in _codes(result)
+    assert any("default_route for ipv4" in diag.message for diag in result.diagnostics)
+
+
+def test_one_default_route_per_family_is_correct_for_dual_stack() -> None:
+    """The case a per-workload count would wrongly reject.
+
+    The rule is one default per address family, not one per workload. Family is
+    derived from the referenced domain's prefix, so this passes and the v4-only
+    pair above does not.
+    """
+    rows = _workload(
+        {
+            "schema_version": 2,
+            "attachments": {
+                "v4": {"network_ref": "inst.vlan.lan", "default_route": True},
+                "v6": {"network_ref": "inst.vlan.lan6", "default_route": True},
+            },
+        }
+    )
+    rows.append(_domain("inst.vlan.lan6", "2001:db8:20::/64"))
+
+    assert _run(rows).diagnostics == []
+
+
+def test_a_disabled_attachment_does_not_hold_a_default_route() -> None:
+    rows = _workload(
+        {
+            "schema_version": 2,
+            "attachments": {
+                "a": {"network_ref": "inst.vlan.lan", "default_route": True},
+                "b": {"enabled": False, "network_ref": "inst.vlan.dmz", "default_route": True},
+            },
+        }
+    )
+    rows.append(_domain("inst.vlan.dmz", "10.0.30.0/24"))
+
+    assert _run(rows).diagnostics == []
+
+
+def test_a_domain_with_an_unreadable_prefix_is_not_a_family_match() -> None:
+    """Two unknown families are not thereby the same family."""
+    rows = _workload(
+        {
+            "schema_version": 2,
+            "attachments": {
+                "a": {"network_ref": "inst.vlan.junk1", "default_route": True},
+                "b": {"network_ref": "inst.vlan.junk2", "default_route": True},
+            },
+        }
+    )
+    rows[0] = _domain("inst.vlan.junk1", "not-a-prefix")
+    rows.append(_domain("inst.vlan.junk2", "also-not-a-prefix"))
+
+    assert "E7021" not in _codes(_run(rows))
+
+
+# --- the second forcing function ---------------------------------------------
+
+
+def test_the_plugin_resolver_agrees_with_the_reference_model() -> None:
+    """The address algebra also exists twice, for the same distribution reason.
+
+    Compared by arithmetic over chosen offsets, never by enumeration: asking an
+    IPv6 /64 for its host list allocates 2**64 addresses and takes the machine
+    down with it.
+    """
+    sys.path.insert(0, str(REPO_ROOT))
+    import ipaddress
+
+    from netmodel.domains import AddressDomain, DomainError
+    from netmodel.domains import offset_range as model_offset_range
+
+    from plugins.validators.address_domain_helper import AddressDomainError, parse_prefix, resolve_offset
+
+    prefixes = [
+        "10.0.20.0/24",
+        "10.4.0.0/16",
+        "10.0.20.0/30",
+        "10.0.20.0/31",
+        "10.0.20.5/32",
+        "2001:db8::/64",
+        "2001:db8::/127",
+        "2001:db8::1/128",
+    ]
+
+    for cidr in prefixes:
+        network = ipaddress.ip_network(cidr, strict=False)
+        assert parse_prefix(cidr).offset_range == model_offset_range(network), cidr
+
+        low, high = model_offset_range(network)
+        domain = AddressDomain(domain_id="inst.probe", kind="vlan", prefix=network)
+        for offset in {low, high, low - 1, high + 1, 0, 1, 300}:
+            try:
+                plugin_result = resolve_offset(cidr, offset)
+            except AddressDomainError:
+                plugin_result = None
+            try:
+                model_result = str(domain.resolve_host(offset))
+            except DomainError:
+                model_result = None
+
+            assert plugin_result == model_result, f"{cidr} offset {offset}: {plugin_result} vs {model_result}"
