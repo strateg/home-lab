@@ -45,12 +45,24 @@ It writes under `build/`, which is gitignored, and never writes to `generated/`,
 
 ```text
 netmodel/
-  identity.py    stable record identity and named-mapping merge
-  domains.py     address domains, numeric offset arithmetic, zone membership
-  policy.py      permits, guards, binding algebra
-  plan.py        canonical ordering and digests
-  snapshot.py    read-only reader for the compiled effective model
+  identity.py    record identity, local-key grammar, named-mapping merge   [present]
+  domains.py     address domains, numeric offset arithmetic, zone membership [present]
+  snapshot.py    read-only reader for the compiled effective model          [present]
+  policy.py      permits, guards, binding algebra                           [target]
+  plan.py        canonical ordering and digests                             [target]
 ```
 
-Modules appear as the work items that own them land; an empty name above is a
-declared target, not a claim that it exists.
+Modules marked target are declared, not written.
+
+## What each module is evidence for
+
+`domains.py` carries two decisions the legacy helper gets wrong: an address is a
+numeric offset from the network address, and the gateway belongs to the domain
+rather than being assumed at offset 1. Its differential test reproduces every
+zone's prefixes from the real topology and differs only by the two overlay CIDRs
+a zone still declares on itself.
+
+`identity.py` carries the named-mapping decision. Its differential test runs the
+same inputs through the merge the pipeline actually uses and requires agreement,
+because the decision rests on the claim that the existing engine already provides
+the semantics. If either side moves, that test says so.
