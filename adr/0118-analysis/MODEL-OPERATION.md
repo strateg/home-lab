@@ -477,6 +477,56 @@ which is the correct answer rather than a placeholder.
 
 ---
 
+## 7e. What admission binds, and why every link is checked
+
+Nothing renders the plan yet. `topology-tools/plugins/validators/strict_admission.py`
+is the contract the first renderer will have to use, written before it arrives so
+it meets a boundary instead of defining one. What it binds is a chain:
+
+    approval -> the exact intent that was checked -> the verification -> the plan
+
+Each arrow is an equality this code computes, not a field it reads. The plan's
+digest is computed here and compared with the one the verifier recorded, so a
+plan edited afterwards - including one that recomputes its own `digest` to agree
+with itself - is not the plan that was checked. The verifier records an
+`intent_digest` over the obligations it lowered for itself, and the approval names
+that same digest plus the scopes it covers. Without it, `approved: True` is a
+boolean that cannot say what it approved, and an approval issued for one scope
+admitted a plan built from another.
+
+**Three answers, not two.** The verification record carries a status per
+obligation per scope: `pass`, `fail`, `unverified`. The middle answer is the one a
+boolean cannot hold. On the real topology today both matrices report
+
+| Scope | SEC-ORDER | SEC-COVER | SEC-AUTH | SEC-AVAIL |
+|---|---|---|---|---|
+| `inst.security_matrix.mikrotik` | pass | pass | pass | **unverified** |
+| `inst.security_matrix.proxmox` | pass | pass | pass | **unverified** |
+
+with zero errors. Nothing is admissible, and not because anything is broken:
+nobody has declared what has to keep working, so SEC-AVAIL was never verified.
+`W7002` says so, and admission acts on it rather than noting it.
+
+**An absent field is an unanswered question.** Every field the record must carry
+is required. A missing `errors` is not zero errors and a missing obligation
+status is not a pass - both were admitted before the 2026-09-14 review.
+
+**The other five obligations are deferred with a trigger.** SEC-NAT, SEC-STATE,
+SEC-TRANSITION, SEC-PATH and SEC-CAP are implemented in `netmodel` and mounted in
+no framework plugin. Each is listed with the plan constructs that would make it
+applicable: a plan containing none of them cannot violate it, and a plan that
+grows one is refused here until the check is mounted. A test asserts the current
+compiler emits none of those constructs, so the deferral is a claim that can come
+due rather than a promise.
+
+**The refusal is checked by what is on disk.** A test-only generator in
+`tests/fixtures/strict_writer/` runs in the generate stage and writes one marker
+file only for an admitted plan. A mutant that replaces the decision with one that
+always admits does write it, which is what makes the refusals' silence mean
+something.
+
+---
+
 ## 8. Current state
 
 | Fact | Value | Measured |
@@ -485,6 +535,8 @@ which is the correct answer rather than a placeholder.
 | Address domains | 11, all unshifted IPv4 /24 | 2026-09-11 |
 | Live addresses reproduced by the strict resolver | 23 of 23 | 2026-09-11 |
 | Artifact parity against the pre-work baseline | 147 files identical | 2026-09-11 |
+| Artifact parity against a clean worktree at HEAD | 163 files compared, every emitted artifact identical | 2026-09-14 |
+| Scopes admissible under the strict boundary | 0 of 2; SEC-AVAIL unverified in both | 2026-09-14 |
 
 The whole of this is inert on the current topology **by construction**, and that
 is the evidence for it being safe to have landed: artifact parity is identical
@@ -504,3 +556,4 @@ across every emitted file.
 | 2026-09-11 | `553c2e3b` | Section 7c: lowering, the independent interpreter, and SEC-AUTH/SEC-AVAIL as properties with mutants |
 | 2026-09-14 | `622eff34` | Section 7d: all eight obligations placed, the three habits behind them, and what SEC-PATH still needs from outside |
 | 2026-09-14 | `7128c2f6` | Section 4: `E7025` for a reference to a disabled record, and the ledger of allocated codes that nothing raises yet |
+| 2026-09-14 | `PENDING_SHA` | Section 7e: the admission chain, the three obligation answers, and the deferral that has a trigger; written after the external review of `5e02bf70` |

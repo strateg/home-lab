@@ -1203,9 +1203,12 @@ one, and both now say so. A test asserts the two supported-protocol sets agree,
 since they are written twice on purpose.
 
 **The committed lock did not describe the committed content.** At `12f4e836` an
-isolated worktree fails `E7824`, while the working tree passed - because the lock
-was regenerated before the last edit of that change. Nothing caught it, since
-every local run had a lock refreshed after the edits. `tests/test_framework_lock_matches_content.py`
+isolated worktree fails `E7824`, while the working tree passed. *Corrected
+2026-09-14:* I attributed that to a lock regenerated before the last edit. It was
+not - the external review of `5e02bf70` established the real cause, five
+gitignored `*.egg-info` files inside the integrity hash, and reproduced the
+committed hashes of older revisions by adding exactly those rows. The guard below
+is still worth having, and it was guarding the wrong thing on its own. `tests/test_framework_lock_matches_content.py`
 now runs the strict verifier, so a divergent lock fails here rather than in
 someone else's checkout.
 
@@ -1295,6 +1298,94 @@ thought to mutate. PR2 and the strict boundary still need an outside review
 against this code and the exact gate commands. F3 through F5 remain open, and so
 does G3.
 
+### External review of `5e02bf70`, and what it closed
+
+`docs/reports/2026-09-14-adr0118-0119-strict-review-5e02bf70.md`. It confirmed the
+earlier fixes and produced six counterexamples against the admission boundary,
+each of them an *admitted* plan that should not have been.
+
+**The chain was open at both ends.** `approved=True` was read for its truthiness
+alone - so an approval issued for a different scope and a different binding
+admitted this plan - and `complete` meant only that the source input had been
+readable, so a genuine record reporting `W7002` was a pass. Admission now binds
+
+    approval -> the exact intent that was checked -> the verification -> the plan
+
+by digest. The validator computes an `intent_digest` over the obligations it
+lowered for itself, the approval names that same digest and the scopes it covers,
+and a missing field is refused rather than defaulted: an absent `errors` is not
+zero errors. `complete` is gone. In its place the record carries a status per
+obligation per scope - `pass`, `fail`, `unverified` - because there are three
+answers and one boolean could only carry two.
+
+That last distinction is what the real topology now shows. Both matrices come
+back `SEC-AVAIL: unverified`, errors 0, and nothing is admissible - not because
+anything is broken, but because nobody has said what has to keep working.
+
+**Three scope lists that contradicted each other went unread.** A plan whose
+`strict_eligible` named a scope its `lowering_complete` did not, with non-empty
+`unlowerable` and empty `blocked_scopes`, was admitted on the strength of
+eligibility being non-empty. Each list is now checked against the others, and
+requesting a scope outside the eligible set is refused - admission is per scope,
+so a renderer receives the projection that was admitted.
+
+**A scope stating only `Q` was skipped twice over.** `_source_obligations` moved
+to the next row when a scope declared no `policy_overrides`, so its requirements
+were never read; and `_check_semantics` returned before the loop when the whole
+source had no permits and no guards. A scope saying only "TCP/53 must work", with
+a plan carrying nothing but a terminal, came out at errors 0 and complete. Both
+early exits are gone, and `Q ⊄ A` is now reported where `A` is empty.
+
+**The write boundary was never exercised.** The pipeline test ran a compiler and
+a validator and then asserted that two directories did not exist. No generator
+ran, so it passed whether or not any control over writing existed. There is now a
+test-only generator in `tests/fixtures/strict_writer/` that runs in the generate
+stage, consumes the plan and the record through the same contract a renderer will
+use, and writes one marker only when admission says yes. The positive control is
+a real check of the exact plan - the validator examines it and publishes its own
+record, and nothing is edited afterwards. A bypass mutant that replaces
+`evaluate` with one that always admits *does* write the marker, which is what
+makes the negative cases' silence mean something.
+
+**A legal source crashed the probe builder.** A permit naming all 65535 ports is
+inside the finite-port contract; `_port_outside` raised `AssertionError` on an
+empty complement, and after that was fixed the 524288-probe cartesian product hit
+the 30s plugin budget - which reads as a crash either way. The probe set is now
+one representative per equivalence class: two ports belonging to exactly the same
+listed sets are indistinguishable to every rule and every obligation here, so
+probing both proves nothing the first did not. The class outside every set is
+kept, because that is where a wildcard permit hides; when the sets already cover
+1-65535 that class is empty, which is an ordinary source.
+
+**Identity excluded too much.** `content_digest` stripped every field named
+`digest` at any depth, so changing a nested `evidence_ref.digest` left the plan's
+identity unchanged and kept its admission. Only the payload's own top-level
+identity is excluded now, and a nested digest is refused as an unsupported shape
+rather than digested around.
+
+**`E7824` had a different cause than I recorded.** I wrote that the lock had been
+refreshed before the last edit. The review established what it actually was: the
+integrity hash covered five gitignored `*.egg-info` files written by
+`pip install -e`, so a clean checkout and an installed working tree computed
+different hashes. Adding exactly those five rows to the computation reproduces
+the committed hashes of older revisions. Installation and build metadata is now
+excluded from the distribution, and a second test walks the distribution and
+fails on any file `git ls-files` does not list - the class, not that instance. A
+tree built from tracked files alone now verifies.
+
+**The raiser scan was wrong a third time.** Requiring the code literal to be a
+call argument refused the lookup-table mutant the review asked for and missed
+`E7090`, which reaches `emit_diagnostic` through a loop variable. The question it
+asks now is narrower than "is this emitted" and wider than one call shape: is the
+code named inside a function that emits diagnostics at all. A module-level table
+does not satisfy it. It is still a necessary condition rather than proof, and it
+says so.
+
+*Not closed.* PR2 and the strict boundary still need a review against this code.
+No producer of approvals exists, so in the real pipeline every plan is refused
+twice over - at provenance and at approval - and the positive control is a fixture.
+F3 through F5 remain open, and so does G3.
+
 **A framework lock is not reproducible from a commit alone.** A detached worktree
 at `93c0c2f7` computes `sha256-f43ba202...` where the committed lock says
 `sha256-baee680d...`, while the same revision in the main working tree matches.
@@ -1303,6 +1394,12 @@ integrity hash depends on files a fresh clone does not have. This was found whil
 building the control run above and is unrelated to the declarations; it matters
 because a lock that cannot be recomputed from source cannot serve as an integrity
 check for anyone but the machine that generated it.
+
+*Closed 2026-09-14.* The external review named the five files: the `*.egg-info`
+directory `pip install -e` writes beside the package. `distribution.exclude_globs`
+now excludes installation and build metadata, and
+`tests/test_framework_lock_matches_content.py` fails on any distributed file that
+`git ls-files` does not list. A tree built from tracked files alone verifies.
 
 ### G1 — Registered schema and reference contracts
 

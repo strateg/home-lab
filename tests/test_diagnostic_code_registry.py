@@ -161,12 +161,24 @@ AWAITING_A_MOUNT = {
 
 
 def _codes_raised_in_source() -> set[str]:
-    """Codes named by a string literal that is not a docstring.
+    """Codes named inside a function that actually emits diagnostics.
 
-    `scan_emissions` is the wrong instrument here: it counts a `code=` keyword or
-    a CODE-named constant, and misses `self._diag("E7025", ...)`. That blind spot
-    reported two raised codes as unraised during the 2026-09-14 self-review. A
-    docstring mention is documentation, so those are excluded the other way.
+    Three instruments, each wrong in its own way, and the differences matter.
+
+    `scan_emissions` counts a `code=` keyword or a CODE-named constant, so it
+    cannot see `self._diag("E7025", ...)` - it reported two raised codes as
+    unraised during the 2026-09-14 self-review. Counting every string literal
+    outside a docstring fixed that and broke the other way: a review pointed out
+    that a constant, a comparison or a lookup table satisfies it without
+    emitting anything. Requiring the literal to be a call argument refuses those
+    and misses `E7090`, which reaches `emit_diagnostic` through a loop variable.
+
+    So the question asked here is narrower than "is this emitted" and wider than
+    a single call shape: is this code named inside a function that emits
+    diagnostics at all. A lookup table at module scope does not satisfy it, and
+    neither does a comparison in a function that only reads codes. It remains a
+    necessary condition rather than proof - a literal in an unreachable branch of
+    an emitting function counts, and only running the code settles that.
     """
     import ast
 
@@ -184,17 +196,35 @@ def _codes_raised_in_source() -> set[str]:
                 tree = ast.parse(path.read_text(encoding="utf-8"))
             except (OSError, SyntaxError):
                 continue
-            docstrings = set()
             for node in ast.walk(tree):
-                body = getattr(node, "body", None)
-                if not isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+                if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                     continue
-                if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant):
-                    docstrings.add(id(body[0].value))
-            for node in ast.walk(tree):
-                if isinstance(node, ast.Constant) and isinstance(node.value, str) and id(node) not in docstrings:
-                    found.add(node.value)
+                if not _emits(node):
+                    continue
+                for inner in ast.walk(node):
+                    if isinstance(inner, ast.Constant) and isinstance(inner.value, str):
+                        found.add(inner.value)
     return found
+
+
+# The two shapes an emission takes here. `emit_diagnostic` is the kernel helper;
+# `_diag` is the wrapper the schema validator uses and the one `scan_emissions`
+# cannot see, because it passes the code positionally.
+_EMITTERS = ("emit_diagnostic", "_diag")
+
+
+def _emits(node) -> bool:
+    """Whether this function body calls a diagnostic emitter at all."""
+    import ast
+
+    for inner in ast.walk(node):
+        if not isinstance(inner, ast.Call):
+            continue
+        callee = inner.func
+        name = callee.attr if isinstance(callee, ast.Attribute) else getattr(callee, "id", "")
+        if name in _EMITTERS:
+            return True
+    return False
 
 
 def test_every_allocated_code_is_raised_or_recorded_as_waiting() -> None:
@@ -205,6 +235,45 @@ def test_every_allocated_code_is_raised_or_recorded_as_waiting() -> None:
     assert unraised <= set(AWAITING_A_MOUNT), (
         f"allocated with no raiser and no recorded mount point: {sorted(unraised - set(AWAITING_A_MOUNT))}"
     )
+
+
+def test_a_code_that_is_only_mentioned_does_not_count_as_raised() -> None:
+    """The mutant a review asked for: named in the source, passed to nothing.
+
+    A constant, a comparison and a dict entry all mention a code without ever
+    emitting it. If any of them satisfied the scan, the ledger above would report
+    a rule that exists as a claim nobody checks.
+    """
+    import ast
+
+    mentioned_only = ast.parse(
+        "CODE = 'E7099'\n"
+        "TABLE = {'E7098': 'never emitted'}\n"
+        "def f(x):\n"
+        "    return x == 'E7097'\n"
+    )
+    emitting = ast.parse(
+        "def g(self):\n"
+        "    self._diag('E7096', stage)\n"
+        "    self.emit_diagnostic(code='E7095')\n"
+        "    for code in (('E7094',),):\n"
+        "        self.emit_diagnostic(code=code)\n"
+    )
+
+    def scan(tree) -> set[str]:
+        found = set()
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and _emits(node):
+                found |= {
+                    inner.value
+                    for inner in ast.walk(node)
+                    if isinstance(inner, ast.Constant) and isinstance(inner.value, str)
+                }
+        return found
+
+    assert scan(mentioned_only) == set(), "a mention outside an emitting function is not an emission"
+    seen = scan(emitting)
+    assert {"E7096", "E7095", "E7094"} <= seen, "all three emission shapes must be seen"
 
 
 def test_the_waiting_list_does_not_carry_codes_that_now_fire() -> None:
@@ -227,7 +296,8 @@ def test_the_allocated_range_collides_with_nothing() -> None:
             text = path.read_text(encoding="utf-8", errors="ignore")
             for code in allocated:
                 if code in text:
-                    assert "0118" in text or "0119" in text or path.name == "diagnostics-catalog.md", (
+                    related = "0118" in text or "0119" in text or "0118" in path.name or "0119" in path.name
+                    assert related or path.name == "diagnostics-catalog.md", (
                         f"{code} appears in {path} which is not part of the ADR 0118/0119 allocation"
                     )
 

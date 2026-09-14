@@ -81,6 +81,21 @@ def _codes(result) -> list[str]:
     return [diag.code for diag in result.diagnostics]
 
 
+def _errors(result) -> list[str]:
+    return [diag.code for diag in result.diagnostics if diag.severity == "error"]
+
+
+def _only_unverified_availability(result) -> bool:
+    """No errors, and nothing beyond the SEC-AVAIL "unverified" warning.
+
+    An empty source states no availability requirement for the scopes the plan
+    carries, and that is `W7002` by definition: SEC-AVAIL is unverified rather
+    than satisfied. These tests are about order and termination, so they assert
+    the absence of everything else instead of the absence of diagnostics.
+    """
+    return _errors(result) == [] and set(_codes(result)) <= {"W7002"}
+
+
 # --- it runs, and it is independent -------------------------------------------------
 
 
@@ -134,8 +149,10 @@ def test_a_correct_plan_produces_no_diagnostics() -> None:
         ]
     )
 
-    assert result.status == PluginStatus.SUCCESS
-    assert result.diagnostics == []
+    # PARTIAL, not SUCCESS: the warning is the SEC-AVAIL one, and a check that
+    # reports "unverified" has not returned a clean bill of health.
+    assert result.status == PluginStatus.PARTIAL
+    assert _only_unverified_availability(result)
 
 
 def test_a_declared_scope_with_no_rules_is_an_error() -> None:
@@ -167,6 +184,7 @@ def test_a_plan_declaring_no_scopes_and_no_rules_is_not_an_error() -> None:
     publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", [])
 
     assert registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE).diagnostics == []
+
 
 
 def test_a_terminal_that_accepts_is_refused() -> None:
@@ -302,7 +320,7 @@ def test_a_terminal_is_not_treated_as_one_more_deny() -> None:
     )
 
     assert "E7080" not in _codes(result)
-    assert result.diagnostics == []
+    assert _only_unverified_availability(result)
 
 
 def test_a_genuine_cycle_is_reported_with_the_rules_that_form_it() -> None:
@@ -327,8 +345,10 @@ def test_a_long_chain_does_not_exhaust_the_stack() -> None:
 
     result = _run(rules)
 
-    assert result.status == PluginStatus.SUCCESS
-    assert result.diagnostics == []
+    # PARTIAL, not SUCCESS: the warning is the SEC-AVAIL one, and a check that
+    # reports "unverified" has not returned a clean bill of health.
+    assert result.status == PluginStatus.PARTIAL
+    assert _only_unverified_availability(result)
 
 
 # --- the independent source-side check ------------------------------------------------
@@ -689,6 +709,90 @@ def test_a_satisfied_availability_requirement_reports_nothing() -> None:
     result = _run_with_source(_compile_plan(rows), rows)
 
     assert [diag.code for diag in result.diagnostics] == []
+
+
+def test_a_scope_stating_only_q_is_checked(review: str = "5e02bf70 S4") -> None:
+    """The scope with no policy at all, which used to be skipped twice over.
+
+    `_source_obligations` moved to the next row when a scope declared no
+    `policy_overrides`, so its requirements were never read; and `_check_semantics`
+    returned before the loop when the whole source had no permits and no guards.
+    A scope that says only "TCP/53 must work" and a plan that carries nothing but
+    a terminal therefore came out at errors=0, complete=True - and admission took
+    that as a pass.
+    """
+    rows = [
+        {
+            "group": "network",
+            "instance": MATRIX_SCOPE,
+            "class_ref": "class.network.security_matrix",
+            "layer": "L2",
+            "extensions": {
+                "availability_requirements": [
+                    {
+                        "name": "dns-must-work",
+                        "from_zone_ref": "z.a",
+                        "to_zone_ref": "z.b",
+                        "ports": {"tcp": [53]},
+                    }
+                ]
+            },
+        }
+    ]
+
+    codes = _codes(_run_with_source(_compile_plan(rows), rows))
+
+    # Q is not a subset of A when A is empty. The contradiction is between two
+    # source statements and is reported as such, not as the plan's failure.
+    assert "E7092" in codes, f"a scope stating only Q went unchecked: {codes}"
+
+
+def test_a_requirement_beside_an_empty_override_list_is_still_read() -> None:
+    """`policy_overrides: []` is a value, and it must not swallow the next key."""
+    rows = [_matrix_row()]
+    rows[0]["extensions"]["availability_requirements"] = [
+        {"name": "dns-must-work", "from_zone_ref": "z.a", "to_zone_ref": "z.b", "ports": {"tcp": [53]}}
+    ]
+
+    codes = _codes(_run_with_source(_compile_plan(rows), rows))
+
+    assert "E7092" in codes
+    assert "W7002" not in codes, "the scope declared a requirement; it is not undeclared"
+
+
+def test_a_permit_naming_every_port_does_not_crash_the_probe_builder() -> None:
+    """The finite-port contract admits 1-65535, and an empty complement is normal.
+
+    `_port_outside` raised `AssertionError` when every port was enumerated, so a
+    legal source took the validator down instead of producing a probe set with
+    nothing to add outside it.
+    """
+    rows = [_matrix_row(_src("everything", ports={"tcp": list(range(1, 65536))}))]
+
+    result = _run_with_source(_compile_plan(rows), rows)
+
+    assert _errors(result) == [], f"a full port enumeration is a source, not a defect: {_codes(result)}"
+
+
+def test_the_port_reduction_separates_exactly_what_the_rules_separate() -> None:
+    """The probe set is smaller; it is not blinder.
+
+    Two ports are merged only when every listed set contains both, which is the
+    condition under which no rule and no obligation here can tell them apart.
+    A set that names one and not the other splits them again.
+    """
+    from plugins.validators.security_plan_validator import SecurityPlanValidator as V
+
+    together = V._port_representatives([frozenset({53, 443})])
+    assert len({53, 443} & together) == 1, "indistinguishable ports need one witness between them"
+
+    apart = V._port_representatives([frozenset({53, 443}), frozenset({53})])
+    assert {53, 443} <= apart, "a set naming one of them makes them distinguishable"
+
+    everything = V._port_representatives([frozenset(range(1, 65536))])
+    assert everything == {1}, "no class outside a full enumeration, and one witness inside it"
+
+    assert V._port_representatives([]) != set(), "with nothing listed, every port is the outside class"
 
 
 def test_a_required_flow_a_guard_forbids_is_a_contradiction_not_a_permit() -> None:

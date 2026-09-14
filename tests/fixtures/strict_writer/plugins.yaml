@@ -1,0 +1,32 @@
+# Test-only manifest. Loaded by tests/plugin_integration/test_strict_admission_pipeline.py
+# into a registry that already holds the real manifest, so the writer runs in the
+# generate stage alongside everything else. Never included by
+# topology-tools/plugins/plugins.yaml, and never part of the distribution.
+schema_version: 1
+manifest_type: stage_plugins
+stage: generate
+plugins:
+- id: test.generator.strict_marker
+  kind: generator
+  entry: strict_marker_generator.py:StrictMarkerGenerator
+  api_version: 1.x
+  stages:
+  - generate
+  phase: run
+  order: 399
+  depends_on:
+  - base.validator.security_plan
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - key: security_plan
+    from_plugin: base.compiler.security_plan
+    required: false
+  - key: security_plan_verification
+    from_plugin: base.validator.security_plan
+    required: false
+  description: Test-only writer proving that refused admission blocks the write.

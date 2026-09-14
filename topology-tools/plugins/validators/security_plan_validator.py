@@ -25,7 +25,12 @@ from __future__ import annotations
 
 from typing import Any, Mapping, Sequence
 
-from plugins.validators.strict_admission import content_digest
+from plugins.validators.strict_admission import (
+    CHECKED_OBLIGATIONS,
+    PASS,
+    RECORD_VERSION,
+    content_digest,
+)
 
 from kernel.plugin_base import (
     PluginContext,
@@ -43,20 +48,55 @@ ROWS_KEY = "normalized_rows"
 MATRIX_CLASS = "class.network.security_matrix"
 ANY_TRANSPORT = "any"
 
+# Which obligation each diagnostic speaks for. The verification record reports a
+# status per obligation per scope, and a consumer refuses on anything that is not
+# a pass - so a code with no obligation here would report a failure that no
+# admission decision could see.
+_FAILS = {
+    "E7080": "SEC-ORDER",
+    "E7081": "SEC-ORDER",
+    "E7082": "SEC-ORDER",
+    "E7090": "SEC-COVER",
+    "E7091": "SEC-COVER",
+    "E7093": "SEC-COVER",
+    "E7095": "SEC-COVER",
+    "E7083": "SEC-AUTH",
+    "E7084": "SEC-AVAIL",
+    "E7092": "SEC-AVAIL",
+}
+
+# Diagnostics that make an obligation *unverified* rather than failed. The
+# distinction is the point: "this was checked and holds" and "nobody stated what
+# has to hold" are different answers, and the second one is not a pass. `E7094`
+# is a refused selector, which leaves every obligation for that scope unchecked.
+_UNVERIFIES: dict[str, str | None] = {"W7002": "SEC-AVAIL", "E7094": None}
+
+UNVERIFIED = "unverified"
+FAILED = "fail"
+
 # Mirrors the compiler's set. Kept here rather than imported because this module
 # must be able to disagree with the compiler; a test asserts the two agree.
 _SUPPORTED_PROTOCOLS = frozenset({"tcp", "udp", "sctp", "icmp"})
 
-def _port_outside(enumerated: set[int]) -> int:
-    """A port none of these are. Derived, because a constant can be listed."""
+def _port_outside(enumerated: set[int]) -> int | None:
+    """A port none of these are, or None when the domain is already exhausted.
+
+    An empty complement has no representative, and that is an ordinary source -
+    a permit naming every port in 1-65535 is inside the finite-port contract. The
+    first version raised `AssertionError` here, which turned a legal source into
+    a crash in the validator rather than a probe set with nothing to add.
+    """
     for candidate in range(65535, 0, -1):
         if candidate not in enumerated:
             return candidate
-    raise AssertionError("every port is enumerated; there is no outside to sample")
+    return None
 
 
 def _protocol_outside(enumerated: set[str]) -> str:
-    """A protocol token none of these are, for the same reason."""
+    """A protocol token none of these are, for the same reason.
+
+    Protocols have no closed domain, so a representative always exists.
+    """
     candidate = "probe"
     while candidate in enumerated:
         candidate += "x"
@@ -135,21 +175,121 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
         for scope in sorted(by_scope):
             diagnostics.extend(self._check_scope(scope=scope, rules=by_scope[scope], stage=stage))
 
-        # What was checked, and of what. The digest is computed from the plan's
-        # content here rather than read from the payload's own `digest` field: a
-        # payload that supplies its own identity can be edited to agree with
-        # itself, and admission has to bind the plan that was examined.
+        # What was checked, and of what. Both digests are computed from content
+        # here rather than read from a payload's own `digest` field: a payload
+        # that supplies its own identity can be edited to agree with itself, and
+        # admission has to bind the plan that was examined *and* the intent it
+        # was examined against. Without the second one an approval can only say
+        # "approved" and cannot say approved of what.
         errors = sum(1 for item in diagnostics if item.severity == "error")
+        scopes = sorted(set(by_scope) | set(source["scopes"]))
         record = {
+            "schema_version": RECORD_VERSION,
             "plan_digest": content_digest(plan),
+            "intent_digest": self._intent_digest(source),
             "errors": errors,
             "warnings": sum(1 for item in diagnostics if item.severity == "warning"),
-            "complete": source["available"],
-            "checked_scopes": sorted(by_scope),
+            # Renamed from `complete`, which meant only that the source input was
+            # readable and was read downstream as "the check finished". What
+            # finished is now stated per obligation per scope.
+            "source_available": source["available"],
+            "checked_scopes": scopes,
+            "obligations": self._obligation_statuses(scopes, diagnostics, source),
         }
         ctx.publish("security_plan_verification", record)
 
         return self.make_result(diagnostics, output_data={"security_plan_verification": record})
+
+    # --- what the record has to say ------------------------------------------------
+
+    @staticmethod
+    def _intent_digest(source: Mapping[str, Any]) -> str:
+        """The identity of the intent this check read, in canonical form.
+
+        An approval has to name what it approved. Until this existed the only
+        thing tying an approval to a decision was the word `approved`, so an
+        approval issued for one scope admitted a plan built from another - the
+        review's `UNRELATED_APPROVAL` counterexample.
+
+        It is derived from the obligations this validator lowered for itself, not
+        from the compiler's summary and not from the plan: those are the inputs
+        whose identity the approval is about.
+        """
+        if not source.get("available"):
+            return ""
+
+        def entries(items: Sequence[Mapping[str, Any]]) -> list[list[Any]]:
+            return sorted(
+                [
+                    item["scope"],
+                    item["name"],
+                    item["effect"],
+                    item["source"],
+                    item["destination"],
+                    [[protocol, list(values or ())] for protocol, values in sorted(item["transports"])],
+                ]
+                for item in items
+            )
+
+        return content_digest(
+            {
+                "scopes": sorted(source["scopes"]),
+                "permits": entries(source["permits"]),
+                "guards": entries(source["guards"]),
+                "availability": entries(source["availability"]),
+                "availability_declared": sorted(source["availability_declared"]),
+                "availability_attested": sorted(source["availability_attested"]),
+                "unsupported": sorted(
+                    [str(item["scope"]), str(item["name"]), str(item["reason"])]
+                    for item in source["unsupported"]
+                ),
+            }
+        )
+
+    @staticmethod
+    def _obligation_statuses(
+        scopes: Sequence[str], diagnostics: Sequence[PluginDiagnostic], source: Mapping[str, Any]
+    ) -> dict[str, dict[str, str]]:
+        """A status per obligation per scope: `pass`, `fail` or `unverified`.
+
+        The record used to carry one boolean, `complete`, which meant that the
+        source input had been readable. A real record reporting `W7002` - SEC-AVAIL
+        unverified - was therefore admitted as a passing check. Three answers are
+        needed because there are three: it holds, it does not, and nobody checked.
+
+        When the source could not be read nothing was verified, and saying so per
+        scope is more useful than one flag that a consumer has to know to read.
+        """
+        statuses = {
+            scope: {obligation: PASS for obligation in CHECKED_OBLIGATIONS} for scope in scopes
+        }
+        if not source.get("available"):
+            return {
+                scope: {obligation: UNVERIFIED for obligation in CHECKED_OBLIGATIONS}
+                for scope in scopes
+            }
+
+        for item in diagnostics:
+            path = str(item.path or "")
+            scope = path.split("security_plan:", 1)[1] if path.startswith("security_plan:") else ""
+            targets = [scope] if scope in statuses else list(statuses)
+
+            failed = _FAILS.get(item.code)
+            if failed:
+                for target in targets:
+                    statuses[target][failed] = FAILED
+                continue
+
+            if item.code in _UNVERIFIES:
+                obligation = _UNVERIFIES[item.code]
+                affected = [obligation] if obligation else list(CHECKED_OBLIGATIONS)
+                for target in targets:
+                    for name in affected:
+                        # A failure already answered the question; "nobody
+                        # checked" must not overwrite "it does not hold".
+                        if statuses[target][name] == PASS:
+                            statuses[target][name] = UNVERIFIED
+        return statuses
 
     def _check_scope(
         self, *, scope: str, rules: Sequence[Mapping[str, Any]], stage: Stage
@@ -387,10 +527,12 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
                 continue
             scopes.add(scope)
             extensions = row.get("extensions")
+            # Availability is read whether or not this scope states any policy.
+            # `continue` here meant a scope declaring only Q - no overrides at
+            # all - never had its requirements read, so the strongest thing it
+            # said about itself was invisible to the check.
             overrides = extensions.get("policy_overrides") if isinstance(extensions, Mapping) else None
-            if not isinstance(overrides, list):
-                continue
-            for override in overrides:
+            for override in overrides if isinstance(overrides, list) else []:
                 if not isinstance(override, Mapping):
                     continue
                 entry, refusal = self._obligation(override, scope)
@@ -550,7 +692,10 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
                         f"the sources declare scope '{scope}' and the plan has no representation of it; "
                         "an absent scope cannot be reported as unterminated, so the omission hides itself"
                     ),
-                    path="security_plan:coverage",
+                    # Scoped, so the obligation status for this scope carries the
+                    # failure. On a shared `coverage` path the scope that was
+                    # dropped entirely would have reported no failed obligation.
+                    path=f"security_plan:{scope}",
                 )
             )
 
@@ -630,9 +775,11 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
 
         rules = plan.get("rules") if isinstance(plan, Mapping) else []
         rules = [item for item in rules if isinstance(item, Mapping)] if isinstance(rules, list) else []
-        if not source["permits"] and not source["guards"]:
-            return []
 
+        # No early return on an intent without permits or guards. A scope that
+        # states only availability requirements is the case where the plan can
+        # carry nothing at all and still look clean: Q is not a subset of A when
+        # A is empty, and the check has to reach that comparison to say so.
         diagnostics: list[PluginDiagnostic] = []
         # Every scope the *plan* contains, not only every scope the source
         # declares. Iterating the source alone meant a scope the plan invented -
@@ -732,7 +879,17 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
         protocols = {
             protocol for item in entries for protocol, _ in item["transports"] if protocol != ANY_TRANSPORT
         }
-        ports = {port for item in entries for _, values in item["transports"] for port in (values or ())}
+        # The port sets any predicate here can distinguish, kept as sets rather
+        # than flattened. Flattening was the scalability defect: a permit naming
+        # all 65535 ports - legal under the finite-port contract - produced half a
+        # million probes and the plugin hit its 30s budget, which reads as a
+        # crash rather than as a source the check cannot afford.
+        port_sets: list[frozenset[int]] = [
+            frozenset(values)
+            for item in entries
+            for _, values in item["transports"]
+            if values
+        ]
 
         for rule in rules:
             endpoints |= set(rule.get("sources") or [])
@@ -742,7 +899,10 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
                 continue
             if transport.get("protocol"):
                 protocols.add(str(transport["protocol"]))
-            ports |= {int(item) for item in (transport.get("ports") or [])}
+            if transport.get("ports"):
+                port_sets.append(frozenset(int(item) for item in transport["ports"]))
+
+        ports = SecurityPlanValidator._port_representatives(port_sets)
 
         # Representatives from outside the enumerated values, one per equivalence
         # class the enumeration cannot cover.
@@ -763,7 +923,6 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
         # there is no "other endpoint" class to sample. Inventing one would test
         # a zone that does not exist - and an unknown endpoint is refused by
         # `E7095` rather than probed.
-        ports.add(_port_outside(ports))
         protocols.add(_protocol_outside(protocols))
         return [
             (left, right, protocol, port)
@@ -772,6 +931,42 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
             for protocol in sorted(protocols or {"tcp"})
             for port in sorted(ports)
         ]
+
+    @staticmethod
+    def _port_representatives(port_sets: Sequence[frozenset[int]]) -> set[int]:
+        """One port per equivalence class, plus one from outside every set.
+
+        Every predicate in this algebra tests membership in one of the listed
+        port sets, or matches every port. So two ports belonging to exactly the
+        same sets are indistinguishable to every rule and every obligation, and
+        probing both proves nothing the first did not. Grouping by that
+        membership signature and taking one witness per class is therefore a
+        reduction of the probe set, not a weakening of the check: a rule that
+        treats two ports differently puts them in different classes by
+        definition.
+
+        The class outside every set matters most and is kept: a wildcard permit
+        agrees with the authorization on every value anyone listed and permits
+        more beyond them, so "matches on all probes" would otherwise be a
+        property of the probe set rather than of the rule. When the sets already
+        cover 1-65535 that class is empty, which is an ordinary source and not a
+        failure - there is simply nothing outside to sample.
+
+        The witness is the smallest port in its class, so a diagnostic names a
+        real port rather than a synthetic one.
+        """
+        listed: set[int] = set().union(*port_sets) if port_sets else set()
+
+        witnesses: dict[frozenset[int], int] = {}
+        for port in sorted(listed):
+            signature = frozenset(index for index, values in enumerate(port_sets) if port in values)
+            witnesses.setdefault(signature, port)
+
+        representatives = set(witnesses.values())
+        outside = _port_outside(listed)
+        if outside is not None:
+            representatives.add(outside)
+        return representatives
 
     @staticmethod
     def _covers(entry: Mapping[str, Any], protocol: str, port: int) -> bool:

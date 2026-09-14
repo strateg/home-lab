@@ -250,12 +250,23 @@ def test_ordering_does_not_build_the_edge_set() -> None:
     import time
 
     def elapsed(count: int) -> float:
+        """The best of three, because the slowest of three measures the machine.
+
+        A single sample failed this in a full-suite run while passing in
+        isolation: the scheduler, not the algorithm. Taking the minimum removes
+        the noise that only ever inflates a measurement, and leaves the
+        complexity claim exactly as strong.
+        """
         rules = [permit(f"p{i}", port=1000 + i) for i in range(count)]
         rules += [guard(f"g{i}", port=i + 1) for i in range(count // 10)]
         rules.append(terminal())
-        start = time.perf_counter()
-        order_rules(rules)
-        return time.perf_counter() - start
+
+        samples = []
+        for _ in range(3):
+            start = time.perf_counter()
+            order_rules(rules)
+            samples.append(time.perf_counter() - start)
+        return min(samples)
 
     small = elapsed(400)
     large = elapsed(1600)

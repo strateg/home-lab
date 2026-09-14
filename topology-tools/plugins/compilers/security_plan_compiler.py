@@ -145,11 +145,11 @@ class SecurityPlanCompiler(CompilerPlugin):
         blocked = sorted({str(item.get("matrix_ref")) for item in unlowerable})
         # Two different claims, and conflating them was the mistake. Lowering
         # every legacy override of a scope says the compiler represented what was
-        # written; it says nothing about whether those overrides were approved,
-        # nor whether an independent check has passed. Strict eligibility needs
-        # confirmed bindings and independent validation, neither of which exists
-        # yet, so nothing is strict-eligible and the field says so rather than
-        # inheriting a completeness result.
+        # written; it says nothing about whether those overrides were approved.
+        # Strict eligibility needs approved bound permits, and a security matrix
+        # has none to give: `action: accept` is an authored override. Independent
+        # validation does now exist - `base.validator.security_plan` - and it is
+        # the other half, not this one.
         lowering_complete = [scope for scope in scopes if scope not in blocked]
         strict_eligible: list[str] = []
 
@@ -164,7 +164,8 @@ class SecurityPlanCompiler(CompilerPlugin):
             "strict_eligible": strict_eligible,
             "strict_blocked_reason": (
                 "provenance is legacy_shadow: these overrides are authored, not approved bound "
-                "permits, and no independent validation of the specialized plan exists yet"
+                "permits. Nothing in the topology declares an approver, so no approval can name "
+                "the intent an independent check verified"
             ),
             "blocked_scopes": blocked,
             "expected_overrides": {scope: expected.get(scope, 0) for scope in scopes},

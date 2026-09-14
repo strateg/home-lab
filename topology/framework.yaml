@@ -31,6 +31,16 @@ distribution:
     - "**/*.pyc"
     - "**/*.pyo"
     - "**/*.tmp"
+    # Installation and build metadata. `pip install -e` writes these next to the
+    # package, git ignores them, and until 2026-09-14 the framework integrity
+    # hash included them - so a clean checkout computed one hash and an installed
+    # working tree computed another, and `E7824` looked like a stale lock. A lock
+    # that cannot be recomputed from source is not an integrity check for anyone
+    # but the machine that generated it.
+    - "**/*.egg-info/**"
+    - "**/*.egg-info"
+    - "**/*.dist-info/**"
+    - "**/.eggs/**"
     # Development-only assets (ADR 0081 §2.2)
     - "tests/**"
     - "acceptance-testing/**"

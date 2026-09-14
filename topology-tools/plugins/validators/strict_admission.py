@@ -4,24 +4,47 @@ Nothing renders the security plan yet, and that is precisely why this exists now
 "No renderer" prevents application; it does not constitute a boundary, and a
 boundary written after the first consumer arrives is written around it.
 
-Five conditions, each refusing something that would otherwise look like progress:
+What admission binds is a **chain**, and each link is checked here rather than
+assumed:
+
+    approval -> the exact intent that was checked -> the verification -> the plan
+
+The 2026-09-14 review found the chain open at both ends. `approved=True` was read
+for its truthiness alone, so an approval issued for a different scope admitted
+this plan; and `complete` meant only that the source input was readable, so a
+record reporting an unverified obligation was a pass. Both are now refusals.
+
+Conditions, each refusing something that would otherwise look like progress:
 
 1. `legacy_shadow` is refused **regardless of lowering completeness**. Lowering
    every override says the compiler represented what was written; it says nothing
    about whether anyone approved it.
-2. Swapping `provenance` to `strict` is not enough. Admission needs approved
-   intent and a passing independent check, both bound to the exact inputs.
+2. The verification record must be complete in shape. A missing `errors` field is
+   not zero errors, and a missing obligation status is not a pass - an absent
+   field is an unanswered question, and this is where unanswered questions are
+   refused rather than defaulted.
 3. A plan changed after checking loses admission - including when its own digest
    is recomputed to match. Admission compares a digest **it computes** against the
    one the verifier recorded; trusting the digest a payload presents would let a
    mutated plan certify itself.
-4. Missing inputs, blocked scopes and incomplete checks forbid strict rendering.
-5. A refusal never enables a legacy path. Falling back on refusal turns the
+4. The approval must name the same intent the verifier checked, by digest, and
+   must cover the scopes being admitted. An approval that names nothing is a
+   boolean, and a boolean cannot say what it approved.
+5. Every obligation applicable to *this plan* must have passed for *each scope
+   being admitted*. Obligations the framework cannot check yet are listed with
+   the construct that makes them applicable: a plan containing that construct is
+   refused, and a plan containing none of it does not need the check.
+6. A refusal never enables a legacy path. Falling back on refusal turns the
    boundary into a preference, and the unapproved plan runs anyway.
 
 `availability_waiver` with an owner and a rationale makes a statement traceable.
 It is not authority: whether that person may waive it, and whether the waiver was
 agreed, belong to admission and are not properties of two filled-in strings.
+
+**No producer of approvals exists.** Nothing in the topology declares an approver,
+so in the real pipeline every plan is refused at condition 4 - after being refused
+at condition 1 for provenance. That is the honest state, and the contract is
+written now so the first consumer meets a boundary instead of defining one.
 """
 
 from __future__ import annotations
@@ -29,9 +52,46 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass, field
-from typing import Any, Mapping, Sequence
+from typing import Any, Iterable, Mapping, Sequence
 
 STRICT_PROVENANCE = "strict"
+RECORD_VERSION = 1
+PASS = "pass"
+
+# What an independent verification record must state. Every one of these is
+# required: the review's `MISSING_RECORD_FIELDS` counterexample was a record with
+# no `errors` and no `checked_scopes` that was admitted, because absence read as
+# zero and as "nothing to disagree with".
+REQUIRED_RECORD_FIELDS = (
+    "schema_version",
+    "plan_digest",
+    "intent_digest",
+    "errors",
+    "warnings",
+    "checked_scopes",
+    "obligations",
+    "source_available",
+)
+
+# What an approval must state. `approved: True` on its own is not an approval of
+# anything in particular, which is what let an unrelated approval admit a plan.
+REQUIRED_APPROVAL_FIELDS = ("approved", "approved_by", "intent_digest", "scopes", "epoch")
+
+# Obligations the framework checks today, in the plugin that publishes the record.
+CHECKED_OBLIGATIONS = ("SEC-ORDER", "SEC-COVER", "SEC-AUTH", "SEC-AVAIL")
+
+# Obligations implemented in `netmodel` and not mounted in any framework plugin,
+# each with the plan construct that would make it applicable. A plan carrying
+# none of these constructs cannot violate the obligation, so its absence is not a
+# gap; a plan that grows one is refused here until the check is mounted. This is
+# a deferral with a trigger, not a promise.
+DEFERRED_OBLIGATIONS: dict[str, tuple[str, ...]] = {
+    "SEC-NAT": ("nat", "transform", "translated"),
+    "SEC-STATE": ("stateful", "established", "related", "revocation"),
+    "SEC-TRANSITION": ("transition", "rollback", "staged"),
+    "SEC-PATH": ("path", "gate", "route_through"),
+    "SEC-CAP": ("capability", "requires_capability", "evidence"),
+}
 
 
 class AdmissionError(ValueError):
@@ -45,7 +105,9 @@ class Admission:
     admitted: bool
     reasons: tuple[str, ...] = ()
     plan_digest: str = ""
+    intent_digest: str = ""
     inputs_digest: str = ""
+    scopes: tuple[str, ...] = ()
 
     # Never true. A refusal that permitted a fallback would be a preference, and
     # the unapproved plan would run anyway - which is the failure this whole
@@ -55,26 +117,69 @@ class Admission:
 
     def __str__(self) -> str:
         if self.admitted:
-            return f"admitted, plan {self.plan_digest[:19]}"
+            return f"admitted {list(self.scopes)}, plan {self.plan_digest[:19]}"
         return "refused: " + "; ".join(self.reasons)
 
 
 def content_digest(payload: Any) -> str:
     """A digest of what is actually here, computed rather than accepted.
 
-    Any `digest` field the payload carries is excluded from the input, because a
-    payload that supplies its own identity can be edited to agree with itself.
+    The payload's **own top-level** `digest` is excluded, because a payload that
+    supplies its own identity can be edited to agree with itself.
+
+    Nothing else is excluded. The first version stripped every field named
+    `digest` at any depth, which made a nested reference's digest invisible to
+    identity: changing `evidence_ref.digest` left the plan's identity unchanged
+    and kept its admission. A nested reference is not supported here, and
+    `nested_digest_fields` refuses it rather than digesting around it.
     """
-
-    def strip(value: Any) -> Any:
-        if isinstance(value, Mapping):
-            return {key: strip(item) for key, item in sorted(value.items()) if key != "digest"}
-        if isinstance(value, (list, tuple)):
-            return [strip(item) for item in value]
-        return value
-
-    serialized = json.dumps(strip(payload), sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    if isinstance(payload, Mapping):
+        body = {key: value for key, value in payload.items() if key != "digest"}
+    else:
+        body = payload
+    serialized = json.dumps(body, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
     return "sha256-" + hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+
+def nested_digest_fields(payload: Any, *, _path: str = "") -> list[str]:
+    """Paths of `digest` fields below the top level, which this contract refuses.
+
+    A nested digest is a reference to content that is not here. Admitting it
+    would mean admitting something whose identity this decision never saw, so the
+    shape is rejected instead of silently included or silently excluded.
+    """
+    found: list[str] = []
+    if isinstance(payload, Mapping):
+        for key, value in sorted(payload.items()):
+            here = f"{_path}.{key}" if _path else str(key)
+            if key == "digest" and _path:
+                found.append(here)
+            found.extend(nested_digest_fields(value, _path=here))
+    elif isinstance(payload, (list, tuple)):
+        for index, item in enumerate(payload):
+            found.extend(nested_digest_fields(item, _path=f"{_path}[{index}]"))
+    return found
+
+
+def applicable_obligations(plan: Mapping[str, Any]) -> tuple[str, ...]:
+    """Which obligations this particular plan has to have passed.
+
+    The four checked ones always apply. A deferred one applies when the plan
+    contains a construct that could violate it - which is why the deferral is
+    safe to state: the model cannot express those constructs today, and on the
+    day it can, this refuses the plan rather than passing it unchecked.
+    """
+    text = json.dumps(plan, sort_keys=True, default=str).lower()
+    deferred = tuple(
+        name
+        for name, triggers in sorted(DEFERRED_OBLIGATIONS.items())
+        if any(f'"{trigger}"' in text for trigger in triggers)
+    )
+    return (*CHECKED_OBLIGATIONS, *deferred)
+
+
+def _missing(payload: Mapping[str, Any], required: Iterable[str]) -> list[str]:
+    return [name for name in required if name not in payload]
 
 
 def evaluate(
@@ -82,16 +187,30 @@ def evaluate(
     plan: Mapping[str, Any] | None,
     verification: Mapping[str, Any] | None,
     approved_intent: Mapping[str, Any] | None = None,
+    scopes: Sequence[str] | None = None,
 ) -> Admission:
-    """Decide admission from the plan, the verification record and approved intent.
+    """Decide admission from the plan, the verification record and an approval.
 
     `verification` is what an independent check recorded: the digest of the plan
-    it examined, and what it found. It is not taken from the plan.
+    it examined, the digest of the intent it examined it against, and a status
+    per obligation per scope. It is not taken from the plan.
+
+    `scopes` names what is being admitted. It defaults to the plan's
+    `strict_eligible`, and nothing outside that list can be requested: admission
+    is per scope, so a renderer receives the projection that was admitted rather
+    than the whole plan.
     """
     reasons: list[str] = []
 
     if not isinstance(plan, Mapping):
         return Admission(admitted=False, reasons=("there is no plan to admit",))
+
+    nested = nested_digest_fields(plan)
+    if nested:
+        reasons.append(
+            f"the plan carries nested digest field(s) {nested}; a reference to content this decision "
+            "cannot see is not supported, and digesting around it would leave that content unbound"
+        )
 
     digest = content_digest(plan)
 
@@ -102,41 +221,214 @@ def evaluate(
             "and completeness of lowering does not substitute for approval"
         )
 
+    eligible = [str(item) for item in (plan.get("strict_eligible") or [])]
+    requested = [str(item) for item in scopes] if scopes is not None else list(eligible)
+    if not requested:
+        reasons.append("no scope is strict-eligible")
+    outside = sorted(set(requested) - set(eligible))
+    if outside:
+        reasons.append(f"scope(s) {outside} are not strict-eligible in this plan and cannot be requested")
+
+    record_digest = ""
+    intent_digest = ""
     if not isinstance(verification, Mapping):
         reasons.append("no independent verification record; an unchecked plan is not admissible")
     else:
-        recorded = str(verification.get("plan_digest") or "")
-        if not recorded:
-            reasons.append("the verification record names no plan; it cannot be bound to this one")
-        elif recorded != digest:
+        missing = _missing(verification, REQUIRED_RECORD_FIELDS)
+        if missing:
             reasons.append(
-                f"the verified plan was {recorded[:19]} and this one is {digest[:19]}; "
+                f"the verification record is missing {missing}; an absent field is an unanswered "
+                "question, and an unanswered question is not a pass"
+            )
+        if verification.get("schema_version") != RECORD_VERSION:
+            reasons.append(
+                f"verification record version {verification.get('schema_version')!r}; this contract "
+                f"reads version {RECORD_VERSION}"
+            )
+
+        record_digest = str(verification.get("plan_digest") or "")
+        intent_digest = str(verification.get("intent_digest") or "")
+        if not record_digest:
+            reasons.append("the verification record names no plan; it cannot be bound to this one")
+        elif record_digest != digest:
+            reasons.append(
+                f"the verified plan was {record_digest[:19]} and this one is {digest[:19]}; "
                 "a plan changed after checking is not the plan that was checked"
             )
-        if verification.get("errors"):
-            reasons.append(f"the independent check reported {verification['errors']} error(s)")
-        if not verification.get("complete", False):
-            reasons.append("the independent check did not complete; an unfinished check is not a pass")
+        if not intent_digest:
+            reasons.append(
+                "the verification record names no intent; without it an approval cannot be tied to "
+                "what was actually checked"
+            )
+        if not verification.get("source_available", False):
+            reasons.append(
+                "the independent check could not read the source intent, so completeness against the "
+                "sources did not run"
+            )
+        errors = verification.get("errors")
+        if not isinstance(errors, int) or isinstance(errors, bool):
+            reasons.append(f"the verification record reports errors={errors!r}, which is not a count")
+        elif errors:
+            reasons.append(f"the independent check reported {errors} error(s)")
 
-    blocked = plan.get("blocked_scopes")
-    if blocked:
-        reasons.append(f"scopes blocked by unlowerable intent: {sorted(blocked)}")
+        checked = {str(item) for item in (verification.get("checked_scopes") or [])}
+        unchecked = sorted(set(requested) - checked)
+        if unchecked:
+            reasons.append(f"scope(s) {unchecked} were never checked by the verifier")
 
-    eligible = plan.get("strict_eligible")
-    if not eligible:
-        reasons.append("no scope is strict-eligible")
+        reasons.extend(_obligation_reasons(plan, verification, requested))
 
-    if not isinstance(approved_intent, Mapping) or not approved_intent.get("approved"):
+    reasons.extend(_scope_consistency_reasons(plan, requested))
+
+    approval_digest = ""
+    if not isinstance(approved_intent, Mapping):
         reasons.append("no approved intent; authored overrides are not approved bound permits")
+    else:
+        approval_digest = content_digest(approved_intent)
+        missing = _missing(approved_intent, REQUIRED_APPROVAL_FIELDS)
+        if missing:
+            reasons.append(f"the approval is missing {missing}; a bare boolean approves nothing in particular")
+        if not approved_intent.get("approved"):
+            reasons.append("the approval does not approve; authored overrides are not approved bound permits")
+        if not str(approved_intent.get("approved_by") or "").strip():
+            reasons.append("the approval names no approver")
+        if not str(approved_intent.get("epoch") or "").strip():
+            reasons.append("the approval names no epoch, so it cannot be revoked or superseded")
 
-    inputs_digest = content_digest(approved_intent) if isinstance(approved_intent, Mapping) else ""
+        approved_for = str(approved_intent.get("intent_digest") or "")
+        if not approved_for:
+            reasons.append("the approval names no intent; it cannot be bound to what was checked")
+        elif intent_digest and approved_for != intent_digest:
+            reasons.append(
+                f"the approval is for intent {approved_for[:19]} and the verifier checked "
+                f"{intent_digest[:19]}; an approval of other inputs is not an approval of these"
+            )
+
+        covered = {str(item) for item in (approved_intent.get("scopes") or [])}
+        uncovered = sorted(set(requested) - covered)
+        if uncovered:
+            reasons.append(f"the approval does not cover scope(s) {uncovered}")
+
+        plan_epoch = str(plan.get("epoch") or "")
+        if plan_epoch and plan_epoch != str(approved_intent.get("epoch") or ""):
+            reasons.append(
+                f"the plan is epoch {plan_epoch!r} and the approval is for "
+                f"{str(approved_intent.get('epoch') or '')!r}"
+            )
 
     return Admission(
         admitted=not reasons,
         reasons=tuple(reasons),
         plan_digest=digest,
-        inputs_digest=inputs_digest,
+        intent_digest=intent_digest,
+        inputs_digest=approval_digest,
+        scopes=tuple(sorted(requested)) if not reasons else (),
     )
+
+
+def _scope_consistency_reasons(plan: Mapping[str, Any], requested: Sequence[str]) -> list[str]:
+    """The plan's own scope lists must agree with what is being admitted.
+
+    The review admitted a plan whose `strict_eligible` named a scope its
+    `lowering_complete` did not, whose `unlowerable` was non-empty and whose
+    `blocked_scopes` was empty. Only non-emptiness of eligibility was checked, so
+    three fields that contradicted each other went unread.
+    """
+    reasons: list[str] = []
+    wanted = set(requested)
+
+    declared = {str(item) for item in (plan.get("scopes") or [])}
+    unknown = sorted(wanted - declared) if declared else sorted(wanted)
+    if unknown:
+        reasons.append(f"scope(s) {unknown} are not declared in the plan")
+
+    # Any blocked scope refuses the whole plan, not only a requested one. Scoped
+    # admission narrows within a fully lowered plan; it does not let a plan with
+    # a scope nobody could lower through on the strength of its other scopes. The
+    # blocked scope's restrictions are absent from whatever is rendered, and a
+    # partial ruleset reaching a device that previously carried that scope is the
+    # open-scope failure this whole contract is about.
+    blocked = {str(item) for item in (plan.get("blocked_scopes") or [])}
+    if blocked:
+        reasons.append(f"scopes blocked by unlowerable intent: {sorted(blocked)}")
+
+    complete = {str(item) for item in (plan.get("lowering_complete") or [])}
+    incomplete = sorted(wanted - complete)
+    if incomplete:
+        reasons.append(
+            f"scope(s) {incomplete} are strict-eligible but not lowering-complete; a subset of a "
+            "restriction is a weaker restriction"
+        )
+
+    unlowerable_scopes = {
+        str(item.get("matrix_ref") or item.get("scope") or "")
+        for item in (plan.get("unlowerable") or [])
+        if isinstance(item, Mapping)
+    }
+    leaking = sorted(wanted & unlowerable_scopes)
+    if leaking:
+        reasons.append(f"scope(s) {leaking} have intent the compiler could not lower")
+    if unlowerable_scopes and not blocked:
+        reasons.append(
+            "the plan reports unlowerable intent and no blocked scope; the two records disagree and "
+            "the disagreement is not resolved in favour of the permissive one"
+        )
+    return reasons
+
+
+def _obligation_reasons(
+    plan: Mapping[str, Any], verification: Mapping[str, Any], requested: Sequence[str]
+) -> list[str]:
+    """Every applicable obligation must read `pass` for every requested scope."""
+    reasons: list[str] = []
+    statuses = verification.get("obligations")
+    if not isinstance(statuses, Mapping):
+        return ["the verification record states no obligation statuses"]
+
+    for scope in sorted(set(requested)):
+        per_scope = statuses.get(scope)
+        if not isinstance(per_scope, Mapping):
+            reasons.append(f"scope '{scope}' has no obligation statuses in the verification record")
+            continue
+        for obligation in applicable_obligations(plan):
+            status = per_scope.get(obligation)
+            if status == PASS:
+                continue
+            if status is None:
+                reasons.append(
+                    f"scope '{scope}': {obligation} has no status; the obligation applies to this plan "
+                    "and a missing status is not a pass"
+                )
+            else:
+                reasons.append(f"scope '{scope}': {obligation} is {status!r}, not {PASS!r}")
+    return reasons
+
+
+def admitted_projection(plan: Mapping[str, Any], admission: Admission) -> dict[str, Any]:
+    """The part of the plan that was admitted, and nothing else.
+
+    Admission is per scope, so handing a renderer the whole plan would hand it
+    scopes no approval covered. A consumer that needs rules takes them from here
+    rather than from the plan it passed in - and on a refusal it gets nothing at
+    all, because a refusal has no projection.
+    """
+    if not admission.admitted:
+        return {}
+
+    scopes = set(admission.scopes)
+    rules = [
+        rule
+        for rule in (plan.get("rules") or [])
+        if isinstance(rule, Mapping) and str(rule.get("scope")) in scopes
+    ]
+    return {
+        "schema_version": plan.get("schema_version"),
+        "provenance": plan.get("provenance"),
+        "scopes": sorted(scopes),
+        "rules": rules,
+        "plan_digest": admission.plan_digest,
+        "intent_digest": admission.intent_digest,
+    }
 
 
 def strict_artifacts(paths: Sequence[Any]) -> list[str]:
@@ -147,10 +439,19 @@ def strict_artifacts(paths: Sequence[Any]) -> list[str]:
 
 
 __all__ = [
+    "CHECKED_OBLIGATIONS",
+    "DEFERRED_OBLIGATIONS",
+    "PASS",
+    "RECORD_VERSION",
+    "REQUIRED_APPROVAL_FIELDS",
+    "REQUIRED_RECORD_FIELDS",
     "STRICT_PROVENANCE",
     "Admission",
     "AdmissionError",
+    "admitted_projection",
+    "applicable_obligations",
     "content_digest",
     "evaluate",
+    "nested_digest_fields",
     "strict_artifacts",
 ]
