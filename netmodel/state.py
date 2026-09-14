@@ -24,6 +24,28 @@ model that says half of every working connection is unauthorized.
 **A deadline is per profile, and required.** There is no default here; the
 contract says not to invent one universal timeout, and a revocation with no stated
 deadline is not a revocation with a generous one - it is an unbounded permit.
+
+**The deadline runs from the revocation, not from the session.** The first version
+compared `now - established_at` against the deadline, which measures the wrong
+interval: a connection that had been running for an hour was over its deadline the
+instant the epoch changed, before the agreed grace had begun, and a connection
+opened just before the change got a full grace period counted from its own start.
+The model also had no way to say *when* revocation began. `Revocation` now carries
+`effective_at`, the deadline is absolute, and a session opened after that moment
+gets no grace at all - it is not a session the transition is winding down, it is a
+new connection under a policy that does not authorize it. Those are different
+failures and they are reported as different kinds.
+
+**A revocation belongs to a transition.** `epoch_id` names the epoch being
+revoked and `superseded_by` names the one replacing it, and both are checked
+against the active epoch. A revocation carrying the wrong pair says nothing about
+this transition, and using it would be answering a question nobody asked.
+
+**A related session inherits its parent's fate.** A data connection spawned by a
+control connection is authorized because its parent was, so it is judged by the
+parent's authorization rather than its own tuple - which is usually on a port no
+rule mentions. Filtering them in a helper and judging them individually elsewhere
+meant the inheritance existed in the documentation and not in the check.
 """
 
 from __future__ import annotations
@@ -87,9 +109,17 @@ class Session:
 
 @dataclass(frozen=True, slots=True)
 class Revocation:
-    """An instruction to end sessions, with the deadline that makes it one."""
+    """An instruction to end sessions: which transition, when it began, how long.
+
+    `epoch_id` is the epoch being revoked and `superseded_by` the one replacing
+    it. `effective_at` is the tick the revocation began - the moment the model
+    could not express at all, and without which a deadline has nothing to be
+    measured from.
+    """
 
     epoch_id: str
+    superseded_by: str
+    effective_at: int
     deadline_ticks: int
 
     def __post_init__(self) -> None:
@@ -98,6 +128,29 @@ class Revocation:
                 f"{self.epoch_id}: a revocation deadline must be positive; "
                 "a revocation with no deadline is an unbounded permit"
             )
+        if self.effective_at < 0:
+            raise StateError(f"{self.epoch_id}: effective_at must not be negative")
+        if not str(self.superseded_by or "").strip():
+            raise StateError(
+                f"{self.epoch_id}: a revocation must name the epoch replacing this one; "
+                "without it there is no transition to bind the deadline to"
+            )
+        if self.superseded_by == self.epoch_id:
+            raise StateError(f"{self.epoch_id}: an epoch cannot supersede itself")
+
+    @property
+    def deadline_at(self) -> int:
+        """The absolute tick after which a carried-over session is a violation."""
+        return self.effective_at + self.deadline_ticks
+
+
+# The three ways a session can be a violation. They are named rather than merged
+# because the operator response differs: a stale session is ended, a new
+# connection means the new policy is not actually in force, and an orphan means
+# the ledger cannot say what authorized it.
+STALE_SESSION = "stale_session"
+NEW_CONNECTION = "new_connection"
+ORPHANED_RELATED = "orphaned_related"
 
 
 @dataclass(frozen=True, slots=True)
@@ -111,14 +164,26 @@ class Survivor:
     age: int
     deadline: int
     related_to: str | None = None
+    kind: str = STALE_SESSION
 
     def __str__(self) -> str:
         source, destination, protocol, port = self.flow
         related = f" (related to {self.related_to})" if self.related_to else ""
+        where = f"{self.session_id}{related} {direction_label(self.direction)} {source} -> {destination} {protocol}/{port}"
+        if self.kind == NEW_CONNECTION:
+            return (
+                f"{where} was opened at tick {self.established_at}, after the revocation took "
+                "effect, and the active epoch does not authorize it; this is a new connection "
+                "rather than one the transition is winding down"
+            )
+        if self.kind == ORPHANED_RELATED:
+            return (
+                f"{where} is related to {self.related_to}, which is not in the session set; "
+                "an inherited authorization cannot be checked against a parent nobody listed"
+            )
         return (
-            f"{self.session_id}{related} {direction_label(self.direction)} "
-            f"{source} -> {destination} {protocol}/{port} is {self.age} ticks old, "
-            f"deadline {self.deadline}, and the active epoch does not authorize it"
+            f"{where} is {self.age} ticks old, deadline {self.deadline}, "
+            "and the active epoch does not authorize it"
         )
 
 
@@ -133,38 +198,86 @@ def survivors(
     revocation: Revocation,
     now_ticks: int,
 ) -> list[Survivor]:
-    """Sessions past the deadline that the active epoch does not authorize.
+    """Sessions the active epoch does not authorize and that time no longer excuses.
 
-    A session inside its deadline is not a violation: revocation is a transition
-    and transitions take time. What the obligation forbids is one that is still
-    running after the deadline the profile declared.
+    Three distinct failures, and conflating them was the defect:
 
-    Both directions are checked against the same authorization. A session whose
-    forward flow is authorized carries its reverse; a session whose forward flow
-    is not carries nothing, and its reverse is reported as well, because a
-    reverse packet arriving for a revoked session is exactly the observable an
-    operator would see.
+    * a **stale session** established before the revocation took effect and still
+      running after `effective_at + deadline_ticks`. Inside that window it is not
+      a violation - revocation is a transition and transitions take time.
+    * a **new connection** opened at or after `effective_at` that the active epoch
+      does not authorize. No grace applies: nothing is winding it down, and its
+      existence says the new policy is not actually in force.
+    * an **orphaned related** session whose parent is not in the set. Its
+      authorization is inherited, so without the parent there is nothing to
+      inherit from, and calling that authorized would be an assumption.
+
+    A related session is judged by its **parent's** forward authorization. Its own
+    tuple is typically on a port no rule mentions, so asking about it directly
+    answers a different question.
+
+    Both directions are reported for a session in violation: a reverse packet
+    arriving for a revoked session is exactly what an operator sees.
     """
+    listed = {session.session_id: session for session in sessions}
+    if revocation.superseded_by != active.epoch_id:
+        raise StateError(
+            f"revocation supersedes {revocation.superseded_by!r} and the active epoch is "
+            f"{active.epoch_id!r}; a revocation from another transition says nothing about this one"
+        )
     found: list[Survivor] = []
-    for session in sorted(sessions, key=lambda item: item.session_id):
-        age = now_ticks - session.established_at
-        if age <= revocation.deadline_ticks:
+    for session in sorted(listed.values(), key=lambda item: item.session_id):
+        authority, orphan = _authority_for(session, listed)
+        if orphan:
+            found.extend(_both_directions(session, revocation, now_ticks, ORPHANED_RELATED))
             continue
-        if active.admits(session.forward):
+        if active.admits(authority.forward):
             continue
-        for direction, endpoints in (("forward", session.forward), ("reverse", session.reverse())):
-            found.append(
-                Survivor(
-                    session_id=session.session_id,
-                    flow=endpoints.key(),
-                    direction=direction,
-                    established_at=session.established_at,
-                    age=age,
-                    deadline=revocation.deadline_ticks,
-                    related_to=session.related_to,
-                )
-            )
+
+        if session.established_at >= revocation.effective_at:
+            found.extend(_both_directions(session, revocation, now_ticks, NEW_CONNECTION))
+        elif now_ticks > revocation.deadline_at:
+            found.extend(_both_directions(session, revocation, now_ticks, STALE_SESSION))
     return found
+
+
+def _authority_for(
+    session: Session, listed: Mapping[str, Session]
+) -> tuple[Session, bool]:
+    """The session whose authorization decides this one, and whether it is missing.
+
+    A chain of related sessions is followed to its root. A cycle is treated as an
+    orphan: it names a parent that cannot be an authority for anything.
+    """
+    seen: set[str] = set()
+    current = session
+    while current.related_to is not None:
+        if current.related_to in seen:
+            return session, True
+        seen.add(current.related_to)
+        parent = listed.get(current.related_to)
+        if parent is None:
+            return session, True
+        current = parent
+    return current, False
+
+
+def _both_directions(
+    session: Session, revocation: Revocation, now_ticks: int, kind: str
+) -> list[Survivor]:
+    return [
+        Survivor(
+            session_id=session.session_id,
+            flow=endpoints.key(),
+            direction=direction,
+            established_at=session.established_at,
+            age=now_ticks - session.established_at,
+            deadline=revocation.deadline_at,
+            related_to=session.related_to,
+            kind=kind,
+        )
+        for direction, endpoints in (("forward", session.forward), ("reverse", session.reverse()))
+    ]
 
 
 def unauthorized_reverse(*, sessions: Iterable[Session], active: Epoch) -> list[Survivor]:
@@ -220,6 +333,9 @@ def related_sessions(sessions: Iterable[Session], parent_id: str) -> list[Sessio
 
 
 __all__ = [
+    "NEW_CONNECTION",
+    "ORPHANED_RELATED",
+    "STALE_SESSION",
     "Epoch",
     "Ledger",
     "Revocation",

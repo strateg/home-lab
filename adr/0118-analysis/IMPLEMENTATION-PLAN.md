@@ -1468,6 +1468,72 @@ digest is refused; it compares equal to nothing, which is not the same as matchi
 everything. The intent digest had the explicit check and the evidence digest did
 not - the asymmetry was the defect.
 
+### F3, F4, F5 — the three obligation checkers the post-fix review left open
+
+All three were measuring something adjacent to what they claimed.
+
+**F4, SEC-STATE: the deadline was measured from the session.** `now -
+established_at` compared against a revocation deadline answers "how old is this
+connection", not "has the agreed grace period run out". The review's probe -
+`established_at=0, now=100, deadline=10` - reported two survivors at the instant
+of the epoch change, before any grace had begun. The model also could not express
+*when* revocation started. `Revocation` now carries `effective_at` and
+`superseded_by`, the deadline is absolute, and the epoch link is checked: a
+revocation from another transition raises rather than being applied to this one.
+
+Two failures that were one: a session opened at or after `effective_at` gets no
+grace, because nothing is winding it down. It is a new connection under a policy
+that does not authorize it, which says the new policy is not in force - a
+different thing to do about it, so a different kind in the report. And a related
+session is now judged by its **parent's** authorization, following the chain to
+its root; judging it on its own tuple, typically a port no rule mentions, answered
+a different question. A parent nobody listed is an orphan rather than an
+assumption.
+
+**F3, SEC-CAP: one level deep and one mode for the whole plan.** Freshness and
+delegation were checked over the chosen offers, so the review's three-level probe
+- a selected offer whose prerequisite depended on an expired, undelegated one -
+came back with no conflicts. Expansion is transitive now, and every node in the
+closure is checked; a conflict says whether the offender was chosen or required.
+
+Mode, ownership and capacity are `resource`-scoped. Requiring one mode across the
+whole selection refused perfectly good independent components - two firewalls on
+different devices may legitimately differ - and an offer stating a mode without
+naming what it acts on is `unverified`, because "which interface?" is a question
+somebody has to answer.
+
+`content_digest` was accepted from the caller as any non-empty string, so the
+duplicate-body check compared labels: two offers with different limits could
+carry one digest and look like one body. It is computed from the offer's semantic
+core now, separated from an evidence annex - re-validating an attestation does not
+change what an offer promises, and changing its limits does.
+
+And the return type changed, which is the part that matters most: an empty
+conflict list was read as "these work together" when it meant "nothing I could
+check disagreed". `Feasibility` carries conflicts, unknowns and a status, and an
+unstated capacity makes it `unverified` rather than satisfied.
+
+**F5, SEC-TRANSITION: a sequence proved by never being attempted.** A strategy
+returning no mutations was simulated into zero states, and zero states have no
+state outside the envelope. The review's probe - empty flow space, expired
+envelope, arbitrary digests - returned `[]`, and `[]` read as proof. Five things
+are checked around the replay now: the envelope's digests must be the digests of
+these plans and it must not have expired as of a moment the caller supplies; the
+flow space must cover every flow the envelope admits or the new plan must carry;
+the mutations must be exactly the diff, so nothing is skipped, invented or applied
+twice; the final state must *be* the new plan rather than merely a safe one; and
+at the end `Accept(R_final) ⊆ A_new` with every required flow still carried.
+
+`UNSUPPORTED` was skipped alongside `DENY`, and they are opposites: a deny is a
+rule saying no, an unmatched flow is no rule at all. On a default-allow backend
+that is an open flow, and the window between removing a terminal and adding the
+next one is exactly where it appears.
+
+*What none of this proves.* The simulator re-derives canonical order at every
+step, so it reasons about rule sets rather than about the RouterOS or Terraform
+operations that realise them. That remains a backend-level test contract, and the
+review said so first.
+
 **A framework lock is not reproducible from a commit alone.** A detached worktree
 at `93c0c2f7` computes `sha256-f43ba202...` where the committed lock says
 `sha256-baee680d...`, while the same revision in the main working tree matches.

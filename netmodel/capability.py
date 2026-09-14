@@ -22,7 +22,24 @@ the same "no failures" as one that checked everything.
 
 *A version label is not trust.* An offer carries the digest of its content, and a
 witness records the digest it relied on. Two offers claiming one identity and
-version with different bodies is an error, not a discovery-order preference.
+version with different bodies is an error, not a discovery-order preference. The
+digest is **computed from the offer's semantic core** rather than accepted as a
+string the caller supplies: a declared digest that nobody recomputes is a version
+label with more characters, and two different offers could carry the same one.
+
+The core is separated from the evidence annex on purpose. What the offer
+*promises* - capability, contexts, limits, mode, prerequisites, the resource it
+acts on - is its identity; what it *rests on* - evidence levels, expiry, owner,
+delegation - is annexed. An offer whose evidence was re-validated yesterday is
+the same offer; one whose limits changed is not.
+
+*A shared constraint needs a shared subject.* Modes, owners and capacities were
+once required to agree across the whole selection, which refuses perfectly good
+independent components: two firewalls on different devices may run different
+modes. They are scoped to a `resource` now, and an offer that states a mode or a
+capacity without saying what it acts on leaves the constraint **unverified** -
+not satisfied, and not conflicting either. "Which interface?" is a question
+somebody has to answer.
 """
 
 from __future__ import annotations
@@ -136,12 +153,45 @@ class Offer:
     evidence_expiry: str | None = None
     mutating: bool = False
     delegated: bool = False
+    # What this offer acts on. Mode, ownership and capacity are properties of a
+    # resource, not of a plan: two offers demanding exclusive modes conflict when
+    # they drive the same thing and not otherwise. `None` is "unstated", which
+    # makes those constraints unverified rather than satisfied.
+    resource: str | None = None
 
     def __post_init__(self) -> None:
         if not self.contexts:
             raise CapabilityError(f"{self.offer_id}: an offer with no context applies to nothing")
         if not str(self.content_digest or "").strip():
             raise CapabilityError(f"{self.offer_id}: an offer without a content digest is a label, not a contract")
+
+    def semantic_core(self) -> dict[str, object]:
+        """What the offer promises. Its identity, and what the digest covers."""
+        return {
+            "offer_id": self.offer_id,
+            "version": self.version,
+            "capability_ref": self.capability_ref,
+            "contexts": sorted(
+                [context.family, context.routing_domain, context.hook] for context in self.contexts
+            ),
+            "limits": sorted(
+                [name, "unknown" if isinstance(value, Unknown) else value]
+                for name, value in self.limits.items()
+            ),
+            "mode": self.mode,
+            "requires": sorted(self.requires),
+            "resource": self.resource,
+            "mutating": self.mutating,
+        }
+
+    def evidence_annex(self) -> dict[str, object]:
+        """What the offer rests on. Re-validating evidence does not change identity."""
+        return {
+            "evidence": sorted(level.value for level in self.evidence),
+            "evidence_expiry": self.evidence_expiry,
+            "owner": self.owner,
+            "delegated": self.delegated,
+        }
 
     def applies_to(self, requirement: Requirement) -> bool:
         if self.capability_ref != requirement.capability_ref:
@@ -264,15 +314,51 @@ def resolve(requirement: Requirement, offers: Iterable[Offer]) -> Resolution:
     )
 
 
-def check_offer_identity(offers: Iterable[Offer]) -> None:
-    """Two bodies for one identity and version is an error.
+def content_digest_of(core: Mapping[str, object]) -> str:
+    """The canonical digest of a semantic core."""
+    import hashlib
+    import json
 
-    Not a preference resolved by discovery order: which one wins would then
+    serialized = json.dumps(core, sort_keys=True, separators=(",", ":"), default=str)
+    return "sha256-" + hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+
+def declare(**fields) -> Offer:
+    """An offer whose digest is computed from its own content.
+
+    The constructor takes `content_digest` as an argument because a discovered
+    offer arrives with one. This is how an offer is *authored*: the digest is
+    derived, so it cannot disagree with the body it names.
+    """
+    fields.pop("content_digest", None)
+    provisional = Offer(content_digest="sha256-pending", **fields)
+    from dataclasses import replace
+
+    return replace(provisional, content_digest=content_digest_of(provisional.semantic_core()))
+
+
+def check_offer_identity(offers: Iterable[Offer]) -> None:
+    """Every digest describes the offer carrying it, and one identity has one body.
+
+    Two checks, and the first was missing. A declared digest nobody recomputes is
+    a version label with more characters: two offers with different limits could
+    carry the same string, and the duplicate check below would then see one body
+    where there are two. So the digest is recomputed from the semantic core and
+    compared.
+
+    The second is the original: two bodies for one identity and version is an
+    error, not a preference resolved by discovery order. Which one wins would
     depend on the filesystem, and a contract that changes with directory listing
     order is not a contract.
     """
     seen: dict[tuple[str, str], str] = {}
     for offer in offers:
+        computed = content_digest_of(offer.semantic_core())
+        if offer.content_digest != computed:
+            raise CapabilityError(
+                f"{offer.offer_id} {offer.version} declares {offer.content_digest} and its content "
+                f"digests to {computed}; a digest nobody recomputes is a longer version label"
+            )
         key = (offer.offer_id, offer.version)
         previous = seen.get(key)
         if previous is not None and previous != offer.content_digest:
@@ -308,9 +394,13 @@ __all__ = [
     "Resolution",
     "Status",
     "Unknown",
+    "Feasibility",
     "check_joint_feasibility",
     "check_offer_identity",
+    "content_digest_of",
     "coverage",
+    "declare",
+    "expand",
     "prerequisite_order",
     "resolve",
     "self_proving",
@@ -376,75 +466,223 @@ def prerequisite_order(offers: Mapping[str, Offer]) -> list[str]:
     return order
 
 
+@dataclass(frozen=True, slots=True)
+class Feasibility:
+    """Whether a selection holds together, with the three answers kept apart.
+
+    The first version returned a list of conflicts, and an empty list was read as
+    "these witnesses work together". It is not: it is "nothing I could check
+    disagreed". An unstated capacity, a mode with no resource and a prerequisite
+    nobody offered all produce no conflict and no knowledge, and reporting that
+    as feasible is the empty-loop mistake in a different place.
+    """
+
+    conflicts: tuple[Conflict, ...] = ()
+    unknowns: tuple[Conflict, ...] = ()
+    examined: tuple[str, ...] = ()
+
+    @property
+    def status(self) -> Status:
+        if self.conflicts:
+            return Status.UNSATISFIED
+        if self.unknowns:
+            return Status.UNVERIFIED
+        return Status.SATISFIED
+
+    @property
+    def blocks_activation(self) -> bool:
+        return self.status is not Status.SATISFIED
+
+    def __str__(self) -> str:
+        parts = [f"{self.status.value} over {len(self.examined)} offer(s)"]
+        parts.extend(str(item) for item in (*self.conflicts, *self.unknowns))
+        return "; ".join(parts)
+
+
+def expand(
+    selection: Mapping[str, Offer], catalogue: Mapping[str, Offer]
+) -> tuple[dict[str, Offer], list[str]]:
+    """Every offer the selection depends on, to any depth, plus what is missing.
+
+    One level was expanded before, so a chosen offer whose prerequisite depended
+    in turn on an expired and undelegated one reported nothing: the third node
+    was never looked at. Freshness and delegation are properties of what will
+    actually run, and what will actually run is the closure.
+    """
+    resolved: dict[str, Offer] = {}
+    missing: list[str] = []
+    frontier = [offer.offer_id for offer in selection.values()]
+    known = {offer.offer_id: offer for offer in selection.values()}
+
+    while frontier:
+        offer_id = frontier.pop()
+        if offer_id in resolved:
+            continue
+        offer = known.get(offer_id) or catalogue.get(offer_id)
+        if offer is None:
+            missing.append(offer_id)
+            continue
+        resolved[offer_id] = offer
+        frontier.extend(prerequisite for prerequisite in offer.requires if prerequisite not in resolved)
+
+    return resolved, sorted(set(missing))
+
+
+def _scoped_conflicts(offers: Mapping[str, Offer]) -> tuple[list[Conflict], list[Conflict]]:
+    """Mode and ownership, per resource rather than across the whole plan."""
+    conflicts: list[Conflict] = []
+    unknowns: list[Conflict] = []
+
+    by_resource: dict[str, list[Offer]] = {}
+    for offer in sorted(offers.values(), key=lambda item: item.offer_id):
+        if offer.resource is None:
+            if offer.mode is not None or offer.owner is not None:
+                unknowns.append(
+                    Conflict(
+                        "scope",
+                        f"{offer.offer_id} states a mode or owner without naming the resource it acts "
+                        "on, so no exclusivity can be decided for it",
+                    )
+                )
+            continue
+        by_resource.setdefault(offer.resource, []).append(offer)
+
+    for resource, group in sorted(by_resource.items()):
+        modes = {offer.mode for offer in group if offer.mode is not None}
+        if len(modes) > 1:
+            conflicts.append(
+                Conflict("mode", f"{resource}: witnesses require mutually exclusive modes {sorted(modes)}")
+            )
+        owners = {offer.owner for offer in group if offer.owner is not None}
+        if len(owners) > 1:
+            conflicts.append(
+                Conflict(
+                    "ownership",
+                    f"{resource}: owned by {sorted(owners)}; one resource needs consistent ownership",
+                )
+            )
+    return conflicts, unknowns
+
+
+def _capacity(
+    offers: Mapping[str, Offer], aggregate_bounds: Mapping[str, int]
+) -> tuple[list[Conflict], list[Conflict]]:
+    """Shared capacity, per resource, with an unstated limit reported as unknown."""
+    conflicts: list[Conflict] = []
+    unknowns: list[Conflict] = []
+
+    by_resource: dict[str | None, list[Offer]] = {}
+    for offer in sorted(offers.values(), key=lambda item: item.offer_id):
+        by_resource.setdefault(offer.resource, []).append(offer)
+
+    for name, capacity in sorted(aggregate_bounds.items()):
+        for resource, group in sorted(by_resource.items(), key=lambda item: item[0] or ""):
+            where = resource or "an unnamed resource"
+            stated: list[int] = []
+            for offer in group:
+                if name not in offer.limits:
+                    unknowns.append(
+                        Conflict("capacity", f"{where}: {offer.offer_id} states no {name} limit")
+                    )
+                    continue
+                limit = offer.limits[name]
+                if isinstance(limit, Unknown):
+                    unknowns.append(
+                        Conflict(
+                            "capacity",
+                            f"{where}: {offer.offer_id} states {name} as unknown ({limit.reason})",
+                        )
+                    )
+                    continue
+                stated.append(limit)
+            if stated and min(stated) < capacity:
+                conflicts.append(
+                    Conflict(
+                        "capacity",
+                        f"{where}: {name} needs {capacity}, the tightest witness provides {min(stated)}",
+                    )
+                )
+    return conflicts, unknowns
+
+
 def check_joint_feasibility(
     *,
     selection: Mapping[str, Offer],
     catalogue: Mapping[str, Offer],
     as_of: str,
     aggregate_bounds: Mapping[str, int] | None = None,
-) -> list[Conflict]:
+) -> Feasibility:
     """Whether these witnesses can be used together in one plan.
 
     The contract is explicit that effective support is *not* the union of
     capabilities on all devices: two offers can each be adequate and still be
     unusable together. So this checks the things that only appear in
-    combination - mutually exclusive modes, shared capacity, one owner across
-    requirements - plus the prerequisite graph and evidence freshness, which are
-    per-offer but block the whole selection.
+    combination - exclusive modes and ownership on one resource, shared capacity,
+    the prerequisite graph and evidence freshness.
+
+    Everything is checked over the **transitive closure** of the selection, not
+    over the chosen offers alone. A witness whose prerequisite depends on an
+    expired, undelegated one is not usable, and the expired node is two hops
+    away.
     """
     conflicts: list[Conflict] = []
+    unknowns: list[Conflict] = []
+
     chosen = {offer.offer_id: offer for offer in selection.values()}
-
-    modes = {offer.mode for offer in chosen.values() if offer.mode is not None}
-    if len(modes) > 1:
-        conflicts.append(Conflict("mode", f"witnesses require mutually exclusive modes {sorted(modes)}"))
-
-    owners = {offer.owner for offer in chosen.values() if offer.owner is not None}
-    if len(owners) > 1:
+    reachable, missing = expand(chosen, catalogue)
+    for offer_id in missing:
         conflicts.append(
-            Conflict("ownership", f"witnesses are owned by {sorted(owners)}; one plan needs consistent ownership")
+            Conflict("prerequisite", f"unresolved prerequisite: {offer_id} is required but not offered")
         )
 
-    for offer in sorted(chosen.values(), key=lambda item: item.offer_id):
+    scoped, scope_unknowns = _scoped_conflicts(reachable)
+    conflicts.extend(scoped)
+    unknowns.extend(scope_unknowns)
+
+    for offer in sorted(reachable.values(), key=lambda item: item.offer_id):
+        role = "chosen" if offer.offer_id in chosen else "required by the selection"
         if offer.mutating and not offer.delegated:
             conflicts.append(
                 Conflict(
                     "delegation",
-                    f"{offer.offer_id} mutates state without a delegated owner operation",
+                    f"{offer.offer_id} ({role}) mutates state without a delegated owner operation",
                 )
             )
         if _stale(offer, as_of):
             conflicts.append(
-                Conflict("freshness", f"{offer.offer_id} evidence expired at {offer.evidence_expiry}, now {as_of}")
+                Conflict(
+                    "freshness",
+                    f"{offer.offer_id} ({role}) evidence expired at {offer.evidence_expiry}, now {as_of}",
+                )
             )
 
-    reachable = dict(chosen)
-    for offer in chosen.values():
-        for prerequisite in offer.requires:
-            candidate = catalogue.get(prerequisite)
-            if candidate is not None:
-                reachable[prerequisite] = candidate
+    # Cycle detection over what was actually resolved. Edges to offers nobody
+    # holds are pruned first: `expand` already reported each of those once, and
+    # letting `prerequisite_order` raise on them again would report one missing
+    # prerequisite as two conflicts.
+    from dataclasses import replace
+
+    graph = {
+        offer_id: replace(
+            offer, requires=tuple(item for item in offer.requires if item in reachable)
+        )
+        for offer_id, offer in reachable.items()
+    }
     try:
-        prerequisite_order(reachable)
+        prerequisite_order(graph)
     except CapabilityError as exc:
         conflicts.append(Conflict("prerequisite", str(exc)))
 
     if aggregate_bounds:
-        for name, capacity in sorted(aggregate_bounds.items()):
-            stated = [
-                offer.limits[name]
-                for offer in chosen.values()
-                if name in offer.limits and not isinstance(offer.limits[name], Unknown)
-            ]
-            if stated and min(stated) < capacity:
-                conflicts.append(
-                    Conflict(
-                        "capacity",
-                        f"{name}: the plan needs {capacity}, the tightest witness provides {min(stated)}",
-                    )
-                )
+        capacity_conflicts, capacity_unknowns = _capacity(reachable, aggregate_bounds)
+        conflicts.extend(capacity_conflicts)
+        unknowns.extend(capacity_unknowns)
 
-    return conflicts
+    return Feasibility(
+        conflicts=tuple(conflicts),
+        unknowns=tuple(unknowns),
+        examined=tuple(sorted(reachable)),
+    )
 
 
 def self_proving(requirement: Requirement, offer: Offer) -> bool:

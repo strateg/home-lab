@@ -22,7 +22,9 @@ from netmodel.capability import (
     Resolution,
     Status,
     check_offer_identity,
+    content_digest_of,
     coverage,
+    declare,
     resolve,
 )
 
@@ -45,16 +47,23 @@ def requirement(**overrides) -> Requirement:
 
 
 def offer(**overrides) -> Offer:
+    """An authored offer, whose digest is derived from its own content.
+
+    `declare` rather than `Offer(...)`: a digest the caller invents is a version
+    label with more characters, and `check_offer_identity` recomputes it now.
+    Tests that want a *wrong* digest build one explicitly.
+    """
     values = {
         "offer_id": "offer.routeros.firewall",
         "version": "7.14",
-        "content_digest": "sha256-aaa",
         "capability_ref": "cap.firewall.stateful",
         "contexts": (FORWARD,),
         "evidence": frozenset({EvidenceLevel.OFFLINE_VALIDATED}),
     }
     values.update(overrides)
-    return Offer(**values)
+    if "content_digest" in values:
+        return Offer(**values)
+    return declare(**values)
 
 
 # --- an empty loop is not proof ------------------------------------------------
@@ -202,17 +211,58 @@ def test_an_offer_with_no_evidence_at_all_satisfies_nothing() -> None:
 
 def test_a_witness_records_what_it_relied_on() -> None:
     """Identity, version and digest: a label alone cannot be checked later."""
-    result = resolve(requirement(), [offer()])
+    subject = offer()
+    result = resolve(requirement(), [subject])
 
-    assert result.witnesses == (("offer.routeros.firewall", "7.14", "sha256-aaa"),)
+    assert result.witnesses == (("offer.routeros.firewall", "7.14", subject.content_digest),)
+    assert subject.content_digest == content_digest_of(subject.semantic_core())
 
 
 # --- a version label is not trust ------------------------------------------------
 
 
 def test_two_bodies_for_one_identity_and_version_is_an_error() -> None:
+    """Different content under one label, caught by the digest that describes it."""
     with pytest.raises(CapabilityError, match="a version label is not trust"):
-        check_offer_identity([offer(content_digest="sha256-aaa"), offer(content_digest="sha256-bbb")])
+        check_offer_identity([offer(limits={"sessions": 100}), offer(limits={"sessions": 5000})])
+
+
+def test_a_declared_digest_that_does_not_describe_the_offer_is_refused() -> None:
+    """The gap that made the duplicate check above defeatable.
+
+    Two offers with different limits carrying one hand-written digest look like
+    one body to a check that only compares strings. The digest is recomputed from
+    the semantic core, so the string cannot disagree with the content.
+    """
+    lying = offer(content_digest="sha256-whatever", limits={"sessions": 100})
+
+    with pytest.raises(CapabilityError, match="longer version label"):
+        check_offer_identity([lying])
+
+    with pytest.raises(CapabilityError, match="longer version label"):
+        check_offer_identity(
+            [
+                offer(content_digest="sha256-same", limits={"sessions": 100}),
+                offer(content_digest="sha256-same", limits={"sessions": 5000}),
+            ]
+        )
+
+
+def test_re_validating_evidence_does_not_change_an_offer_identity() -> None:
+    """The core is what the offer promises; the annex is what it rests on.
+
+    An offer whose evidence was re-checked yesterday is the same offer. One whose
+    limits changed is not, and folding the two together would report a new body
+    every time somebody renewed an attestation.
+    """
+    original = offer(evidence_expiry="2026-01-01T00:00:00Z")
+    renewed = offer(evidence_expiry="2027-01-01T00:00:00Z")
+    narrowed = offer(limits={"sessions": 10})
+
+    assert original.content_digest == renewed.content_digest
+    assert original.semantic_core() == renewed.semantic_core()
+    assert original.evidence_annex() != renewed.evidence_annex()
+    assert narrowed.content_digest != original.content_digest
 
 
 def test_the_same_body_twice_is_not_an_error() -> None:
@@ -266,7 +316,7 @@ def test_inactive_requirements_are_not_resolved_and_not_deleted() -> None:
 
 def test_coverage_refuses_conflicting_offer_bodies_before_resolving_anything() -> None:
     with pytest.raises(CapabilityError):
-        coverage([requirement()], [offer(content_digest="sha256-aaa"), offer(content_digest="sha256-bbb")])
+        coverage([requirement()], [offer(limits={"sessions": 100}), offer(limits={"sessions": 5000})])
 
 
 def test_an_empty_requirement_set_yields_no_claim() -> None:
@@ -371,7 +421,9 @@ def test_the_capability_catalog_holds_flags_not_offers() -> None:
 
 from netmodel.capability import (  # noqa: E402
     Conflict,
+    Feasibility,
     check_joint_feasibility,
+    expand,
     prerequisite_order,
     self_proving,
 )
@@ -387,52 +439,142 @@ def test_two_adequate_offers_can_still_be_unusable_together() -> None:
     """The contract's point: effective support is not the union of capabilities.
 
     Each of these resolves on its own. Together they demand mutually exclusive
-    modes, and no plan can hold both.
+    modes **of the same interface**, and no plan can hold both. The resource is
+    the load-bearing part: two firewalls on different devices running different
+    modes are not in conflict, and requiring one mode across the whole plan
+    refused perfectly good independent components.
     """
-    fast = offer(offer_id="offer.offload", mode="hardware-offload")
-    inspecting = offer(offer_id="offer.inspect", mode="software-conntrack")
+    fast = offer(offer_id="offer.offload", mode="hardware-offload", resource="ether1")
+    inspecting = offer(offer_id="offer.inspect", mode="software-conntrack", resource="ether1")
 
     assert resolve(requirement(), [fast]).status is Status.SATISFIED
     assert resolve(requirement(), [inspecting]).status is Status.SATISFIED
 
-    conflicts = check_joint_feasibility(
+    result = check_joint_feasibility(
         selection={"a": fast, "b": inspecting}, catalogue=offers(fast, inspecting), as_of=AS_OF
     )
 
-    assert [item.kind for item in conflicts] == ["mode"]
+    assert [item.kind for item in result.conflicts] == ["mode"]
+    assert result.status is Status.UNSATISFIED
 
 
-def test_one_mode_across_witnesses_is_feasible() -> None:
-    left = offer(offer_id="offer.a", mode="software-conntrack")
-    right = offer(offer_id="offer.b", mode="software-conntrack")
+def test_exclusive_modes_on_different_resources_are_not_a_conflict() -> None:
+    """The false positive the global rule produced."""
+    fast = offer(offer_id="offer.offload", mode="hardware-offload", resource="ether1")
+    inspecting = offer(offer_id="offer.inspect", mode="software-conntrack", resource="ether2")
 
-    assert check_joint_feasibility(selection={"a": left, "b": right}, catalogue=offers(left, right), as_of=AS_OF) == []
+    result = check_joint_feasibility(
+        selection={"a": fast, "b": inspecting}, catalogue=offers(fast, inspecting), as_of=AS_OF
+    )
+
+    assert result.conflicts == ()
+    assert result.status is Status.SATISFIED
 
 
-def test_witnesses_owned_by_different_operators_are_refused() -> None:
-    """One plan needs consistent ownership, not each offer owned by someone."""
-    terraform = offer(offer_id="offer.tf", owner="terraform")
-    ansible = offer(offer_id="offer.ansible", owner="ansible")
+def test_a_mode_with_no_resource_is_unverified_rather_than_agreed() -> None:
+    """"Which interface?" is a question somebody has to answer."""
+    floating = offer(offer_id="offer.floating", mode="hardware-offload")
 
-    conflicts = check_joint_feasibility(
+    result = check_joint_feasibility(
+        selection={"a": floating}, catalogue=offers(floating), as_of=AS_OF
+    )
+
+    assert result.conflicts == ()
+    assert [item.kind for item in result.unknowns] == ["scope"]
+    assert result.status is Status.UNVERIFIED
+
+
+def test_one_mode_across_witnesses_on_one_resource_is_feasible() -> None:
+    left = offer(offer_id="offer.a", mode="software-conntrack", resource="ether1")
+    right = offer(offer_id="offer.b", mode="software-conntrack", resource="ether1")
+
+    result = check_joint_feasibility(
+        selection={"a": left, "b": right}, catalogue=offers(left, right), as_of=AS_OF
+    )
+
+    assert result.status is Status.SATISFIED
+
+
+def test_witnesses_owned_by_different_operators_on_one_resource_are_refused() -> None:
+    """One resource needs consistent ownership, not each offer owned by someone."""
+    terraform = offer(offer_id="offer.tf", owner="terraform", resource="ether1")
+    ansible = offer(offer_id="offer.ansible", owner="ansible", resource="ether1")
+
+    result = check_joint_feasibility(
         selection={"a": terraform, "b": ansible}, catalogue=offers(terraform, ansible), as_of=AS_OF
     )
 
-    assert [item.kind for item in conflicts] == ["ownership"]
+    assert [item.kind for item in result.conflicts] == ["ownership"]
+
+
+def test_different_owners_of_different_resources_are_allowed() -> None:
+    terraform = offer(offer_id="offer.tf", owner="terraform", resource="ether1")
+    ansible = offer(offer_id="offer.ansible", owner="ansible", resource="ether2")
+
+    result = check_joint_feasibility(
+        selection={"a": terraform, "b": ansible}, catalogue=offers(terraform, ansible), as_of=AS_OF
+    )
+
+    assert result.status is Status.SATISFIED
 
 
 def test_a_mutating_offer_without_delegation_is_refused() -> None:
     writer = offer(offer_id="offer.writer", mutating=True, delegated=False)
 
-    conflicts = check_joint_feasibility(selection={"a": writer}, catalogue=offers(writer), as_of=AS_OF)
+    result = check_joint_feasibility(selection={"a": writer}, catalogue=offers(writer), as_of=AS_OF)
 
-    assert [item.kind for item in conflicts] == ["delegation"]
+    assert [item.kind for item in result.conflicts] == ["delegation"]
 
 
 def test_a_mutating_offer_with_delegation_is_accepted() -> None:
     writer = offer(offer_id="offer.writer", mutating=True, delegated=True)
 
-    assert check_joint_feasibility(selection={"a": writer}, catalogue=offers(writer), as_of=AS_OF) == []
+    assert (
+        check_joint_feasibility(selection={"a": writer}, catalogue=offers(writer), as_of=AS_OF).status
+        is Status.SATISFIED
+    )
+
+
+# --- the closure, not the chosen ------------------------------------------------------
+
+
+def test_a_dependency_three_levels_down_is_examined() -> None:
+    """The probe the review wrote: an expired, undelegated node two hops away.
+
+    Expansion went one level, so the third node was never looked at and the
+    selection came back with nothing to report. Freshness and delegation are
+    properties of what will actually run, and what runs is the closure.
+    """
+    bottom = offer(
+        offer_id="offer.bottom",
+        mutating=True,
+        delegated=False,
+        evidence_expiry="2026-01-01T00:00:00Z",
+    )
+    middle = offer(offer_id="offer.middle", requires=("offer.bottom",))
+    top = offer(offer_id="offer.top", requires=("offer.middle",))
+
+    result = check_joint_feasibility(
+        selection={"a": top}, catalogue=offers(top, middle, bottom), as_of=AS_OF
+    )
+
+    assert set(result.examined) == {"offer.top", "offer.middle", "offer.bottom"}
+    assert sorted(item.kind for item in result.conflicts) == ["delegation", "freshness"]
+    assert all("required by the selection" in str(item) for item in result.conflicts)
+
+
+def test_expansion_reports_what_the_catalogue_does_not_hold() -> None:
+    dependent = offer(offer_id="offer.dependent", requires=("offer.absent",))
+
+    resolved, missing = expand({"a": dependent}, offers(dependent))
+
+    assert missing == ["offer.absent"]
+    assert set(resolved) == {"offer.dependent"}
+
+    result = check_joint_feasibility(
+        selection={"a": dependent}, catalogue=offers(dependent), as_of=AS_OF
+    )
+    assert [item.kind for item in result.conflicts] == ["prerequisite"]
 
 
 # --- freshness ---------------------------------------------------------------------
@@ -441,22 +583,28 @@ def test_a_mutating_offer_with_delegation_is_accepted() -> None:
 def test_expired_evidence_makes_a_selection_infeasible() -> None:
     stale = offer(offer_id="offer.stale", evidence_expiry="2026-01-01T00:00:00Z")
 
-    conflicts = check_joint_feasibility(selection={"a": stale}, catalogue=offers(stale), as_of=AS_OF)
+    result = check_joint_feasibility(selection={"a": stale}, catalogue=offers(stale), as_of=AS_OF)
 
-    assert [item.kind for item in conflicts] == ["freshness"]
+    assert [item.kind for item in result.conflicts] == ["freshness"]
 
 
 def test_evidence_inside_its_window_is_fresh() -> None:
     current = offer(offer_id="offer.fresh", evidence_expiry="2027-01-01T00:00:00Z")
 
-    assert check_joint_feasibility(selection={"a": current}, catalogue=offers(current), as_of=AS_OF) == []
+    assert (
+        check_joint_feasibility(selection={"a": current}, catalogue=offers(current), as_of=AS_OF).status
+        is Status.SATISFIED
+    )
 
 
 def test_an_offer_with_no_expiry_does_not_expire() -> None:
     """A statement the offer makes, not an omission the checker fills in."""
     permanent = offer(offer_id="offer.permanent", evidence_expiry=None)
 
-    assert check_joint_feasibility(selection={"a": permanent}, catalogue=offers(permanent), as_of=AS_OF) == []
+    assert (
+        check_joint_feasibility(selection={"a": permanent}, catalogue=offers(permanent), as_of=AS_OF).status
+        is Status.SATISFIED
+    )
 
 
 def test_freshness_needs_an_explicit_moment_and_reads_no_clock() -> None:
@@ -518,9 +666,11 @@ def test_a_cycle_in_the_selection_blocks_it() -> None:
     left = offer(offer_id="offer.left", requires=("offer.right",))
     right = offer(offer_id="offer.right", requires=("offer.left",))
 
-    conflicts = check_joint_feasibility(selection={"a": left, "b": right}, catalogue=offers(left, right), as_of=AS_OF)
+    result = check_joint_feasibility(
+        selection={"a": left, "b": right}, catalogue=offers(left, right), as_of=AS_OF
+    )
 
-    assert [item.kind for item in conflicts] == ["prerequisite"]
+    assert [item.kind for item in result.conflicts] == ["prerequisite"]
 
 
 def test_an_offer_cannot_prove_itself() -> None:
@@ -539,52 +689,84 @@ def test_an_offer_cannot_prove_itself() -> None:
 # --- aggregate capacity -----------------------------------------------------------------
 
 
-def test_shared_capacity_is_checked_across_the_selection() -> None:
+def test_shared_capacity_is_checked_across_one_resource() -> None:
     """Each witness is adequate alone; the plan needs more than the tightest gives."""
-    roomy = offer(offer_id="offer.roomy", limits={"sessions": 5000})
-    tight = offer(offer_id="offer.tight", limits={"sessions": 100})
+    roomy = offer(offer_id="offer.roomy", limits={"sessions": 5000}, resource="ether1")
+    tight = offer(offer_id="offer.tight", limits={"sessions": 100}, resource="ether1")
 
-    conflicts = check_joint_feasibility(
+    result = check_joint_feasibility(
         selection={"a": roomy, "b": tight},
         catalogue=offers(roomy, tight),
         as_of=AS_OF,
         aggregate_bounds={"sessions": 1000},
     )
 
-    assert [item.kind for item in conflicts] == ["capacity"]
-    assert "tightest witness provides 100" in str(conflicts[0])
+    assert [item.kind for item in result.conflicts] == ["capacity"]
+    assert "tightest witness provides 100" in str(result.conflicts[0])
 
 
-def test_an_unknown_limit_does_not_count_as_capacity() -> None:
-    """It also does not fail the aggregate check by itself; it is simply not evidence."""
-    unknown = offer(offer_id="offer.unknown", limits={"sessions": UNKNOWN})
+def test_an_unknown_limit_makes_the_capacity_unverified_not_satisfied() -> None:
+    """It is not evidence, and reporting no conflict said it was.
 
-    conflicts = check_joint_feasibility(
+    An empty conflict list used to mean "these work together". For an unstated
+    capacity it meant "nobody knows", and those are the answers the whole module
+    exists to keep apart.
+    """
+    unknown = offer(offer_id="offer.unknown", limits={"sessions": UNKNOWN}, resource="ether1")
+
+    result = check_joint_feasibility(
         selection={"a": unknown},
         catalogue=offers(unknown),
         as_of=AS_OF,
         aggregate_bounds={"sessions": 1000},
     )
 
-    assert conflicts == []
+    assert result.conflicts == ()
+    assert [item.kind for item in result.unknowns] == ["capacity"]
+    assert result.status is Status.UNVERIFIED
+    assert result.blocks_activation
+
+
+def test_an_offer_stating_no_limit_at_all_is_unverified_too() -> None:
+    silent = offer(offer_id="offer.silent", resource="ether1")
+
+    result = check_joint_feasibility(
+        selection={"a": silent},
+        catalogue=offers(silent),
+        as_of=AS_OF,
+        aggregate_bounds={"sessions": 1000},
+    )
+
+    assert result.status is Status.UNVERIFIED
+    assert "states no sessions limit" in str(result.unknowns[0])
 
 
 def test_a_feasible_selection_reports_nothing() -> None:
     """Not vacuous: the same call shape returns conflicts elsewhere in this file."""
-    base = offer(offer_id="offer.base", mode="software-conntrack", owner="terraform")
+    base = offer(
+        offer_id="offer.base",
+        mode="software-conntrack",
+        owner="terraform",
+        resource="ether1",
+        limits={"sessions": 5000},
+    )
     dependent = offer(
         offer_id="offer.dependent",
         mode="software-conntrack",
         owner="terraform",
+        resource="ether1",
         requires=("offer.base",),
         limits={"sessions": 5000},
     )
 
-    conflicts = check_joint_feasibility(
+    result = check_joint_feasibility(
         selection={"a": base, "b": dependent},
         catalogue=offers(base, dependent),
         as_of=AS_OF,
         aggregate_bounds={"sessions": 1000},
     )
 
-    assert conflicts == []
+    assert result.conflicts == ()
+    assert result.unknowns == ()
+    assert result.status is Status.SATISFIED
+    assert not result.blocks_activation

@@ -21,6 +21,35 @@ does not widen the envelope to make a sequence fit: an envelope is no broader
 than the approved old and new grants with the current mandatory denies removed,
 and a transition that needs more than that needs separate review, not an implicit
 union.
+
+**Proving a sequence is more than checking its middle.** The first version
+simulated whatever a strategy returned and asked one question of each state, so a
+strategy that mutated nothing proved a transition it never performed: no steps, no
+violations, `[]` returned as success. A review supplied the probe - an empty flow
+space and an expired envelope carrying arbitrary digests - and got a clean answer.
+Five things are checked now, and each of them was a way to pass without proving
+anything:
+
+* **Preconditions.** The envelope's digests must be the digests of *these* plans,
+  and the envelope must not have expired as of a moment the caller supplies.
+* **A flow space that could show a failure.** An empty one cannot, and neither can
+  one that omits flows the envelope admits or the new plan must carry.
+* **A complete replay.** The mutations a strategy returns must be exactly the diff
+  between the two plans - no rule left behind, none invented, none applied twice.
+* **Arrival.** The final state must *be* the new plan, not merely a safe one.
+* **Postconditions.** `Accept(R_final) subseteq A_new`, and every flow the new
+  plan is required to carry is carried at the end.
+
+**An unmatched flow is not a safe one.** `UNSUPPORTED` was skipped alongside
+`DENY`, and they are opposites: `DENY` is a rule saying no, `UNSUPPORTED` is no
+rule at all. On a default-allow backend that is an open flow, and the transition
+window where a terminal deny has been removed and not yet replaced is exactly
+where it appears.
+
+What this still does not prove is the concrete device sequence. The simulator
+re-derives canonical order at every step, so it reasons about rule *sets*, not
+about the RouterOS or Terraform operations that realise them. That is a
+backend-level test contract and it is deliberately out of scope here.
 """
 
 from __future__ import annotations
@@ -88,21 +117,32 @@ class Step:
     state: tuple[OrderedRule, ...]
 
 
+OUTSIDE_ENVELOPE = "outside_envelope"
+UNMATCHED = "unmatched"
+
+
 @dataclass(frozen=True, slots=True)
 class Violation:
-    """A flow some intermediate state accepts that the envelope does not admit."""
+    """A flow an intermediate state gets wrong: accepted too widely, or unmatched."""
 
     step: int
     action: str
     rule_origin: str
     flow: tuple[str, str, str, int]
     matched: str | None
+    kind: str = OUTSIDE_ENVELOPE
 
     def __str__(self) -> str:
         source, destination, protocol, port = self.flow
+        where = f"step {self.step} ({self.action} {self.rule_origin})"
+        if self.kind == UNMATCHED:
+            return (
+                f"{where} leaves {source} -> {destination} {protocol}/{port} matching no rule at all; "
+                "on a default-allow backend that is an open flow, and `no rule said no` is not `a rule said no`"
+            )
         return (
-            f"step {self.step} ({self.action} {self.rule_origin}) accepts "
-            f"{source} -> {destination} {protocol}/{port} via {self.matched}, which the envelope does not admit"
+            f"{where} accepts {source} -> {destination} {protocol}/{port} via {self.matched}, "
+            "which the envelope does not admit"
         )
 
 
@@ -186,6 +226,24 @@ def check_sequence(steps: Sequence[Step], envelope: Envelope, flow_space: Sequen
     for step in steps:
         for event in flow_space:
             decision = interpret(step.state, event)
+
+            if decision.verdict is Verdict.UNSUPPORTED:
+                # Not skipped alongside DENY any more. They are opposites: a deny
+                # is a rule saying no, and this is no rule at all. The window
+                # where a terminal has been removed and not yet replaced is
+                # exactly where it shows up.
+                violations.append(
+                    Violation(
+                        step=step.index,
+                        action=step.action,
+                        rule_origin=step.rule_origin,
+                        flow=event.authorizing.key(),
+                        matched=None,
+                        kind=UNMATCHED,
+                    )
+                )
+                continue
+
             if decision.verdict is not Verdict.ACCEPT:
                 continue
             if envelope.admits(event):
@@ -197,9 +255,162 @@ def check_sequence(steps: Sequence[Step], envelope: Envelope, flow_space: Sequen
                     rule_origin=step.rule_origin,
                     flow=event.authorizing.key(),
                     matched=decision.matched,
+                    kind=OUTSIDE_ENVELOPE,
                 )
             )
     return violations
+
+
+def state_digest(ordered: Sequence[OrderedRule]) -> str:
+    """The identity of a rule set, for tying an envelope to the plans it names.
+
+    `plan_digest` also carries the profile and the intent it lowers, which a
+    transition envelope has no opinion about. This is the structural half: the
+    canonical keys in their canonical order.
+    """
+    import hashlib
+    import json
+
+    payload = [
+        [entry.position, [str(item) for item in entry.rule.canonical_key()]] for entry in ordered
+    ]
+    serialized = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return "sha256-" + hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+
+def _check_preconditions(
+    *,
+    old: Sequence[OrderedRule],
+    new: Sequence[OrderedRule],
+    envelope: Envelope,
+    flow_space: Sequence[FlowEvent],
+    as_of: str,
+    new_allowed: frozenset[tuple[str, str, str, int]],
+    required_flows: frozenset[tuple[str, str, str, int]],
+) -> None:
+    """Everything that must hold before a simulation can mean anything."""
+    if not str(as_of or "").strip():
+        raise TransitionError(
+            "no moment was supplied, so the envelope's expiry cannot be checked; a proof valid at "
+            "no stated time is valid at none"
+        )
+    if envelope.expiry < as_of:
+        raise TransitionError(
+            f"the envelope expired at {envelope.expiry} and this is {as_of}; an expired authorization "
+            "is not a narrower one"
+        )
+
+    actual_old, actual_new = state_digest(old), state_digest(new)
+    if envelope.old_digest != actual_old:
+        raise TransitionError(
+            f"the envelope authorizes a transition from {envelope.old_digest[:19]} and this one starts "
+            f"at {actual_old[:19]}"
+        )
+    if envelope.new_digest != actual_new:
+        raise TransitionError(
+            f"the envelope authorizes a transition to {envelope.new_digest[:19]} and this one arrives "
+            f"at {actual_new[:19]}"
+        )
+
+    if not flow_space:
+        raise TransitionError(
+            "the flow space is empty, so every state accepts nothing and every check passes; "
+            "an empty probe set proves the probe set, not the transition"
+        )
+
+    probed = {event.authorizing.key() for event in flow_space}
+    unprobed = sorted((envelope.allowed | required_flows) - probed)
+    if unprobed:
+        raise TransitionError(
+            f"the flow space omits {len(unprobed)} flow(s) the envelope admits or the new plan must "
+            f"carry, so nothing was asked about them: {unprobed[:3]}"
+        )
+    if not (new_allowed >= required_flows):
+        raise TransitionError(
+            f"flows required to keep working are outside what the new plan authorizes: "
+            f"{sorted(required_flows - new_allowed)[:3]}"
+        )
+
+
+def _check_replay(
+    *, old: Sequence[OrderedRule], new: Sequence[OrderedRule], mutations: Sequence[Mutation]
+) -> None:
+    """The strategy must perform exactly the transition, not a subset of it.
+
+    A strategy returning nothing produced no steps, and no steps produced no
+    violations - a transition proved safe by never being attempted. Comparing the
+    multiset also catches a rule applied twice, which a set comparison would call
+    equal.
+    """
+    additions, removals = diff(old, new)
+    expected = sorted(
+        (mutation.action, str(mutation.rule.canonical_key())) for mutation in (*additions, *removals)
+    )
+    performed = sorted((mutation.action, str(mutation.rule.canonical_key())) for mutation in mutations)
+
+    if performed == expected:
+        return
+
+    missing = [item for item in expected if performed.count(item) < expected.count(item)]
+    extra = [item for item in performed if expected.count(item) < performed.count(item)]
+    detail = []
+    if missing:
+        detail.append(f"never performed: {sorted({item[0] + ' ' + item[1] for item in missing})[:3]}")
+    if extra:
+        detail.append(f"performed but not required: {sorted({item[0] + ' ' + item[1] for item in extra})[:3]}")
+    raise TransitionError(
+        "the proposed sequence is not this transition - " + "; ".join(detail or ["the mutations differ"])
+    )
+
+
+def _check_arrival(
+    *, steps: Sequence[Step], new: Sequence[OrderedRule], envelope: Envelope
+) -> tuple[OrderedRule, ...]:
+    """The final state must be the new plan, not merely a safe one."""
+    final = steps[-1].state if steps else ()
+    reached = state_digest(final)
+    if reached != envelope.new_digest:
+        raise TransitionError(
+            f"the sequence ends at {reached[:19]} and the new plan is {envelope.new_digest[:19]}; "
+            "a sequence that stops somewhere safe has not applied the plan"
+        )
+    return final
+
+
+def _check_postconditions(
+    *,
+    final: Sequence[OrderedRule],
+    flow_space: Sequence[FlowEvent],
+    new_allowed: frozenset[tuple[str, str, str, int]],
+    required_flows: frozenset[tuple[str, str, str, int]],
+) -> None:
+    """`Accept(R_final) subseteq A_new`, and what has to keep working still does."""
+    accepted: set[tuple[str, str, str, int]] = set()
+    unmatched: list[tuple[str, str, str, int]] = []
+    for event in flow_space:
+        decision = interpret(final, event)
+        if decision.verdict is Verdict.ACCEPT:
+            accepted.add(event.authorizing.key())
+        elif decision.verdict is Verdict.UNSUPPORTED:
+            unmatched.append(event.authorizing.key())
+
+    if unmatched:
+        raise TransitionError(
+            f"the final state leaves {len(unmatched)} flow(s) matching no rule: {sorted(unmatched)[:3]}"
+        )
+
+    unauthorized = sorted(accepted - new_allowed)
+    if unauthorized:
+        raise TransitionError(
+            f"the final state accepts what the new plan does not authorize: {unauthorized[:3]}"
+        )
+
+    dropped = sorted(required_flows - accepted)
+    if dropped:
+        raise TransitionError(
+            f"the final state does not carry {len(dropped)} flow(s) the new plan must keep working: "
+            f"{dropped[:3]}"
+        )
 
 
 def plan_transition(
@@ -208,21 +419,53 @@ def plan_transition(
     new: Sequence[OrderedRule],
     envelope: Envelope,
     flow_space: Sequence[FlowEvent],
+    as_of: str,
+    new_allowed: frozenset[tuple[str, str, str, int]],
+    required_flows: frozenset[tuple[str, str, str, int]] = frozenset(),
     strategy: Callable[[Sequence[OrderedRule], Sequence[OrderedRule]], list[Mutation]] = safe_order,
 ) -> list[Step]:
-    """Propose an order, simulate it, and refuse it unless every state holds.
+    """Propose an order, simulate it, and refuse it unless the whole thing holds.
 
     Refusal is the useful outcome here. A transition that cannot be shown safe is
     not one to perform carefully; the contract says it blocks deploy.
+
+    `new_allowed` is `A_new`, computed by the caller for the same reason the
+    envelope's `allowed` is: deriving authorization here would decide it in a
+    third place. `required_flows` is the availability objective - what has to be
+    working when the apply finishes - and an empty one is a statement that
+    nothing does.
     """
-    steps = simulate(old, strategy(old, new))
+    _check_preconditions(
+        old=old,
+        new=new,
+        envelope=envelope,
+        flow_space=flow_space,
+        as_of=as_of,
+        new_allowed=new_allowed,
+        required_flows=required_flows,
+    )
+
+    mutations = strategy(old, new)
+    _check_replay(old=old, new=new, mutations=mutations)
+
+    steps = simulate(old, mutations)
     violations = check_sequence(steps, envelope, flow_space)
     if violations:
         raise TransitionError("no safe sequence: " + "; ".join(str(violation) for violation in violations[:5]))
+
+    final = _check_arrival(steps=steps, new=new, envelope=envelope)
+    _check_postconditions(
+        final=final,
+        flow_space=flow_space,
+        new_allowed=new_allowed,
+        required_flows=required_flows,
+    )
     return steps
 
 
 __all__ = [
+    "OUTSIDE_ENVELOPE",
+    "UNMATCHED",
     "Envelope",
     "Mutation",
     "Step",
@@ -234,4 +477,5 @@ __all__ = [
     "plan_transition",
     "safe_order",
     "simulate",
+    "state_digest",
 ]

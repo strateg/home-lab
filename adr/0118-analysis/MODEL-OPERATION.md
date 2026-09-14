@@ -448,6 +448,41 @@ closing it.
 | `SEC-PATH` | `path` | A path class nobody enumerated, reported as covered |
 | `SEC-CAP` | `capability` | Declared support read as evidence, or evidence as permission |
 
+Three of them were revised on 2026-09-14 after the post-fix review named what
+each was measuring instead.
+
+**SEC-STATE was measuring the wrong interval.** `now - established_at` against
+the deadline meant a connection running for an hour was over its deadline the
+moment the epoch changed, before the agreed grace began - and the model had no
+way to say *when* revocation started. `Revocation` carries `effective_at` and the
+epoch it supersedes; the deadline is absolute. A session opened after that moment
+gets no grace at all, because nothing is winding it down: it is a new connection
+under a policy that does not authorize it, and that is a different failure with a
+different response. A related session is judged by its parent's authorization
+rather than its own tuple, which is usually on a port no rule mentions.
+
+**SEC-CAP was checking one level and one plan-wide mode.** Freshness and
+delegation were checked for the chosen offers only, so a prerequisite that
+depended in turn on an expired, undelegated one was never looked at; expansion is
+transitive now and every node in the closure is checked. Mode, ownership and
+capacity are scoped to a `resource`: two firewalls on different devices running
+different modes are not in conflict, and requiring one mode across a plan refused
+good independent components. An offer stating a mode without naming what it acts
+on is `unverified`. The digest is computed from the offer's semantic core rather
+than accepted as a string, so two different bodies cannot carry one label, and
+the result is a `Feasibility` with three answers - an empty conflict list used to
+be read as "these work together" when it meant "nothing I could check disagreed".
+
+**SEC-TRANSITION proved sequences it never performed.** A strategy returning no
+mutations produced no states, and no states have no state outside the envelope.
+Five preconditions and postconditions now surround the replay: the envelope's
+digests must be the digests of these plans and it must not have expired; the flow
+space must cover what the envelope admits; the mutations must be exactly the diff;
+the final state must *be* the new plan; and at the end `Accept(R_final) ⊆ A_new`
+with every required flow still carried. `UNSUPPORTED` is no longer skipped
+alongside `DENY` - a deny is a rule saying no, an unmatched flow is no rule at
+all, and on a default-allow backend that is the window itself.
+
 Three habits run through all of them, and they are the reason these are checks
 rather than descriptions.
 
