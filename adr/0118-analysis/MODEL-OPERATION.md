@@ -420,6 +420,48 @@ closing it.
 
 ---
 
+## 7d. The eight obligations, and where each one is checked
+
+| Obligation | Module | The failure it exists for |
+|---|---|---|
+| `SEC-AUTH` | `interpret` vs `policy`, over a bounded flow space | The plan accepts what the intent never authorized |
+| `SEC-AVAIL` | the same comparison, the other direction | An all-drop plan, which is broken rather than safe |
+| `SEC-ORDER` | `plan` | A different plan from the same intent, or a violated edge |
+| `SEC-NAT` | `transform` | Two frontends collapse onto one backend rule |
+| `SEC-STATE` | `state` | An established session outlives the permit that admitted it |
+| `SEC-TRANSITION` | `transition` | A window during the apply that neither endpoint shows |
+| `SEC-PATH` | `path` | A path class nobody enumerated, reported as covered |
+| `SEC-CAP` | `capability` | Declared support read as evidence, or evidence as permission |
+
+Three habits run through all of them, and they are the reason these are checks
+rather than descriptions.
+
+**Silence never means yes.** No applicable offer is `unverified`, not satisfied.
+No rule matched is `unsupported`, not accepted. A path case with no evidence is
+unverified by construction. An empty loop reports "no failures" whether it checked
+everything or nothing, so each of these says which.
+
+**Nothing marks its own homework.** The interpreter cannot import the producer.
+`path` enumerates what must be covered and never what is covered. `capability`
+takes evidence as an argument. Where one rule needs two implementations, a
+differential runs both and requires the same answer.
+
+**Every checker is shown failing.** An accept-all plan must break SEC-AUTH; an
+all-drop plan must break SEC-AVAIL; tearing denies down first must break
+SEC-TRANSITION. A checker that has never failed says nothing about a plan that
+looks right.
+
+### What SEC-PATH still needs from outside
+
+The lower bound on `Omega_g` is normative and implemented: every path class ADR
+0118 D6 requires, crossed with the families and epochs in scope. What the model
+cannot supply is the evidence that a case was demonstrated, and it deliberately
+has no function that could - `coverage_gaps` takes `demonstrated` as an argument.
+Filling it is W09 and W11 work, and until then every case reads `unverified`,
+which is the correct answer rather than a placeholder.
+
+---
+
 ## 8. Current state
 
 | Fact | Value | Measured |
@@ -445,3 +487,4 @@ across every emitted file.
 | 2026-09-11 | `2525f01e` | Section 7a: the inheritance chain is three links; the v2 shape travels it unchanged, proved by test, with the migrated shape written out |
 | 2026-09-11 | `09f633c0` | Section 7b: candidate isolation (A22) as a type boundary, and what it explicitly does not claim |
 | 2026-09-11 | `553c2e3b` | Section 7c: lowering, the independent interpreter, and SEC-AUTH/SEC-AVAIL as properties with mutants |
+| 2026-09-14 | `622eff34` | Section 7d: all eight obligations placed, the three habits behind them, and what SEC-PATH still needs from outside |

@@ -661,9 +661,52 @@ own and lives because the parent did, so it is reported with it.
 Time is a supplied tick, and a test asserts the module imports nothing that can
 read a clock - the same rule the capability freshness check follows.
 
-14 tests; 308 in netmodel. Still to come in W06: SEC-PATH, whose case inventory
-the contract anchors to an external source rather than the resolver's own
-enumeration, so it depends on inventory work in W09.
+14 tests; 308 in netmodel.
+
+**SEC-PATH, 2026-09-14: `netmodel/path.py`.** It looked blocked on W09 and was
+not: the lower bound on `Omega_g` is stated normatively in the contract, so
+enumerating it is not self-declaration. Every path class ADR 0118 D6 requires -
+L2 same-bridge, routed, host input and output, tunnel, direct backend, offload -
+crossed with the families and epochs in scope.
+
+*What is genuinely external is the evidence*, and the module has no function that
+could produce it: `required_cases` enumerates what must be covered, `coverage_gaps`
+takes `demonstrated` as an argument, and a test asserts no evidence-producing
+function exists. `complete(R_g, Omega_g)` is unfalsifiable when one component
+supplies both halves - a resolver that forgets a class reports full coverage of the
+classes it remembered.
+
+Absence is `unverified` by construction, an evidence entry citing nothing is a
+claim rather than evidence, and an exclusion requires both an owner and a reason,
+because the contract says a scope decision naming neither closes nothing. Evidence
+for a case the scope never required is reported too: otherwise an inventory could
+shrink while the coverage percentage rose.
+
+*One deliberate departure from the literal text, recorded rather than silently
+made.* The contract lists IPv6 among the path classes and also crosses the classes
+with the address families. Literally that yields "the IPv6 path class under the
+IPv4 family", which means nothing. IPv6 is carried by the family axis, where it
+produces a real case for every class; a test asserts that.
+
+Until W09 and W11 supply evidence every case reads `unverified`, which is the
+correct answer rather than a placeholder.
+
+14 tests; 322 in netmodel.
+
+### W06 obligations: all eight now have a checker
+
+`SEC-AUTH` and `SEC-AVAIL` in the interpreter-versus-algebra comparison, `SEC-ORDER`
+in `plan`, `SEC-NAT` in `transform`, `SEC-STATE` in `state`, `SEC-TRANSITION` in
+`transition`, `SEC-PATH` in `path`, `SEC-CAP` in `capability`. Three habits run
+through all of them and are what make them checks rather than descriptions:
+silence never means yes; nothing marks its own homework; and every checker is
+shown failing on a plan that is definitely wrong before it is trusted about one
+that looks right. `MODEL-OPERATION.md` section 7d has the table.
+
+What remains for G3 is not another obligation but the join: mounting these against
+the real compiled model rather than fixtures, which needs the plan compiler in the
+framework - and that, per the plan's own decomposition note, is W06/W07 contract
+work that fixes where backend specialization lives.
 
 **A framework lock is not reproducible from a commit alone.** A detached worktree
 at `93c0c2f7` computes `sha256-f43ba202...` where the committed lock says
