@@ -51,7 +51,7 @@ def offer(**overrides) -> Offer:
         "content_digest": "sha256-aaa",
         "capability_ref": "cap.firewall.stateful",
         "contexts": (FORWARD,),
-        "evidence": EvidenceLevel.BACKEND_TESTED,
+        "evidence": frozenset({EvidenceLevel.OFFLINE_VALIDATED}),
     }
     values.update(overrides)
     return Offer(**values)
@@ -138,24 +138,66 @@ def test_a_stated_limit_at_or_above_the_bound_satisfies() -> None:
 # --- declared support is not evidence -------------------------------------------
 
 
-def test_a_declaration_below_the_required_evidence_level_does_not_satisfy() -> None:
+def test_a_declaration_without_the_required_evidence_does_not_satisfy() -> None:
     """The heart of it: an offer can declare support and still prove nothing."""
     result = resolve(
         requirement(evidence_required=EvidenceLevel.LIVE_OBSERVED),
-        [offer(evidence=EvidenceLevel.DESIGN)],
+        [offer(evidence=frozenset({EvidenceLevel.DESIGN}))],
     )
 
     assert result.status is Status.UNVERIFIED
     assert "claim needs live_observed" in result.reason
 
 
-def test_evidence_above_the_required_level_satisfies() -> None:
+def test_a_live_observation_does_not_discharge_an_offline_requirement() -> None:
+    """Evidence is a kind, not a rung. The contract says so in one sentence.
+
+    *A live packet sample does not replace independent model checks or all-path
+    coverage.* An earlier version of this model compared levels numerically, so
+    live evidence satisfied an offline-validated claim - a substitution that
+    reads as strength and is really a change of subject: the two answer different
+    questions and neither subsumes the other.
+    """
     result = resolve(
         requirement(evidence_required=EvidenceLevel.OFFLINE_VALIDATED),
-        [offer(evidence=EvidenceLevel.LIVE_OBSERVED)],
+        [offer(evidence=frozenset({EvidenceLevel.LIVE_OBSERVED}))],
     )
 
-    assert result.status is Status.SATISFIED
+    assert result.status is Status.UNVERIFIED
+    assert "holds live_observed" in result.reason
+
+
+def test_an_offline_check_does_not_discharge_a_live_requirement_either() -> None:
+    """Symmetric, and for the same reason."""
+    result = resolve(
+        requirement(evidence_required=EvidenceLevel.LIVE_OBSERVED),
+        [offer(evidence=frozenset({EvidenceLevel.OFFLINE_VALIDATED}))],
+    )
+
+    assert result.status is Status.UNVERIFIED
+
+
+def test_an_offer_may_hold_several_kinds_at_once() -> None:
+    """Being backend-tested does not stop something also being model-checked."""
+    both = frozenset({EvidenceLevel.OFFLINE_VALIDATED, EvidenceLevel.BACKEND_TESTED})
+
+    assert (
+        resolve(requirement(evidence_required=EvidenceLevel.OFFLINE_VALIDATED), [offer(evidence=both)]).status
+        is Status.SATISFIED
+    )
+    assert (
+        resolve(requirement(evidence_required=EvidenceLevel.BACKEND_TESTED), [offer(evidence=both)]).status
+        is Status.SATISFIED
+    )
+    assert (
+        resolve(requirement(evidence_required=EvidenceLevel.LIVE_OBSERVED), [offer(evidence=both)]).status
+        is Status.UNVERIFIED
+    )
+
+
+def test_an_offer_with_no_evidence_at_all_satisfies_nothing() -> None:
+    for level in EvidenceLevel:
+        assert resolve(requirement(evidence_required=level), [offer(evidence=frozenset())]).status is Status.UNVERIFIED
 
 
 def test_a_witness_records_what_it_relied_on() -> None:

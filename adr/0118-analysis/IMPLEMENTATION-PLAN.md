@@ -558,9 +558,60 @@ that is what the device would do, and the intent asked in its own coordinates
 never permitted it. Reading only the interpreter calls this fine; reading only the
 intent calls it impossible. The obligation is the comparison.
 
-15 tests; 262 in netmodel. Still to come in W06: path and state algebra,
-transition envelopes, and the capability composition `netmodel.capability` now has
-a shape for.
+15 tests; 262 in netmodel.
+
+### Four blockers from external analysis, 2026-09-14
+
+**1. Layer validation was broken.** `class.service`, added with the L5 base, was
+never entered in `topology/layer-contract.yaml`, and
+`validate_v5_layer_contract.py` reported FAIL. Fixed by listing it at L5 beside
+the concrete roles. A class the contract does not list fails validation whether or
+not any instance names it directly - the abstract base needs an entry exactly as
+`class.compute.workload` has one.
+
+*Correction to my own report of it.* I said the validator printed FAIL while
+exiting 0. It does not: the `rc=0` I read was `tail`'s exit code, because I had
+piped the output. The script returns 1 correctly and there is no second defect.
+
+**2. Evidence was modelled as a numeric scale, and that is wrong.** `satisfies`
+compared level values, so `live_observed` discharged a requirement for
+`offline_validated`. The contract forbids it in one sentence - *a live packet
+sample does not replace independent model checks or all-path coverage* - and its
+section 4 table gives each claim its own required evidence rather than a
+threshold: offline validation wants compatible versioned offers and independent
+model checks, live observation wants a fresh preflight and a post-apply read-back.
+Neither answers the other's question.
+
+Evidence is now a **set of kinds** an offer holds, and satisfaction is membership.
+Both directions are tested: live does not discharge offline, offline does not
+discharge live, an offer may hold several kinds at once, and an offer holding none
+satisfies nothing. Joint satisfiability across offers, freshness and ownership
+remain unimplemented and are named as such.
+
+**3. W05 stays a blocker for the generator cutover**, unchanged, and the
+characterization says so: the two overlay CIDRs are still declared on trust zones
+and consumed only by the generator, so removing the duplicate derivation would
+change output. The selector work under it is done; the source change is not.
+
+**4. The transition module was an unfinished draft, and the diagnosis was exact.**
+Three tests failed because reordering finished `Step` objects does not recompute
+their stored states - an alternative strategy shuffled labels over states the safe
+order had already built, so the dangerous sequence it claimed to model never
+existed and the test correctly found no violation.
+
+Restructured: a strategy returns **mutations**, and `simulate` is the only place a
+state is built, so every strategy is played out the way its own order would
+actually run and a strategy can be wrong. With that, the unsafe sequence - tear the
+denies down first - produces the violation the obligation predicts, while both
+endpoints remain inside the envelope. That case is now asserted directly: both ends
+safe, a state between them not, which is the entire reason to check states rather
+than endpoints.
+
+12 transition tests, 30 capability tests, 277 in netmodel. Layer contract PASS.
+Artifact parity identical across 147 files.
+
+Still to come in W06: path and state algebra, and the joint offer resolution
+`netmodel.capability` now has a shape for.
 
 **A framework lock is not reproducible from a commit alone.** A detached worktree
 at `93c0c2f7` computes `sha256-f43ba202...` where the committed lock says

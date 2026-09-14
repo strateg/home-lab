@@ -37,15 +37,25 @@ class CapabilityError(ValueError):
 
 
 class EvidenceLevel(Enum):
-    """What a claim rests on. Ordered: a claim needs its level or better."""
+    """What a claim rests on. A kind of evidence, **not a rung on a ladder**.
 
-    DESIGN = 0
-    OFFLINE_VALIDATED = 1
-    BACKEND_TESTED = 2
-    LIVE_OBSERVED = 3
+    The first version of this compared levels numerically, so `live_observed`
+    discharged a requirement for `offline_validated`. The contract forbids that
+    in one sentence - *a live packet sample does not replace independent model
+    checks or all-path coverage* - and its section 4 table gives each claim its
+    own required evidence rather than a threshold: offline validation wants
+    compatible versioned offers and independent model checks, live observation
+    wants a fresh preflight and a post-apply read-back. Neither answers the
+    other's question, so neither substitutes for it.
 
-    def satisfies(self, required: EvidenceLevel) -> bool:
-        return self.value >= required.value
+    An offer therefore holds a *set* of levels: it can be design-reviewed and
+    backend-tested without being either of the other two.
+    """
+
+    DESIGN = "design"
+    OFFLINE_VALIDATED = "offline_validated"
+    BACKEND_TESTED = "backend_tested"
+    LIVE_OBSERVED = "live_observed"
 
 
 class Status(Enum):
@@ -119,7 +129,7 @@ class Offer:
     capability_ref: str
     contexts: tuple[Context, ...]
     limits: Mapping[str, int | Unknown] = field(default_factory=dict)
-    evidence: EvidenceLevel = EvidenceLevel.DESIGN
+    evidence: frozenset[EvidenceLevel] = field(default_factory=frozenset)
 
     def __post_init__(self) -> None:
         if not self.contexts:
@@ -220,11 +230,9 @@ def resolve(requirement: Requirement, offers: Iterable[Offer]) -> Resolution:
         if problems:
             unverified.extend(f"{offer.offer_id}: {item}" for item in problems)
             continue
-        if not offer.evidence.satisfies(requirement.evidence_required):
-            unverified.append(
-                f"{offer.offer_id}: evidence is {offer.evidence.name.lower()}, "
-                f"claim needs {requirement.evidence_required.name.lower()}"
-            )
+        if requirement.evidence_required not in offer.evidence:
+            held = ", ".join(sorted(level.value for level in offer.evidence)) or "none"
+            unverified.append(f"{offer.offer_id}: holds {held}, claim needs {requirement.evidence_required.value}")
             continue
         witnesses.append((offer.offer_id, offer.version, offer.content_digest))
 
@@ -232,7 +240,7 @@ def resolve(requirement: Requirement, offers: Iterable[Offer]) -> Resolution:
         return Resolution(
             requirement_id=requirement.requirement_id,
             status=Status.SATISFIED,
-            reason=f"{len(witnesses)} witness(es) at or above {requirement.evidence_required.name.lower()}",
+            reason=f"{len(witnesses)} witness(es) holding {requirement.evidence_required.value}",
             witnesses=tuple(witnesses),
         )
     if failures:

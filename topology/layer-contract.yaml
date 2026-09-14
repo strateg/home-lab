@@ -153,6 +153,11 @@ class_layers:
     allowed_layers: [L4]
 
   # L5 - Application (services)
+  # The abstract base, added with class.service itself: the concrete roles extend
+  # it, and a class the contract does not list fails layer validation whether or
+  # not any instance names it directly.
+  class.service:
+    allowed_layers: [L5]
   class.service.alerting:
     allowed_layers: [L5]
   class.service.cache:
