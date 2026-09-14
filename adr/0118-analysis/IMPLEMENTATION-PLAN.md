@@ -633,7 +633,37 @@ than endpoints.
 12 transition tests, 47 capability tests, 294 in netmodel. Layer contract PASS.
 Artifact parity identical across 147 files.
 
-Still to come in W06: path and state algebra (SEC-PATH, SEC-STATE).
+**SEC-STATE, 2026-09-14: `netmodel/state.py`.** The obligation's failure is an old
+established or related flow surviving past its deadline, and the reason it is easy
+to miss is mechanical: a stateful enforcer admits the first packet by matching a
+rule and every packet after it by matching the **session**. Removing the rule stops
+nothing already running. The contract says it directly - *live revocation is a
+time-bounded transition, not a property of source editing* - and a test asserts
+exactly that: the new epoch authorizes nothing, the session established under the
+old one is still there, and editing the source stopped no traffic.
+
+A revocation without a positive deadline is refused. It is not a lenient
+revocation; it is an unbounded permit, and there is no default because the
+contract forbids inventing one universal timeout. A session inside its deadline is
+not a violation - transitions take time - and one past it is.
+
+*Reverse traffic belongs to the authorization that admitted the session.* The
+reverse tuple mirrors the endpoints and keeps the service port, since swapping the
+port too would describe a different connection. An epoch that authorizes the
+forward direction but not the return one is describing half of a working
+connection as unauthorized, which is a modelling defect; it is reported rather
+than repaired, because hiding it behind a permissive reverse rule is how a broad
+accept nobody meant enters a plan.
+
+Related flows inherit the parent's fate: a child connection has no rule of its
+own and lives because the parent did, so it is reported with it.
+
+Time is a supplied tick, and a test asserts the module imports nothing that can
+read a clock - the same rule the capability freshness check follows.
+
+14 tests; 308 in netmodel. Still to come in W06: SEC-PATH, whose case inventory
+the contract anchors to an external source rather than the resolver's own
+enumeration, so it depends on inventory work in W09.
 
 **A framework lock is not reproducible from a commit alone.** A detached worktree
 at `93c0c2f7` computes `sha256-f43ba202...` where the committed lock says
