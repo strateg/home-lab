@@ -512,6 +512,7 @@ plugins:
   order: 129
   depends_on:
   - base.compiler.security_plan
+  - base.compiler.instance_rows
   timeout: 30
   config: {}
   config_schema:
@@ -522,7 +523,13 @@ plugins:
   - from_plugin: base.compiler.security_plan
     key: security_plan
     required: true
-  description: Independently checks the published security plan's order and termination (ADR 0119 G3).
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    # Not required at the registry level on purpose: if it is missing the check
+    # did not run, and that must be a visible diagnostic rather than a plugin the
+    # registry quietly declined to execute.
+    required: false
+  description: Independently checks the security plan against the source intent (ADR 0119 G3).
   execution_mode: subinterpreter
 - id: base.validator.network_intent_schema
   kind: validator_json

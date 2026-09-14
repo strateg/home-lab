@@ -1064,6 +1064,21 @@ codes:
     stage: validate
     title: Unapproved Intermediate Transition
     hint: SEC-TRANSITION; a partial apply, retry, reboot or rollback state admits a transition outside the approved set.
+  E7090:
+    severity: error
+    stage: validate
+    title: Plan Does Not Carry A Source Restriction
+    hint: >-
+      A mandatory deny the source states has no rule in the plan. Behavioural equivalence does not cover this:
+      a terminal deny can make the final verdict identical while the restriction itself is gone, so coverage is
+      traced against the source rather than inferred from the outcome.
+  E7091:
+    severity: error
+    stage: validate
+    title: Plan Omits A Declared Scope
+    hint: >-
+      A scope the sources declare has no representation in the plan. An absent scope cannot be reported as
+      unterminated or incomplete, so its omission would otherwise hide itself.
   E7089:
     severity: error
     stage: validate

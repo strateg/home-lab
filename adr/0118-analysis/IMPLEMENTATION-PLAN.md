@@ -983,9 +983,59 @@ rather than counts. The completion criterion is stated: remove UDP, a guard, or 
 whole scope from the plan **and** from the compiler's metadata together, and the
 independent check must still find the loss.
 
-Criterion 5 is marked and not enforced: `provenance: legacy_shadow` is published
-and nothing refuses it, because nothing consumes the plan. A checkable boundary is
-needed before the first backend consumer exists, not after.
+### PR2, part three, 2026-09-14 — the validator reads the source, not the plan
+
+Against the four conditions set for this change.
+
+**1. Independent input.** The validator consumes `normalized_rows` in its own
+right and derives what the sources require by lowering them again. Not from the
+plan, and not from `expected_overrides`: a compiler can lose a rule and its own
+record of that rule in one edit, which is exactly the case the check exists to
+catch. The consume is `required: false` at the registry level on purpose - a
+missing source must be a visible `E7008` saying the completeness check did not
+run, not a plugin the registry quietly declined to execute.
+
+**2. Two-way semantic comparison.** `E7083` for anything accepted outside the
+source's authorization, `E7084` for a required flow the plan does not carry. Both
+directions, because one-way inclusion is satisfied perfectly by an empty plan -
+which accepts nothing unauthorized and carries nothing at all. A test asserts
+exactly that case reports both `E7084` and `E7090`.
+
+**3. Traceable coverage, separate from behaviour.** `E7090` when a mandatory deny
+the source states has no rule in the plan, `E7091` when a declared scope is
+missing. Both registered before use. The guard case is the one behavioural
+equivalence cannot reach: deleting a guard leaves every verdict identical,
+because the terminal denies what the guard denied - the outcome matches and the
+obligation is gone.
+
+**4. An independent flow space.** Built from the source obligations, so a deleted
+UDP rule still has its flows probed and cannot vanish along with itself. The
+plan's own coordinates are unioned on top, and that turned out to be necessary: a
+smuggled permit on a port the sources never mention was invisible until the union
+was added. Deriving the space from the plan hides losses; deriving it only from
+the intent hides additions.
+
+**The mutant the review named passes.** Removing a rule together with the
+compiler's metadata about it - the UDP permit, the mandatory guard, and a whole
+scope, each with `expected_overrides` adjusted to match - is detected in all three
+cases.
+
+*A false positive the check found in itself.* On first run against the real
+topology it reported six accepted flows as unauthorized. The cause was mine: I had
+written one function to answer two questions. An any-transport permit authorizes
+every transport between its endpoints and belongs in the authorized set in full;
+it contributes **no** finite required flows, because "every port" is not an
+availability objective anyone stated. `_authorized` and `_required` are now
+separate, and enumerating a requirement nobody made is the mirror of dropping a
+restriction - equally wrong, and easier to miss.
+
+26 validator tests; 366 across the netmodel, compiler and registry suites.
+Artifact parity identical across 147 files.
+
+**Still open, unchanged.** A strict consumer enforcing refusal of
+`legacy_shadow` remains a separate criterion. `provenance` is published and
+nothing refuses it, because nothing consumes the plan - the boundary has to be
+checkable before the first backend consumer exists, not after.
 
 **A framework lock is not reproducible from a commit alone.** A detached worktree
 at `93c0c2f7` computes `sha256-f43ba202...` where the committed lock says

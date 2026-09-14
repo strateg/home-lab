@@ -69,6 +69,11 @@ def _run(rules: list[dict]):
         "security_plan",
         {"schema_version": 1, "rules": copy.deepcopy(rules), "scopes": [SCOPE], "unlowerable": []},
     )
+    # Empty source rows: these tests are about order and termination, and an
+    # empty source states no obligations, so the completeness check has nothing
+    # to say. Omitting them entirely would instead report that the check did not
+    # run, which is true and is a different test's subject.
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", [])
     return registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
 
 
@@ -159,6 +164,7 @@ def test_a_plan_declaring_no_scopes_and_no_rules_is_not_an_error() -> None:
     publish_for_test(
         ctx, PLAN_PLUGIN_ID, "security_plan", {"schema_version": 1, "rules": [], "scopes": [], "unlowerable": []}
     )
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", [])
 
     assert registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE).diagnostics == []
 
@@ -323,3 +329,214 @@ def test_a_long_chain_does_not_exhaust_the_stack() -> None:
 
     assert result.status == PluginStatus.SUCCESS
     assert result.diagnostics == []
+
+
+# --- the independent source-side check ------------------------------------------------
+
+
+MATRIX_SCOPE = "inst.security_matrix.m"
+
+
+def _matrix_row(*overrides: dict) -> dict:
+    return {
+        "group": "network",
+        "instance": MATRIX_SCOPE,
+        "class_ref": "class.network.security_matrix",
+        "layer": "L2",
+        "extensions": {"policy_overrides": list(overrides)},
+    }
+
+
+def _src(name: str, *, action="accept", src="z.a", dst="z.b", ports=None) -> dict:
+    entry = {"name": name, "from_zone_ref": src, "to_zone_ref": dst, "action": action}
+    if ports is not None:
+        entry["ports"] = ports
+    return entry
+
+
+def _run_with_source(plan_payload: dict, rows: list[dict]):
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        classes={},
+        objects={},
+        instance_bindings={"instance_bindings": {}},
+    )
+    publish_for_test(ctx, PLAN_PLUGIN_ID, "security_plan", copy.deepcopy(plan_payload))
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", copy.deepcopy(rows))
+    return registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+
+
+def _compile_plan(rows: list[dict]) -> dict:
+    """Build the plan with the real compiler, so the mutants start from a true one."""
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        classes={},
+        objects={},
+        instance_bindings={"instance_bindings": {}},
+    )
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", copy.deepcopy(rows))
+    result = registry.execute_plugin("base.compiler.security_plan", ctx, Stage.COMPILE)
+    return result.output_data["security_plan"]
+
+
+SOURCE_ROWS = [
+    _matrix_row(
+        _src("dns", ports={"tcp": [53], "udp": [53]}),
+        _src("no-b-to-a", action="drop", src="z.b", dst="z.a"),
+    )
+]
+
+
+def test_the_validator_reads_the_source_independently() -> None:
+    registry = _registry()
+    consumed = {item["from_plugin"] for item in registry.specs[PLUGIN_ID].consumes}
+
+    assert consumed == {"base.compiler.security_plan", "base.compiler.instance_rows"}
+
+
+def test_a_faithful_plan_passes_the_source_comparison() -> None:
+    result = _run_with_source(_compile_plan(SOURCE_ROWS), SOURCE_ROWS)
+
+    assert result.diagnostics == [], [str(d.message) for d in result.diagnostics]
+
+
+def test_removing_a_protocol_from_the_plan_and_its_metadata_is_caught() -> None:
+    """The mutant that matters: delete the rule *and* the compiler's record of it.
+
+    `expected_overrides` cannot catch this, because the compiler that lost the
+    rule would lose the count with it. Only a check reading the source can see
+    that a UDP restriction the sources state is not in the plan.
+    """
+    plan = _compile_plan(SOURCE_ROWS)
+    plan["rules"] = [
+        rule
+        for rule in plan["rules"]
+        if not (rule["origin"] == "binding:dns" and rule["transport"].get("protocol") == "udp")
+    ]
+    plan["expected_overrides"] = {MATRIX_SCOPE: 1}
+    for index, rule in enumerate(sorted(plan["rules"], key=lambda item: item["position"])):
+        rule["position"] = index
+
+    codes = _codes(_run_with_source(plan, SOURCE_ROWS))
+
+    assert "E7084" in codes, f"the lost UDP permit was not detected: {codes}"
+
+
+def test_removing_a_guard_from_the_plan_and_its_metadata_is_caught() -> None:
+    """Behavioural equivalence would miss this: the terminal denies it anyway.
+
+    The verdict for every flow is identical with and without the guard, because
+    what the guard denied the terminal denies too. The obligation is still gone,
+    and coverage is traced rather than inferred.
+    """
+    plan = _compile_plan(SOURCE_ROWS)
+    plan["rules"] = [rule for rule in plan["rules"] if rule["origin"] != "guard:no-b-to-a"]
+    plan["expected_overrides"] = {MATRIX_SCOPE: 1}
+    for index, rule in enumerate(sorted(plan["rules"], key=lambda item: item["position"])):
+        rule["position"] = index
+
+    codes = _codes(_run_with_source(plan, SOURCE_ROWS))
+
+    assert "E7090" in codes, f"the lost mandatory deny was not detected: {codes}"
+
+
+def test_removing_a_whole_scope_from_the_plan_and_its_metadata_is_caught() -> None:
+    plan = _compile_plan(SOURCE_ROWS)
+    plan["rules"] = []
+    plan["scopes"] = []
+    plan["expected_overrides"] = {}
+    plan["matrices"] = []
+
+    codes = _codes(_run_with_source(plan, SOURCE_ROWS))
+
+    assert "E7091" in codes, f"the lost scope was not detected: {codes}"
+
+
+def test_an_empty_plan_does_not_satisfy_the_comparison_by_permitting_nothing() -> None:
+    """One-way inclusion is not enough, which is why both directions are asked.
+
+    An empty plan accepts nothing outside the authorized set and would satisfy
+    SEC-AUTH perfectly while carrying none of the intent.
+    """
+    plan = _compile_plan(SOURCE_ROWS)
+    plan["rules"] = [rule for rule in plan["rules"] if rule["terminal"]]
+    for index, rule in enumerate(plan["rules"]):
+        rule["position"] = index
+
+    codes = _codes(_run_with_source(plan, SOURCE_ROWS))
+
+    assert "E7084" in codes and "E7090" in codes
+
+
+def test_an_extra_permit_the_source_never_stated_is_caught() -> None:
+    plan = _compile_plan(SOURCE_ROWS)
+    smuggled = dict(plan["rules"][0])
+    smuggled.update(
+        {
+            "origin": "binding:smuggled",
+            "effect": "permit",
+            "terminal": False,
+            "sources": ["z.b"],
+            "destinations": ["z.a"],
+            "transport": {"kind": "ports", "protocol": "tcp", "ports": [22]},
+        }
+    )
+    plan["rules"] = [smuggled, *plan["rules"]]
+    for index, rule in enumerate(plan["rules"]):
+        rule["position"] = index
+
+    codes = _codes(_run_with_source(plan, SOURCE_ROWS))
+
+    assert "E7083" in codes
+
+
+def test_the_probed_flows_come_from_the_source_not_from_the_plan() -> None:
+    """Otherwise a deleted rule disappears from the check along with itself.
+
+    Deleting the UDP rule leaves no UDP anywhere in the plan; if the space were
+    built from the plan's rules there would be no UDP flow to ask about, and the
+    loss would be invisible. It is detected, so the space is not the plan's.
+    """
+    plan = _compile_plan(SOURCE_ROWS)
+    plan["rules"] = [
+        rule
+        for rule in plan["rules"]
+        if not (rule["origin"] == "binding:dns" and rule["transport"].get("protocol") == "udp")
+    ]
+    for index, rule in enumerate(sorted(plan["rules"], key=lambda item: item["position"])):
+        rule["position"] = index
+
+    assert not any(
+        (rule.get("transport") or {}).get("protocol") == "udp" for rule in plan["rules"]
+    ), "the mutant must leave no UDP in the plan for this to mean anything"
+    assert "E7084" in _codes(_run_with_source(plan, SOURCE_ROWS))
+
+
+def test_a_missing_source_intent_is_reported_rather_than_skipped() -> None:
+    """"The check did not run" is a fact, and a silent pass is not it."""
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        classes={},
+        objects={},
+        instance_bindings={"instance_bindings": {}},
+    )
+    publish_for_test(
+        ctx,
+        PLAN_PLUGIN_ID,
+        "security_plan",
+        {"schema_version": 1, "rules": [], "scopes": [], "unlowerable": []},
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+
+    assert "E7008" in [diag.code for diag in result.diagnostics]
+    assert any("did not run" in diag.message for diag in result.diagnostics)

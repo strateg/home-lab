@@ -36,6 +36,10 @@ from kernel.plugin_base import (
 
 PLAN_PLUGIN_ID = "base.compiler.security_plan"
 PLAN_KEY = "security_plan"
+ROWS_PLUGIN_ID = "base.compiler.instance_rows"
+ROWS_KEY = "normalized_rows"
+MATRIX_CLASS = "class.network.security_matrix"
+ANY_TRANSPORT = "any"
 
 
 class SecurityPlanValidator(ValidatorJsonPlugin):
@@ -57,6 +61,27 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
                     )
                 ]
             )
+
+        # The source intent, read independently. Not reconstructed from the plan
+        # and not from `expected_overrides`, which the compiler also produces: a
+        # compiler can lose a rule and its own record of that rule in one edit,
+        # and that is precisely the case this check exists to catch.
+        source = self._source_obligations(ctx)
+        if not source["available"]:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7008",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        "the source intent is not available, so the plan was checked for order and "
+                        "termination only; completeness against the sources did not run"
+                    ),
+                    path="pipeline:validate",
+                )
+            )
+        diagnostics.extend(self._check_coverage(plan=plan, source=source, stage=stage))
+        diagnostics.extend(self._check_semantics(plan=plan, source=source, stage=stage))
 
         rules = plan.get("rules") if isinstance(plan, Mapping) else None
         declared = plan.get("scopes") if isinstance(plan, Mapping) else None
@@ -259,6 +284,355 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
                     if path and path[-1] == node:
                         path.pop()
         return None
+
+
+
+    # --- the source side, read independently ------------------------------------
+
+    def _source_obligations(self, ctx: PluginContext) -> dict[str, Any]:
+        """Derive what the sources require, without looking at the plan.
+
+        This is a second lowering, and deliberately so. A validator that read the
+        compiler's own summary of what it produced could only ever confirm the
+        compiler's arithmetic; the two have to be able to disagree.
+        """
+        try:
+            payload = ctx.subscribe(ROWS_PLUGIN_ID, ROWS_KEY)
+        except PluginDataExchangeError:
+            return {"available": False, "scopes": set(), "permits": [], "guards": []}
+
+        rows = [item for item in payload if isinstance(item, dict)] if isinstance(payload, list) else []
+        scopes: set[str] = set()
+        permits: list[dict[str, Any]] = []
+        guards: list[dict[str, Any]] = []
+
+        for row in rows:
+            if self._class_of(row) != MATRIX_CLASS:
+                continue
+            scope = row.get("instance") or row.get("instance_id")
+            if not isinstance(scope, str):
+                continue
+            scopes.add(scope)
+            extensions = row.get("extensions")
+            overrides = extensions.get("policy_overrides") if isinstance(extensions, Mapping) else None
+            if not isinstance(overrides, list):
+                continue
+            for override in overrides:
+                if not isinstance(override, Mapping):
+                    continue
+                entry = self._obligation(override, scope)
+                if entry is None:
+                    continue
+                (guards if entry["effect"] == "deny" else permits).append(entry)
+
+        return {"available": True, "scopes": scopes, "permits": permits, "guards": guards}
+
+    @staticmethod
+    def _class_of(row: Mapping[str, Any]) -> str | None:
+        class_ref = row.get("class_ref")
+        if isinstance(class_ref, str) and class_ref:
+            return class_ref
+        payload = row.get("class")
+        lineage = payload.get("lineage") if isinstance(payload, Mapping) else None
+        return lineage[-1] if isinstance(lineage, list) and lineage else None
+
+    @staticmethod
+    def _obligation(override: Mapping[str, Any], scope: str) -> dict[str, Any] | None:
+        name = str(override.get("name") or "").strip()
+        source = override.get("from_zone_ref")
+        destination = override.get("to_zone_ref")
+        action = override.get("action")
+        if not name or not isinstance(source, str) or not isinstance(destination, str):
+            return None
+        if action not in ("accept", "drop", "reject"):
+            return None
+
+        ports = override.get("ports")
+        transports: list[tuple[str, tuple[int, ...] | None]]
+        if not isinstance(ports, Mapping) or not ports:
+            transports = [(ANY_TRANSPORT, None)]
+        else:
+            transports = []
+            for protocol, numbers in sorted(ports.items()):
+                if not isinstance(numbers, list) or not numbers:
+                    return None
+                transports.append((str(protocol), tuple(sorted(int(item) for item in numbers))))
+
+        return {
+            "name": name,
+            "scope": scope,
+            "effect": "permit" if action == "accept" else "deny",
+            "source": source,
+            "destination": destination,
+            "transports": transports,
+        }
+
+    # --- traceable coverage -------------------------------------------------------
+
+    def _check_coverage(
+        self, *, plan: Mapping[str, Any], source: Mapping[str, Any], stage: Stage
+    ) -> list[PluginDiagnostic]:
+        """Every source scope and every mandatory deny must appear in the plan.
+
+        Behavioural equivalence does not cover this. A terminal deny can make the
+        outcome identical while a guard the source states is simply gone - the
+        verdict is the same and the restriction is not there, so coverage is
+        traced against the source rather than inferred from behaviour.
+        """
+        if not source.get("available"):
+            return []
+
+        diagnostics: list[PluginDiagnostic] = []
+        rules = plan.get("rules") if isinstance(plan, Mapping) else []
+        rules = rules if isinstance(rules, list) else []
+
+        planned_scopes = {str(rule.get("scope")) for rule in rules if isinstance(rule, Mapping)}
+        declared = plan.get("scopes") if isinstance(plan, Mapping) else []
+        planned_scopes |= {str(item) for item in declared} if isinstance(declared, list) else set()
+
+        for scope in sorted(source["scopes"] - planned_scopes):
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7091",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        f"the sources declare scope '{scope}' and the plan has no representation of it; "
+                        "an absent scope cannot be reported as unterminated, so the omission hides itself"
+                    ),
+                    path="security_plan:coverage",
+                )
+            )
+
+        planned = {
+            (str(rule.get("scope")), str(rule.get("origin")), self._transport_key(rule))
+            for rule in rules
+            if isinstance(rule, Mapping) and not rule.get("terminal")
+        }
+        for guard in source["guards"]:
+            for protocol, ports in guard["transports"]:
+                key = (guard["scope"], f"guard:{guard['name']}", (protocol, ports))
+                if key in planned:
+                    continue
+                described = protocol if ports is None else f"{protocol}/{list(ports)}"
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E7090",
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            f"scope '{guard['scope']}': the source states a mandatory deny "
+                            f"'{guard['name']}' on {described} and the plan carries no such rule"
+                        ),
+                        path=f"security_plan:{guard['scope']}",
+                    )
+                )
+        return diagnostics
+
+    @staticmethod
+    def _transport_key(rule: Mapping[str, Any]) -> tuple[str, tuple[int, ...] | None]:
+        transport = rule.get("transport") or {}
+        if transport.get("kind") == "any":
+            return (ANY_TRANSPORT, None)
+        return (str(transport.get("protocol")), tuple(sorted(transport.get("ports") or [])))
+
+    # --- two-way semantic comparison ------------------------------------------------
+
+    def _check_semantics(
+        self, *, plan: Mapping[str, Any], source: Mapping[str, Any], stage: Stage
+    ) -> list[PluginDiagnostic]:
+        """SEC-AUTH and SEC-AVAIL over a flow space the plan did not choose.
+
+        The space is built from the source obligations. Building it from the
+        plan's own rules would make a deleted UDP rule vanish from the check
+        along with itself, and one-way inclusion is not enough either: an empty
+        plan accepts nothing outside the authorized set and satisfies SEC-AUTH
+        perfectly while carrying nothing at all.
+        """
+        if not source.get("available"):
+            return []
+
+        rules = plan.get("rules") if isinstance(plan, Mapping) else []
+        rules = [item for item in rules if isinstance(item, Mapping)] if isinstance(rules, list) else []
+        if not source["permits"] and not source["guards"]:
+            return []
+
+        diagnostics: list[PluginDiagnostic] = []
+        for scope in sorted(source["scopes"]):
+            scoped = [rule for rule in rules if str(rule.get("scope")) == scope]
+            space = self._flow_space(source, scope, scoped)
+            authorized = self._authorized(source, scope, space)
+            required = self._required(source, scope)
+
+            for flow in space:
+                verdict, origin = self._interpret(scoped, flow)
+                accepted = verdict == "accept"
+
+                if accepted and flow not in authorized:
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E7083",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"scope '{scope}' accepts {flow[0]} -> {flow[1]} {flow[2]}/{flow[3]} "
+                                f"via '{origin}', which the source does not authorize"
+                            ),
+                            path=f"security_plan:{scope}",
+                        )
+                    )
+                elif flow in required and not accepted:
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E7084",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"scope '{scope}' does not carry {flow[0]} -> {flow[1]} {flow[2]}/{flow[3]}, "
+                                "which the source permits and no source deny overrides"
+                            ),
+                            path=f"security_plan:{scope}",
+                        )
+                    )
+        return diagnostics
+
+    @staticmethod
+    def _flow_space(
+        source: Mapping[str, Any], scope: str, rules: Sequence[Mapping[str, Any]]
+    ) -> list[tuple[str, str, str, int]]:
+        """Concrete flows to ask about: the intent's, plus whatever the plan touches.
+
+        The intent contributes independently, which is the load-bearing part - a
+        rule deleted from the plan still has its flows probed, so the loss cannot
+        vanish along with itself.
+
+        The plan's own coordinates are added on top, and they have to be: a rule
+        smuggled in on a port the sources never mention would otherwise never be
+        asked about. Deriving the space *from* the plan would hide losses;
+        deriving it *only* from the intent hides additions. The union hides
+        neither, and the two contributions stay separable.
+        """
+        entries = [item for item in [*source["permits"], *source["guards"]] if item["scope"] == scope]
+        endpoints = {item["source"] for item in entries} | {item["destination"] for item in entries}
+        protocols = {
+            protocol for item in entries for protocol, _ in item["transports"] if protocol != ANY_TRANSPORT
+        }
+        ports = {port for item in entries for _, values in item["transports"] for port in (values or ())}
+
+        for rule in rules:
+            endpoints |= set(rule.get("sources") or [])
+            endpoints |= set(rule.get("destinations") or [])
+            transport = rule.get("transport") or {}
+            if transport.get("kind") == "any":
+                continue
+            if transport.get("protocol"):
+                protocols.add(str(transport["protocol"]))
+            ports |= {int(item) for item in (transport.get("ports") or [])}
+
+        # A port nothing mentions, so an any-transport deny is exercised where
+        # every other rule is silent - the only place its narrowing would show.
+        ports.add(9999)
+        return [
+            (left, right, protocol, port)
+            for left in sorted(endpoints)
+            for right in sorted(endpoints)
+            for protocol in sorted(protocols or {"tcp"})
+            for port in sorted(ports)
+        ]
+
+    @staticmethod
+    def _covers(entry: Mapping[str, Any], protocol: str, port: int) -> bool:
+        for entry_protocol, entry_ports in entry["transports"]:
+            if entry_protocol == ANY_TRANSPORT:
+                return True
+            if entry_protocol == protocol and entry_ports and port in entry_ports:
+                return True
+        return False
+
+    def _authorized(
+        self, source: Mapping[str, Any], scope: str, space: Sequence[tuple[str, str, str, int]]
+    ) -> set[tuple[str, str, str, int]]:
+        """`(P and C) minus D`: what the source allows, over the probed space.
+
+        An any-transport permit authorizes every transport between its endpoints,
+        so it belongs here in full. It does *not* belong in the required set -
+        those are different questions, and the first version of this answered the
+        second one for both. The independent check then reported six accepted
+        flows as unauthorized on the real topology when the source permits them
+        explicitly: a false positive found by running the check rather than by
+        reading it.
+        """
+        permitted = {
+            flow
+            for flow in space
+            for entry in source["permits"]
+            if entry["scope"] == scope
+            and entry["source"] == flow[0]
+            and entry["destination"] == flow[1]
+            and self._covers(entry, flow[2], flow[3])
+        }
+        denied = {
+            flow
+            for flow in permitted
+            for entry in source["guards"]
+            if entry["scope"] == scope
+            and entry["source"] == flow[0]
+            and entry["destination"] == flow[1]
+            and self._covers(entry, flow[2], flow[3])
+        }
+        return permitted - denied
+
+    def _required(self, source: Mapping[str, Any], scope: str) -> set[tuple[str, str, str, int]]:
+        """Flows the source states must work, which is a finite claim.
+
+        An any-transport permit contributes none. "Every port" is not an
+        availability objective anyone stated, and enumerating one would invent a
+        requirement the sources do not make - the opposite mistake from dropping
+        a restriction, and just as wrong.
+        """
+        required: set[tuple[str, str, str, int]] = set()
+        for entry in source["permits"]:
+            if entry["scope"] != scope:
+                continue
+            for protocol, values in entry["transports"]:
+                if protocol == ANY_TRANSPORT:
+                    continue
+                for port in values or ():
+                    required.add((entry["source"], entry["destination"], protocol, port))
+
+        return {
+            flow
+            for flow in required
+            if not any(
+                entry["scope"] == scope
+                and entry["source"] == flow[0]
+                and entry["destination"] == flow[1]
+                and self._covers(entry, flow[2], flow[3])
+                for entry in source["guards"]
+            )
+        }
+
+    @staticmethod
+    def _interpret(rules: Sequence[Mapping[str, Any]], flow: tuple[str, str, str, int]) -> tuple[str, str]:
+        """First match wins, over the plan's own emitted order."""
+        source, destination, protocol, port = flow
+        for rule in sorted(rules, key=lambda item: item.get("position", 0)):
+            if source not in (rule.get("sources") or []) and not rule.get("terminal"):
+                continue
+            if rule.get("terminal"):
+                if source not in (rule.get("sources") or []) and rule.get("sources"):
+                    continue
+                if destination not in (rule.get("destinations") or []) and rule.get("destinations"):
+                    continue
+                return "deny", str(rule.get("origin"))
+            if destination not in (rule.get("destinations") or []):
+                continue
+            transport = rule.get("transport") or {}
+            if transport.get("kind") != "any":
+                if transport.get("protocol") != protocol or port not in (transport.get("ports") or []):
+                    continue
+            return ("accept" if rule.get("effect") == "permit" else "deny", str(rule.get("origin")))
+        return "unsupported", ""
 
 
 __all__ = ["SecurityPlanValidator"]
