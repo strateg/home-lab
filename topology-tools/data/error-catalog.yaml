@@ -972,6 +972,14 @@ codes:
       usable range is 1..(size - 2) for an IPv4 prefix that has a broadcast address.
 
   # Publication (delivery, never authorization)
+  E7025:
+    severity: error
+    stage: validate
+    title: Reference To A Disabled Record
+    hint: >-
+      A reference names a record whose `enabled` is explicitly false. The declarations say an explicit false
+      disables an inherited record without deleting it, so a reference to it is an error rather than a silent
+      miss - and reporting it as "no such record" would send the author looking for a typo.
   E7040:
     severity: error
     stage: validate
@@ -1127,16 +1135,16 @@ codes:
       No availability requirement is declared for this scope, so SEC-AVAIL is unverified rather than satisfied.
       A permit is permission and not an objective: deriving required flows from permits would invent an
       availability claim nobody made, and then report it as met.
-  W7001:
-    severity: warning
-    stage: validate
-    title: Disabled Network Record Referenced
-    hint: An explicit enabled:false record still exists; a reference to it is an error rather than a silent miss.
-  I7001:
-    severity: info
-    stage: validate
-    title: Network Intent Version In Use
-    hint: Reports which network intent version an effective source resolved to.
+  # Withdrawn 2026-09-14, never raised. Both were registered speculatively, which
+  # ADR 0118 D7 warns against, and a self-review found them with no raiser at all.
+  #
+  # W7001 was a mis-allocation as well as unused: the declarations say a reference
+  # to a disabled record is an *error*, so a W-prefixed code was the wrong shape
+  # for it. The rule is now E7025. I7001 would have emitted an informational line
+  # per row reporting a version, which is noise rather than a diagnostic.
+  #
+  # Neither number is reused: governance rule 2 forbids reusing a retired code,
+  # and a reader meeting W7001 in an old report deserves to find it here.
 
   # ---------------------------------------------------------------------------
   # Topology manifest governance contract, moved here 2026-09-11.

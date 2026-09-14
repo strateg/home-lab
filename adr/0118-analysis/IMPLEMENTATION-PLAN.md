@@ -1254,10 +1254,46 @@ test suite caught it immediately, which is what it is for.
 59 validator tests, 335 netmodel, artifact parity identical across 147 files, the
 real topology unchanged at two `W7002`.
 
+#### Acting on it, same day
+
+`W7001` and `I7001` are withdrawn. Neither number is reused - governance rule 2 -
+and the catalog carries the reason so a reader meeting one in an older report can
+still find out what it meant. `W7001` was the wrong severity as well as unused:
+`class.compute.workload.yaml` says an explicit `enabled: false` disables an
+inherited record *without deleting it*, "so a reference to it is an error rather
+than a silent miss". A warning cannot say that. The rule is now `E7025`, and it
+is raised in the two places a reference can land on a disabled record:
+
+* a publication whose `endpoint_ref` names a disabled attachment. This used to
+  report `E7040` "not an attachment on lxc-host", which sends the author looking
+  for a typo in a name that is spelled correctly. The disabled record is also no
+  longer offered in the `Declared there:` list, since it is not a candidate.
+* a binding whose `policy_ref` names a disabled policy. This was worse than a
+  misleading message: the binding was validated *against the disabled template
+  and passed*, recording an approval against a policy that grants nothing.
+
+**The measurement instrument was the second finding.** Enumerating allocated
+codes against their raisers is the check that caught `E7094`, and it existed only
+as something I typed once. It is now `test_every_allocated_code_is_raised_or_recorded_as_waiting`,
+and running it properly found more than the self-review had: not four unraised
+codes but **seven**. `E7042` (publication mechanism against enforcer capability)
+and `E7062` (an unapproved binding used as authorization) are also registered
+with nothing to raise them - `E7062` because the framework still compiles legacy
+matrices, so no binding becomes a grant anywhere it could fire. All seven are now
+a ledger that names the mount point each is waiting for; it may shrink and cannot
+grow. A control run registering a fake `E7099` makes the test fail, so it has
+teeth.
+
+The scan uses its own AST walk rather than `scan_emissions`, which counts a
+`code=` keyword or a CODE-named constant and therefore cannot see
+`self._diag("E7025", ...)`. That blind spot is what produced the false
+`E7090`/`E7093` report during the review.
+
 **Not concluded, and a self-review does not change that.** It found one real
-defect and cannot speak to what it did not think to mutate. PR2 and the strict
-boundary still need an outside review against this code and the exact gate
-commands. F3 through F5 remain open, and so does G3.
+defect, acting on it found two more, and none of that speaks to what nobody
+thought to mutate. PR2 and the strict boundary still need an outside review
+against this code and the exact gate commands. F3 through F5 remain open, and so
+does G3.
 
 **A framework lock is not reproducible from a commit alone.** A detached worktree
 at `93c0c2f7` computes `sha256-f43ba202...` where the committed lock says

@@ -366,6 +366,7 @@ class NetworkIntentSchemaValidator(ValidatorJsonPlugin):
 
         domains: dict[str, Mapping[str, Any]] = {}
         attachments_by_row: dict[str, Mapping[str, Any]] = {}
+        disabled_by_row: dict[str, set[str]] = {}
         row_by_id: dict[str, Mapping[str, Any]] = {}
 
         for row in rows:
@@ -380,6 +381,15 @@ class NetworkIntentSchemaValidator(ValidatorJsonPlugin):
                 records = block.get("attachments")
                 if isinstance(records, Mapping):
                     attachments_by_row[row_id] = records
+                    # Disabled records are kept, not dropped. A reference to one
+                    # is an error the declarations describe, and reporting it as
+                    # "no such attachment" would send the author looking for a
+                    # typo in a name that is spelled correctly.
+                    disabled_by_row[row_id] = {
+                        key
+                        for key, record in records.items()
+                        if isinstance(record, Mapping) and not self._enabled(record)
+                    }
 
         diagnostics.extend(
             self._check_attachments(
@@ -388,7 +398,12 @@ class NetworkIntentSchemaValidator(ValidatorJsonPlugin):
         )
         diagnostics.extend(
             self._check_publications(
-                ctx=ctx, rows=rows, attachments_by_row=attachments_by_row, row_by_id=row_by_id, stage=stage
+                ctx=ctx,
+                rows=rows,
+                attachments_by_row=attachments_by_row,
+                disabled_by_row=disabled_by_row,
+                row_by_id=row_by_id,
+                stage=stage,
             )
         )
         diagnostics.extend(self._check_policies(ctx=ctx, rows=rows, stage=stage))
@@ -554,6 +569,7 @@ class NetworkIntentSchemaValidator(ValidatorJsonPlugin):
         ctx: PluginContext,
         rows: list[Mapping[str, Any]],
         attachments_by_row: dict[str, Mapping[str, Any]],
+        disabled_by_row: dict[str, set[str]],
         row_by_id: dict[str, Mapping[str, Any]],
         stage: Stage,
     ) -> list[PluginDiagnostic]:
@@ -572,9 +588,9 @@ class NetworkIntentSchemaValidator(ValidatorJsonPlugin):
 
             runtime = self._resolve_field(ctx=ctx, row=row, key="runtime")
             target_ref = runtime.get("target_ref") if isinstance(runtime, Mapping) else None
-            target_attachments = (
-                attachments_by_row.get(target_ref, {}) if isinstance(target_ref, str) else {}
-            )
+            all_attachments = attachments_by_row.get(target_ref, {}) if isinstance(target_ref, str) else {}
+            disabled = disabled_by_row.get(str(target_ref), set())
+            target_attachments = {key: value for key, value in all_attachments.items() if key not in disabled}
 
             taken: dict[tuple[str, str, int], str] = {}
             for key in sorted(records):
@@ -592,6 +608,17 @@ class NetworkIntentSchemaValidator(ValidatorJsonPlugin):
                                 stage,
                                 f"'{path}.endpoint_ref' names '{endpoint_ref}', but the service has no resolvable "
                                 "runtime target to hold an attachment.",
+                                f"{path}.endpoint_ref",
+                            )
+                        )
+                    elif endpoint_ref in disabled:
+                        diagnostics.append(
+                            self._diag(
+                                "E7025",
+                                stage,
+                                f"'{path}.endpoint_ref' names '{endpoint_ref}' on '{target_ref}', which is "
+                                "explicitly disabled. An inherited record turned off still exists, so this "
+                                "is a reference to something switched off rather than a missing name.",
                                 f"{path}.endpoint_ref",
                             )
                         )
@@ -660,6 +687,11 @@ class NetworkIntentSchemaValidator(ValidatorJsonPlugin):
             bindings = bindings if isinstance(bindings, Mapping) else {}
 
             guards: dict[str, dict[str, Any]] = {}
+            disabled_policies = {
+                key
+                for key, record in policies.items()
+                if isinstance(record, Mapping) and not self._enabled(record)
+            }
             for key in sorted(policies):
                 record = policies[key]
                 if not isinstance(record, Mapping) or not self._enabled(record):
@@ -697,7 +729,12 @@ class NetworkIntentSchemaValidator(ValidatorJsonPlugin):
 
             diagnostics.extend(
                 self._check_bindings(
-                    owner=owner, policies=policies, bindings=bindings, guards=guards, stage=stage
+                    owner=owner,
+                    policies=policies,
+                    disabled_policies=disabled_policies,
+                    bindings=bindings,
+                    guards=guards,
+                    stage=stage,
                 )
             )
         return diagnostics
@@ -707,6 +744,7 @@ class NetworkIntentSchemaValidator(ValidatorJsonPlugin):
         *,
         owner: str,
         policies: Mapping[str, Any],
+        disabled_policies: set[str],
         bindings: Mapping[str, Any],
         guards: Mapping[str, Mapping[str, Any]],
         stage: Stage,
@@ -720,6 +758,22 @@ class NetworkIntentSchemaValidator(ValidatorJsonPlugin):
             path = f"{owner}.policy.bindings.{key}"
             policy_ref = record.get("policy_ref")
             template = policies.get(policy_ref) if isinstance(policy_ref, str) else None
+
+            if isinstance(policy_ref, str) and policy_ref in disabled_policies:
+                # Without this the binding would be checked against a template
+                # that activates nothing, and pass - an approval recorded
+                # against a policy switched off.
+                diagnostics.append(
+                    self._diag(
+                        "E7025",
+                        stage,
+                        f"'{path}.policy_ref' names '{policy_ref}', which is explicitly disabled. The "
+                        "policy still exists, so this binding would be approved against a template that "
+                        "grants nothing.",
+                        f"{path}.policy_ref",
+                    )
+                )
+                continue
 
             if not isinstance(template, Mapping):
                 diagnostics.append(

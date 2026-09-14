@@ -509,6 +509,52 @@ def test_a_publication_naming_an_endpoint_the_host_lacks_is_refused() -> None:
     assert any("Declared there: ['primary']" in diag.message for diag in result.diagnostics)
 
 
+def test_a_publication_naming_a_disabled_attachment_is_refused_as_disabled() -> None:
+    """A switched-off record still exists; saying "no such name" sends the author hunting a typo."""
+    attachments = {
+        "primary": {"network_ref": "inst.vlan.lan"},
+        "legacy": {"enabled": False, "network_ref": "inst.vlan.lan"},
+    }
+    publication = {
+        "schema_version": 2,
+        "publications": {"web": {"endpoint_ref": "legacy", "protocol": "tcp", "port": 443}},
+    }
+
+    result = _run(_service(publication, host_attachments=attachments))
+
+    assert _codes(result) == ["E7025"], "a disabled target is its own diagnosis, not a missing one"
+    assert any("disabled" in diag.message for diag in result.diagnostics)
+
+
+def test_a_disabled_attachment_is_not_offered_as_a_spelling_candidate() -> None:
+    attachments = {
+        "primary": {"network_ref": "inst.vlan.lan"},
+        "legacy": {"enabled": False, "network_ref": "inst.vlan.lan"},
+    }
+    publication = {
+        "schema_version": 2,
+        "publications": {"web": {"endpoint_ref": "ghost", "protocol": "tcp", "port": 443}},
+    }
+
+    result = _run(_service(publication, host_attachments=attachments))
+
+    assert "E7040" in _codes(result)
+    assert any("Declared there: ['primary']" in diag.message for diag in result.diagnostics)
+
+
+def test_a_disabled_publication_is_not_checked_against_anything() -> None:
+    """The reference is only a mistake while the record making it is live."""
+    attachments = {"legacy": {"enabled": False, "network_ref": "inst.vlan.lan"}}
+    publication = {
+        "schema_version": 2,
+        "publications": {
+            "web": {"enabled": False, "endpoint_ref": "legacy", "protocol": "tcp", "port": 443}
+        },
+    }
+
+    assert _run(_service(publication, host_attachments=attachments)).diagnostics == []
+
+
 def test_two_publications_on_one_endpoint_and_port_are_refused() -> None:
     publication = {
         "schema_version": 2,
@@ -574,6 +620,38 @@ def test_a_binding_to_an_unknown_policy_is_refused() -> None:
     result = _run(_policy({"schema_version": 2, "policies": {"dns": _template()}, "bindings": {"b1": binding}}))
 
     assert "E7061" in _codes(result)
+
+
+def test_a_binding_to_a_disabled_policy_is_refused_as_disabled() -> None:
+    """Otherwise the binding is checked against a template that activates nothing, and passes."""
+    binding = {"policy_ref": "dns", "sources": ["inst.vlan.guest"], "destinations": ["inst.vlan.mgmt"]}
+    block = {
+        "schema_version": 2,
+        "policies": {"dns": _template(enabled=False)},
+        "bindings": {"b1": binding},
+    }
+
+    result = _run(_policy(block))
+
+    assert _codes(result) == ["E7025"]
+    assert "E7061" not in _codes(result), "the policy is present; calling it unknown is wrong"
+
+
+def test_a_disabled_binding_to_a_disabled_policy_says_nothing() -> None:
+    block = {
+        "schema_version": 2,
+        "policies": {"dns": _template(enabled=False)},
+        "bindings": {
+            "b1": {
+                "enabled": False,
+                "policy_ref": "dns",
+                "sources": ["inst.vlan.guest"],
+                "destinations": ["inst.vlan.mgmt"],
+            }
+        },
+    }
+
+    assert _run(_policy(block)).diagnostics == []
 
 
 def test_a_binding_to_a_guard_is_refused() -> None:

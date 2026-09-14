@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import importlib.util
+import re
 from pathlib import Path
 
 import pytest
@@ -99,7 +100,10 @@ def test_generate_and_cleanup_mikrotik_tfvars(tmp_path: Path, monkeypatch):
     assert module._generate_tfvars("mikrotik") == 0
     output_file = output_dir / "terraform.tfvars"
     content = output_file.read_text(encoding="utf-8")
-    assert "wireguard_peers       = [" in content
+    # The key, not its column: `_render` pads to the longest key in the file, so
+    # asserting a fixed run of spaces fails whenever an unrelated variable with a
+    # longer name is added - which is how this broke.
+    assert re.search(r"^wireguard_peers += \[", content, re.MULTILINE)
     assert "allowed_ips = [" in content
     assert '"10.0.0.0/24"' in content
     assert "disabled = false" in content

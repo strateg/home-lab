@@ -126,6 +126,9 @@ source, catalog, ADR or documentation.
 
 - `E7001..E7006`: schema and shape of a v2 network intent block
 - `E7020..E7023`: attachments and address domains (`NET-ATTACHMENT`, `NET-ADDRESS-OWNER`)
+- `E7025`: a reference to a record whose `enabled` is explicitly false, across all
+  three v2 blocks. The declarations keep a disabled record rather than deleting it,
+  so "no such name" would be the wrong thing to tell the author
 - `E7040..E7042`: publications, which are delivery facts and authorize nothing
 - `E7060..E7064`: policies and bindings (`NET-POLICY-BINDING`, `SEC-AUTH` authoring)
 - `E7080..E7089`: plan order and the ADR 0119 obligations `SEC-ORDER`, `SEC-AUTH`,
@@ -134,6 +137,12 @@ source, catalog, ADR or documentation.
 Numbers are registered only where a rule exists to raise them. The gaps between
 the sub-ranges are deliberate room for the neighbouring family, not reservations
 for diagnostics nobody has specified; ADR 0118 D7 rejects speculative tables.
+
+`W7001` and `I7001` were withdrawn on 2026-09-14. Both were registered without a
+raiser, which is what D7 warns against; `W7001` was the wrong severity as well,
+since the declarations call a reference to a disabled record an error. That rule
+is `E7025`. Neither number is reused - governance rule 2 - so a reader meeting
+one in an older report can still find out what it meant.
 
 ### Erratum: `E7854` and the terminal drop-all
 

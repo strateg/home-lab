@@ -144,6 +144,77 @@ def test_every_allocated_code_is_complete() -> None:
             assert str(entry.get(field) or "").strip(), f"{code} has no {field}"
 
 
+# Allocated numbers with no raiser in source, and where each one's raiser will
+# live. A code nobody raises is a claim nobody checks, so this may shrink and
+# must not grow - and every entry names the mount point it is waiting for rather
+# than describing a rule in the abstract.
+AWAITING_A_MOUNT = {
+    "E7042": "publication mechanism against enforcer capability; no capability data reaches the validator yet",
+    "E7062": "an unapproved binding used as authorization; the framework still compiles legacy matrices, "
+             "so no binding becomes a grant anywhere it could fire",
+    "E7085": "SEC-PATH; implemented in netmodel.path, not mounted in a framework plugin",
+    "E7086": "SEC-NAT; implemented in netmodel.transform, not mounted",
+    "E7087": "SEC-STATE; implemented in netmodel.state, not mounted",
+    "E7088": "SEC-TRANSITION; implemented in netmodel.transition, not mounted",
+    "E7089": "SEC-CAP; implemented in netmodel.capability, not mounted",
+}
+
+
+def _codes_raised_in_source() -> set[str]:
+    """Codes named by a string literal that is not a docstring.
+
+    `scan_emissions` is the wrong instrument here: it counts a `code=` keyword or
+    a CODE-named constant, and misses `self._diag("E7025", ...)`. That blind spot
+    reported two raised codes as unraised during the 2026-09-14 self-review. A
+    docstring mention is documentation, so those are excluded the other way.
+    """
+    import ast
+
+    from sync_error_catalog import EXCLUDE_PATTERNS, SCAN_DIRS
+
+    found: set[str] = set()
+    for scan_dir in SCAN_DIRS:
+        directory = REPO_ROOT / scan_dir
+        if not directory.exists():
+            continue
+        for path in directory.rglob("*.py"):
+            if any(pattern in path.name for pattern in EXCLUDE_PATTERNS):
+                continue
+            try:
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+            except (OSError, SyntaxError):
+                continue
+            docstrings = set()
+            for node in ast.walk(tree):
+                body = getattr(node, "body", None)
+                if not isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+                    continue
+                if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant):
+                    docstrings.add(id(body[0].value))
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Constant) and isinstance(node.value, str) and id(node) not in docstrings:
+                    found.add(node.value)
+    return found
+
+
+def test_every_allocated_code_is_raised_or_recorded_as_waiting() -> None:
+    """The check that caught `E7094`: registered, meant, and raised by nobody."""
+    allocated = {code for code in CATALOG if code in NETWORK_MODEL_RANGE}
+    unraised = allocated - _codes_raised_in_source()
+
+    assert unraised <= set(AWAITING_A_MOUNT), (
+        f"allocated with no raiser and no recorded mount point: {sorted(unraised - set(AWAITING_A_MOUNT))}"
+    )
+
+
+def test_the_waiting_list_does_not_carry_codes_that_now_fire() -> None:
+    """A ledger listing a code that is raised hides progress as debt."""
+    raised = _codes_raised_in_source()
+    stale = sorted(code for code in AWAITING_A_MOUNT if code in raised)
+
+    assert not stale, f"these now have a raiser and should leave the waiting list: {stale}"
+
+
 def test_the_allocated_range_collides_with_nothing() -> None:
     """The collision check ADR 0118 D7 required before allocating any number."""
     catalog_elsewhere = {code for code in CATALOG if code not in NETWORK_MODEL_RANGE}

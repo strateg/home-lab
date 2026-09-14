@@ -141,12 +141,27 @@ a pass.
 | `E7022` | Two enabled attachments claim one host offset in one domain |
 | `E7023` | A static address against a domain that declares no prefix |
 | `E7024` | A host offset the prefix does not admit |
+| `E7025` | A reference to a record whose `enabled` is explicitly false |
 | `E7040` | A publication endpoint that is not an attachment on its runtime target |
 | `E7041` | Two publications on one endpoint, protocol and port |
 | `E7060` | An effect/activation pairing outside the baseline profile |
 | `E7061` | A binding naming an unknown policy, or a guard, which cannot be bound |
 | `E7063` | A permit overlapping a mandatory deny, with a concrete witness |
 | `E7064` | An unbound parameter on a guard, or an empty resolved selector |
+
+`E7025` is a separate code rather than a variant of `E7040`/`E7061` because the
+declarations keep a disabled record instead of deleting it. Reporting "no such
+attachment" for a name that is spelled correctly sends the author hunting a typo,
+and for a binding it was worse than a bad message: the binding was checked against
+the disabled template and passed, recording an approval against a policy that
+grants nothing.
+
+**Registered and not yet raised.** Seven allocated codes have no raiser in the
+framework: `E7042` and `E7062`, which have no mount point yet, and `E7085`-`E7089`,
+the five obligations implemented in `netmodel` and not yet mounted. They are a
+ledger in `tests/test_diagnostic_code_registry.py` that names the mount point each
+is waiting for; it may shrink and cannot grow. A code nobody raises is a claim
+nobody checks - that is how `E7094` was found registered, meant and silent.
 
 ---
 
@@ -488,3 +503,4 @@ across every emitted file.
 | 2026-09-11 | `09f633c0` | Section 7b: candidate isolation (A22) as a type boundary, and what it explicitly does not claim |
 | 2026-09-11 | `553c2e3b` | Section 7c: lowering, the independent interpreter, and SEC-AUTH/SEC-AVAIL as properties with mutants |
 | 2026-09-14 | `622eff34` | Section 7d: all eight obligations placed, the three habits behind them, and what SEC-PATH still needs from outside |
+| 2026-09-14 | `pending` | Section 4: `E7025` for a reference to a disabled record, and the ledger of allocated codes that nothing raises yet |
