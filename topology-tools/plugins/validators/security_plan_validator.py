@@ -312,6 +312,7 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
             "guards": [],
             "availability": [],
             "availability_declared": set(),
+            "availability_attested": set(),
         }
 
         rows = [item for item in payload if isinstance(item, dict)] if isinstance(payload, list) else []
@@ -324,6 +325,10 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
         # not. Reporting them the same way would let a missing declaration read
         # as a decision somebody made.
         declared_scopes: set[str] = set()
+        # Scopes whose empty Q carries an owner and a reason. An empty list is a
+        # value; a decision that nothing here has to keep working is a claim, and
+        # for strict admission the difference is the provenance behind it.
+        attested: set[str] = set()
 
         for row in rows:
             if self._class_of(row) != MATRIX_CLASS:
@@ -347,6 +352,14 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
             declared = extensions.get("availability_requirements") if isinstance(extensions, Mapping) else None
             if isinstance(declared, list):
                 declared_scopes.add(scope)
+                if not declared:
+                    waiver = extensions.get("availability_waiver") if isinstance(extensions, Mapping) else None
+                    owner = str((waiver or {}).get("owner") or "").strip() if isinstance(waiver, Mapping) else ""
+                    reason = (
+                        str((waiver or {}).get("rationale") or "").strip() if isinstance(waiver, Mapping) else ""
+                    )
+                    if owner and reason:
+                        attested.add(scope)
                 for requirement in declared:
                     if not isinstance(requirement, Mapping):
                         continue
@@ -361,6 +374,7 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
             "guards": guards,
             "availability": availability,
             "availability_declared": declared_scopes,
+            "availability_attested": attested,
         }
 
     @staticmethod
@@ -425,6 +439,37 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
         planned_scopes = {str(rule.get("scope")) for rule in rules if isinstance(rule, Mapping)}
         declared = plan.get("scopes") if isinstance(plan, Mapping) else []
         planned_scopes |= {str(item) for item in declared} if isinstance(declared, list) else set()
+
+        # The endpoint set is closed by contract, and this is where that is
+        # enforced. The probe space enumerates endpoints, so a rule naming one no
+        # source declares is not merely undeclared - it sits outside every check
+        # the space can perform, and its rule would be examined by nothing.
+        declared_endpoints = {
+            item[side]
+            for item in [*source["permits"], *source["guards"], *source["availability"]]
+            for side in ("source", "destination")
+        }
+        if declared_endpoints:
+            for rule in rules:
+                if not isinstance(rule, Mapping) or rule.get("terminal"):
+                    continue
+                unknown = sorted(
+                    (set(rule.get("sources") or []) | set(rule.get("destinations") or []))
+                    - declared_endpoints
+                )
+                if unknown:
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E7095",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"rule '{rule.get('origin')}' names endpoints {unknown} that no source "
+                                "declares; the endpoint set is closed because the probe space enumerates it"
+                            ),
+                            path=f"security_plan:{rule.get('scope')}",
+                        )
+                    )
 
         for scope in sorted(source["scopes"] - planned_scopes):
             diagnostics.append(
@@ -508,15 +553,21 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
             authorized = self._authorized(source, scope, space)
             required = self._required(source, scope)
 
-            if scope not in source["availability_declared"]:
+            empty_and_unattested = (
+                scope in source["availability_declared"]
+                and not any(item["scope"] == scope for item in source["availability"])
+                and scope not in source["availability_attested"]
+            )
+            if scope not in source["availability_declared"] or empty_and_unattested:
                 diagnostics.append(
                     self.emit_diagnostic(
                         code="W7002",
                         severity="warning",
                         stage=stage,
                         message=(
-                            f"scope '{scope}' declares no availability requirement, so SEC-AVAIL is "
-                            "unverified rather than satisfied; permits are permission, not objectives"
+                            f"scope '{scope}' has no attested availability requirement, so SEC-AVAIL is "
+                            "unverified rather than satisfied. An empty list is a value; deciding that "
+                            "nothing here has to keep working is a claim, and needs an owner and a reason"
                         ),
                         path=f"security_plan:{scope}",
                     )

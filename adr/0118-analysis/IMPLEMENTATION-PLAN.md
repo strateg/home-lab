@@ -1081,6 +1081,42 @@ a zone that does not exist.
 On the real topology: no errors, two `W7002`. 33 validator tests, 399 across the
 suites, artifact parity identical across 147 files.
 
+### PR2, part five, 2026-09-14 — three limits made checkable
+
+Fixed before the strict boundary, because each is a way the checks above could
+have reported a plan clean while missing something.
+
+**Unsupported semantics are refused rather than approximated.** Measured first:
+a port range `"1000-2000"` raised a `TypeError` the registry turned into a plugin
+with no output, and `{"!tcp": [22]}` was accepted as a protocol literally named
+`"!tcp"` - two rules emitted, nothing in `unlowerable`. The second is the worse
+one: a shape lowered as if understood produces a plan the semantic checks cannot
+see past, and they then call it clean.
+
+`E7094` now refuses a protocol outside the implemented set, a non-integer port
+selector, and a port outside 1-65535, and the affected scope is blocked entirely.
+The reason is not fastidiousness: the probe classes that make the semantic check
+meaningful are derived from the shapes the algebra supports, so an unsupported one
+is invisible to them by construction. Ranges, CIDR conditions and negations need
+their own equivalence classes before they can be lowered, and until then the
+refusal is the honest answer.
+
+**The endpoint set is closed by contract, not by convention.** `E7095` refuses a
+rule naming an endpoint no source declares. The probe space enumerates endpoints,
+so an unknown one is not merely undeclared - it sits outside every check the space
+can perform, and its rule would be examined by nothing. The terminal is exempt: it
+names the whole scope, which is a different kind of statement.
+
+**An empty Q is a value; a decision is a claim.** `availability_requirements: []`
+is more than absence and still not evidence that anyone decided anything. An
+attested empty set needs `availability_waiver` with an owner and a rationale -
+both, because one without the other is a label. Unattested emptiness keeps
+reporting `W7002`, and the test that previously accepted a bare empty list is
+corrected.
+
+43 validator tests, 366 across the other suites, artifact parity identical across
+147 files. On the real topology: no errors, the same two `W7002`.
+
 **Next, and not started: the strict admission boundary.** Five conditions -
 `legacy_shadow` refused regardless of `lowering_complete`; a provenance swap alone
 insufficient without approved intent and a passing independent check bound to

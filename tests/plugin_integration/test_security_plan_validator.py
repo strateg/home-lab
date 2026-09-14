@@ -698,12 +698,110 @@ def test_a_required_flow_a_guard_forbids_is_a_contradiction_not_a_permit() -> No
     assert "E7084" not in codes, "a contradiction must not also be reported as the plan's failure"
 
 
-def test_an_explicitly_empty_requirement_set_is_not_missing_data() -> None:
-    """"Nothing here has to keep working" is a decision; absence is not."""
+def test_an_empty_requirement_list_is_a_value_and_not_yet_a_claim() -> None:
+    """"Nothing here has to keep working" is a decision, and a list is not one.
+
+    An earlier version of this test treated the empty list as sufficient. It is
+    an explicit value, which is more than absence, and it is still not evidence
+    that anybody decided anything - for strict admission the difference is the
+    provenance behind it.
+    """
     rows = copy.deepcopy(SOURCE_ROWS)
     rows[0]["extensions"]["availability_requirements"] = []
 
     codes = _codes(_run_with_source(_compile_plan(rows), rows))
 
-    assert "W7002" not in codes, "an explicit empty Q was reported as undeclared"
+    assert "W7002" in codes
     assert "E7084" not in codes
+
+
+def test_an_attested_empty_requirement_set_is_a_claim() -> None:
+    """With an owner and a reason it is a decision somebody signed."""
+    rows = copy.deepcopy(SOURCE_ROWS)
+    rows[0]["extensions"]["availability_requirements"] = []
+    rows[0]["extensions"]["availability_waiver"] = {
+        "owner": "security-lead",
+        "rationale": "this matrix carries no service anyone depends on",
+    }
+
+    codes = _codes(_run_with_source(_compile_plan(rows), rows))
+
+    assert "W7002" not in codes
+    assert "E7084" not in codes
+
+
+@pytest.mark.parametrize("missing", ["owner", "rationale"])
+def test_a_waiver_needs_both_an_owner_and_a_reason(missing: str) -> None:
+    """One without the other is a label, not an attestation."""
+    rows = copy.deepcopy(SOURCE_ROWS)
+    rows[0]["extensions"]["availability_requirements"] = []
+    waiver = {"owner": "security-lead", "rationale": "nothing depends on it"}
+    waiver[missing] = "  "
+    rows[0]["extensions"]["availability_waiver"] = waiver
+
+    assert "W7002" in _codes(_run_with_source(_compile_plan(rows), rows))
+
+
+# --- the endpoint set is closed by contract ------------------------------------------
+
+
+def test_a_rule_naming_an_endpoint_no_source_declares_is_refused() -> None:
+    """Not merely undeclared: outside every check the probe space can perform."""
+    plan = _compile_plan(SOURCE_ROWS)
+    stray = dict(plan["rules"][0])
+    stray.update(
+        {
+            "origin": "binding:stray",
+            "effect": "permit",
+            "terminal": False,
+            "sources": ["z.a"],
+            "destinations": ["z.nowhere"],
+            "transport": {"kind": "ports", "protocol": "tcp", "ports": [443]},
+        }
+    )
+    plan["rules"] = [*plan["rules"], stray]
+    for index, rule in enumerate(sorted(plan["rules"], key=lambda item: item["position"])):
+        rule["position"] = index
+
+    codes = _codes(_run_with_source(plan, SOURCE_ROWS))
+
+    assert "E7095" in codes
+    assert any("z.nowhere" in diag.message for diag in _run_with_source(plan, SOURCE_ROWS).diagnostics)
+
+
+def test_the_terminal_is_exempt_from_the_endpoint_closure() -> None:
+    """It names the whole scope, which is a different kind of statement."""
+    result = _run_with_source(_compile_plan(SOURCE_ROWS), SOURCE_ROWS)
+
+    assert "E7095" not in _codes(result)
+
+
+# --- unsupported predicate semantics are refused, not approximated -------------------
+
+
+@pytest.mark.parametrize(
+    ("label", "ports"),
+    [
+        ("a port range", {"tcp": ["1000-2000"]}),
+        ("a negated protocol", {"!tcp": [22]}),
+        ("a conditional port", {"tcp": [{"port": 80, "src": "10.0.0.0/8"}]}),
+        ("a port outside the range", {"tcp": [70000]}),
+        ("an unknown protocol", {"gre": [0]}),
+    ],
+)
+def test_an_unsupported_selector_blocks_its_scope(label: str, ports: dict) -> None:
+    """The probe classes come from the shapes the algebra supports.
+
+    Measured before this check existed: a port range raised a TypeError the
+    registry turned into a plugin with no output, and `!tcp` was accepted as a
+    protocol literally named "!tcp" - two rules emitted, nothing reported. A
+    shape lowered as if understood produces a plan the checks cannot see past,
+    and they would then call it clean.
+    """
+    rows = [_matrix_row(_src("x", ports=ports))]
+
+    plan = _compile_plan(rows)
+
+    assert plan["blocked_scopes"] == [MATRIX_SCOPE], f"{label} did not block its scope"
+    assert plan["unlowerable"], f"{label} was lowered without a word"
+    assert plan["lowering_complete"] == []

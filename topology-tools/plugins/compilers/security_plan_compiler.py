@@ -44,6 +44,43 @@ from kernel.plugin_base import CompilerPlugin, PluginContext, PluginResult, Stag
 MATRIX_CLASS = "class.network.security_matrix"
 
 
+# Protocol tokens the bounded algebra implements. A name outside this set is not
+# a protocol it has not heard of - it is a shape it cannot reason about, and
+# `!tcp` lowering as a protocol literally named "!tcp" was the demonstration.
+_SUPPORTED_PROTOCOLS = frozenset({"tcp", "udp", "sctp", "icmp"})
+
+
+def _unsupported_transport(protocol: str, numbers: Any) -> str:
+    """Why this transport selector cannot be lowered, or an empty string.
+
+    Refusal rather than approximation, and the reason is not fastidiousness: the
+    probe classes that make the semantic check meaningful are derived from the
+    shapes the algebra supports. A range or a negation lowered as if understood
+    produces a plan the checks cannot see past, and they would then report it
+    clean.
+
+    Measured before this existed: a port range raised a TypeError the registry
+    turned into a plugin with no output, and `!tcp` was accepted as a protocol
+    named "!tcp" - two rules emitted, nothing reported.
+    """
+    if protocol not in _SUPPORTED_PROTOCOLS:
+        return (
+            f"unsupported protocol selector {protocol!r}; the bounded algebra implements "
+            f"{sorted(_SUPPORTED_PROTOCOLS)} and refuses shapes it cannot reason about"
+        )
+    if not isinstance(numbers, list):
+        return f"ports.{protocol} must be a list of integers, got {type(numbers).__name__}"
+    for item in numbers:
+        if isinstance(item, bool) or not isinstance(item, int):
+            return (
+                f"unsupported port selector {item!r} under {protocol}; ranges, conditions and "
+                "expressions are not implemented, and approximating one would hide it from every check"
+            )
+        if item < 1 or item > 65535:
+            return f"port {item} under {protocol} is not a port"
+    return ""
+
+
 def _base(origin: str, effect: str, scope: str, source: str, destination: str) -> dict[str, Any]:
     return {
         "origin": origin,
@@ -246,6 +283,9 @@ class SecurityPlanCompiler(CompilerPlugin):
 
         lowered: list[dict[str, Any]] = []
         for protocol, numbers in sorted(ports.items()):
+            unsupported = _unsupported_transport(str(protocol), numbers)
+            if unsupported:
+                return [], unsupported
             if not isinstance(numbers, list) or not numbers:
                 return [], f"ports.{protocol} is empty"
             lowered.append(

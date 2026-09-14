@@ -1064,6 +1064,22 @@ codes:
     stage: validate
     title: Unapproved Intermediate Transition
     hint: SEC-TRANSITION; a partial apply, retry, reboot or rollback state admits a transition outside the approved set.
+  E7094:
+    severity: error
+    stage: validate
+    title: Unsupported Predicate Semantics
+    hint: >-
+      A selector uses a shape the bounded algebra does not implement - a range, a negation, a CIDR condition or
+      an unknown protocol token. Refused rather than approximated: the probe classes that make the semantic
+      check meaningful are derived from the shapes it supports, so lowering an unsupported one produces a plan
+      the checks cannot see past.
+  E7095:
+    severity: error
+    stage: validate
+    title: Unknown Endpoint In Plan
+    hint: >-
+      A rule names an endpoint no source declares. The endpoint set is closed by contract because the probe
+      space enumerates it: an endpoint outside it is not merely undeclared, it is outside every check.
   E7093:
     severity: error
     stage: validate
