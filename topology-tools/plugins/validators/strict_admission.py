@@ -49,6 +49,7 @@ written now so the first consumer meets a boundary instead of defining one.
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 from dataclasses import dataclass, field
@@ -66,6 +67,7 @@ REQUIRED_RECORD_FIELDS = (
     "schema_version",
     "plan_digest",
     "intent_digest",
+    "evidence_digest",
     "errors",
     "warnings",
     "checked_scopes",
@@ -75,23 +77,71 @@ REQUIRED_RECORD_FIELDS = (
 
 # What an approval must state. `approved: True` on its own is not an approval of
 # anything in particular, which is what let an unrelated approval admit a plan.
-REQUIRED_APPROVAL_FIELDS = ("approved", "approved_by", "intent_digest", "scopes", "epoch")
+# `evidence_digest` is separate from `intent_digest` on purpose. A waiver's owner
+# and rationale are not part of the permission set - changing them leaves the
+# semantics identical - but they are the evidence on which otherwise unverified
+# availability is discharged. Folding them into semantic identity would make an
+# unrelated plan look changed; leaving them out entirely let a previous approval
+# admit a statement somebody else now signs.
+REQUIRED_APPROVAL_FIELDS = (
+    "approved",
+    "approved_by",
+    "intent_digest",
+    "evidence_digest",
+    "scopes",
+    "epoch",
+)
 
 # Obligations the framework checks today, in the plugin that publishes the record.
 CHECKED_OBLIGATIONS = ("SEC-ORDER", "SEC-COVER", "SEC-AUTH", "SEC-AVAIL")
 
+# The plan shape this contract understands, stated as a closed set. Anything else
+# is refused before admission rather than ignored.
+#
+# The first version searched the serialized plan for quoted words, and a review
+# showed what that is worth: `path` made SEC-PATH applicable and refused the
+# plan, while `paths` carrying identical content was admitted, because the guard
+# was spelling-sensitive rather than shape-aware. Absence of a spelling is not
+# evidence that an obligation does not apply.
+KNOWN_PLAN_FIELDS = frozenset(
+    {
+        "schema_version",
+        "provenance",
+        "scopes",
+        "matrices",
+        "rules",
+        "lowering_complete",
+        "strict_eligible",
+        "strict_blocked_reason",
+        "blocked_scopes",
+        "expected_overrides",
+        "unlowerable",
+        "digest",
+        "epoch",
+    }
+)
+
+KNOWN_RULE_FIELDS = frozenset(
+    {"origin", "effect", "terminal", "scope", "sources", "destinations", "transport", "position"}
+)
+
+KNOWN_TRANSPORT_FIELDS = frozenset({"kind", "protocol", "ports"})
+
 # Obligations implemented in `netmodel` and not mounted in any framework plugin,
-# each with the plan construct that would make it applicable. A plan carrying
-# none of these constructs cannot violate the obligation, so its absence is not a
-# gap; a plan that grows one is refused here until the check is mounted. This is
-# a deferral with a trigger, not a promise.
-DEFERRED_OBLIGATIONS: dict[str, tuple[str, ...]] = {
-    "SEC-NAT": ("nat", "transform", "translated"),
-    "SEC-STATE": ("stateful", "established", "related", "revocation"),
-    "SEC-TRANSITION": ("transition", "rollback", "staged"),
-    "SEC-PATH": ("path", "gate", "route_through"),
-    "SEC-CAP": ("capability", "requires_capability", "evidence"),
+# each with the *declared field* that would make it applicable. These names are
+# reserved: a plan may carry them, and carrying one makes the obligation
+# applicable, so the plan is refused until the check is mounted. Every other
+# unknown field is refused outright as an unsupported construct - which is how a
+# differently spelled variant of one of these is caught.
+DEFERRED_OBLIGATION_FIELDS: dict[str, str] = {
+    "nat": "SEC-NAT",
+    "state": "SEC-STATE",
+    "transition": "SEC-TRANSITION",
+    "path": "SEC-PATH",
+    "capability": "SEC-CAP",
 }
+
+DEFERRED_OBLIGATIONS: tuple[str, ...] = tuple(sorted(set(DEFERRED_OBLIGATION_FIELDS.values())))
 
 
 class AdmissionError(ValueError):
@@ -161,19 +211,56 @@ def nested_digest_fields(payload: Any, *, _path: str = "") -> list[str]:
     return found
 
 
+def _fields_present(plan: Mapping[str, Any]) -> set[str]:
+    """Declared field names anywhere in the plan's known structure."""
+    present = set(plan.keys())
+    rules = plan.get("rules")
+    for rule in rules if isinstance(rules, list) else []:
+        if isinstance(rule, Mapping):
+            present |= set(rule.keys())
+    return present
+
+
+def unsupported_constructs(plan: Mapping[str, Any]) -> list[str]:
+    """Fields this contract has no meaning for, which it refuses rather than ignores.
+
+    A plan is a closed shape here. An unknown field may carry semantics no
+    obligation was checked against, and admitting it would mean admitting
+    whatever it means. The reserved deferred-obligation names are not unknown -
+    they make their obligation applicable instead.
+    """
+    known_plan = KNOWN_PLAN_FIELDS | set(DEFERRED_OBLIGATION_FIELDS)
+    known_rule = KNOWN_RULE_FIELDS | set(DEFERRED_OBLIGATION_FIELDS)
+
+    found = [f"plan.{name}" for name in sorted(set(plan.keys()) - known_plan)]
+
+    rules = plan.get("rules")
+    for index, rule in enumerate(rules if isinstance(rules, list) else []):
+        if not isinstance(rule, Mapping):
+            found.append(f"plan.rules[{index}] is not a mapping")
+            continue
+        found.extend(f"plan.rules[{index}].{name}" for name in sorted(set(rule.keys()) - known_rule))
+        transport = rule.get("transport")
+        if isinstance(transport, Mapping):
+            found.extend(
+                f"plan.rules[{index}].transport.{name}"
+                for name in sorted(set(transport.keys()) - KNOWN_TRANSPORT_FIELDS)
+            )
+    return found
+
+
 def applicable_obligations(plan: Mapping[str, Any]) -> tuple[str, ...]:
     """Which obligations this particular plan has to have passed.
 
     The four checked ones always apply. A deferred one applies when the plan
-    contains a construct that could violate it - which is why the deferral is
-    safe to state: the model cannot express those constructs today, and on the
-    day it can, this refuses the plan rather than passing it unchecked.
+    declares the field that carries the construct it governs. Together with
+    `unsupported_constructs` - which refuses every field that is neither known
+    nor reserved - this is the fail-closed guard the keyword search was only
+    described as being.
     """
-    text = json.dumps(plan, sort_keys=True, default=str).lower()
+    present = _fields_present(plan)
     deferred = tuple(
-        name
-        for name, triggers in sorted(DEFERRED_OBLIGATIONS.items())
-        if any(f'"{trigger}"' in text for trigger in triggers)
+        sorted({obligation for field, obligation in DEFERRED_OBLIGATION_FIELDS.items() if field in present})
     )
     return (*CHECKED_OBLIGATIONS, *deferred)
 
@@ -188,6 +275,7 @@ def evaluate(
     verification: Mapping[str, Any] | None,
     approved_intent: Mapping[str, Any] | None = None,
     scopes: Sequence[str] | None = None,
+    expected_epoch: str | None = None,
 ) -> Admission:
     """Decide admission from the plan, the verification record and an approval.
 
@@ -199,11 +287,31 @@ def evaluate(
     `strict_eligible`, and nothing outside that list can be requested: admission
     is per scope, so a renderer receives the projection that was admitted rather
     than the whole plan.
+
+    `expected_epoch` is the epoch the caller is operating in, and it has no
+    default. Requiring the approval to carry a non-empty epoch string, as the
+    first version did, bound nothing: with no plan epoch to compare against, the
+    same verified plan was admitted under `old-epoch` and `new-epoch` alike. This
+    boundary cannot manufacture freshness - it can only refuse to decide without
+    being told which epoch the decision is for.
     """
     reasons: list[str] = []
 
     if not isinstance(plan, Mapping):
         return Admission(admitted=False, reasons=("there is no plan to admit",))
+
+    unsupported = unsupported_constructs(plan)
+    if unsupported:
+        reasons.append(
+            f"the plan carries construct(s) this contract has no meaning for: {unsupported}. An "
+            "unknown field may carry semantics no obligation was checked against"
+        )
+
+    if not str(expected_epoch or "").strip():
+        reasons.append(
+            "no expected epoch was supplied, so this decision cannot be epoch-qualified; an approval "
+            "carrying any epoch string would be accepted"
+        )
 
     nested = nested_digest_fields(plan)
     if nested:
@@ -231,6 +339,7 @@ def evaluate(
 
     record_digest = ""
     intent_digest = ""
+    evidence_digest = ""
     if not isinstance(verification, Mapping):
         reasons.append("no independent verification record; an unchecked plan is not admissible")
     else:
@@ -248,6 +357,7 @@ def evaluate(
 
         record_digest = str(verification.get("plan_digest") or "")
         intent_digest = str(verification.get("intent_digest") or "")
+        evidence_digest = str(verification.get("evidence_digest") or "")
         if not record_digest:
             reasons.append("the verification record names no plan; it cannot be bound to this one")
         elif record_digest != digest:
@@ -304,17 +414,29 @@ def evaluate(
                 f"{intent_digest[:19]}; an approval of other inputs is not an approval of these"
             )
 
+        approved_evidence = str(approved_intent.get("evidence_digest") or "")
+        if not approved_evidence:
+            reasons.append("the approval names no evidence; a waiver it never saw would discharge SEC-AVAIL")
+        elif evidence_digest and approved_evidence != evidence_digest:
+            reasons.append(
+                f"the approval was given against evidence {approved_evidence[:19]} and the verifier "
+                f"recorded {evidence_digest[:19]}; an attestation signed by somebody else is not the "
+                "one that was approved"
+            )
+
         covered = {str(item) for item in (approved_intent.get("scopes") or [])}
         uncovered = sorted(set(requested) - covered)
         if uncovered:
             reasons.append(f"the approval does not cover scope(s) {uncovered}")
 
+        approval_epoch = str(approved_intent.get("epoch") or "")
+        wanted_epoch = str(expected_epoch or "").strip()
+        if wanted_epoch and approval_epoch != wanted_epoch:
+            reasons.append(f"the approval is for epoch {approval_epoch!r} and this decision is for {wanted_epoch!r}")
+
         plan_epoch = str(plan.get("epoch") or "")
-        if plan_epoch and plan_epoch != str(approved_intent.get("epoch") or ""):
-            reasons.append(
-                f"the plan is epoch {plan_epoch!r} and the approval is for "
-                f"{str(approved_intent.get('epoch') or '')!r}"
-            )
+        if plan_epoch and plan_epoch != approval_epoch:
+            reasons.append(f"the plan is epoch {plan_epoch!r} and the approval is for {approval_epoch!r}")
 
     return Admission(
         admitted=not reasons,
@@ -405,25 +527,46 @@ def _obligation_reasons(
 
 
 def admitted_projection(plan: Mapping[str, Any], admission: Admission) -> dict[str, Any]:
-    """The part of the plan that was admitted, and nothing else.
+    """The part of the plan that was admitted, detached, and only for that plan.
 
     Admission is per scope, so handing a renderer the whole plan would hand it
-    scopes no approval covered. A consumer that needs rules takes them from here
-    rather than from the plan it passed in - and on a refusal it gets nothing at
-    all, because a refusal has no projection.
+    scopes no approval covered. A refusal has no projection at all.
+
+    Two things the first version got wrong, both found by review:
+
+    * it filtered by scope name and never checked that the plan it was given was
+      the plan that had been admitted. A caller could evaluate one plan, change
+      it, and take a projection of the changed rules stamped with the old
+      admitted digest. Identity is re-established here, against a snapshot taken
+      first - hashing the caller's object and copying it afterwards would leave
+      the same window open, only narrower.
+    * it returned the plan's own rule mappings, so editing a rule in the
+      projection edited the plan. What comes back is detached.
+
+    A plan that is not the admitted one raises rather than returning empty: it
+    means the caller holds two different objects and believes they are one, and
+    an empty ruleset handed to a firewall renderer is not a safe way to say so.
     """
     if not admission.admitted:
         return {}
 
+    snapshot = copy.deepcopy(dict(plan))
+    digest = content_digest(snapshot)
+    if digest != admission.plan_digest:
+        raise AdmissionError(
+            f"this plan is {digest[:19]} and the admission was for {admission.plan_digest[:19]}; "
+            "a projection of a plan that was never admitted is not a projection"
+        )
+
     scopes = set(admission.scopes)
     rules = [
         rule
-        for rule in (plan.get("rules") or [])
+        for rule in (snapshot.get("rules") or [])
         if isinstance(rule, Mapping) and str(rule.get("scope")) in scopes
     ]
     return {
-        "schema_version": plan.get("schema_version"),
-        "provenance": plan.get("provenance"),
+        "schema_version": snapshot.get("schema_version"),
+        "provenance": snapshot.get("provenance"),
         "scopes": sorted(scopes),
         "rules": rules,
         "plan_digest": admission.plan_digest,
@@ -441,6 +584,9 @@ def strict_artifacts(paths: Sequence[Any]) -> list[str]:
 __all__ = [
     "CHECKED_OBLIGATIONS",
     "DEFERRED_OBLIGATIONS",
+    "DEFERRED_OBLIGATION_FIELDS",
+    "KNOWN_PLAN_FIELDS",
+    "KNOWN_RULE_FIELDS",
     "PASS",
     "RECORD_VERSION",
     "REQUIRED_APPROVAL_FIELDS",
@@ -454,4 +600,5 @@ __all__ = [
     "evaluate",
     "nested_digest_fields",
     "strict_artifacts",
+    "unsupported_constructs",
 ]

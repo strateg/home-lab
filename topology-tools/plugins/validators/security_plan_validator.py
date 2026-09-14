@@ -187,6 +187,7 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
             "schema_version": RECORD_VERSION,
             "plan_digest": content_digest(plan),
             "intent_digest": self._intent_digest(source),
+            "evidence_digest": self._evidence_digest(source),
             "errors": errors,
             "warnings": sum(1 for item in diagnostics if item.severity == "warning"),
             # Renamed from `complete`, which meant only that the source input was
@@ -243,6 +244,30 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
                     [str(item["scope"]), str(item["name"]), str(item["reason"])]
                     for item in source["unsupported"]
                 ),
+            }
+        )
+
+    @staticmethod
+    def _evidence_digest(source: Mapping[str, Any]) -> str:
+        """The identity of the statements used to discharge what was not verified.
+
+        Kept apart from `intent_digest` deliberately. An availability waiver's
+        owner and rationale do not change the permission set, so folding them
+        into semantic identity would make an unchanged plan look changed. Leaving
+        them out of identity altogether was the other error: replacing
+        `{owner-A, reason-A}` with `{owner-B, reason-B}` left every digest
+        unmoved, and the earlier approval discharged a claim a different person
+        now signs. Two digests, two questions.
+        """
+        if not source.get("available"):
+            return ""
+
+        return content_digest(
+            {
+                "attestations": sorted(
+                    [item["scope"], item["owner"], item["rationale"]]
+                    for item in source.get("attestations", [])
+                )
             }
         )
 
@@ -496,6 +521,7 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
             "availability": [],
             "availability_declared": set(),
             "availability_attested": set(),
+            "attestations": [],
             "unsupported": [],
         }
 
@@ -518,6 +544,7 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
         # value; a decision that nothing here has to keep working is a claim, and
         # for strict admission the difference is the provenance behind it.
         attested: set[str] = set()
+        attestations: list[dict[str, str]] = []
 
         for row in rows:
             if self._class_of(row) != MATRIX_CLASS:
@@ -553,10 +580,20 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
                     )
                     if owner and reason:
                         attested.add(scope)
+                        # The statement itself, not the fact that one exists. The
+                        # intent digest carries only scope names here - correctly,
+                        # since a different owner does not change the permission
+                        # set - so replacing owner and rationale left it unmoved
+                        # and a previous approval discharged a claim somebody else
+                        # now signs. That belongs to evidence, and evidence gets
+                        # its own digest.
+                        attestations.append({"scope": scope, "owner": owner, "rationale": reason})
                 for requirement in declared:
                     if not isinstance(requirement, Mapping):
                         continue
-                    entry, refusal = self._obligation({**requirement, "action": "accept"}, scope)
+                    entry, refusal = self._obligation(
+                        {**requirement, "action": "accept"}, scope, kind="requirement"
+                    )
                     if entry is not None:
                         availability.append(entry)
                     elif refusal:
@@ -572,6 +609,7 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
             "availability": availability,
             "availability_declared": declared_scopes,
             "availability_attested": attested,
+            "attestations": attestations,
             "unsupported": unsupported,
         }
 
@@ -585,7 +623,22 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
         return lineage[-1] if isinstance(lineage, list) and lineage else None
 
     @staticmethod
-    def _obligation(override: Mapping[str, Any], scope: str) -> tuple[dict[str, Any] | None, str]:
+    def _obligation(
+        override: Mapping[str, Any], scope: str, *, kind: str = "override"
+    ) -> tuple[dict[str, Any] | None, str]:
+        """One source statement, lowered - or a reason it cannot be.
+
+        `kind` is the grammar being read, and the two differ in exactly one place.
+        A policy override naming no transport constrains **every** transport,
+        which is a meaningful and checkable restriction. An availability
+        requirement naming no transport would promise that every port keeps
+        working, and this implementation cannot check that: `_required` skipped
+        any-transport entries and `_check_requirements_are_permitted` iterated an
+        empty port tuple, so such a requirement was accepted by the parser and
+        then discharged by nobody - SEC-AVAIL came back `pass` with the
+        requirement never examined. Sharing the override's default was the defect;
+        it is refused here instead.
+        """
         name = str(override.get("name") or "").strip()
         source = override.get("from_zone_ref")
         destination = override.get("to_zone_ref")
@@ -597,6 +650,13 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
 
         ports = override.get("ports")
         transports: list[tuple[str, tuple[int, ...] | None]]
+        unbounded = ports is None or (isinstance(ports, Mapping) and not ports)
+        if unbounded and kind == "requirement":
+            return None, (
+                "an availability requirement must name a bounded transport; 'every port must keep "
+                "working' is not a finite objective this implementation can check, and accepting it "
+                "silently discharged it"
+            )
         if ports is None:
             transports = [(ANY_TRANSPORT, None)]
         elif not isinstance(ports, Mapping):
@@ -1093,6 +1153,11 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
                 continue
             for protocol, values in entry["transports"]:
                 if protocol == ANY_TRANSPORT:
+                    # Unreachable: `_obligation` refuses an unbounded requirement
+                    # at the parser. It was reachable, and this skip plus the
+                    # empty-tuple loop in `_check_requirements_are_permitted`
+                    # were the two places that together discharged such a
+                    # requirement without examining it.
                     continue
                 for port in values or ():
                     required.add((entry["source"], entry["destination"], protocol, port))

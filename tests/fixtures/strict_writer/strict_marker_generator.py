@@ -34,6 +34,7 @@ from plugins.validators.strict_admission import admitted_projection, evaluate
 
 MARKER_ENV = "STRICT_WRITER_OUTPUT_DIR"
 APPROVAL_ENV = "STRICT_WRITER_APPROVAL_FILE"
+EPOCH_ENV = "STRICT_WRITER_EPOCH"
 MARKER_NAME = "strict-rules.json"
 
 
@@ -53,8 +54,14 @@ class StrictMarkerGenerator(GeneratorPlugin):
         verification = self._subscribe(
             ctx, "base.validator.security_plan", "security_plan_verification"
         )
+        # The epoch comes from the deployment context, not from the payloads
+        # being judged. Admission cannot manufacture freshness; it can refuse to
+        # decide without being told which epoch the decision is for.
         admission = evaluate(
-            plan=plan, verification=verification, approved_intent=self._approval()
+            plan=plan,
+            verification=verification,
+            approved_intent=self._approval(),
+            expected_epoch=os.environ.get(EPOCH_ENV),
         )
 
         if not admission.admitted:

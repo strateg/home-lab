@@ -774,6 +774,76 @@ def test_a_permit_naming_every_port_does_not_crash_the_probe_builder() -> None:
     assert _errors(result) == [], f"a full port enumeration is a source, not a defect: {_codes(result)}"
 
 
+@pytest.mark.parametrize(
+    ("label", "ports"),
+    [("omitted", None), ("null", None), ("an empty mapping", {})],
+)
+def test_an_unbounded_availability_requirement_is_refused_not_discharged(label: str, ports) -> None:
+    """The requirement the parser accepted and both Q checks then skipped.
+
+    A requirement with no transport meant "every port must keep working". That
+    reached `_required`, which skipped any-transport entries, and
+    `_check_requirements_are_permitted`, which iterated an empty port tuple - so
+    the plan came back errors 0, warnings 0, SEC-AVAIL pass, with the requirement
+    examined by nobody. `W7002` did not fire either, because the list was not
+    empty.
+    """
+    rows = [_matrix_row(_src("dns", ports={"tcp": [53]}))]
+    requirement = {"name": "everything-must-work", "from_zone_ref": "z.a", "to_zone_ref": "z.b"}
+    if label != "omitted":
+        requirement["ports"] = ports
+    rows[0]["extensions"]["availability_requirements"] = [requirement]
+
+    result = _run_with_source(_compile_plan(rows), rows)
+    codes = _codes(result)
+
+    assert "E7094" in codes, f"an unbounded requirement passed as {label}: {codes}"
+    assert any("bounded transport" in diag.message for diag in result.diagnostics)
+
+
+def test_a_refused_requirement_leaves_availability_unverified() -> None:
+    """And therefore blocks admission, rather than reading as a satisfied objective."""
+    rows = [_matrix_row(_src("dns", ports={"tcp": [53]}))]
+    rows[0]["extensions"]["availability_requirements"] = [
+        {"name": "everything-must-work", "from_zone_ref": "z.a", "to_zone_ref": "z.b"}
+    ]
+
+    record = _run_with_source(_compile_plan(rows), rows).output_data["security_plan_verification"]
+
+    assert record["errors"] >= 1
+    statuses = record["obligations"][MATRIX_SCOPE]
+    assert statuses["SEC-AVAIL"] != "pass", statuses
+
+
+def test_a_bounded_requirement_beside_a_refused_one_is_still_read() -> None:
+    """The refusal is per statement; it does not erase the ones that parse."""
+    rows = [_matrix_row(_src("dns", ports={"tcp": [53]}))]
+    rows[0]["extensions"]["availability_requirements"] = [
+        {"name": "dns-must-work", "from_zone_ref": "z.a", "to_zone_ref": "z.b", "ports": {"tcp": [53]}},
+        {"name": "unbounded", "from_zone_ref": "z.a", "to_zone_ref": "z.b"},
+    ]
+
+    result = _run_with_source(_compile_plan(rows), rows)
+
+    assert "E7094" in _codes(result)
+    assert "W7002" not in _codes(result), "one requirement did parse; the scope is not undeclared"
+
+
+def test_an_override_naming_no_transport_is_still_every_transport() -> None:
+    """The two grammars differ, and only for requirements.
+
+    A portless *override* is the only mandatory deny in the real topology, and it
+    constrains every transport. Refusing it here would have removed the strongest
+    restriction the sources contain.
+    """
+    rows = [_matrix_row(_src("no-b-to-a", action="drop", src="z.b", dst="z.a"))]
+
+    result = _run_with_source(_compile_plan(rows), rows)
+
+    assert "E7094" not in _codes(result)
+    assert _errors(result) == []
+
+
 def test_the_port_reduction_separates_exactly_what_the_rules_separate() -> None:
     """The probe set is smaller; it is not blinder.
 

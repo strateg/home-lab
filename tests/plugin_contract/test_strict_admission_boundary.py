@@ -32,15 +32,18 @@ sys.path.insert(0, str(V5_TOOLS))
 
 from plugins.validators.strict_admission import (  # noqa: E402
     CHECKED_OBLIGATIONS,
+    DEFERRED_OBLIGATION_FIELDS,
     PASS,
-    admitted_projection,
     RECORD_VERSION,
     STRICT_PROVENANCE,
     Admission,
+    AdmissionError,
+    admitted_projection,
     applicable_obligations,
     content_digest,
     evaluate,
     strict_artifacts,
+    unsupported_constructs,
 )
 
 # The identity of the intent the verifier checked. The approval names the same
@@ -48,6 +51,19 @@ from plugins.validators.strict_admission import (  # noqa: E402
 # approval issued for an unrelated scope admitted this plan because `approved`
 # was read for its truthiness alone.
 INTENT_DIGEST = "sha256-" + "1" * 64
+
+# The identity of the attestations used to discharge what was not verified, kept
+# apart from semantic identity. And the epoch this decision is for, which the
+# caller must supply: requiring the approval to carry any non-empty string bound
+# nothing, because there was nothing to compare it with.
+EVIDENCE_DIGEST = "sha256-" + "2" * 64
+EPOCH = "2026-09-14T00:00:00Z"
+
+
+def admit(**kwargs):
+    """`evaluate` with the caller-supplied context these tests operate in."""
+    kwargs.setdefault("expected_epoch", EPOCH)
+    return evaluate(**kwargs)
 
 
 def strict_plan(**overrides) -> dict:
@@ -100,6 +116,7 @@ def verification_for(plan: dict, **overrides) -> dict:
         "schema_version": RECORD_VERSION,
         "plan_digest": content_digest(plan),
         "intent_digest": INTENT_DIGEST,
+        "evidence_digest": EVIDENCE_DIGEST,
         "errors": 0,
         "warnings": 0,
         "source_available": True,
@@ -117,8 +134,9 @@ def approval(**overrides) -> dict:
         "approved": True,
         "approved_by": "security-lead",
         "intent_digest": INTENT_DIGEST,
+        "evidence_digest": EVIDENCE_DIGEST,
         "scopes": ["scope.a"],
-        "epoch": "2026-09-14T00:00:00Z",
+        "epoch": EPOCH,
     }
     record.update(overrides)
     return record
@@ -134,7 +152,7 @@ def test_a_prepared_strict_plan_is_admitted() -> None:
     """First, because an always-refusing implementation passes every other test."""
     plan = strict_plan()
 
-    admission = evaluate(plan=plan, verification=verification_for(plan), approved_intent=APPROVED)
+    admission = admit(plan=plan, verification=verification_for(plan), approved_intent=APPROVED)
 
     assert admission.admitted, admission.reasons
     assert admission.plan_digest == content_digest(plan)
@@ -157,7 +175,7 @@ def test_the_control_fails_when_any_single_condition_is_removed() -> None:
     for label, kwargs in cases.items():
         if kwargs["verification"] is None and label not in ("verification",):
             kwargs["verification"] = verification_for(kwargs["plan"])
-        assert not evaluate(**kwargs).admitted, f"{label} was not load-bearing"
+        assert not admit(**kwargs).admitted, f"{label} was not load-bearing"
 
 
 # --- condition 1: legacy_shadow is refused whatever else is true -----------------------
@@ -167,7 +185,7 @@ def test_a_fully_lowered_verified_legacy_plan_is_still_refused() -> None:
     """The main negative test. Everything is right except that nobody approved it."""
     plan = strict_plan(provenance="legacy_shadow")
 
-    admission = evaluate(plan=plan, verification=verification_for(plan), approved_intent=APPROVED)
+    admission = admit(plan=plan, verification=verification_for(plan), approved_intent=APPROVED)
 
     assert not admission.admitted
     assert any("legacy" in reason or "strict" in reason for reason in admission.reasons)
@@ -176,14 +194,14 @@ def test_a_fully_lowered_verified_legacy_plan_is_still_refused() -> None:
 def test_lowering_completeness_does_not_admit_a_legacy_plan() -> None:
     plan = strict_plan(provenance="legacy_shadow", lowering_complete=["scope.a"], unlowerable=[])
 
-    assert not evaluate(plan=plan, verification=verification_for(plan), approved_intent=APPROVED).admitted
+    assert not admit(plan=plan, verification=verification_for(plan), approved_intent=APPROVED).admitted
 
 
 def test_shadow_analysis_stays_available_after_refusal() -> None:
     """A refusal withholds admission; it does not withdraw the plan."""
     plan = strict_plan(provenance="legacy_shadow")
 
-    admission = evaluate(plan=plan, verification=verification_for(plan), approved_intent=APPROVED)
+    admission = admit(plan=plan, verification=verification_for(plan), approved_intent=APPROVED)
 
     assert not admission.admitted
     assert plan["rules"], "the plan is still there to analyse"
@@ -195,14 +213,14 @@ def test_shadow_analysis_stays_available_after_refusal() -> None:
 def test_swapping_provenance_alone_does_not_admit() -> None:
     plan = strict_plan()
 
-    assert not evaluate(plan=plan, verification=verification_for(plan), approved_intent=None).admitted
-    assert not evaluate(plan=plan, verification=None, approved_intent=APPROVED).admitted
+    assert not admit(plan=plan, verification=verification_for(plan), approved_intent=None).admitted
+    assert not admit(plan=plan, verification=None, approved_intent=APPROVED).admitted
 
 
 def test_an_unapproved_intent_object_is_not_approval() -> None:
     plan = strict_plan()
 
-    admission = evaluate(
+    admission = admit(
         plan=plan, verification=verification_for(plan), approved_intent=approval(approved=False)
     )
 
@@ -221,7 +239,7 @@ def test_an_approval_of_other_inputs_does_not_admit_this_plan() -> None:
     """
     plan = strict_plan()
 
-    admission = evaluate(
+    admission = admit(
         plan=plan,
         verification=verification_for(plan),
         approved_intent=approval(intent_digest="sha256-" + "9" * 64),
@@ -234,7 +252,7 @@ def test_an_approval_of_other_inputs_does_not_admit_this_plan() -> None:
 def test_an_approval_that_does_not_cover_the_scope_refuses() -> None:
     plan = strict_plan()
 
-    admission = evaluate(
+    admission = admit(
         plan=plan, verification=verification_for(plan), approved_intent=approval(scopes=["scope.other"])
     )
 
@@ -245,7 +263,7 @@ def test_an_approval_that_does_not_cover_the_scope_refuses() -> None:
 def test_a_bare_boolean_approves_nothing_in_particular() -> None:
     plan = strict_plan()
 
-    admission = evaluate(
+    admission = admit(
         plan=plan, verification=verification_for(plan), approved_intent={"approved": True}
     )
 
@@ -256,10 +274,10 @@ def test_a_bare_boolean_approves_nothing_in_particular() -> None:
 def test_an_approval_without_an_approver_or_an_epoch_refuses() -> None:
     plan = strict_plan()
 
-    assert not evaluate(
+    assert not admit(
         plan=plan, verification=verification_for(plan), approved_intent=approval(approved_by="  ")
     ).admitted
-    assert not evaluate(
+    assert not admit(
         plan=plan, verification=verification_for(plan), approved_intent=approval(epoch="")
     ).admitted
 
@@ -267,7 +285,7 @@ def test_an_approval_without_an_approver_or_an_epoch_refuses() -> None:
 def test_a_verification_naming_no_intent_cannot_be_bound_to_an_approval() -> None:
     plan = strict_plan()
 
-    admission = evaluate(
+    admission = admit(
         plan=plan, verification=verification_for(plan, intent_digest=""), approved_intent=APPROVED
     )
 
@@ -284,7 +302,7 @@ def test_a_record_missing_a_field_is_refused_rather_than_defaulted() -> None:
     del record["errors"]
     del record["checked_scopes"]
 
-    admission = evaluate(plan=plan, verification=record, approved_intent=APPROVED)
+    admission = admit(plan=plan, verification=record, approved_intent=APPROVED)
 
     assert not admission.admitted
     assert any("unanswered question" in reason for reason in admission.reasons)
@@ -293,7 +311,7 @@ def test_a_record_missing_a_field_is_refused_rather_than_defaulted() -> None:
 def test_a_record_of_an_unknown_version_is_refused() -> None:
     plan = strict_plan()
 
-    assert not evaluate(
+    assert not admit(
         plan=plan, verification=verification_for(plan, schema_version=99), approved_intent=APPROVED
     ).admitted
 
@@ -301,7 +319,7 @@ def test_a_record_of_an_unknown_version_is_refused() -> None:
 def test_a_scope_the_verifier_never_saw_is_refused() -> None:
     plan = strict_plan()
 
-    admission = evaluate(
+    admission = admit(
         plan=plan, verification=verification_for(plan, checked_scopes=["scope.other"]), approved_intent=APPROVED
     )
 
@@ -318,7 +336,7 @@ def test_an_unverified_obligation_is_not_a_pass() -> None:
     record = verification_for(plan)
     record["obligations"]["scope.a"]["SEC-AVAIL"] = "unverified"
 
-    admission = evaluate(plan=plan, verification=record, approved_intent=APPROVED)
+    admission = admit(plan=plan, verification=record, approved_intent=APPROVED)
 
     assert not admission.admitted
     assert any("SEC-AVAIL" in reason for reason in admission.reasons)
@@ -329,7 +347,7 @@ def test_a_missing_obligation_status_is_not_a_pass() -> None:
     record = verification_for(plan)
     del record["obligations"]["scope.a"]["SEC-AUTH"]
 
-    admission = evaluate(plan=plan, verification=record, approved_intent=APPROVED)
+    admission = admit(plan=plan, verification=record, approved_intent=APPROVED)
 
     assert not admission.admitted
     assert any("no status" in reason for reason in admission.reasons)
@@ -341,7 +359,7 @@ def test_every_checked_obligation_is_load_bearing() -> None:
         record = verification_for(plan)
         record["obligations"]["scope.a"][obligation] = "fail"
 
-        assert not evaluate(
+        assert not admit(
             plan=plan, verification=record, approved_intent=APPROVED
         ).admitted, f"{obligation} was not load-bearing"
 
@@ -362,13 +380,13 @@ def test_a_plan_containing_a_deferred_construct_needs_its_obligation() -> None:
     # the mounted validator produces today.
     unanswered = verification_for(plan)
     del unanswered["obligations"]["scope.a"]["SEC-NAT"]
-    admission = evaluate(plan=plan, verification=unanswered, approved_intent=APPROVED)
+    admission = admit(plan=plan, verification=unanswered, approved_intent=APPROVED)
 
     assert not admission.admitted
     assert any("SEC-NAT" in reason for reason in admission.reasons)
     # And the same plan with the obligation actually answered is admissible, so
     # the refusal is about the missing check rather than about the construct.
-    assert evaluate(plan=plan, verification=verification_for(plan), approved_intent=APPROVED).admitted
+    assert admit(plan=plan, verification=verification_for(plan), approved_intent=APPROVED).admitted
 
 
 def test_a_plan_without_those_constructs_needs_only_the_checked_four() -> None:
@@ -387,7 +405,7 @@ def test_scope_lists_that_contradict_each_other_refuse() -> None:
         blocked_scopes=[],
     )
 
-    admission = evaluate(plan=plan, verification=verification_for(plan), approved_intent=APPROVED)
+    admission = admit(plan=plan, verification=verification_for(plan), approved_intent=APPROVED)
 
     assert not admission.admitted
     assert any("lowering-complete" in reason for reason in admission.reasons)
@@ -398,7 +416,7 @@ def test_scope_lists_that_contradict_each_other_refuse() -> None:
 def test_a_scope_outside_the_eligible_list_cannot_be_requested() -> None:
     plan = strict_plan()
 
-    admission = evaluate(
+    admission = admit(
         plan=plan, verification=verification_for(plan), approved_intent=APPROVED, scopes=["scope.b"]
     )
 
@@ -408,7 +426,7 @@ def test_a_scope_outside_the_eligible_list_cannot_be_requested() -> None:
 
 def test_a_refusal_has_no_projection_to_render() -> None:
     plan = strict_plan()
-    refused = evaluate(
+    refused = admit(
         plan=plan, verification=verification_for(plan), approved_intent=approval(approved=False)
     )
 
@@ -433,7 +451,7 @@ def test_the_projection_carries_only_the_admitted_scopes() -> None:
         }
     )
 
-    admission = evaluate(plan=plan, verification=verification_for(plan), approved_intent=APPROVED)
+    admission = admit(plan=plan, verification=verification_for(plan), approved_intent=APPROVED)
     assert admission.admitted, admission.reasons
 
     projection = admitted_projection(plan, admission)
@@ -443,15 +461,165 @@ def test_the_projection_carries_only_the_admitted_scopes() -> None:
     assert len(plan["rules"]) == 3, "the plan itself is not modified"
 
 
-def test_admission_names_the_scopes_it_admitted() -> None:
-    """A renderer must receive the projection that was admitted, not the whole plan."""
+def test_a_projection_of_a_different_plan_is_refused() -> None:
+    """R1: the consumer API reopened the gap `evaluate` closes.
+
+    A caller could evaluate one plan, change a rule, and take a projection of the
+    changed rules stamped with the admitted digest. Nothing recomputed identity
+    at projection time.
+    """
+    plan = strict_plan()
+    admission = admit(plan=plan, verification=verification_for(plan), approved_intent=APPROVED)
+    assert admission.admitted, admission.reasons
+
+    mutated = copy.deepcopy(plan)
+    mutated["rules"][0]["transport"] = {"kind": "any"}
+
+    with pytest.raises(AdmissionError, match="never admitted"):
+        admitted_projection(mutated, admission)
+
+
+def test_a_projection_is_detached_from_the_plan_it_came_from() -> None:
+    """Editing a rule in the projection used to edit the plan."""
+    plan = strict_plan()
+    admission = admit(plan=plan, verification=verification_for(plan), approved_intent=APPROVED)
+
+    projection = admitted_projection(plan, admission)
+    projection["rules"][0]["transport"]["ports"] = [22]
+
+    assert plan["rules"][0]["transport"]["ports"] == [443]
+
+
+def test_a_projection_keeps_the_identity_it_was_admitted_under() -> None:
+    plan = strict_plan()
+    admission = admit(plan=plan, verification=verification_for(plan), approved_intent=APPROVED)
+
+    projection = admitted_projection(plan, admission)
+
+    assert projection["plan_digest"] == content_digest(plan)
+    assert projection["intent_digest"] == INTENT_DIGEST
+
+
+# --- the plan shape is closed ---------------------------------------------------------
+
+
+def test_an_unknown_construct_is_refused_rather_than_ignored() -> None:
+    """R3: `path` refused the plan and `paths` with the same content did not.
+
+    Applicability was inferred by searching the serialized plan for quoted words,
+    so the fail-closed guard was spelling-sensitive. The shape is closed now: a
+    field that is neither known nor a reserved obligation name is refused.
+    """
+    for field in ("paths", "execution_paths", "whatever"):
+        plan = strict_plan(**{field: [{"kind": "routed"}]})
+
+        admission = admit(plan=plan, verification=verification_for(plan), approved_intent=APPROVED)
+
+        assert not admission.admitted, f"{field} passed the closed shape"
+        assert any("no meaning for" in reason for reason in admission.reasons)
+
+
+def test_an_unknown_field_inside_a_rule_is_refused() -> None:
+    plan = strict_plan()
+    plan["rules"][0]["route_through"] = ["gw.a"]
+
+    admission = admit(plan=plan, verification=verification_for(plan), approved_intent=APPROVED)
+
+    assert not admission.admitted
+    assert any("rules[0].route_through" in reason for reason in admission.reasons)
+
+
+@pytest.mark.parametrize("field", sorted(DEFERRED_OBLIGATION_FIELDS))
+def test_each_reserved_field_makes_its_obligation_applicable(field: str) -> None:
+    plan = strict_plan()
+    plan["rules"][0][field] = {"anything": True}
+
+    obligation = DEFERRED_OBLIGATION_FIELDS[field]
+    assert obligation in applicable_obligations(plan)
+
+    unanswered = verification_for(plan)
+    del unanswered["obligations"]["scope.a"][obligation]
+
+    assert not admit(plan=plan, verification=unanswered, approved_intent=APPROVED).admitted
+
+
+def test_the_known_shape_is_the_one_the_compiler_emits() -> None:
+    """A closed shape that did not match the producer would refuse everything."""
+    plan = strict_plan()
+
+    assert unsupported_constructs(plan) == []
+
+
+# --- the evidence and the epoch are bound too -----------------------------------------
+
+
+def test_an_approval_given_against_other_evidence_does_not_admit() -> None:
+    """R4: replacing a waiver's owner and rationale left every digest unmoved."""
+    plan = strict_plan()
+
+    admission = admit(
+        plan=plan,
+        verification=verification_for(plan),
+        approved_intent=approval(evidence_digest="sha256-" + "7" * 64),
+    )
+
+    assert not admission.admitted
+    assert any("signed by somebody else" in reason for reason in admission.reasons)
+
+
+def test_an_approval_naming_no_evidence_does_not_admit() -> None:
+    plan = strict_plan()
+
+    admission = admit(
+        plan=plan, verification=verification_for(plan), approved_intent=approval(evidence_digest="")
+    )
+
+    assert not admission.admitted
+    assert any("names no evidence" in reason for reason in admission.reasons)
+
+
+def test_a_decision_without_an_expected_epoch_is_refused() -> None:
+    """R5: with nothing to compare against, any epoch string was accepted."""
     plan = strict_plan()
 
     admission = evaluate(plan=plan, verification=verification_for(plan), approved_intent=APPROVED)
 
+    assert not admission.admitted
+    assert any("epoch-qualified" in reason for reason in admission.reasons)
+
+
+def test_an_approval_from_another_epoch_is_refused() -> None:
+    plan = strict_plan()
+
+    admission = evaluate(
+        plan=plan,
+        verification=verification_for(plan),
+        approved_intent=approval(epoch="old-epoch"),
+        expected_epoch="new-epoch",
+    )
+
+    assert not admission.admitted
+    assert any("is for epoch" in reason for reason in admission.reasons)
+
+
+def test_a_plan_epoch_must_agree_with_the_approval_as_well() -> None:
+    plan = strict_plan(epoch="other-epoch")
+
+    admission = admit(plan=plan, verification=verification_for(plan), approved_intent=APPROVED)
+
+    assert not admission.admitted
+    assert any("the plan is epoch" in reason for reason in admission.reasons)
+
+
+def test_admission_names_the_scopes_it_admitted() -> None:
+    """A renderer must receive the projection that was admitted, not the whole plan."""
+    plan = strict_plan()
+
+    admission = admit(plan=plan, verification=verification_for(plan), approved_intent=APPROVED)
+
     assert admission.admitted
     assert admission.scopes == ("scope.a",)
-    assert evaluate(
+    assert admit(
         plan=plan, verification=verification_for(plan), approved_intent=approval(approved=False)
     ).scopes == ()
 
@@ -466,7 +634,7 @@ def test_a_plan_edited_after_verification_is_refused() -> None:
     mutated = copy.deepcopy(plan)
     mutated["rules"][0]["transport"]["ports"] = [443, 22]
 
-    admission = evaluate(plan=mutated, verification=record, approved_intent=APPROVED)
+    admission = admit(plan=mutated, verification=record, approved_intent=APPROVED)
 
     assert not admission.admitted
     assert any("changed after checking" in reason for reason in admission.reasons)
@@ -486,7 +654,7 @@ def test_recomputing_the_plans_own_digest_does_not_restore_admission() -> None:
     mutated["rules"][0]["transport"]["ports"] = [443, 22]
     mutated["digest"] = content_digest(mutated)  # made self-consistent on purpose
 
-    admission = evaluate(plan=mutated, verification=record, approved_intent=APPROVED)
+    admission = admit(plan=mutated, verification=record, approved_intent=APPROVED)
 
     assert not admission.admitted
     assert any("changed after checking" in reason for reason in admission.reasons)
@@ -506,7 +674,7 @@ def test_the_digest_ignores_the_payloads_own_digest_field() -> None:
 def test_an_unreadable_source_is_not_a_pass() -> None:
     plan = strict_plan()
 
-    admission = evaluate(
+    admission = admit(
         plan=plan, verification=verification_for(plan, source_available=False), approved_intent=APPROVED
     )
 
@@ -517,7 +685,7 @@ def test_an_unreadable_source_is_not_a_pass() -> None:
 def test_a_check_that_reported_errors_refuses() -> None:
     plan = strict_plan()
 
-    admission = evaluate(plan=plan, verification=verification_for(plan, errors=2), approved_intent=APPROVED)
+    admission = admit(plan=plan, verification=verification_for(plan, errors=2), approved_intent=APPROVED)
 
     assert not admission.admitted
 
@@ -525,11 +693,11 @@ def test_a_check_that_reported_errors_refuses() -> None:
 def test_a_blocked_scope_refuses_the_whole_plan() -> None:
     plan = strict_plan(blocked_scopes=["scope.b"])
 
-    assert not evaluate(plan=plan, verification=verification_for(plan), approved_intent=APPROVED).admitted
+    assert not admit(plan=plan, verification=verification_for(plan), approved_intent=APPROVED).admitted
 
 
 def test_a_missing_plan_refuses() -> None:
-    assert not evaluate(plan=None, verification=None, approved_intent=APPROVED).admitted
+    assert not admit(plan=None, verification=None, approved_intent=APPROVED).admitted
 
 
 # --- condition 5: a refusal never enables a fallback ----------------------------------------
@@ -537,8 +705,8 @@ def test_a_missing_plan_refuses() -> None:
 
 def test_a_refusal_never_permits_a_legacy_fallback() -> None:
     """Falling back turns the boundary into a preference, and the plan runs anyway."""
-    refused = evaluate(plan=strict_plan(provenance="legacy_shadow"), verification=None, approved_intent=None)
-    admitted = evaluate(
+    refused = admit(plan=strict_plan(provenance="legacy_shadow"), verification=None, approved_intent=None)
+    admitted = admit(
         plan=strict_plan(), verification=verification_for(strict_plan()), approved_intent=APPROVED
     )
 

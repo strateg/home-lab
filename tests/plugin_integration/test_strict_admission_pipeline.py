@@ -50,7 +50,9 @@ FIXTURE_MANIFEST = REPO_ROOT / "tests" / "fixtures" / "strict_writer" / "plugins
 WRITER_ID = "test.generator.strict_marker"
 MARKER_ENV = "STRICT_WRITER_OUTPUT_DIR"
 APPROVAL_ENV = "STRICT_WRITER_APPROVAL_FILE"
+EPOCH_ENV = "STRICT_WRITER_EPOCH"
 MARKER_NAME = "strict-rules.json"
+EPOCH = "2026-09-14T00:00:00Z"
 
 # The plugins this test runs, and no others. The stage executor is the real one -
 # dependency resolution, phase ordering and the envelope contract all apply - but
@@ -206,6 +208,7 @@ def _run_with_writer(
     """
     output_dir = tmp_path / "out"
     monkeypatch.setenv(MARKER_ENV, str(output_dir))
+    monkeypatch.setenv(EPOCH_ENV, EPOCH)
     if approval is None:
         monkeypatch.delenv(APPROVAL_ENV, raising=False)
     else:
@@ -243,11 +246,26 @@ def _approval_for(record: dict, plan: dict, **overrides) -> dict:
         "approved": True,
         "approved_by": "security-lead",
         "intent_digest": record["intent_digest"],
+        "evidence_digest": record["evidence_digest"],
         "scopes": list(plan["scopes"]),
-        "epoch": "2026-09-14T00:00:00Z",
+        "epoch": EPOCH,
     }
     approval.update(overrides)
     return approval
+
+
+def _waived_rows(owner: str, rationale: str) -> list[dict]:
+    """A source whose availability is discharged by an attestation rather than by Q.
+
+    An explicitly empty `Q` with an owner and a reason is a claim - "nothing here
+    has to keep working" - and it is what makes SEC-AVAIL pass without any
+    requirement to check. It is therefore the case where the identity of the
+    attestation matters most.
+    """
+    rows = _admissible_rows()
+    rows[0]["extensions"]["availability_requirements"] = []
+    rows[0]["extensions"]["availability_waiver"] = {"owner": owner, "rationale": rationale}
+    return rows
 
 
 # --- the positive control: a real check, and a real write ------------------------------
@@ -294,11 +312,18 @@ def test_the_marker_is_controlled_by_admission_and_nothing_else(tmp_path, monkey
     # Patched at the source rather than on the loaded plugin module: the loader
     # re-executes the plugin file for each registry, and a patch applied to that
     # module object is overwritten by the next load.
-    monkeypatch.setattr(
-        contract,
-        "evaluate",
-        lambda **kwargs: contract.Admission(admitted=True, plan_digest="bypassed", scopes=("scope.a",)),
-    )
+    def always_admit(**kwargs):
+        # The digest and scopes are the real ones: `admitted_projection` refuses a
+        # plan that is not the admitted one, so a lazier mutant would be stopped
+        # by that check rather than by the decision this test is bypassing.
+        admitted_plan = kwargs["plan"]
+        return contract.Admission(
+            admitted=True,
+            plan_digest=contract.content_digest(admitted_plan),
+            scopes=tuple(sorted(admitted_plan.get("scopes") or [])),
+        )
+
+    monkeypatch.setattr(contract, "evaluate", always_admit)
 
     marker, _ = _run_with_writer(
         rows=rows, plan=None, tmp_path=tmp_path, approval=None, monkeypatch=monkeypatch
@@ -414,6 +439,86 @@ def test_a_plan_edited_after_validation_writes_nothing(tmp_path, monkeypatch) ->
     assert any("changed after checking" in reason for reason in results[WRITER_ID]["refusal"])
 
 
+def test_replacing_the_attestation_invalidates_the_approval_it_was_given_for(
+    tmp_path, monkeypatch
+) -> None:
+    """The waiver is the evidence discharging SEC-AVAIL, so the approval is bound to it.
+
+    An explicitly empty `Q` with an owner and a reason makes SEC-AVAIL pass with
+    nothing to check. Replacing the owner and the rationale leaves the permission
+    set identical - correctly, so `intent_digest` does not move - and used to
+    leave every digest unmoved, so the previous approval discharged a claim a
+    different person now signs. Evidence has its own digest for exactly this.
+    """
+    first_rows = _waived_rows("owner-a", "reason-a")
+    plan = _as_strict(_run_pipeline(first_rows)[0])
+    first_record = _record_after_validation(plan, first_rows)
+    assert first_record["obligations"][plan["scopes"][0]]["SEC-AVAIL"] == "pass"
+
+    second_rows = _waived_rows("owner-b", "reason-b")
+    second_record = _record_after_validation(plan, second_rows)
+
+    assert second_record["intent_digest"] == first_record["intent_digest"], (
+        "the permission set is unchanged; semantic identity must not move"
+    )
+    assert second_record["evidence_digest"] != first_record["evidence_digest"], (
+        "a different person now signs the claim; evidence identity must move"
+    )
+
+    marker, output = _run_with_writer(
+        rows=second_rows,
+        plan=plan,
+        tmp_path=tmp_path,
+        approval=_approval_for(first_record, plan),
+        monkeypatch=monkeypatch,
+    )
+
+    assert not marker.exists()
+    assert any("signed by somebody else" in reason for reason in output["refusal"]), output["refusal"]
+
+
+def test_an_unbounded_availability_requirement_writes_nothing(tmp_path, monkeypatch) -> None:
+    """R2 through the writer: the requirement both Q checks used to skip."""
+    rows = _admissible_rows()
+    rows[0]["extensions"]["availability_requirements"] = [
+        {"name": "everything-must-work", "from_zone_ref": "z.a", "to_zone_ref": "z.b"}
+    ]
+    plan = _as_strict(_run_pipeline(rows)[0])
+    record = _record_after_validation(plan, rows)
+
+    assert record["errors"] >= 1, "an unbounded requirement must not verify clean"
+
+    marker, _ = _run_with_writer(
+        rows=rows, plan=plan, tmp_path=tmp_path, approval=_approval_for(record, plan), monkeypatch=monkeypatch
+    )
+
+    assert not marker.exists()
+
+
+def test_no_expected_epoch_writes_nothing(tmp_path, monkeypatch) -> None:
+    """R5: the caller must name the epoch it is deciding for."""
+    rows = _admissible_rows()
+    plan = _as_strict(_run_pipeline(rows)[0])
+    record = _record_after_validation(plan, rows)
+
+    output_dir = tmp_path / "out"
+    monkeypatch.setenv(MARKER_ENV, str(output_dir))
+    monkeypatch.delenv(EPOCH_ENV, raising=False)
+    approval_file = tmp_path / "approval.json"
+    approval_file.write_text(json.dumps(_approval_for(record, plan)), encoding="utf-8")
+    monkeypatch.setenv(APPROVAL_ENV, str(approval_file))
+
+    registry = _pipeline_registry()
+    ctx = _context()
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", copy.deepcopy(rows))
+    publish_for_test(ctx, "base.compiler.security_plan", "security_plan", copy.deepcopy(plan))
+    registry.execute_stage(Stage.VALIDATE, ctx)
+    results = {item.plugin_id: item.output_data for item in registry.execute_stage(Stage.GENERATE, ctx)}
+
+    assert not (output_dir / MARKER_NAME).exists()
+    assert any("epoch-qualified" in reason for reason in results[WRITER_ID]["refusal"])
+
+
 # --- the inputs the boundary needs, and what their absence means -------------------------
 
 
@@ -445,9 +550,11 @@ def test_a_missing_source_input_blocks_admission() -> None:
             "approved": True,
             "approved_by": "security-lead",
             "intent_digest": record["intent_digest"],
+            "evidence_digest": record["evidence_digest"],
             "scopes": list(prepared["scopes"]),
-            "epoch": "2026-09-14T00:00:00Z",
+            "epoch": EPOCH,
         },
+        expected_epoch=EPOCH,
     )
 
     assert not admission.admitted
@@ -476,7 +583,10 @@ def test_the_pipeline_leaves_no_strict_artifact_while_admission_is_refused() -> 
     """Checked on disk after the run, not from the decision function's answer."""
     plan, record = _run_pipeline(_real_rows())
     admission = evaluate(
-        plan=plan, verification=record, approved_intent={"approved": True, "approved_by": "security-lead"}
+        plan=plan,
+        verification=record,
+        approved_intent={"approved": True, "approved_by": "security-lead"},
+        expected_epoch=EPOCH,
     )
     assert not admission.admitted, "this test assumes the real plan is refused"
 
@@ -488,7 +598,7 @@ def test_the_pipeline_leaves_no_strict_artifact_while_admission_is_refused() -> 
 def test_a_refusal_does_not_enable_a_legacy_path() -> None:
     plan, record = _run_pipeline(_real_rows())
 
-    admission = evaluate(plan=plan, verification=record, approved_intent=None)
+    admission = evaluate(plan=plan, verification=record, approved_intent=None, expected_epoch=EPOCH)
 
     assert not admission.admitted
     assert admission.legacy_fallback_permitted is False

@@ -1386,6 +1386,61 @@ No producer of approvals exists, so in the real pipeline every plan is refused
 twice over - at provenance and at approval - and the positive control is a fixture.
 F3 through F5 remain open, and so does G3.
 
+### External review of `c5a5addc`, and what it closed
+
+`docs/reports/2026-09-14-adr0118-0119-review-c5a5addc.md`. Two blocking defects and
+three contract gaps, all reproduced with the real compiler and validator rather
+than hand-written records.
+
+**R2 - a requirement was accepted and then discharged by nobody.** Availability
+requirements shared `_obligation` with policy overrides, and a portless override
+means *every transport* - a real and checkable restriction, and the only mandatory
+deny in this topology. The same default on a requirement means "every port must
+keep working", which this implementation cannot check: `_required` skipped
+any-transport entries and `_check_requirements_are_permitted` iterated an empty
+port tuple. Two skips, and between them the requirement was never examined -
+errors 0, warnings 0, SEC-AVAIL **pass**, and the plan admitted. `W7002` did not
+fire either, because the list was not empty.
+
+The two grammars are now separate, and only in that one place. An unbounded
+requirement is refused at the parser with `E7094`, which leaves SEC-AVAIL
+unverified for its scope and blocks admission. The portless *override* still
+means every transport.
+
+**R1 - the consumer API reopened the gap `evaluate` closes.** `admitted_projection`
+filtered scope names and never checked that the plan it was handed was the plan
+that had been admitted, so a caller could evaluate one plan, change a rule, and
+take a projection of the changed rules stamped with the admitted digest. It also
+returned the plan's own rule mappings, so editing the projection edited the plan.
+Identity is re-established against a snapshot taken first - hashing the caller's
+object and copying afterwards leaves the same window open, only narrower - and a
+mismatch raises rather than returning empty, because an empty ruleset handed to a
+firewall renderer is not a safe way to report a programming error.
+
+**R3 - the fail-closed guard was spelling-sensitive.** Applicability was inferred
+by searching the serialized plan for quoted words. `path` made SEC-PATH applicable
+and refused the plan; `paths` with identical content was admitted. The comment
+claiming a future construct would necessarily be refused was therefore stronger
+than the code. The plan shape is closed now: known fields, reserved
+obligation-name fields, and everything else refused.
+
+**R4 - approval was not bound to the attestation it rests on.** The intent digest
+carried `availability_attested` as a set of scope names, so replacing a waiver's
+owner and rationale left it unmoved and the previous approval discharged a claim
+somebody else now signs. The permission set genuinely is unchanged - that is why
+this did not belong in semantic identity. It has its own `evidence_digest` now,
+and the approval names both.
+
+**R5 - the epoch was a label.** The approval had to carry a non-empty epoch
+string, but equality was conditional on the plan having one, and the strict
+fixture has none - so the same plan was admitted under `old-epoch` and
+`new-epoch`. `evaluate` takes `expected_epoch` from the caller's deployment
+context and refuses to decide without it. Freshness and revocation remain F4; what
+this closes is the pretence that a filled-in string implemented them.
+
+*Not closed.* PR2 and the strict boundary still need a review against this code.
+G3 is not closed by a bounded fixture. F3 through F5 and W05 remain separate work.
+
 **A framework lock is not reproducible from a commit alone.** A detached worktree
 at `93c0c2f7` computes `sha256-f43ba202...` where the committed lock says
 `sha256-baee680d...`, while the same revision in the main working tree matches.
