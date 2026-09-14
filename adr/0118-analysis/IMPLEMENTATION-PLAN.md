@@ -1218,8 +1218,46 @@ mutating the source rather than by reading the code.
 `plugin-contract` gate, 334 netmodel. Artifact parity identical across 147 files;
 the real topology reports no errors and the same two `W7002`.
 
-**Not concluded.** PR2 and the strict boundary still need a review against this
-code and the exact gate commands. F3 through F5 remain open, and so does G3.
+### Self-review, 2026-09-14 — by mutation, not by reading
+
+A self-review looks for defects with the assumptions that produced them, so this
+did not read the code. It did what actually found things last time: mutate the
+source and the plan, and require each claim's checker to fire.
+
+**Fourteen mutations, thirteen caught, one apparent miss that was my harness.**
+The wildcard-permit case inherited `effect: deny` from the rule it was copied
+from, so it inserted a wildcard *deny* - and `E7084` was the correct answer. With
+the mutation written properly, all three smuggling shapes - any-transport, an
+unlisted port, an unlisted protocol - report `E7083`. No false positives: the
+unmutated plan and a reordered rule list are both clean.
+
+**A real hole, found by a different axis.** Enumerating the allocated `E70xx`
+codes against the code that raises them showed seven with no raiser at all. Four
+- `E7085`-`E7088` - are the obligations implemented in `netmodel` and not yet
+mounted in the framework, which is expected and now stated. `I7001` and `W7001`
+were registered speculatively and raise nothing, which is the thing D7 warns
+against and they are mine.
+
+And `E7094` was registered for unsupported predicate semantics and **raised by
+nobody**. The compiler refused the selector and recorded a reason in a channel;
+the validator's source reader returned `None` silently. So the scope was blocked
+and the operator running the compile saw nothing. A code with no raiser is a claim
+nobody checks. `_obligation` now returns its refusal reason, the validator reports
+`E7094`, and six tests cover every refused shape.
+
+*Two instrument errors on the way, both mine.* The first scan looked only for
+`code=` keyword arguments and reported `E7090` and `E7093` as unraised - while
+the mutation tests had just shown them firing. The second fix missed the
+availability call site of `_obligation` and crashed the plugin with `E4102`; the
+test suite caught it immediately, which is what it is for.
+
+59 validator tests, 335 netmodel, artifact parity identical across 147 files, the
+real topology unchanged at two `W7002`.
+
+**Not concluded, and a self-review does not change that.** It found one real
+defect and cannot speak to what it did not think to mutate. PR2 and the strict
+boundary still need an outside review against this code and the exact gate
+commands. F3 through F5 remain open, and so does G3.
 
 **A framework lock is not reproducible from a commit alone.** A detached worktree
 at `93c0c2f7` computes `sha256-f43ba202...` where the committed lock says

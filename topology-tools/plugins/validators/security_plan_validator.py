@@ -101,6 +101,20 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
                     path="pipeline:validate",
                 )
             )
+        for item in source.get("unsupported", []):
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7094",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        f"scope '{item['scope']}': override '{item['name']}' uses a selector the bounded "
+                        f"algebra cannot read - {item['reason']}. Refused rather than approximated, and "
+                        "reported here because a blocked scope in a channel tells an operator nothing."
+                    ),
+                    path=f"security_plan:{item['scope']}",
+                )
+            )
         diagnostics.extend(self._check_coverage(plan=plan, source=source, stage=stage))
         diagnostics.extend(self._check_semantics(plan=plan, source=source, stage=stage))
 
@@ -342,6 +356,7 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
             "availability": [],
             "availability_declared": set(),
             "availability_attested": set(),
+            "unsupported": [],
         }
 
         rows = [item for item in payload if isinstance(item, dict)] if isinstance(payload, list) else []
@@ -349,6 +364,11 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
         permits: list[dict[str, Any]] = []
         guards: list[dict[str, Any]] = []
         availability: list[dict[str, Any]] = []
+        # Selectors the bounded algebra cannot read. Recorded rather than skipped:
+        # returning None silently removed the override from this validator's view
+        # of the source, so the compiler blocked its scope in a channel and
+        # nothing told the operator why.
+        unsupported: list[dict[str, Any]] = []
         # Scopes that state a Q at all, even an empty one. An explicitly empty Q
         # is a claim - "nothing here has to keep working" - and absent data is
         # not. Reporting them the same way would let a missing declaration read
@@ -373,8 +393,10 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
             for override in overrides:
                 if not isinstance(override, Mapping):
                     continue
-                entry = self._obligation(override, scope)
+                entry, refusal = self._obligation(override, scope)
                 if entry is None:
+                    if refusal:
+                        unsupported.append({"scope": scope, "name": override.get("name"), "reason": refusal})
                     continue
                 (guards if entry["effect"] == "deny" else permits).append(entry)
 
@@ -392,9 +414,13 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
                 for requirement in declared:
                     if not isinstance(requirement, Mapping):
                         continue
-                    entry = self._obligation({**requirement, "action": "accept"}, scope)
+                    entry, refusal = self._obligation({**requirement, "action": "accept"}, scope)
                     if entry is not None:
                         availability.append(entry)
+                    elif refusal:
+                        unsupported.append(
+                            {"scope": scope, "name": requirement.get("name"), "reason": refusal}
+                        )
 
         return {
             "available": True,
@@ -404,6 +430,7 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
             "availability": availability,
             "availability_declared": declared_scopes,
             "availability_attested": attested,
+            "unsupported": unsupported,
         }
 
     @staticmethod
@@ -416,15 +443,15 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
         return lineage[-1] if isinstance(lineage, list) and lineage else None
 
     @staticmethod
-    def _obligation(override: Mapping[str, Any], scope: str) -> dict[str, Any] | None:
+    def _obligation(override: Mapping[str, Any], scope: str) -> tuple[dict[str, Any] | None, str]:
         name = str(override.get("name") or "").strip()
         source = override.get("from_zone_ref")
         destination = override.get("to_zone_ref")
         action = override.get("action")
         if not name or not isinstance(source, str) or not isinstance(destination, str):
-            return None
+            return None, "the override does not name both zones"
         if action not in ("accept", "drop", "reject"):
-            return None
+            return None, f"unknown action {action!r}"
 
         ports = override.get("ports")
         transports: list[tuple[str, tuple[int, ...] | None]]
@@ -434,20 +461,20 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
             # A wrong type is not a missing value. `ports: "tcp:443"` used to
             # become an any-transport permit in both implementations, which turns
             # a typo into the broadest rule the model can express.
-            return None
+            return None, f"ports must be a mapping, got {type(ports).__name__}"
         elif not ports:
             transports = [(ANY_TRANSPORT, None)]
         else:
             transports = []
             for protocol, numbers in sorted(ports.items()):
                 if str(protocol) not in _SUPPORTED_PROTOCOLS:
-                    return None
+                    return None, f"unsupported protocol selector {protocol!r}"
                 if not isinstance(numbers, list) or not numbers:
-                    return None
+                    return None, f"ports.{protocol} is empty or not a list"
                 if any(isinstance(item, bool) or not isinstance(item, int) for item in numbers):
-                    return None
+                    return None, f"unsupported port selector under {protocol}; ranges and conditions are not implemented"
                 if any(item < 1 or item > 65535 for item in numbers):
-                    return None
+                    return None, f"a port under {protocol} is outside 1-65535"
                 transports.append((str(protocol), tuple(sorted(int(item) for item in numbers))))
 
         return {
@@ -457,7 +484,7 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
             "source": source,
             "destination": destination,
             "transports": transports,
-        }
+        }, ""
 
     # --- traceable coverage -------------------------------------------------------
 

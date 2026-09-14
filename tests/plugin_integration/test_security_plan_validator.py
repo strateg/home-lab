@@ -949,3 +949,45 @@ def test_the_two_implementations_agree_on_what_is_supported() -> None:
     from plugins.validators.security_plan_validator import _SUPPORTED_PROTOCOLS as validator_set
 
     assert compiler_set == validator_set
+
+
+def test_an_unsupported_selector_is_reported_as_a_diagnostic_not_only_blocked() -> None:
+    """Found by my own review: E7094 was registered and raised by nobody.
+
+    The compiler refused the selector and recorded the reason in `unlowerable`,
+    and the validator's source reader returned None silently - so the scope was
+    blocked in a channel and the operator running the compile saw nothing at all.
+    A code with no raiser is a claim nobody checks.
+    """
+    rows = [_matrix_row(_src("bad", ports={"tcp": ["1000-2000"]}))]
+
+    result = _run_with_source(_compile_plan(rows), rows)
+    codes = _codes(result)
+
+    assert "E7094" in codes
+    assert any("cannot read" in diag.message for diag in result.diagnostics)
+
+
+@pytest.mark.parametrize(
+    ("label", "ports"),
+    [
+        ("a negated protocol", {"!tcp": [22]}),
+        ("a string where a mapping belongs", "tcp:443"),
+        ("a conditional port", {"tcp": [{"port": 80}]}),
+        ("a port outside the range", {"tcp": [70000]}),
+    ],
+)
+def test_every_refused_selector_shape_reaches_a_diagnostic(label: str, ports) -> None:
+    rows = [_matrix_row(_src("bad", ports=ports))]
+
+    assert "E7094" in _codes(_run_with_source(_compile_plan(rows), rows)), label
+
+
+def test_an_unsupported_availability_requirement_is_reported_too() -> None:
+    """The second call site, which the first fix missed and a crash revealed."""
+    rows = [_matrix_row(_src("web", ports={"tcp": [443]}))]
+    rows[0]["extensions"]["availability_requirements"] = [
+        {"name": "bad", "from_zone_ref": "z.a", "to_zone_ref": "z.b", "ports": {"tcp": ["1-2"]}}
+    ]
+
+    assert "E7094" in _codes(_run_with_source(_compile_plan(rows), rows))
