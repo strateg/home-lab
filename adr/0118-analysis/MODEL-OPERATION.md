@@ -586,5 +586,5 @@ across every emitted file.
 | 2026-09-11 | `553c2e3b` | Section 7c: lowering, the independent interpreter, and SEC-AUTH/SEC-AVAIL as properties with mutants |
 | 2026-09-14 | `622eff34` | Section 7d: all eight obligations placed, the three habits behind them, and what SEC-PATH still needs from outside |
 | 2026-09-14 | `7128c2f6` | Section 4: `E7025` for a reference to a disabled record, and the ledger of allocated codes that nothing raises yet |
-| 2026-09-14 | `PENDING_SHA` | Section 7e: three digests, the caller-supplied epoch, the closed plan shape and the detached projection; after the external review of `c5a5addc` |
+| 2026-09-14 | `8dada8ef` | Section 7e: three digests, the caller-supplied epoch, the closed plan shape and the detached projection; after the external review of `c5a5addc` |
 | 2026-09-14 | `782061e8` | Section 7e: the admission chain, the three obligation answers, and the deferral that has a trigger; written after the external review of `5e02bf70` |
