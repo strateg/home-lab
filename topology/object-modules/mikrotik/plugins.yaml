@@ -9,9 +9,19 @@ plugins:
     phase: run
     order: 220
     migration_mode: migrated
-    depends_on: []
+    depends_on:
+      - base.compiler.security_matrix
     timeout: 30
     execution_mode: subinterpreter
+    consumes:
+      # Zone membership, derived once in the core (A24 / W05). Optional so that
+      # its absence is a diagnostic rather than a plugin the registry never runs.
+      - key: security_matrices
+        from_plugin: base.compiler.security_matrix
+        required: false
+      - key: vlan_cidr_map
+        from_plugin: base.compiler.security_matrix
+        required: false
     config:
       terraform_version: '>= 1.6.0'
       mikrotik_provider_source: terraform-routeros/routeros

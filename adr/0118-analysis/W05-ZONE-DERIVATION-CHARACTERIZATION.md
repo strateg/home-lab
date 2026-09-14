@@ -149,3 +149,62 @@ One test was corrected in the process. It asserted the compiler does not consume
 explaining why the compiler does not consume it. It now inspects the AST for an
 actual lookup. A substring test cannot distinguish a read from an explanation of
 its absence.
+
+
+## Update 2026-09-14 — the cutover, performed
+
+The open decision above had two options. The recorded choice is the first one:
+**teach the core compiler `additional_networks`**, keeping the rendered output
+identical and making the cutover a genuine parity step. The second option changes
+the rendered address lists and the exposure they describe, and that is a source
+change for a policy owner to make deliberately - not something to arrive at by
+refactoring.
+
+**What changed.**
+
+* `security_matrix_compiler` reads `additional_networks` from the trust-zone
+  instance and appends its CIDRs after the domain CIDRs, deduplicated, in
+  authored order. The field was authored L2 intent that the core could not see,
+  so the generator was compensating for a gap in the core rather than disagreeing
+  with it.
+* Zones are resolved in sorted order, not in `zone_refs` order. That is
+  divergence 2, and closing it is what made the cutover byte-identical: the
+  compiler's zone order now reproduces the order the generator's own row
+  iteration produced.
+* `object.mikrotik.generator.terraform` declares `security_matrices` and
+  `vlan_cidr_map` as optional consumes from `base.compiler.security_matrix`,
+  subscribes to both, and passes them to `build_mikrotik_projection`. When they
+  are present the projection derives no zones at all.
+
+**Measured.** One compile before the cutover and one after, both with a fixed
+timestamp, compared with `scripts/validation/compare_artifacts.py`:
+
+```
+compared 163 files
+  PARITY: identical outside the declared exclusions
+```
+
+An intermediate run is worth recording because it is the evidence for the sorting
+change. With the compiler reading the field but not sorting zones, the address
+list entries were an identical multiset - none added, none lost - and their order
+differed, because the compiler iterated `zone_refs` while the generator had
+iterated rows. Sorting made the two agree exactly.
+
+**What the projection keeps.** Its local derivation is still there and is now a
+parity oracle: `test_the_two_derivations_agree_on_the_real_model` runs it against
+the rendered artifact, which the pipeline produced from the compiler's channel.
+Two implementations that must agree is how this project detects a divergence;
+deleting one would leave nothing to notice it with. A negative control - removing
+`additional_networks` from the oracle - fails that test, so it has teeth.
+
+**Divergence 3 is unchanged and still latent.** The projection's VLAN selector is
+still a substring of the object ref, and five routing policies still pass it while
+carrying neither `trust_zone_ref` nor `cidr`. That selector no longer feeds the
+generator's zone derivation, because the generator no longer derives zones - but
+the oracle uses it, so the test recording the incidental safety stays.
+
+**Still open.** Making the overlay networks address domains in their own right -
+a class carrying a prefix and a `trust_zone_ref` without rendering a VLAN
+interface - remains the cleaner model and remains a source change with an artifact
+delta to review. What is closed is A24: zone membership is derived exactly once,
+in a core-level plugin, and the rendered output did not move.

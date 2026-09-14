@@ -616,6 +616,7 @@ something.
 | Live addresses reproduced by the strict resolver | 23 of 23 | 2026-09-11 |
 | Artifact parity against the pre-work baseline | 147 files identical | 2026-09-11 |
 | Artifact parity against a clean worktree at HEAD | 163 files compared, every emitted artifact identical | 2026-09-14 |
+| Zone membership derivations | 1 (was 2); the generator consumes `base.compiler.security_matrix` | 2026-09-14 |
 | Scopes admissible under the strict boundary | 0 of 2; SEC-AVAIL unverified in both | 2026-09-14 |
 
 The whole of this is inert on the current topology **by construction**, and that
@@ -636,6 +637,7 @@ across every emitted file.
 | 2026-09-11 | `553c2e3b` | Section 7c: lowering, the independent interpreter, and SEC-AUTH/SEC-AVAIL as properties with mutants |
 | 2026-09-14 | `622eff34` | Section 7d: all eight obligations placed, the three habits behind them, and what SEC-PATH still needs from outside |
 | 2026-09-14 | `7128c2f6` | Section 4: `E7025` for a reference to a disabled record, and the ledger of allocated codes that nothing raises yet |
+| 2026-09-14 | `PENDING_W05` | W05/A24: zone membership derived once; the compiler learned `additional_networks` and sorts zones, the generator consumes the channel, artifacts byte-identical |
 | 2026-09-14 | `31ebefb9` | Section 7e: the grammar closed over values, consent as a boolean, and an empty digest refused rather than matched |
 | 2026-09-14 | `8dada8ef` | Section 7e: three digests, the caller-supplied epoch, the closed plan shape and the detached projection; after the external review of `c5a5addc` |
 | 2026-09-14 | `782061e8` | Section 7e: the admission chain, the three obligation answers, and the deferral that has a trigger; written after the external review of `5e02bf70` |

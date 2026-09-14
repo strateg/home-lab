@@ -553,8 +553,22 @@ def _extract_security_matrix(
     network_rows: list[dict[str, Any]],
     router_ids: set[str],
     objects_map: dict[str, Any],
+    compiled_zones: dict[str, dict[str, Any]] | None = None,
+    compiled_vlan_cidrs: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Extract security matrix configuration for MikroTik routers.
+
+    `compiled_zones` is zone membership as `base.compiler.security_matrix`
+    derived it - `{zone_ref: {name, security_level, isolated, vlans, cidrs}}`.
+    When it is supplied this function does not derive zones at all, which is the
+    W05 cutover (acceptance case A24): zone membership is derived exactly once,
+    by a core-level plugin, and the generator consumes it.
+
+    The local derivation below is kept for the case where the channel is absent,
+    and `tests/plugin_integration/test_zone_derivation_parity_w05.py` runs the two
+    against each other. It was not deleted because a second implementation that
+    must agree is how this project detects a divergence; it is no longer what the
+    generator uses.
 
     Returns:
         {
@@ -585,10 +599,12 @@ def _extract_security_matrix(
         if not isinstance(zone_refs, list):
             zone_refs = []
 
-        # Get VLAN->Zone mapping from network rows
+        # VLAN -> zone and VLAN -> CIDR. Both come from the compiler when the
+        # generator supplies them; `vlan_cidr_map` is still needed here to resolve
+        # `src_vlan_ref`/`dst_vlan_ref` on policy overrides.
         vlan_zone_map: dict[str, str] = {}  # vlan instance -> zone ref
-        vlan_cidr_map: dict[str, str] = {}  # vlan instance -> cidr
-        for net_row in network_rows:
+        vlan_cidr_map: dict[str, str] = dict(compiled_vlan_cidrs or {})
+        for net_row in [] if compiled_vlan_cidrs is not None else network_rows:
             net_object_ref = _resolved_object_ref(net_row)
             if "vlan" not in net_object_ref:
                 continue
@@ -614,9 +630,15 @@ def _extract_security_matrix(
                 zone_vlans[zone_ref] = []
             zone_vlans[zone_ref].append(vlan_ref)
 
-        # Get zone security levels from network rows (trust_zone instances)
+        # Zone membership, derived once. When the generator supplies the
+        # compiler's channel this loop does not run at all: that is the A24
+        # cutover, and the local derivation below is what it replaces.
         zone_data: dict[str, dict[str, Any]] = {}
-        for net_row in network_rows:
+        if compiled_zones is not None:
+            zone_data = {
+                zone_ref: dict(values) for zone_ref, values in compiled_zones.items() if zone_ref in zone_refs
+            }
+        for net_row in [] if compiled_zones is not None else network_rows:
             net_object_ref = _resolved_object_ref(net_row)
             if "trust_zone" not in net_object_ref:
                 continue
@@ -1357,8 +1379,19 @@ def _extract_mac_vlan_assignments(
     return sorted(assignments, key=lambda x: (x.get("vlan_id", 0), x.get("device_id", "")))
 
 
-def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
-    """Build stable view for MikroTik Terraform generator."""
+def build_mikrotik_projection(
+    compiled_json: dict[str, Any],
+    *,
+    security_matrices: dict[str, Any] | None = None,
+    vlan_cidr_map: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """Build stable view for MikroTik Terraform generator.
+
+    `security_matrices` and `vlan_cidr_map` are the channels
+    `base.compiler.security_matrix` publishes. When the generator supplies them,
+    zone membership is not recomputed here - it is derived exactly once, in the
+    core, which is acceptance case A24 and the point of W05.
+    """
     # Extract objects map for property lookups (ADR contract: use compiled topology only)
     objects_map = compiled_json.get("objects", {})
     if not isinstance(objects_map, dict):
@@ -1579,7 +1612,23 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     bridge_vlans = _extract_bridge_vlans(routers, wifi_data)
 
     # Extract security matrix for zone-based firewall (ADR 0110)
-    security_matrix = _extract_security_matrix(network, router_ids, objects_map)
+    compiled_zones = None
+    if isinstance(security_matrices, dict):
+        # Zones from whichever matrix this projection is about. The generator
+        # passes the whole channel; the matching instance is found the same way
+        # the local derivation finds it.
+        compiled_zones = {}
+        for matrix in security_matrices.values():
+            if isinstance(matrix, dict) and isinstance(matrix.get("zones"), dict):
+                compiled_zones.update(matrix["zones"])
+
+    security_matrix = _extract_security_matrix(
+        network,
+        router_ids,
+        objects_map,
+        compiled_zones=compiled_zones,
+        compiled_vlan_cidrs=vlan_cidr_map,
+    )
 
     # Build VLAN ID index for MAC-based assignments
     vlan_id_index: dict[str, int] = {}

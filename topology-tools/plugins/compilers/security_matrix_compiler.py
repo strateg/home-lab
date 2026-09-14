@@ -156,9 +156,16 @@ class SecurityMatrixCompiler(CompilerPlugin):
             # Extract policy_overrides from object + instance (merged)
             policy_overrides = self._merge_policy_overrides(matrix_row, extensions, ctx)
 
-            # Resolve zone properties
+            # Resolve zone properties, in a deterministic order.
+            #
+            # W05 divergence 2: the compiler sorted each zone's VLAN list and the
+            # generator sorted nothing, so downstream order depended on row
+            # iteration on one path and not the other. Sorting the zones as well
+            # makes the published channel ordered throughout - and on the current
+            # topology it reproduces the generator's own output exactly, which is
+            # what makes the A24 cutover a parity step rather than a reshuffle.
             zones: dict[str, dict[str, Any]] = {}
-            for zone_ref in zone_refs:
+            for zone_ref in sorted(zone_refs):
                 if zone_ref in zone_index:
                     zone_data = zone_index[zone_ref]
                     zones[zone_ref] = {
@@ -166,7 +173,7 @@ class SecurityMatrixCompiler(CompilerPlugin):
                         "security_level": zone_data.get("security_level", 0),
                         "isolated": zone_data.get("isolated", False),
                         "vlans": zone_vlans.get(zone_ref, []),
-                        "cidrs": [vlan_cidr_map[v] for v in zone_vlans.get(zone_ref, []) if v in vlan_cidr_map],
+                        "cidrs": self._zone_cidrs(zone_data, zone_vlans.get(zone_ref, []), vlan_cidr_map),
                     }
                 else:
                     diagnostics.append(
@@ -250,6 +257,20 @@ class SecurityMatrixCompiler(CompilerPlugin):
                     if name is None:
                         name = props.get("name")
 
+        # Overlay networks the zone declares directly: authored L2 intent that
+        # extends the zone's address list beyond the domains referencing it. Two
+        # trust zones use it for the WireGuard admin and road-warrior networks.
+        #
+        # W05 recorded this as the divergence between the two derivations: the
+        # generator read it and the compiler did not, so cutting the generator
+        # over to this channel would have deleted two address-list entries. That
+        # is a reduction of matched sources, not a refactor, so the core learns
+        # the field and the cutover becomes the parity step it was meant to be.
+        additional = extensions.get("additional_networks")
+        if additional is None:
+            additional = row.get("additional_networks")
+        overlay_cidrs = self._overlay_cidrs(additional)
+
         # Validate required field
         if security_level is None:
             return None
@@ -258,7 +279,43 @@ class SecurityMatrixCompiler(CompilerPlugin):
             "security_level": int(security_level) if security_level is not None else 0,
             "isolated": bool(isolated) if isolated is not None else False,
             "name": name or "",
+            "additional_cidrs": overlay_cidrs,
         }
+
+    @staticmethod
+    def _overlay_cidrs(declared: Any) -> list[str]:
+        """The CIDRs an `additional_networks` list contributes, in authored order.
+
+        Order is preserved rather than sorted: these are appended after the
+        domain CIDRs, and the rendered address list is what the divergence was
+        measured against. Sorting here would be a second behaviour change hiding
+        inside the first.
+        """
+        if not isinstance(declared, list):
+            return []
+        found: list[str] = []
+        for entry in declared:
+            if not isinstance(entry, dict):
+                continue
+            cidr = str(entry.get("cidr", "")).strip()
+            if cidr and cidr not in found:
+                found.append(cidr)
+        return found
+
+    @staticmethod
+    def _zone_cidrs(
+        zone_data: dict[str, Any], vlans: list[str], vlan_cidr_map: dict[str, str]
+    ) -> list[str]:
+        """Domain CIDRs first, then the zone's own overlays, deduplicated.
+
+        The order matches what the generator produced, because the rendered
+        address lists are what parity is measured against.
+        """
+        cidrs = [vlan_cidr_map[vlan] for vlan in vlans if vlan in vlan_cidr_map]
+        for cidr in zone_data.get("additional_cidrs", []):
+            if cidr not in cidrs:
+                cidrs.append(cidr)
+        return cidrs
 
     def _extract_vlan_cidr(
         self,

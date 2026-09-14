@@ -13,9 +13,17 @@ appends `additional_networks` declared on the trust-zone instance. Two zones in
 this project use that field, and the overlay CIDRs they contribute are present in
 the rendered address lists today.
 
-These tests pin the current behaviour so a naive cutover fails loudly instead of
-silently shrinking a firewall address list. They assert what is, not what should
-be; the decision on where `additional_networks` belongs is a separate review.
+**Cutover performed 2026-09-14.** The decision recorded in the characterization
+was the parity-preserving one: the core learned `additional_networks`, so the
+rendered address lists are unchanged and zone membership is derived once. These
+tests changed with it. What they pinned - "only the generator reads the field" -
+was the signal that the cutover had become possible, and it has fired.
+
+They now assert the other side: the compiler reads the field, the generator
+consumes the channel rather than deriving, and the two derivations agree over the
+real compiled model. The projection keeps its local derivation as a parity
+oracle, which is how this project detects a divergence rather than assuming its
+absence.
 """
 
 from __future__ import annotations
@@ -80,26 +88,122 @@ def _reads_key(path, key: str) -> bool:
     return False
 
 
-def test_only_the_generator_side_consumes_additional_networks() -> None:
-    """The asymmetry is in the code, not in a stale artifact.
+def test_both_sides_now_read_additional_networks() -> None:
+    """Divergence 1, closed. The compiler was missing an authored input.
 
-    If the compiler ever learns `additional_networks`, this test fails and the
-    cutover to a single derivation becomes possible. That is the intended signal.
+    The field is L2 source intent on a trust-zone instance, and zone derivation
+    is the compiler's responsibility, so the generator was compensating for a
+    gap in the core. Deleting the generator's copy would have removed two
+    address-list entries covering the WireGuard admin and road-warrior networks -
+    a reduction of matched sources, not a refactor.
     """
-    assert _reads_key(PROJECTIONS, "additional_networks"), "the generator side no longer reads it"
-    assert not _reads_key(COMPILER, "additional_networks"), (
-        "security_matrix_compiler now handles additional_networks; re-evaluate the "
-        "A24 cutover and update this characterization"
+    assert _reads_key(COMPILER, "additional_networks"), "the core must derive the whole zone"
+    assert _reads_key(PROJECTIONS, "additional_networks"), (
+        "the projection's local derivation is the parity oracle; if it goes, so does "
+        "the ability to notice the two disagreeing"
     )
 
 
-def test_compiler_sorts_zone_vlans_and_the_projection_does_not() -> None:
-    """Second divergence: ordering determinism differs between the two paths."""
+def test_the_generator_consumes_the_channel_rather_than_deriving() -> None:
+    """A24: derived exactly once, by a core-level plugin.
+
+    The manifest contract and the call are checked together. A generator that
+    subscribed without passing the result through would still be deriving.
+    """
+    import ast
+
+    manifest = load_yaml_file(REPO_ROOT / "topology/object-modules/mikrotik/plugins.yaml") or {}
+    spec = next(
+        item for item in manifest["plugins"] if item["id"] == "object.mikrotik.generator.terraform"
+    )
+    consumed = {(item["key"], item["from_plugin"]) for item in spec.get("consumes", [])}
+
+    assert ("security_matrices", "base.compiler.security_matrix") in consumed
+    assert ("vlan_cidr_map", "base.compiler.security_matrix") in consumed
+
+    generator = REPO_ROOT / "topology/object-modules/mikrotik/plugins/generators/terraform_mikrotik_generator.py"
+    tree = ast.parse(generator.read_text(encoding="utf-8"))
+    passed = {
+        keyword.arg
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "build_mikrotik_projection"
+        for keyword in node.keywords
+    }
+
+    assert {"security_matrices", "vlan_cidr_map"} <= passed, (
+        "the generator subscribes but does not hand the channel to the projection"
+    )
+
+
+def test_both_paths_sort_for_determinism_now() -> None:
+    """Divergence 2, closed - and it is what made the cutover byte-identical.
+
+    Zone order followed row iteration on one path and nothing on the other. The
+    compiler sorts zones as well as each zone's VLANs, which on this topology
+    reproduces the generator's own output exactly.
+    """
     compiler_src = COMPILER.read_text(encoding="utf-8")
-    projection_src = PROJECTIONS.read_text(encoding="utf-8")
 
     assert "zone_vlans[zone_ref].sort()" in compiler_src
-    assert "zone_vlans[zone_ref].sort()" not in projection_src
+    assert "for zone_ref in sorted(zone_refs):" in compiler_src
+
+
+def test_the_two_derivations_agree_on_the_real_model() -> None:
+    """The differential, over the rendered artifact and the local oracle.
+
+    One side is what the pipeline actually produced from the compiler's channel;
+    the other is the projection deriving zones for itself. They are separate
+    implementations and they must agree - that is the whole reason the second one
+    was kept rather than deleted.
+    """
+    import importlib.util
+    import re
+
+    effective = REPO_ROOT / "build" / "effective-topology.json"
+    rendered = REPO_ROOT / "generated" / "home-lab" / "terraform" / "mikrotik" / "zone_firewall.tf"
+    if not effective.exists() or not rendered.exists():
+        pytest.skip("needs a compiled model and rendered artifacts; run compile-topology.py first")
+
+    import json
+
+    spec = importlib.util.spec_from_file_location("w05_projections", PROJECTIONS)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["w05_projections"] = module
+    spec.loader.exec_module(module)
+
+    local = module.build_mikrotik_projection(json.loads(effective.read_text(encoding="utf-8")))
+    oracle: dict[str, list[str]] = {
+        str(zone_id).rsplit(".", 1)[-1]: list(values.get("cidrs") or [])
+        for zone_id, values in (local["security_matrix"]["zones"] or {}).items()
+    }
+
+    pattern = (
+        r'resource "routeros_ip_firewall_addr_list" "\w+" \{\s*list\s*=\s*"zone-([^"]+)"'
+        r'\s*address\s*=\s*"([^"]+)"'
+    )
+    produced: dict[str, list[str]] = {}
+    for zone, address in re.findall(pattern, rendered.read_text(encoding="utf-8")):
+        produced.setdefault(zone, []).append(address)
+
+    assert produced, "no address lists in the rendered artifact; this differential would prove nothing"
+    for zone, addresses in sorted(produced.items()):
+        assert addresses == oracle.get(zone), (
+            f"zone '{zone}': the pipeline rendered {addresses} and the local derivation says "
+            f"{oracle.get(zone)}"
+        )
+
+
+def test_the_overlay_cidrs_still_reach_the_rendered_artifact() -> None:
+    """The measurement the characterization was written to protect."""
+    rendered = REPO_ROOT / "generated" / "home-lab" / "terraform" / "mikrotik" / "zone_firewall.tf"
+    if not rendered.exists():
+        pytest.skip("needs rendered artifacts; run compile-topology.py first")
+
+    text = rendered.read_text(encoding="utf-8")
+    for cidr in OVERLAY_ZONES.values():
+        assert cidr in text, f"{cidr} left the address lists; that is an exposure change, not a refactor"
 
 
 def test_projection_vlan_selector_matches_non_vlan_objects() -> None:

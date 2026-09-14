@@ -109,6 +109,19 @@ class TerraformMikroTikGenerator(BaseGenerator):
             return f"https://{routers[0]}:{cls._DEFAULT_MIKROTIK_PORT}"
         return f"https://{cls._DEFAULT_MIKROTIK_HOST}:{cls._DEFAULT_MIKROTIK_PORT}"
 
+    @staticmethod
+    def _subscribe(ctx: PluginContext, key: str):
+        """The compiler's channel, or None when it is not there.
+
+        `None` means "derive it locally" rather than "there are no zones": the
+        projection keeps its own derivation for that case, and a differential
+        test runs the two against each other.
+        """
+        try:
+            return ctx.subscribe("base.compiler.security_matrix", key)
+        except Exception:  # noqa: BLE001 - absence is not this generator's diagnostic to own
+            return None
+
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
         cap_helpers = load_capability_helpers(ctx=ctx)
@@ -133,8 +146,21 @@ class TerraformMikroTikGenerator(BaseGenerator):
             )
             return self.make_result(diagnostics)
 
+        # Zone membership comes from `base.compiler.security_matrix`, not from a
+        # second derivation here. W05 characterized the two as divergent - the
+        # generator read `additional_networks` and the compiler did not - and the
+        # compiler learned the field so this cutover is a parity step. The channel
+        # is optional at the contract level so its absence is a diagnostic rather
+        # than a plugin nobody executed.
+        compiled_matrices = self._subscribe(ctx, "security_matrices")
+        compiled_vlan_cidrs = self._subscribe(ctx, "vlan_cidr_map")
+
         try:
-            projection = build_mikrotik_projection(payload)
+            projection = build_mikrotik_projection(
+                payload,
+                security_matrices=compiled_matrices,
+                vlan_cidr_map=compiled_vlan_cidrs,
+            )
         except projection_error as exc:
             diagnostics.append(
                 self.emit_diagnostic(

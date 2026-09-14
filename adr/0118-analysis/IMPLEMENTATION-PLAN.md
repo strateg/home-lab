@@ -1534,6 +1534,45 @@ step, so it reasons about rule sets rather than about the RouterOS or Terraform
 operations that realise them. That remains a backend-level test contract, and the
 review said so first.
 
+### W05 / A24 — zone membership is derived once
+
+The characterization left an open decision and two options. The parity-preserving
+one was taken: **the core learned `additional_networks`**, so the rendered address
+lists are unchanged and the cutover is a refactor rather than an exposure change.
+The other option - deciding the overlay CIDRs belong to a different construct -
+moves the rendered lists and stays open as a source change for a policy owner.
+
+Three things changed, and the second one is the reason the first one worked.
+
+`security_matrix_compiler` reads `additional_networks` from the trust zone and
+appends its CIDRs after the domain CIDRs, deduplicated, in authored order. That
+field was authored L2 intent the core could not see, so the generator was
+compensating for a gap rather than disagreeing.
+
+Zones are resolved in **sorted** order. An intermediate measurement is what
+justifies it: with the field read but the zones unsorted, the rendered address
+entries were an identical multiset - none added, none lost - in a different order,
+because the compiler iterated `zone_refs` and the generator had iterated rows.
+That is divergence 2, and closing it made the cutover byte-identical instead of
+merely equivalent.
+
+`object.mikrotik.generator.terraform` declares `security_matrices` and
+`vlan_cidr_map` as optional consumes and hands both to the projection, which then
+derives no zones at all. The projection's local derivation is kept as a **parity
+oracle**: a differential runs it against the rendered artifact, which the pipeline
+produced from the channel. Deleting it would remove the only thing that could
+notice the two disagreeing, and a negative control - stripping
+`additional_networks` from the oracle - fails that differential.
+
+*Measured.* One compile before and one after, fixed timestamp, compared with
+`compare_artifacts.py`: **163 files, identical outside the declared exclusions.**
+
+*Still open.* Divergence 3 is unchanged: the projection's substring VLAN selector
+still matches five routing policies, harmless only because they carry neither
+`trust_zone_ref` nor `cidr`. It no longer feeds the generator's output, but the
+oracle uses it. And making the overlay networks address domains in their own right
+remains the cleaner model and a separate source change.
+
 **A framework lock is not reproducible from a commit alone.** A detached worktree
 at `93c0c2f7` computes `sha256-f43ba202...` where the committed lock says
 `sha256-baee680d...`, while the same revision in the main working tree matches.

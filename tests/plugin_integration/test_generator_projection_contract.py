@@ -166,15 +166,20 @@ def test_generator_uses_projection_contract_only(
     probe_text: str,
     plugin_id: str | None,
 ) -> None:
+    # `**_` because a generator may hand the projection channels the core
+    # published - the mikrotik one passes `security_matrices` and `vlan_cidr_map`
+    # since the W05/A24 cutover. What this test is about is that the generator
+    # reads the projection's result and not the compiled model's raw internals,
+    # which is unchanged by how many inputs the builder takes.
     if loader_name is None:
-        monkeypatch.setattr(module, builder_name, lambda _: projection)
+        monkeypatch.setattr(module, builder_name, lambda _, **__: projection)
     else:
         monkeypatch.setattr(
             module,
             loader_name,
             lambda *args, **kwargs: SimpleNamespace(
                 ProjectionError=RuntimeError,
-                **{builder_name: (lambda _: projection)},
+                **{builder_name: (lambda _, **__: projection)},
             ),
         )
     plugin_config = _load_plugin_config(PROXMOX_MANIFEST, plugin_id) if plugin_id else None
