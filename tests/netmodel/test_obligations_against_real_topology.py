@@ -62,14 +62,21 @@ def overrides(model):
 
 def _template(override: dict, index: int) -> tuple[PolicyTemplate, list[int], str]:
     """One override as a policy template, or a reason it cannot be one."""
-    ports = override.get("ports")
-    if not isinstance(ports, dict) or not ports:
-        raise ValueError("no ports; the model has no shape for a portless zone rule")
-    protocol, numbers = sorted(ports.items())[0]
-    if not isinstance(numbers, list) or not numbers:
-        raise ValueError(f"ports.{protocol} is empty")
+    from netmodel.policy import ANY_TRANSPORT
 
+    ports = override.get("ports")
     accept = override.get("action") == "accept"
+    if not isinstance(ports, dict) or not ports:
+        # An override naming no transport constrains every transport. The model
+        # refused this until the framework compiler needed it, which left the
+        # sources' one mandatory deny outside the model - the gap this
+        # differential was written to surface.
+        protocol, numbers = ANY_TRANSPORT, None
+    else:
+        protocol, numbers = sorted(ports.items())[0]
+        if not isinstance(numbers, list) or not numbers:
+            raise ValueError(f"ports.{protocol} is empty")
+
     name = str(override.get("name") or f"override-{index}")
     template = PolicyTemplate(
         policy_id=f"policy.{name}",
@@ -79,11 +86,11 @@ def _template(override: dict, index: int) -> tuple[PolicyTemplate, list[int], st
         source="{binding: source}" if accept else frozenset({override["from_zone_ref"]}),
         destination="{binding: destination}" if accept else frozenset({override["to_zone_ref"]}),
         protocol=protocol,
-        ports=frozenset(int(item) for item in numbers),
+        ports=None if numbers is None else frozenset(int(item) for item in numbers),
         owner=str(override.get("matrix_ref") or "unknown"),
         rationale=str(override.get("comment") or "no comment in source"),
     )
-    return template, [int(item) for item in numbers], protocol
+    return template, [] if numbers is None else [int(item) for item in numbers], protocol
 
 
 def _intent(overrides: list[dict]):
@@ -122,13 +129,28 @@ def _intent(overrides: list[dict]):
 
 
 def _flow_space(grants, guards):
+    """Concrete flows to ask about, including transports no permit mentions.
+
+    An any-transport guard states no ports, so it contributes nothing to a space
+    built from what the rules name - and the guard would then never be tested
+    anywhere it matters. A few transports outside the permitted set are added for
+    exactly that reason.
+    """
+    from netmodel.policy import ANY_TRANSPORT
+
     endpoints = sorted(
         {item for grant in grants for item in grant.flow.sources | grant.flow.destinations}
         | {item for guard in guards.values() for item in guard.source | guard.destination}
     )
-    protocols = sorted({grant.flow.protocol for grant in grants} | {g.protocol for g in guards.values()})
+    protocols = sorted(
+        {grant.flow.protocol for grant in grants}
+        | {g.protocol for g in guards.values() if g.protocol != ANY_TRANSPORT}
+        | {"tcp", "udp"}
+    )
     ports = sorted(
-        {port for grant in grants for port in grant.flow.ports} | {p for g in guards.values() for p in g.ports}
+        {port for grant in grants for port in (grant.flow.ports or frozenset())}
+        | {port for g in guards.values() for port in (g.ports or frozenset())}
+        | {22, 9999}
     )
     return (
         [
@@ -179,24 +201,19 @@ def test_the_only_thing_blocked_is_the_absence_of_ports(overrides) -> None:
     assert reasons <= {"no ports"}, reasons
 
 
-def test_the_model_cannot_express_the_only_mandatory_deny_in_the_sources() -> None:
-    """The finding this differential was written to produce, recorded as a test.
+def test_the_only_mandatory_deny_in_the_sources_is_now_expressible() -> None:
+    """The gap this differential was written to find, and its closure.
 
-    Three of the eight real overrides carry no ports, and one of them is the only
-    `drop` in the whole topology: `servers-to-management-deny`. The model refuses
-    an unbounded port set on purpose - an empty selector is an error, not "any",
-    and a constraint that is not about ports is a separate shape - so the
-    strongest guard the sources actually contain is currently inexpressible.
+    Three of the eight overrides carry no ports, and one is the only `drop` in
+    the topology: `servers-to-management-deny`. The model refused an unbounded
+    port set, so the strongest restriction in the sources sat outside the model
+    and the guard-precedence test below skipped.
 
-    That is a migration finding, not a model defect: the source states "deny
-    everything from servers to management" and the target model wants that said
-    as a bounded set or as a typed non-port constraint. But it is worth a failing
-    signal rather than a note, because a model that silently expressed four
-    permits and dropped the one deny would look like progress.
-
-    This test passes while the gap exists and fails when it closes, at which
-    point the deny must be re-derived and SEC-AUTH re-measured with it present.
+    An override naming no transport constrains every transport, and that is now
+    its own shape rather than an absence. The deny derives, the guard test runs,
+    and SEC-AUTH is measured with it present.
     """
+    from netmodel.policy import ANY_TRANSPORT
     from netmodel.snapshot import load_snapshot, read_zone_policy_overrides
 
     try:
@@ -206,15 +223,14 @@ def test_the_model_cannot_express_the_only_mandatory_deny_in_the_sources() -> No
 
     denies = [item for item in overrides if item.get("action") == "drop"]
     assert len(denies) == 1, f"the source deny inventory changed: {[item.get('name') for item in denies]}"
+    assert not denies[0].get("ports"), "the deny now carries ports; this test describes the wrong source"
 
-    portless_denies = [item for item in denies if not item.get("ports")]
-    assert portless_denies, (
-        "the deny now carries ports and the model can express it - derive it as a guard, "
-        "re-run SEC-AUTH with it present, and delete this test"
-    )
+    _, guards, blocked = _intent(overrides)
 
-
-# --- the obligations, on real intent -------------------------------------------------
+    assert guards, "the portless deny did not derive as a guard"
+    guard = next(iter(guards.values()))
+    assert guard.protocol == ANY_TRANSPORT and guard.ports is None
+    assert blocked == [], f"something is still inexpressible: {blocked}"
 
 
 def test_sec_auth_holds_for_the_real_intent(overrides) -> None:
@@ -238,9 +254,14 @@ def test_sec_avail_carries_every_real_permit(overrides) -> None:
     plan = lower(grants=grants, guards=guards, context=CONTEXT, endpoints=endpoints, protocols=protocols)
     accepted = {(item.source, item.destination, item.protocol, item.port) for item in accepted_flows(plan, space)}
 
+    # An any-transport permit names no port, so it contributes no concrete
+    # required flow. That is honest rather than convenient: "every port" is not a
+    # finite requirement, and enumerating one would invent an objective nobody
+    # stated.
     required = {
         (source, destination, grant.flow.protocol, port)
         for grant in grants
+        if grant.flow.ports is not None
         for source in grant.flow.sources
         for destination in grant.flow.destinations
         for port in grant.flow.ports
@@ -266,29 +287,28 @@ def test_a_derived_guard_beats_the_permits_it_overlaps(overrides) -> None:
     space, endpoints, protocols = _flow_space(grants, guards)
     plan = lower(grants=grants, guards=guards, context=CONTEXT, endpoints=endpoints, protocols=protocols)
 
+    checked = 0
     for guard_id, guard in guards.items():
         for source in guard.source:
             for destination in guard.destination:
-                for port in guard.ports:
-                    event = next(
-                        (
-                            item
-                            for item in space
-                            if (item.source, item.destination, item.protocol, item.port)
-                            == (source, destination, guard.protocol, port)
-                        ),
-                        None,
+                # An any-transport guard must deny every flow between its
+                # endpoints, including transports no permit mentions - which is
+                # exactly where a guard narrowed to somebody's port list leaks.
+                candidates = [
+                    item
+                    for item in space
+                    if item.source == source
+                    and item.destination == destination
+                    and (guard.ports is None or (item.protocol == guard.protocol and item.port in guard.ports))
+                ]
+                for probe in candidates:
+                    decision = interpret(plan, probe)
+                    assert decision.verdict is Verdict.DENY, (
+                        f"{guard_id} does not deny {source} -> {destination} " f"{probe.protocol}/{probe.port}"
                     )
-                    if event is None:
-                        continue
-                    decision = interpret(plan, event)
-                    assert (
-                        decision.verdict is Verdict.DENY
-                    ), f"{guard_id} does not deny {source} -> {destination} {guard.protocol}/{port}"
+                    checked += 1
 
-
-def test_the_terminal_deny_closes_the_real_scope(overrides) -> None:
-    grants, guards, _ = _intent(overrides)
+    assert checked >= 4, f"only {checked} flows checked against the guards; the test is not exercising them"
     space, endpoints, protocols = _flow_space(grants, guards)
     plan = lower(grants=grants, guards=guards, context=CONTEXT, endpoints=endpoints, protocols=protocols)
 

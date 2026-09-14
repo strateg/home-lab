@@ -106,7 +106,15 @@ class SecurityPlanCompiler(CompilerPlugin):
         # analysing - but it is labelled, and nothing downstream may treat a
         # blocked scope as eligible.
         blocked = sorted({str(item.get("matrix_ref")) for item in unlowerable})
-        strict_eligible = [scope for scope in scopes if scope not in blocked]
+        # Two different claims, and conflating them was the mistake. Lowering
+        # every legacy override of a scope says the compiler represented what was
+        # written; it says nothing about whether those overrides were approved,
+        # nor whether an independent check has passed. Strict eligibility needs
+        # confirmed bindings and independent validation, neither of which exists
+        # yet, so nothing is strict-eligible and the field says so rather than
+        # inheriting a completeness result.
+        lowering_complete = [scope for scope in scopes if scope not in blocked]
+        strict_eligible: list[str] = []
 
         payload = {
             "schema_version": 1,
@@ -115,7 +123,12 @@ class SecurityPlanCompiler(CompilerPlugin):
             # permit, and calling the result a strict plan would make an approval
             # boundary out of a field name. F2 of the post-fix review.
             "provenance": "legacy_shadow",
+            "lowering_complete": lowering_complete,
             "strict_eligible": strict_eligible,
+            "strict_blocked_reason": (
+                "provenance is legacy_shadow: these overrides are authored, not approved bound "
+                "permits, and no independent validation of the specialized plan exists yet"
+            ),
             "blocked_scopes": blocked,
             "expected_overrides": {scope: expected.get(scope, 0) for scope in scopes},
             "matrices": sorted(matrices),

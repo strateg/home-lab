@@ -273,7 +273,23 @@ def test_a_scope_with_an_unlowerable_override_is_blocked_entirely() -> None:
     plan = _run(rows)
 
     assert plan["blocked_scopes"] == ["inst.security_matrix.bad"]
-    assert plan["strict_eligible"] == ["inst.security_matrix.good"]
+    assert plan["lowering_complete"] == ["inst.security_matrix.good"]
+
+
+def test_lowering_complete_is_not_strict_eligible() -> None:
+    """Two claims, and conflating them was the mistake.
+
+    Lowering every legacy override says the compiler represented what was
+    written. It says nothing about whether those overrides were approved, or
+    whether an independent check has passed. Nothing is strict-eligible while the
+    plan's provenance is legacy_shadow, and the field says so instead of
+    inheriting a completeness result.
+    """
+    plan = _run([matrix("inst.security_matrix.m", override("web", ports={"tcp": [443]}))])
+
+    assert plan["lowering_complete"] == ["inst.security_matrix.m"]
+    assert plan["strict_eligible"] == []
+    assert "not approved bound" in plan["strict_blocked_reason"]
 
 
 def test_the_plan_declares_itself_legacy_until_approved_bindings_exist() -> None:

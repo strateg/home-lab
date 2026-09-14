@@ -932,15 +932,60 @@ review called defective. They now assert the new.
 40 tests across the two plugins; 359 in the netmodel and matrix suites. Artifact
 parity identical across 147 files.
 
-**Still open in PR2.** Criterion 4, independent completeness - the validator does
-not yet compare the plan against source requirements, so removing a guard or a
-whole scope is caught only where it happens to break order or termination;
-`expected_overrides` is published for that check and nothing consumes it yet.
-Criterion 5 is marked, not enforced: the plan declares `provenance: legacy_shadow`
-and no consumer refuses a legacy payload, because no renderer consumes the plan at
-all. And `netmodel.policy` still requires a bounded port set, so the reference
-model cannot yet express what the framework now can - a divergence the
-differentials exist to catch, and the next thing to fix.
+### PR2, part two, 2026-09-14 — the divergence with the reference model, closed
+
+The framework could express an any-transport rule and `netmodel` could not, which
+made the differentials meaningless for exactly the rule that matters most.
+
+`ANY_TRANSPORT` is now a shape in the reference algebra: `protocol="any"` with
+`ports=None`, and a template carrying both is refused - listing some ports would
+narrow it to the ones somebody thought of. `Flow.admits` decides transport
+coverage, `intersect` lets an any-transport side absorb the other's shape so a
+conflict witness is still a flow an author can look at, and the guard index
+gained a lookup under `ANY_TRANSPORT`, without which the index would have
+silently narrowed the search past the one guard that covers everything.
+
+**The independent interpreter reads it too, not by importing the lowering.** A
+rule may constrain every transport without being terminal; reading that as a
+ports rule with no ports would have matched nothing at all.
+
+**Checked where the permits are silent**, which is the point: an any-transport
+deny is asserted over protocols and ports no permit mentions. A deny narrowed to
+somebody's port list is the failure nobody notices, because the restriction that
+was never written leaves no trace.
+
+*A defect this surfaced.* `terminal_rule` built its flow from `protocols[0]` and
+port 0 - arbitrary, and broken the moment an any-transport permit put `"any"`
+first in that list. A terminal assembled from whichever protocol sorted first was
+never closing its scope, only appearing to. It is an any-transport rule now.
+
+**On the real topology the reference model now derives all eight overrides**,
+including the mandatory deny. The guard-precedence test no longer skips: 334
+netmodel tests, **zero skipped**, down from one. The test that recorded the gap
+now records its closure.
+
+*The name was wrong, as the review said.* Lowering every legacy override of a
+scope says the compiler represented what was written; it says nothing about
+approval or independent validation. `lowering_complete` and `strict_eligible` are
+now separate, and the second is **empty** with a stated reason rather than
+inheriting a completeness result.
+
+375 tests across the two plugins and the netmodel suite. Artifact parity identical
+across 147 files.
+
+**Still open, and the next criterion.** Independent completeness: the validator
+does not yet compare the plan against source requirements. `expected_overrides` is
+published by the compiler and is *not* an adequate source for that check - the
+compiler can lose a rule and its own record of it in the same edit, which is
+precisely the case the check has to catch. The validator needs the normalized
+intent through its own manifest contract, and must compare semantic coverage
+rather than counts. The completion criterion is stated: remove UDP, a guard, or a
+whole scope from the plan **and** from the compiler's metadata together, and the
+independent check must still find the loss.
+
+Criterion 5 is marked and not enforced: `provenance: legacy_shadow` is published
+and nothing refuses it, because nothing consumes the plan. A checkable boundary is
+needed before the first backend consumer exists, not after.
 
 **A framework lock is not reproducible from a commit alone.** A detached worktree
 at `93c0c2f7` computes `sha256-f43ba202...` where the committed lock says

@@ -349,3 +349,104 @@ def test_a_flow_in_another_context_is_not_decided_by_this_plan() -> None:
 def test_an_empty_plan_decides_nothing() -> None:
     """Not an accept, and not a deny: there is nothing there to decide with."""
     assert interpret([], event("zone.lan", "zone.mgmt", "udp", 53)).verdict is Verdict.UNSUPPORTED
+
+
+# --- an any-transport deny, checked where the permits are silent -------------------
+
+
+def _any_guard(name: str, *, sources, destinations) -> PolicyTemplate:
+    """A deny that names no transport, which is the shape the sources use."""
+    from netmodel.policy import ANY_TRANSPORT
+
+    return PolicyTemplate(
+        policy_id=name,
+        effect=Effect.DENY,
+        activation=Activation.SCOPE_GUARD,
+        direction="transit",
+        source=frozenset(sources),
+        destination=frozenset(destinations),
+        protocol=ANY_TRANSPORT,
+        ports=None,
+        owner="security",
+        rationale="servers must not reach management",
+    )
+
+
+def test_an_any_transport_deny_covers_a_protocol_no_permit_mentions() -> None:
+    """The check the review asked for: the deny holds where the permits are silent.
+
+    A deny narrowed to the ports someone listed is the failure mode that matters
+    most, because nobody notices a restriction that was never written.
+    """
+    guards = {"guard.any": _any_guard("guard.any", sources={"zone.guest"}, destinations={"zone.mgmt"})}
+    plan = _plan([], guards)
+
+    for protocol, port in (("tcp", 22), ("udp", 53), ("tcp", 443)):
+        decision = interpret(plan, event("zone.guest", "zone.mgmt", protocol, port))
+        assert decision.verdict is Verdict.DENY, f"{protocol}/{port} escaped the any-transport deny"
+        assert decision.matched == "guard:guard.any"
+
+
+def test_an_any_transport_deny_does_not_reach_other_endpoint_pairs() -> None:
+    """It covers every transport, not every zone pair."""
+    grants, _ = _intent()
+    guards = {"guard.any": _any_guard("guard.any", sources={"zone.guest"}, destinations={"zone.mgmt"})}
+    plan = _plan(grants, guards)
+
+    decision = interpret(plan, event("zone.lan", "zone.mgmt", "udp", 53))
+
+    assert decision.verdict is Verdict.ACCEPT
+
+
+def test_the_algebra_refuses_a_permit_under_an_any_transport_deny() -> None:
+    """Two implementations, one rule: the reference model must refuse it too."""
+    from netmodel.policy import PolicyError
+
+    template = permit_template("policy.ssh", "tcp", frozenset({22}))
+    grant = resolve_grant(
+        template,
+        Binding(
+            binding_id="bind.ssh",
+            policy_id="policy.ssh",
+            sources=frozenset({"zone.guest"}),
+            destinations=frozenset({"zone.mgmt"}),
+            approved=True,
+        ),
+    )
+    guards = {"guard.any": _any_guard("guard.any", sources={"zone.guest"}, destinations={"zone.mgmt"})}
+
+    with pytest.raises(PolicyError, match="matches both"):
+        authorize([grant], guards)
+
+
+def test_sec_auth_holds_with_an_any_transport_deny_present() -> None:
+    """The obligation over the whole space, with the deny that covers all of it."""
+    grants, _ = _intent()
+    guards = {"guard.any": _any_guard("guard.any", sources={"zone.guest"}, destinations={"zone.mgmt"})}
+    plan = _plan(grants, guards)
+
+    accepted = _accepted(plan)
+    assert accepted, "nothing accepted; the subset claim would be vacuous"
+    assert not (accepted - _authorized(grants, guards))
+
+    escaped = {key for key in accepted if key[0] == "zone.guest" and key[1] == "zone.mgmt"}
+    assert not escaped, f"the any-transport deny let these through: {sorted(escaped)}"
+
+
+def test_an_any_transport_template_may_not_also_list_ports() -> None:
+    """Listing some would narrow it to the ones somebody thought of."""
+    from netmodel.policy import ANY_TRANSPORT, PolicyError
+
+    with pytest.raises(PolicyError, match="states no ports"):
+        PolicyTemplate(
+            policy_id="guard.x",
+            effect=Effect.DENY,
+            activation=Activation.SCOPE_GUARD,
+            direction="transit",
+            source=frozenset({"zone.guest"}),
+            destination=frozenset({"zone.mgmt"}),
+            protocol=ANY_TRANSPORT,
+            ports=frozenset({22}),
+            owner="o",
+            rationale="r",
+        )

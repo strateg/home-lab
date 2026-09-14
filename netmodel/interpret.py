@@ -110,12 +110,15 @@ def _flow_matches(entry, event: FlowEvent) -> bool:
         # way an ordinary rule matches would leave the scope open for every port
         # the author did not happen to list, which is the opposite of closing it.
         return event.source in flow.sources and event.destination in flow.destinations
-    return (
-        event.source in flow.sources
-        and event.destination in flow.destinations
-        and event.protocol == flow.protocol
-        and event.port in flow.ports
-    )
+    if event.source not in flow.sources or event.destination not in flow.destinations:
+        return False
+    # An ordinary rule may also constrain every transport. That is a shape a rule
+    # can have, not a property of being terminal - the sources' one mandatory
+    # deny is exactly this, and reading it as a ports rule with no ports would
+    # match nothing at all.
+    if flow.protocol == "any" and flow.ports is None:
+        return True
+    return event.protocol == flow.protocol and event.port in (flow.ports or frozenset())
 
 
 def interpret(plan: Sequence, event: FlowEvent) -> Decision:

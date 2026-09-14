@@ -57,6 +57,15 @@ BINDING_SOURCE = "{binding: source}"
 BINDING_DESTINATION = "{binding: destination}"
 
 
+# The transport a rule constrains, when it constrains every one of them.
+#
+# A distinct value, not an empty port set and not an enumeration of well-known
+# service ports. An empty set reads as "nothing" at every call site that forgets
+# to check, and an enumeration narrows a deny to the ports somebody thought of -
+# which is the failure mode for the one rule where narrowing is most expensive.
+ANY_TRANSPORT = "any"
+
+
 @dataclass(frozen=True, slots=True)
 class Flow:
     """A bounded set of flows: who, to whom, over what.
@@ -64,12 +73,18 @@ class Flow:
     Endpoints are opaque atoms - a network, a zone, an address domain, an
     attachment endpoint. The algebra never interprets them, so it cannot invent a
     containment relation it has not been told about.
+
+    Transport has two shapes. Either a named protocol with a non-empty port set,
+    or `protocol=ANY_TRANSPORT` with `ports=None`, meaning every protocol and
+    every port. The second exists because the sources contain exactly one
+    mandatory deny and it names no transport; refusing to represent it left the
+    strongest restriction in the topology outside the model.
     """
 
     sources: frozenset[str]
     destinations: frozenset[str]
     protocol: str
-    ports: frozenset[int]
+    ports: frozenset[int] | None
 
     def __post_init__(self) -> None:
         if not self.sources:
@@ -78,22 +93,55 @@ class Flow:
             raise PolicyError("flow has no destination; an empty selector is an error, not 'any'")
         if not str(self.protocol or "").strip():
             raise PolicyError("flow has no protocol")
-        if not self.ports:
+        if self.protocol == ANY_TRANSPORT:
+            if self.ports is not None:
+                raise PolicyError("an any-transport flow states no ports; ports and 'any' are different shapes")
+        elif not self.ports:
             raise PolicyError("flow has no ports; a typed non-port constraint is a separate shape")
 
+    @property
+    def covers_every_transport(self) -> bool:
+        return self.protocol == ANY_TRANSPORT
+
+    def admits(self, protocol: str, port: int) -> bool:
+        """Whether this flow's transport covers one concrete protocol and port."""
+        if self.covers_every_transport:
+            return True
+        return protocol == self.protocol and port in (self.ports or frozenset())
+
     def intersect(self, other: Flow) -> Flow | None:
-        if self.protocol != other.protocol:
-            return None
+        """The overlap, with any-transport absorbing the other side's shape.
+
+        An any-transport deny intersected with a TCP/443 permit is TCP/443: the
+        deny covers it, and the witness has to be a flow an author can look at.
+        Returning the any-transport shape instead would report "everything
+        overlaps everything", which is true and useless.
+        """
         sources = self.sources & other.sources
         destinations = self.destinations & other.destinations
-        ports = self.ports & other.ports
-        if not (sources and destinations and ports):
+        if not (sources and destinations):
             return None
-        return Flow(sources=sources, destinations=destinations, protocol=self.protocol, ports=ports)
+
+        if self.covers_every_transport and other.covers_every_transport:
+            protocol, ports = ANY_TRANSPORT, None
+        elif self.covers_every_transport:
+            protocol, ports = other.protocol, other.ports
+        elif other.covers_every_transport:
+            protocol, ports = self.protocol, self.ports
+        else:
+            if self.protocol != other.protocol:
+                return None
+            protocol = self.protocol
+            ports = (self.ports or frozenset()) & (other.ports or frozenset())
+            if not ports:
+                return None
+
+        return Flow(sources=sources, destinations=destinations, protocol=protocol, ports=ports)
 
     def witness(self) -> tuple[str, str, str, int]:
         """One concrete flow from this set, for a message an author can act on."""
-        return (min(self.sources), min(self.destinations), self.protocol, min(self.ports))
+        port = 0 if self.ports is None else min(self.ports)
+        return (min(self.sources), min(self.destinations), self.protocol, port)
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,7 +155,7 @@ class PolicyTemplate:
     source: str | frozenset[str]
     destination: str | frozenset[str]
     protocol: str
-    ports: frozenset[int]
+    ports: frozenset[int] | None
     owner: str
     rationale: str
 
@@ -120,7 +168,13 @@ class PolicyTemplate:
         for field_name in ("direction", "owner", "rationale"):
             if not str(getattr(self, field_name) or "").strip():
                 raise PolicyError(f"{self.policy_id}: {field_name} is required")
-        if not self.ports:
+        if self.protocol == ANY_TRANSPORT:
+            if self.ports:
+                raise PolicyError(
+                    f"{self.policy_id}: an any-transport constraint states no ports; "
+                    "listing some would narrow it to the ones somebody thought of"
+                )
+        elif not self.ports:
             raise PolicyError(f"{self.policy_id}: ports must be bounded and non-empty")
         if self.effect is Effect.DENY:
             for side, value in (("source", self.source), ("destination", self.destination)):
@@ -246,6 +300,20 @@ def _guard_index(guards: Mapping[str, PolicyTemplate]) -> dict[tuple[str, str], 
     return index
 
 
+def _candidate_guards(index: Mapping[tuple[str, str], set[str]], grant: Grant) -> set[str]:
+    """Guards that could overlap this grant, by protocol and by source.
+
+    An any-transport guard is indexed under `ANY_TRANSPORT` and would be missed
+    by a lookup on the grant's own protocol alone - which would make the index
+    silently narrow the search past the one guard that covers everything.
+    """
+    candidates: set[str] = set()
+    for source in grant.flow.sources:
+        candidates |= index.get((grant.flow.protocol, source), frozenset())
+        candidates |= index.get((ANY_TRANSPORT, source), frozenset())
+    return candidates
+
+
 def find_conflicts(grants: Iterable[Grant], guards: Mapping[str, PolicyTemplate]) -> list[Conflict]:
     """Every permit that overlaps a mandatory deny, with a flow that shows it.
 
@@ -256,11 +324,7 @@ def find_conflicts(grants: Iterable[Grant], guards: Mapping[str, PolicyTemplate]
     conflicts: list[Conflict] = []
 
     for grant in grants:
-        candidates: set[str] = set()
-        for source in grant.flow.sources:
-            candidates |= index.get((grant.flow.protocol, source), frozenset())
-
-        for guard_id in sorted(candidates):
+        for guard_id in sorted(_candidate_guards(index, grant)):
             overlap = grant.flow.intersect(guard_flow(guards[guard_id]))
             if overlap is not None:
                 conflicts.append(
@@ -282,10 +346,7 @@ class AuthorizedSet:
 
     def admits(self, source: str, destination: str, protocol: str, port: int) -> bool:
         return any(
-            source in flow.sources
-            and destination in flow.destinations
-            and protocol == flow.protocol
-            and port in flow.ports
+            source in flow.sources and destination in flow.destinations and flow.admits(protocol, port)
             for flow in self.flows
         )
 

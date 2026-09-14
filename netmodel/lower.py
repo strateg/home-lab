@@ -26,7 +26,7 @@ from __future__ import annotations
 from typing import Iterable, Mapping, Sequence
 
 from netmodel.plan import ExecutionContext, OrderedRule, PlanRule, order_rules
-from netmodel.policy import Effect, Flow, Grant, PolicyTemplate, guard_flow
+from netmodel.policy import ANY_TRANSPORT, Effect, Flow, Grant, PolicyTemplate, guard_flow
 
 TERMINAL_ORIGIN = "plan:terminal-default-deny"
 
@@ -56,11 +56,18 @@ def _guard_rules(guards: Mapping[str, PolicyTemplate], context: ExecutionContext
 
 
 def terminal_rule(context: ExecutionContext, *, endpoints: Sequence[str], protocols: Sequence[str]) -> PlanRule:
-    """The rule that closes a scope.
+    """The rule that closes a scope, for every transport in it.
 
-    Its flow is the whole declared scope rather than a wildcard, because the
+    Its endpoints are the declared scope rather than a wildcard, because the
     interpreter matches on sets and a wildcard would be a second matching rule
     with different semantics from every other rule in the plan.
+
+    Its transport is `any`. An earlier version took `protocols[0]` and port 0,
+    which was arbitrary and then broke as soon as an any-transport permit put
+    `"any"` first in that list - a terminal built from whichever protocol sorted
+    first was never closing the scope, only appearing to. `protocols` is still
+    accepted so a caller must state a non-empty scope, which is the thing worth
+    refusing.
     """
     if not endpoints or not protocols:
         raise ValueError("a terminal deny needs a declared scope to close; an empty scope closes nothing")
@@ -70,8 +77,8 @@ def terminal_rule(context: ExecutionContext, *, endpoints: Sequence[str], protoc
         flow=Flow(
             sources=frozenset(endpoints),
             destinations=frozenset(endpoints),
-            protocol=protocols[0],
-            ports=frozenset({0}),
+            protocol=ANY_TRANSPORT,
+            ports=None,
         ),
         origin=TERMINAL_ORIGIN,
         terminal=True,

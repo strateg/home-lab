@@ -72,7 +72,10 @@ class PlanRule:
             tuple(sorted(self.flow.sources)),
             tuple(sorted(self.flow.destinations)),
             self.flow.protocol,
-            tuple(sorted(self.flow.ports)),
+            # `None` means every port, which is a shape rather than an absence.
+            # Sorting it would raise; representing it as an empty tuple would make
+            # an any-transport rule sort beside a rule with no ports at all.
+            () if self.flow.ports is None else tuple(sorted(self.flow.ports)),
             self.terminal,
             self.origin,
         )
