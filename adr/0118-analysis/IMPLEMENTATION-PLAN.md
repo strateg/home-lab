@@ -802,9 +802,54 @@ the same split, for the same reason, as `E7007` from `E7005`.
 12 tests. Artifact parity identical across 147 files; `tests/plugin_regression`
 10 passed, 3 skipped.
 
+### W07 decision, 2026-09-14: specialization is a compile-stage object-module plugin
+
+The plan left the decomposition open and this fixes it, in
+`W07-BACKEND-SPECIALIZATION-DECISION.md`. The constraint it had to satisfy - *it
+cannot occur only in a generator after the relevant validator ran* - **is currently
+violated**, and that measurement is what decided it.
+
+`object.mikrotik.generator.terraform` runs at generate, order 220, and calls a
+projection of 1,565 lines across 17 functions, every one of which makes a backend
+decision: zone membership and matrix rules (246 lines), tunnel termination (191),
+container attachment and publication shape (191), routing policy and `*_vlan_ref`
+resolution (110), capability flags driving conditional generation (21). Every
+validator has finished before any of it runs, and nothing checks its output except
+artifact parity, which compares it with itself from the previous run.
+
+Two consequences were already observed rather than predicted. **W05** is the
+generator recomputing zone membership and reaching a different answer, because
+both derive it and only one is checked. And `_derive_mikrotik_capability_flags`
+drives conditional generation from capability set membership - the flag-as-proof
+the capability contract rules out - two stages after the SEC-CAP resolution could
+have seen it.
+
+**Decided: a compile-stage compiler plugin in the object module.** Validation must
+be able to see the specialized plan, and anything produced at generate is
+unverifiable by construction. Backend semantics belong to the backend's module
+rather than an internal core operation, which would make the core know about one
+product. And the seam exists: `base.compiler.security_plan` already publishes a
+backend-neutral plan at compile, so a specializer consuming it and publishing
+`backend_plan` needs no new mechanism. The generator's remaining job is rendering
+- which ADR 0119 D4 already says for the terminal deny, and the same rule covers
+everything else the projection decides.
+
+**No code was moved.** The projection's output is pinned only by artifact parity,
+and moving 1,565 lines in one step would replace a measured baseline with an
+unmeasured one. Migration is per function with parity evidence, ordered by what is
+checkable: capability flags first, then the reference resolution the compiler
+already performs, then `_extract_security_matrix` - which is blocked on the W05
+divergence and is exactly the step anyone would reach for first.
+
+Seven tests hold the line: the debt may shrink and must not grow, the budget must
+not go stale, the compile-before-validate seam must stay, and the blocked step must
+keep being named. The decision records its own falsifier - a specialization needing
+information that exists only after generation would put the seam in the wrong place
+- because a decision with no stated falsifier is a preference.
+
 G3's remaining work is no longer a missing piece but a widening one: the plan is
-built for zone-to-zone overrides, and W07 has to say where backend specialization
-lives before it can carry publications, routes and interface-scoped transforms.
+built for zone-to-zone overrides, and carrying publications, routes and
+interface-scoped transforms is now W07 migration work with a decided destination.
 
 **A framework lock is not reproducible from a commit alone.** A detached worktree
 at `93c0c2f7` computes `sha256-f43ba202...` where the committed lock says
