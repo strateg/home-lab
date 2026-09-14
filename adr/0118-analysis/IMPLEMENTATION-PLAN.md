@@ -881,6 +881,67 @@ premature - the review is right that intent, approved plan and independent
 obligations are not yet joined. The findings F1-F5 name real counterexamples that
 green tests did not catch, and they are the next work rather than more migration.
 
+*Evidence correction.* PR1 was first recorded as "`tests/plugin_contract` 281
+passed". That is not `task test:plugin-contract`, which runs
+`tests/plugin_contract tests/plugin_api tests/kernel tests/test_plugin_registry.py`
+with coverage. Re-measured on that exact scope: **405 passed, 0 failed**. Each
+run's command and boundary is now recorded with its number.
+
+### PR2, part one, 2026-09-14 — the lowering stops losing meaning
+
+Against the five completion criteria set for PR2.
+
+**1. Every protocol survives.** `_lower_one` took `sorted(ports.items())[0]` and
+emitted one rule; on `{tcp: [53], udp: [53]}` it kept TCP and dropped UDP with an
+empty `unlowerable` - a lost service for a permit, a lost restriction for a deny,
+and no diagnostic either way. One source selector is now one rule per protocol,
+tested for permit and for deny separately.
+
+**2. No partial success.** A scope with even one unlowerable override is now in
+`blocked_scopes` and absent from `strict_eligible`: the remaining rules are a
+subset of the intent, and a subset of a restriction is a weaker restriction. The
+shadow plan is still published, because it is worth analysing - it is labelled,
+not suppressed.
+
+**3. Any-transport is its own kind.** `transport: {kind: "any"}` versus
+`{kind: "ports", protocol, ports}`. Not an empty port list, which reads as
+"nothing", and not an enumeration of well-known service ports, which would narrow
+a deny to the ones somebody thought of. The digest and the ordering key read the
+typed field.
+
+**The consequence, measured on the real topology: all eight overrides now lower,
+including `servers-to-management-deny`.** The only mandatory deny in the sources
+was inexpressible an hour ago and is now an any-transport guard at position 0 of
+its scope. Nothing unlowerable, no blocked scopes.
+
+**A vanishing scope, fixed with it.** Scopes were derived from successfully
+lowered rules, so a wholly unrepresentable matrix disappeared from the plan - and
+a scope that is absent cannot be reported as unterminated, so the omission hid
+itself. Scopes now come from the matrices.
+
+**The validator gaps F1.3 named are closed.** A declared scope with no rules is
+checked rather than skipped past an early return; a terminal whose effect is
+`permit` is refused, because it closes nothing and shadows everything after it;
+two terminals in one scope are refused; and positions must be unique and
+consecutive from zero, which the edge check cannot see - rules with no precedence
+relation between them are compared with nothing.
+
+Three tests failed on this change and all three encoded the old behaviour the
+review called defective. They now assert the new.
+
+40 tests across the two plugins; 359 in the netmodel and matrix suites. Artifact
+parity identical across 147 files.
+
+**Still open in PR2.** Criterion 4, independent completeness - the validator does
+not yet compare the plan against source requirements, so removing a guard or a
+whole scope is caught only where it happens to break order or termination;
+`expected_overrides` is published for that check and nothing consumes it yet.
+Criterion 5 is marked, not enforced: the plan declares `provenance: legacy_shadow`
+and no consumer refuses a legacy payload, because no renderer consumes the plan at
+all. And `netmodel.policy` still requires a bounded port set, so the reference
+model cannot yet express what the framework now can - a divergence the
+differentials exist to catch, and the next thing to fix.
+
 **A framework lock is not reproducible from a commit alone.** A detached worktree
 at `93c0c2f7` computes `sha256-f43ba202...` where the committed lock says
 `sha256-baee680d...`, while the same revision in the main working tree matches.

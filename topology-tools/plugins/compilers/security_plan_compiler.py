@@ -42,6 +42,19 @@ from typing import Any, Mapping, Sequence
 from kernel.plugin_base import CompilerPlugin, PluginContext, PluginResult, Stage
 
 MATRIX_CLASS = "class.network.security_matrix"
+
+
+def _base(origin: str, effect: str, scope: str, source: str, destination: str) -> dict[str, Any]:
+    return {
+        "origin": origin,
+        "effect": effect,
+        "terminal": False,
+        "scope": scope,
+        "sources": [source],
+        "destinations": [destination],
+    }
+
+
 TERMINAL_ORIGIN = "plan:terminal-default-deny"
 
 # Role ranks. A terminal deny is a role, not an effect: treating it as one more
@@ -65,21 +78,46 @@ class SecurityPlanCompiler(CompilerPlugin):
 
         rules: list[dict[str, Any]] = []
         unlowerable: list[dict[str, Any]] = []
+        # How many overrides each scope declared, so a consumer can check the plan
+        # against the intent rather than against itself.
+        expected: dict[str, int] = {}
 
         for override in overrides:
-            rule, reason = self._lower_one(override)
-            if rule is None:
+            expected[str(override.get("matrix_ref"))] = expected.get(str(override.get("matrix_ref")), 0) + 1
+            lowered, reason = self._lower_one(override)
+            if not lowered:
                 unlowerable.append({**{k: override.get(k) for k in ("name", "matrix_ref")}, "reason": reason})
             else:
-                rules.append(rule)
+                rules.extend(lowered)
 
-        scopes = sorted({rule["scope"] for rule in rules})
+        # Every matrix is a scope, whether or not anything in it lowered. Deriving
+        # scopes from successful rules alone let a wholly unrepresentable matrix
+        # disappear from the plan entirely - and a scope that is absent cannot be
+        # reported as unterminated, so the omission hid itself.
+        scopes = sorted(matrices)
         for scope in scopes:
             rules.append(self._terminal(scope))
 
         ordered = self._order(rules)
+        # No partial success. A scope with even one override this lowering cannot
+        # represent is blocked for strict use in its entirety: the remaining rules
+        # are a subset of the intent, and a subset of a restriction is a weaker
+        # restriction. The plan is still published, because a shadow plan is worth
+        # analysing - but it is labelled, and nothing downstream may treat a
+        # blocked scope as eligible.
+        blocked = sorted({str(item.get("matrix_ref")) for item in unlowerable})
+        strict_eligible = [scope for scope in scopes if scope not in blocked]
+
         payload = {
             "schema_version": 1,
+            # Legacy shape until approved bindings exist. `action: accept` in a
+            # security matrix is an authored override, not an approved bound
+            # permit, and calling the result a strict plan would make an approval
+            # boundary out of a field name. F2 of the post-fix review.
+            "provenance": "legacy_shadow",
+            "strict_eligible": strict_eligible,
+            "blocked_scopes": blocked,
+            "expected_overrides": {scope: expected.get(scope, 0) for scope in scopes},
             "matrices": sorted(matrices),
             "scopes": scopes,
             "rules": ordered,
@@ -151,40 +189,63 @@ class SecurityPlanCompiler(CompilerPlugin):
 
     # --- lowering -------------------------------------------------------------
 
-    def _lower_one(self, override: Mapping[str, Any]) -> tuple[dict[str, Any] | None, str]:
+    def _lower_one(self, override: Mapping[str, Any]) -> tuple[list[dict[str, Any]], str]:
+        """One override becomes one rule *per protocol*, or nothing with a reason.
+
+        It used to take `sorted(ports.items())[0]` and emit a single rule. On
+        `{tcp: [53], udp: [53]}` that produced the TCP rule and dropped UDP
+        silently, with an empty `unlowerable` - for a permit a lost service, for
+        a deny a lost restriction, and in neither case a diagnostic. A source
+        selector spanning several protocols is several rules; a lowering that
+        cannot say that must refuse, not choose.
+        """
         name = str(override.get("name") or "").strip()
         source = override.get("from_zone_ref")
         destination = override.get("to_zone_ref")
         action = override.get("action")
 
         if not name:
-            return None, "the override has no name and cannot be traced back to a source"
+            return [], "the override has no name and cannot be traced back to a source"
         if not (isinstance(source, str) and isinstance(destination, str)):
-            return None, "the override does not name both zones"
+            return [], "the override does not name both zones"
         if action not in ("accept", "drop", "reject"):
-            return None, f"unknown action {action!r}"
+            return [], f"unknown action {action!r}"
+
+        origin = f"{'binding' if action == 'accept' else 'guard'}:{name}"
+        effect = "permit" if action == "accept" else "deny"
+        scope = str(override.get("matrix_ref"))
 
         ports = override.get("ports")
         if not isinstance(ports, Mapping) or not ports:
-            return None, "no ports; an empty port set is an error, not 'any'"
+            # An override that names no transport constrains every transport.
+            # Represented as its own kind rather than as an empty list, which
+            # reads as "nothing", or as an enumeration of well-known service
+            # ports, which would narrow a deny to the ports someone thought of.
+            return (
+                [
+                    {
+                        **_base(origin, effect, scope, source, destination),
+                        "transport": {"kind": "any"},
+                    }
+                ],
+                "",
+            )
 
-        protocol, numbers = sorted(ports.items())[0]
-        if not isinstance(numbers, list) or not numbers:
-            return None, f"ports.{protocol} is empty"
-
-        return (
-            {
-                "origin": f"{'binding' if action == 'accept' else 'guard'}:{name}",
-                "effect": "permit" if action == "accept" else "deny",
-                "terminal": False,
-                "scope": str(override.get("matrix_ref")),
-                "sources": [source],
-                "destinations": [destination],
-                "protocol": str(protocol),
-                "ports": sorted(int(item) for item in numbers),
-            },
-            "",
-        )
+        lowered: list[dict[str, Any]] = []
+        for protocol, numbers in sorted(ports.items()):
+            if not isinstance(numbers, list) or not numbers:
+                return [], f"ports.{protocol} is empty"
+            lowered.append(
+                {
+                    **_base(origin, effect, scope, source, destination),
+                    "transport": {
+                        "kind": "ports",
+                        "protocol": str(protocol),
+                        "ports": sorted(int(item) for item in numbers),
+                    },
+                }
+            )
+        return lowered, ""
 
     @staticmethod
     def _terminal(scope: str) -> dict[str, Any]:
@@ -195,8 +256,7 @@ class SecurityPlanCompiler(CompilerPlugin):
             "scope": scope,
             "sources": [],
             "destinations": [],
-            "protocol": "any",
-            "ports": [],
+            "transport": {"kind": "any"},
         }
 
     @staticmethod
@@ -213,13 +273,15 @@ class SecurityPlanCompiler(CompilerPlugin):
             return _RANK_DENY if rule.get("effect") == "deny" else _RANK_PERMIT
 
         def key(rule: Mapping[str, Any]) -> tuple:
+            transport = rule.get("transport") or {}
             return (
                 str(rule.get("scope")),
                 rank(rule),
                 tuple(sorted(rule.get("sources") or [])),
                 tuple(sorted(rule.get("destinations") or [])),
-                str(rule.get("protocol")),
-                tuple(sorted(rule.get("ports") or [])),
+                str(transport.get("kind")),
+                str(transport.get("protocol") or ""),
+                tuple(sorted(transport.get("ports") or [])),
                 str(rule.get("origin")),
             )
 
@@ -248,8 +310,7 @@ class SecurityPlanCompiler(CompilerPlugin):
                 "terminal": rule["terminal"],
                 "sources": rule["sources"],
                 "destinations": rule["destinations"],
-                "protocol": rule["protocol"],
-                "ports": rule["ports"],
+                "transport": rule["transport"],
                 "origin": rule["origin"],
             }
             for rule in ordered

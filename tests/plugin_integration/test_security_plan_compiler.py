@@ -205,16 +205,95 @@ def test_the_digest_ignores_declaration_order() -> None:
 # --- what cannot be lowered is published, not dropped ---------------------------------------
 
 
-def test_a_portless_override_is_published_with_its_reason() -> None:
-    """The sources' only mandatory deny is portless; silence here would hide it."""
+def test_a_portless_override_becomes_an_any_transport_rule() -> None:
+    """The sources' only mandatory deny is portless, and it is now expressible.
+
+    It used to go to `unlowerable`, which was honest but left the strongest
+    restriction in the topology outside the plan. An override naming no transport
+    constrains every transport, and that is now its own kind - not an empty port
+    list, which reads as "nothing", and not an enumeration of well-known service
+    ports, which would narrow a deny to the ones somebody thought of.
+    """
     rows = [matrix("inst.security_matrix.m", override("deny-all", action="drop"))]
 
     plan = _run(rows)
 
-    assert plan["rules"] == [] or all(rule["terminal"] for rule in plan["rules"])
-    assert len(plan["unlowerable"]) == 1
-    assert "not 'any'" in plan["unlowerable"][0]["reason"]
-    assert plan["unlowerable"][0]["name"] == "deny-all"
+    assert plan["unlowerable"] == []
+    guard = next(rule for rule in plan["rules"] if rule["origin"] == "guard:deny-all")
+    assert guard["transport"] == {"kind": "any"}
+    assert guard["effect"] == "deny"
+
+
+def test_an_any_transport_rule_is_not_an_empty_port_list() -> None:
+    """The distinction the review asked for, asserted rather than described."""
+    rows = [
+        matrix(
+            "inst.security_matrix.m",
+            override("deny-all", action="drop"),
+            override("web", ports={"tcp": [443]}),
+        )
+    ]
+
+    kinds = {rule["origin"]: rule["transport"]["kind"] for rule in _run(rows)["rules"]}
+
+    assert kinds["guard:deny-all"] == "any"
+    assert kinds["binding:web"] == "ports"
+
+
+def test_both_protocols_survive_a_two_protocol_override() -> None:
+    """F1: `sorted(ports.items())[0]` kept TCP and dropped UDP without a word."""
+    for action, prefix in (("accept", "binding"), ("drop", "guard")):
+        rows = [matrix("inst.security_matrix.m", override("dns", action=action, ports={"tcp": [53], "udp": [53]}))]
+
+        plan = _run(rows)
+        protocols = {
+            rule["transport"]["protocol"]
+            for rule in plan["rules"]
+            if rule["origin"] == f"{prefix}:dns"
+        }
+
+        assert protocols == {"tcp", "udp"}, f"{action}: lost a protocol"
+        assert plan["unlowerable"] == []
+
+
+def test_a_scope_with_an_unlowerable_override_is_blocked_entirely() -> None:
+    """No partial success: a subset of a restriction is a weaker restriction."""
+    rows = [
+        matrix(
+            "inst.security_matrix.good",
+            override("ok", ports={"tcp": [443]}),
+        ),
+        matrix(
+            "inst.security_matrix.bad",
+            override("ok", ports={"tcp": [443]}),
+            override("broken", ports={"tcp": []}),
+        ),
+    ]
+
+    plan = _run(rows)
+
+    assert plan["blocked_scopes"] == ["inst.security_matrix.bad"]
+    assert plan["strict_eligible"] == ["inst.security_matrix.good"]
+
+
+def test_the_plan_declares_itself_legacy_until_approved_bindings_exist() -> None:
+    """An authored override is not an approved bound permit, and says so."""
+    plan = _run([matrix("inst.security_matrix.m", override("web", ports={"tcp": [443]}))])
+
+    assert plan["provenance"] == "legacy_shadow"
+
+
+def test_the_expected_override_count_is_published_for_completeness_checking() -> None:
+    """So a consumer can check the plan against the intent, not against itself."""
+    rows = [
+        matrix(
+            "inst.security_matrix.m",
+            override("a", ports={"tcp": [1]}),
+            override("b", ports={"tcp": [2]}),
+        )
+    ]
+
+    assert _run(rows)["expected_overrides"] == {"inst.security_matrix.m": 2}
 
 
 @pytest.mark.parametrize(

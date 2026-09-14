@@ -133,8 +133,85 @@ def test_a_correct_plan_produces_no_diagnostics() -> None:
     assert result.diagnostics == []
 
 
-def test_an_empty_plan_is_not_an_error() -> None:
-    assert _run([]).diagnostics == []
+def test_a_declared_scope_with_no_rules_is_an_error() -> None:
+    """It used to pass, and that was the gap.
+
+    Returning early on an empty rule list meant a plan declaring scopes and
+    emitting nothing was accepted - and a scope with no rules has no terminal
+    either, so the omission hid itself behind the same early return.
+    """
+    result = _run([])
+
+    assert "E7082" in _codes(result)
+
+
+def test_a_plan_declaring_no_scopes_and_no_rules_is_not_an_error() -> None:
+    """A topology with no matrices produces nothing, and that is not a defect."""
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        classes={},
+        objects={},
+        instance_bindings={"instance_bindings": {}},
+    )
+    publish_for_test(
+        ctx, PLAN_PLUGIN_ID, "security_plan", {"schema_version": 1, "rules": [], "scopes": [], "unlowerable": []}
+    )
+
+    assert registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE).diagnostics == []
+
+
+def test_a_terminal_that_accepts_is_refused() -> None:
+    """It closes nothing and shadows every rule after it."""
+    result = _run(
+        [
+            rule("binding:p", "permit", 0),
+            rule("plan:terminal-default-deny", "permit", 1, terminal=True),
+        ]
+    )
+
+    assert "E7082" in _codes(result)
+    assert any("closes nothing" in diag.message for diag in result.diagnostics)
+
+
+def test_two_rules_on_one_position_are_refused() -> None:
+    """No defined order, only the appearance of one - and no edge sees it."""
+    result = _run(
+        [
+            rule("binding:a", "permit", 0),
+            rule("binding:b", "permit", 0),
+            rule("plan:terminal-default-deny", "deny", 1, terminal=True),
+        ]
+    )
+
+    assert "E7081" in _codes(result)
+    assert any("used more than once" in diag.message for diag in result.diagnostics)
+
+
+def test_a_gap_in_the_positions_is_refused() -> None:
+    """A gap invites someone to fill it and changes what "after" means."""
+    result = _run(
+        [
+            rule("binding:a", "permit", 0),
+            rule("plan:terminal-default-deny", "deny", 5, terminal=True),
+        ]
+    )
+
+    assert "E7081" in _codes(result)
+
+
+def test_two_terminals_in_one_scope_are_refused() -> None:
+    result = _run(
+        [
+            rule("plan:terminal-a", "deny", 0, terminal=True),
+            rule("plan:terminal-b", "deny", 1, terminal=True),
+        ]
+    )
+
+    assert "E7082" in _codes(result)
+    assert any("only one can be last" in diag.message for diag in result.diagnostics)
 
 
 # --- the wrong plans it has to catch ------------------------------------------------
@@ -183,8 +260,9 @@ def test_each_scope_is_checked_on_its_own() -> None:
         ]
     )
 
-    assert _codes(result) == ["E7082"]
-    assert "scope.b" in result.diagnostics[0].message
+    reported = {diag.message.split("'")[1] for diag in result.diagnostics if diag.code == "E7082"}
+    assert "scope.b" in reported
+    assert "scope.a" not in reported
 
 
 def test_duplicate_positions_are_caught_as_an_order_violation() -> None:

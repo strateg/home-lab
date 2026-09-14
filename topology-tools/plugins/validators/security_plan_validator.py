@@ -59,14 +59,19 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
             )
 
         rules = plan.get("rules") if isinstance(plan, Mapping) else None
-        if not isinstance(rules, list) or not rules:
-            return self.make_result(diagnostics)
+        declared = plan.get("scopes") if isinstance(plan, Mapping) else None
+        declared_scopes = [str(item) for item in declared] if isinstance(declared, list) else []
+        rules = rules if isinstance(rules, list) else []
 
-        by_scope: dict[str, list[Mapping[str, Any]]] = {}
+        by_scope: dict[str, list[Mapping[str, Any]]] = {scope: [] for scope in declared_scopes}
         for rule in rules:
             if isinstance(rule, Mapping):
                 by_scope.setdefault(str(rule.get("scope")), []).append(rule)
 
+        # A declared scope with no rules is checked, not skipped. Returning early
+        # on an empty rule list meant a plan that declared two scopes and emitted
+        # nothing passed - and a scope absent from the rules cannot be reported as
+        # unterminated, so the omission hid itself.
         for scope in sorted(by_scope):
             diagnostics.extend(self._check_scope(scope=scope, rules=by_scope[scope], stage=stage))
 
@@ -92,6 +97,36 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
                     path=path,
                 )
             )
+        for terminal in terminals:
+            if terminal.get("effect") != "deny":
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E7082",
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            f"scope '{scope}' terminal '{terminal.get('origin')}' has effect "
+                            f"{terminal.get('effect')!r}. A terminal that accepts closes nothing and "
+                            "shadows every rule after it; the scope has no valid terminal deny."
+                        ),
+                        path=path,
+                    )
+                )
+        if len(terminals) > 1:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7082",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        f"scope '{scope}' has {len(terminals)} terminal rules; only one can be last, "
+                        "and the others are unreachable rules that prove nothing."
+                    ),
+                    path=path,
+                )
+            )
+
+        diagnostics.extend(self._check_positions(scope=scope, rules=rules, stage=stage, path=path))
 
         edges = self._required_edges(rules)
         cycle = self._find_cycle(rules, edges)
@@ -123,6 +158,40 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
                     )
                 )
         return diagnostics
+
+    def _check_positions(
+        self, *, scope: str, rules: Sequence[Mapping[str, Any]], stage: Stage, path: str
+    ) -> list[PluginDiagnostic]:
+        """Positions must be unique and consecutive from zero within the scope.
+
+        Two rules on one position have no defined order, only the appearance of
+        one - and the edge check cannot see it, because rules with no precedence
+        relation between them are compared with nothing. A gap is as bad: it
+        invites someone to fill it and changes what "after" means.
+        """
+        if not rules:
+            return []
+
+        positions = [self._position(rule) for rule in rules]
+        expected = list(range(len(rules)))
+        if sorted(positions) == expected:
+            return []
+
+        duplicates = sorted({value for value in positions if positions.count(value) > 1})
+        detail = (
+            f"positions {duplicates} are used more than once"
+            if duplicates
+            else f"positions {sorted(positions)} are not consecutive from zero"
+        )
+        return [
+            self.emit_diagnostic(
+                code="E7081",
+                severity="error",
+                stage=stage,
+                message=f"scope '{scope}': {detail}; an order with a gap or a tie is not an order",
+                path=path,
+            )
+        ]
 
     @staticmethod
     def _position(rule: Mapping[str, Any]) -> int:
