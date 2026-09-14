@@ -502,6 +502,28 @@ plugins:
     required: true
   description: Validates workload vlan_tag consistency against VLAN network contracts.
   execution_mode: subinterpreter
+- id: base.validator.security_plan
+  kind: validator_json
+  entry: ../validators/security_plan_validator.py:SecurityPlanValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 129
+  depends_on:
+  - base.compiler.security_plan
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.security_plan
+    key: security_plan
+    required: true
+  description: Independently checks the published security plan's order and termination (ADR 0119 G3).
+  execution_mode: subinterpreter
 - id: base.validator.network_intent_schema
   kind: validator_json
   entry: ../validators/network_intent_schema_validator.py:NetworkIntentSchemaValidator

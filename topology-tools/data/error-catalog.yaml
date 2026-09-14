@@ -934,6 +934,13 @@ codes:
     hint: >-
       The validator could not obtain normalized instance rows, so it checked nothing. Kept distinct from E7005
       because "the check did not run" and "a field is missing" are different facts and a silent pass is neither.
+  E7008:
+    severity: error
+    stage: validate
+    title: Security Plan Validator Prerequisite Missing
+    hint: >-
+      The validator could not obtain the published security plan, so it checked nothing. Distinct from E7007:
+      both say a check did not run, but they name different missing producers, and a reader needs to know which.
 
   # Attachment and address domain (NET-ATTACHMENT, NET-ADDRESS-OWNER)
   E7020:

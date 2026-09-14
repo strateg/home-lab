@@ -768,6 +768,40 @@ algebra and the address arithmetic.
 18 tests. Artifact parity identical across 147 files; `tests/plugin_regression`
 10 passed, 3 skipped.
 
+### The independent check: `base.validator.security_plan`, 2026-09-14
+
+G3 says validation independently checks the complete plan, and *independently* is
+the requirement rather than a description: a validator that called the compiler's
+sort would compare the sort with itself and report agreement. So this one
+re-derives the required precedence from the rules and checks the emitted positions
+against it. **It never sorts anything** - a test asserts it produces no `position`,
+only reads them - so the two can disagree, which is the only condition under which
+their agreement means something.
+
+`E7080`, `E7081` and `E7082` are emitted for the first time: a precedence cycle, an
+emitted order violating an edge it must satisfy, and a scope with no terminal deny.
+Each has a failure that looks fine from the other side - a permit before the deny
+that constrains it reads correctly in a rule list, and an unterminated scope reads
+correctly in one too, while being open on a default-allow backend.
+
+The terminal is a role and not an effect here as well. Counting it among the denies
+would require it to precede every permit and follow every rule at once, so the
+validator would report a cycle it had invented; a test asserts a correct plan stays
+clean. Cycle detection is iterative, because a 400-rule chain exhausts a recursive
+one - also tested.
+
+*Two corrections in the making.* My own independence test first searched the source
+for `sorted(` and flagged `sorted(by_scope)`, which iterates scope names
+deterministically and orders no rules; a substring test cannot tell an ordering
+from a stable iteration, so it now asserts over the AST that no `position` is ever
+produced. And the validator initially reused `E7007`, registered for a different
+validator's missing rows. Both say a check did not run, but they name different
+missing producers and a reader needs to know which, so `E7008` was registered -
+the same split, for the same reason, as `E7007` from `E7005`.
+
+12 tests. Artifact parity identical across 147 files; `tests/plugin_regression`
+10 passed, 3 skipped.
+
 G3's remaining work is no longer a missing piece but a widening one: the plan is
 built for zone-to-zone overrides, and W07 has to say where backend specialization
 lives before it can carry publications, routes and interface-scoped transforms.
