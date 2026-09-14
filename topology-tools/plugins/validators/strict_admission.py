@@ -127,6 +127,17 @@ KNOWN_RULE_FIELDS = frozenset(
 
 KNOWN_TRANSPORT_FIELDS = frozenset({"kind", "protocol", "ports"})
 
+# Values, not only key names. Closing the set of *fields* left the set of
+# *meanings* open: a review admitted `transport.kind: not_implemented`, a
+# transport with no `kind` at all, and `schema_version: 999`. A field whose value
+# this contract cannot interpret is exactly as unadmittable as a field it has
+# never heard of - in the first case the renderer would read a token nobody
+# defined, in the second it would read a plan written to a grammar nobody here
+# knows.
+PLAN_SCHEMA_VERSION = 1
+KNOWN_TRANSPORT_KINDS = frozenset({"ports", "any"})
+KNOWN_EFFECTS = frozenset({"permit", "deny"})
+
 # Obligations implemented in `netmodel` and not mounted in any framework plugin,
 # each with the *declared field* that would make it applicable. These names are
 # reserved: a plan may carry them, and carrying one makes the obligation
@@ -249,6 +260,100 @@ def unsupported_constructs(plan: Mapping[str, Any]) -> list[str]:
     return found
 
 
+def _string_list(value: Any) -> bool:
+    return isinstance(value, list) and all(isinstance(item, str) and item for item in value)
+
+
+def _transport_errors(where: str, transport: Any) -> list[str]:
+    """A transport this contract can act on, or the reason it cannot."""
+    if not isinstance(transport, Mapping):
+        return [f"{where} is not a mapping"]
+
+    kind = transport.get("kind")
+    if kind is None:
+        # The case that slipped through: no `kind` at all. A consumer would have
+        # to guess, and every guess is a rule it was never authorized to write.
+        return [f"{where}.kind is absent; a transport with no kind has no meaning here"]
+    if kind not in KNOWN_TRANSPORT_KINDS:
+        return [f"{where}.kind is {kind!r}; this contract acts on {sorted(KNOWN_TRANSPORT_KINDS)}"]
+
+    if kind == "any":
+        extra = sorted(set(transport) - {"kind"})
+        return [f"{where}.{name} is stated beside kind 'any', which constrains nothing" for name in extra]
+
+    errors: list[str] = []
+    protocol = transport.get("protocol")
+    if not isinstance(protocol, str) or not protocol:
+        errors.append(f"{where}.protocol is {protocol!r}; kind 'ports' needs a named protocol")
+
+    ports = transport.get("ports")
+    if not isinstance(ports, list) or not ports:
+        errors.append(f"{where}.ports is {ports!r}; kind 'ports' needs a non-empty port list")
+    else:
+        bad = [
+            item
+            for item in ports
+            if isinstance(item, bool) or not isinstance(item, int) or not 1 <= item <= 65535
+        ]
+        if bad:
+            errors.append(f"{where}.ports contains {bad!r}, which are not ports in 1-65535")
+    return errors
+
+
+def malformed_constructs(plan: Mapping[str, Any]) -> list[str]:
+    """Fields whose *values* this contract cannot act on.
+
+    `unsupported_constructs` closes the set of field names. This closes the set
+    of meanings, which a review found still open: a plan declaring
+    `schema_version: 999` or a transport kind nobody implemented was admitted,
+    because the key was spelled correctly.
+    """
+    errors: list[str] = []
+
+    version = plan.get("schema_version")
+    if version != PLAN_SCHEMA_VERSION:
+        errors.append(
+            f"plan.schema_version is {version!r}; this contract reads {PLAN_SCHEMA_VERSION} and cannot "
+            "know what a later grammar means by the fields it recognises"
+        )
+
+    for name in ("scopes", "lowering_complete", "strict_eligible", "blocked_scopes"):
+        if name in plan and not _string_list(plan[name]):
+            errors.append(f"plan.{name} is not a list of non-empty names")
+
+    rules = plan.get("rules")
+    if not isinstance(rules, list):
+        errors.append(f"plan.rules is {type(rules).__name__}, not a list")
+        return errors
+
+    for index, rule in enumerate(rules):
+        if not isinstance(rule, Mapping):
+            continue  # reported by unsupported_constructs
+        where = f"plan.rules[{index}]"
+
+        effect = rule.get("effect")
+        if effect not in KNOWN_EFFECTS:
+            errors.append(f"{where}.effect is {effect!r}; this contract acts on {sorted(KNOWN_EFFECTS)}")
+
+        if not isinstance(rule.get("terminal"), bool):
+            errors.append(f"{where}.terminal is {rule.get('terminal')!r}, which is not a boolean")
+
+        position = rule.get("position")
+        if isinstance(position, bool) or not isinstance(position, int):
+            errors.append(f"{where}.position is {position!r}, which is not an index")
+
+        scope = rule.get("scope")
+        if not isinstance(scope, str) or not scope:
+            errors.append(f"{where}.scope is {scope!r}; every rule belongs to a named scope")
+
+        for side in ("sources", "destinations"):
+            if side in rule and not isinstance(rule[side], list):
+                errors.append(f"{where}.{side} is not a list")
+
+        errors.extend(_transport_errors(f"{where}.transport", rule.get("transport")))
+    return errors
+
+
 def applicable_obligations(plan: Mapping[str, Any]) -> tuple[str, ...]:
     """Which obligations this particular plan has to have passed.
 
@@ -306,6 +411,10 @@ def evaluate(
             f"the plan carries construct(s) this contract has no meaning for: {unsupported}. An "
             "unknown field may carry semantics no obligation was checked against"
         )
+
+    malformed = malformed_constructs(plan)
+    if malformed:
+        reasons.append(f"the plan carries value(s) this contract cannot act on: {malformed}")
 
     if not str(expected_epoch or "").strip():
         reasons.append(
@@ -370,7 +479,17 @@ def evaluate(
                 "the verification record names no intent; without it an approval cannot be tied to "
                 "what was actually checked"
             )
-        if not verification.get("source_available", False):
+        if not evidence_digest:
+            # Without this, an empty digest in the record silently disabled the
+            # comparison below and any approval's evidence matched.
+            reasons.append(
+                "the verification record names no evidence; an empty digest compares equal to nothing "
+                "and would let any attestation stand"
+            )
+        # `is not True`, not falsiness. The string "false" is truthy, and a
+        # boundary that accepts a type it never asked for is deciding on a value
+        # it did not read.
+        if verification.get("source_available") is not True:
             reasons.append(
                 "the independent check could not read the source intent, so completeness against the "
                 "sources did not run"
@@ -398,8 +517,14 @@ def evaluate(
         missing = _missing(approved_intent, REQUIRED_APPROVAL_FIELDS)
         if missing:
             reasons.append(f"the approval is missing {missing}; a bare boolean approves nothing in particular")
-        if not approved_intent.get("approved"):
-            reasons.append("the approval does not approve; authored overrides are not approved bound permits")
+        # `is not True`: `approved: "false"` is a truthy string, and reading it as
+        # consent is the whole of this boundary failing on a type it never asked
+        # for. The same goes for 1, "no", and any other stand-in for a boolean.
+        if approved_intent.get("approved") is not True:
+            reasons.append(
+                f"the approval's `approved` is {approved_intent.get('approved')!r}, not the boolean "
+                "True; consent is not inferred from a value's truthiness"
+            )
         if not str(approved_intent.get("approved_by") or "").strip():
             reasons.append("the approval names no approver")
         if not str(approved_intent.get("epoch") or "").strip():
@@ -408,7 +533,7 @@ def evaluate(
         approved_for = str(approved_intent.get("intent_digest") or "")
         if not approved_for:
             reasons.append("the approval names no intent; it cannot be bound to what was checked")
-        elif intent_digest and approved_for != intent_digest:
+        elif approved_for != intent_digest:
             reasons.append(
                 f"the approval is for intent {approved_for[:19]} and the verifier checked "
                 f"{intent_digest[:19]}; an approval of other inputs is not an approval of these"
@@ -417,7 +542,7 @@ def evaluate(
         approved_evidence = str(approved_intent.get("evidence_digest") or "")
         if not approved_evidence:
             reasons.append("the approval names no evidence; a waiver it never saw would discharge SEC-AVAIL")
-        elif evidence_digest and approved_evidence != evidence_digest:
+        elif approved_evidence != evidence_digest:
             reasons.append(
                 f"the approval was given against evidence {approved_evidence[:19]} and the verifier "
                 f"recorded {evidence_digest[:19]}; an attestation signed by somebody else is not the "
@@ -597,6 +722,7 @@ __all__ = [
     "admitted_projection",
     "applicable_obligations",
     "content_digest",
+    "malformed_constructs",
     "evaluate",
     "nested_digest_fields",
     "strict_artifacts",

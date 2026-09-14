@@ -509,12 +509,27 @@ against, the same verified plan was admitted under two different ones. `evaluate
 takes `expected_epoch` from the deployment context and refuses to decide without
 it. This boundary cannot manufacture freshness; it can only refuse to pretend.
 
-**The plan shape is closed.** Every field is either known, or a reserved
-obligation name, or refused. Applicability was once inferred by searching the
-serialized plan for quoted words, which made the guard spelling-sensitive: `path`
-refused the plan and `paths` carrying the same content was admitted. A field this
-contract has no meaning for may carry semantics no obligation was checked
-against, so it is refused rather than ignored.
+**The plan shape is closed, over names and over meanings.** Every field is either
+known, or a reserved obligation name, or refused. Applicability was once inferred
+by searching the serialized plan for quoted words, which made the guard
+spelling-sensitive: `path` refused the plan and `paths` carrying the same content
+was admitted.
+
+Closing the field names was half of it. `transport.kind: not_implemented`, a
+transport with no `kind` at all and `schema_version: 999` all spell their keys
+correctly and were admitted - a consumer reading any of them would have to guess,
+and every guess is a rule nobody authorized. Values are checked against a stated
+grammar now: the transport kinds this contract acts on, ports inside 1-65535,
+`effect` in `{permit, deny}`, a boolean `terminal`, an integer `position`. A test
+asserts the grammar accepts what the compiler emits, since one stricter than the
+producer would refuse every real plan.
+
+**Consent is a boolean and a digest is compared, not consulted.** `approved:
+"false"` is a truthy string, and it used to admit the plan; the check is
+`is not True` now, and the same for `source_available`. An empty `evidence_digest`
+in the record used to disable the comparison against the approval's, so any
+attestation stood - an absent digest is refused rather than treated as matching
+everything.
 
 **The projection is detached, and only for the plan that was admitted.**
 `admitted_projection` re-establishes identity against a snapshot it takes first -
@@ -586,5 +601,6 @@ across every emitted file.
 | 2026-09-11 | `553c2e3b` | Section 7c: lowering, the independent interpreter, and SEC-AUTH/SEC-AVAIL as properties with mutants |
 | 2026-09-14 | `622eff34` | Section 7d: all eight obligations placed, the three habits behind them, and what SEC-PATH still needs from outside |
 | 2026-09-14 | `7128c2f6` | Section 4: `E7025` for a reference to a disabled record, and the ledger of allocated codes that nothing raises yet |
+| 2026-09-14 | `PENDING_SHA` | Section 7e: the grammar closed over values, consent as a boolean, and an empty digest refused rather than matched |
 | 2026-09-14 | `8dada8ef` | Section 7e: three digests, the caller-supplied epoch, the closed plan shape and the detached projection; after the external review of `c5a5addc` |
 | 2026-09-14 | `782061e8` | Section 7e: the admission chain, the three obligation answers, and the deferral that has a trigger; written after the external review of `5e02bf70` |

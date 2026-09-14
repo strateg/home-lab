@@ -1441,6 +1441,33 @@ this closes is the pretence that a filled-in string implemented them.
 *Not closed.* PR2 and the strict boundary still need a review against this code.
 G3 is not closed by a bounded fixture. F3 through F5 and W05 remain separate work.
 
+### Follow-up review, same day: the grammar and the input types
+
+The reviewer confirmed the six earlier counterexamples are refused and found
+three more, all of the same shape - a check that reads a value without deciding
+whether it can.
+
+**Closing the field names closed half the shape.** `transport.kind:
+not_implemented`, a transport with no `kind`, and `schema_version: 999` all spell
+their keys correctly, so the closed key set admitted every one. A consumer
+reading any of them would have to guess what they mean, and every guess is a rule
+nobody authorized. `malformed_constructs` states the grammar: the transport kinds
+this contract acts on, a non-empty port list inside 1-65535, `effect` in
+`{permit, deny}`, a boolean `terminal`, an integer `position`, a named scope. A
+test asserts it accepts what the compiler emits - a grammar stricter than the
+producer refuses every real plan and would look like a working boundary.
+
+**`approved: "false"` was consent.** A truthy string read as a boolean is this
+whole boundary failing on a type it never asked for. `is not True` now, and the
+same for `source_available`. Checked through the writer as well as in the verdict,
+because a return value nobody acts on proves nothing.
+
+**An empty `evidence_digest` disabled its own comparison.** `elif evidence_digest
+and ...` meant a record naming no evidence matched every approval. An absent
+digest is refused; it compares equal to nothing, which is not the same as matching
+everything. The intent digest had the explicit check and the evidence digest did
+not - the asymmetry was the defect.
+
 **A framework lock is not reproducible from a commit alone.** A detached worktree
 at `93c0c2f7` computes `sha256-f43ba202...` where the committed lock says
 `sha256-baee680d...`, while the same revision in the main working tree matches.

@@ -42,6 +42,7 @@ from plugins.validators.strict_admission import (  # noqa: E402
     applicable_obligations,
     content_digest,
     evaluate,
+    malformed_constructs,
     strict_artifacts,
     unsupported_constructs,
 )
@@ -548,6 +549,111 @@ def test_the_known_shape_is_the_one_the_compiler_emits() -> None:
     plan = strict_plan()
 
     assert unsupported_constructs(plan) == []
+
+
+# --- the grammar is closed over values, not only over key names -------------------------
+
+
+@pytest.mark.parametrize(
+    ("label", "transport"),
+    [
+        ("a kind nobody implemented", {"kind": "not_implemented"}),
+        ("no kind at all", {"protocol": "tcp", "ports": [443]}),
+        ("an empty transport", {}),
+        ("kind 'ports' with no ports", {"kind": "ports", "protocol": "tcp"}),
+        ("kind 'ports' with an empty list", {"kind": "ports", "protocol": "tcp", "ports": []}),
+        ("a port outside the range", {"kind": "ports", "protocol": "tcp", "ports": [0]}),
+        ("a port that is not a number", {"kind": "ports", "protocol": "tcp", "ports": ["443"]}),
+        ("kind 'any' carrying ports anyway", {"kind": "any", "ports": [443]}),
+    ],
+)
+def test_a_transport_this_contract_cannot_act_on_is_refused(label: str, transport: dict) -> None:
+    """Closing the set of field *names* left the set of *meanings* open.
+
+    A review admitted `transport.kind: not_implemented` and a transport with no
+    `kind` at all, because both spell their keys correctly. A consumer reading
+    either would have to guess, and every guess is a rule nobody authorized.
+    """
+    plan = strict_plan()
+    plan["rules"][0]["transport"] = transport
+
+    admission = admit(plan=plan, verification=verification_for(plan), approved_intent=APPROVED)
+
+    assert not admission.admitted, f"{label} passed the grammar"
+    assert any("cannot act on" in reason for reason in admission.reasons)
+
+
+def test_a_plan_written_to_a_later_grammar_is_refused() -> None:
+    """`schema_version: 999` names fields this contract recognises and cannot read."""
+    plan = strict_plan(schema_version=999)
+
+    admission = admit(plan=plan, verification=verification_for(plan), approved_intent=APPROVED)
+
+    assert not admission.admitted
+    assert any("schema_version" in reason for reason in admission.reasons)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("effect", "maybe"),
+        ("effect", None),
+        ("terminal", "false"),
+        ("position", "0"),
+        ("scope", ""),
+        ("sources", "z.a"),
+    ],
+)
+def test_a_rule_field_this_contract_cannot_read_is_refused(field: str, value) -> None:
+    plan = strict_plan()
+    plan["rules"][0][field] = value
+
+    assert not admit(plan=plan, verification=verification_for(plan), approved_intent=APPROVED).admitted
+
+
+def test_the_grammar_accepts_what_the_compiler_emits() -> None:
+    """A grammar stricter than the producer would refuse every real plan."""
+    assert malformed_constructs(strict_plan()) == []
+
+
+# --- consent is a boolean, and a digest that compares equal to nothing is refused --------
+
+
+@pytest.mark.parametrize("value", ["false", "no", 0.0, 1, [], {}, None, "true"])
+def test_consent_is_not_inferred_from_truthiness(value) -> None:
+    """`approved: "false"` is a truthy string, and it used to admit the plan."""
+    plan = strict_plan()
+
+    admission = admit(
+        plan=plan, verification=verification_for(plan), approved_intent=approval(approved=value)
+    )
+
+    assert not admission.admitted, f"approved={value!r} was read as consent"
+    assert any("not the boolean" in reason for reason in admission.reasons)
+
+
+def test_a_record_naming_no_evidence_is_refused() -> None:
+    """An empty digest compared equal to nothing, so any attestation stood."""
+    plan = strict_plan()
+
+    admission = admit(
+        plan=plan,
+        verification=verification_for(plan, evidence_digest=""),
+        approved_intent=approval(evidence_digest="sha256-" + "5" * 64),
+    )
+
+    assert not admission.admitted
+    assert any("names no evidence" in reason for reason in admission.reasons)
+
+
+def test_a_record_claiming_source_availability_with_a_string_is_refused() -> None:
+    plan = strict_plan()
+
+    admission = admit(
+        plan=plan, verification=verification_for(plan, source_available="false"), approved_intent=APPROVED
+    )
+
+    assert not admission.admitted
 
 
 # --- the evidence and the epoch are bound too -----------------------------------------

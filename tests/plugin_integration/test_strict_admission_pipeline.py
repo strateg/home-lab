@@ -495,6 +495,55 @@ def test_an_unbounded_availability_requirement_writes_nothing(tmp_path, monkeypa
     assert not marker.exists()
 
 
+@pytest.mark.parametrize("value", ["false", 1, "true"])
+def test_a_non_boolean_approval_writes_nothing(value, tmp_path, monkeypatch) -> None:
+    """Checked at the writer, not only in the verdict.
+
+    `approved: "false"` is a truthy string. A boundary that reads consent from
+    truthiness fails on a type it never asked for, and what matters is that the
+    file does not appear - a return value nobody acts on proves nothing.
+    """
+    rows = _admissible_rows()
+    plan = _as_strict(_run_pipeline(rows)[0])
+    record = _record_after_validation(plan, rows)
+
+    marker, output = _run_with_writer(
+        rows=rows,
+        plan=plan,
+        tmp_path=tmp_path,
+        approval=_approval_for(record, plan, approved=value),
+        monkeypatch=monkeypatch,
+    )
+
+    assert not marker.exists(), f"approved={value!r} reached the write"
+    assert any("not the boolean" in reason for reason in output["refusal"]), output["refusal"]
+
+
+def test_a_transport_the_contract_cannot_act_on_writes_nothing(tmp_path, monkeypatch) -> None:
+    """The grammar gap, through the writer: a kind nobody implemented."""
+    rows = _admissible_rows()
+    plan = _as_strict(_run_pipeline(rows)[0])
+    plan["rules"][0]["transport"] = {"kind": "not_implemented"}
+    record = _record_after_validation(plan, rows)
+
+    marker, output = _run_with_writer(
+        rows=rows, plan=plan, tmp_path=tmp_path, approval=_approval_for(record, plan), monkeypatch=monkeypatch
+    )
+
+    assert not marker.exists()
+    assert any("cannot act on" in reason for reason in output["refusal"]), output["refusal"]
+
+
+def test_the_real_plan_is_inside_the_grammar_this_contract_reads() -> None:
+    """A grammar stricter than the producer would refuse every real plan."""
+    from plugins.validators.strict_admission import malformed_constructs, unsupported_constructs
+
+    plan, _ = _run_pipeline(_real_rows())
+
+    assert unsupported_constructs(plan) == []
+    assert malformed_constructs(plan) == []
+
+
 def test_no_expected_epoch_writes_nothing(tmp_path, monkeypatch) -> None:
     """R5: the caller must name the epoch it is deciding for."""
     rows = _admissible_rows()
