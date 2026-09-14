@@ -364,3 +364,227 @@ def test_the_capability_catalog_holds_flags_not_offers() -> None:
         "checked against something real: implement E7042 and the SEC-CAP resolution against it, "
         "and see adr/0119-analysis/CAPABILITY-SATISFACTION-CONTRACT.md for what an offer must carry."
     )
+
+
+# --- composition: witnesses must hold together, not one at a time ----------------
+
+
+from netmodel.capability import (  # noqa: E402
+    Conflict,
+    check_joint_feasibility,
+    prerequisite_order,
+    self_proving,
+)
+
+AS_OF = "2026-09-14T00:00:00Z"
+
+
+def offers(*items: Offer) -> dict[str, Offer]:
+    return {item.offer_id: item for item in items}
+
+
+def test_two_adequate_offers_can_still_be_unusable_together() -> None:
+    """The contract's point: effective support is not the union of capabilities.
+
+    Each of these resolves on its own. Together they demand mutually exclusive
+    modes, and no plan can hold both.
+    """
+    fast = offer(offer_id="offer.offload", mode="hardware-offload")
+    inspecting = offer(offer_id="offer.inspect", mode="software-conntrack")
+
+    assert resolve(requirement(), [fast]).status is Status.SATISFIED
+    assert resolve(requirement(), [inspecting]).status is Status.SATISFIED
+
+    conflicts = check_joint_feasibility(
+        selection={"a": fast, "b": inspecting}, catalogue=offers(fast, inspecting), as_of=AS_OF
+    )
+
+    assert [item.kind for item in conflicts] == ["mode"]
+
+
+def test_one_mode_across_witnesses_is_feasible() -> None:
+    left = offer(offer_id="offer.a", mode="software-conntrack")
+    right = offer(offer_id="offer.b", mode="software-conntrack")
+
+    assert check_joint_feasibility(selection={"a": left, "b": right}, catalogue=offers(left, right), as_of=AS_OF) == []
+
+
+def test_witnesses_owned_by_different_operators_are_refused() -> None:
+    """One plan needs consistent ownership, not each offer owned by someone."""
+    terraform = offer(offer_id="offer.tf", owner="terraform")
+    ansible = offer(offer_id="offer.ansible", owner="ansible")
+
+    conflicts = check_joint_feasibility(
+        selection={"a": terraform, "b": ansible}, catalogue=offers(terraform, ansible), as_of=AS_OF
+    )
+
+    assert [item.kind for item in conflicts] == ["ownership"]
+
+
+def test_a_mutating_offer_without_delegation_is_refused() -> None:
+    writer = offer(offer_id="offer.writer", mutating=True, delegated=False)
+
+    conflicts = check_joint_feasibility(selection={"a": writer}, catalogue=offers(writer), as_of=AS_OF)
+
+    assert [item.kind for item in conflicts] == ["delegation"]
+
+
+def test_a_mutating_offer_with_delegation_is_accepted() -> None:
+    writer = offer(offer_id="offer.writer", mutating=True, delegated=True)
+
+    assert check_joint_feasibility(selection={"a": writer}, catalogue=offers(writer), as_of=AS_OF) == []
+
+
+# --- freshness ---------------------------------------------------------------------
+
+
+def test_expired_evidence_makes_a_selection_infeasible() -> None:
+    stale = offer(offer_id="offer.stale", evidence_expiry="2026-01-01T00:00:00Z")
+
+    conflicts = check_joint_feasibility(selection={"a": stale}, catalogue=offers(stale), as_of=AS_OF)
+
+    assert [item.kind for item in conflicts] == ["freshness"]
+
+
+def test_evidence_inside_its_window_is_fresh() -> None:
+    current = offer(offer_id="offer.fresh", evidence_expiry="2027-01-01T00:00:00Z")
+
+    assert check_joint_feasibility(selection={"a": current}, catalogue=offers(current), as_of=AS_OF) == []
+
+
+def test_an_offer_with_no_expiry_does_not_expire() -> None:
+    """A statement the offer makes, not an omission the checker fills in."""
+    permanent = offer(offer_id="offer.permanent", evidence_expiry=None)
+
+    assert check_joint_feasibility(selection={"a": permanent}, catalogue=offers(permanent), as_of=AS_OF) == []
+
+
+def test_freshness_needs_an_explicit_moment_and_reads_no_clock() -> None:
+    """Otherwise the same inputs give different answers on different days.
+
+    The contract wants timestamps out of semantic decisions and forbids one
+    universal timeout. `as_of` is required, and the module imports nothing that
+    could tell the time.
+    """
+    import ast
+    import inspect
+    from pathlib import Path
+
+    signature = inspect.signature(check_joint_feasibility)
+    assert signature.parameters["as_of"].default is inspect.Parameter.empty
+
+    module = Path(__file__).resolve().parents[2] / "netmodel" / "capability.py"
+    tree = ast.parse(module.read_text(encoding="utf-8"))
+    imported: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imported |= {alias.name for alias in node.names}
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imported.add(node.module)
+
+    assert not (imported & {"time", "datetime", "calendar"}), "a clock in here makes decisions non-deterministic"
+
+
+# --- the prerequisite graph -----------------------------------------------------------
+
+
+def test_prerequisites_are_ordered_dependencies_first() -> None:
+    base = offer(offer_id="offer.base")
+    middle = offer(offer_id="offer.middle", requires=("offer.base",))
+    top = offer(offer_id="offer.top", requires=("offer.middle",))
+
+    order = prerequisite_order(offers(base, middle, top))
+
+    assert order.index("offer.base") < order.index("offer.middle") < order.index("offer.top")
+
+
+def test_a_prerequisite_cycle_is_refused_with_the_path() -> None:
+    """Broken at an arbitrary edge, the answer would depend on iteration order."""
+    left = offer(offer_id="offer.left", requires=("offer.right",))
+    right = offer(offer_id="offer.right", requires=("offer.left",))
+
+    with pytest.raises(CapabilityError, match="prerequisite cycle"):
+        prerequisite_order(offers(left, right))
+
+
+def test_a_prerequisite_nobody_offers_is_refused() -> None:
+    dependent = offer(offer_id="offer.dependent", requires=("offer.absent",))
+
+    with pytest.raises(CapabilityError, match="unresolved prerequisite"):
+        prerequisite_order(offers(dependent))
+
+
+def test_a_cycle_in_the_selection_blocks_it() -> None:
+    left = offer(offer_id="offer.left", requires=("offer.right",))
+    right = offer(offer_id="offer.right", requires=("offer.left",))
+
+    conflicts = check_joint_feasibility(selection={"a": left, "b": right}, catalogue=offers(left, right), as_of=AS_OF)
+
+    assert [item.kind for item in conflicts] == ["prerequisite"]
+
+
+def test_an_offer_cannot_prove_itself() -> None:
+    """A strategy whose only prerequisite is the property it must prove.
+
+    Circular in a way neither end shows: the offer looks like it has a
+    dependency, and the dependency looks like it has a witness.
+    """
+    circular = offer(offer_id="offer.circular", requires=("cap.firewall.stateful",))
+
+    assert self_proving(requirement(), circular)
+    assert not self_proving(requirement(), offer(requires=("cap.other",)))
+    assert not self_proving(requirement(), offer(requires=("cap.firewall.stateful", "cap.other")))
+
+
+# --- aggregate capacity -----------------------------------------------------------------
+
+
+def test_shared_capacity_is_checked_across_the_selection() -> None:
+    """Each witness is adequate alone; the plan needs more than the tightest gives."""
+    roomy = offer(offer_id="offer.roomy", limits={"sessions": 5000})
+    tight = offer(offer_id="offer.tight", limits={"sessions": 100})
+
+    conflicts = check_joint_feasibility(
+        selection={"a": roomy, "b": tight},
+        catalogue=offers(roomy, tight),
+        as_of=AS_OF,
+        aggregate_bounds={"sessions": 1000},
+    )
+
+    assert [item.kind for item in conflicts] == ["capacity"]
+    assert "tightest witness provides 100" in str(conflicts[0])
+
+
+def test_an_unknown_limit_does_not_count_as_capacity() -> None:
+    """It also does not fail the aggregate check by itself; it is simply not evidence."""
+    unknown = offer(offer_id="offer.unknown", limits={"sessions": UNKNOWN})
+
+    conflicts = check_joint_feasibility(
+        selection={"a": unknown},
+        catalogue=offers(unknown),
+        as_of=AS_OF,
+        aggregate_bounds={"sessions": 1000},
+    )
+
+    assert conflicts == []
+
+
+def test_a_feasible_selection_reports_nothing() -> None:
+    """Not vacuous: the same call shape returns conflicts elsewhere in this file."""
+    base = offer(offer_id="offer.base", mode="software-conntrack", owner="terraform")
+    dependent = offer(
+        offer_id="offer.dependent",
+        mode="software-conntrack",
+        owner="terraform",
+        requires=("offer.base",),
+        limits={"sessions": 5000},
+    )
+
+    conflicts = check_joint_feasibility(
+        selection={"a": base, "b": dependent},
+        catalogue=offers(base, dependent),
+        as_of=AS_OF,
+        aggregate_bounds={"sessions": 1000},
+    )
+
+    assert conflicts == []

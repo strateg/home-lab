@@ -585,8 +585,31 @@ Neither answers the other's question.
 Evidence is now a **set of kinds** an offer holds, and satisfaction is membership.
 Both directions are tested: live does not discharge offline, offline does not
 discharge live, an offer may hold several kinds at once, and an offer holding none
-satisfies nothing. Joint satisfiability across offers, freshness and ownership
-remain unimplemented and are named as such.
+satisfies nothing.
+
+*Joint satisfiability, freshness and ownership, named as missing above, are now
+implemented.* The contract's section 3 is the reason they cannot be folded into
+per-offer resolution: effective support is **not the union of capabilities on all
+devices**, so two offers can each be adequate and be unusable together.
+
+| Checked in combination | Refused because |
+|---|---|
+| Mutually exclusive modes | Hardware offload and software conntrack cannot both hold in one plan |
+| Ownership across witnesses | One plan needs one operator, not each offer owned by someone |
+| Delegation | A mutating operation without a delegated owner is a hidden imperative writer |
+| Evidence freshness | Stale is `unverified`, and an offer with no expiry does not expire - that is a statement it makes, not an omission the checker fills in |
+| Prerequisite graph | Bounded and acyclic; a cycle is refused rather than broken at an arbitrary edge, since which offer came first would then depend on iteration order |
+| Aggregate capacity | The tightest witness bounds the plan, not the roomiest |
+
+`as_of` is a required argument with no default, and a test asserts the module
+imports nothing that can tell the time: a clock inside the decision would make the
+same inputs answer differently on different days, and the contract both wants
+timestamps out of semantic identity and forbids one universal timeout.
+
+`self_proving` catches the circularity the contract names directly - a strategy
+whose only prerequisite is the property it is meant to prove. Neither end shows
+it: the offer looks like it has a dependency, and the dependency looks like it has
+a witness.
 
 **3. W05 stays a blocker for the generator cutover**, unchanged, and the
 characterization says so: the two overlay CIDRs are still declared on trust zones
@@ -607,11 +630,10 @@ endpoints remain inside the envelope. That case is now asserted directly: both e
 safe, a state between them not, which is the entire reason to check states rather
 than endpoints.
 
-12 transition tests, 30 capability tests, 277 in netmodel. Layer contract PASS.
+12 transition tests, 47 capability tests, 294 in netmodel. Layer contract PASS.
 Artifact parity identical across 147 files.
 
-Still to come in W06: path and state algebra, and the joint offer resolution
-`netmodel.capability` now has a shape for.
+Still to come in W06: path and state algebra (SEC-PATH, SEC-STATE).
 
 **A framework lock is not reproducible from a commit alone.** A detached worktree
 at `93c0c2f7` computes `sha256-f43ba202...` where the committed lock says

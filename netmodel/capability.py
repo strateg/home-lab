@@ -130,6 +130,12 @@ class Offer:
     contexts: tuple[Context, ...]
     limits: Mapping[str, int | Unknown] = field(default_factory=dict)
     evidence: frozenset[EvidenceLevel] = field(default_factory=frozenset)
+    mode: str | None = None
+    requires: tuple[str, ...] = ()
+    owner: str | None = None
+    evidence_expiry: str | None = None
+    mutating: bool = False
+    delegated: bool = False
 
     def __post_init__(self) -> None:
         if not self.contexts:
@@ -293,6 +299,7 @@ def coverage(requirements: Iterable[Requirement], offers: Iterable[Offer]) -> di
 __all__ = [
     "UNKNOWN",
     "CapabilityError",
+    "Conflict",
     "Context",
     "EvidenceLevel",
     "NotApplicable",
@@ -301,7 +308,151 @@ __all__ = [
     "Resolution",
     "Status",
     "Unknown",
+    "check_joint_feasibility",
     "check_offer_identity",
     "coverage",
+    "prerequisite_order",
     "resolve",
+    "self_proving",
 ]
+
+
+# --- composition: witnesses have to hold together, not one at a time ------------
+
+
+@dataclass(frozen=True, slots=True)
+class Conflict:
+    """One reason a set of witnesses cannot be used in a single plan."""
+
+    kind: str
+    detail: str
+
+    def __str__(self) -> str:
+        return f"{self.kind}: {self.detail}"
+
+
+def _stale(offer: Offer, as_of: str) -> bool:
+    """Whether the offer's evidence has expired as of the given moment.
+
+    `as_of` is required and has no default. Reading a clock here would put a
+    timestamp inside a decision the contract wants deterministic, and would make
+    the same inputs give different answers on different days. An offer with no
+    expiry does not expire; that is a statement the offer makes, not an omission
+    this function fills in.
+    """
+    if offer.evidence_expiry is None:
+        return False
+    return offer.evidence_expiry < as_of
+
+
+def prerequisite_order(offers: Mapping[str, Offer]) -> list[str]:
+    """A canonical order over the prerequisite graph, or an error.
+
+    Bounded and acyclic, as the contract requires. A cycle is refused rather than
+    broken at an arbitrary edge: which offer would then come first depends on
+    iteration order, and a resolution that changes with dictionary ordering is
+    not a resolution.
+    """
+    state: dict[str, int] = {}
+    order: list[str] = []
+
+    def visit(offer_id: str, path: tuple[str, ...]) -> None:
+        if state.get(offer_id) == 2:
+            return
+        if state.get(offer_id) == 1:
+            cycle = " -> ".join((*path[path.index(offer_id) :], offer_id))
+            raise CapabilityError(f"prerequisite cycle: {cycle}")
+        offer = offers.get(offer_id)
+        if offer is None:
+            raise CapabilityError(f"unresolved prerequisite: {offer_id} is required but not offered")
+        state[offer_id] = 1
+        for prerequisite in offer.requires:
+            visit(prerequisite, (*path, offer_id))
+        state[offer_id] = 2
+        order.append(offer_id)
+
+    for offer_id in sorted(offers):
+        visit(offer_id, ())
+    return order
+
+
+def check_joint_feasibility(
+    *,
+    selection: Mapping[str, Offer],
+    catalogue: Mapping[str, Offer],
+    as_of: str,
+    aggregate_bounds: Mapping[str, int] | None = None,
+) -> list[Conflict]:
+    """Whether these witnesses can be used together in one plan.
+
+    The contract is explicit that effective support is *not* the union of
+    capabilities on all devices: two offers can each be adequate and still be
+    unusable together. So this checks the things that only appear in
+    combination - mutually exclusive modes, shared capacity, one owner across
+    requirements - plus the prerequisite graph and evidence freshness, which are
+    per-offer but block the whole selection.
+    """
+    conflicts: list[Conflict] = []
+    chosen = {offer.offer_id: offer for offer in selection.values()}
+
+    modes = {offer.mode for offer in chosen.values() if offer.mode is not None}
+    if len(modes) > 1:
+        conflicts.append(Conflict("mode", f"witnesses require mutually exclusive modes {sorted(modes)}"))
+
+    owners = {offer.owner for offer in chosen.values() if offer.owner is not None}
+    if len(owners) > 1:
+        conflicts.append(
+            Conflict("ownership", f"witnesses are owned by {sorted(owners)}; one plan needs consistent ownership")
+        )
+
+    for offer in sorted(chosen.values(), key=lambda item: item.offer_id):
+        if offer.mutating and not offer.delegated:
+            conflicts.append(
+                Conflict(
+                    "delegation",
+                    f"{offer.offer_id} mutates state without a delegated owner operation",
+                )
+            )
+        if _stale(offer, as_of):
+            conflicts.append(
+                Conflict("freshness", f"{offer.offer_id} evidence expired at {offer.evidence_expiry}, now {as_of}")
+            )
+
+    reachable = dict(chosen)
+    for offer in chosen.values():
+        for prerequisite in offer.requires:
+            candidate = catalogue.get(prerequisite)
+            if candidate is not None:
+                reachable[prerequisite] = candidate
+    try:
+        prerequisite_order(reachable)
+    except CapabilityError as exc:
+        conflicts.append(Conflict("prerequisite", str(exc)))
+
+    if aggregate_bounds:
+        for name, capacity in sorted(aggregate_bounds.items()):
+            stated = [
+                offer.limits[name]
+                for offer in chosen.values()
+                if name in offer.limits and not isinstance(offer.limits[name], Unknown)
+            ]
+            if stated and min(stated) < capacity:
+                conflicts.append(
+                    Conflict(
+                        "capacity",
+                        f"{name}: the plan needs {capacity}, the tightest witness provides {min(stated)}",
+                    )
+                )
+
+    return conflicts
+
+
+def self_proving(requirement: Requirement, offer: Offer) -> bool:
+    """Whether an offer's only prerequisite is the property it is meant to prove.
+
+    The contract names this directly: a strategy cannot use the property it is
+    supposed to prove as its only prerequisite. It is circular in a way that is
+    hard to see from either end alone - the offer looks like it has a dependency,
+    and the dependency looks like it has a witness.
+    """
+    return tuple(offer.requires) == (requirement.capability_ref,)
