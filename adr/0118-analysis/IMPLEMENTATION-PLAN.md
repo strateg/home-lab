@@ -703,10 +703,44 @@ silence never means yes; nothing marks its own homework; and every checker is
 shown failing on a plan that is definitely wrong before it is trusted about one
 that looks right. `MODEL-OPERATION.md` section 7d has the table.
 
-What remains for G3 is not another obligation but the join: mounting these against
-the real compiled model rather than fixtures, which needs the plan compiler in the
-framework - and that, per the plan's own decomposition note, is W06/W07 contract
-work that fixes where backend specialization lives.
+### The obligations against the real topology, 2026-09-14
+
+Everything above was checked on fixtures, and a fixture agrees with whatever its
+author believed. The eight zone-to-zone overrides that two security matrices
+actually declare are now read from the compiled model, lowered, interpreted and
+compared with the algebra. Reading them needed one addition to `snapshot.py`,
+selecting matrices by declared class rather than identifier prefix, for the reason
+W05 records.
+
+SEC-AUTH and SEC-AVAIL hold on the real intent, and the terminal deny closes the
+declared scope with no flow left unmatched. Neither result is the valuable part.
+
+**The valuable part: the model cannot express the only mandatory deny the sources
+contain.** Three of the eight overrides carry no ports - `management-to-servers-full`,
+`lan-to-management-admin`, and `servers-to-management-deny`, which is the single
+`drop` in the whole topology. The model refuses an unbounded port set deliberately:
+an empty selector is an error rather than "any", and a constraint that is not about
+ports is a separate shape. So the strongest guard in the sources is currently
+inexpressible.
+
+That is a migration finding, not a model defect - the source says "deny everything
+from servers to management" and the target wants it said as a bounded set or as a
+typed non-port constraint. It is recorded as a test rather than a note, because a
+model that expressed five permits and silently dropped the one deny would look
+like progress. The test passes while the gap exists and fails when the deny
+becomes expressible, at which point it must be re-derived and SEC-AUTH re-measured
+with it present.
+
+The guard-precedence test skips rather than asserting guards exist: asserting
+would fail for a reason that test is not about, and an empty loop passing quietly
+would be worse than either.
+
+8 tests, one skipped for the reason above; 329 in netmodel.
+
+What remains for G3 is not another obligation but the join into the framework: a
+plan compiler that produces these plans from the compiled model rather than a test
+deriving them. Per the plan's own decomposition note that is W06/W07 contract work
+which also fixes where backend specialization lives.
 
 **A framework lock is not reproducible from a commit alone.** A detached worktree
 at `93c0c2f7` computes `sha256-f43ba202...` where the committed lock says

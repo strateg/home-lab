@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 from netmodel.domains import AddressDomain, parse_address, parse_prefix
 
@@ -145,3 +145,56 @@ def read_zone_overlay_networks(model: dict[str, Any]) -> dict[str, list[str]]:
         if cidrs:
             overlays[instance_id] = sorted(cidrs)
     return overlays
+
+
+# --- security matrices: the intent that exists in the sources today --------------
+
+
+def _class_of(row: dict[str, Any]) -> str | None:
+    payload = row.get("class")
+    lineage = payload.get("lineage") if isinstance(payload, dict) else None
+    if isinstance(lineage, list) and lineage:
+        return lineage[-1]
+    class_ref = row.get("class_ref")
+    return class_ref if isinstance(class_ref, str) else None
+
+
+def read_security_matrices(model: dict[str, Any]) -> list[dict[str, Any]]:
+    """Every security matrix row, whatever instance group it landed in.
+
+    Selected by declared class rather than by identifier prefix, for the reason
+    W05 records: a prefix selector can only see what its author happened to name
+    that way.
+    """
+    instances = model.get("instances")
+    if not isinstance(instances, Mapping):
+        return []
+    return [
+        row
+        for group in instances.values()
+        if isinstance(group, list)
+        for row in group
+        if isinstance(row, dict) and _class_of(row) == "class.network.security_matrix"
+    ]
+
+
+def read_zone_policy_overrides(model: dict[str, Any]) -> list[dict[str, Any]]:
+    """Zone-to-zone overrides, flattened, each tagged with its matrix.
+
+    This is where the authorization intent actually lives in the sources today.
+    It is v1 shaped - an action, a zone pair and a port map - and reading it is
+    how the target model gets something real to be checked against before any
+    source is migrated.
+    """
+    flattened: list[dict[str, Any]] = []
+    for row in read_security_matrices(model):
+        matrix_id = row.get("instance_id")
+        data = row.get("instance_data")
+        overrides = data.get("policy_overrides") if isinstance(data, Mapping) else None
+        if not isinstance(overrides, list):
+            continue
+        for override in overrides:
+            if not isinstance(override, Mapping):
+                continue
+            flattened.append({**override, "matrix_ref": matrix_id})
+    return flattened
