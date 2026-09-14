@@ -1567,11 +1567,21 @@ notice the two disagreeing, and a negative control - stripping
 *Measured.* One compile before and one after, fixed timestamp, compared with
 `compare_artifacts.py`: **163 files, identical outside the declared exclusions.**
 
-*Still open.* Divergence 3 is unchanged: the projection's substring VLAN selector
-still matches five routing policies, harmless only because they carry neither
-`trust_zone_ref` nor `cidr`. It no longer feeds the generator's output, but the
-oracle uses it. And making the overlay networks address domains in their own right
-remains the cleaner model and a separate source change.
+*Divergence 3, closed the same day.* The projection selected address domains by a
+substring of the object ref, so five routing policies passed the filter, harmless
+only because they declare neither `trust_zone_ref` nor `cidr`. Both sides select by
+declared class now, with separate copies of the class list and a test asserting
+they agree - the oracle has to be able to disagree with the core, which is the
+point of keeping it. Artifacts byte-identical again.
+
+*Still open, and now the only W05 item.* Making the overlay networks address
+domains in their own right. `netmodel` derives zone prefixes from domains alone and
+still shows the delta; a computed check says modelling each overlay as a domain in
+the same zone yields exactly the rendered set. That proves parity **for the address
+lists**, not for every artifact a new network class touches - and the class would
+have to carry a prefix and a zone ref without rendering a VLAN interface, which
+`class.network.vlan` does. A source change for a policy owner, with its own
+artifact comparison.
 
 **A framework lock is not reproducible from a commit alone.** A detached worktree
 at `93c0c2f7` computes `sha256-f43ba202...` where the committed lock says

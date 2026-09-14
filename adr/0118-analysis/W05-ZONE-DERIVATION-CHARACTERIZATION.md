@@ -197,14 +197,39 @@ Two implementations that must agree is how this project detects a divergence;
 deleting one would leave nothing to notice it with. A negative control - removing
 `additional_networks` from the oracle - fails that test, so it has teeth.
 
-**Divergence 3 is unchanged and still latent.** The projection's VLAN selector is
-still a substring of the object ref, and five routing policies still pass it while
-carrying neither `trust_zone_ref` nor `cidr`. That selector no longer feeds the
-generator's zone derivation, because the generator no longer derives zones - but
-the oracle uses it, so the test recording the incidental safety stays.
+**Divergence 3, closed the same day.** The projection selected address domains by
+a substring of the object ref, so five routing policies extending
+`obj.network.routing_policy.vpn_vlan` passed the filter. They were harmless only
+because they declare neither `trust_zone_ref` nor `cidr` - one that ever gained a
+`cidr` would have entered the address lists through that path alone, and the
+safety was incidental rather than designed.
 
-**Still open.** Making the overlay networks address domains in their own right -
-a class carrying a prefix and a `trust_zone_ref` without rendering a VLAN
-interface - remains the cleaner model and remains a source change with an artifact
-delta to review. What is closed is A24: zone membership is derived exactly once,
-in a core-level plugin, and the rendered output did not move.
+Both sides now select by declared class. The lists are separate copies on purpose:
+the projection is the parity oracle and has to be able to disagree with the core,
+so a test asserts the two agree rather than making one import the other - the same
+arrangement the plan validator uses for its protocol set. The trust-zone selector
+moved off substrings with it.
+
+Measured: a compile at `df006ef6` in a detached worktree against this one, 163
+files, every emitted artifact byte-identical. The five routing-policy instances
+are untouched; what changed is that a substring of an identifier no longer decides
+what a network is.
+
+**Still open, and now the only thing that is.** Making the overlay networks
+address domains in their own right remains the cleaner model. `netmodel` derives
+zone prefixes from address domains alone, so it still shows the overlay delta -
+`test_migrating_the_overlays_would_close_the_delta` computes that modelling each
+overlay as a domain declaring the same zone yields exactly the rendered set, which
+is why the change is parity *for the address lists*.
+
+That computation is not the whole question. The class would have to carry a prefix
+and a `trust_zone_ref` **without** rendering a VLAN interface, and
+`class.network.vlan` renders one - reusing it would put phantom interfaces on the
+router. So the migration needs a class of its own, and the parity proof covers the
+address lists rather than every artifact a new network class touches. It is a
+source change for a policy owner, with its own artifact comparison, and it is
+deliberately not bundled with the cutover.
+
+What is closed is A24: zone membership is derived exactly once, in a core-level
+plugin; both selectors read declared classes; and the rendered output did not move
+through either step.

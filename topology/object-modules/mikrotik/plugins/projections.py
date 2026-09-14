@@ -549,6 +549,37 @@ def _extract_bridge_vlans(
     return sorted(bridge_vlans.values(), key=lambda x: x.get("vlan_id", 0))
 
 
+# Which classes are address domains - networks that carry a prefix and belong to a
+# trust zone. Kept here rather than imported from `security_matrix_compiler` for
+# the reason the plan-validator keeps its own protocol set: this derivation is the
+# parity oracle and has to be able to disagree with the core. A test asserts the
+# two lists are equal.
+#
+# W05 divergence 3: selection used to be `"vlan" in object_ref`, a substring of an
+# identifier. Five routing policies extend `obj.network.routing_policy.vpn_vlan`
+# and passed it; they were harmless only because they declare neither
+# `trust_zone_ref` nor `cidr`, so both guards skipped them. One that ever gained a
+# `cidr` would have entered the address lists through this path alone. The safety
+# was incidental, and it is now structural.
+ADDRESS_DOMAIN_CLASSES = ("class.network.vlan",)
+TRUST_ZONE_CLASS = "class.network.trust_zone"
+
+
+def _row_class(row: dict[str, Any]) -> str | None:
+    """The row's class id, from whichever shape the stage provides.
+
+    An effective-model row carries a resolved `class` payload whose `lineage`
+    ends with the id; `normalized_rows` carry `class_ref` as a string. Reading
+    only one silently matches nothing in the other stage.
+    """
+    class_ref = row.get("class_ref")
+    if isinstance(class_ref, str) and class_ref:
+        return class_ref
+    payload = row.get("class")
+    lineage = payload.get("lineage") if isinstance(payload, dict) else None
+    return lineage[-1] if isinstance(lineage, list) and lineage else None
+
+
 def _extract_security_matrix(
     network_rows: list[dict[str, Any]],
     router_ids: set[str],
@@ -606,7 +637,7 @@ def _extract_security_matrix(
         vlan_cidr_map: dict[str, str] = dict(compiled_vlan_cidrs or {})
         for net_row in [] if compiled_vlan_cidrs is not None else network_rows:
             net_object_ref = _resolved_object_ref(net_row)
-            if "vlan" not in net_object_ref:
+            if _row_class(net_row) not in ADDRESS_DOMAIN_CLASSES:
                 continue
             net_inst_data = net_row.get("instance_data", {})
             if not isinstance(net_inst_data, dict):
@@ -640,7 +671,7 @@ def _extract_security_matrix(
             }
         for net_row in [] if compiled_zones is not None else network_rows:
             net_object_ref = _resolved_object_ref(net_row)
-            if "trust_zone" not in net_object_ref:
+            if _row_class(net_row) != TRUST_ZONE_CLASS:
                 continue
             zone_instance = str(net_row.get("instance_id", "")).strip()
             if zone_instance not in zone_refs:

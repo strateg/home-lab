@@ -206,26 +206,51 @@ def test_the_overlay_cidrs_still_reach_the_rendered_artifact() -> None:
         assert cidr in text, f"{cidr} left the address lists; that is an exposure change, not a refactor"
 
 
-def test_projection_vlan_selector_matches_non_vlan_objects() -> None:
-    """Third divergence, latent today.
+def test_the_routing_policies_that_used_to_pass_the_selector_still_exist() -> None:
+    """Divergence 3, and why closing it mattered.
 
-    The compiler selects VLANs by instance id prefix; the projection selects them
-    by a substring of the object ref. Five routing policies extend an object whose
-    name contains "vlan" and therefore pass the projection's filter. They are
-    harmless only because they carry neither `trust_zone_ref` nor `cidr`, so both
-    guards skip them. This test records that the safety is incidental.
+    The projection selected address domains by a substring of the object ref, so
+    five routing policies extending `obj.network.routing_policy.vpn_vlan` passed
+    the filter. They were harmless only because they declare neither
+    `trust_zone_ref` nor `cidr`, so both guards skipped them - one that ever
+    gained a `cidr` would have entered the address lists through that path alone.
+
+    The instances are still there. What changed is that a substring of an
+    identifier no longer decides what a network is.
     """
-    matched: list[str] = []
-    for path in sorted(INSTANCES.glob("inst.routing_policy.*.yaml")):
-        data = load_yaml_file(path)
-        extends = str(data.get("@extends", ""))
-        if "vlan" not in extends:
-            continue
-        matched.append(path.stem)
-        assert "trust_zone_ref" not in data, f"{path.stem} would now pollute vlan_zone_map"
-        assert "cidr" not in data, f"{path.stem} would now pollute vlan_cidr_map"
+    matched = [
+        path.stem
+        for path in sorted(INSTANCES.glob("inst.routing_policy.*.yaml"))
+        if "vlan" in str(load_yaml_file(path).get("@extends", ""))
+    ]
 
     assert matched, "expected routing policies extending a vlan-named object"
+
+
+def test_both_derivations_select_address_domains_by_class() -> None:
+    """Divergence 3, closed on both sides.
+
+    The lists are separate copies on purpose - the projection is the parity
+    oracle and has to be able to disagree with the core - so this asserts they
+    agree rather than that one imports the other.
+    """
+    import importlib.util
+    import sys as _sys
+
+    _sys.path.insert(0, str(REPO_ROOT / "topology-tools"))
+    from plugins.compilers.security_matrix_compiler import SecurityMatrixCompiler
+
+    spec = importlib.util.spec_from_file_location("w05_selector_projections", PROJECTIONS)
+    module = importlib.util.module_from_spec(spec)
+    _sys.modules["w05_selector_projections"] = module
+    spec.loader.exec_module(module)
+
+    assert tuple(module.ADDRESS_DOMAIN_CLASSES) == tuple(SecurityMatrixCompiler._ADDRESS_DOMAIN_CLASSES)
+    assert module.TRUST_ZONE_CLASS == "class.network.trust_zone"
+
+    source = PROJECTIONS.read_text(encoding="utf-8")
+    assert '"vlan" not in net_object_ref' not in source, "the substring selector is back"
+    assert '"trust_zone" not in net_object_ref' not in source
 
 
 # --- selection by kind, not by identifier shape --------------------------------
