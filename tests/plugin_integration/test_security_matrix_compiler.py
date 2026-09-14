@@ -396,23 +396,27 @@ class TestSecurityMatrixCompilerIntegration:
             # Trust zones
             {
                 "instance": "inst.trust_zone.management",
+                "class_ref": "class.network.trust_zone",
                 "object_ref": "obj.network.trust_zone.management",
                 "extensions": {"security_level": 5, "isolated": False, "name": "management"},
             },
             {
                 "instance": "inst.trust_zone.user",
+                "class_ref": "class.network.trust_zone",
                 "object_ref": "obj.network.trust_zone.user",
                 "extensions": {"security_level": 3, "isolated": False, "name": "user"},
             },
             # VLANs with trust_zone_ref
             {
                 "instance": "inst.vlan.user",
+                "class_ref": "class.network.vlan",
                 "object_ref": "obj.network.vlan.user",
                 "extensions": {"trust_zone_ref": "inst.trust_zone.user", "cidr": "192.168.10.0/24"},
             },
             # Security matrix
             {
                 "instance": "inst.security_matrix.mikrotik",
+                "class_ref": "class.network.security_matrix",
                 "object_ref": "obj.network.security_matrix.soho",
                 "extensions": {
                     "managed_by_ref": "rtr-mikrotik-chateau",
@@ -439,21 +443,25 @@ class TestSecurityMatrixCompilerIntegration:
         rows = [
             {
                 "instance": "inst.trust_zone.user",
+                "class_ref": "class.network.trust_zone",
                 "object_ref": "obj.network.trust_zone.user",
                 "extensions": {"security_level": 3, "isolated": False},
             },
             {
                 "instance": "inst.vlan.user",
+                "class_ref": "class.network.vlan",
                 "object_ref": "obj.network.vlan.user",
                 "extensions": {"trust_zone_ref": "inst.trust_zone.user", "cidr": "192.168.10.0/24"},
             },
             {
                 "instance": "inst.vlan.user_wireless",
+                "class_ref": "class.network.vlan",
                 "object_ref": "obj.network.vlan.user",
                 "extensions": {"trust_zone_ref": "inst.trust_zone.user", "cidr": "192.168.11.0/24"},
             },
             {
                 "instance": "inst.security_matrix.mikrotik",
+                "class_ref": "class.network.security_matrix",
                 "object_ref": "obj.network.security_matrix.soho",
                 "extensions": {"zone_refs": ["inst.trust_zone.user"]},
             },
@@ -476,6 +484,7 @@ class TestSecurityMatrixCompilerIntegration:
         rows = [
             {
                 "instance": "inst.security_matrix.mikrotik",
+                "class_ref": "class.network.security_matrix",
                 "object_ref": "obj.network.security_matrix.soho",
                 "extensions": {"zone_refs": ["inst.trust_zone.nonexistent"]},
             },
@@ -498,6 +507,7 @@ class TestSecurityMatrixCompilerIntegration:
         rows = [
             {
                 "instance": "inst.security_matrix.empty",
+                "class_ref": "class.network.security_matrix",
                 "object_ref": "obj.network.security_matrix.soho",
                 "extensions": {},
             },
@@ -521,16 +531,19 @@ class TestSecurityMatrixCompilerIntegration:
         rows = [
             {
                 "instance": "inst.trust_zone.user",
+                "class_ref": "class.network.trust_zone",
                 "object_ref": "obj.network.trust_zone.user",
                 "extensions": {"security_level": 3, "isolated": False},
             },
             {
                 "instance": "inst.vlan.user",
+                "class_ref": "class.network.vlan",
                 "object_ref": "obj.network.vlan.user",
                 "extensions": {"trust_zone_ref": "inst.trust_zone.user", "cidr": "192.168.10.0/24"},
             },
             {
                 "instance": "inst.security_matrix.mikrotik",
+                "class_ref": "class.network.security_matrix",
                 "object_ref": "obj.network.security_matrix.soho",
                 "extensions": {"zone_refs": ["inst.trust_zone.user"]},
             },
@@ -553,11 +566,13 @@ class TestSecurityMatrixCompilerIntegration:
         rows = [
             {
                 "instance": "inst.trust_zone.user",
+                "class_ref": "class.network.trust_zone",
                 "object_ref": "obj.network.trust_zone.user",
                 "extensions": {"security_level": 3, "isolated": False},
             },
             {
                 "instance": "inst.security_matrix.mikrotik",
+                "class_ref": "class.network.security_matrix",
                 "object_ref": "obj.network.security_matrix.soho",
                 "extensions": {
                     "managed_by_ref": "rtr-mikrotik-chateau",
@@ -586,6 +601,7 @@ class TestZoneDataExtraction:
         plugin = _create_plugin()
         row = {
             "instance": "inst.trust_zone.user",
+            "class_ref": "class.network.trust_zone",
             "object_ref": "obj.network.trust_zone.user",
             "extensions": {"security_level": 3, "isolated": False, "name": "user"},
         }
@@ -603,6 +619,7 @@ class TestZoneDataExtraction:
         plugin = _create_plugin()
         row = {
             "instance": "inst.trust_zone.user",
+            "class_ref": "class.network.trust_zone",
             "object_ref": "obj.network.trust_zone.user",
             "extensions": {},
         }
@@ -628,6 +645,7 @@ class TestZoneDataExtraction:
         plugin = _create_plugin()
         row = {
             "instance": "inst.trust_zone.unknown",
+            "class_ref": "class.network.trust_zone",
             "object_ref": "obj.network.trust_zone.unknown",
             "extensions": {"isolated": False},
         }

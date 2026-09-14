@@ -847,9 +847,39 @@ keep being named. The decision records its own falsifier - a specialization need
 information that exists only after generation would put the seam in the wrong place
 - because a decision with no stated falsifier is a preference.
 
-G3's remaining work is no longer a missing piece but a widening one: the plan is
-built for zone-to-zone overrides, and carrying publications, routes and
-interface-scoped transforms is now W07 migration work with a decided destination.
+### PR1 from the post-fix review, 2026-09-14 — gates restored
+
+`docs/reports/2026-09-14-adr0118-0119-post-fix-review.md` measured two red gates,
+and both were mine.
+
+**Three fixtures in `test_security_matrix_compiler.py`.** The class-based selector
+(`e0d39f6a`) reads `class_ref`, and those fixtures carry only an instance id. I ran
+the W05 parity test and the netmodel suite after that change and **not the test
+file of the module I had changed** - the parity evidence I did collect said
+nothing about the compiler's own contract tests. Fixed by giving the fixture rows
+the `class_ref` that `normalized_rows` carries, not by restoring prefix selection.
+
+**Two banned registry accesses.** `test_integration_tests_no_legacy_publish_registry`
+forbids `get_published_data(` in the integration suite, and I introduced it in two
+files while working around `subscribe` needing an execution scope that is gone by
+assertion time. The correct shape was already there: every other plugin returns
+what it produced in `output_data`, and a test reads that. Both compilers now do,
+and the tests read the result rather than reaching into a private structure the
+envelope contract exists to replace.
+
+A third failure surfaced while verifying: two of my own `--diagnostics` tests
+failed on a stale `framework.lock` after the compiler edits. Refreshed.
+
+The review's own selection - 163 passed, 3 failed - is now **166 passed**.
+`tests/plugin_contract` is 281 passed, 0 failed. `tests/netmodel` 329 passed, 1
+skipped. Artifact parity identical across 147 files.
+
+**Status correction the review asked for.** The eight obligations have checkers;
+they do not yet all check one complete pipeline-produced plan. G3 is not closed,
+and the phrase in this plan that its remaining work is "a widening one" was
+premature - the review is right that intent, approved plan and independent
+obligations are not yet joined. The findings F1-F5 name real counterexamples that
+green tests did not catch, and they are the next work rather than more migration.
 
 **A framework lock is not reproducible from a commit alone.** A detached worktree
 at `93c0c2f7` computes `sha256-f43ba202...` where the committed lock says

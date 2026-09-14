@@ -79,15 +79,15 @@ class NetworkIntentResolverCompiler(CompilerPlugin):
                 else:
                     unresolved.append(failure)
 
-        ctx.publish(
-            self._PUBLISH_KEY,
-            {
-                "schema_version": SUPPORTED_VERSION,
-                "attachments": resolved,
-                "unresolved": unresolved,
-            },
-        )
-        return self.make_result([])
+        payload = {
+            "schema_version": SUPPORTED_VERSION,
+            "attachments": resolved,
+            "unresolved": unresolved,
+        }
+        ctx.publish(self._PUBLISH_KEY, payload)
+        # Also on the result, which is the shape every other plugin uses and what
+        # a test reads; reaching into the publish registry is banned by contract.
+        return self.make_result([], output_data={self._PUBLISH_KEY: payload})
 
     # --- inputs -------------------------------------------------------------
 

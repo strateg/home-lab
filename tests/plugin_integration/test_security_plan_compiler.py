@@ -74,7 +74,11 @@ def _run(rows: list[dict]):
     publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", copy.deepcopy(rows))
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
     assert result.status == PluginStatus.SUCCESS
-    return ctx.get_published_data()[PLUGIN_ID][CHANNEL]
+    # Read the plugin's own result. `subscribe` needs an active execution scope
+    # that is gone by assertion time, and reaching into the publish registry is
+    # banned by contract - it couples a test to a private structure the envelope
+    # contract exists to replace.
+    return result.output_data[CHANNEL]
 
 
 # --- it exists and runs ------------------------------------------------------------

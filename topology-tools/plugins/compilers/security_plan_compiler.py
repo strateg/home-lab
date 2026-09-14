@@ -87,7 +87,11 @@ class SecurityPlanCompiler(CompilerPlugin):
             "digest": self._digest(ordered),
         }
         ctx.publish(self._PUBLISH_KEY, payload)
-        return self.make_result([])
+        # Also returned on the result: that is the shape every other plugin uses,
+        # and it is what a test reads. Reaching into the publish registry works
+        # and is banned for a reason - it couples a test to a private structure
+        # that the envelope contract is meant to replace.
+        return self.make_result([], output_data={self._PUBLISH_KEY: payload})
 
     # --- inputs -------------------------------------------------------------
 
