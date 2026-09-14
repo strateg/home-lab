@@ -316,6 +316,31 @@ plugins:
   description: Validates prepared instance-row shape and builds stage-local normalized row payloads. Consumes on_prepared_rows
     (ADR 0107) with fallback to prepared_rows.
   execution_mode: subinterpreter
+- id: base.compiler.security_plan
+  kind: compiler
+  entry: ../compilers/security_plan_compiler.py:SecurityPlanCompiler
+  api_version: 1.x
+  stages:
+  - compile
+  phase: run
+  order: 58
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  produces:
+  - key: security_plan
+    scope: pipeline_shared
+  description: Lowers zone policy into an ordered, digest-identified security plan (ADR 0119 G3).
+  execution_mode: subinterpreter
 - id: base.compiler.network_intent_resolver
   kind: compiler
   entry: ../compilers/network_intent_resolver_compiler.py:NetworkIntentResolverCompiler

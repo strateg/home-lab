@@ -737,10 +737,40 @@ would be worse than either.
 
 8 tests, one skipped for the reason above; 329 in netmodel.
 
-What remains for G3 is not another obligation but the join into the framework: a
-plan compiler that produces these plans from the compiled model rather than a test
-deriving them. Per the plan's own decomposition note that is W06/W07 contract work
-which also fixes where backend specialization lives.
+### The join: `base.compiler.security_plan`, 2026-09-14
+
+The plan every obligation is checked against is now produced by the pipeline
+rather than derived in a test. It reads the security matrices by declared class,
+lowers their zone-to-zone overrides into rules, orders them by execution
+precedence, closes each scope with a terminal deny and publishes the result with a
+digest over meaning alone.
+
+On the real topology: 2 scopes, 7 rules, 3 overrides it cannot lower - the same
+three the reference model blocked, for the same reason. What cannot be lowered is
+published with its reason rather than dropped, because a plan that silently
+omitted the sources' only mandatory deny would look complete.
+
+`E7082` is the terminal's code. `E7854`, which ADR 0110 named for it, belongs to
+storage media inventory and has since three months before that ADR claimed it.
+
+**A defect found by reading real output, not a fixture.** Positions were numbered
+globally across scopes, so a two-matrix topology produced a terminal at position 1
+with five rules after it. Correct per scope, and a list that drops everything
+after position 1 the moment a consumer flattens it. Positions are now per scope and
+consecutive from zero, with a test asserting both that and the terminal being last
+in its own scope.
+
+The lowering now exists twice - the framework cannot import `netmodel`, which sits
+outside distribution - so a differential runs both over the same overrides and
+requires the same emitted sequence. That is the third such pair, after the policy
+algebra and the address arithmetic.
+
+18 tests. Artifact parity identical across 147 files; `tests/plugin_regression`
+10 passed, 3 skipped.
+
+G3's remaining work is no longer a missing piece but a widening one: the plan is
+built for zone-to-zone overrides, and W07 has to say where backend specialization
+lives before it can carry publications, routes and interface-scoped transforms.
 
 **A framework lock is not reproducible from a commit alone.** A detached worktree
 at `93c0c2f7` computes `sha256-f43ba202...` where the committed lock says
