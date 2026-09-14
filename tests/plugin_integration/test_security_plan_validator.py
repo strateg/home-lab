@@ -400,10 +400,16 @@ def test_the_validator_reads_the_source_independently() -> None:
     assert consumed == {"base.compiler.security_plan", "base.compiler.instance_rows"}
 
 
-def test_a_faithful_plan_passes_the_source_comparison() -> None:
+def test_a_faithful_plan_raises_no_error_and_says_avail_is_unverified() -> None:
+    """No error, and an honest warning: nothing declares what has to keep working.
+
+    Reporting SEC-AVAIL as satisfied here would be a claim about an objective
+    nobody stated.
+    """
     result = _run_with_source(_compile_plan(SOURCE_ROWS), SOURCE_ROWS)
 
-    assert result.diagnostics == [], [str(d.message) for d in result.diagnostics]
+    assert [diag.code for diag in result.diagnostics if diag.severity == "error"] == []
+    assert "W7002" in _codes(result)
 
 
 def test_removing_a_protocol_from_the_plan_and_its_metadata_is_caught() -> None:
@@ -425,7 +431,11 @@ def test_removing_a_protocol_from_the_plan_and_its_metadata_is_caught() -> None:
 
     codes = _codes(_run_with_source(plan, SOURCE_ROWS))
 
-    assert "E7084" in codes, f"the lost UDP permit was not detected: {codes}"
+    # Not E7084: nothing declares that UDP/53 has to keep working, so its absence
+    # is a lowering-completeness question and not an availability failure. The
+    # loss is still caught - by the coverage check, against the source.
+    assert "E7084" not in codes, "an undeclared permit must not be reported as an availability failure"
+    assert "E7093" in codes, f"the lost UDP permit went unreported: {codes}"
 
 
 def test_removing_a_guard_from_the_plan_and_its_metadata_is_caught() -> None:
@@ -471,7 +481,11 @@ def test_an_empty_plan_does_not_satisfy_the_comparison_by_permitting_nothing() -
 
     codes = _codes(_run_with_source(plan, SOURCE_ROWS))
 
-    assert "E7084" in codes and "E7090" in codes
+    # Qualified, as it had to be: the plan carries nothing, and that is reported
+    # through coverage. It is *not* E7084, because no applicable non-empty Q
+    # exists - an empty plan fails availability only when something required it.
+    assert "E7090" in codes and "E7093" in codes, f"the empty plan hid a loss: {codes}"
+    assert "E7084" not in codes
 
 
 def test_an_extra_permit_the_source_never_stated_is_caught() -> None:
@@ -515,7 +529,16 @@ def test_the_probed_flows_come_from_the_source_not_from_the_plan() -> None:
     assert not any(
         (rule.get("transport") or {}).get("protocol") == "udp" for rule in plan["rules"]
     ), "the mutant must leave no UDP in the plan for this to mean anything"
-    assert "E7084" in _codes(_run_with_source(plan, SOURCE_ROWS))
+
+    # With a declared requirement for it, the loss is an availability failure and
+    # the probe for UDP/53 must still exist - which it only can if the space came
+    # from the source.
+    rows = copy.deepcopy(SOURCE_ROWS)
+    rows[0]["extensions"]["availability_requirements"] = [
+        {"name": "dns-udp", "from_zone_ref": "z.a", "to_zone_ref": "z.b", "ports": {"udp": [53]}}
+    ]
+
+    assert "E7084" in _codes(_run_with_source(plan, rows))
 
 
 def test_a_missing_source_intent_is_reported_rather_than_skipped() -> None:
@@ -540,3 +563,147 @@ def test_a_missing_source_intent_is_reported_rather_than_skipped() -> None:
 
     assert "E7008" in [diag.code for diag in result.diagnostics]
     assert any("did not run" in diag.message for diag in result.diagnostics)
+
+
+# --- the probe set has to reach beyond what anyone enumerated -------------------------
+
+
+def test_a_wildcard_permit_beyond_the_enumerated_values_is_caught() -> None:
+    """Union of intent and plan coordinates is necessary and not sufficient.
+
+    A permit that accepts every port agrees with the authorization on every value
+    anyone listed and permits more beyond them. Without a probe outside the
+    enumeration, "matches on all probes" would be a property of the probe set.
+    """
+    plan = _compile_plan(SOURCE_ROWS)
+    wildcard = dict(plan["rules"][0])
+    wildcard.update(
+        {
+            "origin": "binding:wildcard",
+            "effect": "permit",
+            "terminal": False,
+            "sources": ["z.a"],
+            "destinations": ["z.b"],
+            "transport": {"kind": "any"},
+        }
+    )
+    plan["rules"] = [wildcard, *plan["rules"]]
+    for index, rule in enumerate(plan["rules"]):
+        rule["position"] = index
+
+    codes = _codes(_run_with_source(plan, SOURCE_ROWS))
+
+    assert "E7083" in codes, "a wildcard permit beyond the listed ports went unnoticed"
+
+
+def test_the_representatives_lie_outside_every_enumerated_value() -> None:
+    """Their identity does not matter; being outside the lists is the point."""
+    import sys as _sys
+
+    _sys.path.insert(0, str(V5_TOOLS))
+    from plugins.validators.security_plan_validator import (
+        _PORT_OUTSIDE_ANY_ENUMERATION,
+        _PROTOCOL_OUTSIDE_ANY_ENUMERATION,
+    )
+
+    plan = _compile_plan(SOURCE_ROWS)
+    listed_ports = {
+        port for rule in plan["rules"] for port in ((rule.get("transport") or {}).get("ports") or [])
+    }
+    listed_protocols = {
+        (rule.get("transport") or {}).get("protocol")
+        for rule in plan["rules"]
+        if (rule.get("transport") or {}).get("protocol")
+    }
+    source_ports = {
+        port
+        for row in SOURCE_ROWS
+        for entry in row["extensions"]["policy_overrides"]
+        for values in (entry.get("ports") or {}).values()
+        for port in values
+    }
+
+    assert _PORT_OUTSIDE_ANY_ENUMERATION not in listed_ports | source_ports
+    assert _PROTOCOL_OUTSIDE_ANY_ENUMERATION not in listed_protocols
+
+
+# --- availability is declared, never inferred from permits ------------------------------
+
+
+def test_a_permit_does_not_create_an_availability_obligation() -> None:
+    """Permission is not an objective, and turning one into the other invents a claim."""
+    plan = _compile_plan(SOURCE_ROWS)
+    plan["rules"] = [rule for rule in plan["rules"] if rule["terminal"]]
+    for index, rule in enumerate(plan["rules"]):
+        rule["position"] = index
+
+    result = _run_with_source(plan, SOURCE_ROWS)
+    codes = _codes(result)
+
+    # The guard is gone, and that is reported. The permits are gone too, and that
+    # is *not* reported as an availability failure, because nothing declared one.
+    assert "E7090" in codes
+    assert "E7084" not in codes
+    assert "W7002" in codes
+
+
+def test_a_declared_availability_requirement_is_checked() -> None:
+    """When something does state an objective, dropping it is a failure."""
+    rows = [
+        _matrix_row(
+            _src("dns", ports={"tcp": [53]}),
+        )
+    ]
+    rows[0]["extensions"]["availability_requirements"] = [
+        {"name": "dns-must-work", "from_zone_ref": "z.a", "to_zone_ref": "z.b", "ports": {"tcp": [53]}}
+    ]
+
+    plan = _compile_plan(rows)
+    plan["rules"] = [rule for rule in plan["rules"] if rule["terminal"]]
+    for index, rule in enumerate(plan["rules"]):
+        rule["position"] = index
+
+    codes = _codes(_run_with_source(plan, rows))
+
+    assert "E7084" in codes
+    assert "W7002" not in codes
+
+
+def test_a_satisfied_availability_requirement_reports_nothing() -> None:
+    rows = [_matrix_row(_src("dns", ports={"tcp": [53]}))]
+    rows[0]["extensions"]["availability_requirements"] = [
+        {"name": "dns-must-work", "from_zone_ref": "z.a", "to_zone_ref": "z.b", "ports": {"tcp": [53]}}
+    ]
+
+    result = _run_with_source(_compile_plan(rows), rows)
+
+    assert [diag.code for diag in result.diagnostics] == []
+
+
+def test_a_required_flow_a_guard_forbids_is_a_contradiction_not_a_permit() -> None:
+    """`Q subseteq A`. Two source statements disagree; neither is weakened here."""
+    rows = [
+        _matrix_row(
+            _src("dns", ports={"tcp": [53]}),
+            _src("no-a-to-b", action="drop", src="z.a", dst="z.b", ports={"tcp": [53]}),
+        )
+    ]
+    rows[0]["extensions"]["availability_requirements"] = [
+        {"name": "dns-must-work", "from_zone_ref": "z.a", "to_zone_ref": "z.b", "ports": {"tcp": [53]}}
+    ]
+
+    codes = _codes(_run_with_source(_compile_plan(rows), rows))
+
+    assert "E7092" in codes
+    assert "E7084" not in codes, "a contradiction must not also be reported as the plan's failure"
+
+
+def test_an_explicitly_empty_requirement_set_is_not_missing_data() -> None:
+    """"Nothing here has to keep working" is a decision; absence is not."""
+    rows = copy.deepcopy(SOURCE_ROWS)
+    rows[0]["extensions"]["availability_requirements"] = []
+
+    codes = _codes(_run_with_source(_compile_plan(rows), rows))
+
+    assert "W7002" not in codes, "an explicit empty Q was reported as undeclared"
+    assert "E7084" not in codes

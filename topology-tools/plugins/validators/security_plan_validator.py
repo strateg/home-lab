@@ -41,6 +41,12 @@ ROWS_KEY = "normalized_rows"
 MATRIX_CLASS = "class.network.security_matrix"
 ANY_TRANSPORT = "any"
 
+# Representatives of "some value nobody enumerated". Their identity does not
+# matter; that they are outside every list the sources and the plan contain is
+# the whole point, and a test asserts that rather than trusting the constant.
+_PORT_OUTSIDE_ANY_ENUMERATION = 64999
+_PROTOCOL_OUTSIDE_ANY_ENUMERATION = "sctp"
+
 
 class SecurityPlanValidator(ValidatorJsonPlugin):
     """Independent order and termination check over the published plan."""
@@ -299,12 +305,25 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
         try:
             payload = ctx.subscribe(ROWS_PLUGIN_ID, ROWS_KEY)
         except PluginDataExchangeError:
-            return {"available": False, "scopes": set(), "permits": [], "guards": []}
+            return {
+            "available": False,
+            "scopes": set(),
+            "permits": [],
+            "guards": [],
+            "availability": [],
+            "availability_declared": set(),
+        }
 
         rows = [item for item in payload if isinstance(item, dict)] if isinstance(payload, list) else []
         scopes: set[str] = set()
         permits: list[dict[str, Any]] = []
         guards: list[dict[str, Any]] = []
+        availability: list[dict[str, Any]] = []
+        # Scopes that state a Q at all, even an empty one. An explicitly empty Q
+        # is a claim - "nothing here has to keep working" - and absent data is
+        # not. Reporting them the same way would let a missing declaration read
+        # as a decision somebody made.
+        declared_scopes: set[str] = set()
 
         for row in rows:
             if self._class_of(row) != MATRIX_CLASS:
@@ -325,7 +344,24 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
                     continue
                 (guards if entry["effect"] == "deny" else permits).append(entry)
 
-        return {"available": True, "scopes": scopes, "permits": permits, "guards": guards}
+            declared = extensions.get("availability_requirements") if isinstance(extensions, Mapping) else None
+            if isinstance(declared, list):
+                declared_scopes.add(scope)
+                for requirement in declared:
+                    if not isinstance(requirement, Mapping):
+                        continue
+                    entry = self._obligation({**requirement, "action": "accept"}, scope)
+                    if entry is not None:
+                        availability.append(entry)
+
+        return {
+            "available": True,
+            "scopes": scopes,
+            "permits": permits,
+            "guards": guards,
+            "availability": availability,
+            "availability_declared": declared_scopes,
+        }
 
     @staticmethod
     def _class_of(row: Mapping[str, Any]) -> str | None:
@@ -409,22 +445,30 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
             for rule in rules
             if isinstance(rule, Mapping) and not rule.get("terminal")
         }
-        for guard in source["guards"]:
-            for protocol, ports in guard["transports"]:
-                key = (guard["scope"], f"guard:{guard['name']}", (protocol, ports))
+        # Denies and permits are both traced, with different codes. A missing deny
+        # is a lost restriction; a missing permit is lowering incompleteness and
+        # explicitly not an availability failure, because nothing declared that
+        # the flow has to keep working. Reporting them alike would make the
+        # weaker fact excuse the stronger one.
+        for entry, prefix, code, noun in (
+            *((guard, "guard", "E7090", "a mandatory deny") for guard in source["guards"]),
+            *((permit, "binding", "E7093", "a permit") for permit in source["permits"]),
+        ):
+            for protocol, ports in entry["transports"]:
+                key = (entry["scope"], f"{prefix}:{entry['name']}", (protocol, ports))
                 if key in planned:
                     continue
                 described = protocol if ports is None else f"{protocol}/{list(ports)}"
                 diagnostics.append(
                     self.emit_diagnostic(
-                        code="E7090",
+                        code=code,
                         severity="error",
                         stage=stage,
                         message=(
-                            f"scope '{guard['scope']}': the source states a mandatory deny "
-                            f"'{guard['name']}' on {described} and the plan carries no such rule"
+                            f"scope '{entry['scope']}': the source states {noun} "
+                            f"'{entry['name']}' on {described} and the plan carries no such rule"
                         ),
-                        path=f"security_plan:{guard['scope']}",
+                        path=f"security_plan:{entry['scope']}",
                     )
                 )
         return diagnostics
@@ -463,6 +507,26 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
             space = self._flow_space(source, scope, scoped)
             authorized = self._authorized(source, scope, space)
             required = self._required(source, scope)
+
+            if scope not in source["availability_declared"]:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="W7002",
+                        severity="warning",
+                        stage=stage,
+                        message=(
+                            f"scope '{scope}' declares no availability requirement, so SEC-AVAIL is "
+                            "unverified rather than satisfied; permits are permission, not objectives"
+                        ),
+                        path=f"security_plan:{scope}",
+                    )
+                )
+
+            # `Q subseteq A`, checked before the plan is asked anything. A required
+            # flow a mandatory deny forbids is a contradiction between two source
+            # statements, and it blocks the model - it is not settled by weakening
+            # the guard, nor by quietly dropping the requirement.
+            diagnostics.extend(self._check_requirements_are_permitted(source, scope, stage))
 
             for flow in space:
                 verdict, origin = self._interpret(scoped, flow)
@@ -529,9 +593,21 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
                 protocols.add(str(transport["protocol"]))
             ports |= {int(item) for item in (transport.get("ports") or [])}
 
-        # A port nothing mentions, so an any-transport deny is exercised where
-        # every other rule is silent - the only place its narrowing would show.
-        ports.add(9999)
+        # Representatives from outside the enumerated values, one per equivalence
+        # class the enumeration cannot cover.
+        #
+        # Union of intent and plan coordinates is necessary and not sufficient. A
+        # wildcard permit agrees with the authorization on every value anyone
+        # listed and permits more beyond them, so the probes have to include a
+        # value nobody listed - otherwise "matches on all probes" is a property
+        # of the probe set rather than of the rule.
+        #
+        # Ports and protocols get a representative each. Endpoints do not: they
+        # are opaque atoms drawn from a closed set the sources enumerate, so
+        # there is no "other endpoint" class to sample. Inventing one would test
+        # a zone that does not exist.
+        ports.add(_PORT_OUTSIDE_ANY_ENUMERATION)
+        protocols.add(_PROTOCOL_OUTSIDE_ANY_ENUMERATION)
         return [
             (left, right, protocol, port)
             for left in sorted(endpoints)
@@ -582,16 +658,57 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
         }
         return permitted - denied
 
-    def _required(self, source: Mapping[str, Any], scope: str) -> set[tuple[str, str, str, int]]:
-        """Flows the source states must work, which is a finite claim.
+    def _check_requirements_are_permitted(
+        self, source: Mapping[str, Any], scope: str, stage: Stage
+    ) -> list[PluginDiagnostic]:
+        """`Q subseteq A`. A requirement a guard forbids is a contradiction, not a permit."""
+        diagnostics: list[PluginDiagnostic] = []
+        for entry in source["availability"]:
+            if entry["scope"] != scope:
+                continue
+            for protocol, values in entry["transports"]:
+                for port in values or ():
+                    conflicting = [
+                        guard["name"]
+                        for guard in source["guards"]
+                        if guard["scope"] == scope
+                        and guard["source"] == entry["source"]
+                        and guard["destination"] == entry["destination"]
+                        and self._covers(guard, protocol, port)
+                    ]
+                    if not conflicting:
+                        continue
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E7092",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"scope '{scope}': requirement '{entry['name']}' needs "
+                                f"{entry['source']} -> {entry['destination']} {protocol}/{port}, "
+                                f"which mandatory deny {conflicting} forbids. Two source statements "
+                                "contradict; resolve them rather than weakening either."
+                            ),
+                            path=f"security_plan:{scope}",
+                        )
+                    )
+        return diagnostics
 
-        An any-transport permit contributes none. "Every port" is not an
-        availability objective anyone stated, and enumerating one would invent a
-        requirement the sources do not make - the opposite mistake from dropping
-        a restriction, and just as wrong.
+    def _required(self, source: Mapping[str, Any], scope: str) -> set[tuple[str, str, str, int]]:
+        """Flows a declared availability requirement says must work.
+
+        **Not derived from permits.** A permit is permission; an availability
+        objective is a separate statement that something has to keep working, and
+        turning every permit into one invents a claim nobody made and then
+        reports it as met. The first version of this did exactly that - for finite
+        permits, having already excluded any-transport ones for the same reason
+        without noticing the reason applied to both.
+
+        Nothing in the sources declares availability today, so this is empty and
+        SEC-AVAIL is *unverified*, which `W7002` says out loud.
         """
         required: set[tuple[str, str, str, int]] = set()
-        for entry in source["permits"]:
+        for entry in source["availability"]:
             if entry["scope"] != scope:
                 continue
             for protocol, values in entry["transports"]:

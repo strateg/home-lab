@@ -1064,6 +1064,22 @@ codes:
     stage: validate
     title: Unapproved Intermediate Transition
     hint: SEC-TRANSITION; a partial apply, retry, reboot or rollback state admits a transition outside the approved set.
+  E7093:
+    severity: error
+    stage: validate
+    title: Plan Does Not Carry A Source Permit
+    hint: >-
+      A permit the source states has no rule in the plan. This is lowering incompleteness, reported separately
+      from availability: nothing declared that the flow must keep working, so it is not a SEC-AVAIL failure,
+      and a plan that silently represents less than the source states is still wrong.
+  E7092:
+    severity: error
+    stage: validate
+    title: Required Flow Contradicts A Mandatory Deny
+    hint: >-
+      A declared availability requirement names a flow a mandatory deny forbids, so Q is not a subset of A.
+      This blocks the model: it is a contradiction between two source statements for a person to resolve, and
+      it must never be settled by weakening the guard or by dropping the requirement.
   E7090:
     severity: error
     stage: validate
@@ -1087,6 +1103,14 @@ codes:
       SEC-CAP; an applicable requirement has no scoped satisfaction witness at the evidence level the claim needs.
       Missing evidence is 'not run', never pass.
 
+  W7002:
+    severity: warning
+    stage: validate
+    title: Availability Requirements Not Declared
+    hint: >-
+      No availability requirement is declared for this scope, so SEC-AVAIL is unverified rather than satisfied.
+      A permit is permission and not an objective: deriving required flows from permits would invent an
+      availability claim nobody made, and then report it as met.
   W7001:
     severity: warning
     stage: validate

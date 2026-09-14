@@ -1032,10 +1032,64 @@ restriction - equally wrong, and easier to miss.
 26 validator tests; 366 across the netmodel, compiler and registry suites.
 Artifact parity identical across 147 files.
 
-**Still open, unchanged.** A strict consumer enforcing refusal of
-`legacy_shadow` remains a separate criterion. `provenance` is published and
-nothing refuses it, because nothing consumes the plan - the boundary has to be
-checkable before the first backend consumer exists, not after.
+### PR2, part four, 2026-09-14 — A, Q and the difference between them
+
+Two corrections from review, both to work finished an hour earlier.
+
+**A permit is not an availability obligation.** `_required` derived Q from the
+permits, which invents a claim nobody made and then reports it as met. It had
+already excluded any-transport permits for exactly that reason without noticing
+the reason applied to finite ones too. Q now comes only from a declared
+`availability_requirements` list, and where none is declared `W7002` says
+SEC-AVAIL is **unverified rather than satisfied**.
+
+The contract as stated: A is what is allowed with guards applied; Q is what must
+work under declared prerequisites; `Q subseteq A`; SEC-AUTH is `Accept subseteq A`;
+SEC-AVAIL is that applicable requirements in Q are carried.
+
+`Q subseteq A` is enforced as a **contradiction**, `E7092`. A requirement a
+mandatory deny forbids is two source statements disagreeing, and it blocks the
+model - it is never settled by weakening the guard or by dropping the
+requirement. A test asserts it does not also report as the plan's own failure.
+
+The four regressions now exist:
+
+| Case | Reported as |
+|---|---|
+| An undeclared permit missing from the plan | `E7093`, lowering incompleteness - **not** `E7084` |
+| A declared required flow not carried | `E7084` |
+| A required flow a guard forbids | `E7092`, a contradiction |
+| No requirements declared | `W7002`, unverified |
+
+An explicitly empty `availability_requirements: []` is distinguished from absent
+data: the first is a decision - nothing here has to keep working - and the second
+is not, so only absence warns.
+
+The earlier "an empty plan must give `E7084`" test was wrong and is qualified: an
+empty plan fails availability only when an applicable non-empty Q exists.
+Otherwise its emptiness is caught by coverage, as `E7090` and `E7093`.
+
+**Probes now reach outside every enumeration.** Union of intent and plan
+coordinates is necessary and not sufficient: a wildcard permit agrees with the
+authorization on every value anyone listed and permits more beyond them, so
+"matches on all probes" would be a property of the probe set. A port and a
+protocol from outside every list are added, and a test asserts they really are
+outside rather than trusting the constants. Endpoints get no representative -
+they are opaque atoms from a closed enumerated set, and inventing one would probe
+a zone that does not exist.
+
+On the real topology: no errors, two `W7002`. 33 validator tests, 399 across the
+suites, artifact parity identical across 147 files.
+
+**Next, and not started: the strict admission boundary.** Five conditions -
+`legacy_shadow` refused regardless of `lowering_complete`; a provenance swap alone
+insufficient without approved intent and a passing independent check bound to
+exact inputs; any change to the plan after checking voiding admission; missing
+inputs, blocked scopes and incomplete checks forbidding strict rendering; and a
+refusal never falling back to legacy. The main negative test is that a fully
+lowered, semantically verified legacy plan still fails admission while remaining
+available for shadow analysis. Also open: whether `E7008` actually blocks the
+strict path needs a pipeline test rather than the diagnostic's presence.
 
 **A framework lock is not reproducible from a commit alone.** A detached worktree
 at `93c0c2f7` computes `sha256-f43ba202...` where the committed lock says
