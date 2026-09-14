@@ -596,35 +596,46 @@ def test_a_wildcard_permit_beyond_the_enumerated_values_is_caught() -> None:
     assert "E7083" in codes, "a wildcard permit beyond the listed ports went unnoticed"
 
 
-def test_the_representatives_lie_outside_every_enumerated_value() -> None:
-    """Their identity does not matter; being outside the lists is the point."""
+def test_the_representatives_are_derived_and_never_land_inside() -> None:
+    """Constants were wrong, and one fixture could not have shown it.
+
+    A source that happened to list 64999 or `sctp` put the representative back
+    inside the enumeration, and a wildcard permit passed again. They are chosen
+    relative to what is present now, so this checks the property over
+    enumerations that deliberately contain the old constants.
+    """
     import sys as _sys
 
     _sys.path.insert(0, str(V5_TOOLS))
-    from plugins.validators.security_plan_validator import (
-        _PORT_OUTSIDE_ANY_ENUMERATION,
-        _PROTOCOL_OUTSIDE_ANY_ENUMERATION,
+    from plugins.validators.security_plan_validator import _port_outside, _protocol_outside
+
+    for ports in ({64999}, {1, 64999, 65535}, set(range(65000, 65536)), set()):
+        assert _port_outside(ports) not in ports
+
+    for protocols in ({"sctp"}, {"tcp", "udp", "sctp", "probe"}, {"probe", "probex"}, set()):
+        assert _protocol_outside(protocols) not in protocols
+
+
+def test_a_wildcard_permit_is_caught_even_when_the_source_lists_the_old_constant() -> None:
+    """The counterexample the constants allowed through."""
+    rows = [_matrix_row(_src("odd", ports={"sctp": [64999]}))]
+    plan = _compile_plan(rows)
+    wildcard = dict(plan["rules"][0])
+    wildcard.update(
+        {
+            "origin": "binding:wildcard",
+            "effect": "permit",
+            "terminal": False,
+            "sources": ["z.a"],
+            "destinations": ["z.b"],
+            "transport": {"kind": "any"},
+        }
     )
+    plan["rules"] = [wildcard, *plan["rules"]]
+    for index, rule in enumerate(plan["rules"]):
+        rule["position"] = index
 
-    plan = _compile_plan(SOURCE_ROWS)
-    listed_ports = {
-        port for rule in plan["rules"] for port in ((rule.get("transport") or {}).get("ports") or [])
-    }
-    listed_protocols = {
-        (rule.get("transport") or {}).get("protocol")
-        for rule in plan["rules"]
-        if (rule.get("transport") or {}).get("protocol")
-    }
-    source_ports = {
-        port
-        for row in SOURCE_ROWS
-        for entry in row["extensions"]["policy_overrides"]
-        for values in (entry.get("ports") or {}).values()
-        for port in values
-    }
-
-    assert _PORT_OUTSIDE_ANY_ENUMERATION not in listed_ports | source_ports
-    assert _PROTOCOL_OUTSIDE_ANY_ENUMERATION not in listed_protocols
+    assert "E7083" in _codes(_run_with_source(plan, rows))
 
 
 # --- availability is declared, never inferred from permits ------------------------------
@@ -805,3 +816,136 @@ def test_an_unsupported_selector_blocks_its_scope(label: str, ports: dict) -> No
     assert plan["blocked_scopes"] == [MATRIX_SCOPE], f"{label} did not block its scope"
     assert plan["unlowerable"], f"{label} was lowered without a word"
     assert plan["lowering_complete"] == []
+
+
+# --- regressions from the 12f4e836 code review ------------------------------------------
+
+
+def test_a_required_flow_with_no_permit_covering_it_is_caught() -> None:
+    """`Q subseteq A` has two halves and only one was checked.
+
+    A requirement no permit covers is outside A just as surely as one a guard
+    forbids. UDP/53 required with only TCP/443 permitted passed silently.
+    """
+    rows = [_matrix_row(_src("web", ports={"tcp": [443]}))]
+    rows[0]["extensions"]["availability_requirements"] = [
+        {"name": "dns", "from_zone_ref": "z.a", "to_zone_ref": "z.b", "ports": {"udp": [53]}}
+    ]
+
+    codes = _codes(_run_with_source(_compile_plan(rows), rows))
+
+    assert "E7092" in codes
+
+
+def test_a_requirement_under_an_any_permit_is_probed_when_the_permit_becomes_a_deny() -> None:
+    """The probe space must carry the requirement's own coordinates.
+
+    Source allows any transport and requires TCP/53. Turning that permit into a
+    deny left no probe for TCP/53 at all, and the validator returned SUCCESS.
+    """
+    rows = [_matrix_row(_src("all", action="drop"))]
+    rows[0]["extensions"]["availability_requirements"] = [
+        {"name": "dns", "from_zone_ref": "z.a", "to_zone_ref": "z.b", "ports": {"tcp": [53]}}
+    ]
+
+    codes = _codes(_run_with_source(_compile_plan(rows), rows))
+
+    assert codes, "the unmet requirement produced no diagnostic at all"
+    assert "E7092" in codes or "E7084" in codes
+
+
+def test_changing_a_guards_destination_is_caught() -> None:
+    """The coverage key lacked endpoints, so the loss hid behind the terminal.
+
+    The terminal denies the flow either way, so behaviour is identical - and the
+    restriction the source states is gone.
+    """
+    plan = _compile_plan(SOURCE_ROWS)
+    for rule in plan["rules"]:
+        if rule["origin"] == "guard:no-b-to-a":
+            rule["destinations"] = ["z.elsewhere"]
+
+    codes = _codes(_run_with_source(plan, SOURCE_ROWS))
+
+    assert "E7090" in codes, f"a moved guard went unreported: {codes}"
+
+
+def test_changing_a_guards_effect_to_permit_is_caught() -> None:
+    plan = _compile_plan(SOURCE_ROWS)
+    for rule in plan["rules"]:
+        if rule["origin"] == "guard:no-b-to-a":
+            rule["effect"] = "permit"
+
+    assert "E7090" in _codes(_run_with_source(plan, SOURCE_ROWS))
+
+
+def test_a_scope_the_plan_invents_is_still_checked() -> None:
+    """The semantic check iterated the source's scopes and skipped the rest.
+
+    An undeclared scope with an any-transport permit and a correct terminal is
+    exactly where an unauthorized permit would hide.
+    """
+    plan = _compile_plan(SOURCE_ROWS)
+    invented = [
+        {
+            "origin": "binding:invented",
+            "effect": "permit",
+            "terminal": False,
+            "scope": "scope.invented",
+            "sources": ["z.a"],
+            "destinations": ["z.b"],
+            "transport": {"kind": "any"},
+            "position": 0,
+        },
+        {
+            "origin": "plan:terminal-default-deny",
+            "effect": "deny",
+            "terminal": True,
+            "scope": "scope.invented",
+            "sources": [],
+            "destinations": [],
+            "transport": {"kind": "any"},
+            "position": 1,
+        },
+    ]
+    plan["rules"] = [*plan["rules"], *invented]
+
+    codes = _codes(_run_with_source(plan, SOURCE_ROWS))
+
+    assert "E7083" in codes, f"an invented scope's permit was not checked: {codes}"
+
+
+@pytest.mark.parametrize(
+    ("label", "ports"),
+    [
+        ("a port range", {"tcp": ["1000-2000"]}),
+        ("a negated protocol", {"!tcp": [22]}),
+        ("a string instead of a mapping", "tcp:443"),
+    ],
+)
+def test_an_unsupported_selector_does_not_crash_or_widen_the_validator(label: str, ports) -> None:
+    """Three separate failures, one shape: a malformed selector is not a missing one.
+
+    The range crashed the validator with E4102 rather than reporting E7094,
+    `!tcp` was still read as a protocol token, and a string `ports` became an
+    any-transport permit - turning a typo into the broadest rule expressible.
+    """
+    rows = [_matrix_row(_src("x", ports=ports))]
+    plan = _compile_plan(rows)
+
+    result = _run_with_source(plan, rows)
+
+    assert result.status in (PluginStatus.SUCCESS, PluginStatus.FAILED), f"{label} crashed the validator"
+    assert "E4102" not in _codes(result), f"{label} crashed rather than reporting"
+    assert plan["blocked_scopes"] == [MATRIX_SCOPE], f"{label} did not block its scope"
+
+
+def test_the_two_implementations_agree_on_what_is_supported() -> None:
+    """Written twice on purpose; a test keeps them from drifting."""
+    import sys as _sys
+
+    _sys.path.insert(0, str(V5_TOOLS))
+    from plugins.compilers.security_plan_compiler import _SUPPORTED_PROTOCOLS as compiler_set
+    from plugins.validators.security_plan_validator import _SUPPORTED_PROTOCOLS as validator_set
+
+    assert compiler_set == validator_set

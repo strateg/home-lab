@@ -1164,9 +1164,62 @@ filled-in strings.
 16 contract tests, 8 pipeline tests, 421 across `plugin_contract`, `plugin_api`,
 `kernel` and `test_plugin_registry`. Artifact parity identical across 147 files.
 
-**Not concluded.** PR2 and the strict boundary are not declared complete: this
-needs a review against the code and the exact gate commands. F3 through F5 remain
-open, and so does G3.
+### Code review of `12f4e836` — six findings, all reproduced and fixed
+
+`docs/reports/2026-09-14-adr0118-0119-code-review-12f4e836.md`. Every one was real
+and every one was mine.
+
+**Q was checked against half of its own definition.** `Q subseteq A` verified only
+that no guard forbade a requirement, never that a permit covered it - so UDP/53
+required with TCP/443 permitted passed silently. And `_flow_space` omitted the
+availability coordinates, so a source allowing any transport and requiring TCP/53
+had **no probe for TCP/53 at all**: replacing that permit with a deny returned
+SUCCESS with no diagnostics. Both halves are now checked and the requirement's own
+coordinates are probed.
+
+**Guard coverage used an incomplete key** - scope, origin and transport, without
+endpoints or effect. Moving a mandatory deny's destination left the key unchanged
+and the loss invisible, because the terminal denied the flow either way: identical
+behaviour, restriction gone. That is precisely the case traceable coverage exists
+for, and it was the case it missed.
+
+**The representatives "outside every enumeration" were constants.** A source
+listing 64999 or `sctp` put them back inside, and the wildcard permit passed
+again; the test asserting their independence proved it for one fixture. They are
+derived from what is present now, and the property is tested over enumerations
+that deliberately contain the old constants.
+
+**An undeclared scope was never checked.** The semantic loop iterated the source's
+scopes, so a scope the plan invented - with an any-transport permit and a correct
+terminal - was asked nothing. An undeclared scope is exactly where an unauthorized
+permit would hide. The loop now covers the union.
+
+**Unsupported semantics were refused in one place and not the other.** The
+compiler blocked a port range and the validator then crashed on it with `E4102`
+instead of reporting; `!tcp` was still read as a protocol token there; and
+`ports: "tcp:443"` became an any-transport permit in **both**, turning a typo into
+the broadest rule the model can express. A malformed selector is not a missing
+one, and both now say so. A test asserts the two supported-protocol sets agree,
+since they are written twice on purpose.
+
+**The committed lock did not describe the committed content.** At `12f4e836` an
+isolated worktree fails `E7824`, while the working tree passed - because the lock
+was regenerated before the last edit of that change. Nothing caught it, since
+every local run had a lock refreshed after the edits. `tests/test_framework_lock_matches_content.py`
+now runs the strict verifier, so a divergent lock fails here rather than in
+someone else's checkout.
+
+*The pattern worth keeping.* Four of the six were checks that returned SUCCESS on
+a plan with something removed. A check whose failure mode is silence needs a
+counterexample per claim, not per function - and the review produced them by
+mutating the source rather than by reading the code.
+
+53 validator tests, 210 across the targeted integration selection, 421 on the full
+`plugin-contract` gate, 334 netmodel. Artifact parity identical across 147 files;
+the real topology reports no errors and the same two `W7002`.
+
+**Not concluded.** PR2 and the strict boundary still need a review against this
+code and the exact gate commands. F3 through F5 remain open, and so does G3.
 
 **A framework lock is not reproducible from a commit alone.** A detached worktree
 at `93c0c2f7` computes `sha256-f43ba202...` where the committed lock says

@@ -43,11 +43,24 @@ ROWS_KEY = "normalized_rows"
 MATRIX_CLASS = "class.network.security_matrix"
 ANY_TRANSPORT = "any"
 
-# Representatives of "some value nobody enumerated". Their identity does not
-# matter; that they are outside every list the sources and the plan contain is
-# the whole point, and a test asserts that rather than trusting the constant.
-_PORT_OUTSIDE_ANY_ENUMERATION = 64999
-_PROTOCOL_OUTSIDE_ANY_ENUMERATION = "sctp"
+# Mirrors the compiler's set. Kept here rather than imported because this module
+# must be able to disagree with the compiler; a test asserts the two agree.
+_SUPPORTED_PROTOCOLS = frozenset({"tcp", "udp", "sctp", "icmp"})
+
+def _port_outside(enumerated: set[int]) -> int:
+    """A port none of these are. Derived, because a constant can be listed."""
+    for candidate in range(65535, 0, -1):
+        if candidate not in enumerated:
+            return candidate
+    raise AssertionError("every port is enumerated; there is no outside to sample")
+
+
+def _protocol_outside(enumerated: set[str]) -> str:
+    """A protocol token none of these are, for the same reason."""
+    candidate = "probe"
+    while candidate in enumerated:
+        candidate += "x"
+    return candidate
 
 
 class SecurityPlanValidator(ValidatorJsonPlugin):
@@ -415,12 +428,25 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
 
         ports = override.get("ports")
         transports: list[tuple[str, tuple[int, ...] | None]]
-        if not isinstance(ports, Mapping) or not ports:
+        if ports is None:
+            transports = [(ANY_TRANSPORT, None)]
+        elif not isinstance(ports, Mapping):
+            # A wrong type is not a missing value. `ports: "tcp:443"` used to
+            # become an any-transport permit in both implementations, which turns
+            # a typo into the broadest rule the model can express.
+            return None
+        elif not ports:
             transports = [(ANY_TRANSPORT, None)]
         else:
             transports = []
             for protocol, numbers in sorted(ports.items()):
+                if str(protocol) not in _SUPPORTED_PROTOCOLS:
+                    return None
                 if not isinstance(numbers, list) or not numbers:
+                    return None
+                if any(isinstance(item, bool) or not isinstance(item, int) for item in numbers):
+                    return None
+                if any(item < 1 or item > 65535 for item in numbers):
                     return None
                 transports.append((str(protocol), tuple(sorted(int(item) for item in numbers))))
 
@@ -501,8 +527,19 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
                 )
             )
 
+        # The key carries endpoints and effect as well as origin and transport.
+        # Without them, changing a mandatory deny's destination left the key
+        # unchanged and the loss invisible - the terminal still denied the flow,
+        # so behaviour matched while the restriction the source states was gone.
         planned = {
-            (str(rule.get("scope")), str(rule.get("origin")), self._transport_key(rule))
+            (
+                str(rule.get("scope")),
+                str(rule.get("origin")),
+                str(rule.get("effect")),
+                tuple(sorted(rule.get("sources") or [])),
+                tuple(sorted(rule.get("destinations") or [])),
+                self._transport_key(rule),
+            )
             for rule in rules
             if isinstance(rule, Mapping) and not rule.get("terminal")
         }
@@ -516,7 +553,14 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
             *((permit, "binding", "E7093", "a permit") for permit in source["permits"]),
         ):
             for protocol, ports in entry["transports"]:
-                key = (entry["scope"], f"{prefix}:{entry['name']}", (protocol, ports))
+                key = (
+                    entry["scope"],
+                    f"{prefix}:{entry['name']}",
+                    "deny" if prefix == "guard" else "permit",
+                    (entry["source"],),
+                    (entry["destination"],),
+                    (protocol, ports),
+                )
                 if key in planned:
                     continue
                 described = protocol if ports is None else f"{protocol}/{list(ports)}"
@@ -563,7 +607,13 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
             return []
 
         diagnostics: list[PluginDiagnostic] = []
-        for scope in sorted(source["scopes"]):
+        # Every scope the *plan* contains, not only every scope the source
+        # declares. Iterating the source alone meant a scope the plan invented -
+        # with an any-transport permit and a correct terminal - was never asked
+        # about, and an undeclared scope is exactly where an unauthorized permit
+        # would hide.
+        plan_scopes = {str(rule.get("scope")) for rule in rules}
+        for scope in sorted(set(source["scopes"]) | plan_scopes):
             scoped = [rule for rule in rules if str(rule.get("scope")) == scope]
             space = self._flow_space(source, scope, scoped)
             authorized = self._authorized(source, scope, space)
@@ -643,7 +693,14 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
         deriving it *only* from the intent hides additions. The union hides
         neither, and the two contributions stay separable.
         """
-        entries = [item for item in [*source["permits"], *source["guards"]] if item["scope"] == scope]
+        # Availability requirements contribute their coordinates too. Without
+        # them a requirement for TCP/53 under an any-transport permit had no
+        # probe at all, so replacing that permit with a deny reported nothing.
+        entries = [
+            item
+            for item in [*source["permits"], *source["guards"], *source["availability"]]
+            if item["scope"] == scope
+        ]
         endpoints = {item["source"] for item in entries} | {item["destination"] for item in entries}
         protocols = {
             protocol for item in entries for protocol, _ in item["transports"] if protocol != ANY_TRANSPORT
@@ -669,12 +726,18 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
         # value nobody listed - otherwise "matches on all probes" is a property
         # of the probe set rather than of the rule.
         #
+        # **Chosen relative to what is present, not fixed.** Constants were wrong:
+        # a source that happened to list 64999 or sctp put the representative
+        # back inside the enumeration, and the wildcard permit passed again. The
+        # test for it only proved independence for one fixture.
+        #
         # Ports and protocols get a representative each. Endpoints do not: they
         # are opaque atoms drawn from a closed set the sources enumerate, so
         # there is no "other endpoint" class to sample. Inventing one would test
-        # a zone that does not exist.
-        ports.add(_PORT_OUTSIDE_ANY_ENUMERATION)
-        protocols.add(_PROTOCOL_OUTSIDE_ANY_ENUMERATION)
+        # a zone that does not exist - and an unknown endpoint is refused by
+        # `E7095` rather than probed.
+        ports.add(_port_outside(ports))
+        protocols.add(_protocol_outside(protocols))
         return [
             (left, right, protocol, port)
             for left in sorted(endpoints)
@@ -735,6 +798,34 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
                 continue
             for protocol, values in entry["transports"]:
                 for port in values or ():
+                    # `Q subseteq A` has two halves and only one was checked. A
+                    # requirement no permit covers is outside A just as surely as
+                    # one a guard forbids - UDP/53 required with only TCP/443
+                    # permitted passed silently.
+                    permitting = [
+                        permit["name"]
+                        for permit in source["permits"]
+                        if permit["scope"] == scope
+                        and permit["source"] == entry["source"]
+                        and permit["destination"] == entry["destination"]
+                        and self._covers(permit, protocol, port)
+                    ]
+                    if not permitting:
+                        diagnostics.append(
+                            self.emit_diagnostic(
+                                code="E7092",
+                                severity="error",
+                                stage=stage,
+                                message=(
+                                    f"scope '{scope}': requirement '{entry['name']}' needs "
+                                    f"{entry['source']} -> {entry['destination']} {protocol}/{port}, "
+                                    "which no permit in the source allows. Q is not a subset of A."
+                                ),
+                                path=f"security_plan:{scope}",
+                            )
+                        )
+                        continue
+
                     conflicting = [
                         guard["name"]
                         for guard in source["guards"]

@@ -266,7 +266,15 @@ class SecurityPlanCompiler(CompilerPlugin):
         scope = str(override.get("matrix_ref"))
 
         ports = override.get("ports")
-        if not isinstance(ports, Mapping) or not ports:
+        if ports is not None and not isinstance(ports, Mapping):
+            # A wrong type is not a missing value. `ports: "tcp:443"` became an
+            # any-transport permit here, turning a typo into the broadest rule
+            # the model can express.
+            return [], (
+                f"ports must be a mapping of protocol to port list, got {type(ports).__name__}; "
+                "a malformed selector is not an absent one"
+            )
+        if not ports:
             # An override that names no transport constrains every transport.
             # Represented as its own kind rather than as an empty list, which
             # reads as "nothing", or as an enumeration of well-known service
