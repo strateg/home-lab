@@ -529,6 +529,9 @@ plugins:
     # did not run, and that must be a visible diagnostic rather than a plugin the
     # registry quietly declined to execute.
     required: false
+  produces:
+  - key: security_plan_verification
+    scope: pipeline_shared
   description: Independently checks the security plan against the source intent (ADR 0119 G3).
   execution_mode: subinterpreter
 - id: base.validator.network_intent_schema

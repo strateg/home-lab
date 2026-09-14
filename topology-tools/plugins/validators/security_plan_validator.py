@@ -25,6 +25,8 @@ from __future__ import annotations
 
 from typing import Any, Mapping, Sequence
 
+from plugins.validators.strict_admission import content_digest
+
 from kernel.plugin_base import (
     PluginContext,
     PluginDataExchangeError,
@@ -106,7 +108,21 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
         for scope in sorted(by_scope):
             diagnostics.extend(self._check_scope(scope=scope, rules=by_scope[scope], stage=stage))
 
-        return self.make_result(diagnostics)
+        # What was checked, and of what. The digest is computed from the plan's
+        # content here rather than read from the payload's own `digest` field: a
+        # payload that supplies its own identity can be edited to agree with
+        # itself, and admission has to bind the plan that was examined.
+        errors = sum(1 for item in diagnostics if item.severity == "error")
+        record = {
+            "plan_digest": content_digest(plan),
+            "errors": errors,
+            "warnings": sum(1 for item in diagnostics if item.severity == "warning"),
+            "complete": source["available"],
+            "checked_scopes": sorted(by_scope),
+        }
+        ctx.publish("security_plan_verification", record)
+
+        return self.make_result(diagnostics, output_data={"security_plan_verification": record})
 
     def _check_scope(
         self, *, scope: str, rules: Sequence[Mapping[str, Any]], stage: Stage

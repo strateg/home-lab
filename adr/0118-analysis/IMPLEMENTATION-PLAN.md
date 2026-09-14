@@ -1117,15 +1117,56 @@ corrected.
 43 validator tests, 366 across the other suites, artifact parity identical across
 147 files. On the real topology: no errors, the same two `W7002`.
 
-**Next, and not started: the strict admission boundary.** Five conditions -
-`legacy_shadow` refused regardless of `lowering_complete`; a provenance swap alone
-insufficient without approved intent and a passing independent check bound to
-exact inputs; any change to the plan after checking voiding admission; missing
-inputs, blocked scopes and incomplete checks forbidding strict rendering; and a
-refusal never falling back to legacy. The main negative test is that a fully
-lowered, semantically verified legacy plan still fails admission while remaining
-available for shadow analysis. Also open: whether `E7008` actually blocks the
-strict path needs a pipeline test rather than the diagnostic's presence.
+### The strict admission boundary, 2026-09-14
+
+Nothing renders the security plan yet, which prevents application and does not
+constitute a boundary - one written after the first consumer arrives is written
+around it. `plugins/validators/strict_admission.py` is the contract every strict
+backend consumer must use.
+
+| Condition | How it is refused |
+|---|---|
+| `legacy_shadow` regardless of lowering | Provenance must be `strict`; completeness of lowering never substitutes |
+| A provenance swap alone | Approved intent **and** a passing independent check, both required |
+| A plan changed after checking | Admission computes the digest itself and compares with the one the verifier recorded |
+| Missing inputs, blocked scopes, incomplete checks | Each refuses on its own |
+| A refusal enabling legacy | `legacy_fallback_permitted` is `init=False` and always false |
+
+**Two test-design points that changed the shape of this.**
+
+*A positive control comes first.* An implementation that refuses everything
+passes every negative test ever written, so a prepared strict fixture must be
+admitted - and a second test removes one condition at a time from that control to
+show each is load-bearing.
+
+*The digest is computed, never accepted.* A mutated plan that also recomputes its
+own `digest` field is self-consistent, and trusting the presented hash would let a
+changed plan certify itself. `content_digest` excludes any `digest` the payload
+carries, and a test asserts editing that field alone does not change the plan's
+identity.
+
+**Checked on disk, not from a return value.** The pipeline test asserts no strict
+artifact exists after a real run while admission is refused, because a function
+that says no while something else writes the file is exactly what this guards and
+is invisible to a test that reads an answer. The artifact paths are declared
+explicitly so their absence is checkable rather than incidental; when the first
+renderer lands, its output path joins the list and the guard starts biting.
+
+**On the real topology the plan lowers completely, verifies with no errors, and
+is still refused** - because `provenance` is `legacy_shadow`. That is the main
+negative test, and it passes while shadow analysis stays available.
+
+*What the waiver is and is not.* `availability_waiver` with an owner and a
+rationale makes a statement traceable. Whether that person may waive it, and
+whether the waiver was agreed, belong to admission and are not properties of two
+filled-in strings.
+
+16 contract tests, 8 pipeline tests, 421 across `plugin_contract`, `plugin_api`,
+`kernel` and `test_plugin_registry`. Artifact parity identical across 147 files.
+
+**Not concluded.** PR2 and the strict boundary are not declared complete: this
+needs a review against the code and the exact gate commands. F3 through F5 remain
+open, and so does G3.
 
 **A framework lock is not reproducible from a commit alone.** A detached worktree
 at `93c0c2f7` computes `sha256-f43ba202...` where the committed lock says
