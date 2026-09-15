@@ -183,6 +183,11 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
         # was examined against. Without the second one an approval can only say
         # "approved" and cannot say approved of what.
         errors = sum(1 for item in diagnostics if item.severity == "error")
+        elsewhere = self._obligations_record(ctx)
+        # The other five obligations are decided by another plugin, and its
+        # failures are failures of this plan. A record reporting zero while a
+        # sibling found one would read as a clean check.
+        errors += int(elsewhere.get("errors") or 0)
         scopes = sorted(set(by_scope) | set(source["scopes"]))
         record = {
             "schema_version": RECORD_VERSION,
@@ -190,13 +195,14 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
             "intent_digest": self._intent_digest(source),
             "evidence_digest": self._evidence_digest(source),
             "errors": errors,
-            "warnings": sum(1 for item in diagnostics if item.severity == "warning"),
+            "warnings": sum(1 for item in diagnostics if item.severity == "warning")
+            + int(elsewhere.get("warnings") or 0),
             # Renamed from `complete`, which meant only that the source input was
             # readable and was read downstream as "the check finished". What
             # finished is now stated per obligation per scope.
             "source_available": source["available"],
             "checked_scopes": scopes,
-            "obligations": self._obligation_statuses(scopes, diagnostics, source),
+            "obligations": self._merged_obligations(elsewhere, scopes, diagnostics, source),
         }
         ctx.publish("security_plan_verification", record)
 
@@ -302,6 +308,42 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
                 )
             }
         )
+
+    @staticmethod
+    def _obligations_record(ctx: PluginContext) -> Mapping[str, Any]:
+        """What the obligations validator published, or nothing if it did not run."""
+        try:
+            record = ctx.subscribe("base.validator.security_obligations", "security_obligation_statuses")
+        except PluginDataExchangeError:
+            return {}
+        return record if isinstance(record, Mapping) else {}
+
+    def _merged_obligations(
+        self,
+        elsewhere: Mapping[str, Any],
+        scopes: Sequence[str],
+        diagnostics: Sequence[PluginDiagnostic],
+        source: Mapping[str, Any],
+    ) -> dict[str, dict[str, str]]:
+        """The four this plugin decides, plus the five the obligations validator does.
+
+        One record, because admission reads one record. The other five are merged
+        rather than recomputed here: they belong to a separate plugin so that a
+        missing input there cannot look like a passing check here.
+
+        If that plugin did not run, its statuses are simply absent - and an
+        applicable obligation with no status is a refusal in `strict_admission`,
+        not an assumption.
+        """
+        merged = self._obligation_statuses(scopes, diagnostics, source)
+        published = elsewhere.get("statuses")
+        for scope, statuses in (published or {}).items():
+            if not isinstance(statuses, Mapping):
+                continue
+            merged.setdefault(str(scope), {}).update(
+                {str(name): str(status) for name, status in statuses.items()}
+            )
+        return merged
 
     @staticmethod
     def _obligation_statuses(

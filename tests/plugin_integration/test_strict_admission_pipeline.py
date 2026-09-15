@@ -60,6 +60,7 @@ EPOCH = "2026-09-14T00:00:00Z"
 # test about not writing has no business doing.
 PIPELINE = {
     "base.compiler.security_plan",
+    "base.validator.security_obligations",
     "base.validator.security_plan",
     WRITER_ID,
 }
@@ -233,10 +234,18 @@ def _run_with_writer(
 
 
 def _record_after_validation(plan: dict, rows: list[dict]) -> dict:
+    """The record the real validators publish for this exact plan.
+
+    Both of them, in pipeline order: the obligations validator answers for the
+    five it owns and the plan validator merges those into the one record
+    admission reads. Running only the second would leave the other five with no
+    status at all - which admission also refuses, but for the wrong reason.
+    """
     registry = _registry()
     ctx = _context()
     publish_for_test(ctx, "base.compiler.security_plan", "security_plan", copy.deepcopy(plan))
     publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", copy.deepcopy(rows))
+    registry.execute_plugin("base.validator.security_obligations", ctx, Stage.VALIDATE)
     verified = registry.execute_plugin("base.validator.security_plan", ctx, Stage.VALIDATE)
     return verified.output_data["security_plan_verification"]
 
@@ -278,8 +287,14 @@ def test_an_admitted_plan_is_actually_written(tmp_path, monkeypatch) -> None:
     record = _record_after_validation(plan, rows)
 
     assert record["errors"] == 0
+    # `not_applicable` beside `pass`: the plan carries none of the five
+    # constructs the other obligations govern, so there is nothing there for
+    # them to decide. That is a third answer, and requiring `pass` from all nine
+    # would demand a verdict on questions this plan does not raise.
     assert all(
-        status == "pass" for statuses in record["obligations"].values() for status in statuses.values()
+        status in ("pass", "not_applicable")
+        for statuses in record["obligations"].values()
+        for status in statuses.values()
     ), record["obligations"]
 
     marker, output = _run_with_writer(
@@ -652,6 +667,81 @@ def test_the_admission_contract_refuses_a_narrowed_terminal_on_its_own(tmp_path,
 
     assert not admission.admitted
     assert any("terminal" in reason for reason in admission.reasons), admission.reasons
+
+
+def test_an_obligation_that_cannot_be_decided_writes_nothing(tmp_path, monkeypatch) -> None:
+    """The five that had no checker, now answering for themselves.
+
+    A plan declaring `state` makes SEC-STATE applicable, and nothing in the
+    pipeline records sessions or an epoch, so it comes back `unverified` with the
+    missing input named. Everything else about the run is admissible - which is
+    the point: the only thing standing between this plan and a marker is an
+    obligation nobody can decide.
+    """
+    rows = _admissible_rows()
+    plan = _as_strict(_run_pipeline(rows)[0])
+    for entry in plan["rules"]:
+        if not entry["terminal"]:
+            entry["state"] = {"tracked": True}
+    record = _record_after_validation(plan, rows)
+
+    scope = plan["scopes"][0]
+    assert record["obligations"][scope]["SEC-STATE"] == "unverified", record["obligations"]
+
+    marker, output = _run_with_writer(
+        rows=rows, plan=plan, tmp_path=tmp_path, approval=_approval_for(record, plan), monkeypatch=monkeypatch
+    )
+
+    assert not marker.exists()
+    assert any("SEC-STATE" in reason for reason in output["refusal"]), output["refusal"]
+
+
+def test_an_obligation_nothing_triggers_does_not_block_the_write(tmp_path, monkeypatch) -> None:
+    """`not applicable` is not `unverified`, and conflating them would refuse everything.
+
+    The plan carries none of the five constructs, so none of those obligations
+    could be violated. The positive control still writes - which is what makes
+    the refusal above mean something.
+    """
+    rows = _admissible_rows()
+    plan = _as_strict(_run_pipeline(rows)[0])
+    record = _record_after_validation(plan, rows)
+
+    scope = plan["scopes"][0]
+    assert set(record["obligations"][scope].values()) == {"pass", "not_applicable"}
+
+    marker, output = _run_with_writer(
+        rows=rows, plan=plan, tmp_path=tmp_path, approval=_approval_for(record, plan), monkeypatch=monkeypatch
+    )
+
+    assert marker.exists(), output
+
+
+def test_a_decidable_obligation_that_fails_writes_nothing(tmp_path, monkeypatch) -> None:
+    """SEC-NAT has its input on the rule, so it is the one that can actually fail today."""
+    rows = _admissible_rows()
+    rows[0]["extensions"]["policy_overrides"].append(
+        {
+            "name": "web",
+            "from_zone_ref": "z.c",
+            "to_zone_ref": "z.d",
+            "action": "accept",
+            "ports": {"tcp": [443]},
+        }
+    )
+    plan = _as_strict(_run_pipeline(rows)[0])
+    for entry in plan["rules"]:
+        if not entry["terminal"]:
+            entry["nat"] = {"to": "10.0.0.5"}
+    record = _record_after_validation(plan, rows)
+
+    assert record["errors"] >= 1, "two originals collapsing onto one target is a failure"
+
+    marker, _ = _run_with_writer(
+        rows=rows, plan=plan, tmp_path=tmp_path, approval=_approval_for(record, plan), monkeypatch=monkeypatch
+    )
+
+    assert not marker.exists()
 
 
 # --- the inputs the boundary needs, and what their absence means -------------------------

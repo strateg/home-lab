@@ -1627,6 +1627,44 @@ and leave termination unguarded, which is how this went unnoticed - plus the
 full-scope positive control that still writes, a rule-after-the-terminal refusal,
 and the reference-model mutants.
 
+### The five remaining obligations, mounted
+
+`base.validator.security_obligations` decides SEC-NAT, SEC-STATE, SEC-TRANSITION,
+SEC-PATH and SEC-CAP. They had existed only in `netmodel`, which the framework
+cannot import, and mounting them had been refused for a good reason: none of the
+five has its inputs in the pipeline, and a checker with no input finds nothing.
+Reporting that as a pass is the empty-loop mistake.
+
+**Three answers, and the middle one is why this is now possible.** *Not
+applicable* when the plan declares no field the obligation governs - nothing here
+could violate it, and that is not a pass. *Unverified* when it applies and the
+input is absent, with the missing input named in a `W7003`; this blocks strict
+admission exactly as a failure does. *Pass* or *fail* when the check can run, with
+`E7085`-`E7089` reporting the failures.
+
+Applicability is read from declared fields, not from a word search - the mistake
+`strict_admission` made and had corrected. The two vocabularies are the same list,
+and a test asserts it.
+
+SEC-NAT is the one whose input is already on the rule, so it decides today: two
+transforms collapsing onto one translated target is `E7086`, and that path is
+exercised end to end, through the writer. The other four abstain and say what they
+are waiting for, which is a statement the record can carry and admission can act
+on. On the real topology all five report *not applicable*, so nothing changed:
+compile is unchanged at errors 0 / warnings 2, artifacts byte-identical.
+
+**Two records, one merge.** The obligations validator publishes its own statuses
+and error count; the plan validator merges both into the single verification
+record admission reads, and adds the other plugin's errors to its own - a record
+reporting zero while a sibling found one would read as a clean check. If that
+plugin does not run, the five simply have no status, and an applicable obligation
+with no status is a refusal rather than an assumption.
+
+`E7085`-`E7089` left the "awaiting a mount" ledger. `E7042` and `E7062` remain on
+it, and the raiser scan was widened from function scope to module scope to see a
+code table an emitting loop indexes - with the mutant a review asked for still
+refused, because a module that names codes and emits nothing is not a raiser.
+
 **A framework lock is not reproducible from a commit alone.** A detached worktree
 at `93c0c2f7` computes `sha256-f43ba202...` where the committed lock says
 `sha256-baee680d...`, while the same revision in the main working tree matches.
@@ -2170,6 +2208,14 @@ map; snapshots/envelopes and A22 isolation. No fallback to any, first attachment
 product-default ports or metadata-as-approval.
 
 ### G3 — Semantic model, backend prerequisites and independent checks
+
+**Next bounded proposal, 2026-09-15:** [approval producer contract](../0119-analysis/APPROVAL-PRODUCER-CONTRACT-PROPOSAL.md)
+(Proposed, not implemented). Defines L7 signed review, separately pinned approver
+authority, declared validate-stage publication and the real-source positive path.
+An authenticated approval does not change `legacy_shadow`; typed strict-source
+lowering/verification remain prerequisites. Acceptance of this proposal and its
+M1/M2 evidence do not by themselves close G3.
+
 
 W06 produces complete bounded authorization/path/state semantics and a validator.
 Test SEC-AUTH, AVAIL, PATH, NAT, ORDER, STATE, CAP and transition-model prerequisites,

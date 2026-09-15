@@ -31,9 +31,9 @@ Conditions, each refusing something that would otherwise look like progress:
    must cover the scopes being admitted. An approval that names nothing is a
    boolean, and a boolean cannot say what it approved.
 5. Every obligation applicable to *this plan* must have passed for *each scope
-   being admitted*. Obligations the framework cannot check yet are listed with
-   the construct that makes them applicable: a plan containing that construct is
-   refused, and a plan containing none of it does not need the check.
+   being admitted*. Applicability comes from declared fields, so a plan carrying
+   none of a construct does not need the check that governs it - and one that
+   carries the construct needs a verdict, whether or not anybody can produce one.
 6. A refusal never enables a legacy path. Falling back on refusal turns the
    boundary into a preference, and the unapproved plan runs anyway.
 
@@ -138,12 +138,17 @@ PLAN_SCHEMA_VERSION = 1
 KNOWN_TRANSPORT_KINDS = frozenset({"ports", "any"})
 KNOWN_EFFECTS = frozenset({"permit", "deny"})
 
-# Obligations implemented in `netmodel` and not mounted in any framework plugin,
-# each with the *declared field* that would make it applicable. These names are
-# reserved: a plan may carry them, and carrying one makes the obligation
-# applicable, so the plan is refused until the check is mounted. Every other
-# unknown field is refused outright as an unsupported construct - which is how a
-# differently spelled variant of one of these is caught.
+# The five obligations `base.validator.security_obligations` answers for, each
+# with the *declared field* that makes it applicable. These names are reserved: a
+# plan may carry them, and carrying one puts the obligation in the required set,
+# so a record with no status for it - or a status that is not `pass` - refuses the
+# plan. Every other unknown field is refused outright as an unsupported construct,
+# which is how a differently spelled variant of one of these is caught.
+#
+# They were unmounted when this list was written, and the deferral was the reason
+# for it. The list outlived the deferral: what it now does is keep applicability
+# and the checker's field names in one vocabulary, and a test asserts the two
+# sides agree.
 DEFERRED_OBLIGATION_FIELDS: dict[str, str] = {
     "nat": "SEC-NAT",
     "state": "SEC-STATE",

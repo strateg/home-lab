@@ -610,13 +610,22 @@ nobody has declared what has to keep working, so SEC-AVAIL was never verified.
 is required. A missing `errors` is not zero errors and a missing obligation
 status is not a pass - both were admitted before the 2026-09-14 review.
 
-**The other five obligations are deferred with a trigger.** SEC-NAT, SEC-STATE,
-SEC-TRANSITION, SEC-PATH and SEC-CAP are implemented in `netmodel` and mounted in
-no framework plugin. Each is listed with the plan constructs that would make it
-applicable: a plan containing none of them cannot violate it, and a plan that
-grows one is refused here until the check is mounted. A test asserts the current
-compiler emits none of those constructs, so the deferral is a claim that can come
-due rather than a promise.
+**The other five obligations are mounted, and answer for themselves.**
+`base.validator.security_obligations` decides SEC-NAT, SEC-STATE, SEC-TRANSITION,
+SEC-PATH and SEC-CAP, and it has three answers rather than two:
+
+* **not applicable** - the plan declares no field this obligation governs, so
+  nothing here could violate it. Not a pass, and recorded with the reason.
+* **unverified** - it applies and the input to decide it is absent, *named* in a
+  `W7003`. Blocks admission exactly as a failure does.
+* **pass** or **fail** - `E7085`-`E7089` report the failures.
+
+The middle answer is what made mounting them worth doing. None of the five has
+its inputs in the pipeline today - no sessions, no previous plan, no path
+inventory, no capability offers - and a checker with no input finds nothing.
+Reporting that as a pass is the empty-loop mistake; naming the missing input is
+not. SEC-NAT is the one whose input is already on the rule, so it decides today:
+two transforms collapsing onto one target is `E7086`.
 
 **The refusal is checked by what is on disk.** A test-only generator in
 `tests/fixtures/strict_writer/` runs in the generate stage and writes one marker
@@ -637,6 +646,7 @@ something.
 | Artifact parity against a clean worktree at HEAD | 163 files compared, every emitted artifact identical | 2026-09-14 |
 | Zone membership derivations | 1 (was 2); the generator consumes `base.compiler.security_matrix` | 2026-09-14 |
 | Scopes admissible under the strict boundary | 0 of 2; SEC-AVAIL unverified in both | 2026-09-14 |
+| Obligations with a framework checker | 9 of 9 (4 over the plan, 5 over declared constructs) | 2026-09-15 |
 
 The whole of this is inert on the current topology **by construction**, and that
 is the evidence for it being safe to have landed: artifact parity is identical
@@ -656,6 +666,7 @@ across every emitted file.
 | 2026-09-11 | `553c2e3b` | Section 7c: lowering, the independent interpreter, and SEC-AUTH/SEC-AVAIL as properties with mutants |
 | 2026-09-14 | `622eff34` | Section 7d: all eight obligations placed, the three habits behind them, and what SEC-PATH still needs from outside |
 | 2026-09-14 | `7128c2f6` | Section 4: `E7025` for a reference to a disabled record, and the ledger of allocated codes that nothing raises yet |
+| 2026-09-15 | `PENDING_O` | Section 7e: the five remaining obligations mounted, with `not applicable` / `unverified` / decided as three distinct answers |
 | 2026-09-15 | `b510035a` | Section 7d: the terminal invariant and `E7096`; a terminal closes its scope because of what it says, and an unmatched in-scope flow is a failure of its own |
 | 2026-09-14 | `6d6ff63e` | W05/A24: zone membership derived once; the compiler learned `additional_networks` and sorts zones, the generator consumes the channel, artifacts byte-identical |
 | 2026-09-14 | `31ebefb9` | Section 7e: the grammar closed over values, consent as a boolean, and an empty digest refused rather than matched |

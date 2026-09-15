@@ -424,7 +424,14 @@ def test_the_validator_reads_the_source_independently() -> None:
     registry = _registry()
     consumed = {item["from_plugin"] for item in registry.specs[PLUGIN_ID].consumes}
 
-    assert consumed == {"base.compiler.security_plan", "base.compiler.instance_rows"}
+    assert consumed == {
+        "base.compiler.security_plan",
+        "base.compiler.instance_rows",
+        # The five obligations this plugin does not decide, merged into the one
+        # record admission reads. Consumed rather than recomputed here: a missing
+        # input over there must not be able to look like a passing check here.
+        "base.validator.security_obligations",
+    }
 
 
 def test_a_faithful_plan_raises_no_error_and_says_avail_is_unverified() -> None:

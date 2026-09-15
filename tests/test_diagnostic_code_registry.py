@@ -152,12 +152,11 @@ AWAITING_A_MOUNT = {
     "E7042": "publication mechanism against enforcer capability; no capability data reaches the validator yet",
     "E7062": "an unapproved binding used as authorization; the framework still compiles legacy matrices, "
              "so no binding becomes a grant anywhere it could fire",
-    "E7085": "SEC-PATH; implemented in netmodel.path, not mounted in a framework plugin",
-    "E7086": "SEC-NAT; implemented in netmodel.transform, not mounted",
-    "E7087": "SEC-STATE; implemented in netmodel.state, not mounted",
-    "E7088": "SEC-TRANSITION; implemented in netmodel.transition, not mounted",
-    "E7089": "SEC-CAP; implemented in netmodel.capability, not mounted",
 }
+# E7085-E7089 left this list on 2026-09-15 when `base.validator.security_obligations`
+# mounted the five obligations. They are raised when a check fails; when the input
+# to decide one is absent the obligation is `unverified` and `W7003` says which
+# input - which is a different statement from a code with nobody to raise it.
 
 
 def _codes_raised_in_source() -> set[str]:
@@ -174,11 +173,15 @@ def _codes_raised_in_source() -> set[str]:
     and misses `E7090`, which reaches `emit_diagnostic` through a loop variable.
 
     So the question asked here is narrower than "is this emitted" and wider than
-    a single call shape: is this code named inside a function that emits
-    diagnostics at all. A lookup table at module scope does not satisfy it, and
-    neither does a comparison in a function that only reads codes. It remains a
-    necessary condition rather than proof - a literal in an unreachable branch of
-    an emitting function counts, and only running the code settles that.
+    a single call shape: **is this code named in a module that emits diagnostics
+    at all.** Function scope was the previous answer and it was too narrow -
+    `base.validator.security_obligations` keeps its codes in a table the emitting
+    loop indexes, which is a lookup table that genuinely is the raiser. Module
+    scope admits those and still refuses the mutant a review asked for: a module
+    that names codes and emits nothing.
+
+    It remains a necessary condition rather than proof. A literal in a module
+    that emits *some other* code counts, and only running the code settles that.
     """
     import ast
 
@@ -196,14 +199,14 @@ def _codes_raised_in_source() -> set[str]:
                 tree = ast.parse(path.read_text(encoding="utf-8"))
             except (OSError, SyntaxError):
                 continue
+            if not any(
+                isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and _emits(node)
+                for node in ast.walk(tree)
+            ):
+                continue
             for node in ast.walk(tree):
-                if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                    continue
-                if not _emits(node):
-                    continue
-                for inner in ast.walk(node):
-                    if isinstance(inner, ast.Constant) and isinstance(inner.value, str):
-                        found.add(inner.value)
+                if isinstance(node, ast.Constant) and isinstance(node.value, str):
+                    found.add(node.value)
     return found
 
 
@@ -261,19 +264,30 @@ def test_a_code_that_is_only_mentioned_does_not_count_as_raised() -> None:
     )
 
     def scan(tree) -> set[str]:
-        found = set()
-        for node in ast.walk(tree):
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and _emits(node):
-                found |= {
-                    inner.value
-                    for inner in ast.walk(node)
-                    if isinstance(inner, ast.Constant) and isinstance(inner.value, str)
-                }
-        return found
+        if not any(
+            isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and _emits(node)
+            for node in ast.walk(tree)
+        ):
+            return set()
+        return {
+            node.value
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Constant) and isinstance(node.value, str)
+        }
 
-    assert scan(mentioned_only) == set(), "a mention outside an emitting function is not an emission"
+    assert scan(mentioned_only) == set(), "a module that names codes and emits nothing is not a raiser"
     seen = scan(emitting)
     assert {"E7096", "E7095", "E7094"} <= seen, "all three emission shapes must be seen"
+
+    # And the shape that made module scope necessary: a table the emitting loop
+    # indexes. The code never appears as a literal argument anywhere.
+    tabled = ast.parse(
+        "TABLE = {'SEC-NAT': {'code': 'E7086'}}\n"
+        "def g(self):\n"
+        "    for name, spec in TABLE.items():\n"
+        "        self.emit_diagnostic(code=spec['code'], message=name)\n"
+    )
+    assert "E7086" in scan(tabled)
 
 
 def test_the_waiting_list_does_not_carry_codes_that_now_fire() -> None:

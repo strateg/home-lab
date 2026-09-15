@@ -1145,6 +1145,15 @@ codes:
       No availability requirement is declared for this scope, so SEC-AVAIL is unverified rather than satisfied.
       A permit is permission and not an objective: deriving required flows from permits would invent an
       availability claim nobody made, and then report it as met.
+  W7003:
+    severity: warning
+    stage: validate
+    title: Obligation Applies And Cannot Be Decided
+    hint: >-
+      The plan carries a construct this obligation governs and the input needed to decide it is absent. The
+      missing input is named in the message. Reported as unverified rather than satisfied - nothing is known
+      to be wrong, and nothing is known to be right either - and strict admission refuses it exactly as it
+      refuses a failure, because "nobody checked" is not "it holds".
   # Withdrawn 2026-09-14, never raised. Both were registered speculatively, which
   # ADR 0118 D7 warns against, and a self-review found them with no raiser at all.
   #
