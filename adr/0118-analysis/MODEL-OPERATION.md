@@ -624,8 +624,12 @@ The middle answer is what made mounting them worth doing. None of the five has
 its inputs in the pipeline today - no sessions, no previous plan, no path
 inventory, no capability offers - and a checker with no input finds nothing.
 Reporting that as a pass is the empty-loop mistake; naming the missing input is
-not. SEC-NAT is the one whose input is already on the rule, so it decides today:
-two transforms collapsing onto one target is `E7086`.
+not.
+
+**One of the five decides.** SEC-NAT's input is already on the rule, so two
+transforms collapsing onto one target is `E7086` today. The other four report
+absent evidence, which is a channel and one implemented decision rather than five
+completed checks - and an obligation that abstains is not one that holds.
 
 **The refusal is checked by what is on disk.** A test-only generator in
 `tests/fixtures/strict_writer/` runs in the generate stage and writes one marker
@@ -646,7 +650,7 @@ something.
 | Artifact parity against a clean worktree at HEAD | 163 files compared, every emitted artifact identical | 2026-09-14 |
 | Zone membership derivations | 1 (was 2); the generator consumes `base.compiler.security_matrix` | 2026-09-14 |
 | Scopes admissible under the strict boundary | 0 of 2; SEC-AVAIL unverified in both | 2026-09-14 |
-| Obligations with a framework checker | 9 of 9 (4 over the plan, 5 over declared constructs) | 2026-09-15 |
+| Obligations with a framework checker | 9 of 9 mounted; 5 reach a verdict today (4 over the plan, SEC-NAT), 4 report absent evidence | 2026-09-15 |
 
 The whole of this is inert on the current topology **by construction**, and that
 is the evidence for it being safe to have landed: artifact parity is identical

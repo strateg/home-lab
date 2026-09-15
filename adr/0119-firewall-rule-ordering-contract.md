@@ -21,6 +21,8 @@
 - Implementation planning: [Reviewed gate plan](0118-analysis/IMPLEMENTATION-PLAN.md),
   [review and corrections, 2026-09-11](0118-analysis/IMPLEMENTATION-PLAN-REVIEW-2026-09-11.md)
 
+- Pending implementation proposal (not accepted): [Approval producer contract](0119-analysis/APPROVAL-PRODUCER-CONTRACT-PROPOSAL.md), 2026-09-15. No gate or deployment authority granted.
+
 ## Context
 
 Independent matrix, publication, VPN and baseline generators currently compete

@@ -274,3 +274,9 @@
   as "VPN Tunnel Zone" because it inherited that name. Correcting it changes
   rendered comments and is a separate reviewed change.
 - No gate closed, nothing qualified, no deployment implied.
+
+## ADR0118/0119 — approval producer implementation proposal, 2026-09-15
+
+- Adds [proposed approval producer contract](0119-analysis/APPROVAL-PRODUCER-CONTRACT-PROPOSAL.md): L7 signed review, separately pinned authority/context, exact validate-stage manifest channel and admission binding.
+- Keeps approval separate from semantic verification, source promotion and activation. A real signed decision cannot relabel a legacy plan.
+- Status: Proposed implementation contract, not accepted or implemented; parent ADR statuses unchanged. No G3 closure, backend qualification, actual approver assignment or deployment authorization.

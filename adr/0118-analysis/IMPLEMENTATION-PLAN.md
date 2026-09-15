@@ -1627,13 +1627,61 @@ and leave termination unguarded, which is how this went unnoticed - plus the
 full-scope positive control that still writes, a rule-after-the-terminal refusal,
 and the reference-model mutants.
 
+### Approval producer — a proposed contract, not an accepted one
+
+`adr/0119-analysis/APPROVAL-PRODUCER-CONTRACT-PROPOSAL.md`, 2026-09-15. Status:
+**Proposed; not accepted or implemented.** Recorded here so the plan references
+it; referencing a proposal is not adopting it, and nothing in this repository
+implements it.
+
+What it asks for, in one line: a signed, source-controlled L7 review decision
+authenticated against an operator-pinned authority context, verified by a
+validate-stage producer that publishes a typed `network_approval` on a declared
+channel. The producer *verifies* an existing decision; it never concludes that a
+human approved because compilation succeeded.
+
+Three things in it are worth carrying into any implementation, because each is a
+mistake this work has already made once in a different place:
+
+* **An approver is an authenticated principal, not a string.** Not a commit
+  author, a CODEOWNERS entry, an OS user or an `approved_by` field. Self-approval
+  is not a single-operator convenience, and a different spelling of one identity
+  is not a second person.
+* **Four facts with four authorities**, and none substitutes for another: a
+  proposal names useful traffic, a principal approves resolved intent, a verifier
+  says the plan preserves it, admission permits a write. The approval record
+  carries references and review claims - never a second copy of the rules.
+* **The plan digest is not the approval subject.** Approval binds intent and
+  evidence; the verifier binds the plan to that intent; admission binds its
+  verdict to the exact plan. Signing the plan would make re-approval a
+  consequence of recompiling.
+
+**What it does not do, stated by the document and worth repeating.** An approval
+producer removes the absence of an authenticated decision. It does not turn
+`legacy_shadow` into strict intent and it does not close G2 or G3. A real signed
+decision cannot relabel a legacy plan - the document's own M1/M2 split says so:
+M1 proves the producer is authentic on real sources while a legacy plan is still
+refused; M2 needs a strict candidate produced and independently verified from
+real typed sources, which does not exist yet. A positive path needs both.
+
+*Not started.* The trust contract comes first - source of authority, approver
+identification, the self-approval prohibition, how the authority context is
+pinned, and the signed-decision format - and that is a decision to agree, not one
+to infer from this document.
+
 ### The five remaining obligations, mounted
 
-`base.validator.security_obligations` decides SEC-NAT, SEC-STATE, SEC-TRANSITION,
-SEC-PATH and SEC-CAP. They had existed only in `netmodel`, which the framework
-cannot import, and mounting them had been refused for a good reason: none of the
-five has its inputs in the pipeline, and a checker with no input finds nothing.
-Reporting that as a pass is the empty-loop mistake.
+`base.validator.security_obligations` mounts the channel for SEC-NAT, SEC-STATE,
+SEC-TRANSITION, SEC-PATH and SEC-CAP. They had existed only in `netmodel`, which
+the framework cannot import, and mounting them had been refused for a good
+reason: none of the five has its inputs in the pipeline, and a checker with no
+input finds nothing. Reporting that as a pass is the empty-loop mistake.
+
+**What is actually decided, stated precisely.** One of the five - SEC-NAT -
+reaches a verdict, because its input is on the rule. The other four correctly
+report the absence of evidence. That is a channel and one implemented decision,
+not five completed checks, and the difference matters: an obligation that
+abstains is not one that holds.
 
 **Three answers, and the middle one is why this is now possible.** *Not
 applicable* when the plan declares no field the obligation governs - nothing here
