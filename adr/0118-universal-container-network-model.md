@@ -1,6 +1,7 @@
 # ADR 0118: Universal Container Network Model
 
 - Status: Accepted
+- Revised: 2026-09-15 rev 3.3 (D6: modeling targets are runtimes, not enforcers; enforcer axes moved to ADR 0119 D1.1)
 - Revised: 2026-09-11 rev 3.2a (SPC supplement: offer digest split, anchored path inventory, vocabulary debt)
 - Revised: 2026-09-11 rev 3.2 (capability requirements, scoped offers and satisfaction evidence)
 - Revised: 2026-09-10 rev 3.1 (applicability review: ownership, routing/NAT, contexts and migration scope)
@@ -245,6 +246,15 @@ own domains; a global string comparison of IP addresses is insufficient.
 | Kubernetes/ingress/other runtime | Same conceptual questions | Deferred until discovery, identity, path and backend conformance contracts exist |
 
 These are modeling targets, **not a supported-platform certification matrix**.
+
+They are also not enforcers. The table says where a workload runs and how it is
+addressed and published; it says nothing about which device filters its traffic.
+A workload's runtime does not select the enforcer covering its paths, an
+enforcer's platform does not have to appear in this table at all, and one runtime
+target may have its paths covered by several enforcers of different types. The
+enforcer axes - type and instance - belong to [ADR 0119 D1.1](0119-firewall-rule-ordering-contract.md);
+reading a row here as "this platform enforces its own traffic" is the platform
+assumption this model exists to remove.
 The baseline strict profile is static IPv4 with one runtime backend per publication
 and bounded typed flows. Dynamic identity/allocation, IPv6, shared-stack isolation,
 HA ownership, multipath and nested transforms require separate qualification.

@@ -75,16 +75,59 @@ same way.
 ### Shape
 
 ```
-compile   base.compiler.security_plan        -> security_plan     (backend-neutral)
-compile   object.<backend>.compiler.plan     -> backend_plan      (specialized)
-validate  base.validator.security_plan       -> checks security_plan
-validate  object.<backend>.validator.plan    -> checks backend_plan
-generate  object.<backend>.generator.*       -> renders backend_plan, decides nothing
+compile   base.compiler.security_plan     -> security_plan   (backend-neutral, all scopes)
+compile   object.<type>.compiler.plan     -> backend_plan    (specialized, per enforcer)
+validate  base.validator.security_plan    -> checks security_plan
+validate  object.<type>.validator.plan    -> checks backend_plan
+generate  object.<type>.generator.*       -> renders backend_plan, decides nothing,
+                                             one artifact set per enforcer instance
 ```
 
 The generator's remaining job is rendering. ADR 0119 D4 already says this for the
 terminal deny - *the plan compiler emits it and the template only renders it* -
 and the same rule applies to everything else the projection currently decides.
+
+**Amended 2026-09-15: `<type>`, not `<backend>`.** The first version of this shape
+was parameterised by backend, and used "backend" and "object module" as synonyms.
+That reads the model off the code: it makes the set of enforcer types equal to the
+set of modules that happen to own a generator, which is the assumption
+[ADR 0119 D1.1](../0119-firewall-rule-ordering-contract.md) now forbids. The
+parameter is the enforcer type, resolved from the device's declared enforcement
+capability. A module may host more than one type, and a type is not created by
+adding a module.
+
+The shape is also parameterised a second time, by enforcer instance, which the
+first version did not express at all. Two enforcers of one type get two
+projections and two artifact sets. Concretely, and this is the implementation
+choice the ADR deliberately leaves open:
+
+```
+<artifacts root>/terraform/<backend>/<enforcer instance id>/
+```
+
+So `terraform/mikrotik/rtr-mikrotik-chateau/` and `terraform/proxmox/srv-gamayun/`,
+each a complete Terraform root with its own provider configuration, variables and
+state. The first segment stays the existing directory name; it is a path, not the
+type authority - dispatch is by capability, and letting the directory name decide
+would reintroduce exactly what the amendment removes. The layout follows
+`bootstrap/<device>/`, which already renders per device in this repository.
+
+Not every type separates instances by root. `proxmox_virtual_environment_firewall_rules`
+scopes itself through `node_name`, `vm_id` and `container_id` arguments, so a
+Proxmox root can carry several scopes explicitly. Per-instance separation is the
+obligation; a root per instance is how the RouterOS type meets it, because a
+Terraform root holds one unaliased provider configuration and one state.
+
+**This is a reviewed behaviour change, not a refactor.** Moving the roots changes
+24 of the 163 emitted paths, and 29 if `terraform/oci/` follows the same rule.
+Byte content may be unchanged and byte parity will still fail, because the
+comparison is by path. It therefore needs a declared rename in the comparison, all
+consumers of the scope switched together per the migration plan, and its own
+review - the same rule W05 applied when two derivations disagreed.
+
+`terraform/oci/` is left as it is for now. Oracle Cloud is a tenancy rather than an
+enforcer, so the per-enforcer rule does not reach it; if OCI is later modelled as
+carrying an enforcer of its own, it gets the same treatment then.
 
 ## What this decision does not do
 

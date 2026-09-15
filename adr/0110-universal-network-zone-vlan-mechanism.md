@@ -162,6 +162,23 @@ property_schemas:
     target_class: class.router
 ```
 
+**Erratum, 2026-09-15.** The block above is a transcription of the class schema as
+first written, and the implemented schema has moved on. In
+`topology/class-modules/L2-network/network/class.network.security_matrix.yaml`,
+`enforcement_plane` is a required property with the enum `[perimeter, internal]`,
+`address_space.vlan_refs` exists, `device_assignments` does not, and
+`managed_by_ref` carries no `target_class` - the constraint `class.router` was
+dropped because an enforcer is not necessarily a router. `srv-gamayun`, a Proxmox
+node, is the enforcer of `inst.security_matrix.proxmox` and would fail that
+constraint. This corrects a stale transcription and changes no R1-R6 behaviour;
+the file is the authority, and this ADR remains **Implemented** as it stands.
+
+The enum `[perimeter, internal]` names an enforcement **plane**, which is where in
+the path an enforcer acts. It is not the enforcer's **type**, and the platform
+names in its description are examples rather than values. Type and instance are
+defined in [ADR 0119 D1.1](0119-firewall-rule-ordering-contract.md); M1-B below is
+unchanged by that and continues to bind one matrix to exactly one enforcer.
+
 #### 1.2 Object Template: `obj.network.security_matrix.soho`
 
 ```yaml

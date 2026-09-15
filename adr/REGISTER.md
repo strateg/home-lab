@@ -280,3 +280,35 @@
 - Adds [proposed approval producer contract](0119-analysis/APPROVAL-PRODUCER-CONTRACT-PROPOSAL.md): L7 signed review, separately pinned authority/context, exact validate-stage manifest channel and admission binding.
 - Keeps approval separate from semantic verification, source promotion and activation. A real signed decision cannot relabel a legacy plan.
 - Status: Proposed implementation contract, not accepted or implemented; parent ADR statuses unchanged. No G3 closure, backend qualification, actual approver assignment or deployment authorization.
+
+## ADR 0118/0119 rev 3.3 — enforcer type and enforcer instance, 2026-09-15
+
+- ADR 0119 stays **Accepted**; adds **D1.1**. An enforcer has a type, resolved
+  from the device's declared enforcement capability under ADR 0106, never from an
+  identifier and never from which object module owns a generator. One type, one
+  renderer. Artifacts are produced per enforcer instance: two enforcers of one
+  type are two scopes, two projections and two independent artifact sets with
+  their own connection identity and applied state. Enforcement plane stays a
+  third, orthogonal axis. D2 adds enforcer type to the execution context; D3
+  states the generate stage renders one artifact set per instance.
+- ADR 0118 stays **Accepted**; D6 now says its table lists runtime targets, not
+  enforcers - a workload's runtime does not select the enforcer covering its
+  paths, and one runtime may be covered by several enforcers of different types.
+- ADR 0110 stays **Implemented**. An erratum corrects the §1.1 transcription
+  against the implemented class schema: `enforcement_plane` is required,
+  `address_space` exists, `device_assignments` does not, and `managed_by_ref`
+  carries no `target_class` - `class.router` was dropped because an enforcer need
+  not be a router. R1-R6 behaviour and M1-B are unchanged.
+- [W07 decision](0118-analysis/W07-BACKEND-SPECIALIZATION-DECISION.md) is amended:
+  the seam is parameterised by enforcer type rather than by backend, and a second
+  time by enforcer instance. Records the chosen Terraform layout
+  `terraform/<backend>/<enforcer instance id>/` as an implementation choice, and
+  states that adopting it is a reviewed behaviour change affecting 24 of 163
+  emitted paths, not a refactor.
+- Basis: SPC analysis of 2026-09-15 in this session. Measured: four devices with
+  four distinct OS declared in the topology; `cap.firewall.security_matrix`,
+  `.routeros` and `.pve` registered in the catalogue with zero consumers; a
+  published `matrix_by_enforcer` index with zero subscribers; and a single
+  unaliased `provider "routeros"` in one Terraform root.
+- No code, schema or artifact changed. No gate closed, nothing qualified, no
+  deployment implied.

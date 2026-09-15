@@ -1,6 +1,7 @@
 # ADR 0119: Firewall Rule Ordering Contract
 
 - Status: Accepted
+- Revised: 2026-09-15 rev 3.3 (D1.1: enforcer type and enforcer instance as separate axes; type resolved from capability, artifacts per instance)
 - Revised: 2026-09-11 rev 3.2a (SPC supplement: SEC-CAP digest split, anchored Omega_g, status mapping)
 - Revised: 2026-09-11 rev 3.2 (scoped capability resolution, SEC-CAP and evidence freshness)
 - Revised: 2026-09-10 rev 3.1 (applicability review: ownership, routing/NAT, contexts and migration scope)
@@ -67,13 +68,47 @@ is one logical plan authority producing one projection per enforcer:
 intent fragments (matrices, publications, baseline, VPN)
    -> one logical security-plan authority
       -> per-enforcer plan projection (scope = that enforcer's managed_by_ref)
-         -> backend rendering
+         -> rendering by that enforcer's type
+            -> one artifact set per enforcer instance
 ```
 
 Two enforcers therefore keep independent rule sets and independent capability
 qualification, while overlapping or conflicting intent between them is resolved
 once in the plan semantics, instead of by whichever generator ran last. Nothing here
 enables a disabled enforcer or merges two enforcement planes.
+
+### D1.1 Enforcer type and enforcer instance are separate axes
+
+The chain above has two axes below the plan, and conflating them is what shapes a
+universal model around whichever backend was implemented first.
+
+**Type.** An enforcer has a type, and the type is a property of the topology, not
+of the codebase. It is resolved from the device's declared enforcement capability
+under ADR 0106, which the platform and OS contract derives; it is never inferred
+from an object or instance identifier, and never from which object module happens
+to own a generator. A type that exists only because code for it exists is not a
+model of the network. One type has one renderer. A renderer that emits another
+type's form is an ownership error, not a shortcut, and a type with no renderer is
+an unsupported enforcer that must be reported as such rather than rendered
+approximately.
+
+Choosing a renderer this way is dispatch, which ADR 0106 already governs. It is
+not evidence that the enforcer can carry the plan: that remains SEC-CAP's
+question, answered by scoped witnesses under D2.1, and capability membership
+never substitutes for it.
+
+**Instance.** Two enforcers of one type are two scopes, two projections and two
+independent artifact sets, each with its own connection identity and its own
+applied state. Rendering that merges them makes the plan's per-enforcer scoping
+unobservable in what is actually applied, and couples one apply's failure to the
+other's scope. How a backend expresses the separation is its own contract - a
+separate configuration root per instance, or a scope argument carried on every
+rendered resource - but the separation itself is not optional, and neither is
+per-instance connection identity: one address, credential set and state per
+enforcer, never one shared by a type.
+
+Enforcement plane (perimeter or internal) is a third, orthogonal axis. It says
+what part of the path an enforcer covers, not what it is or how many there are.
 
 For every accepted flow there must be a current explicit permit and no applicable
 mandatory deny. Required legitimate flows must also work: blocking everything is
@@ -90,8 +125,9 @@ The proposed projection contract has three immutable records:
 | Enforcement plan | Intent digest, selected versioned capability offers/strategies/conditions, execution contexts, typed matches/effects, ordered rules, transforms, path coverage, state/revocation and transition requirements |
 | Validation evidence | Plan digest, validator/tool versions, obligation-linked capability resolution witnesses, required evidence levels, scope/assumptions, counterexamples and unsupported properties |
 
-An execution context includes enforcer, routing domain, address family, hook
-and chain. Rules carry stable semantic identity, source provenance and policy/
+An execution context includes enforcer, enforcer type, routing domain, address
+family, hook and chain. The type belongs in the context because a hook or chain
+name only has meaning under one; the enforcer identifies which instance. Rules carry stable semantic identity, source provenance and policy/
 publication binding where applicable. A NAT action includes its target tuple,
 not merely the string `dst-nat`. Original and transformed tuples are distinct.
 
@@ -150,7 +186,7 @@ unverified requirement may render the affected flow `unsupported`, but an
 | discover | Framework -> class -> object -> project manifest discovery |
 | compile | Normalize refs/defaults, resolve bindings, authorize, construct complete candidate plan |
 | validate | Check schemas, capability coverage, semantics, ordering and proof obligations |
-| generate | Deterministic backend rendering from validated projections only |
+| generate | Deterministic rendering from validated projections only, by the renderer the enforcer's type selects, into one artifact set per enforcer instance |
 | assemble | Cross-artifact consistency, manifest and provenance checks |
 | build | Immutable offline candidate bundle; reject missing evidence required at this gate; activation additionally requires fresh live prerequisites |
 
