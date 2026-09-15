@@ -18,6 +18,11 @@ sys.path.insert(0, str(V5_TOOLS))
 from kernel.plugin_base import PluginContext, PluginStatus, Stage  # noqa: E402
 from plugins.generators.ansible_inventory_generator import AnsibleInventoryGenerator  # noqa: E402
 
+from tests.helpers.mikrotik_security_channels import (  # noqa: E402
+    SECURITY_MATRIX_COMPILER,
+    publish_empty_channels,
+)
+
 # Plugin manifest paths
 MIKROTIK_MANIFEST = V5_ROOT / "topology" / "object-modules" / "mikrotik" / "plugins.yaml"
 PROXMOX_MANIFEST = V5_ROOT / "topology" / "object-modules" / "proxmox" / "plugins.yaml"
@@ -85,7 +90,7 @@ def _ctx(tmp_path: Path, compiled_json: dict, plugin_config: dict | None = None)
     }
     if plugin_config:
         config.update(plugin_config)
-    return PluginContext(
+    ctx = PluginContext(
         topology_path="topology/topology.yaml",
         profile="test",
         model_lock={},
@@ -93,12 +98,18 @@ def _ctx(tmp_path: Path, compiled_json: dict, plugin_config: dict | None = None)
         output_dir=str(tmp_path / "build"),
         config=config,
     )
+    # The MikroTik Terraform generator consumes both security-matrix channels and
+    # derives no substitute. These fixtures are about template-only rendering and
+    # publish metadata, so they state the channels empty rather than omit them;
+    # omission is a blocked run, which has its own negative test.
+    publish_empty_channels(ctx)
+    return ctx
 
 
 def _run_generator(generator, ctx: PluginContext):
     from tests.helpers.plugin_execution import run_plugin_for_test
 
-    return run_plugin_for_test(generator, ctx, Stage.GENERATE)
+    return run_plugin_for_test(generator, ctx, Stage.GENERATE, consumes_keys=(SECURITY_MATRIX_COMPILER,))
 
 
 def _semanticize(compiled_json: dict) -> dict:

@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.helpers.plugin_execution import run_plugin_for_test
+from tests.helpers.plugin_execution import publish_for_test, run_plugin_for_test
 
 V5_ROOT = Path(__file__).resolve().parents[2]
 V5_TOOLS = Path(__file__).resolve().parents[2] / "topology-tools"
@@ -24,6 +24,12 @@ _MIKROTIK_PROJECTIONS = load_object_projection_module("mikrotik")
 _derive_mikrotik_capability_flags = _MIKROTIK_PROJECTIONS._derive_mikrotik_capability_flags
 _extract_capabilities = _MIKROTIK_PROJECTIONS._extract_capabilities
 _raw_build_mikrotik_projection = _MIKROTIK_PROJECTIONS.build_mikrotik_projection
+
+# The producer the manifest lets this generator subscribe to. Both of its keys -
+# `security_matrices` and `vlan_cidr_map` - are declared `required: true`, because
+# the projection derives no substitute for either.
+_SECURITY_MATRIX_COMPILER = "base.compiler.security_matrix"
+_CONSUMED_KEYS = (_SECURITY_MATRIX_COMPILER,)
 
 
 def _semanticize(compiled_json: dict) -> dict:
@@ -52,8 +58,15 @@ def _semanticize(compiled_json: dict) -> dict:
     return payload
 
 
-def build_mikrotik_projection(compiled_json: dict) -> dict:
-    return _raw_build_mikrotik_projection(_semanticize(compiled_json))
+def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
+    """Channels stated empty: these fixtures declare no matrices and no domains.
+
+    They are required arguments now - the projection derives no substitute for
+    `base.compiler.security_matrix` - so omission is an error and `{}` is a claim.
+    """
+    kwargs.setdefault("security_matrices", {})
+    kwargs.setdefault("vlan_cidr_map", {})
+    return _raw_build_mikrotik_projection(_semanticize(compiled_json), **kwargs)
 
 
 def _load_generator_class():
@@ -229,7 +242,7 @@ class TestMikroTikProjectionCapabilities:
 class TestMikroTikGeneratorCapabilityDriven:
     """Tests for capability-driven file generation."""
 
-    def _ctx(self, tmp_path: Path, compiled_json: dict) -> PluginContext:
+    def _ctx(self, tmp_path: Path, compiled_json: dict, *, publish_channels: bool = True) -> PluginContext:
         capability_templates = {
             "qos": {"enabled_by": "capabilities.has_qos", "template": "terraform/qos.tf.j2", "output": "qos.tf"},
             "wireguard": {
@@ -243,7 +256,7 @@ class TestMikroTikGeneratorCapabilityDriven:
                 "output": "containers.tf",
             },
         }
-        return PluginContext(
+        ctx = PluginContext(
             topology_path="topology/topology.yaml",
             profile="test",
             model_lock={},
@@ -254,6 +267,15 @@ class TestMikroTikGeneratorCapabilityDriven:
                 "capability_templates": capability_templates,
             },
         )
+        # The generator consumes these from `base.compiler.security_matrix` and
+        # derives no substitute. These fixtures are about capability-driven
+        # template selection, so they publish the channels empty rather than
+        # leave them absent - absence is a blocked generation, which
+        # `test_the_generator_blocks_when_the_compiler_published_nothing` covers.
+        if publish_channels:
+            for key in ("security_matrices", "vlan_cidr_map"):
+                publish_for_test(ctx, _SECURITY_MATRIX_COMPILER, key, {})
+        return ctx
 
     def test_generates_vpn_tf_when_wireguard_capability(self, tmp_path: Path) -> None:
         compiled_json = {
@@ -272,7 +294,7 @@ class TestMikroTikGeneratorCapabilityDriven:
         ctx = self._ctx(tmp_path, compiled_json)
         generator = TerraformMikroTikGenerator("test.generator.mikrotik")
 
-        result = run_plugin_for_test(generator, ctx, Stage.GENERATE)
+        result = run_plugin_for_test(generator, ctx, Stage.GENERATE, consumes_keys=_CONSUMED_KEYS)
 
         assert result.status == PluginStatus.SUCCESS
         generated_files = [Path(f).name for f in result.output_data.get("terraform_mikrotik_files", [])]
@@ -296,7 +318,7 @@ class TestMikroTikGeneratorCapabilityDriven:
         ctx = self._ctx(tmp_path, compiled_json)
         generator = TerraformMikroTikGenerator("test.generator.mikrotik")
 
-        result = run_plugin_for_test(generator, ctx, Stage.GENERATE)
+        result = run_plugin_for_test(generator, ctx, Stage.GENERATE, consumes_keys=_CONSUMED_KEYS)
 
         assert result.status == PluginStatus.SUCCESS
         generated_files = [Path(f).name for f in result.output_data.get("terraform_mikrotik_files", [])]
@@ -329,7 +351,7 @@ class TestMikroTikGeneratorCapabilityDriven:
         ctx = self._ctx(tmp_path, compiled_json)
         generator = TerraformMikroTikGenerator("test.generator.mikrotik")
 
-        result = run_plugin_for_test(generator, ctx, Stage.GENERATE)
+        result = run_plugin_for_test(generator, ctx, Stage.GENERATE, consumes_keys=_CONSUMED_KEYS)
 
         assert result.status == PluginStatus.SUCCESS
         generated_files = [Path(f).name for f in result.output_data.get("terraform_mikrotik_files", [])]
@@ -352,7 +374,7 @@ class TestMikroTikGeneratorCapabilityDriven:
         ctx = self._ctx(tmp_path, compiled_json)
         generator = TerraformMikroTikGenerator("test.generator.mikrotik")
 
-        result = run_plugin_for_test(generator, ctx, Stage.GENERATE)
+        result = run_plugin_for_test(generator, ctx, Stage.GENERATE, consumes_keys=_CONSUMED_KEYS)
 
         assert result.status == PluginStatus.SUCCESS
         generated_files = [Path(f).name for f in result.output_data.get("terraform_mikrotik_files", [])]
@@ -362,3 +384,49 @@ class TestMikroTikGeneratorCapabilityDriven:
         assert "firewall.tf" in generated_files
         assert "variables.tf" in generated_files
         assert "outputs.tf" in generated_files
+
+    def test_the_generator_blocks_when_the_compiler_published_nothing(self, tmp_path: Path) -> None:
+        """No channel, no artifacts - and no quiet success.
+
+        The projection used to carry its own derivation of zone membership and
+        address-domain CIDRs, so a missing compiler channel rendered an empty
+        address list and an empty tunnel route set while the plugin reported
+        SUCCESS. Both derivations are gone. This pins the replacement behaviour:
+        the run fails, and it names the producer that should have published.
+
+        In the pipeline the kernel refuses to dispatch at all, because the
+        manifest declares both keys `required: true` (E8003). This test exercises
+        the second guard, the one that holds for any direct caller.
+        """
+        compiled_json = {
+            "instances": {
+                "devices": [{"instance_id": "rtr-test", "object_ref": "obj.mikrotik.test"}],
+                "network": [],
+                "services": [],
+            }
+        }
+        ctx = self._ctx(tmp_path, compiled_json, publish_channels=False)
+        generator = TerraformMikroTikGenerator("test.generator.mikrotik")
+
+        result = run_plugin_for_test(generator, ctx, Stage.GENERATE, consumes_keys=_CONSUMED_KEYS)
+
+        assert result.status == PluginStatus.FAILED
+        messages = [diagnostic.message for diagnostic in result.diagnostics]
+        assert any("base.compiler.security_matrix" in message for message in messages), messages
+        assert not list((tmp_path / "generated").rglob("*.tf")), "artifacts were written despite the failure"
+
+    def test_the_manifest_declares_both_channels_required(self) -> None:
+        """`required: false` is what let the absence pass as an empty result."""
+        import sys as _sys
+
+        _sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "topology-tools"))
+        from yaml_loader import load_yaml_file
+
+        manifest_path = Path(__file__).resolve().parents[2] / "topology/object-modules/mikrotik/plugins.yaml"
+        manifest = load_yaml_file(manifest_path) or {}
+        spec = next(item for item in manifest["plugins"] if item["id"] == "object.mikrotik.generator.terraform")
+        consumes = {item["key"]: item for item in spec.get("consumes", [])}
+
+        for key in ("security_matrices", "vlan_cidr_map"):
+            assert consumes[key]["from_plugin"] == _SECURITY_MATRIX_COMPILER
+            assert consumes[key]["required"] is True, f"{key} must block generation when absent"

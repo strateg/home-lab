@@ -24,10 +24,12 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 PROJECTION = REPO_ROOT / "topology/object-modules/mikrotik/plugins/projections.py"
 DECISION = REPO_ROOT / "adr/0118-analysis/W07-BACKEND-SPECIALIZATION-DECISION.md"
 
-# Measured 2026-09-14 at commit 3312ca0b. This may shrink as functions move to a
-# compile-stage specializer; it must not grow.
-PROJECTION_FUNCTION_BUDGET = 17
-PROJECTION_LINE_BUDGET = 1565
+# Measured 2026-09-14 at commit 3312ca0b, and lowered on 2026-09-15 when the two
+# VLAN-CIDR helpers and the zone oracle left the projection for the compiler's
+# channel and the parity test. A budget that stays above the real figure stops
+# measuring, so it is lowered whenever the debt is actually paid down.
+PROJECTION_FUNCTION_BUDGET = 15
+PROJECTION_LINE_BUDGET = 1518
 
 
 def _functions() -> list[tuple[str, int]]:
@@ -60,9 +62,7 @@ def test_the_generator_side_specialization_debt_does_not_grow() -> None:
         f"{len(functions)} functions in the generate-stage projection, budget {PROJECTION_FUNCTION_BUDGET}. "
         "New backend specialization belongs in a compile-stage plugin; see the W07 decision."
     )
-    assert total <= PROJECTION_LINE_BUDGET, (
-        f"{total} lines, budget {PROJECTION_LINE_BUDGET}. Same reason."
-    )
+    assert total <= PROJECTION_LINE_BUDGET, f"{total} lines, budget {PROJECTION_LINE_BUDGET}. Same reason."
 
 
 def test_the_budget_is_not_stale() -> None:
@@ -110,7 +110,22 @@ def test_the_migration_order_names_the_blocked_step() -> None:
     assert "W05" in text
 
 
-@pytest.mark.parametrize("name", ["_derive_mikrotik_capability_flags", "_build_vlan_cidr_index"])
+@pytest.mark.parametrize("name", ["_derive_mikrotik_capability_flags"])
 def test_the_first_migration_candidates_still_exist(name: str) -> None:
     """If one has moved, the order in the decision needs updating with it."""
     assert name in {function for function, _ in _functions()}
+
+
+@pytest.mark.parametrize("name", ["_build_vlan_cidr_index", "_resolve_vlan_refs_to_cidrs", "_row_class"])
+def test_the_migrated_helpers_are_gone_rather_than_dormant(name: str) -> None:
+    """Migrated on 2026-09-15. The point is the absence, not the line count.
+
+    A helper kept "just in case" is a second derivation waiting to be reached
+    for, which is what A24 forbids. `_build_vlan_cidr_index` and
+    `_resolve_vlan_refs_to_cidrs` are replaced by `vlan_cidr_map` from
+    `base.compiler.security_matrix`; `_row_class` served the zone oracle, which
+    now lives in the parity test. Asserting they are gone is what stops the debt
+    from being paid on paper and reinstated in the next change.
+    """
+    assert name not in {function for function, _ in _functions()}
+    assert name not in PROJECTION.read_text(encoding="utf-8")

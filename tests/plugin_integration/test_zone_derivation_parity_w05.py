@@ -21,13 +21,22 @@ was the signal that the cutover had become possible, and it has fired.
 
 They now assert the other side: the compiler reads the field, the generator
 consumes the channel rather than deriving, and the two derivations agree over the
-real compiled model. The projection keeps its local derivation as a parity
-oracle, which is how this project detects a divergence rather than assuming its
-absence.
+real compiled model.
+
+**The oracle moved here on 2026-09-15.** It used to live inside
+`mikrotik/plugins/projections.py` as a dormant fallback the generator could still
+reach, which is a second derivation whatever its comment says - A24 forbids that,
+and W07 says the generator renders rather than decides. A parity oracle belongs
+to the test that runs it, so `_oracle_zone_cidrs` below is an independent
+re-derivation from the compiled model, written against the same authored fields
+and deliberately not importing the compiler. The differential is unchanged in
+what it proves: two implementations, one answer, checked against the artifact the
+pipeline actually rendered.
 """
 
 from __future__ import annotations
 
+import pathlib
 import sys
 from pathlib import Path
 
@@ -49,8 +58,115 @@ OVERLAY_ZONES = {
 }
 
 
+# The oracle's own copy of what counts as an address domain. Separate from the
+# compiler's list on purpose: an oracle that imported it could not disagree. A
+# test below asserts the two agree.
+ORACLE_ADDRESS_DOMAIN_CLASSES = ("class.network.vlan",)
+ORACLE_TRUST_ZONE_CLASS = "class.network.trust_zone"
+
+
 def _zone_instances() -> dict[str, dict]:
     return {path.stem: load_yaml_file(path) for path in sorted(INSTANCES.glob("inst.trust_zone.*.yaml"))}
+
+
+def _oracle_object_ref(row: dict) -> str:
+    block = row.get("instance")
+    if isinstance(block, dict):
+        for field in ("extends_object", "materializes_object"):
+            value = block.get(field)
+            if isinstance(value, str) and value:
+                return value
+    return ""
+
+
+def _oracle_row_class(row: dict) -> str | None:
+    class_ref = row.get("class_ref")
+    if isinstance(class_ref, str) and class_ref:
+        return class_ref
+    payload = row.get("class")
+    lineage = payload.get("lineage") if isinstance(payload, dict) else None
+    return lineage[-1] if isinstance(lineage, list) and lineage else None
+
+
+def _oracle_properties(object_ref: str, objects_map: dict) -> dict:
+    obj = objects_map.get(object_ref) if isinstance(objects_map, dict) else None
+    props = obj.get("properties") if isinstance(obj, dict) else None
+    return props if isinstance(props, dict) else {}
+
+
+def _oracle_zone_cidrs(compiled_json: dict) -> dict[str, list[str]]:
+    """Re-derive each MikroTik zone's address list from the compiled model.
+
+    An independent implementation of what `base.compiler.security_matrix` does,
+    kept so the pipeline's answer has something to be checked against. It reads
+    the same authored fields - `trust_zone_ref`, `cidr`, `additional_networks` -
+    and imports neither the compiler nor the projection.
+    """
+    objects_map = compiled_json.get("objects") or {}
+    rows = (compiled_json.get("instances") or {}).get("network") or []
+
+    router_ids = {
+        str(row.get("instance_id", "")).strip()
+        for row in (compiled_json.get("instances") or {}).get("devices") or []
+        if _oracle_object_ref(row).startswith("obj.mikrotik.")
+    }
+
+    zone_refs: list[str] = []
+    for row in rows:
+        if "security_matrix" not in _oracle_object_ref(row):
+            continue
+        inst = row.get("instance_data")
+        if not isinstance(inst, dict):
+            continue
+        if str(inst.get("managed_by_ref", "")).strip() not in router_ids:
+            continue
+        declared = inst.get("zone_refs")
+        if isinstance(declared, list):
+            zone_refs = [str(item) for item in declared]
+
+    vlan_zone: dict[str, str] = {}
+    vlan_cidr: dict[str, str] = {}
+    for row in rows:
+        if _oracle_row_class(row) not in ORACLE_ADDRESS_DOMAIN_CLASSES:
+            continue
+        inst = row.get("instance_data")
+        if not isinstance(inst, dict):
+            continue
+        instance_id = str(row.get("instance_id", "")).strip()
+        zone_ref = str(inst.get("trust_zone_ref", "")).strip()
+        cidr = str(inst.get("cidr", "")).strip()
+        if not cidr:
+            cidr = str(_oracle_properties(_oracle_object_ref(row), objects_map).get("cidr", "")).strip()
+        if zone_ref:
+            vlan_zone[instance_id] = zone_ref
+        if cidr:
+            vlan_cidr[instance_id] = cidr
+
+    zone_vlans: dict[str, list[str]] = {}
+    for vlan_ref, zone_ref in vlan_zone.items():
+        zone_vlans.setdefault(zone_ref, []).append(vlan_ref)
+    for vlans in zone_vlans.values():
+        vlans.sort()
+
+    derived: dict[str, list[str]] = {}
+    for row in rows:
+        if _oracle_row_class(row) != ORACLE_TRUST_ZONE_CLASS:
+            continue
+        zone_instance = str(row.get("instance_id", "")).strip()
+        if zone_instance not in zone_refs:
+            continue
+        inst = row.get("instance_data")
+        if not isinstance(inst, dict):
+            inst = {}
+        cidrs = [vlan_cidr[v] for v in zone_vlans.get(zone_instance, []) if v in vlan_cidr]
+        for net in inst.get("additional_networks") or []:
+            if isinstance(net, dict):
+                cidr = str(net.get("cidr", "")).strip()
+                if cidr and cidr not in cidrs:
+                    cidrs.append(cidr)
+        derived[zone_instance] = cidrs
+
+    return derived
 
 
 @pytest.mark.parametrize(("zone_id", "cidr"), sorted(OVERLAY_ZONES.items()))
@@ -98,9 +214,13 @@ def test_both_sides_now_read_additional_networks() -> None:
     a reduction of matched sources, not a refactor.
     """
     assert _reads_key(COMPILER, "additional_networks"), "the core must derive the whole zone"
-    assert _reads_key(PROJECTIONS, "additional_networks"), (
-        "the projection's local derivation is the parity oracle; if it goes, so does "
-        "the ability to notice the two disagreeing"
+    assert "additional_networks" in pathlib.Path(__file__).read_text(encoding="utf-8"), (
+        "the oracle must read the field too; if it stops, the differential agrees by "
+        "not looking rather than by matching"
+    )
+    assert not _reads_key(PROJECTIONS, "additional_networks"), (
+        "the projection is reading the field again - that is a second derivation at "
+        "generate, which is what A24 and W07 both forbid"
     )
 
 
@@ -113,9 +233,7 @@ def test_the_generator_consumes_the_channel_rather_than_deriving() -> None:
     import ast
 
     manifest = load_yaml_file(REPO_ROOT / "topology/object-modules/mikrotik/plugins.yaml") or {}
-    spec = next(
-        item for item in manifest["plugins"] if item["id"] == "object.mikrotik.generator.terraform"
-    )
+    spec = next(item for item in manifest["plugins"] if item["id"] == "object.mikrotik.generator.terraform")
     consumed = {(item["key"], item["from_plugin"]) for item in spec.get("consumes", [])}
 
     assert ("security_matrices", "base.compiler.security_matrix") in consumed
@@ -132,9 +250,10 @@ def test_the_generator_consumes_the_channel_rather_than_deriving() -> None:
         for keyword in node.keywords
     }
 
-    assert {"security_matrices", "vlan_cidr_map"} <= passed, (
-        "the generator subscribes but does not hand the channel to the projection"
-    )
+    assert {
+        "security_matrices",
+        "vlan_cidr_map",
+    } <= passed, "the generator subscribes but does not hand the channel to the projection"
 
 
 def test_both_paths_sort_for_determinism_now() -> None:
@@ -158,7 +277,7 @@ def test_the_two_derivations_agree_on_the_real_model() -> None:
     implementations and they must agree - that is the whole reason the second one
     was kept rather than deleted.
     """
-    import importlib.util
+    import json
     import re
 
     effective = REPO_ROOT / "build" / "effective-topology.json"
@@ -166,22 +285,12 @@ def test_the_two_derivations_agree_on_the_real_model() -> None:
     if not effective.exists() or not rendered.exists():
         pytest.skip("needs a compiled model and rendered artifacts; run compile-topology.py first")
 
-    import json
-
-    spec = importlib.util.spec_from_file_location("w05_projections", PROJECTIONS)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules["w05_projections"] = module
-    spec.loader.exec_module(module)
-
-    local = module.build_mikrotik_projection(json.loads(effective.read_text(encoding="utf-8")))
-    oracle: dict[str, list[str]] = {
-        str(zone_id).rsplit(".", 1)[-1]: list(values.get("cidrs") or [])
-        for zone_id, values in (local["security_matrix"]["zones"] or {}).items()
-    }
+    derived = _oracle_zone_cidrs(json.loads(effective.read_text(encoding="utf-8")))
+    oracle: dict[str, list[str]] = {str(zone_id).rsplit(".", 1)[-1]: list(cidrs) for zone_id, cidrs in derived.items()}
+    assert oracle, "the oracle derived no zones; this differential would prove nothing"
 
     pattern = (
-        r'resource "routeros_ip_firewall_addr_list" "\w+" \{\s*list\s*=\s*"zone-([^"]+)"'
-        r'\s*address\s*=\s*"([^"]+)"'
+        r'resource "routeros_ip_firewall_addr_list" "\w+" \{\s*list\s*=\s*"zone-([^"]+)"' r'\s*address\s*=\s*"([^"]+)"'
     )
     produced: dict[str, list[str]] = {}
     for zone, address in re.findall(pattern, rendered.read_text(encoding="utf-8")):
@@ -190,8 +299,7 @@ def test_the_two_derivations_agree_on_the_real_model() -> None:
     assert produced, "no address lists in the rendered artifact; this differential would prove nothing"
     for zone, addresses in sorted(produced.items()):
         assert addresses == oracle.get(zone), (
-            f"zone '{zone}': the pipeline rendered {addresses} and the local derivation says "
-            f"{oracle.get(zone)}"
+            f"zone '{zone}': the pipeline rendered {addresses} and the local derivation says " f"{oracle.get(zone)}"
         )
 
 
@@ -234,19 +342,13 @@ def test_both_derivations_select_address_domains_by_class() -> None:
     oracle and has to be able to disagree with the core - so this asserts they
     agree rather than that one imports the other.
     """
-    import importlib.util
     import sys as _sys
 
     _sys.path.insert(0, str(REPO_ROOT / "topology-tools"))
     from plugins.compilers.security_matrix_compiler import SecurityMatrixCompiler
 
-    spec = importlib.util.spec_from_file_location("w05_selector_projections", PROJECTIONS)
-    module = importlib.util.module_from_spec(spec)
-    _sys.modules["w05_selector_projections"] = module
-    spec.loader.exec_module(module)
-
-    assert tuple(module.ADDRESS_DOMAIN_CLASSES) == tuple(SecurityMatrixCompiler._ADDRESS_DOMAIN_CLASSES)
-    assert module.TRUST_ZONE_CLASS == "class.network.trust_zone"
+    assert tuple(ORACLE_ADDRESS_DOMAIN_CLASSES) == tuple(SecurityMatrixCompiler._ADDRESS_DOMAIN_CLASSES)
+    assert ORACLE_TRUST_ZONE_CLASS == "class.network.trust_zone"
 
     source = PROJECTIONS.read_text(encoding="utf-8")
     assert '"vlan" not in net_object_ref' not in source, "the substring selector is back"
@@ -284,9 +386,9 @@ def test_the_compiler_selects_by_class_not_by_instance_id_prefix() -> None:
         and isinstance(node.args[0].value, str)
     ]
 
-    assert not [item for item in prefixes if item.startswith("inst.")], (
-        f"the compiler still selects instances by identifier shape: {prefixes}"
-    )
+    assert not [
+        item for item in prefixes if item.startswith("inst.")
+    ], f"the compiler still selects instances by identifier shape: {prefixes}"
 
 
 def test_the_address_domain_set_is_named_once_and_can_grow() -> None:
@@ -311,7 +413,5 @@ def test_the_class_of_a_row_is_read_from_either_stage_shape() -> None:
     from plugins.compilers.security_matrix_compiler import SecurityMatrixCompiler
 
     assert SecurityMatrixCompiler._class_of({"class_ref": "class.network.vlan"}) == "class.network.vlan"
-    assert (
-        SecurityMatrixCompiler._class_of({"class": {"lineage": ["class.network.vlan"]}}) == "class.network.vlan"
-    )
+    assert SecurityMatrixCompiler._class_of({"class": {"lineage": ["class.network.vlan"]}}) == "class.network.vlan"
     assert SecurityMatrixCompiler._class_of({}) is None

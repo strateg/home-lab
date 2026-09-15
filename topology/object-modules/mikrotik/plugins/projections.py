@@ -549,57 +549,27 @@ def _extract_bridge_vlans(
     return sorted(bridge_vlans.values(), key=lambda x: x.get("vlan_id", 0))
 
 
-# Which classes are address domains - networks that carry a prefix and belong to a
-# trust zone. Kept here rather than imported from `security_matrix_compiler` for
-# the reason the plan-validator keeps its own protocol set: this derivation is the
-# parity oracle and has to be able to disagree with the core. A test asserts the
-# two lists are equal.
-#
-# W05 divergence 3: selection used to be `"vlan" in object_ref`, a substring of an
-# identifier. Five routing policies extend `obj.network.routing_policy.vpn_vlan`
-# and passed it; they were harmless only because they declare neither
-# `trust_zone_ref` nor `cidr`, so both guards skipped them. One that ever gained a
-# `cidr` would have entered the address lists through this path alone. The safety
-# was incidental, and it is now structural.
-ADDRESS_DOMAIN_CLASSES = ("class.network.vlan",)
-TRUST_ZONE_CLASS = "class.network.trust_zone"
-
-
-def _row_class(row: dict[str, Any]) -> str | None:
-    """The row's class id, from whichever shape the stage provides.
-
-    An effective-model row carries a resolved `class` payload whose `lineage`
-    ends with the id; `normalized_rows` carry `class_ref` as a string. Reading
-    only one silently matches nothing in the other stage.
-    """
-    class_ref = row.get("class_ref")
-    if isinstance(class_ref, str) and class_ref:
-        return class_ref
-    payload = row.get("class")
-    lineage = payload.get("lineage") if isinstance(payload, dict) else None
-    return lineage[-1] if isinstance(lineage, list) and lineage else None
-
-
 def _extract_security_matrix(
     network_rows: list[dict[str, Any]],
     router_ids: set[str],
     objects_map: dict[str, Any],
-    compiled_zones: dict[str, dict[str, Any]] | None = None,
-    compiled_vlan_cidrs: dict[str, str] | None = None,
+    compiled_zones: dict[str, dict[str, Any]],
+    compiled_vlan_cidrs: dict[str, str],
 ) -> dict[str, Any]:
     """Extract security matrix configuration for MikroTik routers.
 
     `compiled_zones` is zone membership as `base.compiler.security_matrix`
-    derived it - `{zone_ref: {name, security_level, isolated, vlans, cidrs}}`.
-    When it is supplied this function does not derive zones at all, which is the
-    W05 cutover (acceptance case A24): zone membership is derived exactly once,
-    by a core-level plugin, and the generator consumes it.
+    derived it - `{zone_ref: {name, security_level, isolated, vlans, cidrs}}` -
+    and `compiled_vlan_cidrs` is its address-domain map. Both are required, and
+    this function derives neither: zone membership is derived exactly once, by a
+    core-level plugin, which is the W05 cutover and acceptance case A24.
 
-    The local derivation below is kept for the case where the channel is absent,
-    and `tests/plugin_integration/test_zone_derivation_parity_w05.py` runs the two
-    against each other. It was not deleted because a second implementation that
-    must agree is how this project detects a divergence; it is no longer what the
-    generator uses.
+    The local derivation that used to sit here as a fallback is gone. It was kept
+    as a parity oracle, but an oracle inside the code path it checks is still a
+    second derivation the generator can reach, and A24 is a statement about the
+    pipeline rather than about which branch happened to run. It now lives in
+    `tests/plugin_integration/test_zone_derivation_parity_w05.py`, re-derived
+    independently and checked against the rendered artifact.
 
     Returns:
         {
@@ -630,80 +600,19 @@ def _extract_security_matrix(
         if not isinstance(zone_refs, list):
             zone_refs = []
 
-        # VLAN -> zone and VLAN -> CIDR. Both come from the compiler when the
-        # generator supplies them; `vlan_cidr_map` is still needed here to resolve
-        # `src_vlan_ref`/`dst_vlan_ref` on policy overrides.
-        vlan_zone_map: dict[str, str] = {}  # vlan instance -> zone ref
-        vlan_cidr_map: dict[str, str] = dict(compiled_vlan_cidrs or {})
-        for net_row in [] if compiled_vlan_cidrs is not None else network_rows:
-            net_object_ref = _resolved_object_ref(net_row)
-            if _row_class(net_row) not in ADDRESS_DOMAIN_CLASSES:
-                continue
-            net_inst_data = net_row.get("instance_data", {})
-            if not isinstance(net_inst_data, dict):
-                continue
-            vlan_instance = str(net_row.get("instance_id", "")).strip()
-            trust_zone_ref = str(net_inst_data.get("trust_zone_ref", "")).strip()
-            cidr = str(net_inst_data.get("cidr", "")).strip()
-            # Fallback to object properties for CIDR
-            if not cidr:
-                props = _get_object_properties(net_object_ref, objects_map)
-                cidr = str(props.get("cidr", "")).strip()
-            if trust_zone_ref:
-                vlan_zone_map[vlan_instance] = trust_zone_ref
-            if cidr:
-                vlan_cidr_map[vlan_instance] = cidr
+        # VLAN -> CIDR comes from the compiler, and only from the compiler. It is
+        # needed here to resolve `src_vlan_ref`/`dst_vlan_ref` on policy overrides.
+        vlan_cidr_map: dict[str, str] = dict(compiled_vlan_cidrs)
 
-        # Build zone_vlans: zone_ref -> [vlan_refs]
-        zone_vlans: dict[str, list[str]] = {}
-        for vlan_ref, zone_ref in vlan_zone_map.items():
-            if zone_ref not in zone_vlans:
-                zone_vlans[zone_ref] = []
-            zone_vlans[zone_ref].append(vlan_ref)
-
-        # Zone membership, derived once. When the generator supplies the
-        # compiler's channel this loop does not run at all: that is the A24
-        # cutover, and the local derivation below is what it replaces.
-        zone_data: dict[str, dict[str, Any]] = {}
-        if compiled_zones is not None:
-            zone_data = {
-                zone_ref: dict(values) for zone_ref, values in compiled_zones.items() if zone_ref in zone_refs
-            }
-        for net_row in [] if compiled_zones is not None else network_rows:
-            net_object_ref = _resolved_object_ref(net_row)
-            if _row_class(net_row) != TRUST_ZONE_CLASS:
-                continue
-            zone_instance = str(net_row.get("instance_id", "")).strip()
-            if zone_instance not in zone_refs:
-                continue
-            # Get properties from compiled object map
-            props = _get_object_properties(net_object_ref, objects_map)
-            net_inst_data = net_row.get("instance_data", {})
-            if not isinstance(net_inst_data, dict):
-                net_inst_data = {}
-            # Use explicit None check to preserve 0/False values from instance
-            inst_sec_level = net_inst_data.get("security_level")
-            security_level = inst_sec_level if inst_sec_level is not None else props.get("security_level", 0)
-            inst_isolated = net_inst_data.get("isolated")
-            isolated = inst_isolated if inst_isolated is not None else props.get("isolated", False)
-            name = net_inst_data.get("name") or props.get("name", zone_instance)
-            # Build CIDRs from VLANs
-            vlan_cidrs = [vlan_cidr_map[v] for v in zone_vlans.get(zone_instance, []) if v in vlan_cidr_map]
-            # Add additional_networks (overlay CIDRs like VPN tunnels)
-            additional_networks = net_inst_data.get("additional_networks", [])
-            if isinstance(additional_networks, list):
-                for net in additional_networks:
-                    if isinstance(net, dict):
-                        cidr = str(net.get("cidr", "")).strip()
-                        if cidr and cidr not in vlan_cidrs:
-                            vlan_cidrs.append(cidr)
-            zone_data[zone_instance] = {
-                "name": name,
-                "security_level": int(security_level) if security_level is not None else 0,
-                "isolated": bool(isolated),
-                "vlans": zone_vlans.get(zone_instance, []),
-                "cidrs": vlan_cidrs,
-            }
+        # Zone membership is derived once, by `base.compiler.security_matrix`,
+        # and read here. There is no second derivation to fall back to: that is
+        # acceptance case A24, and removing the fallback is what makes it true
+        # rather than merely preferred. The oracle that used to sit here lives in
+        # `tests/plugin_integration/test_zone_derivation_parity_w05.py`, where a
+        # differential still runs it against the rendered artifact.
+        zone_data: dict[str, dict[str, Any]] = {
+            zone_ref: dict(values) for zone_ref, values in compiled_zones.items() if zone_ref in zone_refs
+        }
 
         # Calculate matrix cells using R1-R6 rules
         matrix: dict[str, dict[str, dict[str, Any]]] = {}
@@ -851,70 +760,6 @@ def _extract_security_matrix(
     return {}
 
 
-def _build_vlan_cidr_index(network_rows: list[dict[str, Any]], objects_map: dict[str, Any]) -> dict[str, str]:
-    """Build VLAN instance_id -> CIDR index for reference resolution (ADR-0111).
-
-    This includes ALL VLANs from network rows, not just MikroTik-managed ones,
-    since WireGuard tunnels may reference VLANs managed by other devices (e.g., Proxmox).
-
-    Args:
-        network_rows: Network instance rows from compiled JSON.
-        objects_map: The objects dict from compiled_json["objects"].
-
-    Returns:
-        Dict mapping instance_id (e.g., "inst.vlan.servers") to CIDR (e.g., "192.0.2.0/24").
-    """
-    index: dict[str, str] = {}
-    for row in network_rows:
-        object_ref = _resolved_object_ref(row)
-        if "vlan" not in object_ref:
-            continue
-
-        instance_id = str(row.get("instance_id", "")).strip()
-        if not instance_id:
-            continue
-
-        # Get CIDR from instance_data first
-        inst_data = row.get("instance_data", {})
-        if not isinstance(inst_data, dict):
-            inst_data = {}
-        cidr = str(inst_data.get("cidr", "")).strip()
-
-        # Fallback to object properties from compiled object map
-        if not cidr:
-            props = _get_object_properties(object_ref, objects_map)
-            cidr = str(props.get("cidr", "")).strip()
-
-        if cidr:
-            index[instance_id] = cidr
-
-    return index
-
-
-def _resolve_vlan_refs_to_cidrs(
-    vlan_refs: list[Any],
-    vlan_cidr_index: dict[str, str],
-) -> list[str]:
-    """Resolve VLAN references to their CIDRs (ADR-0111).
-
-    Args:
-        vlan_refs: List of VLAN instance refs (e.g., ["inst.vlan.main", "inst.vlan.servers"])
-        vlan_cidr_index: Mapping of instance_id -> CIDR
-
-    Returns:
-        List of resolved CIDRs (e.g., ["192.0.2.0/24", "198.51.100.0/24"])
-    """
-    cidrs: list[str] = []
-    for ref in vlan_refs:
-        if not isinstance(ref, str):
-            continue
-        ref = ref.strip()
-        cidr = vlan_cidr_index.get(ref)
-        if cidr:
-            cidrs.append(cidr)
-    return cidrs
-
-
 def _extract_wireguard_tunnels(
     network_rows: list[dict[str, Any]],
     router_ids: set[str],
@@ -1015,11 +860,16 @@ def _extract_wireguard_tunnels(
                 if isinstance(ip, str) and ip:
                     allowed_ips.append(ip)
 
-        # ADR-0111: Resolve allowed_vlan_refs to CIDRs
+        # ADR-0111: resolve allowed_vlan_refs against the compiler's map. The map
+        # spans every address domain, not only the MikroTik-managed ones, because
+        # a tunnel may allow a VLAN another device owns.
         remote_vlan_refs = remote_endpoint.get("allowed_vlan_refs", [])
-        if isinstance(remote_vlan_refs, list) and vlan_cidr_index:
-            resolved_cidrs = _resolve_vlan_refs_to_cidrs(remote_vlan_refs, vlan_cidr_index)
-            allowed_ips.extend(resolved_cidrs)
+        if isinstance(remote_vlan_refs, list):
+            allowed_ips.extend(
+                vlan_cidr_index[ref.strip()]
+                for ref in remote_vlan_refs
+                if isinstance(ref, str) and ref.strip() in vlan_cidr_index
+            )
 
         # If allowed_ips is empty, at least add remote tunnel IP
         if not allowed_ips:
@@ -1419,10 +1269,29 @@ def build_mikrotik_projection(
     """Build stable view for MikroTik Terraform generator.
 
     `security_matrices` and `vlan_cidr_map` are the channels
-    `base.compiler.security_matrix` publishes. When the generator supplies them,
-    zone membership is not recomputed here - it is derived exactly once, in the
-    core, which is acceptance case A24 and the point of W05.
+    `base.compiler.security_matrix` publishes, and they are the only source of
+    zone membership and address-domain CIDRs here. Nothing in this module derives
+    either one: that is acceptance case A24, and W07 puts the derivation in the
+    core rather than in a generate-stage projection.
+
+    `None` is an omission and is refused, because the alternative is a projection
+    that renders empty address lists and empty tunnel routes while reporting
+    success. A caller that means "there are none" passes an empty mapping and
+    says so. The production consumer never reaches either case: the generator
+    blocks when the compiler published nothing.
     """
+    if vlan_cidr_map is None:
+        raise ProjectionError(
+            "vlan_cidr_map was not supplied; it is published by "
+            "'base.compiler.security_matrix' and this projection derives no substitute. "
+            "Pass an empty mapping to state that there are no address domains."
+        )
+    if security_matrices is None:
+        raise ProjectionError(
+            "security_matrices was not supplied; it is published by "
+            "'base.compiler.security_matrix' and this projection derives no substitute. "
+            "Pass an empty mapping to state that there are no matrices."
+        )
     # Extract objects map for property lookups (ADR contract: use compiled topology only)
     objects_map = compiled_json.get("objects", {})
     if not isinstance(objects_map, dict):
@@ -1457,9 +1326,11 @@ def build_mikrotik_projection(
 
     default_router_id = next(iter(sorted(router_ids)), "")
 
-    # Build VLAN CIDR index early for reference resolution in routing policies
-    # Uses all network rows (not just MikroTik-managed vlans) for cross-device references
-    vlan_cidr_index = _build_vlan_cidr_index(network, objects_map)
+    # VLAN -> CIDR is the compiler's channel, read once and used for routing
+    # policy references and for WireGuard `allowed_vlan_refs`. It is not derived
+    # here: a second derivation is what A24 forbids, and the absence of a local
+    # fallback is what stops a missing channel from rendering as "no CIDRs".
+    vlan_cidr_index = vlan_cidr_map
 
     for idx, row in enumerate(network):
         _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.network[{idx}]")
@@ -1642,16 +1513,12 @@ def build_mikrotik_projection(
     # Extract bridge VLAN entries for WiFi interface membership
     bridge_vlans = _extract_bridge_vlans(routers, wifi_data)
 
-    # Extract security matrix for zone-based firewall (ADR 0110)
-    compiled_zones = None
-    if isinstance(security_matrices, dict):
-        # Zones from whichever matrix this projection is about. The generator
-        # passes the whole channel; the matching instance is found the same way
-        # the local derivation finds it.
-        compiled_zones = {}
-        for matrix in security_matrices.values():
-            if isinstance(matrix, dict) and isinstance(matrix.get("zones"), dict):
-                compiled_zones.update(matrix["zones"])
+    # Zones from whichever matrix this projection is about. The generator passes
+    # the whole channel; the matrix a zone came from is selected by `zone_refs`.
+    compiled_zones: dict[str, dict[str, Any]] = {}
+    for matrix in security_matrices.values():
+        if isinstance(matrix, dict) and isinstance(matrix.get("zones"), dict):
+            compiled_zones.update(matrix["zones"])
 
     security_matrix = _extract_security_matrix(
         network,

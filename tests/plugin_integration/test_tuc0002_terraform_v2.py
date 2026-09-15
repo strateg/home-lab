@@ -33,6 +33,11 @@ from kernel.plugin_base import (
 )
 from kernel.plugin_runner import run_plugin_once
 
+from tests.helpers.mikrotik_security_channels import (
+    SECURITY_MATRIX_COMPILER,
+    empty_channel_subscriptions,
+)
+
 # Expected Terraform plugin IDs
 EXPECTED_TERRAFORM_PLUGIN_IDS = {
     "object.mikrotik.generator.terraform",
@@ -89,8 +94,14 @@ def _build_snapshot(
         **(extra_config or {}),
     }
 
+    # The MikroTik generator consumes both security-matrix channels and derives
+    # no substitute; a snapshot without them is a blocked run, not an empty one.
+    subscriptions = empty_channel_subscriptions() if "mikrotik" in plugin_id else {}
+
     return PluginInputSnapshot(
         plugin_id=plugin_id,
+        subscriptions=subscriptions,
+        allowed_dependencies=frozenset({SECURITY_MATRIX_COMPILER} if subscriptions else ()),
         stage=Stage.GENERATE,
         phase=Phase.RUN,
         topology_path="topology/topology.yaml",

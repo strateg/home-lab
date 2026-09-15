@@ -50,9 +50,7 @@ class TerraformMikroTikGenerator(BaseGenerator):
         "interface",
     )
 
-    def _normalize_runtime_baseline(
-        self, raw: Any, *, stage: Stage
-    ) -> tuple[dict[str, Any], list[PluginDiagnostic]]:
+    def _normalize_runtime_baseline(self, raw: Any, *, stage: Stage) -> tuple[dict[str, Any], list[PluginDiagnostic]]:
         """Apply the runtime_baseline contract before rendering.
 
         Templates run under StrictUndefined, so every key a template reads must
@@ -74,9 +72,7 @@ class TerraformMikroTikGenerator(BaseGenerator):
             return baseline, []
 
         missing = [
-            field
-            for field in self._DHCP_REQUIRED_WHEN_ENABLED
-            if not str(baseline["dhcp"].get(field, "")).strip()
+            field for field in self._DHCP_REQUIRED_WHEN_ENABLED if not str(baseline["dhcp"].get(field, "")).strip()
         ]
         if not missing:
             return baseline, []
@@ -87,8 +83,7 @@ class TerraformMikroTikGenerator(BaseGenerator):
                 severity="error",
                 stage=stage,
                 message=(
-                    "runtime_baseline.dhcp is enabled but required fields are missing or empty: "
-                    + ", ".join(missing)
+                    "runtime_baseline.dhcp is enabled but required fields are missing or empty: " + ", ".join(missing)
                 ),
                 path="generator:terraform_mikrotik:runtime_baseline.dhcp",
             )
@@ -113,13 +108,16 @@ class TerraformMikroTikGenerator(BaseGenerator):
     def _subscribe(ctx: PluginContext, key: str):
         """The compiler's channel, or None when it is not there.
 
-        `None` means "derive it locally" rather than "there are no zones": the
-        projection keeps its own derivation for that case, and a differential
-        test runs the two against each other.
+        The manifest declares both keys `required: true`, so the kernel refuses to
+        run this plugin at all when the compiler published nothing (E8003) and
+        this method should never observe an absence in the pipeline. It is kept
+        total for direct callers, and `None` reaching the projection raises there
+        rather than rendering an empty result: there is no local derivation left
+        to fall back to.
         """
         try:
             return ctx.subscribe("base.compiler.security_matrix", key)
-        except Exception:  # noqa: BLE001 - absence is not this generator's diagnostic to own
+        except Exception:  # noqa: BLE001 - the kernel owns the required-consume diagnostic
             return None
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
@@ -146,12 +144,12 @@ class TerraformMikroTikGenerator(BaseGenerator):
             )
             return self.make_result(diagnostics)
 
-        # Zone membership comes from `base.compiler.security_matrix`, not from a
-        # second derivation here. W05 characterized the two as divergent - the
-        # generator read `additional_networks` and the compiler did not - and the
-        # compiler learned the field so this cutover is a parity step. The channel
-        # is optional at the contract level so its absence is a diagnostic rather
-        # than a plugin nobody executed.
+        # Zone membership and address-domain CIDRs come from
+        # `base.compiler.security_matrix` and from nowhere else. W05 characterized
+        # the two derivations as divergent - the generator read
+        # `additional_networks` and the compiler did not - the compiler learned
+        # the field, and the generator's copy is now gone rather than dormant.
+        # The channels are required, so an absent compiler blocks generation.
         compiled_matrices = self._subscribe(ctx, "security_matrices")
         compiled_vlan_cidrs = self._subscribe(ctx, "vlan_cidr_map")
 

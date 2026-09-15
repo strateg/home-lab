@@ -25,7 +25,22 @@ _BOOTSTRAP_PROJECTIONS = load_bootstrap_projection_module()
 
 ProjectionError = _PROXMOX_PROJECTIONS.ProjectionError
 build_proxmox_projection = _PROXMOX_PROJECTIONS.build_proxmox_projection
-build_mikrotik_projection = _MIKROTIK_PROJECTIONS.build_mikrotik_projection
+_raw_build_mikrotik_projection = _MIKROTIK_PROJECTIONS.build_mikrotik_projection
+
+
+def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
+    """The compiler's channels are required arguments; these fixtures state them empty.
+
+    `base.compiler.security_matrix` owns zone membership and address-domain CIDRs,
+    and the projection derives no substitute. Omitting the argument is an error;
+    passing `{}` is a fixture saying it declares no matrices and no domains. A
+    test that cares about zone or CIDR content passes a real mapping.
+    """
+    kwargs.setdefault("security_matrices", {})
+    kwargs.setdefault("vlan_cidr_map", {})
+    return _raw_build_mikrotik_projection(compiled_json, **kwargs)
+
+
 build_bootstrap_projection = _BOOTSTRAP_PROJECTIONS.build_bootstrap_projection
 
 

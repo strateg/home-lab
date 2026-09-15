@@ -14,14 +14,16 @@ plugins:
     timeout: 30
     execution_mode: subinterpreter
     consumes:
-      # Zone membership, derived once in the core (A24 / W05). Optional so that
-      # its absence is a diagnostic rather than a plugin the registry never runs.
+      # Zone membership and address-domain CIDRs, derived once in the core
+      # (A24 / W05). Required: the projection derives no substitute, so an absent
+      # channel must block generation rather than render empty address lists and
+      # empty tunnel routes while reporting success. The kernel raises E8003.
       - key: security_matrices
         from_plugin: base.compiler.security_matrix
-        required: false
+        required: true
       - key: vlan_cidr_map
         from_plugin: base.compiler.security_matrix
-        required: false
+        required: true
     config:
       terraform_version: '>= 1.6.0'
       mikrotik_provider_source: terraform-routeros/routeros
