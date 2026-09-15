@@ -104,14 +104,17 @@ def _context_matches(entry, event: FlowEvent) -> bool:
 
 def _flow_matches(entry, event: FlowEvent) -> bool:
     flow = entry.rule.flow
-    if entry.rule.terminal:
-        # A terminal rule closes its scope: it matches any flow whose endpoints
-        # are inside that scope, whatever the protocol and port. Matching it the
-        # way an ordinary rule matches would leave the scope open for every port
-        # the author did not happen to list, which is the opposite of closing it.
-        return event.source in flow.sources and event.destination in flow.destinations
     if event.source not in flow.sources or event.destination not in flow.destinations:
         return False
+    # A terminal is not a special matching rule. It closes its scope because it
+    # is built with the scope's endpoints and an any-transport, and those are
+    # properties of the rule rather than of the flag.
+    #
+    # Reading the flag as "ignore the transport" was the divergence a review
+    # found on the framework side: a terminal stating `tcp/53` was interpreted as
+    # an unconditional deny while a consumer received the narrow predicate, so
+    # one plan meant two things. Honouring the field turns that into an unmatched
+    # flow, which `unterminated` reports.
     # An ordinary rule may also constrain every transport. That is a shape a rule
     # can have, not a property of being terminal - the sources' one mandatory
     # deny is exactly this, and reading it as a ports rule with no ports would
@@ -119,6 +122,21 @@ def _flow_matches(entry, event: FlowEvent) -> bool:
     if flow.protocol == "any" and flow.ports is None:
         return True
     return event.protocol == flow.protocol and event.port in (flow.ports or frozenset())
+
+
+def unterminated(plan: Sequence, space: Sequence[FlowEvent]) -> list[FlowEvent]:
+    """Flows inside the probed space that reach no rule at all.
+
+    Not an accept and not a deny: the outcome belongs to whatever the backend
+    does by default, and on a default-allow enforcer that is an open flow. A
+    plan whose terminal does not cover the residue of its scope leaves exactly
+    these behind, and they are a failure in their own right - not a consequence
+    of somebody having declared that the flow must keep working.
+
+    It is deliberately not repaired by reading an unmatched flow as a deny. That
+    would credit the plan with a rule it does not carry.
+    """
+    return [event for event in space if interpret(plan, event).verdict is Verdict.UNSUPPORTED]
 
 
 def interpret(plan: Sequence, event: FlowEvent) -> Decision:
@@ -145,4 +163,4 @@ def accepted_flows(plan: Sequence, events: Sequence[FlowEvent]) -> list[FlowEven
     return [event for event in events if interpret(plan, event).verdict is Verdict.ACCEPT]
 
 
-__all__ = ["Decision", "FlowEvent", "Verdict", "accepted_flows", "interpret"]
+__all__ = ["Decision", "FlowEvent", "Verdict", "accepted_flows", "interpret", "unterminated"]

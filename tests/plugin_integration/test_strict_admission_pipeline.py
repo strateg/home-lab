@@ -568,6 +568,92 @@ def test_no_expected_epoch_writes_nothing(tmp_path, monkeypatch) -> None:
     assert any("epoch-qualified" in reason for reason in results[WRITER_ID]["refusal"])
 
 
+@pytest.mark.parametrize(
+    ("label", "override"),
+    [
+        ("named sources", {"sources": ["z.a"]}),
+        ("named destinations", {"destinations": ["z.b"]}),
+        ("a single transport", {"transport": {"kind": "ports", "protocol": "tcp", "ports": [53]}}),
+    ],
+)
+def test_a_narrowed_terminal_writes_nothing(label: str, override: dict, tmp_path, monkeypatch) -> None:
+    """The 2026-09-15 finding, through the writer.
+
+    A terminal narrowed to one source left `z.b -> z.a UDP/9999` reaching no rule
+    at all - inside the closed endpoint set, outside `Q` - and the run came back
+    errors 0, four obligations `pass`, admission granted, marker written. A
+    terminal narrowed to `tcp/53` was worse than incomplete: the verifier read it
+    as an unconditional deny while the projection handed the consumer the finite
+    predicate, so one plan meant two things.
+
+    The counterexample flow is deliberately outside `Q`. Inside it, the test
+    would prove availability and leave termination unguarded, which is how this
+    went unnoticed.
+    """
+    rows = _admissible_rows()
+    plan = _as_strict(_run_pipeline(rows)[0])
+    for entry in plan["rules"]:
+        if entry["terminal"]:
+            entry.update(override)
+    record = _record_after_validation(plan, rows)
+
+    assert record["errors"] >= 1, f"a terminal with {label} verified clean: {record}"
+
+    marker, output = _run_with_writer(
+        rows=rows, plan=plan, tmp_path=tmp_path, approval=_approval_for(record, plan), monkeypatch=monkeypatch
+    )
+
+    assert not marker.exists(), f"a terminal with {label} reached the write"
+    assert output["refusal"], output
+
+
+def test_the_full_scope_terminal_still_writes(tmp_path, monkeypatch) -> None:
+    """The positive control for the invariant, beside its three refusals."""
+    rows = _admissible_rows()
+    plan = _as_strict(_run_pipeline(rows)[0])
+    record = _record_after_validation(plan, rows)
+
+    terminal = next(entry for entry in plan["rules"] if entry["terminal"])
+    assert terminal["sources"] == [] and terminal["destinations"] == []
+    assert terminal["transport"] == {"kind": "any"}
+
+    marker, output = _run_with_writer(
+        rows=rows, plan=plan, tmp_path=tmp_path, approval=_approval_for(record, plan), monkeypatch=monkeypatch
+    )
+
+    assert marker.exists(), f"the canonical terminal must still be admissible: {output}"
+
+
+def test_the_admission_contract_refuses_a_narrowed_terminal_on_its_own(tmp_path, monkeypatch) -> None:
+    """Two independent refusals, because one of them could be edited out.
+
+    The validator reports the shape and the admission grammar forbids it. Either
+    alone would close the finding; both means a record that somehow said `pass`
+    still does not admit the plan.
+    """
+    rows = _admissible_rows()
+    plan = _as_strict(_run_pipeline(rows)[0])
+    clean_record = _record_after_validation(plan, rows)
+
+    for entry in plan["rules"]:
+        if entry["terminal"]:
+            entry["transport"] = {"kind": "ports", "protocol": "tcp", "ports": [53]}
+
+    # A record that reports success for the narrowed plan, which the real
+    # validator will not produce - the point is that admission refuses anyway.
+    forged = {**clean_record, "plan_digest": content_digest(plan)}
+
+    admission = evaluate(
+        plan=plan,
+        verification=forged,
+        approved_intent=_approval_for(clean_record, plan),
+        expected_epoch=EPOCH,
+    )
+
+    assert not admission.admitted
+    assert any("terminal" in reason for reason in admission.reasons), admission.reasons
+
+
 # --- the inputs the boundary needs, and what their absence means -------------------------
 
 

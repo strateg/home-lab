@@ -351,6 +351,37 @@ def malformed_constructs(plan: Mapping[str, Any]) -> list[str]:
                 errors.append(f"{where}.{side} is not a list")
 
         errors.extend(_transport_errors(f"{where}.transport", rule.get("transport")))
+        errors.extend(_terminal_errors(where, rule))
+    return errors
+
+
+def _terminal_errors(where: str, rule: Mapping[str, Any]) -> list[str]:
+    """A terminal's role fixes three of its fields, so a contradiction is refused.
+
+    The verifier reads a terminal as applying to the residue of its scope. A plan
+    can state a narrower one - named sources, a single transport - and the two
+    then mean different things: the check proves an unconditional deny while the
+    consumer receives `tcp/53`. Ignoring the field silently is what produced that
+    contradiction; the field is forbidden instead of overruled.
+    """
+    if not rule.get("terminal"):
+        return []
+
+    errors: list[str] = []
+    if rule.get("effect") != "deny":
+        errors.append(f"{where} is terminal with effect {rule.get('effect')!r}; a terminal accepts nothing")
+    for side in ("sources", "destinations"):
+        if rule.get(side):
+            errors.append(
+                f"{where}.{side} is stated on a terminal, which applies to the residue of its scope; "
+                "a narrowed terminal leaves that residue to the backend"
+            )
+    transport = rule.get("transport")
+    if isinstance(transport, Mapping) and transport.get("kind") != "any":
+        errors.append(
+            f"{where}.transport states {dict(transport)!r} on a terminal; the role fixes it to kind 'any' "
+            "and a narrower one closes only part of the scope"
+        )
     return errors
 
 

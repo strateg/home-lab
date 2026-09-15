@@ -21,7 +21,7 @@ import itertools
 
 import pytest
 
-from netmodel.interpret import Decision, FlowEvent, Verdict, accepted_flows, interpret
+from netmodel.interpret import Decision, FlowEvent, Verdict, accepted_flows, interpret, unterminated
 from netmodel.lower import TERMINAL_ORIGIN, lower
 from netmodel.plan import ExecutionContext, OrderedRule, PlanRule
 from netmodel.policy import (
@@ -450,3 +450,83 @@ def test_an_any_transport_template_may_not_also_list_ports() -> None:
             owner="o",
             rationale="r",
         )
+
+
+# --- termination is its own obligation ---------------------------------------------
+
+
+def test_the_canonical_plan_leaves_no_flow_undecided() -> None:
+    """Every probed flow reaches a rule. The baseline for the mutants below."""
+    assert unterminated(_plan(*_intent()), flow_space()) == []
+
+
+def test_a_terminal_narrowed_by_endpoints_leaves_a_residue() -> None:
+    """The framework found this first; the reference model had the same shape.
+
+    A terminal covers its scope because it is built with the scope's endpoints,
+    not because of the flag. Narrow the endpoints and the rest of the scope
+    reaches no rule at all - which is not a deny, and on a default-allow backend
+    is the opposite of one.
+    """
+    plan = _plan(*_intent())
+    narrowed = tuple(
+        OrderedRule(
+            rule=PlanRule(
+                context=entry.rule.context,
+                effect=entry.rule.effect,
+                flow=Flow(
+                    sources=frozenset({"zone.lan"}),
+                    destinations=entry.rule.flow.destinations,
+                    protocol=entry.rule.flow.protocol,
+                    ports=entry.rule.flow.ports,
+                ),
+                origin=entry.rule.origin,
+                terminal=True,
+            ),
+            position=entry.position,
+        )
+        if entry.rule.terminal
+        else entry
+        for entry in plan
+    )
+
+    left_over = unterminated(narrowed, flow_space())
+
+    assert left_over, "a terminal that names one source closes only that source"
+    assert all(item.source != "zone.lan" for item in left_over)
+
+
+def test_a_terminal_stating_a_transport_no_longer_reads_as_unconditional() -> None:
+    """One plan, one meaning.
+
+    The interpreter used to ignore a terminal's transport, so a `tcp/53` terminal
+    was read as an unconditional deny while carrying a narrow predicate. It is
+    honoured now, and the flows it does not cover show up as undecided instead of
+    silently denied.
+    """
+    plan = _plan(*_intent())
+    narrowed = tuple(
+        OrderedRule(
+            rule=PlanRule(
+                context=entry.rule.context,
+                effect=entry.rule.effect,
+                flow=Flow(
+                    sources=entry.rule.flow.sources,
+                    destinations=entry.rule.flow.destinations,
+                    protocol="tcp",
+                    ports=frozenset({53}),
+                ),
+                origin=entry.rule.origin,
+                terminal=True,
+            ),
+            position=entry.position,
+        )
+        if entry.rule.terminal
+        else entry
+        for entry in plan
+    )
+
+    left_over = unterminated(narrowed, flow_space())
+
+    assert left_over, "a terminal restricted to tcp/53 decides nothing about udp"
+    assert all(not (item.protocol == "tcp" and item.port == 53) for item in left_over)

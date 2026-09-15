@@ -60,6 +60,7 @@ _FAILS = {
     "E7091": "SEC-COVER",
     "E7093": "SEC-COVER",
     "E7095": "SEC-COVER",
+    "E7096": "SEC-ORDER",
     "E7083": "SEC-AUTH",
     "E7084": "SEC-AVAIL",
     "E7092": "SEC-AVAIL",
@@ -200,6 +201,37 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
         ctx.publish("security_plan_verification", record)
 
         return self.make_result(diagnostics, output_data={"security_plan_verification": record})
+
+    @staticmethod
+    def _terminal_scope_problems(terminal: Mapping[str, Any]) -> list[str]:
+        """Ways this terminal fails to cover the residue of its scope.
+
+        The canonical form the compiler emits states no endpoints and an
+        any-transport: it applies to whatever is left. Anything narrower leaves a
+        residue, and this contract has no way to prove that residue empty - the
+        endpoint set is closed by enumeration but the transport space is not, and
+        a terminal naming `tcp/53` says nothing about UDP.
+
+        So the narrow form is refused rather than interpreted. `FORMAL-CONTRACT`
+        section 5 makes reachable termination an obligation in its own right,
+        not one derived from what anybody requires to keep working.
+        """
+        problems: list[str] = []
+        if terminal.get("sources"):
+            problems.append(f"names sources {sorted(terminal['sources'])[:3]} instead of applying to all of them")
+        if terminal.get("destinations"):
+            problems.append(
+                f"names destinations {sorted(terminal['destinations'])[:3]} instead of applying to all of them"
+            )
+        transport = terminal.get("transport")
+        # A *stated* narrower transport is the defect. An absent one is
+        # unconstrained, which is what `_interpret` also reads it as - the two
+        # have to agree or the contradiction moves rather than closing.
+        if isinstance(transport, Mapping) and transport and transport.get("kind") != "any":
+            problems.append(
+                f"states transport {dict(transport)!r} rather than applying to every transport"
+            )
+        return problems
 
     # --- what the record has to say ------------------------------------------------
 
@@ -351,6 +383,25 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
                         path=path,
                     )
                 )
+            # A terminal that closes only part of its scope is not a terminal.
+            # Presence and effect were checked and the *predicate* was not, so a
+            # terminal narrowed to one source, one destination or one transport
+            # passed - and the residue it left behind reached no rule at all. On
+            # a default-allow backend that residue is open.
+            for problem in self._terminal_scope_problems(terminal):
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E7082",
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            f"scope '{scope}' terminal '{terminal.get('origin')}' {problem}. A default "
+                            "deny covers the residue of its scope or it is not one, and what it leaves "
+                            "uncovered is decided by the backend rather than by this plan."
+                        ),
+                        path=path,
+                    )
+                )
         if len(terminals) > 1:
             diagnostics.append(
                 self.emit_diagnostic(
@@ -364,6 +415,29 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
                     path=path,
                 )
             )
+
+        # Last, not merely present. A rule after the terminal is unreachable, and
+        # a terminal that is not last closes nothing that follows it.
+        for terminal in terminals:
+            after = [
+                rule
+                for rule in rules
+                if not rule.get("terminal") and self._position(rule) > self._position(terminal)
+            ]
+            if after:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E7082",
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            f"scope '{scope}' has {len(after)} rule(s) after the terminal "
+                            f"'{terminal.get('origin')}': {sorted(str(rule.get('origin')) for rule in after)[:3]}. "
+                            "They are unreachable, and a terminal that is not last closes nothing after it."
+                        ),
+                        path=path,
+                    )
+                )
 
         diagnostics.extend(self._check_positions(scope=scope, rules=rules, stage=stage, path=path))
 
@@ -883,6 +957,32 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
                 verdict, origin = self._interpret(scoped, flow)
                 accepted = verdict == "accept"
 
+                if verdict == "unsupported":
+                    # No rule decided this flow. Not an accept and not a deny -
+                    # an execution that does not terminate, and the outcome
+                    # belongs to whatever the backend does by default.
+                    #
+                    # This used to be silence unless the flow happened to be in
+                    # Q, which made termination a consequence of somebody
+                    # declaring an availability objective. It is a separate
+                    # obligation. It is also *not* repaired by reading it as a
+                    # deny: that would credit the plan with a rule it does not
+                    # carry.
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E7096",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"scope '{scope}' reaches no rule for {flow[0]} -> {flow[1]} "
+                                f"{flow[2]}/{flow[3]}; the execution does not terminate and the "
+                                "outcome is the backend's default rather than this plan's decision"
+                            ),
+                            path=f"security_plan:{scope}",
+                        )
+                    )
+                    continue
+
                 if accepted and flow not in authorized:
                     diagnostics.append(
                         self.emit_diagnostic(
@@ -1182,10 +1282,22 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
             if source not in (rule.get("sources") or []) and not rule.get("terminal"):
                 continue
             if rule.get("terminal"):
+                # A terminal states no endpoints and no transport in the
+                # canonical form, so these guards do nothing for a valid plan.
+                # They exist because the alternative is worse: ignoring a stated
+                # transport made the verifier prove an unconditional deny while
+                # the consumer received a `tcp/53` predicate - one plan with two
+                # meanings. Reading the field turns that into an unmatched flow,
+                # which `E7096` reports, and the narrow shape is refused by
+                # `_terminal_scope_problems` besides.
                 if source not in (rule.get("sources") or []) and rule.get("sources"):
                     continue
                 if destination not in (rule.get("destinations") or []) and rule.get("destinations"):
                     continue
+                transport = rule.get("transport") or {}
+                if transport.get("kind") not in (None, "any"):
+                    if transport.get("protocol") != protocol or port not in (transport.get("ports") or []):
+                        continue
                 return "deny", str(rule.get("origin"))
             if destination not in (rule.get("destinations") or []):
                 continue

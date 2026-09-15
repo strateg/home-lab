@@ -40,13 +40,20 @@ def _registry() -> PluginRegistry:
 
 
 def rule(origin: str, effect: str, position: int, *, terminal: bool = False, scope: str = SCOPE) -> dict:
+    """One rule. A terminal gets the canonical shape, which is the point of it.
+
+    A terminal states no endpoints: it applies to the residue of its scope. The
+    first version of this helper gave every rule the same `zone.a -> zone.b`,
+    terminals included, which described a default deny that closes one pair and
+    leaves the rest of the scope to the backend.
+    """
     return {
         "origin": origin,
         "effect": effect,
         "terminal": terminal,
         "scope": scope,
-        "sources": ["zone.a"],
-        "destinations": ["zone.b"],
+        "sources": [] if terminal else ["zone.a"],
+        "destinations": [] if terminal else ["zone.b"],
         "protocol": "tcp",
         "ports": [443],
         "position": position,
@@ -842,6 +849,139 @@ def test_an_override_naming_no_transport_is_still_every_transport() -> None:
 
     assert "E7094" not in _codes(result)
     assert _errors(result) == []
+
+
+# --- a terminal closes the residue, or it is not a terminal -----------------------
+
+
+@pytest.mark.parametrize(
+    ("label", "override"),
+    [
+        ("named sources", {"sources": ["z.a"]}),
+        ("named destinations", {"destinations": ["z.b"]}),
+        ("a single transport", {"transport": {"kind": "ports", "protocol": "tcp", "ports": [53]}}),
+    ],
+)
+def test_a_narrowed_terminal_is_refused(label: str, override: dict) -> None:
+    """Presence and effect were checked; the predicate was not.
+
+    A terminal narrowed to one source, one destination or one transport closes
+    part of its scope and leaves the rest to whatever the backend does. The
+    reachable default deny is an obligation of its own - `FORMAL-CONTRACT`
+    section 5 - and not something derived from anybody declaring an availability
+    objective.
+    """
+    rows = [_matrix_row(_src("dns", ports={"tcp": [53]}))]
+    plan = _compile_plan(rows)
+    for entry in plan["rules"]:
+        if entry["terminal"]:
+            entry.update(override)
+
+    codes = _codes(_run_with_source(plan, rows))
+
+    assert "E7082" in codes, f"a terminal with {label} was accepted: {codes}"
+
+
+def test_a_flow_reaching_no_rule_is_an_error_whether_or_not_anybody_requires_it() -> None:
+    """The residue a narrowed terminal leaves, reported for itself.
+
+    `z.b -> z.a UDP/9999` is inside the closed endpoint set and outside `Q`. It
+    used to be silence: `unsupported` was skipped unless the flow happened to be
+    required, so termination depended on somebody stating an availability
+    objective.
+    """
+    rows = [_matrix_row(_src("dns", ports={"tcp": [53]}))]
+    plan = _compile_plan(rows)
+    for entry in plan["rules"]:
+        if entry["terminal"]:
+            entry["sources"] = ["z.a"]  # leaves everything from z.b undecided
+
+    result = _run_with_source(plan, rows)
+    codes = _codes(result)
+
+    assert "E7096" in codes, f"an unmatched in-scope flow was not reported: {codes}"
+    assert any("does not terminate" in diag.message for diag in result.diagnostics)
+
+
+def test_an_unmatched_flow_is_reported_and_not_read_as_a_deny() -> None:
+    """The repair that would have been wrong.
+
+    Treating `unsupported` as a deny would make the check pass by crediting the
+    plan with a rule it does not carry - and on a default-allow backend the real
+    outcome is the opposite of a deny.
+    """
+    rows = [_matrix_row(_src("dns", ports={"tcp": [53]}))]
+    plan = _compile_plan(rows)
+    plan["rules"] = [entry for entry in plan["rules"] if not entry["terminal"]]
+
+    result = _run_with_source(plan, rows)
+    codes = _codes(result)
+
+    assert "E7082" in codes, "the missing terminal is still reported"
+    assert "E7096" in codes, "and so is every flow that now reaches nothing"
+
+
+def test_the_interpreter_and_the_plan_agree_on_what_a_terminal_means() -> None:
+    """One plan, one meaning.
+
+    Ignoring a terminal's stated transport made the verifier prove an
+    unconditional deny while a consumer received a `tcp/53` predicate. The field
+    is read now, so a narrowed terminal produces unmatched flows - and the shape
+    is refused as well, so a valid plan never depends on which of the two fires.
+    """
+    from plugins.validators.security_plan_validator import SecurityPlanValidator as V
+
+    narrowed = [
+        {
+            "origin": "plan:terminal",
+            "effect": "deny",
+            "terminal": True,
+            "scope": MATRIX_SCOPE,
+            "sources": [],
+            "destinations": [],
+            "transport": {"kind": "ports", "protocol": "tcp", "ports": [53]},
+            "position": 0,
+        }
+    ]
+
+    assert V._interpret(narrowed, ("z.a", "z.b", "tcp", 53)) == ("deny", "plan:terminal")
+    assert V._interpret(narrowed, ("z.a", "z.b", "udp", 9999))[0] == "unsupported"
+
+
+def test_a_rule_after_the_terminal_is_refused() -> None:
+    """Unreachable, and a terminal that is not last closes nothing after it."""
+    rows = [_matrix_row(_src("dns", ports={"tcp": [53]}))]
+    plan = _compile_plan(rows)
+    last = max(entry["position"] for entry in plan["rules"])
+    plan["rules"].append(
+        {
+            "origin": "binding:after-the-end",
+            "effect": "permit",
+            "terminal": False,
+            "scope": MATRIX_SCOPE,
+            "sources": ["z.a"],
+            "destinations": ["z.b"],
+            "transport": {"kind": "ports", "protocol": "tcp", "ports": [53]},
+            "position": last + 1,
+        }
+    )
+
+    codes = _codes(_run_with_source(plan, rows))
+
+    assert "E7082" in codes
+    assert any("after the terminal" in diag.message for diag in _run_with_source(plan, rows).diagnostics)
+
+
+def test_the_canonical_terminal_the_compiler_emits_is_accepted() -> None:
+    """Not vacuous: the invariant must admit what the producer actually writes."""
+    rows = [_matrix_row(_src("dns", ports={"tcp": [53]}))]
+    rows[0]["extensions"]["availability_requirements"] = [
+        {"name": "dns-must-work", "from_zone_ref": "z.a", "to_zone_ref": "z.b", "ports": {"tcp": [53]}}
+    ]
+
+    result = _run_with_source(_compile_plan(rows), rows)
+
+    assert _errors(result) == [], f"the canonical plan must pass: {_codes(result)}"
 
 
 def test_the_port_reduction_separates_exactly_what_the_rules_separate() -> None:

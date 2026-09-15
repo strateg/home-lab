@@ -148,6 +148,7 @@ a pass.
 | `E7061` | A binding naming an unknown policy, or a guard, which cannot be bound |
 | `E7063` | A permit overlapping a mandatory deny, with a concrete witness |
 | `E7064` | An unbound parameter on a guard, or an empty resolved selector |
+| `E7096` | An in-scope flow that reaches no rule at all; the execution does not terminate |
 
 `E7025` is a separate code rather than a variant of `E7040`/`E7061` because the
 declarations keep a disabled record instead of deleting it. Reporting "no such
@@ -428,10 +429,28 @@ rule set nobody understood.
 ADR 0119 D4 makes it a plan obligation, and the reason is checkable: a terminal
 rule a template adds is a terminal rule the plan cannot reason about, while "is
 anything executable after the drop-all" is exactly what the plan has to answer.
-It also matches differently from an ordinary rule - on endpoints alone, ignoring
-protocol and port - because a terminal that matched like the others would leave
-the scope open on every port the author did not list, which is the opposite of
-closing it.
+
+**A terminal closes its scope because of what it says, not because of the flag.**
+It carries the scope's endpoints and an any-transport, and those are properties
+of the rule. Reading the flag as "ignore the transport" was a real divergence,
+found on 2026-09-15: a terminal narrowed to `tcp/53` was interpreted as an
+unconditional deny while the consumer received the finite predicate, so one plan
+meant two things. Both implementations honour the field now.
+
+Four things are checked, and only presence and effect were before:
+
+* effect `deny`, and it is last - a rule after it is unreachable;
+* no named sources or destinations, and `transport: {kind: any}`. Anything
+  narrower closes part of the scope and leaves a residue this contract cannot
+  prove empty: the endpoint set is closed by enumeration, the transport space is
+  not, and a terminal naming `tcp/53` says nothing about UDP;
+* every in-scope flow reaches *some* rule. `E7096` reports one that does not.
+
+That last one is a separate obligation. It used to be silence unless the flow
+happened to be in `Q`, which made termination a consequence of somebody declaring
+an availability objective. It is also not repaired by reading an unmatched flow
+as a deny - that would credit the plan with a rule it does not carry, and on a
+default-allow backend the real outcome is the opposite of a deny.
 
 ---
 
@@ -637,6 +656,7 @@ across every emitted file.
 | 2026-09-11 | `553c2e3b` | Section 7c: lowering, the independent interpreter, and SEC-AUTH/SEC-AVAIL as properties with mutants |
 | 2026-09-14 | `622eff34` | Section 7d: all eight obligations placed, the three habits behind them, and what SEC-PATH still needs from outside |
 | 2026-09-14 | `7128c2f6` | Section 4: `E7025` for a reference to a disabled record, and the ledger of allocated codes that nothing raises yet |
+| 2026-09-15 | `PENDING_T` | Section 7d: the terminal invariant and `E7096`; a terminal closes its scope because of what it says, and an unmatched in-scope flow is a failure of its own |
 | 2026-09-14 | `6d6ff63e` | W05/A24: zone membership derived once; the compiler learned `additional_networks` and sorts zones, the generator consumes the channel, artifacts byte-identical |
 | 2026-09-14 | `31ebefb9` | Section 7e: the grammar closed over values, consent as a boolean, and an empty digest refused rather than matched |
 | 2026-09-14 | `8dada8ef` | Section 7e: three digests, the caller-supplied epoch, the closed plan shape and the detached projection; after the external review of `c5a5addc` |

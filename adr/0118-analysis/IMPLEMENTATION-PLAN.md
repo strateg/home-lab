@@ -1583,6 +1583,50 @@ have to carry a prefix and a zone ref without rendering a VLAN interface, which
 `class.network.vlan` does. A source change for a policy owner, with its own
 artifact comparison.
 
+### External review of `b326cd19` — the terminal that closed part of its scope
+
+`docs/reports/2026-09-15-adr0118-0119-review-b326cd19.md`. One P1, reproduced
+through the real validator and the generate-stage writer, with the earlier
+counterexamples confirmed closed.
+
+**Presence and effect were checked; the predicate was not.** A terminal narrowed
+to `sources: [z.a]` left `z.b -> z.a UDP/9999` reaching no rule at all - inside
+the closed endpoint set - and the run came back errors 0, four obligations
+`pass`, admission granted, marker written. A terminal narrowed to `tcp/53` was
+worse than incomplete: the interpreter ignored a terminal's transport, so the
+verifier proved an unconditional deny while the projection handed the consumer
+the finite predicate. One plan, two meanings.
+
+The invariant is stated and checked now: `deny`, last, no named endpoints,
+`transport: {kind: any}`. Anything narrower is refused rather than interpreted,
+because the residue cannot be proved empty - the endpoint set is closed by
+enumeration and the transport space is not.
+
+**Termination is its own obligation.** `unsupported` was skipped unless the flow
+happened to be in `Q`, so whether an execution had to terminate depended on
+somebody declaring an availability objective. `E7096` reports any in-scope flow
+that reaches no rule, regardless. It is deliberately *not* repaired by reading an
+unmatched flow as a deny: that credits the plan with a rule it does not carry, and
+on a default-allow backend the true outcome is the opposite of a deny.
+
+**One meaning, enforced in three places.** The interpreter honours a terminal's
+transport; the validator refuses the narrow shape; and `strict_admission` forbids
+it in the plan grammar, so a record that somehow reported `pass` still does not
+admit the plan. Either of the last two alone would close the finding - both means
+neither can be edited out quietly.
+
+**The reference model had the same shape.** `netmodel.interpret` special-cased
+terminals to ignore protocol and port. It does not now, and `unterminated()` names
+the residue the way `E7096` does. The two implementations were wrong in the same
+way, which is worth recording: a differential only catches what the two do
+differently.
+
+*Tests.* Three narrowed-terminal refusals at writer level with the counterexample
+flow deliberately **outside** `Q` - inside it the test would prove availability
+and leave termination unguarded, which is how this went unnoticed - plus the
+full-scope positive control that still writes, a rule-after-the-terminal refusal,
+and the reference-model mutants.
+
 **A framework lock is not reproducible from a commit alone.** A detached worktree
 at `93c0c2f7` computes `sha256-f43ba202...` where the committed lock says
 `sha256-baee680d...`, while the same revision in the main working tree matches.

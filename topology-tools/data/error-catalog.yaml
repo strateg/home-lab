@@ -1088,6 +1088,16 @@ codes:
     hint: >-
       A rule names an endpoint no source declares. The endpoint set is closed by contract because the probe
       space enumerates it: an endpoint outside it is not merely undeclared, it is outside every check.
+  E7096:
+    severity: error
+    stage: validate
+    title: Execution Does Not Terminate
+    hint: >-
+      A flow inside the declared scope reaches no rule at all. Not an accept and not a deny - the outcome
+      belongs to whatever the backend does by default, which on a default-allow enforcer is an open flow.
+      Reachable termination is its own obligation and is not derived from anybody declaring an availability
+      objective; it is also not repaired by reading an unmatched flow as a deny, which would credit the plan
+      with a rule it does not carry.
   E7093:
     severity: error
     stage: validate
