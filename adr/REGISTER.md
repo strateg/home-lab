@@ -312,3 +312,48 @@
   unaliased `provider "routeros"` in one Terraform root.
 - No code, schema or artifact changed. No gate closed, nothing qualified, no
   deployment implied.
+
+## ADR 0118/0119 rev 3.4 — enforcer axes corrected after review, 2026-09-16
+
+- Corrects rev 3.3 against the [rev 3.3 review](../docs/reports/2026-09-15-adr0118-0119-rev33-review-0202f253.md).
+  Both ADRs stay **Accepted**; ADR 0110 stays **Implemented**. No gate closed.
+- **Cardinality (R1).** ADR 0119 D1 now states the direction: one scope names
+  exactly one enforcer, one enforcer may hold several scopes on several planes. A
+  scope carries its own identity and is never keyed by its `managed_by_ref`. An
+  enforcer-to-scope index must carry every scope in a deterministic order or refuse
+  the multiplicity with a diagnostic. Plane separation is semantic and is not
+  evidence that shared chains or resources are isolated.
+- **Separation (R2).** D1.1 no longer demands one address, credential set and state
+  per enforcer. It states six distinctions - enforcer identity, scope/context,
+  connection binding, resource identity and writer, state namespace, apply unit -
+  and requires unambiguous target selection with a single writer per resource.
+  Several targets may share a management endpoint; sharing a binding, state
+  namespace or apply unit is allowed where the coupling is declared and its
+  reconciliation and recovery validated. Scope attribution is not a failure domain.
+- **Dispatch (R3).** "One type, one renderer" is replaced. A type names a family of
+  enforcement semantics; for each target context exactly one compatible versioned
+  adapter is resolved, zero is unsupported, more than one blocks with no priority or
+  first-match fallback. Resolution carries provenance, and the adapter's identity
+  and version are pinned before validation and enter the plan's verifiable identity.
+- **Layout justification (R4).** The W07 claim that a Terraform root holds one
+  unaliased provider configuration is withdrawn: Terraform supports several
+  configurations of one provider through `alias`. Root-per-instance is justified
+  instead by state, writer and transaction boundaries, the aliased alternative is
+  named and its rejection reasoned, each adapter's selected layout is tabulated, and
+  moving roots now requires a resource/state/consumer inventory and a
+  no-unintended-recreation plan rather than a path rename.
+- **Erratum authority (R5).** ADR 0110's erratum separates the stale transcription
+  from the normative amendment that dropped `target_class: class.router`, states the
+  reason, requires the replacement to check an enforcement-capable target rather
+  than accept any `instance_ref`, and no longer says the implemented file is the
+  authority over an accepted contract.
+- **Harmonization and evidence (R6).** AD-01 and AD-08 in the
+  [architecture proposal](0118-analysis/FINAL-ARCHITECTURE-PROPOSAL.md) carry the
+  cardinality and the ownership distinctions. The findings matrix is published as
+  [enforcer axis conformance](0118-analysis/ENFORCER-AXIS-CONFORMANCE.md) instead of
+  living only in a commit message.
+- The index defect is reproduced in that record: two matrices on one enforcer
+  compile SUCCESS with no diagnostics and `matrix_by_enforcer` keeps whichever came
+  last, which is also a D4 permutation violation.
+- No code, schema or artifact changed. Eight implementation gaps remain open and
+  are listed in section 2 of the conformance record.

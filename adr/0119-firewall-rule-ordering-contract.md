@@ -1,6 +1,7 @@
 # ADR 0119: Firewall Rule Ordering Contract
 
 - Status: Accepted
+- Revised: 2026-09-16 rev 3.4 (D1.1 corrected after review: scope identity and cardinality, adapter resolution, separation stated over six distinctions)
 - Revised: 2026-09-15 rev 3.3 (D1.1: enforcer type and enforcer instance as separate axes; type resolved from capability, artifacts per instance)
 - Revised: 2026-09-11 rev 3.2a (SPC supplement: SEC-CAP digest split, anchored Omega_g, status mapping)
 - Revised: 2026-09-11 rev 3.2 (scoped capability resolution, SEC-CAP and evidence freshness)
@@ -60,22 +61,38 @@ rules must participate too. Unknown pre-existing rules are not assumed harmless.
 
 **Plan ownership does not replace enforcer ownership.** ADR 0110's M1-B rule
 stands: one security matrix instance names exactly one enforcer through
-`managed_by_ref`, and that reference keeps meaning the scope a device enforces.
-What changes is that the ordering algorithm is no longer per-matrix. The relation
-is one logical plan authority producing one projection per enforcer:
+`managed_by_ref`. What changes is that the ordering algorithm is no longer
+per-matrix. The relation is one logical plan authority producing one projection
+per scope:
 
 ```text
 intent fragments (matrices, publications, baseline, VPN)
    -> one logical security-plan authority
-      -> per-enforcer plan projection (scope = that enforcer's managed_by_ref)
-         -> rendering by that enforcer's type
-            -> one artifact set per enforcer instance
+      -> per-scope plan projection (each scope names exactly one enforcer)
+         -> rendering by the adapter selected for that scope's target context
+            -> one owned resource set per apply unit
 ```
 
 Two enforcers therefore keep independent rule sets and independent capability
 qualification, while overlapping or conflicting intent between them is resolved
 once in the plan semantics, instead of by whichever generator ran last. Nothing here
 enables a disabled enforcer or merges two enforcement planes.
+
+**Scope identity is not enforcer identity, and the cardinality runs one way.**
+`managed_by_ref` is a reference from a scope to its enforcer; it is not a name for
+the scope. One scope names exactly one enforcer. **One enforcer may hold several
+scopes**, including scopes on different enforcement planes - the accepted design
+already permits several disjoint contexts on one device. A scope therefore carries
+its own stable identity, and nothing downstream may key a scope by the enforcer it
+names. An index from enforcer to scope is a one-to-many relation: it either carries
+every scope, in a deterministic order, or it refuses the multiplicity it cannot
+represent with a diagnostic. Keeping one entry per enforcer silently is a lost
+scope, and if the entry that survives depends on input order it also breaks D4.
+
+Separate planes on one device are a **semantic** separation of intent. They are not
+evidence that the device's chains, hooks, address sets or resources are isolated
+from one another; composition across scopes sharing an enforcer must be validated
+rather than assumed, and ownership of every shared resource resolved to one writer.
 
 ### D1.1 Enforcer type and enforcer instance are separate axes
 
@@ -87,28 +104,62 @@ of the codebase. It is resolved from the device's declared enforcement capabilit
 under ADR 0106, which the platform and OS contract derives; it is never inferred
 from an object or instance identifier, and never from which object module happens
 to own a generator. A type that exists only because code for it exists is not a
-model of the network. One type has one renderer. A renderer that emits another
-type's form is an ownership error, not a shortcut, and a type with no renderer is
-an unsupported enforcer that must be reported as such rather than rendered
-approximately.
+model of the network.
 
-Choosing a renderer this way is dispatch, which ADR 0106 already governs. It is
+A type names a **family of enforcement semantics**. It does not by itself select
+what renders a scope. That selection is a separate, closed resolution with an
+explicit outcome:
+
+> For each target context, exactly one compatible versioned adapter - a rendering
+> and realization contract - is resolved. Zero is an unsupported enforcer, reported
+> as such and never rendered approximately. More than one is an ambiguity that
+> blocks the selection; there is no priority order, no first match and no fallback.
+
+Resolution carries provenance: which declarations were considered, which were
+compatible, and why one remained. OS classification and enforcement-mechanism
+selection are distinct questions, and a device may declare a generic enforcement
+capability alongside a specific one, or several enforcement mechanisms at once -
+those are inputs to the resolution, not answers. Several implementations of a type
+may exist; only one may own a selected target resource set. The selected adapter's
+identity and version are pinned before validation, enter the plan's verifiable
+identity under D2, and a change to either invalidates the affected resolution.
+This is a distinction inside the existing capability and offer contracts, not a
+second authored registry.
+
+Resolving an adapter this way is dispatch, which ADR 0106 already governs. It is
 not evidence that the enforcer can carry the plan: that remains SEC-CAP's
 question, answered by scoped witnesses under D2.1, and capability membership
 never substitutes for it.
 
-**Instance.** Two enforcers of one type are two scopes, two projections and two
-independent artifact sets, each with its own connection identity and its own
-applied state. Rendering that merges them makes the plan's per-enforcer scoping
-unobservable in what is actually applied, and couples one apply's failure to the
-other's scope. How a backend expresses the separation is its own contract - a
-separate configuration root per instance, or a scope argument carried on every
-rendered resource - but the separation itself is not optional, and neither is
-per-instance connection identity: one address, credential set and state per
-enforcer, never one shared by a type.
+**Instance, and what separation actually means.** Two enforcers of one type are
+distinct scopes with distinct projections, and what is applied must attribute every
+rule to exactly one of them. Rendering that merges them makes the plan's per-scope
+attribution unobservable in what is applied.
 
-Enforcement plane (perimeter or internal) is a third, orthogonal axis. It says
-what part of the path an enforcer covers, not what it is or how many there are.
+Separation is stated over six distinctions, because collapsing them is how a
+transport detail becomes an architectural requirement:
+
+| Distinction | What it fixes |
+|---|---|
+| Enforcer identity | Which device enforces; stable, referenced by scopes |
+| Scope / context | Which intent, plane and bounded contexts; its own identity |
+| Connection binding | Endpoint, target selector and credential reference used to reach a target |
+| Resource identity and writer | Which concrete resources a scope owns, and the single writer of each |
+| State namespace | Where applied state for those resources is recorded |
+| Apply / transaction unit | What is applied, rolled back and recovered together |
+
+What is required is **unambiguous target selection and a single writer per
+resource**, with each rule attributable to one scope. Globally unique endpoints or
+credentials are *not* required: several explicitly addressed targets may legitimately
+share one management endpoint and principal, and distinct directories prove neither
+distinct resources nor independent failure. Sharing a connection binding, a state
+namespace or an apply unit across scopes is permitted only where the coupling is
+declared and its reconciliation and recovery are validated - and independent scope
+attribution must never be presented as an independent failure domain.
+
+Enforcement plane (perimeter or internal) is a further orthogonal axis. It says
+what part of the path a scope covers, not what its enforcer is, how many scopes
+that enforcer holds, or what renders them.
 
 For every accepted flow there must be a current explicit permit and no applicable
 mandatory deny. Required legitimate flows must also work: blocking everything is
@@ -125,9 +176,12 @@ The proposed projection contract has three immutable records:
 | Enforcement plan | Intent digest, selected versioned capability offers/strategies/conditions, execution contexts, typed matches/effects, ordered rules, transforms, path coverage, state/revocation and transition requirements |
 | Validation evidence | Plan digest, validator/tool versions, obligation-linked capability resolution witnesses, required evidence levels, scope/assumptions, counterexamples and unsupported properties |
 
-An execution context includes enforcer, enforcer type, routing domain, address
-family, hook and chain. The type belongs in the context because a hook or chain
-name only has meaning under one; the enforcer identifies which instance. Rules carry stable semantic identity, source provenance and policy/
+An execution context includes scope, enforcer, enforcer type, the selected
+adapter's identity and version, routing domain, address family, hook and chain,
+together with the modes that apply. The type and adapter belong in the context
+because a hook or chain name only has meaning under one and renders differently
+across adapter versions; the scope says which intent the context serves and the
+enforcer which device carries it. Rules carry stable semantic identity, source provenance and policy/
 publication binding where applicable. A NAT action includes its target tuple,
 not merely the string `dst-nat`. Original and transformed tuples are distinct.
 
@@ -186,7 +240,7 @@ unverified requirement may render the affected flow `unsupported`, but an
 | discover | Framework -> class -> object -> project manifest discovery |
 | compile | Normalize refs/defaults, resolve bindings, authorize, construct complete candidate plan |
 | validate | Check schemas, capability coverage, semantics, ordering and proof obligations |
-| generate | Deterministic rendering from validated projections only, by the renderer the enforcer's type selects, into one artifact set per enforcer instance |
+| generate | Deterministic rendering from validated projections only, by the adapter resolved before validation, into resource sets each owned by one apply unit and attributable to one scope |
 | assemble | Cross-artifact consistency, manifest and provenance checks |
 | build | Immutable offline candidate bundle; reject missing evidence required at this gate; activation additionally requires fresh live prerequisites |
 

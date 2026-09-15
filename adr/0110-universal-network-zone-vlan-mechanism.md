@@ -162,22 +162,39 @@ property_schemas:
     target_class: class.router
 ```
 
-**Erratum, 2026-09-15.** The block above is a transcription of the class schema as
-first written, and the implemented schema has moved on. In
-`topology/class-modules/L2-network/network/class.network.security_matrix.yaml`,
-`enforcement_plane` is a required property with the enum `[perimeter, internal]`,
-`address_space.vlan_refs` exists, `device_assignments` does not, and
-`managed_by_ref` carries no `target_class` - the constraint `class.router` was
-dropped because an enforcer is not necessarily a router. `srv-gamayun`, a Proxmox
-node, is the enforcer of `inst.security_matrix.proxmox` and would fail that
-constraint. This corrects a stale transcription and changes no R1-R6 behaviour;
-the file is the authority, and this ADR remains **Implemented** as it stands.
+**Erratum, 2026-09-15, revised 2026-09-16.** The block above is a transcription of
+the class schema as first written. The implemented schema in
+`topology/class-modules/L2-network/network/class.network.security_matrix.yaml`
+differs: `enforcement_plane` is a required property with the enum
+`[perimeter, internal]`, `address_space.vlan_refs` exists, `device_assignments`
+does not, and `managed_by_ref` carries no `target_class`.
+
+Two of those are different in kind, and the first version of this erratum failed to
+say so. The added and removed optional properties are a stale transcription, and
+correcting the excerpt is all they need. Dropping `target_class: class.router` is a
+**normative amendment**, adopted here with its reason: an enforcer is not
+necessarily a router, and `srv-gamayun` - a Proxmox node and the enforcer of
+`inst.security_matrix.proxmox` - would fail the original constraint.
+
+The replacement is not "any `instance_ref`". A reference that names something with
+no enforcement capability is an error, and the constraint that replaced
+`class.router` must be a check against a declared enforcement-capable target rather
+than an absence of checking. That the declaration is present still does not
+establish that the target is qualified; capability presence is not qualification,
+and SEC-CAP owns that question.
+
+An implemented schema is evidence of current behaviour. It does not by itself
+override an accepted architectural contract: where the two disagree, the divergence
+is a finding to be resolved in one direction or the other, not settled by whichever
+artifact is easier to read. Here it is resolved by adopting the amendment above.
+R1-R6 behaviour is unchanged and this ADR remains **Implemented**.
 
 The enum `[perimeter, internal]` names an enforcement **plane**, which is where in
-the path an enforcer acts. It is not the enforcer's **type**, and the platform
-names in its description are examples rather than values. Type and instance are
-defined in [ADR 0119 D1.1](0119-firewall-rule-ordering-contract.md); M1-B below is
-unchanged by that and continues to bind one matrix to exactly one enforcer.
+the path a scope acts. It is not the enforcer's **type**, and the platform names in
+its description are examples rather than values. Type, scope and adapter selection
+are defined in [ADR 0119 D1.1](0119-firewall-rule-ordering-contract.md). M1-B below
+is unchanged and continues to bind one matrix to exactly one enforcer - it does not
+say the reverse, and one enforcer may hold several matrices on several planes.
 
 #### 1.2 Object Template: `obj.network.security_matrix.soho`
 

@@ -73,7 +73,7 @@ framework/core уровне и граница Terraform/Ansible, напроти�
 | Route/tunnel constraint | L2 routing/tunnel intent | Разрешённый путь, next-hop/tunnel endpoint, routing domain и поведение при отказе; не permit |
 | Interface-scoped NAT | L2 egress transform intent | SNAT/masquerade на именованном L2 interface/tunnel endpoint; не service publication и не grant |
 | Tunnel realization binding | L4 workload | Связывает runtime/attachment с L2 tunnel endpoint; обратный join производен |
-| Enforcement scope | L2 security matrix | Часть сети/контекстов, за которую отвечает ровно один enforcer |
+| Enforcement scope | L2 security matrix | Часть сети/контекстов, за которую отвечает ровно один enforcer. Обратное неверно: один enforcer может держать несколько scopes, в том числе на разных планах. Scope имеет собственную идентичность и не адресуется через свой `managed_by_ref` |
 | Approval / exception | L7 operations | Право применить конкретный resolved intent/transition; не второй набор firewall rules |
 | Plan / evidence | Derived | Производные данные, не редактируемый источник намерений |
 
@@ -85,7 +85,30 @@ L2 domain <--- L4 workload / attachment <--- L5 service / publication
 L2 scopes / guards <---------------- L2 policy template
      |
 one enforcer per scope -> derived enforcement obligations
+     |
+scope -> enforcer -> resolved adapter -> owned resource set -> apply unit
 ```
+
+**Поправка 2026-09-16 (rev 3.3 → 3.4), синхронизация с [ADR 0119 D1.1](../0119-firewall-rule-ordering-contract.md).**
+Нижняя строка схемы — не новые авторские сущности, а различения внутри уже
+существующих C→O→I и производных контрактов; авторская форма ими не растёт.
+
+- **Enforcer** — устройство, исполняющее правила. Идентичность стабильна и на неё
+  ссылаются scopes; сам enforcer scopes не перечисляет.
+- **Scope** — намерение с собственной идентичностью, ровно одним enforcer, планом и
+  ограниченным набором контекстов. Ключевать scope его enforcer'ом нельзя: связь
+  один-ко-многим, и индекс, хранящий по одной записи на enforcer, теряет scope.
+- **Resolved adapter** — версионированный контракт рендеринга и реализации, ровно
+  один на целевой контекст; ноль означает неподдержанный enforcer, больше одного —
+  блокирующая неоднозначность. Идентичность и версия закрепляются до validate и
+  входят в проверяемую идентичность плана.
+- **Owned resource set** и **apply unit** — какие ресурсы принадлежат scope, кто их
+  единственный writer, где записано их состояние и что применяется, откатывается и
+  восстанавливается вместе.
+
+Разделение планов на одном устройстве семантическое. Оно не доказывает изоляцию
+общих chains, hooks, address sets или ресурсов: композиция между scopes одного
+enforcer проверяется, а не предполагается.
 
 L5 binding может ссылаться на точный L4 source attachment; L4 и L5 ссылаются
 на L2 policy. L2 policies не ссылаются вверх на сервисы/workloads: они содержат
@@ -403,6 +426,25 @@ Read-only observation не передаёт resource ownership. Изменяющ
 временного guard не получает исключения из single-writer: она входит в
 утверждённый plan, имеет владельца, duration и reconciliation contract с его
 desired state. Нельзя спрятать независимый API writer под названием wrapper.
+
+**Поправка 2026-09-16 (rev 3.3 → 3.4).** Таблица выше распределяет владение по
+инструментам. Она не говорит, чем ограничена **единица применения**, и без этого
+«один writer на ресурс» проверяется только на словах. Разделяются:
+
+| Понятие | Что фиксирует |
+|---|---|
+| Connection binding | Endpoint, селектор целей и ссылка на credentials, которыми инструмент достигает цели |
+| Resource identity и writer | Какие конкретные ресурсы принадлежат scope и кто их единственный writer |
+| State namespace | Где записано применённое состояние этих ресурсов |
+| Apply / transaction unit | Что применяется, откатывается и восстанавливается вместе, и каков радиус отказа |
+
+Требуется однозначный выбор цели и единственный writer на ресурс. Уникальные
+адреса и credentials **не требуются**: несколько явно адресуемых целей могут
+законно пользоваться одним management endpoint и одним принципалом, а разные
+каталоги сами по себе не доказывают ни разных ресурсов, ни независимых отказов.
+Совместное использование connection binding, state namespace или apply unit
+допустимо там, где связанность объявлена, а её reconciliation и recovery
+проверены. Раздельная атрибуция scope не выдаётся за независимый failure domain.
 
 Замена Terraform на другого владельца RouterOS rules или перенос границы
 Terraform/Ansible — **отдельное архитектурное решение** с явной поправкой ADR 0057

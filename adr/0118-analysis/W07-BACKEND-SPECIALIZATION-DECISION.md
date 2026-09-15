@@ -96,38 +96,85 @@ parameter is the enforcer type, resolved from the device's declared enforcement
 capability. A module may host more than one type, and a type is not created by
 adding a module.
 
-The shape is also parameterised a second time, by enforcer instance, which the
-first version did not express at all. Two enforcers of one type get two
-projections and two artifact sets. Concretely, and this is the implementation
-choice the ADR deliberately leaves open:
+The shape is also parameterised a second time, by **apply unit**, which the first
+version did not express at all and the version after that got wrong.
+
+### The layout, and the reason it is not the one first given
+
+The proposed layout is unchanged:
 
 ```
 <artifacts root>/terraform/<backend>/<enforcer instance id>/
 ```
 
-So `terraform/mikrotik/rtr-mikrotik-chateau/` and `terraform/proxmox/srv-gamayun/`,
-each a complete Terraform root with its own provider configuration, variables and
-state. The first segment stays the existing directory name; it is a path, not the
-type authority - dispatch is by capability, and letting the directory name decide
+So `terraform/mikrotik/rtr-mikrotik-chateau/` and `terraform/proxmox/srv-gamayun/`.
+The first segment stays the existing directory name; it is a path, not the type
+authority - dispatch is by resolved adapter, and letting a directory name decide
 would reintroduce exactly what the amendment removes. The layout follows
-`bootstrap/<device>/`, which already renders per device in this repository.
+`bootstrap/<device>/`, which already renders per device here.
 
-Not every type separates instances by root. `proxmox_virtual_environment_firewall_rules`
-scopes itself through `node_name`, `vm_id` and `container_id` arguments, so a
-Proxmox root can carry several scopes explicitly. Per-instance separation is the
-obligation; a root per instance is how the RouterOS type meets it, because a
-Terraform root holds one unaliased provider configuration and one state.
+**The justification given on 2026-09-15 was wrong and is withdrawn.** It said a
+root per instance follows because "a Terraform root holds one unaliased provider
+configuration and one state". The first half describes the file this repository
+happens to emit, not a property of Terraform: several configurations of one
+provider are supported through
+[`alias`](https://developer.hashicorp.com/terraform/language/block/provider#alias),
+so one root can address several RouterOS devices. Deriving an architectural rule
+from the shape of current output is the same mistake as deriving enforcer types
+from which module owns a generator.
 
-**This is a reviewed behaviour change, not a refactor.** Moving the roots changes
-24 of the 163 emitted paths, and 29 if `terraform/oci/` follows the same rule.
-Byte content may be unchanged and byte parity will still fail, because the
-comparison is by path. It therefore needs a declared rename in the comparison, all
-consumers of the scope switched together per the migration plan, and its own
-review - the same rule W05 applied when two derivations disagreed.
+The real justification is the second half, stated properly. A Terraform root is a
+**state and transaction boundary**: one state file, one plan, one apply, one
+locking domain, one blast radius on failure. Choosing a root per enforcer instance
+therefore buys, and only buys, these:
 
-`terraform/oci/` is left as it is for now. Oracle Cloud is a tenancy rather than an
-enforcer, so the per-enforcer rule does not reach it; if OCI is later modelled as
-carrying an enforcer of its own, it gets the same treatment then.
+* every resource in the root has one writer, and that writer's scope attribution is
+  structural rather than conventional;
+* a failed or partial apply is bounded to one enforcer, which matters because a
+  partially applied firewall is the transition case SEC-TRANSITION exists for;
+* state can be moved, locked, restored or quarantined per enforcer;
+* credentials and endpoints are chosen per root, without that being *required* -
+  ADR 0119 D1.1 requires unambiguous target selection and a single writer, not
+  unique endpoints, and several roots may legitimately point at one management
+  endpoint.
+
+An aliased single root is the alternative, and it is not absurd: it keeps paths
+stable and renders every enforcer in one plan. It is rejected here because it puts
+every enforcer in one state and one apply, which is the coupling the third and
+fourth bullets exist to avoid - not because Terraform cannot express it.
+
+### Which layout each adapter actually uses
+
+Per-instance **separation** is the obligation; a root per instance is one way to
+meet it, and it is not the only one.
+
+| Adapter | Selected layout | Why |
+|---|---|---|
+| RouterOS via `terraform-routeros/routeros` | one root per enforcer instance | provider is configured per device; state boundary per enforcer |
+| Proxmox VE via `bpg/proxmox` | one root per enforcer instance, scopes carried inside it | `proxmox_virtual_environment_firewall_rules` scopes itself with `node_name`, `vm_id` and `container_id`, so one node's several scopes render as explicit arguments in that node's root |
+| Oracle Cloud via `oci` | unchanged | a tenancy is not an enforcer; the rule does not reach it. If OCI is later modelled as carrying one, it is decided then |
+
+That is one rule with one exception stated as a table entry rather than as prose
+contradicting itself: the previous version gave Proxmox a per-instance root in one
+paragraph and made it a shared-root exception in the next.
+
+### What a move requires, beyond renaming
+
+**This is a reviewed behaviour change, and path parity is the smallest part of it.**
+Moving the roots changes 24 of the 163 emitted paths, and byte content may be
+identical while byte parity still fails, because the comparison is by path. A
+declared rename handles that much. It does not handle the rest, and the rest is
+where the risk is:
+
+* an old-to-new inventory of every resource address, state entry, provider
+  configuration and consumer, with no address owned twice across the transition;
+* a reviewed state migration - `terraform state mv` or equivalent - against the
+  **existing** state, not against a fresh plan;
+* evidence that nothing is destroyed and recreated unintentionally: a plan against
+  migrated state showing no replacements for resources that did not change;
+* every consumer of the moved paths switched together, per the migration plan.
+
+Recording this is design preparation. It is not authorization to migrate state.
 
 ## What this decision does not do
 

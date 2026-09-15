@@ -1,6 +1,7 @@
 # ADR 0118: Universal Container Network Model
 
 - Status: Accepted
+- Revised: 2026-09-16 rev 3.4 (AD-01/AD-08 harmonized with the corrected enforcer axes)
 - Revised: 2026-09-15 rev 3.3 (D6: modeling targets are runtimes, not enforcers; enforcer axes moved to ADR 0119 D1.1)
 - Revised: 2026-09-11 rev 3.2a (SPC supplement: offer digest split, anchored path inventory, vocabulary debt)
 - Revised: 2026-09-11 rev 3.2 (capability requirements, scoped offers and satisfaction evidence)
