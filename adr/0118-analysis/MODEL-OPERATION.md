@@ -149,6 +149,7 @@ a pass.
 | `E7063` | A permit overlapping a mandatory deny, with a concrete witness |
 | `E7064` | An unbound parameter on a guard, or an empty resolved selector |
 | `E7096` | An in-scope flow that reaches no rule at all; the execution does not terminate |
+| `E7097` | A partial verification record that belongs to another plan |
 
 `E7025` is a separate code rather than a variant of `E7040`/`E7061` because the
 declarations keep a disabled record instead of deleting it. Reporting "no such
@@ -610,26 +611,41 @@ nobody has declared what has to keep working, so SEC-AVAIL was never verified.
 is required. A missing `errors` is not zero errors and a missing obligation
 status is not a pass - both were admitted before the 2026-09-14 review.
 
-**The other five obligations are mounted, and answer for themselves.**
-`base.validator.security_obligations` decides SEC-NAT, SEC-STATE, SEC-TRANSITION,
-SEC-PATH and SEC-CAP, and it has three answers rather than two:
+**The other five obligations have a mounted channel, and none of them reports a
+pass.** `base.validator.security_obligations` answers for SEC-NAT, SEC-STATE,
+SEC-TRANSITION, SEC-PATH and SEC-CAP with three outcomes:
 
 * **not applicable** - the plan declares no field this obligation governs, so
   nothing here could violate it. Not a pass, and recorded with the reason.
-* **unverified** - it applies and the input to decide it is absent, *named* in a
-  `W7003`. Blocks admission exactly as a failure does.
-* **pass** or **fail** - `E7085`-`E7089` report the failures.
+* **unverified** - it applies and cannot be decided, with the missing input
+  *named* in a `W7003`. Blocks admission exactly as a failure does.
+* **fail** - a violation is demonstrated. `E7086` is the one this contract can
+  demonstrate today.
 
-The middle answer is what made mounting them worth doing. None of the five has
-its inputs in the pipeline today - no sessions, no previous plan, no path
-inventory, no capability offers - and a checker with no input finds nothing.
-Reporting that as a pass is the empty-loop mistake; naming the missing input is
-not.
+**Why no pass.** The first version had them, and a review reproduced what they
+were worth: a session carrying a revoked epoch, a previous plan with no rules, a
+plan asserting its own `demonstrated` list, and a disabled offer with no evidence
+were each read as satisfied - admission granted, marker written. Every one of
+those branches tested that an input was *present*, not that the property *held*.
+Presence-as-proof is the empty-loop mistake in a different coat, and four
+checkers had it.
 
-**One of the five decides.** SEC-NAT's input is already on the rule, so two
-transforms collapsing onto one target is `E7086` today. The other four report
-absent evidence, which is a channel and one implemented decision rather than five
-completed checks - and an obligation that abstains is not one that holds.
+SEC-NAT is the exception in one direction only. It demonstrates a collision -
+every declaration parsed under a closed form, one unreadable declaration deciding
+the whole scope, and an original identity carrying transport and effect rather
+than endpoints alone. It cannot demonstrate the absence of one, because collision
+freedom over that identity is necessary and not the composition proof ADR 0119
+asks for, so a clean scope is `unverified` as well.
+
+`E7085`, `E7087`, `E7088` and `E7089` are reserved and unraised. They come back
+when their obligation has a solver that can produce the failure.
+
+**The partial record names the plan it examined.** A verdict produced for one
+plan used to be merged under the digest of another - the plan changing between
+the two validators was enough - and `E7097` refuses that now. The merge takes
+only the five obligations that producer owns, never overwrites the four decided
+beside them, and adds its error count so a record cannot report zero while a
+sibling found one.
 
 **The refusal is checked by what is on disk.** A test-only generator in
 `tests/fixtures/strict_writer/` runs in the generate stage and writes one marker
@@ -650,7 +666,7 @@ something.
 | Artifact parity against a clean worktree at HEAD | 163 files compared, every emitted artifact identical | 2026-09-14 |
 | Zone membership derivations | 1 (was 2); the generator consumes `base.compiler.security_matrix` | 2026-09-14 |
 | Scopes admissible under the strict boundary | 0 of 2; SEC-AVAIL unverified in both | 2026-09-14 |
-| Obligations with a framework checker | 9 of 9 mounted; 5 reach a verdict today (4 over the plan, SEC-NAT), 4 report absent evidence | 2026-09-15 |
+| Obligations with a framework checker | 9 of 9 mounted; 4 decided over the plan, SEC-NAT can demonstrate a failure only, 4 report absent evidence | 2026-09-15 |
 
 The whole of this is inert on the current topology **by construction**, and that
 is the evidence for it being safe to have landed: artifact parity is identical
@@ -670,6 +686,7 @@ across every emitted file.
 | 2026-09-11 | `553c2e3b` | Section 7c: lowering, the independent interpreter, and SEC-AUTH/SEC-AVAIL as properties with mutants |
 | 2026-09-14 | `622eff34` | Section 7d: all eight obligations placed, the three habits behind them, and what SEC-PATH still needs from outside |
 | 2026-09-14 | `7128c2f6` | Section 4: `E7025` for a reference to a disabled record, and the ledger of allocated codes that nothing raises yet |
+| 2026-09-15 | `PENDING_R` | Section 7e: the four unproven passes removed, SEC-NAT narrowed to what it can demonstrate, `E7097` for a stale partial record, applicability decided per scope |
 | 2026-09-15 | `bdc1374b` | Section 7e: the five remaining obligations mounted, with `not applicable` / `unverified` / decided as three distinct answers |
 | 2026-09-15 | `b510035a` | Section 7d: the terminal invariant and `E7096`; a terminal closes its scope because of what it says, and an unmatched in-scope flow is a failure of its own |
 | 2026-09-14 | `6d6ff63e` | W05/A24: zone membership derived once; the compiler learned `additional_networks` and sorts zones, the generator consumes the channel, artifacts byte-identical |

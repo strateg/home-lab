@@ -717,6 +717,65 @@ def test_a_plan_epoch_must_agree_with_the_approval_as_well() -> None:
     assert any("the plan is epoch" in reason for reason in admission.reasons)
 
 
+def test_applicability_is_decided_per_scope_not_across_the_plan() -> None:
+    """R4: a transform in one scope refused a second scope that had none.
+
+    The producer decides applicability per scope; admission gathered rule fields
+    from every scope and demanded the union from each requested one. Two answers
+    to "does this obligation apply here", and neither knew about the other.
+    """
+    plan = strict_plan()
+    plan["scopes"] = ["scope.a", "scope.b"]
+    plan["lowering_complete"] = ["scope.a", "scope.b"]
+    plan["strict_eligible"] = ["scope.a", "scope.b"]
+    plan["rules"][0]["nat"] = {"to": "10.0.0.5"}
+    plan["rules"].append(
+        {
+            "origin": "binding:elsewhere",
+            "effect": "permit",
+            "terminal": False,
+            "scope": "scope.b",
+            "sources": ["z.c"],
+            "destinations": ["z.d"],
+            "transport": {"kind": "ports", "protocol": "tcp", "ports": [443]},
+            "position": 2,
+        }
+    )
+
+    assert "SEC-NAT" in applicable_obligations(plan, "scope.a")
+    assert "SEC-NAT" not in applicable_obligations(plan, "scope.b")
+    assert "SEC-NAT" in applicable_obligations(plan), "the plan as a whole still carries one"
+
+    record = verification_for(plan)
+    record["obligations"]["scope.a"]["SEC-NAT"] = "unverified"
+    record["obligations"]["scope.b"]["SEC-NAT"] = "not_applicable"
+
+    admitted = admit(
+        plan=plan,
+        verification=record,
+        approved_intent=approval(scopes=["scope.b"]),
+        scopes=["scope.b"],
+    )
+    refused = admit(
+        plan=plan,
+        verification=record,
+        approved_intent=approval(scopes=["scope.a"]),
+        scopes=["scope.a"],
+    )
+
+    assert admitted.admitted, admitted.reasons
+    assert not refused.admitted
+    assert any("SEC-NAT" in reason for reason in refused.reasons)
+
+
+def test_a_plan_level_field_applies_to_every_scope() -> None:
+    """Scoping rule fields must not let a plan-level construct escape."""
+    plan = strict_plan(state={"tracked": True})
+    plan["scopes"] = ["scope.a", "scope.b"]
+
+    assert "SEC-STATE" in applicable_obligations(plan, "scope.b")
+
+
 def test_admission_names_the_scopes_it_admitted() -> None:
     """A renderer must receive the projection that was admitted, not the whole plan."""
     plan = strict_plan()

@@ -152,11 +152,21 @@ AWAITING_A_MOUNT = {
     "E7042": "publication mechanism against enforcer capability; no capability data reaches the validator yet",
     "E7062": "an unapproved binding used as authorization; the framework still compiles legacy matrices, "
              "so no binding becomes a grant anywhere it could fire",
+    # These four left the list on 2026-09-15 and came back the same day. The
+    # checkers that would have raised them decided obligations by testing that an
+    # input was *present*, which a review reproduced as four unproven passes. The
+    # passes are gone; so are the failure branches that depended on the same
+    # non-check. `base.validator.security_obligations` reports `unverified` with
+    # the missing input named, and `W7003` is what fires.
+    #
+    # A code returns from this list when its obligation has a solver that can
+    # demonstrate the failure - as `E7086` does.
+    "E7085": "SEC-PATH; needs a scope inventory derived independently of the plan, and evidence that is "
+             "not the plan's own claim",
+    "E7087": "SEC-STATE; needs the revocation, its effective moment and the deadline",
+    "E7088": "SEC-TRANSITION; needs the mutation sequence simulated state by state",
+    "E7089": "SEC-CAP; needs offers with scope, version and evidence, which the catalogue does not carry",
 }
-# E7085-E7089 left this list on 2026-09-15 when `base.validator.security_obligations`
-# mounted the five obligations. They are raised when a check fails; when the input
-# to decide one is absent the obligation is `unverified` and `W7003` says which
-# input - which is a different statement from a code with nobody to raise it.
 
 
 def _codes_raised_in_source() -> set[str]:

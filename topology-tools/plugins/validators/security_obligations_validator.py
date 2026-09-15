@@ -19,13 +19,27 @@ So each obligation answers one of three ways, and the middle one is the point:
 * **unverified** - the obligation applies and the input needed to decide it is
   absent. The missing input is *named*. This blocks strict admission exactly as a
   failure does; the difference is what to do about it.
-* **pass** or **fail** - the obligation applies, the input is there, and the check
-  ran. `E7085`-`E7089` report the failures.
+* **fail** - the obligation applies and a violation is demonstrated. `E7086`
+  reports the one this contract can demonstrate today.
 
-That is the honest general shape, and it is not a placeholder: the applicability
-test and the input discovery are real, so the day a plan grows a NAT rule or the
-catalogue grows an offer, this starts deciding instead of abstaining - and until
-then it refuses to certify what nobody checked.
+**No obligation here returns `pass`.** The first version did, and a review
+reproduced what those passes were worth: a session carrying a revoked epoch, a
+previous plan with no rules, a plan asserting its own `demonstrated` list, and a
+disabled offer with no evidence were all read as satisfied, admission granted,
+marker written. Each of those branches tested that an input was *present* rather
+than that the property *held* - presence-as-proof, the empty-loop mistake in a
+different coat.
+
+SEC-NAT is the exception in one direction only: it can demonstrate a collision,
+so it reports one. It cannot demonstrate the absence of one - collision freedom
+over the identity it can build is necessary, not sufficient - so a clean scope is
+`unverified` too.
+
+That is the honest general shape. The applicability test and the input discovery
+are real, so the channel, the stage graph and the record are in place for solvers
+to land behind - each with the independent inventory, trustworthy evidence and
+semantic check its obligation needs, and each with the negative controls that
+make a `pass` mean something.
 
 The checks themselves are written here rather than imported from `netmodel`. That
 is the same distribution boundary the plan validator lives with, and the same
@@ -45,12 +59,14 @@ from kernel.plugin_base import (
     Stage,
     ValidatorJsonPlugin,
 )
+from plugins.validators.strict_admission import content_digest
 
 PLAN_PLUGIN_ID = "base.compiler.security_plan"
 PLAN_KEY = "security_plan"
 ROWS_PLUGIN_ID = "base.compiler.instance_rows"
 ROWS_KEY = "normalized_rows"
 PUBLISH_KEY = "security_obligation_statuses"
+RECORD_VERSION = 1
 
 PASS = "pass"
 FAILED = "fail"
@@ -62,6 +78,13 @@ NOT_APPLICABLE = "not_applicable"
 #
 # The field names are the reserved ones `strict_admission` refuses to treat as
 # unknown constructs; the two lists have to agree and a test says so.
+#
+# `code` is `None` for the four obligations that cannot yet demonstrate a
+# failure. Their numbers - `E7085`, `E7087`, `E7088`, `E7089` - stay reserved in
+# the catalog and on the "awaiting a mount" ledger, and they are deliberately not
+# named here: a code sitting in a table inside an emitting module looks raised to
+# the registry scan while no branch can reach it. The number returns when the
+# obligation has a solver that can produce the failure.
 OBLIGATIONS: dict[str, dict[str, Any]] = {
     "SEC-NAT": {
         "field": "nat",
@@ -71,25 +94,25 @@ OBLIGATIONS: dict[str, dict[str, Any]] = {
     },
     "SEC-STATE": {
         "field": "state",
-        "code": "E7087",
+        "code": None,
         "needs": "a session inventory and the active epoch, which nothing in the pipeline records",
         "governs": "an established session outliving the permit that admitted it",
     },
     "SEC-TRANSITION": {
         "field": "transition",
-        "code": "E7088",
+        "code": None,
         "needs": "the previously applied plan and an authorization envelope for the change",
         "governs": "an intermediate state during an apply that neither endpoint shows",
     },
     "SEC-PATH": {
         "field": "path",
-        "code": "E7085",
+        "code": None,
         "needs": "a path inventory for the scope and evidence that each case was demonstrated",
         "governs": "a feasible in-scope path crossing no adequate gate",
     },
     "SEC-CAP": {
         "field": "capability",
-        "code": "E7089",
+        "code": None,
         "needs": "versioned capability offers; the catalogue declares capabilities without offer fields",
         "governs": "declared support read as evidence, or evidence read as permission",
     },
@@ -135,6 +158,11 @@ class SecurityObligationsValidator(ValidatorJsonPlugin):
                 statuses[scope][name] = status
                 reasons[scope][name] = reason
                 if status == FAILED:
+                    # Unreachable for an obligation with no code: those cannot
+                    # return FAILED, and a checker that started to would have to
+                    # claim its number back from the ledger first.
+                    if not spec["code"]:
+                        raise AssertionError(f"{name} reported a failure with no diagnostic to report it")
                     diagnostics.append(
                         self.emit_diagnostic(
                             code=spec["code"],
@@ -164,7 +192,14 @@ class SecurityObligationsValidator(ValidatorJsonPlugin):
                     )
 
         record = {
-            "schema_version": 1,
+            "schema_version": RECORD_VERSION,
+            # The identity of the plan these statuses are about. Without it the
+            # merger could stamp a stale partial result with the digest of a plan
+            # nobody checked it against - a review did exactly that: a `pass`
+            # produced for one plan, the plan changed, and the merge carried the
+            # old verdict under the new digest while a fresh run said `fail`.
+            "plan_digest": content_digest(plan),
+            "obligations": sorted(OBLIGATIONS),
             "statuses": statuses,
             "reasons": reasons,
             "checked_scopes": sorted(scopes),
@@ -217,23 +252,99 @@ class SecurityObligationsValidator(ValidatorJsonPlugin):
         return any(field in rule for rule in rules if isinstance(rule, Mapping))
 
     # Each checker below has the same contract: the obligation applies, so either
-    # the input to decide it is here and it decides, or it names what is missing.
+    # it decides, or it names what a decision would need. **None of them returns
+    # `pass`**, and that is deliberate.
+    #
+    # The first version did, and a review reproduced what it was worth: a session
+    # carrying a revoked epoch, a disabled offer with no evidence, and a plan
+    # asserting its own `demonstrated` list all came back `pass`, admission
+    # granted, marker written. Every one of those branches tested that an input
+    # was *present*, not that the property *held* - presence-as-proof, which is
+    # the empty-loop mistake wearing a different coat.
+    #
+    # A real solver needs an independent scoped inventory, trustworthy evidence
+    # and the semantic check itself. Until each has one, the honest answer is
+    # `unverified` with the missing input named, and it stays `unverified` even
+    # when fields that look like the input are present.
+
+    def _check_sec_state(self, *, plan, rules, sources, spec) -> tuple[str, str]:
+        """Sessions must not outlive the epoch that admitted them.
+
+        Sessions and an epoch being present says nothing about whether any
+        session survived a revocation deadline, belongs to the active epoch or
+        even to this scope. Deciding that needs the revocation, its effective
+        moment and the deadline, none of which the pipeline carries.
+        """
+        return UNVERIFIED, spec["needs"]
+
+    def _check_sec_transition(self, *, plan, rules, sources, spec) -> tuple[str, str]:
+        """No intermediate state may accept outside the transition envelope.
+
+        A previous plan and an envelope being present is not a replay. Deciding
+        this needs the mutation sequence simulated state by state - and the
+        earlier version said "the sequence was replayed" while replaying nothing,
+        which is worse than abstaining.
+        """
+        return UNVERIFIED, spec["needs"]
+
+    def _check_sec_path(self, *, plan, rules, sources, spec) -> tuple[str, str]:
+        """Every feasible in-scope path crosses an adequate gate, or is disabled.
+
+        The plan asserting that its own `cases` are all `demonstrated` is the
+        plan marking its own homework. This needs an inventory derived
+        independently of the plan and evidence that is not the plan's own claim.
+        """
+        return UNVERIFIED, spec["needs"]
+
+    def _check_sec_cap(self, *, plan, rules, sources, spec) -> tuple[str, str]:
+        """A requirement needs a witness at the evidence level the claim needs.
+
+        A capability name appearing as a key in some offers mapping is not a
+        witness. An offer can be disabled, scoped elsewhere, of an incompatible
+        version or carry no evidence at all - and *declared support is not
+        effective support is not evidence is not permission* is the sentence this
+        obligation exists for.
+        """
+        return UNVERIFIED, spec["needs"]
 
     def _check_sec_nat(self, *, plan, rules, sources, spec) -> tuple[str, str]:
-        """Distinct originals must not collapse onto one translated rule."""
-        transforms = [
-            (rule, rule["nat"]) for rule in rules if isinstance(rule.get("nat"), Mapping)
-        ]
-        if not transforms:
+        """Distinct originals must not collapse onto one translated rule.
+
+        This one can demonstrate a failure, so it does. It cannot demonstrate
+        success, so it does not claim one.
+
+        **Every declaration is parsed, and one unreadable declaration decides the
+        whole scope.** Selecting only the mappings and ignoring the rest gave a
+        readable transform beside an unsupported string an overall `pass` - a
+        subset of the transforms checked, reported as all of them.
+
+        **The original identity carries transport and effect**, not just
+        endpoints. A permit on TCP/53 and a deny on TCP/443 between the same
+        endpoints are different authorizations; keyed on endpoints alone they
+        looked like one original and the collapse went unseen.
+
+        Even so, a scope with no collision comes back `unverified`. Collision
+        freedom over this key is a *necessary* condition for SEC-NAT and not the
+        composition proof ADR 0119 asks for - which is about an approved frontend
+        against an unauthorized direct or backend flow, over original and current
+        tuples with their context. Reporting a necessary condition as the
+        property would be the same mistake in a smaller place.
+        """
+        declared = [(rule, rule.get("nat")) for rule in rules if "nat" in rule]
+        if not declared:
             return UNVERIFIED, spec["needs"]
 
-        by_translated: dict[str, set[str]] = {}
-        for rule, nat in transforms:
-            translated = str(nat.get("to") or nat.get("translated") or "")
-            if not translated:
-                return UNVERIFIED, f"a transform on '{rule.get('origin')}' names no translated target"
-            originals = by_translated.setdefault(translated, set())
-            originals.add(f"{sorted(rule.get('sources') or [])}->{sorted(rule.get('destinations') or [])}")
+        by_translated: dict[str, set[tuple[str, ...]]] = {}
+        for rule, nat in declared:
+            unreadable = self._nat_shape_problem(nat)
+            if unreadable:
+                return UNVERIFIED, (
+                    f"transform on '{rule.get('origin')}' {unreadable}; one declaration this contract "
+                    "cannot read decides the scope, because a subset of the transforms checked is not "
+                    "all of them"
+                )
+            translated = str(nat["to"])
+            by_translated.setdefault(translated, set()).add(self._original_identity(rule))
 
         collapsed = {target: items for target, items in by_translated.items() if len(items) > 1}
         if collapsed:
@@ -241,72 +352,42 @@ class SecurityObligationsValidator(ValidatorJsonPlugin):
                 f"transforms collapse differently authorized originals onto {sorted(collapsed)}; "
                 "the composed rule cannot distinguish what authorized each one"
             )
-        return PASS, f"{len(transforms)} transform(s), each with one original"
+        return UNVERIFIED, (
+            f"{len(declared)} transform(s) parsed and no two originals collapse, which is necessary "
+            "and not sufficient: the composition proof needs original and current tuples with their "
+            "context, and this contract carries neither"
+        )
 
-    def _check_sec_state(self, *, plan, rules, sources, spec) -> tuple[str, str]:
-        """Sessions must not outlive the epoch that admitted them."""
-        sessions = sources.get("sessions")
-        epoch = plan.get("epoch")
-        if not sessions or not epoch:
-            missing = []
-            if not sessions:
-                missing.append("a session inventory")
-            if not epoch:
-                missing.append("the active epoch on the plan")
-            return UNVERIFIED, f"{spec['needs']} (missing: {', '.join(missing)})"
-        return PASS, f"{len(sessions)} session(s) inside the active epoch"
+    @staticmethod
+    def _nat_shape_problem(nat: Any) -> str:
+        """Why this transform declaration cannot be read, or an empty string."""
+        if not isinstance(nat, Mapping):
+            return f"is {type(nat).__name__}, not a mapping"
+        unknown = sorted(set(nat) - {"to", "comment"})
+        if unknown:
+            return f"states field(s) {unknown} this contract has no meaning for"
+        target = nat.get("to")
+        if not isinstance(target, str) or not target.strip():
+            return f"names no translated target (`to` is {target!r})"
+        return ""
 
-    def _check_sec_transition(self, *, plan, rules, sources, spec) -> tuple[str, str]:
-        """No intermediate state may accept outside the transition envelope."""
-        previous = sources.get("previous_plan")
-        envelope = plan.get("transition")
-        if not previous:
-            return UNVERIFIED, f"{spec['needs']} (missing: the previously applied plan)"
-        if not isinstance(envelope, Mapping) or not envelope.get("allowed"):
-            return UNVERIFIED, f"{spec['needs']} (missing: an authorization envelope for the change)"
-        return PASS, "an envelope and a previous plan are present and the sequence was replayed"
+    @staticmethod
+    def _original_identity(rule: Mapping[str, Any]) -> tuple[str, ...]:
+        """What made this flow authorized, as far as the plan states it.
 
-    def _check_sec_path(self, *, plan, rules, sources, spec) -> tuple[str, str]:
-        """Every feasible in-scope path crosses an adequate gate, or is demonstrably disabled."""
-        declared = plan.get("path")
-        if not isinstance(declared, Mapping):
-            declared = next(
-                (rule["path"] for rule in rules if isinstance(rule.get("path"), Mapping)), None
-            )
-        if not isinstance(declared, Mapping):
-            return UNVERIFIED, spec["needs"]
-
-        cases = declared.get("cases")
-        demonstrated = declared.get("demonstrated")
-        if not isinstance(cases, list) or not cases:
-            return UNVERIFIED, f"{spec['needs']} (missing: the path inventory for this scope)"
-        if not isinstance(demonstrated, list):
-            return UNVERIFIED, f"{spec['needs']} (missing: which cases were demonstrated)"
-
-        gaps = sorted(str(case) for case in cases if case not in demonstrated)
-        if gaps:
-            return FAILED, f"path case(s) with no demonstration: {gaps[:3]}"
-        return PASS, f"{len(cases)} path case(s), each demonstrated"
-
-    def _check_sec_cap(self, *, plan, rules, sources, spec) -> tuple[str, str]:
-        """A requirement needs a witness at the evidence level the claim needs."""
-        offers = sources.get("capability_offers")
-        if not offers:
-            return UNVERIFIED, spec["needs"]
-
-        required = plan.get("capability")
-        if not isinstance(required, Mapping):
-            required = next(
-                (rule["capability"] for rule in rules if isinstance(rule.get("capability"), Mapping)),
-                None,
-            )
-        if not isinstance(required, Mapping):
-            return UNVERIFIED, f"{spec['needs']} (missing: what this plan requires)"
-
-        unmet = sorted(name for name in required if name not in offers)
-        if unmet:
-            return FAILED, f"requirement(s) with no applicable offer: {unmet[:3]}"
-        return PASS, f"{len(required)} requirement(s), each with an offer"
+        Endpoints alone were the defect: a permit and a deny between one pair of
+        endpoints are two authorizations, and merging them hid a collapse.
+        """
+        transport = rule.get("transport") or {}
+        ports = transport.get("ports") or []
+        return (
+            str(rule.get("effect")),
+            ",".join(sorted(str(item) for item in (rule.get("sources") or []))),
+            ",".join(sorted(str(item) for item in (rule.get("destinations") or []))),
+            str(transport.get("kind")),
+            str(transport.get("protocol")),
+            ",".join(sorted(str(item) for item in ports)),
+        )
 
     # --- inputs -------------------------------------------------------------------
 

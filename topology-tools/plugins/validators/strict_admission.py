@@ -227,13 +227,26 @@ def nested_digest_fields(payload: Any, *, _path: str = "") -> list[str]:
     return found
 
 
-def _fields_present(plan: Mapping[str, Any]) -> set[str]:
-    """Declared field names anywhere in the plan's known structure."""
+def _fields_present(plan: Mapping[str, Any], scope: str | None = None) -> set[str]:
+    """Declared field names in the plan, optionally narrowed to one scope.
+
+    Plan-level fields always count: they are properties of the whole plan. Rule
+    fields count for the scope the rule belongs to.
+
+    Gathering rule fields from every scope was a real disagreement rather than a
+    detail. The producer decides applicability per scope; admission demanded the
+    union from each requested scope, so a transform in one scope refused a second
+    scope where the producer had correctly said `not_applicable`. Two answers to
+    "does this obligation apply here", and neither knew about the other.
+    """
     present = set(plan.keys())
     rules = plan.get("rules")
     for rule in rules if isinstance(rules, list) else []:
-        if isinstance(rule, Mapping):
-            present |= set(rule.keys())
+        if not isinstance(rule, Mapping):
+            continue
+        if scope is not None and str(rule.get("scope")) != scope:
+            continue
+        present |= set(rule.keys())
     return present
 
 
@@ -390,16 +403,20 @@ def _terminal_errors(where: str, rule: Mapping[str, Any]) -> list[str]:
     return errors
 
 
-def applicable_obligations(plan: Mapping[str, Any]) -> tuple[str, ...]:
-    """Which obligations this particular plan has to have passed.
+def applicable_obligations(plan: Mapping[str, Any], scope: str | None = None) -> tuple[str, ...]:
+    """Which obligations this plan - or this scope of it - has to have passed.
 
-    The four checked ones always apply. A deferred one applies when the plan
-    declares the field that carries the construct it governs. Together with
-    `unsupported_constructs` - which refuses every field that is neither known
-    nor reserved - this is the fail-closed guard the keyword search was only
-    described as being.
+    The four checked ones always apply. A deferred one applies when the plan or
+    the scope declares the field that carries the construct it governs. Together
+    with `unsupported_constructs` - which refuses every field that is neither
+    known nor reserved - this is the fail-closed guard the keyword search was
+    only described as being.
+
+    `scope` is what makes this agree with the producer, which decides per scope.
+    Called without one it answers for the plan as a whole, which is what a caller
+    asking "what could this plan need" wants.
     """
-    present = _fields_present(plan)
+    present = _fields_present(plan, scope)
     deferred = tuple(
         sorted({obligation for field, obligation in DEFERRED_OBLIGATION_FIELDS.items() if field in present})
     )
@@ -673,7 +690,7 @@ def _obligation_reasons(
         if not isinstance(per_scope, Mapping):
             reasons.append(f"scope '{scope}' has no obligation statuses in the verification record")
             continue
-        for obligation in applicable_obligations(plan):
+        for obligation in applicable_obligations(plan, scope):
             status = per_scope.get(obligation)
             if status == PASS:
                 continue

@@ -61,6 +61,9 @@ _FAILS = {
     "E7093": "SEC-COVER",
     "E7095": "SEC-COVER",
     "E7096": "SEC-ORDER",
+    # Not an obligation of the plan: the partial record was about another plan,
+    # so every obligation the other producer owns is unproven for this one.
+    "E7097": None,
     "E7083": "SEC-AUTH",
     "E7084": "SEC-AVAIL",
     "E7092": "SEC-AVAIL",
@@ -183,20 +186,40 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
         # was examined against. Without the second one an approval can only say
         # "approved" and cannot say approved of what.
         errors = sum(1 for item in diagnostics if item.severity == "error")
-        elsewhere = self._obligations_record(ctx)
+        plan_digest = content_digest(plan)
+        elsewhere, stale = self._obligations_record(ctx, plan_digest)
+        if stale:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7097",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        f"the obligation statuses were produced for another plan ({stale}); merging "
+                        "them under this plan's digest would certify a check nobody ran against it"
+                    ),
+                    path="pipeline:validate",
+                )
+            )
+            errors += 1
         # The other five obligations are decided by another plugin, and its
         # failures are failures of this plan. A record reporting zero while a
         # sibling found one would read as a clean check.
-        errors += int(elsewhere.get("errors") or 0)
+        counted = elsewhere.get("errors")
+        errors += counted if isinstance(counted, int) and not isinstance(counted, bool) else 0
         scopes = sorted(set(by_scope) | set(source["scopes"]))
         record = {
             "schema_version": RECORD_VERSION,
-            "plan_digest": content_digest(plan),
+            "plan_digest": plan_digest,
             "intent_digest": self._intent_digest(source),
             "evidence_digest": self._evidence_digest(source),
             "errors": errors,
             "warnings": sum(1 for item in diagnostics if item.severity == "warning")
-            + int(elsewhere.get("warnings") or 0),
+            + (
+                elsewhere.get("warnings")
+                if isinstance(elsewhere.get("warnings"), int) and not isinstance(elsewhere.get("warnings"), bool)
+                else 0
+            ),
             # Renamed from `complete`, which meant only that the source input was
             # readable and was read downstream as "the check finished". What
             # finished is now stated per obligation per scope.
@@ -310,13 +333,28 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
         )
 
     @staticmethod
-    def _obligations_record(ctx: PluginContext) -> Mapping[str, Any]:
-        """What the obligations validator published, or nothing if it did not run."""
+    def _obligations_record(ctx: PluginContext, plan_digest: str) -> tuple[Mapping[str, Any], str]:
+        """The other producer's record, and the digest it names if that is not this plan.
+
+        Three ways this comes back empty, and none of them is silence: the plugin
+        did not run, the record is of a version this does not read, or it is
+        about a different plan. The third is the one a review found - a partial
+        result produced for one plan, the plan changed between the two
+        validators, and the merge carried the old verdict under the new digest.
+        """
         try:
             record = ctx.subscribe("base.validator.security_obligations", "security_obligation_statuses")
         except PluginDataExchangeError:
-            return {}
-        return record if isinstance(record, Mapping) else {}
+            return {}, ""
+        if not isinstance(record, Mapping):
+            return {}, ""
+        if record.get("schema_version") != 1:
+            return {}, ""
+
+        recorded = str(record.get("plan_digest") or "")
+        if recorded != plan_digest:
+            return {}, recorded[:19] or "no digest at all"
+        return record, ""
 
     def _merged_obligations(
         self,
@@ -336,12 +374,22 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
         not an assumption.
         """
         merged = self._obligation_statuses(scopes, diagnostics, source)
+
+        # Only the five that producer owns, and never over the four decided here.
+        # `.update` with whatever names arrived would let the other plugin
+        # overwrite this one's verdicts, and would let an unknown obligation name
+        # into a record admission reads as typed.
+        owned = {str(name) for name in (elsewhere.get("obligations") or [])} - set(CHECKED_OBLIGATIONS)
         published = elsewhere.get("statuses")
         for scope, statuses in (published or {}).items():
             if not isinstance(statuses, Mapping):
                 continue
             merged.setdefault(str(scope), {}).update(
-                {str(name): str(status) for name, status in statuses.items()}
+                {
+                    str(name): str(status)
+                    for name, status in statuses.items()
+                    if str(name) in owned
+                }
             )
         return merged
 
@@ -372,6 +420,12 @@ class SecurityPlanValidator(ValidatorJsonPlugin):
             path = str(item.path or "")
             scope = path.split("security_plan:", 1)[1] if path.startswith("security_plan:") else ""
             targets = [scope] if scope in statuses else list(statuses)
+
+            if item.code in _FAILS and _FAILS[item.code] is None:
+                for target in targets:
+                    for name in CHECKED_OBLIGATIONS:
+                        statuses[target][name] = FAILED
+                continue
 
             failed = _FAILS.get(item.code)
             if failed:

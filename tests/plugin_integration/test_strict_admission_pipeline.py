@@ -744,6 +744,106 @@ def test_a_decidable_obligation_that_fails_writes_nothing(tmp_path, monkeypatch)
     assert not marker.exists()
 
 
+def test_a_partial_result_from_another_plan_is_not_merged(tmp_path, monkeypatch) -> None:
+    """R3: a stale `pass` carried under the digest of a plan nobody checked it against.
+
+    The review's sequence, with both real validators: the obligations validator
+    examines a plan and publishes its verdict; the plan changes before the plan
+    validator runs; the merge stamped the old verdict with the new plan's digest.
+    A fresh run of the same producer on the changed plan said `fail`.
+
+    Recomputing the partial record's digest would not repair it. The verdict
+    inside was reached about something else.
+    """
+    rows = _admissible_rows()
+    rows[0]["extensions"]["policy_overrides"].append(
+        {
+            "name": "web",
+            "from_zone_ref": "z.c",
+            "to_zone_ref": "z.d",
+            "action": "accept",
+            "ports": {"tcp": [443]},
+        }
+    )
+    plan = _as_strict(_run_pipeline(rows)[0])
+
+    # Two transforms, two different targets: no collision for this producer.
+    targets = iter(["10.0.0.5", "10.0.0.6"])
+    for entry in plan["rules"]:
+        if not entry["terminal"]:
+            entry["nat"] = {"to": next(targets)}
+
+    registry = _registry()
+    ctx = _context()
+    publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", copy.deepcopy(rows))
+    publish_for_test(ctx, "base.compiler.security_plan", "security_plan", copy.deepcopy(plan))
+    registry.execute_plugin("base.validator.security_obligations", ctx, Stage.VALIDATE)
+
+    # The plan changes between the two validators: both transforms now collapse
+    # onto one target, which a fresh obligations run would report as a failure.
+    changed = copy.deepcopy(plan)
+    for entry in changed["rules"]:
+        if not entry["terminal"]:
+            entry["nat"] = {"to": "10.0.0.5"}
+    publish_for_test(ctx, "base.compiler.security_plan", "security_plan", changed)
+
+    verified = registry.execute_plugin("base.validator.security_plan", ctx, Stage.VALIDATE)
+    record = verified.output_data["security_plan_verification"]
+
+    assert "E7097" in [diag.code for diag in verified.diagnostics], "the stale record must be named"
+    assert record["errors"] >= 1
+    scope = changed["scopes"][0]
+    assert record["obligations"][scope].get("SEC-NAT") != "pass"
+
+    fresh = _record_after_validation(changed, rows)
+    assert fresh["errors"] >= 1, "and a fresh run of the same producer agrees"
+
+
+def test_a_fresh_partial_result_for_this_plan_is_merged(tmp_path, monkeypatch) -> None:
+    """The positive control beside it: same inputs, same plan, merged and admitted."""
+    rows = _admissible_rows()
+    plan = _as_strict(_run_pipeline(rows)[0])
+    record = _record_after_validation(plan, rows)
+
+    scope = plan["scopes"][0]
+    assert record["obligations"][scope]["SEC-NAT"] == "not_applicable"
+    assert record["errors"] == 0
+
+    marker, output = _run_with_writer(
+        rows=rows, plan=plan, tmp_path=tmp_path, approval=_approval_for(record, plan), monkeypatch=monkeypatch
+    )
+
+    assert marker.exists(), output
+
+
+def test_the_merge_takes_only_the_obligations_that_producer_owns(tmp_path, monkeypatch) -> None:
+    """Its four verdicts are its own, and an unknown name is not a status.
+
+    `.update` with whatever arrived would let one plugin overwrite the other's
+    conclusions and let an unregistered obligation into a record admission reads
+    as typed.
+    """
+    rows = _real_rows()
+    plan, _ = _run_pipeline(rows)
+    record = _record_after_validation(plan, rows)
+
+    scope = sorted(record["obligations"])[0]
+    statuses = record["obligations"][scope]
+
+    assert statuses["SEC-AVAIL"] == "unverified", "the plan validator's own verdict, not overwritten"
+    assert set(statuses) == {
+        "SEC-ORDER",
+        "SEC-COVER",
+        "SEC-AUTH",
+        "SEC-AVAIL",
+        "SEC-NAT",
+        "SEC-STATE",
+        "SEC-TRANSITION",
+        "SEC-PATH",
+        "SEC-CAP",
+    }
+
+
 # --- the inputs the boundary needs, and what their absence means -------------------------
 
 

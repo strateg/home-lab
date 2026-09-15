@@ -1627,6 +1627,60 @@ and leave termination unguarded, which is how this went unnoticed - plus the
 full-scope positive control that still writes, a rule-after-the-terminal refusal,
 and the reference-model mutants.
 
+### Review of `b0a9d964` — four unproven passes, and the merge that carried one
+
+`docs/reports/2026-09-15-adr0118-0119-obligations-review-b0a9d964.md`. Three P1
+and one P2, all reproduced through the real validators and the generate-stage
+writer. The finding is the one this work has been refusing everywhere else, made
+by me in a new place.
+
+**R1 - presence became proof.** SEC-STATE passed on a non-empty sessions list and
+an epoch; SEC-TRANSITION on a non-empty previous plan and envelope, with a message
+claiming the sequence was *replayed* while nothing replayed anything; SEC-PATH on
+the plan's own `demonstrated` list matching its own `cases`; SEC-CAP on a
+capability name appearing as a key. A session carrying a revoked epoch, a previous
+plan with no rules, a self-asserted demonstration and a disabled offer with no
+evidence were all admitted, marker written.
+
+The four pass branches are gone, and so are the failure branches that rested on
+the same non-check. Each returns `unverified` with the missing input named, and
+does so *even when fields that look like the input are present* - which is the
+part that matters, because the counterexamples all had the fields.
+
+`E7085`, `E7087`, `E7088` and `E7089` went back on the awaiting-a-mount ledger and
+are no longer named in the module: a number sitting in a table inside an emitting
+module reads as raised to the registry scan while no branch can reach it.
+
+**R2 - partial success in SEC-NAT.** Only the mapping-shaped declarations were
+selected, so a readable transform beside an unsupported string gave the scope an
+overall pass; a subset of the transforms checked, reported as all of them. And the
+original identity was `sources -> destinations`, so a permit on TCP/53 and a deny
+on TCP/443 between one pair of endpoints looked like one original and their
+collapse went unseen.
+
+Every declaration is parsed under a closed form now, one unreadable declaration
+decides the scope, and the identity carries transport and effect. SEC-NAT still
+reports a collision - that is a demonstration - and no longer reports a pass:
+collision freedom over this identity is necessary, and the composition proof ADR
+0119 asks for is over original and current tuples with their context.
+
+**R3 - a stale verdict under a fresh digest.** The partial record carried no
+identity, so a `pass` produced for one plan, with the plan changing before the
+merge, was stamped with the new plan's digest while a fresh run said `fail`. The
+record names the plan it examined; `E7097` refuses a mismatch; the merge takes
+only the five obligations that producer owns, never overwrites the four decided
+beside them, and validates the counter types it adds.
+
+**R4 - two answers to one question.** The producer decided applicability per
+scope and admission gathered rule fields across the whole plan, so a transform in
+one scope refused a second scope where the producer had correctly said
+`not_applicable`. `applicable_obligations` takes a scope; plan-level fields still
+apply everywhere.
+
+*What this leaves.* A mounted channel, a stage graph, a record with identity - and
+exactly one obligation that can demonstrate anything. That is the honest state,
+and it is less than the previous commit message claimed.
+
 ### Approval producer — a proposed contract, not an accepted one
 
 `adr/0119-analysis/APPROVAL-PRODUCER-CONTRACT-PROPOSAL.md`, 2026-09-15. Status:

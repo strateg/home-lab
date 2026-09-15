@@ -131,6 +131,8 @@ source, catalog, ADR or documentation.
   so "no such name" would be the wrong thing to tell the author
 - `E7040..E7042`: publications, which are delivery facts and authorize nothing
 - `E7060..E7064`: policies and bindings (`NET-POLICY-BINDING`, `SEC-AUTH` authoring)
+- `E7097`: a partial verification record produced for a different plan; merging it
+  under this plan's digest would certify a check nobody ran against it
 - `E7096`: an in-scope flow that reaches no rule at all - reachable termination is
   its own obligation, not one derived from a declared availability objective
 - `E7080..E7089`: plan order and the ADR 0119 obligations `SEC-ORDER`, `SEC-AUTH`,

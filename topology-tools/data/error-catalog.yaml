@@ -1098,6 +1098,15 @@ codes:
       Reachable termination is its own obligation and is not derived from anybody declaring an availability
       objective; it is also not repaired by reading an unmatched flow as a deny, which would credit the plan
       with a rule it does not carry.
+  E7097:
+    severity: error
+    stage: validate
+    title: Partial Verification Belongs To Another Plan
+    hint: >-
+      A partial verification record carries the identity of the plan it examined, and this one names a
+      different plan. Merging it under the current plan's digest would certify a check nobody ran against
+      that plan - and recomputing its digest would not repair it, because the verdict inside was reached
+      about something else.
   E7093:
     severity: error
     stage: validate
