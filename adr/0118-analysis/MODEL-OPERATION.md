@@ -665,6 +665,10 @@ something.
 | Artifact parity against the pre-work baseline | 147 files identical | 2026-09-11 |
 | Artifact parity against a clean worktree at HEAD | 163 files compared, every emitted artifact identical | 2026-09-14 |
 | Zone membership derivations | 1 (was 2); the generator consumes `base.compiler.security_matrix` | 2026-09-14 |
+| Second derivation still reachable in the generator | none; the fallback is deleted, both consumes are `required: true` | 2026-09-15 |
+| Generate-stage projection | 15 functions, 1,518 lines (was 18 / 1,626) | 2026-09-15 |
+| Artifact parity against a clean worktree at `e8bc55e4`, symmetric output history | 163 files compared, identical outside the declared exclusion | 2026-09-15 |
+| Full `pytest tests` | 1 failed, 2551 passed, 17 skipped at `97f06ffd`; the failure was the W07 budget | 2026-09-15 |
 | Scopes admissible under the strict boundary | 0 of 2; SEC-AVAIL unverified in both | 2026-09-14 |
 | Obligations with a framework checker | 9 of 9 mounted; 4 decided over the plan, SEC-NAT can demonstrate a failure only, 4 report absent evidence | 2026-09-15 |
 
@@ -690,6 +694,7 @@ across every emitted file.
 | 2026-09-15 | `bdc1374b` | Section 7e: the five remaining obligations mounted, with `not applicable` / `unverified` / decided as three distinct answers |
 | 2026-09-15 | `b510035a` | Section 7d: the terminal invariant and `E7096`; a terminal closes its scope because of what it says, and an unmatched in-scope flow is a failure of its own |
 | 2026-09-14 | `6d6ff63e` | W05/A24: zone membership derived once; the compiler learned `additional_networks` and sorts zones, the generator consumes the channel, artifacts byte-identical |
+| 2026-09-15 | `ed15dfbf` | Section 8: the generator's fallback derivation deleted rather than left dormant; `vlan_cidr_map` and `security_matrices` required, so an absent channel blocks generation instead of rendering empty lists; the parity oracle moved into its test |
 | 2026-09-14 | `31ebefb9` | Section 7e: the grammar closed over values, consent as a boolean, and an empty digest refused rather than matched |
 | 2026-09-14 | `8dada8ef` | Section 7e: three digests, the caller-supplied epoch, the closed plan shape and the detached projection; after the external review of `c5a5addc` |
 | 2026-09-14 | `782061e8` | Section 7e: the admission chain, the three obligation answers, and the deferral that has a trigger; written after the external review of `5e02bf70` |

@@ -19,8 +19,10 @@ measurement this decision rests on, so it is stated first.
 ## Measurement: specialization happens entirely after validation
 
 `object.mikrotik.generator.terraform` is registered at stage **generate**, order
-220. It calls `build_mikrotik_projection`, which is 1,565 lines across 17
-functions, all of which make backend decisions:
+220. It calls `build_mikrotik_projection`, which was 1,565 lines across 17
+functions when this was measured, all of which make backend decisions. Step 2 of
+the migration order below has since landed, leaving 15 functions and 1,518 lines;
+the table records the measurement the decision was taken on:
 
 | Function | Lines | Decides |
 |---|---|---|
@@ -101,6 +103,20 @@ Derived from what is checkable, not from what is easy.
    placement contradicts the capability contract most directly.
 2. `_build_vlan_cidr_index` and `_resolve_vlan_refs_to_cidrs` - pure reference
    resolution the compiler already performs; a duplicate authority to remove.
+   **Done 2026-09-15** (`ed15dfbf`). Both are gone, along with `_row_class` and the zone
+   oracle that used them. The projection reads `vlan_cidr_map` and
+   `security_matrices` from `base.compiler.security_matrix` and derives no
+   substitute for either: both consumes are `required: true`, so a missing
+   channel blocks generation (E8003) instead of rendering empty address lists and
+   empty tunnel routes under a SUCCESS status. The parity oracle moved to
+   `tests/plugin_integration/test_zone_derivation_parity_w05.py`, where it is
+   re-derived independently and checked against the rendered artifact - a second
+   implementation belongs to the test that runs it, not to the code path a
+   generator can still fall back into. Artifacts: 163 files compared against a
+   clean worktree at `e8bc55e4` with symmetric output history, identical outside
+   the declared W13 exclusion. The projection is 15 functions and 1,518 lines;
+   `tests/test_backend_specialization_boundary.py` lowers the budget to match and
+   asserts the three helpers are absent rather than merely small.
 3. `_extract_security_matrix` - blocked on the W05 divergence, which must be
    resolved as its own reviewed change first.
 4. Everything else, in descending size, each with parity evidence.
