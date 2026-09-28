@@ -399,6 +399,7 @@ rules:
       - "Report satisfied, unsatisfied or unverified for each claim; missing live evidence blocks activation, not valid offline candidates."
       - "Split an offer into a semantic core that enters the plan digest and an evidence annex that is hashed separately and bound only to the manifest."
       - "Anchor the covered path inventory to the ADR0118 D6 path list, not to the resolver's own enumeration."
+      - "Resolve an unambiguous versioned adapter per target context before validation; retain provenance and bind adapter identity/version to the plan."
       - "Register a capability identifier and its diagnostic range before any requirement, offer or test references them."
     never:
       - "Do not infer permission, all-path coverage, authorized operations or safe rollback from capability flags."
@@ -439,6 +440,8 @@ rules:
       - "Keep ADR0110 legacy behavior distinct from the Accepted but unimplemented ADR0118/0119 strict profile."
       - "For the target profile separate attachments, publications and bound policies; validate all paths and address ownership."
       - "Preserve original-flow authorization, one compiler-owned plan, deterministic order and verified transitions."
+      - "Preserve scope identity independently of enforcer identity; keep complete deterministic one-to-many enforcer/scope indices."
+      - "Separate target connection, resource writer, state namespace and apply unit; validate shared-resource coupling instead of inferring isolation from paths."
       - "Report requirement-linked counterexamples and distinguish design, offline, backend and live evidence."
     never:
       - "Do not grant access from NAT, trust level, specificity or producer priority in the strict profile."

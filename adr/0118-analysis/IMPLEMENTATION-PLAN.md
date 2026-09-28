@@ -7,10 +7,18 @@ is authorized by editing this document.
 
 Authority: [ADR 0118](../0118-universal-container-network-model.md),
 [ADR 0119](../0119-firewall-rule-ordering-contract.md) and
-[architecture rev 3.2](FINAL-ARCHITECTURE-PROPOSAL.md).
+[current architecture proposal, rev 3.4](FINAL-ARCHITECTURE-PROPOSAL.md).
 [Migration/acceptance](MIGRATION-AND-ACCEPTANCE.md) owns G0..G8 and A01..A32;
 this plan assigns implementation work and evidence to those gates.
 [Review findings](IMPLEMENTATION-PLAN-REVIEW-2026-09-11.md) explain the corrections.
+
+Current enforcer/scope contract: ADR 0119 D1-D1.1 rev 3.4. The
+[conformance record](ENFORCER-AXIS-CONFORMANCE.md) owns its ten open implementation
+rows and planned counterexamples; [W07](W07-BACKEND-SPECIALIZATION-DECISION.md)
+records the selected layout, not a completed migration. First test multi-instance,
+multi-scope, adapter ambiguity and shared-target cases; then fix the complete
+`matrix_by_enforcer` contract before adding consumers. Historical measurements
+below retain their original revision and do not establish current gate closure.
 
 Capability amendment baseline: commit `493867d5`, branch development; revision 3
 was clean before this documentation change. The earlier review baseline was

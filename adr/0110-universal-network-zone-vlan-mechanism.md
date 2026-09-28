@@ -162,7 +162,7 @@ property_schemas:
     target_class: class.router
 ```
 
-**Erratum, 2026-09-15, revised 2026-09-16.** The block above is a transcription of
+**Erratum, 2026-09-15, revised 2026-09-15.** The block above is a transcription of
 the class schema as first written. The implemented schema in
 `topology/class-modules/L2-network/network/class.network.security_matrix.yaml`
 differs: `enforcement_plane` is a required property with the enum
@@ -187,7 +187,10 @@ An implemented schema is evidence of current behaviour. It does not by itself
 override an accepted architectural contract: where the two disagree, the divergence
 is a finding to be resolved in one direction or the other, not settled by whichever
 artifact is easier to read. Here it is resolved by adopting the amendment above.
-R1-R6 behaviour is unchanged and this ADR remains **Implemented**.
+R1-R6 behaviour is unchanged and this ADR remains **Implemented** for its legacy
+runtime. The replacement enforcement-capable-target check is a normative
+requirement, not a claim that it is implemented. Its open status is tracked in the
+[enforcer-axis conformance record](0118-analysis/ENFORCER-AXIS-CONFORMANCE.md).
 
 The enum `[perimeter, internal]` names an enforcement **plane**, which is where in
 the path a scope acts. It is not the enforcer's **type**, and the platform names in

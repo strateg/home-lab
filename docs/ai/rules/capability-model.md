@@ -1,6 +1,6 @@
 ---
 "@pack": capability-model
-"@version": 1.2
+"@version": 1.3
 "@tokens": ~1600
 "@adr": [0088, 0106, 0118, 0119]
 ---
@@ -106,6 +106,17 @@ ADR 0118 D6.1 / ADR 0119 D2.1 and
 12. `E8020`/`E8021`/`E3202` are raised in code but are **not** registered in
     `topology-tools/data/error-catalog.yaml`. Do not cite them as an example of
     correct allocation, and register any new capability range before raising it.
+
+## Enforcer dispatch (ADR 0119 D1.1, rev 3.4 target)
+
+- Resolve the enforcement-semantics family from declared capabilities, not module,
+  object/instance names or OS classification alone.
+- Resolve one compatible versioned adapter per target context before validate;
+  zero is unsupported, multiple matches are ambiguous. No first-match fallback.
+- Preserve declaration provenance and bind selected adapter identity/version into
+  the plan; canonical equivalent-strategy selection is not adapter-priority dispatch.
+- Classification/dispatch is not SEC-CAP evidence or permission. No additional
+  authored capability registry or per-scope copy of derived type is introduced.
 
 ## Error Codes
 

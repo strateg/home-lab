@@ -1,7 +1,7 @@
 # ADR 0119: Firewall Rule Ordering Contract
 
 - Status: Accepted
-- Revised: 2026-09-16 rev 3.4 (D1.1 corrected after review: scope identity and cardinality, adapter resolution, separation stated over six distinctions)
+- Revised: 2026-09-15 rev 3.4 (D1.1 corrected after review: scope identity and cardinality, adapter resolution, separation stated over six distinctions)
 - Revised: 2026-09-15 rev 3.3 (D1.1: enforcer type and enforcer instance as separate axes; type resolved from capability, artifacts per instance)
 - Revised: 2026-09-11 rev 3.2a (SPC supplement: SEC-CAP digest split, anchored Omega_g, status mapping)
 - Revised: 2026-09-11 rev 3.2 (scoped capability resolution, SEC-CAP and evidence freshness)
@@ -24,6 +24,10 @@
   [review and corrections, 2026-09-11](0118-analysis/IMPLEMENTATION-PLAN-REVIEW-2026-09-11.md)
 
 - Pending implementation proposal (not accepted): [Approval producer contract](0119-analysis/APPROVAL-PRODUCER-CONTRACT-PROPOSAL.md), 2026-09-15. No gate or deployment authority granted.
+
+- Enforcer-axis implementation evidence: [conformance record](0118-analysis/ENFORCER-AXIS-CONFORMANCE.md). Open implementation rows are not closed by rev 3.4.
+
+- Implementation readiness and next-change specification: [readiness record](0118-analysis/ENFORCER-SCOPE-IMPLEMENTATION-READINESS.md), 2026-09-28. Sequencing of the open rows and a bounded channel-contract specification; no gate closed and no capability-axis decision taken there.
 
 ## Context
 
@@ -96,12 +100,14 @@ rather than assumed, and ownership of every shared resource resolved to one writ
 
 ### D1.1 Enforcer type and enforcer instance are separate axes
 
-The chain above has two axes below the plan, and conflating them is what shapes a
-universal model around whichever backend was implemented first.
+The chain above separates type, instance, scope and apply ownership. Conflating
+these distinctions shapes a universal model around whichever backend was
+implemented first.
 
 **Type.** An enforcer has a type, and the type is a property of the topology, not
-of the codebase. It is resolved from the device's declared enforcement capability
-under ADR 0106, which the platform and OS contract derives; it is never inferred
+of the codebase. It is resolved from declared enforcement capabilities through
+the existing ADR 0106 classification and derivation contracts; OS classification
+alone does not select an enforcement mechanism. It is never inferred
 from an object or instance identifier, and never from which object module happens
 to own a generator. A type that exists only because code for it exists is not a
 model of the network.
@@ -126,15 +132,20 @@ identity under D2, and a change to either invalidates the affected resolution.
 This is a distinction inside the existing capability and offer contracts, not a
 second authored registry.
 
+Adapter identity selection is distinct from D2.1 strategy selection. Canonical
+selection among proven-equivalent strategies inside the selected adapter contract
+does not permit choosing among unresolved competing adapters by priority.
+
 Resolving an adapter this way is dispatch, which ADR 0106 already governs. It is
 not evidence that the enforcer can carry the plan: that remains SEC-CAP's
 question, answered by scoped witnesses under D2.1, and capability membership
 never substitutes for it.
 
-**Instance, and what separation actually means.** Two enforcers of one type are
-distinct scopes with distinct projections, and what is applied must attribute every
-rule to exactly one of them. Rendering that merges them makes the plan's per-scope
-attribution unobservable in what is applied.
+**Instance, and what separation actually means.** Two enforcers of one type have
+distinct identities; each may be referenced by multiple scopes. Projections retain
+those scope identities and their target enforcer. Grouping projections into an
+apply unit must not erase scope attribution or target identity; grouping is not
+authorization to merge their policy semantics.
 
 Separation is stated over six distinctions, because collapsing them is how a
 transport detail becomes an architectural requirement:
@@ -181,8 +192,9 @@ adapter's identity and version, routing domain, address family, hook and chain,
 together with the modes that apply. The type and adapter belong in the context
 because a hook or chain name only has meaning under one and renders differently
 across adapter versions; the scope says which intent the context serves and the
-enforcer which device carries it. Rules carry stable semantic identity, source provenance and policy/
-publication binding where applicable. A NAT action includes its target tuple,
+enforcer which device carries it. Rules carry stable semantic identity, source
+provenance and policy/publication binding where applicable. A NAT action includes
+its target tuple,
 not merely the string `dst-nat`. Original and transformed tuples are distinct.
 
 Freshness expiry is part of the input contract. Unknown identities, stale dynamic
@@ -240,7 +252,7 @@ unverified requirement may render the affected flow `unsupported`, but an
 | discover | Framework -> class -> object -> project manifest discovery |
 | compile | Normalize refs/defaults, resolve bindings, authorize, construct complete candidate plan |
 | validate | Check schemas, capability coverage, semantics, ordering and proof obligations |
-| generate | Deterministic rendering from validated projections only, by the adapter resolved before validation, into resource sets each owned by one apply unit and attributable to one scope |
+| generate | Deterministic rendering from validated projections only, by the adapter resolved before validation, into explicitly owned resource sets grouped by apply unit without losing per-scope attribution |
 | assemble | Cross-artifact consistency, manifest and provenance checks |
 | build | Immutable offline candidate bundle; reject missing evidence required at this gate; activation additionally requires fresh live prerequisites |
 

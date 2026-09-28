@@ -313,7 +313,7 @@
 - No code, schema or artifact changed. No gate closed, nothing qualified, no
   deployment implied.
 
-## ADR 0118/0119 rev 3.4 — enforcer axes corrected after review, 2026-09-16
+## ADR 0118/0119 rev 3.4 — enforcer axes corrected after review, 2026-09-15
 
 - Corrects rev 3.3 against the [rev 3.3 review](../docs/reports/2026-09-15-adr0118-0119-rev33-review-0202f253.md).
   Both ADRs stay **Accepted**; ADR 0110 stays **Implemented**. No gate closed.
@@ -355,5 +355,44 @@
 - The index defect is reproduced in that record: two matrices on one enforcer
   compile SUCCESS with no diagnostics and `matrix_by_enforcer` keeps whichever came
   last, which is also a D4 permutation violation.
-- No code, schema or artifact changed. Eight implementation gaps remain open and
+- No code, schema or artifact changed. Ten implementation gaps remain open and
   are listed in section 2 of the conformance record.
+
+### Rev 3.4 editorial consolidation
+
+- Removes remaining enforcer=scope and per-instance-artifact wording from D1.1
+  and the W07 stage diagram; scope attribution and declared apply units are retained.
+- Synchronizes the design annex header, enforcement-plane terminology, current
+  implementation-plan entrypoint, capability supplement and scoped AI rule packs/map.
+- Separates W07 layout goals from proven state/resource/failure isolation; the root
+  migration remains a future reviewed change, not an authorization or completed work.
+- Corrects the conformance count to ten open implementation rows; distinguishes
+  corpus coverage, feasibility observations and planned regression tests.
+- Corrects rev 3.4 document dates to 2026-09-15, matching both author and committer
+  timestamps of `48a7ac3f`. No new revision, implementation gate or qualification
+  status is introduced by this consolidation.
+
+## ADR 0118/0119 — enforcer/scope implementation readiness, 2026-09-28
+
+- Adds [readiness record](0118-analysis/ENFORCER-SCOPE-IMPLEMENTATION-READINESS.md):
+  a re-measured baseline, an independent reproduction of the V-13 index defect, and
+  a bounded specification for the next code change. Both ADRs stay **Accepted**;
+  ADR 0110 stays **Implemented**. No gate closed, nothing qualified.
+- Corrects two conformance rows from measurement rather than from restatement:
+  `security_matrices` is complete in membership but permutation-sensitive in order,
+  and V-09 is a singular return type across projection, generator and template
+  rather than one dropped row.
+- Records five new findings, `N-01`..`N-05`. The load-bearing one is that V-04/V-05
+  is blocked on a namespace decision, not on adding a declaration: the three
+  `cap.firewall.security_matrix*` identifiers are registered at L2 with device
+  summaries while the catalogue reserves that namespace for policy objects and
+  already carries an L1 device slot, `cap.net.l3.security.firewall.zone_policy`.
+  The enforcer of record declares neither, `enabled_packs` never reach the
+  effective capability set, and an unattributed scope compiles clean and is
+  enforced by nobody.
+- Sequences the ten open rows into implementable-now, blocked-on-V-13 and
+  blocked-on-a-decision. The capability-axis decision is raised as a proposal
+  requiring review; it is not taken there.
+- Proposes `E7010`, `E7011` and `W7012` inside the existing ADR 0118/0119
+  allocation, with the collision check recorded. No code, schema, manifest or
+  artifact changed; no code has been written against this specification.

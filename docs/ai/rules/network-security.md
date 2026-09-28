@@ -1,6 +1,6 @@
 ---
 "@pack": network-security
-"@version": 1.6
+"@version": 1.7
 "@tokens": ~1400
 "@adr": [0106, 0109, 0110, 0111, 0118, 0119]
 ---
@@ -203,6 +203,16 @@ about the legacy runtime:
     relevant version/mode/path/owner changes invalidate resolution. Preserve ADR 0106
     namespaces and owner-authorized operations; no silent topology/legacy fallback.
     See [capability contract](../../../adr/0119-analysis/CAPABILITY-SATISFACTION-CONTRACT.md).
+
+22. Rev 3.4: one scope names one enforcer; one enforcer may hold many scopes.
+    Preserve stable scope IDs and complete deterministic indices; never key a scope
+    solely by managed_by_ref. Separate planes do not prove shared-resource isolation.
+23. Keep enforcer/scope, connection binding, resource writer, state namespace and
+    apply unit distinct. Require explicit target selection and one writer per
+    resource; shared endpoints/state/apply units require declared checked coupling.
+24. Resolve the versioned adapter before validation. Render checked projections
+    grouped by declared apply unit without losing scope attribution; root-per-device
+    is a W07 implementation choice, not a universal identity or failure boundary.
 
 See [ADR 0118](../../../adr/0118-universal-container-network-model.md),
 [ADR 0119](../../../adr/0119-firewall-rule-ordering-contract.md) and their

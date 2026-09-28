@@ -8,6 +8,13 @@ a replacement for [ADR 0106](../0106-capability-driven-plugin-architecture.md).
 Main ADRs prevail if these documents diverge. The historical independent reviews
 of rev 3.1 are not independent review evidence for this amendment.
 
+Enforcer/scope cardinality, adapter dispatch identity and apply ownership follow
+[ADR 0119 D1-D1.1 rev 3.4](../0119-firewall-rule-ordering-contract.md).
+Adapter selection must be unambiguous before validation; canonical selection of
+proven-equivalent strategies inside the selected contract is a separate operation.
+This supplement supplies satisfaction evidence, not a competing type registry or
+authority to group scopes by device identity alone.
+
 ## 1. Decision and boundaries
 
 Capabilities become **requirements-to-evidence contracts**, not only dispatch

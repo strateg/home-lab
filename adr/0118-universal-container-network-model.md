@@ -253,9 +253,14 @@ addressed and published; it says nothing about which device filters its traffic.
 A workload's runtime does not select the enforcer covering its paths, an
 enforcer's platform does not have to appear in this table at all, and one runtime
 target may have its paths covered by several enforcers of different types. The
-enforcer axes - type and instance - belong to [ADR 0119 D1.1](0119-firewall-rule-ordering-contract.md);
+enforcer/scope cardinality and type, adapter and apply-unit distinctions belong
+to [ADR 0119 D1-D1.1](0119-firewall-rule-ordering-contract.md);
 reading a row here as "this platform enforces its own traffic" is the platform
-assumption this model exists to remove.
+assumption this model exists to remove. Implementation status is tracked in the
+[enforcer-axis conformance record](0118-analysis/ENFORCER-AXIS-CONFORMANCE.md), and
+sequencing with the next change's specification in the
+[readiness record](0118-analysis/ENFORCER-SCOPE-IMPLEMENTATION-READINESS.md).
+
 The baseline strict profile is static IPv4 with one runtime backend per publication
 and bounded typed flows. Dynamic identity/allocation, IPv6, shared-stack isolation,
 HA ownership, multipath and nested transforms require separate qualification.

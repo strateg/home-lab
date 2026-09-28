@@ -2,7 +2,8 @@
 
 Status: contract decision for work item W07 / gate G4 of the ADR 0118/0119
 implementation plan. Date: 2026-09-14. Baseline: commit `3312ca0b`.
-No code was moved. No topology, artifact or device state changed.
+The initial decision moved no code or topology/artifact/device state. Subsequent
+implementation evidence is recorded in the migration order below.
 
 ## Why this document exists
 
@@ -39,13 +40,14 @@ the table records the measurement the decision was taken on:
 Every validator has finished before any of this runs. Nothing checks its output
 except artifact parity, which compares it with itself from the previous run.
 
-Two consequences already observed rather than predicted:
+Two issues recorded at the original baseline (before the later W05 cutover):
 
 * **W05.** The generator recomputes zone membership and reaches a different answer
   from the compiler, because both derive it and only one is checked.
-* **`_derive_mikrotik_capability_flags`.** Conditional generation from capability
-  set membership is the flag-as-proof the capability contract rules out, and it
-  is unreachable by the SEC-CAP resolution because it happens two stages later.
+* **`_derive_mikrotik_capability_flags`.** Capability classification is valid
+  dispatch, not SEC-CAP proof. Any resulting realization/applicability decisions
+  must be visible in the specialized plan before validation; template selection
+  at generate cannot independently establish that a required property is supported.
 
 ## Decision
 
@@ -74,30 +76,31 @@ same way.
 
 ### Shape
 
+```text
+compile   base.compiler.security_plan       -> security_plan (all scopes)
+compile   object.<module>.compiler.plan     -> backend_plan (scope/context projections,
+                                              resolved adapter identity/version,
+                                              owned resources and apply-unit mapping)
+validate  base.validator.security_plan      -> checks common semantics
+validate  object.<module>.validator.plan    -> checks specialized plan and composition
+generate  object.<module>.generator.*       -> renders checked projections,
+                                              artifacts grouped by declared apply unit
 ```
-compile   base.compiler.security_plan     -> security_plan   (backend-neutral, all scopes)
-compile   object.<type>.compiler.plan     -> backend_plan    (specialized, per enforcer)
-validate  base.validator.security_plan    -> checks security_plan
-validate  object.<type>.validator.plan    -> checks backend_plan
-generate  object.<type>.generator.*       -> renders backend_plan, decides nothing,
-                                             one artifact set per enforcer instance
-```
+
+`<module>` identifies plugin placement, not the type authority or a dispatch rule.
+These are schematic roles, not permission to select a publisher dynamically or
+bypass declared `depends_on`, `consumes` and `produces`. One module may host several
+adapter contracts. Enforcer type comes from topology classification; the compatible
+versioned adapter is resolved and pinned before validation under ADR 0119 D1.1.
+
+The seam retains scope identity and target enforcer; one enforcer may own several
+scopes. The artifact grouping is by the declared apply unit, which may cover
+several scopes under the validated coupling/ownership contract. Neither type,
+module nor directory name substitutes for these identities.
 
 The generator's remaining job is rendering. ADR 0119 D4 already says this for the
-terminal deny - *the plan compiler emits it and the template only renders it* -
-and the same rule applies to everything else the projection currently decides.
-
-**Amended 2026-09-15: `<type>`, not `<backend>`.** The first version of this shape
-was parameterised by backend, and used "backend" and "object module" as synonyms.
-That reads the model off the code: it makes the set of enforcer types equal to the
-set of modules that happen to own a generator, which is the assumption
-[ADR 0119 D1.1](../0119-firewall-rule-ordering-contract.md) now forbids. The
-parameter is the enforcer type, resolved from the device's declared enforcement
-capability. A module may host more than one type, and a type is not created by
-adding a module.
-
-The shape is also parameterised a second time, by **apply unit**, which the first
-version did not express at all and the version after that got wrong.
+terminal deny — the plan compiler emits it and the template only renders it.
+No adapter negotiation or semantic rediscovery is deferred to generate.
 
 ### The layout, and the reason it is not the one first given
 
@@ -123,30 +126,34 @@ so one root can address several RouterOS devices. Deriving an architectural rule
 from the shape of current output is the same mistake as deriving enforcer types
 from which module owns a generator.
 
-The real justification is the second half, stated properly. A Terraform root is a
-**state and transaction boundary**: one state file, one plan, one apply, one
-locking domain, one blast radius on failure. Choosing a root per enforcer instance
-therefore buys, and only buys, these:
+The selected layout binds each root execution to an explicit state namespace,
+locking policy, resource inventory and apply unit. It is intended to reduce
+cross-enforcer state/apply coupling; a directory or root alone does not establish
+that boundary. In particular it does not prove atomic apply, unique resource
+ownership or isolation of failures on shared paths.
 
-* every resource in the root has one writer, and that writer's scope attribution is
-  structural rather than conventional;
-* a failed or partial apply is bounded to one enforcer, which matters because a
-  partially applied firewall is the transition case SEC-TRANSITION exists for;
-* state can be moved, locked, restored or quarantined per enforcer;
-* credentials and endpoints are chosen per root, without that being *required* -
-  ADR 0119 D1.1 requires unambiguous target selection and a single writer, not
-  unique endpoints, and several roots may legitimately point at one management
-  endpoint.
+For the RouterOS and Proxmox choices below, implementation must demonstrate:
 
-An aliased single root is the alternative, and it is not absurd: it keeps paths
-stable and renders every enforcer in one plan. It is rejected here because it puts
-every enforcer in one state and one apply, which is the coupling the third and
-fourth bullets exist to avoid - not because Terraform cannot express it.
+* every managed resource has one writer and an unambiguous target;
+* separate roots do not accidentally share a state namespace or manage the same
+  resource; any intentional sharing has a declared reconciliation contract;
+* all scopes sharing chains, hooks, address sets or other resources are composed
+  before rendering, even if their artifacts are stored separately;
+* partial apply and recovery obey the approved transition envelope, including
+  effects on other scopes. Root separation is not SEC-TRANSITION evidence;
+* connection bindings explicitly select targets. Endpoints and credential
+  references need not be unique across roots.
 
-### Which layout each adapter actually uses
+An aliased single root is a valid alternative. For this bounded implementation it
+is not selected because it would group several enforcers into the same declared
+state/apply unit. This is a layout choice, not a prohibition in ADR 0119 and not
+a limitation of Terraform. Its benefits depend on proving the boundaries above.
 
-Per-instance **separation** is the obligation; a root per instance is one way to
-meet it, and it is not the only one.
+### Selected target layout per adapter (not implemented)
+
+Per-scope attribution, unambiguous targets and single-writer resource ownership
+are the obligations. This table selects per-enforcer roots for two adapters; it
+does not equate enforcer, scope and apply unit in the universal model.
 
 | Adapter | Selected layout | Why |
 |---|---|---|
@@ -154,13 +161,13 @@ meet it, and it is not the only one.
 | Proxmox VE via `bpg/proxmox` | one root per enforcer instance, scopes carried inside it | `proxmox_virtual_environment_firewall_rules` scopes itself with `node_name`, `vm_id` and `container_id`, so one node's several scopes render as explicit arguments in that node's root |
 | Oracle Cloud via `oci` | unchanged | a tenancy is not an enforcer; the rule does not reach it. If OCI is later modelled as carrying one, it is decided then |
 
-That is one rule with one exception stated as a table entry rather than as prose
-contradicting itself: the previous version gave Proxmox a per-instance root in one
-paragraph and made it a shared-root exception in the next.
+The previous version gave Proxmox a per-instance root in one paragraph and a
+shared-root exception in the next. The table is the selected implementation layout;
+ADR 0119 still permits other declared, validated apply-unit arrangements.
 
 ### What a move requires, beyond renaming
 
-**This is a reviewed behaviour change, and path parity is the smallest part of it.**
+**This requires a separately reviewed behaviour change; path parity is only one part.**
 Moving the roots changes 24 of the 163 emitted paths, and byte content may be
 identical while byte parity still fails, because the comparison is by path. A
 declared rename handles that much. It does not handle the rest, and the rest is
@@ -178,12 +185,15 @@ Recording this is design preparation. It is not authorization to migrate state.
 
 ## What this decision does not do
 
-It moves no code. The projection is 1,565 lines whose output is currently pinned
-only by artifact parity, and moving it in one step would replace a measured
-baseline with an unmeasured one. The migration is per function, each with parity
-evidence, and W05 shows why: the first function anyone tries to move is
-`_extract_security_matrix`, and it **diverges from the compiler today**, so moving
-it is a behaviour change requiring review rather than a refactor.
+The decision itself changes no runtime. Its original measurement at `3312ca0b`
+was 17 functions / 1,565 lines. Step 2 landed in `ed15dfbf`; the current recorded
+projection is 15 functions / 1,518 lines. Historical W05 derivation findings do not
+mean its removed fallback still runs. Remaining per-scope extraction/index defects
+are listed in [the conformance record](ENFORCER-AXIS-CONFORMANCE.md).
+
+Migration remains bounded and evidence-driven: legacy parity for unchanged
+behaviour, explicit review for semantic changes and artifact/state relocation.
+Neither the completed helper removal nor this amendment closes W07/G4.
 
 ## Migration order
 
@@ -207,8 +217,10 @@ Derived from what is checkable, not from what is easy.
    the declared W13 exclusion. The projection is 15 functions and 1,518 lines;
    `tests/test_backend_specialization_boundary.py` lowers the budget to match and
    asserts the three helpers are absent rather than merely small.
-3. `_extract_security_matrix` - blocked on the W05 divergence, which must be
-   resolved as its own reviewed change first.
+3. `_extract_security_matrix` — preserve the W05 parity baseline, but first fix
+   the complete deterministic enforcer-to-scope contract and its counterexamples
+   (V-09/V-13). Do not subscribe a consumer to the current lossy index. Removing
+   the first-match return alone does not establish correct multi-scope rendering.
 4. Everything else, in descending size, each with parity evidence.
 
 ## What would falsify this decision
