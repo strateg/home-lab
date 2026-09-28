@@ -125,7 +125,7 @@ Two smaller observations, recorded so they are not rediscovered:
 | Row | State | What it waits on |
 |---|---|---|
 | V-13, N-05, plane default | **Done** - `c5f66c10` | `scopes_by_enforcer` published, complete and deterministic; `E7010`/`E7011` refuse the two silent gaps |
-| V-15 (Proxmox second/third derivation) | Implementable now | the channel exists; the Proxmox stub's own second derivation can be retired in its favour, independent of the consumer chain below |
+| V-15 (Proxmox second/third derivation) | **Done** - `1336c12f` | dead second derivation deleted (zero consumers, confirmed by grep); golden snapshot updated; `depends_on: []` left as is, since no real consumer exists yet to justify wiring `scopes_by_enforcer` there |
 | V-09, V-10, V-14 | **Now implementable** - was blocked on V-13 landing | the channel can express multiplicity; the consumer chain (projection return type, generator, `zone_firewall.tf.j2` grouping) is unstarted. This is the next candidate |
 | V-04, V-05, V-08, N-01-N-04 | **Blocked on a decision, not on code** | which registered namespace is the enforcement-capability axis (N-02), what becomes of the other three identifiers, and whether `enabled_packs` contribute to the effective set (N-04). Adding a declaration before that decision picks the axis by accident - the failure mode ADR 0119 D1.1 names |
 | V-07 | Blocked on G1/W03 | the derived scope/context contract must be registered before a field claims to carry resolved type and adapter identity |
