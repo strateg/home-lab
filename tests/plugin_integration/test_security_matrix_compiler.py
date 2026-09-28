@@ -801,6 +801,146 @@ class TestScopesByEnforcer:
         assert scopes_by_enforcer == {"rtr-mikrotik-chateau": ["inst.security_matrix.mikrotik"]}
 
 
+class TestComposedMatricesByEnforcer:
+    """Counterexamples and positive controls for compile-stage composition.
+
+    ADR 0118-analysis/ENFORCER-SCOPE-IMPLEMENTATION-READINESS.md section 5c,
+    D-COMP-1..4. Reuses TestScopesByEnforcer's row-building helpers.
+    """
+
+    _zone = staticmethod(TestScopesByEnforcer._zone)
+
+    @staticmethod
+    def _matrix(instance: str, *, managed_by_ref=None, enforcement_plane=None,
+                zone_refs=None, policy_overrides=None) -> dict:
+        extensions: dict = {"zone_refs": zone_refs or []}
+        if managed_by_ref is not None:
+            extensions["managed_by_ref"] = managed_by_ref
+        if enforcement_plane is not None:
+            extensions["enforcement_plane"] = enforcement_plane
+        if policy_overrides is not None:
+            extensions["policy_overrides"] = policy_overrides
+        return {
+            "instance": instance,
+            "class_ref": "class.network.security_matrix",
+            "object_ref": "obj.network.security_matrix.soho",
+            "extensions": extensions,
+        }
+
+    def _run(self, rows: list[dict]):
+        plugin = _create_plugin()
+        ctx = _create_ctx(rows=rows)
+        result = run_plugin_for_test(
+            plugin,
+            ctx,
+            Stage.COMPILE,
+            consumes_keys={"base.compiler.instance_rows"},
+        )
+        published_keys = set(ctx.get_published_keys(PLUGIN_ID))
+        composed = (
+            TestScopesByEnforcer._subscribe(ctx, "composed_matrices_by_enforcer")
+            if "composed_matrices_by_enforcer" in published_keys
+            else {}
+        )
+        return result, composed
+
+    def test_disjoint_scopes_compose_cleanly(self):
+        rows = [
+            self._zone("inst.trust_zone.user"),
+            self._zone("inst.trust_zone.dmz", security_level=1),
+            self._matrix("inst.security_matrix.a", managed_by_ref="rtr.shared",
+                          enforcement_plane="perimeter", zone_refs=["inst.trust_zone.user"]),
+            self._matrix("inst.security_matrix.b", managed_by_ref="rtr.shared",
+                          enforcement_plane="internal", zone_refs=["inst.trust_zone.dmz"]),
+        ]
+        result, composed = self._run(rows)
+
+        assert result.status == PluginStatus.PARTIAL  # W7012 still fires; see 5b
+        assert not any(d.code in ("E7013", "E7014") for d in result.diagnostics)
+        assert set(composed.keys()) == {"rtr.shared"}
+        assert set(composed["rtr.shared"]["zones"].keys()) == {
+            "inst.trust_zone.user", "inst.trust_zone.dmz",
+        }
+
+    def test_overlapping_zones_are_refused(self):
+        """D-COMP-1: the same zone claimed by two scopes on one enforcer."""
+        rows = [
+            self._zone("inst.trust_zone.user"),
+            self._matrix("inst.security_matrix.a", managed_by_ref="rtr.shared",
+                          enforcement_plane="perimeter", zone_refs=["inst.trust_zone.user"]),
+            self._matrix("inst.security_matrix.b", managed_by_ref="rtr.shared",
+                          enforcement_plane="internal", zone_refs=["inst.trust_zone.user"]),
+        ]
+        result, composed = self._run(rows)
+
+        assert result.status == PluginStatus.FAILED
+        assert any(d.code == "E7013" for d in result.diagnostics)
+        assert "rtr.shared" not in composed
+
+    def test_colliding_override_names_are_refused(self):
+        """D-COMP-2: the same override name declared by two scopes on one enforcer."""
+        override = {"name": "admin-access", "from_zone_ref": "inst.trust_zone.user",
+                    "to_zone_ref": "inst.trust_zone.user", "action": "accept"}
+        rows = [
+            self._zone("inst.trust_zone.user"),
+            self._zone("inst.trust_zone.dmz", security_level=1),
+            self._matrix("inst.security_matrix.a", managed_by_ref="rtr.shared",
+                          enforcement_plane="perimeter", zone_refs=["inst.trust_zone.user"],
+                          policy_overrides=[dict(override)]),
+            self._matrix("inst.security_matrix.b", managed_by_ref="rtr.shared",
+                          enforcement_plane="internal", zone_refs=["inst.trust_zone.dmz"],
+                          policy_overrides=[dict(override)]),
+        ]
+        result, composed = self._run(rows)
+
+        assert result.status == PluginStatus.FAILED
+        assert any(d.code == "E7014" for d in result.diagnostics)
+        assert "rtr.shared" not in composed
+
+    def test_composition_is_order_independent(self):
+        """D-COMP-4: same composed output regardless of row order."""
+        zones = [self._zone("inst.trust_zone.user"), self._zone("inst.trust_zone.dmz", security_level=1)]
+        m_a = self._matrix("inst.security_matrix.a", managed_by_ref="rtr.shared",
+                            enforcement_plane="perimeter", zone_refs=["inst.trust_zone.user"])
+        m_b = self._matrix("inst.security_matrix.b", managed_by_ref="rtr.shared",
+                            enforcement_plane="internal", zone_refs=["inst.trust_zone.dmz"])
+
+        _, forward = self._run(zones + [m_a, m_b])
+        _, reverse = self._run(zones + [m_b, m_a])
+
+        assert forward == reverse
+
+    def test_two_enforcers_compose_independently(self):
+        rows = [
+            self._zone("inst.trust_zone.user"),
+            self._zone("inst.trust_zone.dmz", security_level=1),
+            self._matrix("inst.security_matrix.a", managed_by_ref="rtr.one",
+                          enforcement_plane="perimeter", zone_refs=["inst.trust_zone.user"]),
+            self._matrix("inst.security_matrix.b", managed_by_ref="rtr.two",
+                          enforcement_plane="perimeter", zone_refs=["inst.trust_zone.dmz"]),
+        ]
+        result, composed = self._run(rows)
+
+        assert result.status == PluginStatus.SUCCESS
+        assert set(composed.keys()) == {"rtr.one", "rtr.two"}
+        assert set(composed["rtr.one"]["zones"].keys()) == {"inst.trust_zone.user"}
+        assert set(composed["rtr.two"]["zones"].keys()) == {"inst.trust_zone.dmz"}
+
+    def test_positive_control_single_scope_composition_is_a_no_op(self):
+        """The real project's current shape: composing one scope changes nothing."""
+        rows = [
+            self._zone("inst.trust_zone.user"),
+            self._matrix("inst.security_matrix.mikrotik", managed_by_ref="rtr-mikrotik-chateau",
+                          enforcement_plane="perimeter", zone_refs=["inst.trust_zone.user"]),
+        ]
+        result, composed = self._run(rows)
+
+        assert result.status == PluginStatus.SUCCESS
+        assert not result.diagnostics
+        assert composed["rtr-mikrotik-chateau"]["zones"].keys() == {"inst.trust_zone.user"}
+        assert composed["rtr-mikrotik-chateau"]["policy_overrides"] == []
+
+
 class TestZoneDataExtraction:
     """Tests for _extract_zone_data."""
 

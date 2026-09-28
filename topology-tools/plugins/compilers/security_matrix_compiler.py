@@ -286,10 +286,102 @@ class SecurityMatrixCompiler(CompilerPlugin):
                     )
                 )
 
+        # Compose one validated plan per enforcer from its attributed scopes
+        # (ADR 0118-analysis/ENFORCER-SCOPE-IMPLEMENTATION-READINESS.md
+        # section 5c, D-COMP-1..4). This fulfils ADR 0119 D1's existing
+        # requirement - composition across scopes sharing an enforcer is
+        # validated, not assumed - rather than adding a new obligation.
+        #
+        # D-COMP-1: zone_refs must be pairwise disjoint across the scopes one
+        # enforcer holds. A matrix cell for (from_zone, to_zone) can only
+        # exist in a scope whose zone_refs names both, so disjointness makes a
+        # cross-scope cell collision structurally impossible - there is no
+        # equal-cells comparison to get subtly wrong. D-COMP-2: policy
+        # override names must be unique per enforcer, since only names
+        # rendered into the same Terraform root can collide at
+        # routeros_ip_firewall_filter.zone_override_<name>. Both are refused,
+        # not silently resolved: an enforcer with either violation gets no
+        # composed plan published, the same as an unattributed scope gets no
+        # index entry under E7010.
+        composed_matrices_by_enforcer: dict[str, dict[str, Any]] = {}
+        for enforcer_id, scope_ids in scopes_by_enforcer.items():
+            scopes_for_enforcer = [security_matrices[scope_id] for scope_id in scope_ids]
+
+            zone_ref_owner: dict[str, str] = {}
+            has_conflict = False
+            for scope in scopes_for_enforcer:
+                scope_id = scope["instance_id"]
+                for zone_ref in set(scope.get("zone_refs") or []):
+                    owner = zone_ref_owner.get(zone_ref)
+                    if owner is not None and owner != scope_id:
+                        diagnostics.append(
+                            self.emit_diagnostic(
+                                code="E7013",
+                                severity="error",
+                                stage=stage,
+                                message=(
+                                    f"Zone '{zone_ref}' is claimed by both '{owner}' and '{scope_id}', "
+                                    f"both attributed to enforcer '{enforcer_id}'. Scopes sharing an "
+                                    "enforcer must have disjoint zone_refs."
+                                ),
+                                path=f"instance:{enforcer_id}.zone_refs",
+                            )
+                        )
+                        has_conflict = True
+                    else:
+                        zone_ref_owner[zone_ref] = scope_id
+
+            override_name_owner: dict[str, str] = {}
+            for scope in scopes_for_enforcer:
+                scope_id = scope["instance_id"]
+                for override in scope.get("policy_overrides") or []:
+                    if not isinstance(override, dict):
+                        continue
+                    name = override.get("name")
+                    if not isinstance(name, str) or not name:
+                        continue
+                    owner = override_name_owner.get(name)
+                    if owner is not None and owner != scope_id:
+                        diagnostics.append(
+                            self.emit_diagnostic(
+                                code="E7014",
+                                severity="error",
+                                stage=stage,
+                                message=(
+                                    f"Policy override '{name}' is declared by both '{owner}' and "
+                                    f"'{scope_id}', both attributed to enforcer '{enforcer_id}'. "
+                                    "Override names must be unique per enforcer."
+                                ),
+                                path=f"instance:{enforcer_id}.policy_overrides",
+                            )
+                        )
+                        has_conflict = True
+                    else:
+                        override_name_owner[name] = scope_id
+
+            if has_conflict:
+                continue
+
+            composed_zones: dict[str, Any] = {}
+            composed_matrix: dict[str, dict[str, Any]] = {}
+            composed_overrides: list[dict[str, Any]] = []
+            for scope in scopes_for_enforcer:
+                composed_zones.update(scope.get("zones") or {})
+                for from_zone, to_zones in (scope.get("matrix") or {}).items():
+                    composed_matrix.setdefault(from_zone, {}).update(to_zones)
+                composed_overrides.extend(scope.get("policy_overrides") or [])
+
+            composed_matrices_by_enforcer[enforcer_id] = {
+                "zones": composed_zones,
+                "matrix": composed_matrix,
+                "policy_overrides": composed_overrides,
+            }
+
         # Publish for downstream plugins (validators, generators)
         ctx.publish("security_matrices", security_matrices)
         ctx.publish("zone_vlans", zone_vlans)
         ctx.publish("scopes_by_enforcer", scopes_by_enforcer)
+        ctx.publish("composed_matrices_by_enforcer", composed_matrices_by_enforcer)
         ctx.publish("vlan_cidr_map", vlan_cidr_map)
 
         return self.make_result(

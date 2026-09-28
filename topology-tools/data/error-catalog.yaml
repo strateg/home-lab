@@ -965,6 +965,20 @@ codes:
     hint: >-
       One enforcer names more than one scope. ADR 0119 D1.1 permits this; it is reported because no current
       adapter renders more than one scope per enforcer, not because the model forbids the multiplicity.
+  E7013:
+    severity: error
+    stage: compile
+    title: Scope Zone Overlaps Another On The Same Enforcer
+    hint: >-
+      Two scopes attributed to one enforcer name the same zone_ref. Scopes composed for one enforcer must
+      have pairwise-disjoint zone_refs (D-COMP-1); no composed plan is published for that enforcer.
+  E7014:
+    severity: error
+    stage: compile
+    title: Policy Override Name Collides Across Scopes On The Same Enforcer
+    hint: >-
+      Two scopes attributed to one enforcer declare a policy_overrides entry with the same name, which would
+      collide at the same rendered resource address (D-COMP-2); no composed plan is published for that enforcer.
 
   # Attachment and address domain (NET-ATTACHMENT, NET-ADDRESS-OWNER)
   E7020:
