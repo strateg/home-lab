@@ -396,3 +396,23 @@
 - Proposes `E7010`, `E7011` and `W7012` inside the existing ADR 0118/0119
   allocation, with the collision check recorded. No code, schema, manifest or
   artifact changed; no code has been written against this specification.
+
+## ADR 0118/0119 — enforcer/scope readiness record updated after implementation, 2026-09-28
+
+- Marks readiness record section 5 (`matrix_by_enforcer` → `scopes_by_enforcer`,
+  `E7010`/`E7011`/`W7012`) as done, referencing commit `c5f66c10` on branch
+  `adr-0118-0119`, with its actual validation evidence replacing the earlier plan.
+- Updates the section 4 sequencing table: V-13/N-05/plane-default done; V-09,
+  V-10, V-14 (the projection/generator/template consumer chain) move from
+  blocked-on-V-13 to the next implementable-now candidate.
+- Adds section 5b: a sketch, not a specification, of the consumer chain's touch
+  points and open questions (two-scope fixture, rendered shape, parity
+  evidence) - explicitly not authorization to begin that change.
+- Records an open, separately tracked finding: `pytest tests` shows 125 failures
+  confined to `tests/plugin_integration/test_security_plan_validator.py`, which
+  passes 77/77 in isolation. Bisected to somewhere among the ~100
+  `plugin_integration` files collected before it; five other directories and the
+  immediately adjacent file are individually cleared. Reasoned as unlikely to be
+  caused by `c5f66c10` (disjoint files) but not yet confirmed by a rerun. Not
+  part of the ADR 0118/0119 scope.
+- No code, schema or artifact changed by this entry.

@@ -17,6 +17,14 @@ Owns the ten open implementation rows: [conformance record](ENFORCER-AXIS-CONFOR
 Owns the layout decision: [W07](W07-BACKEND-SPECIALIZATION-DECISION.md).
 Owns gate sequencing: [roadmap](IMPLEMENTATION-ROADMAP-2026-09-15.md).
 
+**Implementation status, 2026-09-28.** Section 5 is implemented: commit
+`c5f66c10` on branch `adr-0118-0119` replaces `matrix_by_enforcer` with
+`scopes_by_enforcer`, adds `E7010`/`E7011`/`W7012`, and lands the section 5.4
+counterexamples as `TestScopesByEnforcer`. Evidence is in section 7. This does
+not close W07/G4 - see section 6, unchanged. Section 4's sequencing is updated
+below to reflect what section 5 unblocks; nothing else in sections 1-3 is
+revised, since the measurements they record are still accurate for this tree.
+
 ## 1. What this record adds
 
 The conformance record lists ten open implementation rows and eight planned
@@ -116,9 +124,9 @@ Two smaller observations, recorded so they are not rediscovered:
 
 | Row | State | What it waits on |
 |---|---|---|
-| V-13, N-05, plane default | **Implementable now** | nothing; zero subscribers on `matrix_by_enforcer`, so no consumer migration is entangled |
-| V-15 (Proxmox second/third derivation) | Implementable now | the channel contract below, so the stub has something to consume |
-| V-09, V-10, V-14 | Blocked on V-13 landing | the consumer chain is a return-type change across projection, generator and template; it needs the channel to be able to express multiplicity first |
+| V-13, N-05, plane default | **Done** - `c5f66c10` | `scopes_by_enforcer` published, complete and deterministic; `E7010`/`E7011` refuse the two silent gaps |
+| V-15 (Proxmox second/third derivation) | Implementable now | the channel exists; the Proxmox stub's own second derivation can be retired in its favour, independent of the consumer chain below |
+| V-09, V-10, V-14 | **Now implementable** - was blocked on V-13 landing | the channel can express multiplicity; the consumer chain (projection return type, generator, `zone_firewall.tf.j2` grouping) is unstarted. This is the next candidate |
 | V-04, V-05, V-08, N-01-N-04 | **Blocked on a decision, not on code** | which registered namespace is the enforcement-capability axis (N-02), what becomes of the other three identifiers, and whether `enabled_packs` contribute to the effective set (N-04). Adding a declaration before that decision picks the axis by accident - the failure mode ADR 0119 D1.1 names |
 | V-07 | Blocked on G1/W03 | the derived scope/context contract must be registered before a field claims to carry resolved type and adapter identity |
 | V-11, V-12 | Blocked on a reviewed behaviour change | the W07 root/state migration relocates Terraform state; W07 records it as design preparation and explicitly not authorization to migrate state |
@@ -224,6 +232,53 @@ resolved before the change lands. Evidence: two compilations under symmetric
 conditions with the declared W13 exclusions, plus the full suite and the narrowest
 relevant Task gate.
 
+## 5b. Next candidate, sketched (not started, not a spec)
+
+V-09/V-10/V-14 - the consumer chain - is the next implementable-now row per
+section 4. This is a sketch of its shape, one level lighter than section 5's
+specification, because the chain touches rendering rather than a single
+zero-subscriber channel, and its counterexamples need a two-scope fixture this
+record has not built. Writing it up before starting is what section 4 itself
+asks for; it is not authorization to begin.
+
+**Touch points, all in the MikroTik adapter, none in the layout/state migration
+(V-11/V-12 stay blocked and out of scope here):**
+
+```
+projections.py  _extract_security_matrix(...) -> dict        1 scope, keyed wrong
+                build_mikrotik_projection(...)["security_matrix"]  same
+terraform_mikrotik_generator.py  router_matrix = projection.get("security_matrix", {})
+                render_context["security_matrix"] = router_matrix
+templates/terraform/zone_firewall.tf.j2   security_matrix.get(...)
+templates/terraform/vpn.tf.j2             has_security_matrix (two call sites)
+```
+
+**Shape.** `_extract_security_matrix` returns a list of per-scope dicts (or a
+dict keyed by scope id) built from `scopes_by_enforcer[this_router]`, not a
+single dict for "the" matrix. The generator passes the list/dict through
+unchanged. `zone_firewall.tf.j2` iterates it and renders one block per scope
+under the existing single per-router root - this does not move state or
+introduce a second apply unit, since W07's root migration (V-11/V-12) is a
+separate, still-blocked decision. `vpn.tf.j2`'s `has_security_matrix` becomes
+"at least one scope resolved", not "the one scope resolved".
+
+**What it needs before it can be specified like section 5 was:**
+
+- A two-scope MikroTik fixture (real or synthetic) to serve as the positive
+  control; the live topology has exactly one enabled scope today, so the
+  differential this needs is currently only exercisable synthetically.
+- A decision on the rendered shape when an enforcer holds several scopes on
+  different planes in the same file - one block per scope with a scope-derived
+  comment/marker, most likely, but this is the kind of rendering choice section
+  5's own history (the backend-parameterisation error W07 records) warns against
+  deciding by copying the shape of today's single-scope output.
+- Parity evidence against the real topology's one-scope case, the same way
+  section 5.5 required it, plus the counterexamples in the conformance record's
+  section 4 that this record has not yet exercised: two devices of one type
+  (no target/resource leakage), and the zero/multiple-adapter cases, which
+  belong to V-04/V-05 and stay blocked on the capability-axis decision even once
+  this chain lands.
+
 ## 6. What this record does not do
 
 No gate advances. `W07`/`G4` are not closed by section 5: it repairs one published
@@ -235,12 +290,40 @@ record authorizes a state migration, a device operation or a deployment.
 
 ## 7. Command evidence
 
+Evidence for sections 1-3 (unchanged baseline, before `c5f66c10`):
+
 ```
 pytest tests/test_backend_specialization_boundary.py -q     9 passed
 grep -rEon '[EWI]70(09|1[0-9])' ... (excl. build/, .venv/)  no matches
 grep -rn 'subscribe(.*matrix_by_enforcer'                   no matches
-pytest tests -q -p no:randomly                              see below
 ```
 
-Full-suite result at this tree: PENDING at the time of writing; it is a measurement
-of the unchanged baseline, and no claim in this record depends on it.
+Evidence for section 5, at `c5f66c10`:
+
+```
+ad hoc counterexample script, mirroring 5.4 exactly     6/6 + positive control pass
+pytest tests/plugin_integration/test_security_matrix_compiler.py -q      31 passed
+pytest tests/plugin_contract/test_integration_tests_no_legacy_publish_registry.py -q
+                                                                            1 passed
+pytest tests/test_diagnostic_code_registry.py tests/test_plugin_registry.py -q
+                                                                           17 passed
+generate-framework-lock.py --force && verify-framework-lock.py --strict   OK
+compile-topology.py (canonical invocation)                errors=0 warnings=2
+                                              (matches the last recorded baseline)
+git status after compile                          generated/ unchanged, byte-identical
+```
+
+A full `pytest tests -q -p no:randomly` was run once on this tree, before
+`c5f66c10`: 125 failed, all in `tests/plugin_integration/test_security_plan_validator.py`,
+which passes 77/77 in isolation. It has not been re-run in full after `c5f66c10`
+(a run was started and is still in progress at the time of this note). This is
+order-dependent cross-test pollution, bisected so far to somewhere among the 102
+`plugin_integration` files collected before the target file - `ai_rules`,
+`kernel`, `orchestration`, `plugin_api`, `plugin_contract` and the adjacent
+`test_security_plan_compiler.py` are individually cleared, each combined directly
+with the target and passing clean. `c5f66c10` touches only
+`security_matrix_compiler.py` and its own test file, neither of which
+`test_security_plan_validator.py` or its dependency chain imports, so it is very
+unlikely to be the cause, but that is inference, not a rerun. No claim in this
+record or in section 5 depends on the full suite passing. Tracked as open
+infrastructure debt, not as part of the ADR 0118/0119 scope.
