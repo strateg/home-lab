@@ -942,6 +942,30 @@ codes:
       The validator could not obtain the published security plan, so it checked nothing. Distinct from E7007:
       both say a check did not run, but they name different missing producers, and a reader needs to know which.
 
+  # Enforcer/scope attribution (ADR 0119 D1.1), allocated 2026-09-28 in the
+  # unclaimed 7009-7019 sub-band of this range.
+  E7010:
+    severity: error
+    stage: compile
+    title: Scope Declares No Enforcer
+    hint: >-
+      A security matrix has no managed_by_ref, so no enforcer is attributed to it and it is enforced by
+      nobody. status: disabled is the one declared exemption; there is no other silent skip.
+  E7011:
+    severity: error
+    stage: compile
+    title: Scope Declares No Enforcement Plane
+    hint: >-
+      Neither the instance nor its object supplies enforcement_plane, which the class schema requires.
+      Replaces a prior silent default to perimeter.
+  W7012:
+    severity: warning
+    stage: compile
+    title: Enforcer Holds Several Scopes
+    hint: >-
+      One enforcer names more than one scope. ADR 0119 D1.1 permits this; it is reported because no current
+      adapter renders more than one scope per enforcer, not because the model forbids the multiplicity.
+
   # Attachment and address domain (NET-ATTACHMENT, NET-ADDRESS-OWNER)
   E7020:
     severity: error

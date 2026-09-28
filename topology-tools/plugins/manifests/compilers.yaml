@@ -542,7 +542,7 @@ plugins:
     scope: pipeline_shared
   - key: zone_vlans
     scope: pipeline_shared
-  - key: matrix_by_enforcer
+  - key: scopes_by_enforcer
     scope: pipeline_shared
   - key: vlan_cidr_map
     scope: pipeline_shared

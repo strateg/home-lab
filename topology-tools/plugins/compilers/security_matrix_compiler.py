@@ -113,9 +113,18 @@ class SecurityMatrixCompiler(CompilerPlugin):
         for zone_ref in zone_vlans:
             zone_vlans[zone_ref].sort()
 
-        # Process each security matrix instance
+        # Process each security matrix instance, in a stable order so that
+        # security_matrices and scopes_by_enforcer below do not depend on the
+        # order normalized_rows happened to arrive in (ADR 0119 D4).
+        matrix_instances.sort(key=lambda row: str(row.get("instance") or row.get("instance_id") or ""))
+
         security_matrices: dict[str, dict[str, Any]] = {}
-        matrix_by_enforcer: dict[str, str] = {}
+        # (enforcer_id, scope_id) pairs for every scope that passed attribution
+        # and plane validation. Grouped into scopes_by_enforcer after the loop,
+        # once every pair is known, so the published index is never built by
+        # overwriting one entry per enforcer (ADR 0119 D1.1: one enforcer may
+        # hold several scopes).
+        enforcer_scope_pairs: list[tuple[str, str]] = []
 
         for matrix_row in matrix_instances:
             matrix_id = matrix_row.get("instance", "") or matrix_row.get("instance_id", "")
@@ -140,18 +149,60 @@ class SecurityMatrixCompiler(CompilerPlugin):
                 )
                 continue
 
-            # Extract managed_by_ref for enforcer mapping
+            # Extract managed_by_ref for enforcer attribution. Required by the
+            # class schema; an unattributed scope is enforced by nobody and,
+            # before this check, compiled clean and said nothing (ADR 0118
+            # analysis N-05). status: disabled is the one declared exemption -
+            # it is the only convention the topology already uses to mark a
+            # scope as intentionally not active, and status is otherwise inert
+            # everywhere else in the pipeline, so this does not invent a new
+            # general disabled-skip contract, only exempts a diagnostic newly
+            # added by this change from a row the author already marked so.
+            row_status = str(matrix_row.get("status") or "").strip().lower()
+            is_disabled = row_status == "disabled"
             managed_by_ref = extensions.get("managed_by_ref") or matrix_row.get("managed_by_ref")
-            if isinstance(managed_by_ref, str):
-                matrix_by_enforcer[managed_by_ref] = matrix_id
+            if not isinstance(managed_by_ref, str) or not managed_by_ref.strip():
+                if not is_disabled:
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E7010",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"Security matrix '{matrix_id}' declares no managed_by_ref. "
+                                "A scope with no enforcer is enforced by nobody."
+                            ),
+                            path=f"instance:{matrix_id}.managed_by_ref",
+                        )
+                    )
+                continue
+            managed_by_ref = managed_by_ref.strip()
 
-            # Extract enforcement_plane (perimeter or internal)
+            # Extract enforcement_plane (perimeter or internal). No silent
+            # default: the class schema makes this required, and a default
+            # here was live only because every current instance happens to
+            # declare it (ADR 0118 analysis, latent default finding).
             enforcement_plane = (
                 extensions.get("enforcement_plane")
                 or matrix_row.get("enforcement_plane")
                 or self._get_object_property(matrix_row, "enforcement_plane", ctx)
-                or "perimeter"
             )
+            if not isinstance(enforcement_plane, str) or not enforcement_plane.strip():
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E7011",
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            f"Security matrix '{matrix_id}' declares no enforcement_plane, "
+                            "and neither instance nor object supplies one."
+                        ),
+                        path=f"instance:{matrix_id}.enforcement_plane",
+                    )
+                )
+                continue
+
+            enforcer_scope_pairs.append((managed_by_ref, matrix_id))
 
             # Extract policy_overrides from object + instance (merged)
             policy_overrides = self._merge_policy_overrides(matrix_row, extensions, ctx)
@@ -208,10 +259,37 @@ class SecurityMatrixCompiler(CompilerPlugin):
                 "statistics": stats,
             }
 
+        # Group scopes by enforcer: complete (every attributed scope appears)
+        # and deterministic (sorted keys, sorted values) regardless of input
+        # row order. One enforcer may hold several scopes (ADR 0119 D1.1);
+        # W7012 flags that case because no current adapter renders it, not
+        # because the model forbids it.
+        scopes_by_grouped: dict[str, list[str]] = {}
+        for enforcer_id, scope_id in enforcer_scope_pairs:
+            scopes_by_grouped.setdefault(enforcer_id, []).append(scope_id)
+        scopes_by_enforcer: dict[str, list[str]] = {
+            enforcer_id: sorted(scope_ids) for enforcer_id, scope_ids in sorted(scopes_by_grouped.items())
+        }
+        for enforcer_id, scope_ids in scopes_by_enforcer.items():
+            if len(scope_ids) > 1:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="W7012",
+                        severity="warning",
+                        stage=stage,
+                        message=(
+                            f"Enforcer '{enforcer_id}' holds {len(scope_ids)} scopes: "
+                            f"{', '.join(scope_ids)}. No current adapter renders more than one "
+                            "scope per enforcer."
+                        ),
+                        path=f"instance:{enforcer_id}",
+                    )
+                )
+
         # Publish for downstream plugins (validators, generators)
         ctx.publish("security_matrices", security_matrices)
         ctx.publish("zone_vlans", zone_vlans)
-        ctx.publish("matrix_by_enforcer", matrix_by_enforcer)
+        ctx.publish("scopes_by_enforcer", scopes_by_enforcer)
         ctx.publish("vlan_cidr_map", vlan_cidr_map)
 
         return self.make_result(

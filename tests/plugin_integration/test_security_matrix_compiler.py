@@ -420,6 +420,7 @@ class TestSecurityMatrixCompilerIntegration:
                 "object_ref": "obj.network.security_matrix.soho",
                 "extensions": {
                     "managed_by_ref": "rtr-mikrotik-chateau",
+                    "enforcement_plane": "perimeter",
                     "zone_refs": ["inst.trust_zone.management", "inst.trust_zone.user"],
                 },
             },
@@ -463,7 +464,11 @@ class TestSecurityMatrixCompilerIntegration:
                 "instance": "inst.security_matrix.mikrotik",
                 "class_ref": "class.network.security_matrix",
                 "object_ref": "obj.network.security_matrix.soho",
-                "extensions": {"zone_refs": ["inst.trust_zone.user"]},
+                "extensions": {
+                    "managed_by_ref": "rtr-mikrotik-chateau",
+                    "enforcement_plane": "perimeter",
+                    "zone_refs": ["inst.trust_zone.user"],
+                },
             },
         ]
         ctx = _create_ctx(rows=rows)
@@ -486,7 +491,11 @@ class TestSecurityMatrixCompilerIntegration:
                 "instance": "inst.security_matrix.mikrotik",
                 "class_ref": "class.network.security_matrix",
                 "object_ref": "obj.network.security_matrix.soho",
-                "extensions": {"zone_refs": ["inst.trust_zone.nonexistent"]},
+                "extensions": {
+                    "managed_by_ref": "rtr-mikrotik-chateau",
+                    "enforcement_plane": "perimeter",
+                    "zone_refs": ["inst.trust_zone.nonexistent"],
+                },
             },
         ]
         ctx = _create_ctx(rows=rows)
@@ -545,37 +554,9 @@ class TestSecurityMatrixCompilerIntegration:
                 "instance": "inst.security_matrix.mikrotik",
                 "class_ref": "class.network.security_matrix",
                 "object_ref": "obj.network.security_matrix.soho",
-                "extensions": {"zone_refs": ["inst.trust_zone.user"]},
-            },
-        ]
-        ctx = _create_ctx(rows=rows)
-
-        result = run_plugin_for_test(
-            plugin,
-            ctx,
-            Stage.COMPILE,
-            consumes_keys={"base.compiler.instance_rows"},
-        )
-
-        assert result.status == PluginStatus.SUCCESS
-        assert "vlan_cidr_map" in ctx.get_published_keys(PLUGIN_ID)
-
-    def test_matrix_by_enforcer_published(self):
-        """Compiler publishes matrix_by_enforcer for generator lookup."""
-        plugin = _create_plugin()
-        rows = [
-            {
-                "instance": "inst.trust_zone.user",
-                "class_ref": "class.network.trust_zone",
-                "object_ref": "obj.network.trust_zone.user",
-                "extensions": {"security_level": 3, "isolated": False},
-            },
-            {
-                "instance": "inst.security_matrix.mikrotik",
-                "class_ref": "class.network.security_matrix",
-                "object_ref": "obj.network.security_matrix.soho",
                 "extensions": {
                     "managed_by_ref": "rtr-mikrotik-chateau",
+                    "enforcement_plane": "perimeter",
                     "zone_refs": ["inst.trust_zone.user"],
                 },
             },
@@ -590,7 +571,234 @@ class TestSecurityMatrixCompilerIntegration:
         )
 
         assert result.status == PluginStatus.SUCCESS
-        assert "matrix_by_enforcer" in ctx.get_published_keys(PLUGIN_ID)
+        assert "vlan_cidr_map" in ctx.get_published_keys(PLUGIN_ID)
+
+    def test_scopes_by_enforcer_published(self):
+        """Compiler publishes scopes_by_enforcer, replacing matrix_by_enforcer."""
+        plugin = _create_plugin()
+        rows = [
+            {
+                "instance": "inst.trust_zone.user",
+                "class_ref": "class.network.trust_zone",
+                "object_ref": "obj.network.trust_zone.user",
+                "extensions": {"security_level": 3, "isolated": False},
+            },
+            {
+                "instance": "inst.security_matrix.mikrotik",
+                "class_ref": "class.network.security_matrix",
+                "object_ref": "obj.network.security_matrix.soho",
+                "extensions": {
+                    "managed_by_ref": "rtr-mikrotik-chateau",
+                    "enforcement_plane": "perimeter",
+                    "zone_refs": ["inst.trust_zone.user"],
+                },
+            },
+        ]
+        ctx = _create_ctx(rows=rows)
+
+        result = run_plugin_for_test(
+            plugin,
+            ctx,
+            Stage.COMPILE,
+            consumes_keys={"base.compiler.instance_rows"},
+        )
+
+        assert result.status == PluginStatus.SUCCESS
+        assert "scopes_by_enforcer" in ctx.get_published_keys(PLUGIN_ID)
+        assert "matrix_by_enforcer" not in ctx.get_published_keys(PLUGIN_ID)
+
+
+class TestScopesByEnforcer:
+    """Counterexamples and positive controls for the enforcer/scope index.
+
+    ADR 0118-analysis/ENFORCER-SCOPE-IMPLEMENTATION-READINESS.md section 5.4.
+    `matrix_by_enforcer` was a one-entry-per-enforcer dict that silently
+    dropped a scope whenever one enforcer held more than one, and whose
+    surviving entry depended on input row order - a D4 permutation violation
+    reproduced against the real compiler before this fix. `scopes_by_enforcer`
+    is the replacement: complete membership, deterministic order, and it is a
+    defect in these tests if any of the counterexamples below still pass by
+    refusing every case rather than by handling the multiplicity.
+    """
+
+    @staticmethod
+    def _zone(instance: str, security_level: int = 3) -> dict:
+        return {
+            "instance": instance,
+            "class_ref": "class.network.trust_zone",
+            "object_ref": f"obj.network.trust_zone.{instance.rsplit('.', 1)[-1]}",
+            "extensions": {"security_level": security_level, "isolated": False},
+        }
+
+    @staticmethod
+    def _matrix(instance: str, *, managed_by_ref=None, enforcement_plane=None, zone_refs=None, status=None) -> dict:
+        extensions: dict = {"zone_refs": zone_refs or []}
+        if managed_by_ref is not None:
+            extensions["managed_by_ref"] = managed_by_ref
+        if enforcement_plane is not None:
+            extensions["enforcement_plane"] = enforcement_plane
+        row = {
+            "instance": instance,
+            "class_ref": "class.network.security_matrix",
+            "object_ref": "obj.network.security_matrix.soho",
+            "extensions": extensions,
+        }
+        if status is not None:
+            row["status"] = status
+        return row
+
+    @staticmethod
+    def _subscribe(ctx, key: str):
+        """Read a published value the way a real consumer does.
+
+        `ctx.subscribe` is scope-gated: it only works inside another plugin's
+        declared execution context. `run_plugin_for_test`/`publish_for_test`
+        already open one with this same private API for exactly this reason;
+        this mirrors them rather than reading the legacy full-registry dump
+        the legacy full-registry dump, which the plugin_integration contract test
+        forbids because it lets a test see values no real consumer declared.
+        """
+        ctx._set_execution_context("test.consumer.scopes_by_enforcer", {PLUGIN_ID})
+        try:
+            return ctx.subscribe(PLUGIN_ID, key)
+        finally:
+            ctx._clear_execution_context()
+
+    def _run(self, rows: list[dict]):
+        plugin = _create_plugin()
+        ctx = _create_ctx(rows=rows)
+        result = run_plugin_for_test(
+            plugin,
+            ctx,
+            Stage.COMPILE,
+            consumes_keys={"base.compiler.instance_rows"},
+        )
+        published_keys = set(ctx.get_published_keys(PLUGIN_ID))
+        scopes_by_enforcer = self._subscribe(ctx, "scopes_by_enforcer") if "scopes_by_enforcer" in published_keys else {}
+        security_matrices = self._subscribe(ctx, "security_matrices") if "security_matrices" in published_keys else {}
+        return result, scopes_by_enforcer, list(security_matrices)
+
+    def test_two_scopes_on_one_enforcer_are_both_retained(self):
+        """The defect this channel replaces: two scopes on one enforcer, not one."""
+        rows = [
+            self._zone("inst.trust_zone.user"),
+            self._zone("inst.trust_zone.dmz", security_level=1),
+            self._matrix("inst.security_matrix.a", managed_by_ref="rtr.shared",
+                          enforcement_plane="perimeter", zone_refs=["inst.trust_zone.user"]),
+            self._matrix("inst.security_matrix.b", managed_by_ref="rtr.shared",
+                          enforcement_plane="internal", zone_refs=["inst.trust_zone.dmz"]),
+        ]
+        result, scopes_by_enforcer, _ = self._run(rows)
+
+        # Warning-only: several scopes on one enforcer is permitted by the
+        # model (ADR 0119 D1.1), so this does not block the compile.
+        assert result.status == PluginStatus.PARTIAL
+        assert any(d.code == "W7012" for d in result.diagnostics)
+        assert scopes_by_enforcer == {
+            "rtr.shared": ["inst.security_matrix.a", "inst.security_matrix.b"],
+        }
+
+    def test_reversed_input_order_is_byte_identical(self):
+        """D4: the published channel must not depend on row order."""
+        zones = [self._zone("inst.trust_zone.user"), self._zone("inst.trust_zone.dmz", security_level=1)]
+        m_a = self._matrix("inst.security_matrix.a", managed_by_ref="rtr.shared",
+                            enforcement_plane="perimeter", zone_refs=["inst.trust_zone.user"])
+        m_b = self._matrix("inst.security_matrix.b", managed_by_ref="rtr.shared",
+                            enforcement_plane="internal", zone_refs=["inst.trust_zone.dmz"])
+
+        _, forward_scopes, forward_order = self._run(zones + [m_a, m_b])
+        _, reverse_scopes, reverse_order = self._run(zones + [m_b, m_a])
+
+        assert forward_scopes == reverse_scopes
+        assert forward_order == reverse_order
+
+    def test_two_enforcers_one_scope_each_no_cross_attribution(self):
+        rows = [
+            self._zone("inst.trust_zone.user"),
+            self._zone("inst.trust_zone.dmz", security_level=1),
+            self._matrix("inst.security_matrix.a", managed_by_ref="rtr.one",
+                          enforcement_plane="perimeter", zone_refs=["inst.trust_zone.user"]),
+            self._matrix("inst.security_matrix.b", managed_by_ref="rtr.two",
+                          enforcement_plane="perimeter", zone_refs=["inst.trust_zone.dmz"]),
+        ]
+        result, scopes_by_enforcer, _ = self._run(rows)
+
+        assert result.status == PluginStatus.SUCCESS
+        assert not result.diagnostics
+        assert scopes_by_enforcer == {
+            "rtr.one": ["inst.security_matrix.a"],
+            "rtr.two": ["inst.security_matrix.b"],
+        }
+
+    def test_unattributed_scope_is_refused(self):
+        """N-05: a scope with no managed_by_ref compiled clean and said nothing."""
+        rows = [
+            self._zone("inst.trust_zone.user"),
+            self._matrix("inst.security_matrix.orphan", zone_refs=["inst.trust_zone.user"]),
+        ]
+        result, scopes_by_enforcer, security_matrices = self._run(rows)
+
+        assert result.status == PluginStatus.FAILED
+        assert any(d.code == "E7010" for d in result.diagnostics)
+        assert scopes_by_enforcer == {}
+        assert "inst.security_matrix.orphan" not in security_matrices
+
+    def test_disabled_unattributed_scope_is_exempt(self):
+        """status: disabled is the one declared exemption from E7010 - the
+        present shape of inst.security_matrix.proxmox, which must keep
+        compiling clean rather than newly block the pipeline."""
+        rows = [
+            self._zone("inst.trust_zone.user"),
+            self._matrix("inst.security_matrix.orphan", zone_refs=["inst.trust_zone.user"], status="disabled"),
+        ]
+        result, scopes_by_enforcer, security_matrices = self._run(rows)
+
+        assert result.status == PluginStatus.SUCCESS
+        assert not any(d.code == "E7010" for d in result.diagnostics)
+        assert scopes_by_enforcer == {}
+        assert "inst.security_matrix.orphan" not in security_matrices
+
+    def test_scope_with_no_plane_anywhere_is_refused(self):
+        rows = [
+            self._zone("inst.trust_zone.user"),
+            self._matrix("inst.security_matrix.noplane", managed_by_ref="rtr.one",
+                          zone_refs=["inst.trust_zone.user"]),
+        ]
+        result, scopes_by_enforcer, _ = self._run(rows)
+
+        assert result.status == PluginStatus.FAILED
+        assert any(d.code == "E7011" for d in result.diagnostics)
+        assert scopes_by_enforcer == {}
+
+    def test_full_permutation_is_byte_identical(self):
+        zones = [self._zone("inst.trust_zone.user"), self._zone("inst.trust_zone.dmz", security_level=1)]
+        matrices = [
+            self._matrix("inst.security_matrix.a", managed_by_ref="rtr.one",
+                          enforcement_plane="perimeter", zone_refs=["inst.trust_zone.user"]),
+            self._matrix("inst.security_matrix.b", managed_by_ref="rtr.one",
+                          enforcement_plane="internal", zone_refs=["inst.trust_zone.dmz"]),
+            self._matrix("inst.security_matrix.c", managed_by_ref="rtr.two",
+                          enforcement_plane="perimeter", zone_refs=["inst.trust_zone.user"]),
+        ]
+
+        _, forward_scopes, forward_order = self._run(zones + matrices)
+        _, reverse_scopes, reverse_order = self._run(zones + list(reversed(matrices)))
+
+        assert forward_scopes == reverse_scopes
+        assert forward_order == reverse_order
+
+    def test_positive_control_single_scope_topology_is_unaffected(self):
+        """The real project's current shape: one enforcer, one scope, clean."""
+        rows = [
+            self._zone("inst.trust_zone.user"),
+            self._matrix("inst.security_matrix.mikrotik", managed_by_ref="rtr-mikrotik-chateau",
+                          enforcement_plane="perimeter", zone_refs=["inst.trust_zone.user"]),
+        ]
+        result, scopes_by_enforcer, _ = self._run(rows)
+
+        assert result.status == PluginStatus.SUCCESS
+        assert not result.diagnostics
+        assert scopes_by_enforcer == {"rtr-mikrotik-chateau": ["inst.security_matrix.mikrotik"]}
 
 
 class TestZoneDataExtraction:
