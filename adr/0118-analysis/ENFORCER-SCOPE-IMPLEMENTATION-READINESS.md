@@ -232,52 +232,113 @@ resolved before the change lands. Evidence: two compilations under symmetric
 conditions with the declared W13 exclusions, plus the full suite and the narrowest
 relevant Task gate.
 
-## 5b. Next candidate, sketched (not started, not a spec)
+## 5b. Next candidate: corrected, and larger than first sketched
 
 V-09/V-10/V-14 - the consumer chain - is the next implementable-now row per
-section 4. This is a sketch of its shape, one level lighter than section 5's
-specification, because the chain touches rendering rather than a single
-zero-subscriber channel, and its counterexamples need a two-scope fixture this
-record has not built. Writing it up before starting is what section 4 itself
-asks for; it is not authorization to begin.
+section 4. The first version of this section proposed "one rendered block per
+scope." That is wrong, for a reason found by reading the templates rather than
+guessing the shape, and the correction changes where the work belongs.
 
-**Touch points, all in the MikroTik adapter, none in the layout/state migration
-(V-11/V-12 stay blocked and out of scope here):**
+### N-06: RouterOS has one forward chain, not one per scope
+
+`zone_firewall.tf.j2` emits exactly one terminal-deny resource,
+`routeros_ip_firewall_filter.zone_drop_all_forward`, and every deny and
+policy-override rule in the same file places itself before it by that literal
+Terraform address. `vpn.tf.j2` references the same address by name at two more
+call sites, to place tunnel-egress and container firewall rules ahead of it.
+Five hardcoded references across two files, confirmed by grep, all assuming
+there is exactly one.
+
+This is not a template limitation to lift. RouterOS has one `forward` chain per
+device; a device with two scopes still has one chain, and a chain can only
+have one meaningful final deny - whichever renders last is the one that acts,
+and every earlier rule's `place_before` target has to be it. "One block per
+scope" would either collide two resources both named
+`zone_drop_all_forward`, or rename them per scope and leave `vpn.tf.j2`
+pointing at an arbitrary one of several. Rendering-multiple-blocks is not a
+looser version of the correct fix; it does not compile into a correct result
+at all, the same character of mistake section 3.1(b) found in the original
+V-09 read of `_extract_security_matrix`.
+
+**What follows: composition, not iteration.** Two scopes on one enforcer must
+become one validated, composed plan before anything renders - matching ADR
+0119 D1's own language, "one logical plan authority producing one projection
+per scope" feeding "one owned resource set per apply unit," and D1's explicit
+warning that composition across scopes sharing an enforcer is checked, not
+assumed. Concretely, for the MikroTik adapter's existing single-chain,
+single-root shape:
+
+- **Zones union safely.** A zone's data (`name`, `security_level`, `isolated`,
+  `cidrs`) is read from one shared `zone_index` in the compiler regardless of
+  which scope references it (`security_matrix_compiler.py`), so two scopes
+  naming the same `zone_ref` carry identical data. A dict union across scopes
+  - what `projections.py:1519` already does for the single scope it reads
+    today - produces no duplicate address-list resource and needs no conflict
+    check.
+- **Matrix cells do not.** `matrix` is `{from_zone: {to_zone: cell}}`, authored
+  per scope. Two scopes disagreeing on the same `(from_zone, to_zone)` pair is
+  a real contradiction, not a naming collision, and silently keeping whichever
+  scope's cell a dict-update processed last would be the *same defect class*
+  V-13 fixed for the enforcer index - a silent, input-order-dependent
+  overwrite - reintroduced one level deeper. It needs an explicit check and a
+  diagnostic, not a merge.
+- **Policy overrides do not either.** They are an authored list, not a dict, so
+  concatenating two scopes' lists loses nothing by itself - but
+  `zone_override_{{ override_name }}` derives the Terraform resource name from
+  the override's own `name` field alone, which nothing enforces as unique
+  across separate `security_matrix` instances. Two scopes each authoring an
+  override called e.g. `admin-access` collide at the same
+  `routeros_ip_firewall_filter.zone_override_admin_access` address.
+- **Render order is a plan property, not a template one.** ADR 0119 D4 already
+  requires deterministic order without semantic guessing; the composed cell/
+  override sequence needs its own fixed order (scope-id sorted, matching
+  `scopes_by_enforcer`'s own determinism) fed to the template, not left to
+  however Jinja happens to iterate a merged structure.
+
+**Where it belongs.** ADR 0119 D4 already draws this line for the terminal
+deny - "the plan compiler emits it and the template only renders it" - and the
+same rule applies to composition: it is compile-stage work, most naturally an
+extension of `security_matrix_compiler.py` (which already owns one derivation
+of this fact) consuming its own `security_matrices` and `scopes_by_enforcer`
+output to build one validated composed plan per enforcer with an *unchanged*
+shape - the same `{zones, matrix, policy_overrides}` dict `zone_firewall.tf.j2`
+already consumes. Read this way, the generate-stage touch points from the
+first sketch shrink to almost nothing: the projection and template keep
+consuming one flat structure per enforcer; only what feeds it changes, from
+first-match to composed-and-checked. What grows is a new compile-stage
+composition step with real conflict semantics to design - closer in size to a
+second D1.1-style contract than to section 5's channel rename.
+
+**Touch points, corrected:**
 
 ```
-projections.py  _extract_security_matrix(...) -> dict        1 scope, keyed wrong
-                build_mikrotik_projection(...)["security_matrix"]  same
-terraform_mikrotik_generator.py  router_matrix = projection.get("security_matrix", {})
-                render_context["security_matrix"] = router_matrix
-templates/terraform/zone_firewall.tf.j2   security_matrix.get(...)
-templates/terraform/vpn.tf.j2             has_security_matrix (two call sites)
+security_matrix_compiler.py   new: compose scopes_by_enforcer[e] into one
+                               validated per-enforcer plan; diagnose matrix-cell
+                               and override-name conflicts instead of merging them
+projections.py  _extract_security_matrix(...)   reads the composed plan for this
+                router instead of first-matching matrix_instances itself
+templates/terraform/zone_firewall.tf.j2   unchanged in shape; consumes composed input
+templates/terraform/vpn.tf.j2             unchanged; the single zone_drop_all_forward
+                                           reference stays valid because there is still one
 ```
-
-**Shape.** `_extract_security_matrix` returns a list of per-scope dicts (or a
-dict keyed by scope id) built from `scopes_by_enforcer[this_router]`, not a
-single dict for "the" matrix. The generator passes the list/dict through
-unchanged. `zone_firewall.tf.j2` iterates it and renders one block per scope
-under the existing single per-router root - this does not move state or
-introduce a second apply unit, since W07's root migration (V-11/V-12) is a
-separate, still-blocked decision. `vpn.tf.j2`'s `has_security_matrix` becomes
-"at least one scope resolved", not "the one scope resolved".
 
 **What it needs before it can be specified like section 5 was:**
 
+- Conflict semantics for matrix cells: what makes two scopes' cells for the
+  same pair "the same" (safe to keep either) versus a contradiction to refuse -
+  and the diagnostic code for it, collision-checked in the existing 7009-7019
+  band or the next free one.
+- A decided uniqueness rule for policy-override names, scoped across every
+  scope one enforcer can hold, and a diagnostic when it is violated.
 - A two-scope MikroTik fixture (real or synthetic) to serve as the positive
-  control; the live topology has exactly one enabled scope today, so the
-  differential this needs is currently only exercisable synthetically.
-- A decision on the rendered shape when an enforcer holds several scopes on
-  different planes in the same file - one block per scope with a scope-derived
-  comment/marker, most likely, but this is the kind of rendering choice section
-  5's own history (the backend-parameterisation error W07 records) warns against
-  deciding by copying the shape of today's single-scope output.
+  control and the conflict counterexamples; the live topology has exactly one
+  enabled scope today.
 - Parity evidence against the real topology's one-scope case, the same way
-  section 5.5 required it, plus the counterexamples in the conformance record's
-  section 4 that this record has not yet exercised: two devices of one type
+  section 5.5 required it, plus the conformance record's remaining
+  counterexamples this record has not yet exercised: two devices of one type
   (no target/resource leakage), and the zero/multiple-adapter cases, which
-  belong to V-04/V-05 and stay blocked on the capability-axis decision even once
-  this chain lands.
+  belong to V-04/V-05 and stay blocked on the capability-axis decision even
+  once this chain lands.
 
 ## 6. What this record does not do
 
@@ -315,15 +376,29 @@ git status after compile                          generated/ unchanged, byte-ide
 
 A full `pytest tests -q -p no:randomly` was run once on this tree, before
 `c5f66c10`: 125 failed, all in `tests/plugin_integration/test_security_plan_validator.py`,
-which passes 77/77 in isolation. It has not been re-run in full after `c5f66c10`
-(a run was started and is still in progress at the time of this note). This is
-order-dependent cross-test pollution, bisected so far to somewhere among the 102
-`plugin_integration` files collected before the target file - `ai_rules`,
-`kernel`, `orchestration`, `plugin_api`, `plugin_contract` and the adjacent
-`test_security_plan_compiler.py` are individually cleared, each combined directly
-with the target and passing clean. `c5f66c10` touches only
-`security_matrix_compiler.py` and its own test file, neither of which
-`test_security_plan_validator.py` or its dependency chain imports, so it is very
-unlikely to be the cause, but that is inference, not a rerun. No claim in this
-record or in section 5 depends on the full suite passing. Tracked as open
-infrastructure debt, not as part of the ADR 0118/0119 scope.
+which passes 77/77 in isolation. That result was investigated rather than
+accepted at face value. Bisection cleared every directory collected before the
+target - `ai_rules`, `kernel`, `netmodel`, `orchestration`, `plugin_api`,
+`plugin_contract` - both individually and combined, and cleared both halves of
+the ~100 `plugin_integration` files collected before the target within that
+directory. The decisive check was the exact natural collection order `pytest
+tests` itself uses, reconstructed file-by-file and run as one invocation
+through the target inclusive (291-file collection order captured once, first
+201 files, exit code 0): **1981 passed, 1 skipped, 1 failed - and the failure
+was not the target file.** `test_security_plan_validator.py` passed clean, all
+77 of its tests, under the exact conditions that had produced 125 failures.
+The one failure that did occur (`test_projection_matches_golden_snapshot
+[proxmox-...]`) is explained: that pytest process started before `1336c12f`
+landed the golden-snapshot update V-15 required, so it ran against
+already-superseded source.
+
+No reproducible order-dependent pollution was found. The original 125 failures
+are best explained as a one-off condition specific to that one 52-minute,
+2573-test run - resource exhaustion (disk, file descriptors) from the many
+subprocess-heavy bootstrap/compile tests plugin_integration and plugin_contract
+both carry is the leading candidate, given the failure did not survive an exact
+structural reproduction. This is closed as an investigated, not reproduced,
+anomaly - not as a fixed bug, since nothing was found to fix. A fresh full
+`pytest tests` run remains the only way to see whether it recurs; it has not
+been re-run in full since this tree's V-13/V-15 changes landed. No claim in
+this record or in sections 5/5b depends on that outcome.

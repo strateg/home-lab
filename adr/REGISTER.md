@@ -416,3 +416,27 @@
   caused by `c5f66c10` (disjoint files) but not yet confirmed by a rerun. Not
   part of the ADR 0118/0119 scope.
 - No code, schema or artifact changed by this entry.
+
+## ADR 0118/0119 — consumer-chain finding N-06, pollution investigation closed, 2026-09-28
+
+- Corrects the readiness record's section 5b: "one rendered block per scope"
+  was wrong. `zone_firewall.tf.j2` emits exactly one terminal-deny resource and
+  `vpn.tf.j2` hardcodes two more references to it by name; RouterOS has one
+  `forward` chain per device regardless of how many scopes it holds. New
+  finding N-06 records this and redirects V-09/V-10/V-14 from a generate-stage
+  rendering change to a compile-stage composition step: zones union safely
+  (shared origin data), matrix cells and policy-override names do not and need
+  explicit conflict diagnostics rather than a silent last-write-wins merge -
+  the same defect class V-13 fixed for the enforcer index, one level deeper.
+  Not started; this is corrected design work, not code.
+- Closes the test-pollution investigation opened while validating `c5f66c10`.
+  The original 125 failures in `test_security_plan_validator.py` were not
+  reproduced: every preceding directory and both halves of the preceding
+  `plugin_integration` files were cleared individually, and the decisive
+  check - the exact natural collection order `pytest tests` itself uses,
+  reconstructed and run through the target file inclusive - passed the target
+  clean (1981 passed, 1 skipped, 1 unrelated failure explained by process
+  timing relative to `1336c12f`). Closed as an investigated, not reproduced,
+  anomaly, most likely resource exhaustion specific to the original
+  2573-test run, not a code defect requiring a fix.
+- No code, schema or artifact changed by this entry.
