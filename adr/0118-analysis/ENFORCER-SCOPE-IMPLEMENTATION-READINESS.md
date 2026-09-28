@@ -421,6 +421,64 @@ before anything consumed it. Wiring the MikroTik projection to read
 `composed_matrices_by_enforcer` instead, and the two-scope fixture to prove
 parity when it does, remain open.
 
+## 5d. N-07: `_extract_security_matrix` re-derives R1-R6, not just zones
+
+Found by reading `_extract_security_matrix` in full before wiring it, rather
+than assuming "reads `network_rows` directly" meant only zone selection.
+
+It does not read `security_matrices[matrix_id]["matrix"]` or
+`["policy_overrides"]` at all. It re-scans `network_rows` for the matrix
+instance, reads `inst_data` and `objects_map` directly, and runs its own R1-R6
+implementation - a third derivation of the same fact, after the compiler's
+`_calculate_matrix` and the W05 test oracle in
+`test_zone_derivation_parity_w05.py`. `compiled_zones` (from
+`security_matrices`) supplies only zone *names/levels*; the projection
+computes every matrix cell itself.
+
+Comparing the two implementations line by line, three points diverge in text,
+none currently in output:
+
+- **R6 ordering.** The compiler checks R6 before R1-R5; the projection
+  computes R1-R5 for every pair first, then applies R6 as a final unconditional
+  overwrite. For a stored cell this produces the same final value either way -
+  R6 wins regardless of order - so this is a difference in intermediate steps,
+  not in the published result.
+- **R1 vs R1b.** The compiler distinguishes `enforcement_plane`: same-zone is
+  `R1`/allow for `perimeter`, `R1b`/deny-by-default for `internal`. The
+  projection has only the perimeter behaviour, unconditionally. Latent on this
+  topology: every MikroTik matrix today declares `enforcement_plane: perimeter`
+  (`obj.network.security_matrix.soho`), so the compiler's own R1 branch is the
+  one that would apply, and it agrees with the projection's hardcoded rule. An
+  `internal`-plane MikroTik matrix would disagree; none exists.
+- **R2 untrusted match.** The compiler: `"untrusted" in to_zone.lower() or
+  (to_level == 0 and to_name.lower() == "untrusted zone")` (exact name match).
+  The projection: the same first clause, `to_level == 0 and "untrusted" in
+  to_name.lower()` (substring). The real zone's ref is
+  `inst.trust_zone.untrusted` and its name is `Untrusted Zone`
+  (`obj.network.trust_zone.untrusted.yaml:8`), so the first `or`-clause -
+  identical in both - already matches; the diverging second clause is never
+  reached for this topology's actual data.
+
+All three are the same character of finding as the silent `"perimeter"`
+default in section 3.2: a divergence that is real in the source and inactive
+only because of how the current topology happens to be shaped, not because the
+two implementations are equivalent. `src_vlan_ref`/`dst_vlan_ref` resolution
+to `src_address`/`dst_address` (the F05 fix) is not part of this finding - the
+compiler never does it, so there is one owner, not two, and it stays in the
+projection as a legitimate post-composition step needing `vlan_cidr_map`.
+
+**Consequence for V-09/V-10/V-14.** Wiring the projection to
+`composed_matrices_by_enforcer` is not a return-type change on top of the
+existing computation, as the touch-points table in section 5b implied - it
+retires this third derivation, consuming the compiler's already-computed
+`matrix`/`policy_overrides` per scope (unioned across scopes under D-COMP-1
+composition) instead of recomputing them. That is a larger, and on net
+smaller-risk, change than "keep computing locally, just loop over more
+scopes": it removes duplicated logic rather than duplicating it a second time
+to cover multiplicity. Byte-identical output on the real single-scope topology
+is the parity claim this makes and the one that must be verified before it
+lands, the same discipline W05 and section 5.5 already established.
+
 ## 6. What this record does not do
 
 No gate advances. `W07`/`G4` are not closed by section 5: it repairs one published
