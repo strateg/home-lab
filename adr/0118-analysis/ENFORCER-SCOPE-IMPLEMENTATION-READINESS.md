@@ -17,13 +17,19 @@ Owns the ten open implementation rows: [conformance record](ENFORCER-AXIS-CONFOR
 Owns the layout decision: [W07](W07-BACKEND-SPECIALIZATION-DECISION.md).
 Owns gate sequencing: [roadmap](IMPLEMENTATION-ROADMAP-2026-09-15.md).
 
-**Implementation status, 2026-09-28.** Section 5 is implemented: commit
-`c5f66c10` on branch `adr-0118-0119` replaces `matrix_by_enforcer` with
-`scopes_by_enforcer`, adds `E7010`/`E7011`/`W7012`, and lands the section 5.4
-counterexamples as `TestScopesByEnforcer`. Evidence is in section 7. This does
-not close W07/G4 - see section 6, unchanged. Section 4's sequencing is updated
-below to reflect what section 5 unblocks; nothing else in sections 1-3 is
-revised, since the measurements they record are still accurate for this tree.
+**Implementation status, 2026-09-28 (updated).** Three changes have landed on
+branch `adr-0118-0119`, in order:
+
+1. `c5f66c10` - section 5: `matrix_by_enforcer` replaced by `scopes_by_enforcer`,
+   `E7010`/`E7011`/`W7012` added, section 5.4 counterexamples as `TestScopesByEnforcer`.
+2. `1336c12f` - V-15: the Proxmox projection's dead second derivation deleted.
+3. `e72d0099` - section 5c: `composed_matrices_by_enforcer` published, `E7013`/`E7014`
+   added, `TestComposedMatricesByEnforcer`.
+
+Evidence for each is in section 7. None closes W07/G4 - see section 6, unchanged.
+Sections 1-3 are not revised: the measurements they record predate all three
+changes and are still accurate as a baseline for this tree. Section 4's
+sequencing reflects the current state after all three.
 
 ## 1. What this record adds
 
@@ -312,12 +318,15 @@ second D1.1-style contract than to section 5's channel rename.
 **Touch points, corrected:**
 
 ```
-security_matrix_compiler.py   new: compose scopes_by_enforcer[e] into one
-                               validated per-enforcer plan; diagnose matrix-cell
-                               and override-name conflicts instead of merging them
-projections.py  _extract_security_matrix(...)   reads the composed plan for this
-                router instead of first-matching matrix_instances itself
-templates/terraform/zone_firewall.tf.j2   unchanged in shape; consumes composed input
+security_matrix_compiler.py   DONE (e72d0099, section 5c): composes
+                               scopes_by_enforcer[e] into one validated
+                               per-enforcer plan, diagnoses matrix-cell and
+                               override-name conflicts instead of merging them
+projections.py  _extract_security_matrix(...)   OPEN: still first-matches
+                matrix_instances directly; needs to read the composed plan
+                for this router instead
+templates/terraform/zone_firewall.tf.j2   unchanged in shape; will consume
+                                           composed input once wired
 templates/terraform/vpn.tf.j2             unchanged; the single zone_drop_all_forward
                                            reference stays valid because there is still one
 ```
@@ -341,7 +350,7 @@ parity work remain open.
   belong to V-04/V-05 and stay blocked on the capability-axis decision even
   once this chain lands. Still open.
 
-### 5c. Composition contract, decided 2026-09-28
+## 5c. Composition contract, decided 2026-09-28
 
 The two open questions above are resolved here, narrower in scope than N-02:
 this governs only how the MikroTik adapter composes several scopes on one
@@ -443,6 +452,43 @@ pytest tests/test_diagnostic_code_registry.py tests/test_plugin_registry.py -q
 generate-framework-lock.py --force && verify-framework-lock.py --strict   OK
 compile-topology.py (canonical invocation)                errors=0 warnings=2
                                               (matches the last recorded baseline)
+git status after compile                          generated/ unchanged, byte-identical
+```
+
+Evidence for V-15, at `1336c12f`:
+
+```
+pytest tests/plugin_integration/test_projection_snapshots.py
+      tests/plugin_integration/test_projection_helpers.py
+      tests/plugin_integration/test_terraform_proxmox_generator.py
+      tests/plugin_integration/test_generator_projection_contract.py
+      tests/plugin_contract/test_object_generator_ownership.py
+      tests/plugin_contract/test_projection_ownership_boundaries.py -q    49 passed
+pytest tests/plugin_regression/test_terraform_proxmox_parity.py
+      tests/plugin_integration/test_bootstrap_generators.py -q  13 passed, 1 skipped
+pytest tests/test_diagnostic_code_registry.py
+      tests/test_backend_specialization_boundary.py -q                   20 passed
+generate-framework-lock.py --force && verify-framework-lock.py --strict   OK
+compile-topology.py (canonical invocation)                errors=0 warnings=2
+git status after compile                          generated/ unchanged, byte-identical
+```
+
+Evidence for section 5c (D-COMP-1..4), at `e72d0099`:
+
+```
+pytest tests/plugin_integration/test_security_matrix_compiler.py -q      36 passed
+pytest tests/plugin_contract/test_integration_tests_no_legacy_publish_registry.py
+      tests/test_diagnostic_code_registry.py tests/test_plugin_registry.py
+      tests/test_backend_specialization_boundary.py -q                   27 passed
+pytest tests/plugin_contract/test_manifest.py
+      tests/plugin_contract/test_validate_plugin_manifests.py -q         40 passed
+pytest tests/plugin_integration/test_mikrotik_capability_driven.py
+      tests/plugin_integration/test_generator_projection_contract.py
+      tests/plugin_integration/test_zone_derivation_parity_w05.py
+      tests/plugin_regression/test_terraform_mikrotik_parity.py -q
+                                                       34 passed, 1 skipped
+generate-framework-lock.py --force && verify-framework-lock.py --strict   OK
+compile-topology.py (canonical invocation)                errors=0 warnings=2
 git status after compile                          generated/ unchanged, byte-identical
 ```
 
