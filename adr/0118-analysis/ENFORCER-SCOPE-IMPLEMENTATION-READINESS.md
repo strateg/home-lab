@@ -126,7 +126,7 @@ Two smaller observations, recorded so they are not rediscovered:
 |---|---|---|
 | V-13, N-05, plane default | **Done** - `c5f66c10` | `scopes_by_enforcer` published, complete and deterministic; `E7010`/`E7011` refuse the two silent gaps |
 | V-15 (Proxmox second/third derivation) | **Done** - `1336c12f` | dead second derivation deleted (zero consumers, confirmed by grep); golden snapshot updated; `depends_on: []` left as is, since no real consumer exists yet to justify wiring `scopes_by_enforcer` there |
-| V-09, V-10, V-14 | Design decided (section 5c); not yet coded | needs a compile-stage composition step (D-COMP-1..4), not the generate-stage loop first sketched (N-06: RouterOS has one `forward` chain, not one per scope) - and a two-scope fixture, which the live topology does not have |
+| V-09, V-10, V-14 | Composition landed (5c); consumer chain still unstarted | `composed_matrices_by_enforcer` published, zero subscribers; `_extract_security_matrix` in `projections.py` still first-matches directly. Wiring the projection and a two-scope fixture remain |
 | V-04, V-05, V-08, N-01-N-04 | **Blocked on a decision, not on code** | which registered namespace is the enforcement-capability axis (N-02), what becomes of the other three identifiers, and whether `enabled_packs` contribute to the effective set (N-04). Adding a declaration before that decision picks the axis by accident - the failure mode ADR 0119 D1.1 names |
 | V-07 | Blocked on G1/W03 | the derived scope/context contract must be registered before a field claims to carry resolved type and adapter identity |
 | V-11, V-12 | Blocked on a reviewed behaviour change | the W07 root/state migration relocates Terraform state; W07 records it as design preparation and explicitly not authorization to migrate state |
@@ -394,11 +394,23 @@ an enforcer), both error/compile, in the same 7009-7019 sub-band; collision
 check re-run and clean (`grep -rEon '[EWI]70(1[3-9])'`, excl. `build/`,
 `.venv/` - only this record's own prose mentions the numbers).
 
-This decision does not implement anything: `security_matrix_compiler.py` does
-not yet compose, D-COMP-1..4 are not yet coded, and no test exercises them.
-It removes the open design questions section 5b listed, so V-09/V-10/V-14 can
-now be specified the way section 5 was for V-13, with a two-scope fixture as
-the next step.
+**Implemented, separate commit.** D-COMP-1..4 are coded in
+`security_matrix_compiler.py`, publishing a new `composed_matrices_by_enforcer`
+channel (zero subscribers so far - the same safe, testable-in-isolation shape
+V-13's channel had before anything read it). `E7013`/`E7014` fire on the
+counterexamples in `TestComposedMatricesByEnforcer`: overlapping zones,
+colliding override names, order-independence, two-enforcer independence, and a
+single-scope positive control confirming composition of one scope is a no-op.
+Real topology: `errors=0 warnings=2` (matches baseline), `generated/`
+byte-unchanged, since the one enabled scope composes trivially with itself.
+
+**Still open before V-09/V-10/V-14 can render anything.** The composed
+channel has no reader yet. `_extract_security_matrix` in `projections.py`
+still first-matches `security_matrices` directly, so the real generator output
+is unaffected by this step - by design, matching how V-13 landed its channel
+before anything consumed it. Wiring the MikroTik projection to read
+`composed_matrices_by_enforcer` instead, and the two-scope fixture to prove
+parity when it does, remain open.
 
 ## 6. What this record does not do
 
