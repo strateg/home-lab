@@ -126,7 +126,7 @@ Two smaller observations, recorded so they are not rediscovered:
 |---|---|---|
 | V-13, N-05, plane default | **Done** - `c5f66c10` | `scopes_by_enforcer` published, complete and deterministic; `E7010`/`E7011` refuse the two silent gaps |
 | V-15 (Proxmox second/third derivation) | **Done** - `1336c12f` | dead second derivation deleted (zero consumers, confirmed by grep); golden snapshot updated; `depends_on: []` left as is, since no real consumer exists yet to justify wiring `scopes_by_enforcer` there |
-| V-09, V-10, V-14 | **Now implementable** - was blocked on V-13 landing | the channel can express multiplicity; the consumer chain (projection return type, generator, `zone_firewall.tf.j2` grouping) is unstarted. This is the next candidate |
+| V-09, V-10, V-14 | Design decided (section 5c); not yet coded | needs a compile-stage composition step (D-COMP-1..4), not the generate-stage loop first sketched (N-06: RouterOS has one `forward` chain, not one per scope) - and a two-scope fixture, which the live topology does not have |
 | V-04, V-05, V-08, N-01-N-04 | **Blocked on a decision, not on code** | which registered namespace is the enforcement-capability axis (N-02), what becomes of the other three identifiers, and whether `enabled_packs` contribute to the effective set (N-04). Adding a declaration before that decision picks the axis by accident - the failure mode ADR 0119 D1.1 names |
 | V-07 | Blocked on G1/W03 | the derived scope/context contract must be registered before a field claims to carry resolved type and adapter identity |
 | V-11, V-12 | Blocked on a reviewed behaviour change | the W07 root/state migration relocates Terraform state; W07 records it as design preparation and explicitly not authorization to migrate state |
@@ -322,23 +322,83 @@ templates/terraform/vpn.tf.j2             unchanged; the single zone_drop_all_fo
                                            reference stays valid because there is still one
 ```
 
-**What it needs before it can be specified like section 5 was:**
+**What it needed before it could be specified like section 5 was.** Two of
+the three items below are now resolved in section 5c; only the fixture and
+parity work remain open.
 
-- Conflict semantics for matrix cells: what makes two scopes' cells for the
-  same pair "the same" (safe to keep either) versus a contradiction to refuse -
-  and the diagnostic code for it, collision-checked in the existing 7009-7019
-  band or the next free one.
-- A decided uniqueness rule for policy-override names, scoped across every
-  scope one enforcer can hold, and a diagnostic when it is violated.
+- ~~Conflict semantics for matrix cells~~ - resolved, section 5c D-COMP-1:
+  disjoint zones make the conflict structurally impossible rather than
+  something to adjudicate.
+- ~~A decided uniqueness rule for policy-override names~~ - resolved, section
+  5c D-COMP-2: unique per enforcer, refused on collision.
 - A two-scope MikroTik fixture (real or synthetic) to serve as the positive
-  control and the conflict counterexamples; the live topology has exactly one
-  enabled scope today.
+  control and the D-COMP-1/D-COMP-2 counterexamples; the live topology has
+  exactly one enabled scope today. Still open.
 - Parity evidence against the real topology's one-scope case, the same way
   section 5.5 required it, plus the conformance record's remaining
   counterexamples this record has not yet exercised: two devices of one type
   (no target/resource leakage), and the zero/multiple-adapter cases, which
   belong to V-04/V-05 and stay blocked on the capability-axis decision even
-  once this chain lands.
+  once this chain lands. Still open.
+
+### 5c. Composition contract, decided 2026-09-28
+
+The two open questions above are resolved here, narrower in scope than N-02:
+this governs only how the MikroTik adapter composes several scopes on one
+enforcer, a case unexercised anywhere in the real topology today. It fulfils
+ADR 0119 D1's existing requirement - "composition across scopes sharing an
+enforcer... validated rather than assumed" - rather than amending the ADR.
+
+**D-COMP-1, zones: pairwise disjoint, refused on overlap.** Scopes composed
+for one enforcer must not share a `zone_ref`. This is deliberately stricter
+than "merge if identical": a cell for `(from_zone, to_zone)` can only exist in
+a scope whose `zone_refs` contains both, so disjoint zones make a matrix-cell
+collision between scopes structurally impossible - there is no equal-cells
+comparison to design, implement or get subtly wrong. The cost is real: a
+future need for two scopes to legitimately share a zone (e.g. one scope for
+base connectivity, another for audit logging over the same zone) is refused
+today, not accommodated. That is the intended direction - starting strict and
+loosening later is a reviewed amendment; starting permissive and restricting
+later breaks whatever already relied on the permissive behaviour. If that need
+arises, it is a new decision, not a bug in this one.
+
+**D-COMP-2, policy overrides: unique names, refused on collision.** Every
+`policy_overrides` entry's `name` must be unique across every scope one
+enforcer composes - not globally, since the Terraform root is per enforcer
+today and only names rendered into one root can collide at
+`routeros_ip_firewall_filter.zone_override_<name>`. Two different enforcers
+may reuse a name freely. This is a refusal, not a rename-to-disambiguate:
+silently qualifying a collided name would hide the authoring problem inside
+generated output instead of surfacing it to the author, the same reasoning
+D1.1 already applies to adapter resolution - ambiguity is reported, not
+guessed past.
+
+**D-COMP-3, composed shape.** For enforcer `e` with scopes `scopes_by_enforcer[e]`
+in their existing sorted order: `zones = union` of each scope's zones (safe
+under D-COMP-1: disjoint keys, no collision possible), `matrix = union` of
+each scope's matrix (safe for the same reason - a shared key is exactly what
+D-COMP-1 refuses upstream), `policy_overrides = concatenation` in scope order,
+each entry already name-unique under D-COMP-2. The composed dict has the same
+`{zones, matrix, policy_overrides}` shape `zone_firewall.tf.j2` already
+consumes; nothing downstream of composition needs to change shape.
+
+**D-COMP-4, determinism.** Scopes are processed in the sorted order
+`scopes_by_enforcer` already establishes, so the composed plan does not depend
+on `normalized_rows` input order - the same guarantee V-13 established for the
+index one level up, extended through composition rather than left to stop at
+the index.
+
+**Diagnostics.** `E7013` (zone_refs overlap between scopes sharing an
+enforcer) and `E7014` (policy_override name collision across scopes sharing
+an enforcer), both error/compile, in the same 7009-7019 sub-band; collision
+check re-run and clean (`grep -rEon '[EWI]70(1[3-9])'`, excl. `build/`,
+`.venv/` - only this record's own prose mentions the numbers).
+
+This decision does not implement anything: `security_matrix_compiler.py` does
+not yet compose, D-COMP-1..4 are not yet coded, and no test exercises them.
+It removes the open design questions section 5b listed, so V-09/V-10/V-14 can
+now be specified the way section 5 was for V-13, with a two-scope fixture as
+the next step.
 
 ## 6. What this record does not do
 

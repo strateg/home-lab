@@ -440,3 +440,29 @@
   anomaly, most likely resource exhaustion specific to the original
   2573-test run, not a code defect requiring a fix.
 - No code, schema or artifact changed by this entry.
+
+## ADR 0118/0119 — composition contract decided (D-COMP-1..4), 2026-09-28
+
+- Resolves the two design questions N-06 left open, narrower in scope than
+  N-02: how the MikroTik adapter composes several scopes on one enforcer, a
+  case unexercised anywhere in the real topology today. Fulfils ADR 0119 D1's
+  existing requirement that composition across scopes sharing an enforcer be
+  validated rather than assumed; does not amend the ADR.
+- D-COMP-1: scopes composed for one enforcer must have pairwise-disjoint
+  `zone_refs`, refused on overlap. Deliberately stricter than an
+  equal-cells-are-safe merge - it makes a matrix-cell collision between scopes
+  structurally impossible rather than something to adjudicate, at the cost of
+  refusing a legitimate future case (two scopes sharing a zone for different
+  concerns) until that is its own reviewed decision.
+- D-COMP-2: `policy_overrides` names must be unique per enforcer (not
+  globally), refused on collision rather than silently disambiguated - the
+  same reasoning D1.1 already applies to adapter resolution.
+- D-COMP-3/D-COMP-4: the composed shape (zones/matrix union, overrides
+  concatenated) and its determinism (scopes processed in
+  `scopes_by_enforcer`'s existing sorted order).
+- New diagnostics `E7013`/`E7014`, collision-checked clean in the 7009-7019
+  sub-band of the existing ADR 0118/0119 allocation.
+- Not implemented: `security_matrix_compiler.py` does not yet compose, no test
+  exercises D-COMP-1..4. Removes the design blockers section 5b listed for
+  V-09/V-10/V-14; a two-scope fixture and parity evidence remain open before
+  that chain can be specified the way section 5 was for V-13.
