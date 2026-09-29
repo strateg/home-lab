@@ -17,7 +17,7 @@ Owns the ten open implementation rows: [conformance record](ENFORCER-AXIS-CONFOR
 Owns the layout decision: [W07](W07-BACKEND-SPECIALIZATION-DECISION.md).
 Owns gate sequencing: [roadmap](IMPLEMENTATION-ROADMAP-2026-09-15.md).
 
-**Implementation status, 2026-09-28 (updated).** Three changes have landed on
+**Implementation status, 2026-09-29 (updated).** Four changes have landed on
 branch `adr-0118-0119`, in order:
 
 1. `c5f66c10` - section 5: `matrix_by_enforcer` replaced by `scopes_by_enforcer`,
@@ -25,11 +25,16 @@ branch `adr-0118-0119`, in order:
 2. `1336c12f` - V-15: the Proxmox projection's dead second derivation deleted.
 3. `e72d0099` - section 5c: `composed_matrices_by_enforcer` published, `E7013`/`E7014`
    added, `TestComposedMatricesByEnforcer`.
+4. `e868abbe` - sections 5b/5d (N-07): `_extract_security_matrix` reads the
+   composed plan instead of re-deriving R1-R6 itself, its third independent
+   derivation of that fact; real-topology `generated/` verified byte-identical.
+5. `168b4f27` - the two-scope composed-plan fixture `e868abbe` still needed,
+   in `test_projection_helpers.py`.
 
 Evidence for each is in section 7. None closes W07/G4 - see section 6, unchanged.
-Sections 1-3 are not revised: the measurements they record predate all three
+Sections 1-3 are not revised: the measurements they record predate all five
 changes and are still accurate as a baseline for this tree. Section 4's
-sequencing reflects the current state after all three.
+sequencing reflects the current state after all five.
 
 ## 1. What this record adds
 
@@ -132,7 +137,7 @@ Two smaller observations, recorded so they are not rediscovered:
 |---|---|---|
 | V-13, N-05, plane default | **Done** - `c5f66c10` | `scopes_by_enforcer` published, complete and deterministic; `E7010`/`E7011` refuse the two silent gaps |
 | V-15 (Proxmox second/third derivation) | **Done** - `1336c12f` | dead second derivation deleted (zero consumers, confirmed by grep); golden snapshot updated; `depends_on: []` left as is, since no real consumer exists yet to justify wiring `scopes_by_enforcer` there |
-| V-09, V-10, V-14 | Composition landed (5c); consumer chain still unstarted | `composed_matrices_by_enforcer` published, zero subscribers; `_extract_security_matrix` in `projections.py` still first-matches directly. Wiring the projection and a two-scope fixture remain |
+| V-09, V-10, V-14 | **Done** - `e868abbe`, `168b4f27` | `_extract_security_matrix` reads `composed_matrices_by_enforcer`; retired its own third R1-R6 derivation (N-07) rather than adding a fourth. Two-scope fixture in `test_projection_helpers.py`; real one-scope topology `generated/` byte-identical. V-10 closed for multi-*scope*; multi-*enforcer* stays with V-11/V-12 |
 | V-04, V-05, V-08, N-01-N-04 | **Blocked on a decision, not on code** | which registered namespace is the enforcement-capability axis (N-02), what becomes of the other three identifiers, and whether `enabled_packs` contribute to the effective set (N-04). Adding a declaration before that decision picks the axis by accident - the failure mode ADR 0119 D1.1 names |
 | V-07 | Blocked on G1/W03 | the derived scope/context contract must be registered before a field claims to carry resolved type and adapter identity |
 | V-11, V-12 | Blocked on a reviewed behaviour change | the W07 root/state migration relocates Terraform state; W07 records it as design preparation and explicitly not authorization to migrate state |
@@ -322,33 +327,34 @@ security_matrix_compiler.py   DONE (e72d0099, section 5c): composes
                                scopes_by_enforcer[e] into one validated
                                per-enforcer plan, diagnoses matrix-cell and
                                override-name conflicts instead of merging them
-projections.py  _extract_security_matrix(...)   OPEN: still first-matches
-                matrix_instances directly; needs to read the composed plan
-                for this router instead
-templates/terraform/zone_firewall.tf.j2   unchanged in shape; will consume
-                                           composed input once wired
+projections.py  _extract_security_matrix(...)   DONE (e868abbe): reads
+                composed_matrices_by_enforcer for the sorted-first router
+                with a composed plan; retired its own R1-R6 re-derivation (N-07)
+templates/terraform/zone_firewall.tf.j2   unchanged in shape, as planned;
+                                           consumes composed input, untouched
 templates/terraform/vpn.tf.j2             unchanged; the single zone_drop_all_forward
                                            reference stays valid because there is still one
 ```
 
-**What it needed before it could be specified like section 5 was.** Two of
-the three items below are now resolved in section 5c; only the fixture and
-parity work remain open.
+**What it needed before it could be specified like section 5 was - all four
+resolved or landed.**
 
 - ~~Conflict semantics for matrix cells~~ - resolved, section 5c D-COMP-1:
   disjoint zones make the conflict structurally impossible rather than
   something to adjudicate.
 - ~~A decided uniqueness rule for policy-override names~~ - resolved, section
   5c D-COMP-2: unique per enforcer, refused on collision.
-- A two-scope MikroTik fixture (real or synthetic) to serve as the positive
-  control and the D-COMP-1/D-COMP-2 counterexamples; the live topology has
-  exactly one enabled scope today. Still open.
-- Parity evidence against the real topology's one-scope case, the same way
-  section 5.5 required it, plus the conformance record's remaining
-  counterexamples this record has not yet exercised: two devices of one type
-  (no target/resource leakage), and the zero/multiple-adapter cases, which
-  belong to V-04/V-05 and stay blocked on the capability-axis decision even
-  once this chain lands. Still open.
+- ~~A two-scope MikroTik fixture~~ - landed,
+  `test_mikrotik_projection_reads_a_two_scope_composed_plan` in
+  `test_projection_helpers.py` (`168b4f27`): a synthetic two-scope composed
+  plan through `build_mikrotik_projection`, checking the union, the
+  comma-joined `instance_id` and vlan-ref resolution on the composed
+  overrides.
+- ~~Parity evidence against the real topology's one-scope case~~ - landed:
+  `generated/` byte-identical after a clean recompile. The conformance
+  record's two-device and zero/multiple-adapter counterexamples remain out of
+  this chain's scope - they belong to V-04/V-05 and the capability-axis
+  decision, unaffected by this step.
 
 ## 5c. Composition contract, decided 2026-09-28
 
@@ -413,13 +419,11 @@ single-scope positive control confirming composition of one scope is a no-op.
 Real topology: `errors=0 warnings=2` (matches baseline), `generated/`
 byte-unchanged, since the one enabled scope composes trivially with itself.
 
-**Still open before V-09/V-10/V-14 can render anything.** The composed
-channel has no reader yet. `_extract_security_matrix` in `projections.py`
-still first-matches `security_matrices` directly, so the real generator output
-is unaffected by this step - by design, matching how V-13 landed its channel
-before anything consumed it. Wiring the MikroTik projection to read
-`composed_matrices_by_enforcer` instead, and the two-scope fixture to prove
-parity when it does, remain open.
+**Wired, separate commit (`e868abbe`).** `_extract_security_matrix` now reads
+`composed_matrices_by_enforcer` for the sorted-first router with a composed
+plan, resolving only `src_vlan_ref`/`dst_vlan_ref` addressing itself (the F05
+fix, which the compiler does not own). The two-scope fixture and real-topology
+parity evidence are both in section 5b's closing list, resolved.
 
 ## 5d. N-07: `_extract_security_matrix` re-derives R1-R6, not just zones
 
@@ -467,17 +471,17 @@ to `src_address`/`dst_address` (the F05 fix) is not part of this finding - the
 compiler never does it, so there is one owner, not two, and it stays in the
 projection as a legitimate post-composition step needing `vlan_cidr_map`.
 
-**Consequence for V-09/V-10/V-14.** Wiring the projection to
-`composed_matrices_by_enforcer` is not a return-type change on top of the
-existing computation, as the touch-points table in section 5b implied - it
-retires this third derivation, consuming the compiler's already-computed
-`matrix`/`policy_overrides` per scope (unioned across scopes under D-COMP-1
-composition) instead of recomputing them. That is a larger, and on net
-smaller-risk, change than "keep computing locally, just loop over more
-scopes": it removes duplicated logic rather than duplicating it a second time
-to cover multiplicity. Byte-identical output on the real single-scope topology
-is the parity claim this makes and the one that must be verified before it
-lands, the same discipline W05 and section 5.5 already established.
+**Consequence for V-09/V-10/V-14, landed.** Wiring the projection to
+`composed_matrices_by_enforcer` was not a return-type change on top of the
+existing computation, as the touch-points table in section 5b first implied -
+it retired this third derivation, consuming the compiler's already-composed
+`matrix`/`policy_overrides` per enforcer instead of recomputing them. That
+was a larger, and on net smaller-risk, change than "keep computing locally,
+just loop over more scopes": it removed duplicated logic rather than
+duplicating it a second time to cover multiplicity. Byte-identical output on
+the real single-scope topology was the parity claim this made, verified
+(`git status` after a clean recompile shows no diff under `generated/`),
+the same discipline W05 and section 5.5 already established.
 
 ## 6. What this record does not do
 
@@ -547,6 +551,33 @@ pytest tests/plugin_integration/test_mikrotik_capability_driven.py
                                                        34 passed, 1 skipped
 generate-framework-lock.py --force && verify-framework-lock.py --strict   OK
 compile-topology.py (canonical invocation)                errors=0 warnings=2
+git status after compile                          generated/ unchanged, byte-identical
+```
+
+Evidence for sections 5b/5d (V-09/V-10/V-14, N-07), at `e868abbe` and the fixture at `168b4f27`:
+
+```
+pytest tests/plugin_integration/test_security_matrix_compiler.py
+      tests/plugin_integration/test_projection_helpers.py
+      tests/plugin_integration/test_projection_snapshots.py
+      tests/plugin_integration/test_mikrotik_capability_driven.py
+      tests/plugin_integration/test_zone_derivation_parity_w05.py
+      tests/plugin_integration/test_generator_projection_contract.py
+      tests/plugin_integration/test_terraform_mikrotik_generator.py
+      tests/plugin_integration/test_mikrotik_runtime_baseline_contract.py
+      tests/plugin_integration/test_tuc0002_terraform_v2.py
+      tests/plugin_integration/test_tuc0003_mikrotik_v2.py
+      tests/plugin_integration/test_generator_template_and_publish_contract.py
+      tests/test_backend_specialization_boundary.py
+      tests/test_diagnostic_code_registry.py tests/test_plugin_registry.py
+      tests/plugin_contract/test_manifest.py
+      tests/plugin_contract/test_validate_plugin_manifests.py
+      tests/plugin_contract/test_integration_tests_no_legacy_publish_registry.py
+      tests/plugin_regression/test_terraform_mikrotik_parity.py -q
+                                                       200 passed, 1 skipped
+generate-framework-lock.py --force && verify-framework-lock.py --strict   OK
+compile-topology.py (canonical invocation)                errors=0 warnings=2
+                                        (matches the last recorded baseline)
 git status after compile                          generated/ unchanged, byte-identical
 ```
 

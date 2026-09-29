@@ -466,3 +466,29 @@
   exercises D-COMP-1..4. Removes the design blockers section 5b listed for
   V-09/V-10/V-14; a two-scope fixture and parity evidence remain open before
   that chain can be specified the way section 5 was for V-13.
+
+## ADR 0118/0119 — V-09/V-10/V-14 landed, readiness record closed out, 2026-09-29
+
+- `e868abbe`: `_extract_security_matrix` in the MikroTik projection reads the
+  compiler's `composed_matrices_by_enforcer` instead of re-deriving zone
+  membership and R1-R6 itself. Finding N-07 (recorded first, before coding)
+  characterized that local computation as a third independent derivation of
+  the same fact, diverged from the compiler in three ways found by reading
+  both implementations side by side - none active on the real topology's data.
+  `security_matrices` retired entirely as a MikroTik consume (manifest,
+  generator, projection signature) rather than left accepted-but-unread.
+  `tests/test_backend_specialization_boundary.py`'s line budget lowered
+  1518 -> 1399, matching the function's 209 -> 94 line shrink; the W07
+  decision document's migration-order step 3 marked Done.
+- `168b4f27`: the two-scope composed-plan fixture section 5b/5d called for,
+  in `test_projection_helpers.py` - exercises `build_mikrotik_projection`
+  with a genuinely multi-scope composed plan, which the real topology (one
+  enabled scope) cannot exercise on its own.
+- Real-topology parity verified: `generated/` byte-identical after a clean
+  recompile, `errors=0 warnings=2` matching the recorded baseline.
+- Readiness record reconciled: V-09/V-10/V-14 marked Done in section 4;
+  sections 5b/5d's now-resolved open items struck through; evidence for both
+  commits added to section 7; the status banner lists all five landed changes
+  (`c5f66c10`, `1336c12f`, `e72d0099`, `e868abbe`, `168b4f27`).
+- No design decision changes in this entry - implementation and bookkeeping
+  only, against the design section 5c already decided.
