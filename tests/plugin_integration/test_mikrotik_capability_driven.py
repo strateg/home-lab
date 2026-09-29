@@ -64,7 +64,7 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
     They are required arguments now - the projection derives no substitute for
     `base.compiler.security_matrix` - so omission is an error and `{}` is a claim.
     """
-    kwargs.setdefault("security_matrices", {})
+    kwargs.setdefault("composed_matrices_by_enforcer", {})
     kwargs.setdefault("vlan_cidr_map", {})
     return _raw_build_mikrotik_projection(_semanticize(compiled_json), **kwargs)
 
@@ -273,7 +273,7 @@ class TestMikroTikGeneratorCapabilityDriven:
         # leave them absent - absence is a blocked generation, which
         # `test_the_generator_blocks_when_the_compiler_published_nothing` covers.
         if publish_channels:
-            for key in ("security_matrices", "vlan_cidr_map"):
+            for key in ("composed_matrices_by_enforcer", "vlan_cidr_map"):
                 publish_for_test(ctx, _SECURITY_MATRIX_COMPILER, key, {})
         return ctx
 
@@ -427,6 +427,6 @@ class TestMikroTikGeneratorCapabilityDriven:
         spec = next(item for item in manifest["plugins"] if item["id"] == "object.mikrotik.generator.terraform")
         consumes = {item["key"]: item for item in spec.get("consumes", [])}
 
-        for key in ("security_matrices", "vlan_cidr_map"):
+        for key in ("composed_matrices_by_enforcer", "vlan_cidr_map"):
             assert consumes[key]["from_plugin"] == _SECURITY_MATRIX_COMPILER
             assert consumes[key]["required"] is True, f"{key} must block generation when absent"

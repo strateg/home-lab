@@ -18,7 +18,15 @@ plugins:
       # (A24 / W05). Required: the projection derives no substitute, so an absent
       # channel must block generation rather than render empty address lists and
       # empty tunnel routes while reporting success. The kernel raises E8003.
-      - key: security_matrices
+      #
+      # composed_matrices_by_enforcer replaces security_matrices here (ADR
+      # 0118-analysis/ENFORCER-SCOPE-IMPLEMENTATION-READINESS.md sections
+      # 5c/5d, N-07): the compiler's already-validated, already-computed
+      # R1-R6 matrix per enforcer, composed across every scope it holds. The
+      # projection used to re-derive R1-R6 itself from raw network_rows, a
+      # third derivation of the same fact; it now only resolves
+      # src_vlan_ref/dst_vlan_ref addresses, which the compiler does not own.
+      - key: composed_matrices_by_enforcer
         from_plugin: base.compiler.security_matrix
         required: true
       - key: vlan_cidr_map

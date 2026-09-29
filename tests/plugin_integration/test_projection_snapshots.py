@@ -36,7 +36,7 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
     passing `{}` is a fixture saying it declares no matrices and no domains. A
     test that cares about zone or CIDR content passes a real mapping.
     """
-    kwargs.setdefault("security_matrices", {})
+    kwargs.setdefault("composed_matrices_by_enforcer", {})
     kwargs.setdefault("vlan_cidr_map", {})
     return _raw_build_mikrotik_projection(compiled_json, **kwargs)
 

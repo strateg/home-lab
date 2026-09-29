@@ -375,6 +375,11 @@ class SecurityMatrixCompiler(CompilerPlugin):
                 "zones": composed_zones,
                 "matrix": composed_matrix,
                 "policy_overrides": composed_overrides,
+                # The composing scope ids, in the same sorted order used to
+                # build the plan. Lets a consumer label the composed plan
+                # (e.g. a generated-file comment) without a second
+                # subscription to scopes_by_enforcer for the same fact.
+                "scope_ids": list(scope_ids),
             }
 
         # Publish for downstream plugins (validators, generators)

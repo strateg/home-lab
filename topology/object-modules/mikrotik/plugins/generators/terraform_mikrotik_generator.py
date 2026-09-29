@@ -150,13 +150,18 @@ class TerraformMikroTikGenerator(BaseGenerator):
         # `additional_networks` and the compiler did not - the compiler learned
         # the field, and the generator's copy is now gone rather than dormant.
         # The channels are required, so an absent compiler blocks generation.
-        compiled_matrices = self._subscribe(ctx, "security_matrices")
+        #
+        # composed_matrices_by_enforcer replaces security_matrices (N-07): the
+        # projection used to re-derive R1-R6 itself from raw network_rows, a
+        # third derivation of the compiler's own _calculate_matrix; it now
+        # reads the compiler's already-composed, already-validated plan.
+        composed_matrices = self._subscribe(ctx, "composed_matrices_by_enforcer")
         compiled_vlan_cidrs = self._subscribe(ctx, "vlan_cidr_map")
 
         try:
             projection = build_mikrotik_projection(
                 payload,
-                security_matrices=compiled_matrices,
+                composed_matrices_by_enforcer=composed_matrices,
                 vlan_cidr_map=compiled_vlan_cidrs,
             )
         except projection_error as exc:

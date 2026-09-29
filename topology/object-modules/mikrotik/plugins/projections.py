@@ -550,210 +550,95 @@ def _extract_bridge_vlans(
 
 
 def _extract_security_matrix(
-    network_rows: list[dict[str, Any]],
     router_ids: set[str],
-    objects_map: dict[str, Any],
-    compiled_zones: dict[str, dict[str, Any]],
+    *,
+    composed_matrices_by_enforcer: dict[str, dict[str, Any]],
     compiled_vlan_cidrs: dict[str, str],
 ) -> dict[str, Any]:
-    """Extract security matrix configuration for MikroTik routers.
+    """Read the composed security matrix plan for this projection's router.
 
-    `compiled_zones` is zone membership as `base.compiler.security_matrix`
-    derived it - `{zone_ref: {name, security_level, isolated, vlans, cidrs}}` -
-    and `compiled_vlan_cidrs` is its address-domain map. Both are required, and
-    this function derives neither: zone membership is derived exactly once, by a
-    core-level plugin, which is the W05 cutover and acceptance case A24.
+    `composed_matrices_by_enforcer` is `base.compiler.security_matrix`'s own
+    already-composed, already-validated plan per enforcer (ADR 0118-analysis/
+    ENFORCER-SCOPE-IMPLEMENTATION-READINESS.md sections 5c/5d, finding N-07):
+    zones and R1-R6 matrix cells, including policy-override (R6) resolution,
+    unioned across every scope that enforcer holds under D-COMP-1/D-COMP-2.
 
-    The local derivation that used to sit here as a fallback is gone. It was kept
-    as a parity oracle, but an oracle inside the code path it checks is still a
-    second derivation the generator can reach, and A24 is a statement about the
-    pipeline rather than about which branch happened to run. It now lives in
-    `tests/plugin_integration/test_zone_derivation_parity_w05.py`, re-derived
-    independently and checked against the rendered artifact.
+    This function used to re-derive all of that itself from raw
+    `network_rows` - a third derivation of the same fact, after the
+    compiler's own `_calculate_matrix` and the W05 test oracle in
+    `test_zone_derivation_parity_w05.py` - and had drifted from it in three
+    ways found by reading both side by side (N-07): R6-before-R1 ordering,
+    no `enforcement_plane` distinction for same-zone traffic, and a narrower
+    untrusted-zone name match. None currently changed rendered output, but
+    keeping a second implementation is how W05's divergence happened in the
+    first place. Retiring it here removes that risk rather than reproducing
+    it once per scope this projection would otherwise need to combine itself.
+
+    `src_vlan_ref`/`dst_vlan_ref` resolution to `src_address`/`dst_address`
+    (the F05 fix) is not owned by the compiler and stays here: it is the one
+    place that does it, using `compiled_vlan_cidrs` the same way it always
+    has.
+
+    Multiple enforcers in `router_ids` are not distinguished: this
+    projection's render context carries one `security_matrix` value for the
+    whole rendered root, which is the still-blocked V-11/V-12 layout
+    question, not this step's scope. The sorted-first router id with a
+    composed plan is selected - deterministic, and matching the
+    single-router assumption `default_router_id` already makes elsewhere in
+    this module - rather than depending on row order the way the retired
+    derivation implicitly did.
 
     Returns:
         {
-            "zones": {...},  # Zone definitions with security_level, isolated, cidrs
-            "matrix": {...},  # Zone-to-zone policy matrix
-            "policy_overrides": [...],  # Explicit policy overrides
-            "instance_id": "inst.security_matrix.mikrotik",
+            "instance_id": "inst.security_matrix.mikrotik",  # or several scope
+                                                               # ids, comma-joined
+            "managed_by_ref": "rtr-mikrotik-chateau",
+            "zones": {...},
+            "matrix": {...},
+            "policy_overrides": [...],
+            "unresolved_vlan_refs": [...],
         }
     """
-    for row in network_rows:
-        object_ref = _resolved_object_ref(row)
-        if "security_matrix" not in object_ref:
+    for router_id in sorted(router_ids):
+        composed = composed_matrices_by_enforcer.get(router_id)
+        if not isinstance(composed, dict):
             continue
 
-        inst_data = row.get("instance_data", {})
-        if not isinstance(inst_data, dict):
-            continue
-
-        # Check if this matrix is managed by one of our MikroTik routers
-        managed_by = str(inst_data.get("managed_by_ref", "")).strip()
-        if managed_by not in router_ids:
-            continue
-
-        instance_id = str(row.get("instance_id", "")).strip()
-
-        # Extract zone_refs and build zone index
-        zone_refs = inst_data.get("zone_refs", [])
-        if not isinstance(zone_refs, list):
-            zone_refs = []
-
-        # VLAN -> CIDR comes from the compiler, and only from the compiler. It is
-        # needed here to resolve `src_vlan_ref`/`dst_vlan_ref` on policy overrides.
-        vlan_cidr_map: dict[str, str] = dict(compiled_vlan_cidrs)
-
-        # Zone membership is derived once, by `base.compiler.security_matrix`,
-        # and read here. There is no second derivation to fall back to: that is
-        # acceptance case A24, and removing the fallback is what makes it true
-        # rather than merely preferred. The oracle that used to sit here lives in
-        # `tests/plugin_integration/test_zone_derivation_parity_w05.py`, where a
-        # differential still runs it against the rendered artifact.
-        zone_data: dict[str, dict[str, Any]] = {
-            zone_ref: dict(values) for zone_ref, values in compiled_zones.items() if zone_ref in zone_refs
-        }
-
-        # Calculate matrix cells using R1-R6 rules
-        matrix: dict[str, dict[str, dict[str, Any]]] = {}
-        for from_zone in zone_refs:
-            matrix[from_zone] = {}
-            from_data = zone_data.get(from_zone, {})
-            from_level = from_data.get("security_level", 0)
-            from_isolated = from_data.get("isolated", False)
-
-            for to_zone in zone_refs:
-                to_data = zone_data.get(to_zone, {})
-                to_level = to_data.get("security_level", 0)
-                to_name = to_data.get("name", "")
-
-                # R1: Same zone = ALLOW
-                if from_zone == to_zone:
-                    matrix[from_zone][to_zone] = {
-                        "action": "allow",
-                        "rule": "R1",
-                        "reason": "same zone",
-                        "log": False,
-                    }
-                    continue
-
-                # R2: Isolated zones
-                if from_isolated:
-                    is_untrusted = "untrusted" in to_zone.lower() or (to_level == 0 and "untrusted" in to_name.lower())
-                    if is_untrusted:
-                        matrix[from_zone][to_zone] = {
-                            "action": "allow",
-                            "rule": "R2",
-                            "reason": "isolated zone can reach untrusted",
-                            "log": False,
-                        }
-                    else:
-                        matrix[from_zone][to_zone] = {
-                            "action": "deny",
-                            "rule": "R2",
-                            "reason": f"isolated zone cannot reach {to_zone}",
-                            "log": True,
-                        }
-                    continue
-
-                # R3/R4/R5: Security level comparison
-                if from_level > to_level:
-                    matrix[from_zone][to_zone] = {
-                        "action": "allow",
-                        "rule": "R3",
-                        "reason": f"downhill: level {from_level} → {to_level}",
-                        "log": False,
-                    }
-                elif from_level < to_level:
-                    matrix[from_zone][to_zone] = {
-                        "action": "deny",
-                        "rule": "R4",
-                        "reason": f"uphill: level {from_level} → {to_level}",
-                        "log": True,
-                    }
-                else:
-                    matrix[from_zone][to_zone] = {
-                        "action": "deny",
-                        "rule": "R5",
-                        "reason": f"same level {from_level}, no override",
-                        "log": True,
-                    }
-
-        # Extract policy_overrides
-        policy_overrides = inst_data.get("policy_overrides", [])
-        if not isinstance(policy_overrides, list):
-            policy_overrides = []
-        # Also get object-level overrides from compiled object map
-        props = _get_object_properties(object_ref, objects_map)
-        obj_overrides = props.get("policy_overrides", [])
-        if isinstance(obj_overrides, list):
-            policy_overrides = obj_overrides + policy_overrides
-
-        # R02/F05 fix: Resolve src_vlan_ref/dst_vlan_ref to src_address/dst_address
-        # This ensures VLAN-scoped overrides are not silently ignored by the template
-        # F05: Track unresolved refs for fail-closed semantics
+        # F05: resolve src_vlan_ref/dst_vlan_ref to src_address/dst_address.
+        # Operates on copies so the published channel is never mutated by a
+        # consumer - the same discipline as any other read of shared state.
+        policy_overrides: list[dict[str, Any]] = [
+            dict(override) for override in (composed.get("policy_overrides") or []) if isinstance(override, dict)
+        ]
         unresolved_vlan_refs: list[dict[str, str]] = []
         for override in policy_overrides:
-            if not isinstance(override, dict):
-                continue
             override_name = str(override.get("name", "unnamed"))
             src_vlan_ref = str(override.get("src_vlan_ref", "")).strip()
             if src_vlan_ref:
-                if src_vlan_ref in vlan_cidr_map:
-                    override["src_address"] = vlan_cidr_map[src_vlan_ref]
+                if src_vlan_ref in compiled_vlan_cidrs:
+                    override["src_address"] = compiled_vlan_cidrs[src_vlan_ref]
                 else:
-                    # F05: Record unresolved ref for fail-closed enforcement
                     unresolved_vlan_refs.append(
-                        {
-                            "override": override_name,
-                            "field": "src_vlan_ref",
-                            "ref": src_vlan_ref,
-                        }
+                        {"override": override_name, "field": "src_vlan_ref", "ref": src_vlan_ref}
                     )
             dst_vlan_ref = str(override.get("dst_vlan_ref", "")).strip()
             if dst_vlan_ref:
-                if dst_vlan_ref in vlan_cidr_map:
-                    override["dst_address"] = vlan_cidr_map[dst_vlan_ref]
+                if dst_vlan_ref in compiled_vlan_cidrs:
+                    override["dst_address"] = compiled_vlan_cidrs[dst_vlan_ref]
                 else:
-                    # F05: Record unresolved ref for fail-closed enforcement
                     unresolved_vlan_refs.append(
-                        {
-                            "override": override_name,
-                            "field": "dst_vlan_ref",
-                            "ref": dst_vlan_ref,
-                        }
+                        {"override": override_name, "field": "dst_vlan_ref", "ref": dst_vlan_ref}
                     )
 
-        # Apply R6 overrides to matrix
-        for override in policy_overrides:
-            if not isinstance(override, dict):
-                continue
-            from_ref = str(override.get("from_zone_ref", "")).strip()
-            to_ref = str(override.get("to_zone_ref", "")).strip()
-            action = str(override.get("action", "accept")).strip()
-            name = override.get("name", "unnamed")
-
-            # Find matching zones
-            for from_zone in zone_refs:
-                if from_ref == from_zone or from_ref.split(".")[-1] == from_zone.split(".")[-1]:
-                    for to_zone in zone_refs:
-                        if to_ref == to_zone or to_ref.split(".")[-1] == to_zone.split(".")[-1]:
-                            matrix[from_zone][to_zone] = {
-                                "action": action,
-                                "rule": "R6",
-                                "reason": f"policy_override: {name}",
-                                "log": override.get("log", False),
-                                "ports": override.get("ports"),
-                                "override_name": name,
-                            }
+        scope_ids = composed.get("scope_ids")
+        instance_id = ", ".join(scope_ids) if isinstance(scope_ids, list) and scope_ids else router_id
 
         return {
             "instance_id": instance_id,
-            "managed_by_ref": managed_by,
-            "zones": zone_data,
-            "matrix": matrix,
+            "managed_by_ref": router_id,
+            "zones": composed.get("zones", {}),
+            "matrix": composed.get("matrix", {}),
             "policy_overrides": policy_overrides,
-            # F05: Include unresolved refs for fail-closed enforcement by generator
             "unresolved_vlan_refs": unresolved_vlan_refs,
         }
 
@@ -1263,16 +1148,21 @@ def _extract_mac_vlan_assignments(
 def build_mikrotik_projection(
     compiled_json: dict[str, Any],
     *,
-    security_matrices: dict[str, Any] | None = None,
+    composed_matrices_by_enforcer: dict[str, Any] | None = None,
     vlan_cidr_map: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Build stable view for MikroTik Terraform generator.
 
-    `security_matrices` and `vlan_cidr_map` are the channels
+    `composed_matrices_by_enforcer` and `vlan_cidr_map` are the channels
     `base.compiler.security_matrix` publishes, and they are the only source of
-    zone membership and address-domain CIDRs here. Nothing in this module derives
-    either one: that is acceptance case A24, and W07 puts the derivation in the
-    core rather than in a generate-stage projection.
+    zone membership, R1-R6 matrix cells and address-domain CIDRs here. Nothing
+    in this module derives any of them: that is acceptance case A24, and W07
+    puts the derivation in the core rather than in a generate-stage projection.
+    `composed_matrices_by_enforcer` replaces the former `security_matrices`
+    argument (ADR 0118-analysis/ENFORCER-SCOPE-IMPLEMENTATION-READINESS.md
+    sections 5c/5d, N-07): this module used to re-derive R1-R6 itself from raw
+    `network_rows`, a third derivation of the same fact; it now reads the
+    compiler's already-composed plan for each router directly.
 
     `None` is an omission and is refused, because the alternative is a projection
     that renders empty address lists and empty tunnel routes while reporting
@@ -1286,9 +1176,9 @@ def build_mikrotik_projection(
             "'base.compiler.security_matrix' and this projection derives no substitute. "
             "Pass an empty mapping to state that there are no address domains."
         )
-    if security_matrices is None:
+    if composed_matrices_by_enforcer is None:
         raise ProjectionError(
-            "security_matrices was not supplied; it is published by "
+            "composed_matrices_by_enforcer was not supplied; it is published by "
             "'base.compiler.security_matrix' and this projection derives no substitute. "
             "Pass an empty mapping to state that there are no matrices."
         )
@@ -1513,18 +1403,9 @@ def build_mikrotik_projection(
     # Extract bridge VLAN entries for WiFi interface membership
     bridge_vlans = _extract_bridge_vlans(routers, wifi_data)
 
-    # Zones from whichever matrix this projection is about. The generator passes
-    # the whole channel; the matrix a zone came from is selected by `zone_refs`.
-    compiled_zones: dict[str, dict[str, Any]] = {}
-    for matrix in security_matrices.values():
-        if isinstance(matrix, dict) and isinstance(matrix.get("zones"), dict):
-            compiled_zones.update(matrix["zones"])
-
     security_matrix = _extract_security_matrix(
-        network,
         router_ids,
-        objects_map,
-        compiled_zones=compiled_zones,
+        composed_matrices_by_enforcer=composed_matrices_by_enforcer,
         compiled_vlan_cidrs=vlan_cidr_map,
     )
 

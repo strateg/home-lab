@@ -217,10 +217,27 @@ Derived from what is checkable, not from what is easy.
    the declared W13 exclusion. The projection is 15 functions and 1,518 lines;
    `tests/test_backend_specialization_boundary.py` lowers the budget to match and
    asserts the three helpers are absent rather than merely small.
-3. `_extract_security_matrix` — preserve the W05 parity baseline, but first fix
+3. `_extract_security_matrix` - preserve the W05 parity baseline, but first fix
    the complete deterministic enforcer-to-scope contract and its counterexamples
    (V-09/V-13). Do not subscribe a consumer to the current lossy index. Removing
    the first-match return alone does not establish correct multi-scope rendering.
+   **Done 2026-09-29.** The enforcer-to-scope contract was fixed first, in order:
+   `scopes_by_enforcer` (complete, deterministic) replaced the lossy
+   `matrix_by_enforcer` index; `composed_matrices_by_enforcer` composes every
+   scope one enforcer holds under an explicit conflict contract (D-COMP-1..4,
+   `E7013`/`E7014`) rather than first-matching one. Only then did
+   `_extract_security_matrix` move: it no longer re-derives R1-R6 from raw
+   `network_rows` - a third derivation of the same fact the W05 baseline never
+   named, found by reading the function in full before migrating it (N-07) - it
+   reads the compiler's already-composed plan and resolves only
+   `src_vlan_ref`/`dst_vlan_ref` addressing, which the compiler does not own.
+   Real-topology parity: `generated/` byte-identical (`git status` after a clean
+   recompile shows no diff under `generated/`); `errors=0 warnings=2`, matching
+   the baseline. The function is 94 lines, down from 209;
+   `tests/test_backend_specialization_boundary.py`'s line budget is lowered to
+   match, and the manifest's `security_matrices` consume is replaced by
+   `composed_matrices_by_enforcer` (the projection derives no substitute for
+   either).
 4. Everything else, in descending size, each with parity evidence.
 
 ## What would falsify this decision

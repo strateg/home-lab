@@ -24,12 +24,16 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 PROJECTION = REPO_ROOT / "topology/object-modules/mikrotik/plugins/projections.py"
 DECISION = REPO_ROOT / "adr/0118-analysis/W07-BACKEND-SPECIALIZATION-DECISION.md"
 
-# Measured 2026-09-14 at commit 3312ca0b, and lowered on 2026-09-15 when the two
+# Measured 2026-09-14 at commit 3312ca0b, lowered on 2026-09-15 when the two
 # VLAN-CIDR helpers and the zone oracle left the projection for the compiler's
-# channel and the parity test. A budget that stays above the real figure stops
-# measuring, so it is lowered whenever the debt is actually paid down.
+# channel and the parity test, and lowered again on 2026-09-29 when
+# _extract_security_matrix stopped re-deriving R1-R6 itself and started
+# reading the compiler's composed plan (ADR 0118-analysis/
+# ENFORCER-SCOPE-IMPLEMENTATION-READINESS.md sections 5c/5d, N-07). A budget
+# that stays above the real figure stops measuring, so it is lowered whenever
+# the debt is actually paid down.
 PROJECTION_FUNCTION_BUDGET = 15
-PROJECTION_LINE_BUDGET = 1518
+PROJECTION_LINE_BUDGET = 1399
 
 
 def _functions() -> list[tuple[str, int]]:
@@ -96,11 +100,14 @@ def test_the_backend_neutral_plan_is_available_before_validation() -> None:
 
 
 def test_the_migration_order_names_the_blocked_step() -> None:
-    """`_extract_security_matrix` cannot move until W05 is resolved.
+    """`_extract_security_matrix` moved on 2026-09-29, after its own blocker.
 
-    It diverges from the compiler today, so moving it is a behaviour change and
-    not a refactor. The document has to keep saying so, because it is the step
-    anyone would reach for first.
+    It used to diverge from the compiler (W05, zone membership) and later
+    turned out to re-derive R1-R6 itself as well (N-07) - a third derivation
+    the W05 baseline never named. Both had to be characterized and fixed
+    first; moving the function was a behaviour change, not a refactor, which
+    is why the document records what unblocked it rather than only that it
+    moved.
     """
     text = DECISION.read_text(encoding="utf-8")
     names = {name for name, _ in _functions()}
@@ -108,6 +115,7 @@ def test_the_migration_order_names_the_blocked_step() -> None:
     assert "_extract_security_matrix" in names, "the function was renamed; update the decision"
     assert "_extract_security_matrix" in text
     assert "W05" in text
+    assert "N-07" in text
 
 
 @pytest.mark.parametrize("name", ["_derive_mikrotik_capability_flags"])
