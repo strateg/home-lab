@@ -1,6 +1,0 @@
----
-# Global variables for all hosts
-# ADR 0080: Build stage configuration
-
-ansible_user: root
-ansible_connection: ssh

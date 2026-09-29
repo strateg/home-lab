@@ -1,6 +1,0 @@
-@instance: inst.trust_zone.management
-@extends: obj.network.trust_zone.management
-@group: network
-@version: 1.0.0
-source_id: trust-zone-management
-notes: Management zone for infrastructure access

@@ -1,2 +1,0 @@
-# Requirements for Claude Logger Agent
-anthropic>=0.40.0

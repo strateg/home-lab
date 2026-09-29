@@ -1,8 +1,0 @@
-@instance: inst.data_asset.jellyfin
-@extends: obj.storage.data_asset.config
-@group: data-assets
-@version: 1.0.0
-source_id: data-jellyfin-config
-notes: Jellyfin configuration
-host_ref: srv-orangepi5
-criticality: medium

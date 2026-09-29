@@ -1,9 +1,0 @@
-@instance: inst.data_asset.postgresql_dumps
-@extends: obj.storage.data_asset.backup
-@group: data-assets
-@version: 1.0.0
-source_id: data-postgresql-dumps
-notes: pg_dump artifacts
-host_ref: srv-gamayun
-criticality: high
-backup_policy: monthly

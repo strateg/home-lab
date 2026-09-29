@@ -1,8 +1,0 @@
-@instance: inst.fw.default_deny
-@extends: obj.network.firewall_policy.default_deny
-@group: firewall
-@version: 1.0.0
-source_id: fw-default-deny
-notes: Default deny policy for unsolicited WAN traffic (!dstnat); does not block LAN to WAN forwarding
-managed_by_ref: rtr-mikrotik-chateau
-chain: forward

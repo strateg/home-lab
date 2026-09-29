@@ -1,4 +1,0 @@
----
-# Example vault structure (copy to vault.yml and encrypt)
-# vault_db_password: "changeme"
-# vault_api_key: "changeme"

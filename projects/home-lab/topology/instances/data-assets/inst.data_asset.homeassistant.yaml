@@ -1,8 +1,0 @@
-@instance: inst.data_asset.homeassistant
-@extends: obj.storage.data_asset.config
-@group: data-assets
-@version: 1.0.0
-source_id: data-homeassistant
-notes: Home Assistant config
-host_ref: srv-orangepi5
-criticality: medium

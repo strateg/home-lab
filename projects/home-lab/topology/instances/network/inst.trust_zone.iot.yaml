@@ -1,6 +1,0 @@
-@instance: inst.trust_zone.iot
-@extends: obj.network.trust_zone.iot
-@group: network
-@version: 1.0.0
-source_id: trust-zone-iot
-notes: Isolated IoT zone for smart home devices

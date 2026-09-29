@@ -1,7 +1,0 @@
-@instance: inst.bridge.vmbr0
-@extends: obj.network.bridge.vmbr0
-@group: network
-@version: 1.0.0
-source_id: bridge-vmbr0
-notes: Primary Proxmox VLAN-aware bridge
-host_ref: srv-gamayun

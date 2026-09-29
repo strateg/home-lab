@@ -1,8 +1,0 @@
-@instance: inst.fw.established_related
-@extends: obj.network.firewall_policy.established_related
-@group: firewall
-@version: 1.0.0
-source_id: fw-established-related
-notes: Allow established and related connections
-managed_by_ref: rtr-mikrotik-chateau
-chain: forward

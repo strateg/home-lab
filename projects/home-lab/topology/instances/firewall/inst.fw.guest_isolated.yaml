@@ -1,7 +1,0 @@
-@instance: inst.fw.guest_isolated
-@extends: obj.network.firewall_policy.guest_isolated
-@group: firewall
-@version: 1.0.0
-source_id: fw-guest-isolated
-notes: Guest isolation policy is staged in topology; currently not configured on rtr-mikrotik-chateau
-applies_to_zone_ref: inst.trust_zone.guest

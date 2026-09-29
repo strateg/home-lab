@@ -1,7 +1,0 @@
-@instance: inst.os.routeros.7.arm64
-@extends: obj.os.routeros.7.arm64
-@group: os
-@version: 1.0.0
-source_id: inst.os.routeros.7.arm64
-embedded_in: inst.firmware.routeros.7.arm64
-notes: ADR0064 embedded os instance

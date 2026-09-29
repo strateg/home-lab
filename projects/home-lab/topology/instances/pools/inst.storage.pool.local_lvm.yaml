@@ -1,7 +1,0 @@
-@instance: inst.storage.pool.local_lvm
-@extends: obj.storage.pool.local_lvm
-@group: pools
-@version: 1.0.0
-source_id: se-lvm
-notes: LVM thin storage on Proxmox SSD
-host_ref: srv-gamayun

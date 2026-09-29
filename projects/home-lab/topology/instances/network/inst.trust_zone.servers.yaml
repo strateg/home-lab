@@ -1,6 +1,0 @@
-@instance: inst.trust_zone.servers
-@extends: obj.network.trust_zone.servers
-@group: network
-@version: 1.0.0
-source_id: trust-zone-servers
-notes: Server zone for infrastructure services

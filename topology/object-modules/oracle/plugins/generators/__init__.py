@@ -1,1 +1,0 @@
-# Oracle Cloud generator plugins
