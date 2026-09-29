@@ -112,6 +112,21 @@ _routing_policies_spec = _importlib_util.spec_from_file_location(
 _routing_policies_module = _importlib_util.module_from_spec(_routing_policies_spec)
 _routing_policies_spec.loader.exec_module(_routing_policies_module)
 
+_MAC_VLAN_ASSIGNMENTS_MODULE_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "topology"
+    / "object-modules"
+    / "mikrotik"
+    / "plugins"
+    / "compilers"
+    / "mac_vlan_assignments_compiler.py"
+)
+_mac_vlan_assignments_spec = _importlib_util.spec_from_file_location(
+    "test_projection_helpers_mac_vlan_assignments_compiler", _MAC_VLAN_ASSIGNMENTS_MODULE_PATH
+)
+_mac_vlan_assignments_module = _importlib_util.module_from_spec(_mac_vlan_assignments_spec)
+_mac_vlan_assignments_spec.loader.exec_module(_mac_vlan_assignments_module)
+
 _BOOTSTRAP_PROJECTIONS = load_bootstrap_projection_module()
 
 ProjectionError = _PROXMOX_PROJECTIONS.ProjectionError
@@ -173,6 +188,34 @@ def _derive_routing_policies_for(compiled_json: dict) -> list[dict]:
     return routing_policies
 
 
+def _derive_mac_vlan_assignments_for(compiled_json: dict) -> list[dict]:
+    """Same derivation the real compile-stage compiler performs (W07 item 4e).
+
+    Replicates the plugin's own vlan_id_index-building slice of the shared
+    network-row loop, the same discipline item 4d's helper above established.
+    """
+    router_ids, _, network_rows, _ = _mikrotik_routers_and_rows(compiled_json)
+    devices = (
+        compiled_json.get("instances", {}).get("devices", [])
+        if isinstance(compiled_json.get("instances"), dict)
+        else []
+    )
+    objects_map = compiled_json.get("objects", {})
+    if not isinstance(objects_map, dict):
+        objects_map = {}
+    default_router_id = next(iter(sorted(router_ids)), "")
+    vlan_id_index = _mac_vlan_assignments_module._build_vlan_id_index(
+        network_rows,
+        router_ids=router_ids,
+        default_router_id=default_router_id,
+        objects_map=objects_map,
+    )
+    return _mac_vlan_assignments_module._extract_mac_vlan_assignments(
+        {"network": network_rows, "devices": [row for row in devices if isinstance(row, dict)]},
+        vlan_id_index,
+    )
+
+
 def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
     """The compiler's channels are required arguments; these fixtures state them empty.
 
@@ -183,11 +226,12 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
 
     `capability_flags` (W07 migration order item 1), `wireguard_tunnels`
     (W07 migration order item 4a), `containers` (W07 migration order item
-    4b), `wifi_config` (W07 migration order item 4c) and `routing_policies`
-    (W07 migration order item 4d) are likewise required, and auto-derived
-    here from the fixture's own devices/network/container rows the same way
-    the real compile-stage compiler plugins would, unless a test passes its
-    own value to exercise a specific case - a fixture that builds real
+    4b), `wifi_config` (W07 migration order item 4c), `routing_policies`
+    (W07 migration order item 4d) and `mac_vlan_assignments` (W07 migration
+    order item 4e) are likewise required, and auto-derived here from the
+    fixture's own devices/network/container rows the same way the real
+    compile-stage compiler plugins would, unless a test passes its own value
+    to exercise a specific case - a fixture that builds real
     wifi/wireguard/container/routing-policy instance_data (like
     test_mikrotik_projection_extracts_wifi_interfaces) needs the derived
     content, not an empty stand-in that silently discards it.
@@ -211,6 +255,8 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
         kwargs.setdefault("wifi_config", _wifi_config_module._extract_wifi_config(routers))
     if "routing_policies" not in kwargs:
         kwargs["routing_policies"] = _derive_routing_policies_for(compiled_json)
+    if "mac_vlan_assignments" not in kwargs:
+        kwargs["mac_vlan_assignments"] = _derive_mac_vlan_assignments_for(compiled_json)
     return _raw_build_mikrotik_projection(compiled_json, **kwargs)
 
 

@@ -357,13 +357,35 @@ Derived from what is checkable, not from what is easy.
    byte-identical; `errors=0 warnings=3`, unchanged; the real topology's 5
    routing policies derived correctly.
 
-   Each of 4e-4i needs the same three-part evidence 1-3 above recorded, sized
+   **4e done 2026-09-29.** `_extract_mac_vlan_assignments` moved verbatim to
+   `object.mikrotik.compiler.mac_vlan_assignments`, the sixth dedicated
+   compile-stage compiler plugin. It needed a VLAN `instance_id -> vlan_id`
+   index the projection used to build from its own already-filtered `vlans`
+   list - itself a slice of the same shared per-`network`-row loop item 4d's
+   migration already drew from, the same "per-row builder/index fed by a
+   shared loop" shape 4d named. Rather than replicate the whole VLAN branch
+   (still generate-stage, item 4g), the plugin replicates only the row-
+   selection, `managed_by_ref`-resolution and `vlan_id`-fallback logic needed
+   to build the index itself - checked against the full network-row loop in
+   `build_mikrotik_projection`, not only the removed function. This is also
+   the first migration whose derivation needs object-level properties
+   (`_get_object_properties`'s `objects_map` fallback for `vlan_id`), which
+   `base.compiler.effective_model` already publishes under
+   `effective_model_candidate["objects"]` - confirmed by reading the
+   compiler's own `objects_index` construction, not assumed present. The
+   plugin consumes only `effective_model_candidate` (router ids, network
+   rows, objects) - no `base.compiler.security_matrix` dependency, same as
+   items 4b/4c. Characterization found no divergence and, checked given 4b's
+   and 4c's findings, no naming collision. Real-topology parity: `generated/`
+   byte-identical; `errors=0 warnings=3`, unchanged.
+
+   Each of 4f-4i needs the same three-part evidence 1-3 above recorded, sized
    to what the function actually risks: (i) a characterization step - does the
    projection already diverge from any compiler-published fact for this data,
    the way W05 did for zones and N-07 did for R1-R6 - checked by reading the
    function in full, not assumed absent because no defect is currently named;
    (ii) the compile-stage channel it moves to, and the object-module plugin
-   that owns it - items 1, 4a, 4b, 4c and 4d each got their own dedicated
+   that owns it - items 1, 4a, 4b, 4c, 4d and 4e each got their own dedicated
    plugin rather than accreting into one, which later items should default
    to unless a specific reason favors sharing, and a later item may need to
    thread an earlier item's channel into whatever of its own logic still
@@ -373,11 +395,18 @@ Derived from what is checkable, not from what is easy.
    per-row builder called from inside a larger shared loop needs the loop's
    own row-selection/defaulting logic replicated for the rows it cares
    about, checked against the surrounding loop in full, not only the
-   builder; and (i) is not a formality - 4b's characterization caught a
-   naming collision that would have silently corrupted rendered output if
-   migrated without reading the whole function first, and 4c's caught that
-   the test suite, not only the projection, can silently default a required
-   channel empty and discard real fixture content;
+   builder - 4e found the same shape one level removed, an index fed by a
+   slice of that same loop rather than a per-row builder. 4e also found that
+   a migrated function's data need is not always satisfied by the two
+   channels items 1-4d used (network/device rows and `vlan_cidr_map`): a
+   compiler already publishes what's needed (here, `effective_model.
+   objects`), found by reading that compiler's own construction rather than
+   assumed absent or re-derived locally; and (i) is not a formality - 4b's
+   characterization caught a naming collision that would have silently
+   corrupted rendered output if migrated without reading the whole function
+   first, and 4c's caught that the test suite, not only the projection, can
+   silently default a required channel empty and discard real fixture
+   content;
    (iii) real-topology parity (`generated/` byte-identical, matching or lower
    `errors=`/`warnings=`) plus updated `test_backend_specialization_boundary.py`
    budgets and migration-list entries, the same pattern items 1-3 established.

@@ -182,6 +182,12 @@ class TerraformMikroTikGenerator(BaseGenerator):
         routing_policies = self._subscribe(
             ctx, "routing_policies", plugin_id="object.mikrotik.compiler.routing_policies"
         )
+        # W07 migration order item 4e: MAC-to-VLAN assignment shape derived at
+        # compile stage, not re-derived here
+        # (object.mikrotik.compiler.mac_vlan_assignments).
+        mac_vlan_assignments = self._subscribe(
+            ctx, "mac_vlan_assignments", plugin_id="object.mikrotik.compiler.mac_vlan_assignments"
+        )
 
         try:
             projection = build_mikrotik_projection(
@@ -193,6 +199,7 @@ class TerraformMikroTikGenerator(BaseGenerator):
                 containers=containers,
                 wifi_config=wifi_config,
                 routing_policies=routing_policies,
+                mac_vlan_assignments=mac_vlan_assignments,
             )
         except projection_error as exc:
             diagnostics.append(

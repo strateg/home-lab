@@ -334,113 +334,6 @@ def _extract_security_matrix(
     return {}
 
 
-def _extract_mac_vlan_assignments(
-    all_groups: dict[str, list[dict[str, Any]]],
-    vlan_id_index: dict[str, int],
-) -> list[dict[str, Any]]:
-    """Extract MAC-based VLAN assignments from device instances.
-
-    Finds devices with both vlan_ref and secrets_ref, then builds
-    assignment entries for bridge host generation.
-
-    Supports ADR 0117 L1/L2 separation:
-    - Direct: device has vlan_ref and secrets_ref
-    - Indirect: device has provides_ref -> L2 iot_interface has vlan_ref/secrets_ref
-
-    Args:
-        all_groups: All instance groups from compiled JSON.
-        vlan_id_index: Mapping of vlan instance_id to vlan_id.
-
-    Returns:
-        List of assignment entries:
-        [
-            {
-                "device_id": "inst.device.tv-sony-bravia",
-                "device_name": "Sony Bravia AJ9",
-                "secrets_ref": "secrets.instances.tv-sony-bravia",
-                "secrets_path": "instances/tv-sony-bravia.yaml",
-                "vlan_ref": "inst.vlan.vpn_germany",
-                "vlan_id": 55,
-                "comment": "Sony Bravia AJ9 -> VLAN 55",
-            }
-        ]
-    """
-    assignments: list[dict[str, Any]] = []
-
-    # Build L2 interface index: interface_id -> {vlan_ref, secrets_ref, device_ref}
-    # ADR 0117: IoT interfaces are in network group with iot_interface in instance_id
-    l2_interface_index: dict[str, dict[str, str]] = {}
-    network_rows = all_groups.get("network", [])
-    for net_row in network_rows:
-        net_instance_id = str(net_row.get("instance_id", "")).strip()
-        if "iot_interface" not in net_instance_id:
-            continue
-        net_inst_data = net_row.get("instance_data", {})
-        if not isinstance(net_inst_data, dict):
-            continue
-        l2_interface_index[net_instance_id] = {
-            "vlan_ref": str(net_inst_data.get("vlan_ref", "")).strip(),
-            "secrets_ref": str(net_inst_data.get("secrets_ref", "")).strip(),
-            "device_ref": str(net_inst_data.get("device_ref", "")).strip(),
-        }
-
-    # Check devices group for device instances with vlan_ref
-    devices = all_groups.get("devices", [])
-
-    for row in devices:
-        instance_id = str(row.get("instance_id", "")).strip()
-        if not instance_id.startswith("inst.device."):
-            continue
-
-        inst_data = row.get("instance_data", {})
-        if not isinstance(inst_data, dict):
-            continue
-
-        # Try direct vlan_ref/secrets_ref on device first
-        vlan_ref = str(inst_data.get("vlan_ref", "")).strip()
-        secrets_ref = str(inst_data.get("secrets_ref", "")).strip()
-
-        # ADR 0117: If not found, check provides_ref for L2 interface
-        if not vlan_ref or not secrets_ref:
-            provides_ref = str(inst_data.get("provides_ref", "")).strip()
-            if provides_ref and provides_ref in l2_interface_index:
-                l2_data = l2_interface_index[provides_ref]
-                if not vlan_ref:
-                    vlan_ref = l2_data.get("vlan_ref", "")
-                if not secrets_ref:
-                    secrets_ref = l2_data.get("secrets_ref", "")
-
-        if not vlan_ref or not secrets_ref:
-            continue
-
-        vlan_id = vlan_id_index.get(vlan_ref)
-        if not vlan_id:
-            continue
-
-        # Convert secrets_ref to path: secrets.instances.foo -> instances/foo.yaml
-        secrets_path = ""
-        if secrets_ref.startswith("secrets."):
-            secrets_path = secrets_ref[8:].replace(".", "/") + ".yaml"
-
-        device_name = str(inst_data.get("device_name", "")).strip()
-        if not device_name:
-            device_name = instance_id.replace("inst.device.", "")
-
-        assignments.append(
-            {
-                "device_id": instance_id,
-                "device_name": device_name,
-                "secrets_ref": secrets_ref,
-                "secrets_path": secrets_path,
-                "vlan_ref": vlan_ref,
-                "vlan_id": vlan_id,
-                "comment": f"{device_name} -> VLAN {vlan_id}",
-            }
-        )
-
-    return sorted(assignments, key=lambda x: (x.get("vlan_id", 0), x.get("device_id", "")))
-
-
 def build_mikrotik_projection(
     compiled_json: dict[str, Any],
     *,
@@ -451,6 +344,7 @@ def build_mikrotik_projection(
     containers: list[dict[str, Any]] | None = None,
     wifi_config: dict[str, Any] | None = None,
     routing_policies: list[dict[str, Any]] | None = None,
+    mac_vlan_assignments: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build stable view for MikroTik Terraform generator.
 
@@ -494,6 +388,12 @@ def build_mikrotik_projection(
     firewall rule shape for every policy-based route this router applies,
     with `*_vlan_ref` fields already resolved against the compiler's CIDR
     map. Derived the same way and for the same reason as the channels above.
+
+    `mac_vlan_assignments` is the channel `object.mikrotik.compiler.
+    mac_vlan_assignments` publishes (W07 migration order item 4e): bridge
+    host entries for devices with a resolved VLAN and secrets reference
+    (ADR 0117 L1/L2 separation). Derived the same way and for the same
+    reason as the channels above.
 
     `None` is an omission and is refused, because the alternative is a projection
     that renders empty address lists and empty tunnel routes while reporting
@@ -542,6 +442,12 @@ def build_mikrotik_projection(
             "routing_policies was not supplied; it is published by "
             "'object.mikrotik.compiler.routing_policies' and this projection derives no "
             "substitute. Pass an empty list to state that there are no routing policies."
+        )
+    if mac_vlan_assignments is None:
+        raise ProjectionError(
+            "mac_vlan_assignments was not supplied; it is published by "
+            "'object.mikrotik.compiler.mac_vlan_assignments' and this projection derives no "
+            "substitute. Pass an empty list to state that there are no MAC-to-VLAN assignments."
         )
     # Extract objects map for property lookups (ADR contract: use compiled topology only)
     objects_map = compiled_json.get("objects", {})
@@ -766,16 +672,9 @@ def build_mikrotik_projection(
         compiled_vlan_cidrs=vlan_cidr_map,
     )
 
-    # Build VLAN ID index for MAC-based assignments
-    vlan_id_index: dict[str, int] = {}
-    for vlan in vlans:
-        inst_id = str(vlan.get("instance_id", "")).strip()
-        vid = vlan.get("vlan_id")
-        if inst_id and vid:
-            vlan_id_index[inst_id] = int(vid)
-
-    # Extract MAC-based VLAN assignments from device instances
-    mac_vlan_assignments = _extract_mac_vlan_assignments(groups, vlan_id_index)
+    # MAC-to-VLAN assignment shape is the channel
+    # object.mikrotik.compiler.mac_vlan_assignments publishes (W07 migration
+    # order item 4e); this projection derives no substitute.
 
     # Container attachment/publication shape is the channel
     # object.mikrotik.compiler.containers publishes (W07 migration order

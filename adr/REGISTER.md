@@ -821,3 +821,49 @@
   order item 4d marked done, naming the new kind of migration this item
   represents (extracting a slice of a shared loop, not an independent
   function) for the benefit of items 4e-4i.
+
+## W07 migration order item 4e — MAC-to-VLAN assignment derivation moved to compile stage, 2026-09-29
+
+- `_extract_mac_vlan_assignments` moved verbatim from `projections.py`
+  (generate stage) to a new plugin, `object.mikrotik.compiler.
+  mac_vlan_assignments` (`topology/object-modules/mikrotik/plugins/
+  compilers/mac_vlan_assignments_compiler.py`, compile stage) - the sixth
+  dedicated compile-stage compiler plugin an object module has registered.
+- It needed a VLAN `instance_id -> vlan_id` index the projection used to
+  build from its own already-filtered `vlans` list - itself a slice of the
+  same shared per-`network`-row loop item 4d's migration already drew from,
+  the same "per-row builder/index fed by a shared loop" shape 4d named.
+  Rather than replicate the whole VLAN branch (still generate-stage, item
+  4g), the plugin replicates only the row-selection, `managed_by_ref`-
+  resolution and `vlan_id`-fallback logic needed to build the index itself -
+  checked against the full network-row loop in `build_mikrotik_projection`,
+  not only the removed function.
+- This is also the first migration whose derivation needs object-level
+  properties (`_get_object_properties`'s `objects_map` fallback for
+  `vlan_id`), which `base.compiler.effective_model` already publishes under
+  `effective_model_candidate["objects"]` - confirmed by reading the
+  compiler's own `objects_index` construction, not assumed present.
+- Consumes only `base.compiler.effective_model`'s `effective_model_candidate`
+  (router ids, network rows, objects) - no `base.compiler.security_matrix`
+  dependency, same as items 4b/4c. `build_mikrotik_projection` gains
+  `mac_vlan_assignments` as a required argument.
+- Characterization found no divergence and, checked given 4b's and 4c's
+  findings, no naming collision.
+- Verified against the real topology: full compile is `errors=0 warnings=3`,
+  unchanged from baseline; `git status` shows no diff under `generated/`;
+  the real topology's 3 MAC-to-VLAN assignments derived correctly (I4215).
+- `projections.py` now 8 functions / 720 lines (down from 9/774);
+  `test_backend_specialization_boundary.py` budget lowered to match,
+  `_extract_mac_vlan_assignments` added to the "migrated, gone rather than
+  dormant" list.
+- Same test-wiring pattern as items 1/4a/4b/4c/4d applied again, including
+  extending `mikrotik_security_channels.py`, `test_projection_helpers.py`
+  and `test_mikrotik_capability_driven.py` with a MAC-VLAN derivation helper
+  that replicates the plugin's own vlan_id_index-building loop slice.
+  Targeted mikrotik/projection/terraform/tuc slice plus the full boundary
+  test file: 121 + 15 passed, clean.
+- `adr/0118-analysis/W07-BACKEND-SPECIALIZATION-DECISION.md`'s migration
+  order item 4e marked done, naming the two new lessons this item adds
+  (an index fed by a shared-loop slice, and a migrated function's data need
+  satisfied by a channel another compiler already publishes rather than a
+  new one) for the benefit of items 4f-4i.

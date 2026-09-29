@@ -323,6 +323,13 @@ codes:
     hint: >-
       object.mikrotik.compiler.routing_policies derived policy-based routing shape
       (W07 migration order item 4d). No action required.
+  I4215:
+    severity: info
+    stage: compile
+    title: MikroTik MAC-to-VLAN Assignments Derived
+    hint: >-
+      object.mikrotik.compiler.mac_vlan_assignments derived MAC-to-VLAN assignment
+      shape (W07 migration order item 4e). No action required.
   I4301:
     severity: info
     stage: validate
