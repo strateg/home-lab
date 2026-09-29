@@ -297,15 +297,37 @@ Derived from what is checkable, not from what is easy.
    (ii) below: a second, dedicated plugin per specialization, not one plugin
    accreting every concern.
 
-   Each of 4b-4i needs the same three-part evidence 1-3 above recorded, sized
+   **4b done 2026-09-29.** `_extract_containers` moved verbatim to
+   `object.mikrotik.compiler.containers`, the third dedicated compile-stage
+   compiler plugin. It consumes only `effective_model_candidate` (router ids
+   and `routeros_container`-group rows) - no `base.compiler.security_matrix`
+   dependency, since container derivation touches no zone/CIDR fact. The
+   projection now takes `containers` as a required argument. Characterization
+   found no divergence to fix first, the same as item 4a: the function reads
+   only topology instance data, no compiler-owned fact re-derived.
+   Migrating it surfaced a real hazard the characterization step exists to
+   catch: the projection already had an unrelated local variable also named
+   `containers` (observed-runtime bridge-interface config, a completely
+   different meaning), which would have silently shadowed the new parameter
+   for the rest of the function and corrupted the rendered output - found by
+   grepping the full function body for the parameter name before finalizing
+   the change, not discovered by a test. Renamed to `observed_containers`.
+   Real-topology parity: `generated/` byte-identical; `errors=0 warnings=3`,
+   unchanged; the real topology's 6 containers derived correctly with the
+   rename in place, confirming the fix.
+
+   Each of 4c-4i needs the same three-part evidence 1-3 above recorded, sized
    to what the function actually risks: (i) a characterization step - does the
    projection already diverge from any compiler-published fact for this data,
    the way W05 did for zones and N-07 did for R1-R6 - checked by reading the
    function in full, not assumed absent because no defect is currently named;
    (ii) the compile-stage channel it moves to, and the object-module plugin
-   that owns it - items 1 and 4a each got their own dedicated plugin rather
-   than accreting into one, which later items should default to unless a
-   specific reason favors sharing;
+   that owns it - items 1, 4a and 4b each got their own dedicated plugin
+   rather than accreting into one, which later items should default to
+   unless a specific reason favors sharing; and (i) is not a formality -
+   4b's characterization also caught a naming collision that would have
+   silently corrupted rendered output if migrated without reading the whole
+   function first;
    (iii) real-topology parity (`generated/` byte-identical, matching or lower
    `errors=`/`warnings=`) plus updated `test_backend_specialization_boundary.py`
    budgets and migration-list entries, the same pattern items 1-3 established.

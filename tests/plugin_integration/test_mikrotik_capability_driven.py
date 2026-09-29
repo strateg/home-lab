@@ -72,26 +72,60 @@ def _load_wireguard_tunnels_module():
 _WIREGUARD_TUNNELS_MODULE = _load_wireguard_tunnels_module()
 _extract_wireguard_tunnels = _WIREGUARD_TUNNELS_MODULE._extract_wireguard_tunnels
 
+
+def _load_containers_module():
+    # W07 migration order item 4b: container derivation moved from the
+    # projection (generate stage) to a compile-stage compiler plugin.
+    module_path = (
+        V5_ROOT
+        / "topology"
+        / "object-modules"
+        / "mikrotik"
+        / "plugins"
+        / "compilers"
+        / "containers_compiler.py"
+    )
+    spec = importlib.util.spec_from_file_location("test_mikrotik_containers_compiler", module_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+_CONTAINERS_MODULE = _load_containers_module()
+_extract_containers = _CONTAINERS_MODULE._extract_containers
+
 # The producer the manifest lets this generator subscribe to. Both of its keys -
 # `security_matrices` and `vlan_cidr_map` - are declared `required: true`, because
 # the projection derives no substitute for either.
 _SECURITY_MATRIX_COMPILER = "base.compiler.security_matrix"
 _CAPABILITY_FLAGS_COMPILER = "object.mikrotik.compiler.capability_flags"
 _WIREGUARD_TUNNELS_COMPILER = "object.mikrotik.compiler.wireguard_tunnels"
-_CONSUMED_KEYS = (_SECURITY_MATRIX_COMPILER, _CAPABILITY_FLAGS_COMPILER, _WIREGUARD_TUNNELS_COMPILER)
+_CONTAINERS_COMPILER = "object.mikrotik.compiler.containers"
+_CONSUMED_KEYS = (
+    _SECURITY_MATRIX_COMPILER,
+    _CAPABILITY_FLAGS_COMPILER,
+    _WIREGUARD_TUNNELS_COMPILER,
+    _CONTAINERS_COMPILER,
+)
 
 
-def _mikrotik_routers_and_network(compiled_json: dict) -> tuple[set[str], list[dict]]:
+def _mikrotik_routers_and_network(compiled_json: dict) -> tuple[set[str], list[dict], list[dict]]:
     semantic = _semanticize(compiled_json)
     instances = semantic.get("instances")
     devices = instances.get("devices", []) if isinstance(instances, dict) else []
     network_rows = instances.get("network", []) if isinstance(instances, dict) else []
+    container_rows = instances.get("routeros_container", []) if isinstance(instances, dict) else []
     router_ids = {
         row.get("instance_id")
         for row in devices
         if isinstance(row, dict) and _resolved_object_ref(row).startswith("obj.mikrotik.")
     }
-    return {r for r in router_ids if isinstance(r, str) and r}, [r for r in network_rows if isinstance(r, dict)]
+    return (
+        {r for r in router_ids if isinstance(r, str) and r},
+        [r for r in network_rows if isinstance(r, dict)],
+        [r for r in container_rows if isinstance(r, dict)],
+    )
 
 
 def _derive_flags_for_fixture(compiled_json: dict) -> dict:
@@ -109,8 +143,15 @@ def _derive_flags_for_fixture(compiled_json: dict) -> dict:
 def _derive_wireguard_tunnels_for_fixture(compiled_json: dict) -> dict:
     """Same derivation the real compile-stage compiler performs, applied to a
     test fixture's compiled_json directly (W07 migration order item 4a)."""
-    router_ids, network_rows = _mikrotik_routers_and_network(compiled_json)
+    router_ids, network_rows, _ = _mikrotik_routers_and_network(compiled_json)
     return _extract_wireguard_tunnels(network_rows, router_ids, {})
+
+
+def _derive_containers_for_fixture(compiled_json: dict) -> list[dict]:
+    """Same derivation the real compile-stage compiler performs, applied to a
+    test fixture's compiled_json directly (W07 migration order item 4b)."""
+    router_ids, _, container_rows = _mikrotik_routers_and_network(compiled_json)
+    return _extract_containers(container_rows, router_ids)
 
 
 def _semanticize(compiled_json: dict) -> dict:
@@ -145,10 +186,11 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
     They are required arguments now - the projection derives no substitute for
     `base.compiler.security_matrix` - so omission is an error and `{}` is a claim.
 
-    `capability_flags` (W07 migration order item 1) and `wireguard_tunnels`
-    (W07 migration order item 4a) are likewise required and are auto-derived
-    here from the same devices/network rows the real compile-stage compiler
-    plugins read, unless a test passes its own value to exercise a specific case.
+    `capability_flags` (W07 migration order item 1), `wireguard_tunnels`
+    (W07 migration order item 4a) and `containers` (W07 migration order
+    item 4b) are likewise required and are auto-derived here from the same
+    devices/network/container rows the real compile-stage compiler plugins
+    read, unless a test passes its own value to exercise a specific case.
     """
     semantic = _semanticize(compiled_json)
     kwargs.setdefault("composed_matrices_by_enforcer", {})
@@ -160,9 +202,10 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
             row for row in devices if isinstance(row, dict) and _resolved_object_ref(row).startswith("obj.mikrotik.")
         ]
         kwargs["capability_flags"] = _derive_mikrotik_capability_flags(routers)
-    if "wireguard_tunnels" not in kwargs:
-        router_ids, network_rows = _mikrotik_routers_and_network(compiled_json)
-        kwargs["wireguard_tunnels"] = _extract_wireguard_tunnels(network_rows, router_ids, {})
+    if "wireguard_tunnels" not in kwargs or "containers" not in kwargs:
+        router_ids, network_rows, container_rows = _mikrotik_routers_and_network(compiled_json)
+        kwargs.setdefault("wireguard_tunnels", _extract_wireguard_tunnels(network_rows, router_ids, {}))
+        kwargs.setdefault("containers", _extract_containers(container_rows, router_ids))
     return _raw_build_mikrotik_projection(semantic, **kwargs)
 
 
@@ -372,11 +415,11 @@ class TestMikroTikGeneratorCapabilityDriven:
         if publish_channels:
             for key in ("composed_matrices_by_enforcer", "vlan_cidr_map"):
                 publish_for_test(ctx, _SECURITY_MATRIX_COMPILER, key, {})
-            # capability_flags and wireguard_tunnels are likewise required
-            # (W07 migration order items 1 and 4a). These fixtures test
-            # capability-driven template selection itself, so the published
-            # values must reflect the fixture's own capabilities/tunnels,
-            # not an empty stand-in.
+            # capability_flags, wireguard_tunnels and containers are likewise
+            # required (W07 migration order items 1, 4a, 4b). These fixtures
+            # test capability-driven template selection itself, so the
+            # published values must reflect the fixture's own capabilities/
+            # tunnels/containers, not an empty stand-in.
             publish_for_test(
                 ctx, _CAPABILITY_FLAGS_COMPILER, "capability_flags", _derive_flags_for_fixture(compiled_json)
             )
@@ -385,6 +428,12 @@ class TestMikroTikGeneratorCapabilityDriven:
                 _WIREGUARD_TUNNELS_COMPILER,
                 "wireguard_tunnels",
                 _derive_wireguard_tunnels_for_fixture(compiled_json),
+            )
+            publish_for_test(
+                ctx,
+                _CONTAINERS_COMPILER,
+                "containers",
+                _derive_containers_for_fixture(compiled_json),
             )
         return ctx
 
@@ -526,7 +575,7 @@ class TestMikroTikGeneratorCapabilityDriven:
         assert any("base.compiler.security_matrix" in message for message in messages), messages
         assert not list((tmp_path / "generated").rglob("*.tf")), "artifacts were written despite the failure"
 
-    def test_the_manifest_declares_all_four_channels_required(self) -> None:
+    def test_the_manifest_declares_all_five_channels_required(self) -> None:
         """`required: false` is what let the absence pass as an empty result."""
         import sys as _sys
 
@@ -547,3 +596,6 @@ class TestMikroTikGeneratorCapabilityDriven:
         # W07 migration order item 4a: wireguard_tunnels is required the same way.
         assert consumes["wireguard_tunnels"]["from_plugin"] == _WIREGUARD_TUNNELS_COMPILER
         assert consumes["wireguard_tunnels"]["required"] is True
+        # W07 migration order item 4b: containers is required the same way.
+        assert consumes["containers"]["from_plugin"] == _CONTAINERS_COMPILER
+        assert consumes["containers"]["required"] is True

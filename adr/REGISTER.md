@@ -700,3 +700,44 @@
   order item 4a marked done, with a note that this confirms the "dedicated
   plugin per specialization" choice item 1 first established, rather than
   one plugin accreting every concern.
+
+## W07 migration order item 4b — container derivation moved to compile stage, 2026-09-29
+
+- `_extract_containers` moved verbatim from `projections.py` (generate
+  stage) to a new plugin, `object.mikrotik.compiler.containers`
+  (`topology/object-modules/mikrotik/plugins/compilers/containers_compiler.py`,
+  compile stage) - the third dedicated compile-stage compiler plugin an
+  object module has registered, after item 1's `capability_flags` and item
+  4a's `wireguard_tunnels`.
+- Consumes only `base.compiler.effective_model`'s `effective_model_candidate`
+  (router ids, `routeros_container`-group rows) - no dependency on
+  `base.compiler.security_matrix`, since container derivation touches no
+  zone/CIDR fact. `build_mikrotik_projection` gains `containers` as a
+  required argument (a plain list; `[]` is already the correct empty shape,
+  unlike the dict-shaped channels).
+- Characterization found no divergence to fix first, same as item 4a - but
+  also caught a real hazard: the projection already had an unrelated local
+  variable also named `containers` (observed-runtime bridge-interface
+  config, a different meaning entirely), which would have silently shadowed
+  the new parameter for the rest of the function and corrupted rendered
+  output if migrated without reading the whole function body first. Found
+  by grepping the function for the parameter name before finalizing, not by
+  a test; renamed to `observed_containers`.
+- Verified against the real topology: `check_adr_consistency.py
+  --strict-titles` clean; full compile is `errors=0 warnings=3`, unchanged
+  from baseline; `git status` shows no diff under `generated/`; the real
+  topology's 6 containers derived correctly with the rename in place.
+- `projections.py` now 11 functions / 1000 lines (down from 12/1179);
+  `test_backend_specialization_boundary.py` budget lowered to match,
+  `_extract_containers` added to the "migrated, gone rather than dormant"
+  list.
+- Same nine-file test-wiring pattern as items 1/4a applied again. Targeted
+  mikrotik/projection/terraform/tuc slice: 118 passed (2 unrelated errors in
+  `test_tuc0001_router_data_link.py`, root-caused to CPU contention from a
+  concurrently-running full-suite background job - every one of the ~30
+  underlying timeouts hit completely unrelated validators, dns_refs through
+  vm_refs, none touching MikroTik/containers/wireguard; a clean non-strict
+  compile immediately prior showed zero errors).
+- `adr/0118-analysis/W07-BACKEND-SPECIALIZATION-DECISION.md`'s migration
+  order item 4b marked done, naming the naming-collision finding explicitly
+  since it is the kind of thing the characterization step exists to catch.

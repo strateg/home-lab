@@ -32,12 +32,14 @@ DECISION = REPO_ROOT / "adr/0118-analysis/W07-BACKEND-SPECIALIZATION-DECISION.md
 # ENFORCER-SCOPE-IMPLEMENTATION-READINESS.md sections 5c/5d, N-07), lowered
 # again the same day when W07 migration order item 1
 # (_derive_mikrotik_capability_flags, _extract_capabilities) moved to
-# object.mikrotik.compiler.capability_flags, and lowered again the same day
-# when item 4a (_extract_wireguard_tunnels) moved to object.mikrotik.
-# compiler.wireguard_tunnels. A budget that stays above the real figure
-# stops measuring, so it is lowered whenever the debt is actually paid down.
-PROJECTION_FUNCTION_BUDGET = 12
-PROJECTION_LINE_BUDGET = 1179
+# object.mikrotik.compiler.capability_flags, lowered again the same day when
+# item 4a (_extract_wireguard_tunnels) moved to object.mikrotik.compiler.
+# wireguard_tunnels, and lowered again the same day when item 4b
+# (_extract_containers) moved to object.mikrotik.compiler.containers. A
+# budget that stays above the real figure stops measuring, so it is lowered
+# whenever the debt is actually paid down.
+PROJECTION_FUNCTION_BUDGET = 11
+PROJECTION_LINE_BUDGET = 1000
 
 
 def _functions() -> list[tuple[str, int]]:
@@ -142,6 +144,7 @@ def test_the_first_migration_candidates_still_exist(name: str) -> None:
         "_derive_mikrotik_capability_flags",
         "_extract_capabilities",
         "_extract_wireguard_tunnels",
+        "_extract_containers",
     ],
 )
 def test_the_migrated_helpers_are_gone_rather_than_dormant(name: str) -> None:
@@ -158,8 +161,11 @@ def test_the_migrated_helpers_are_gone_rather_than_dormant(name: str) -> None:
     instead of deriving it. `_extract_wireguard_tunnels` (W07 migration order
     item 4a, 2026-09-29) moved the same way to `object.mikrotik.compiler.
     wireguard_tunnels`; the projection now reads `wireguard_tunnels`, also a
-    required argument. Asserting they are gone is what stops the debt from
-    being paid on paper and reinstated in the next change.
+    required argument. `_extract_containers` (W07 migration order item 4b,
+    2026-09-29) moved the same way to `object.mikrotik.compiler.containers`;
+    the projection now reads `containers`, also a required argument.
+    Asserting they are gone is what stops the debt from being paid on paper
+    and reinstated in the next change.
     """
     assert name not in {function for function, _ in _functions()}
     assert name not in PROJECTION.read_text(encoding="utf-8")

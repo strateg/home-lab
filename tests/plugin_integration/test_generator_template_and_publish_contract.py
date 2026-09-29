@@ -21,6 +21,7 @@ from plugins.generators.ansible_inventory_generator import AnsibleInventoryGener
 from tests.helpers.mikrotik_security_channels import (  # noqa: E402
     CAPABILITY_FLAGS_COMPILER,
     SECURITY_MATRIX_COMPILER,
+    CONTAINERS_COMPILER,
     WIREGUARD_TUNNELS_COMPILER,
     publish_empty_channels,
 )
@@ -115,7 +116,12 @@ def _run_generator(generator, ctx: PluginContext):
         generator,
         ctx,
         Stage.GENERATE,
-        consumes_keys=(SECURITY_MATRIX_COMPILER, CAPABILITY_FLAGS_COMPILER, WIREGUARD_TUNNELS_COMPILER),
+        consumes_keys=(
+            SECURITY_MATRIX_COMPILER,
+            CAPABILITY_FLAGS_COMPILER,
+            WIREGUARD_TUNNELS_COMPILER,
+            CONTAINERS_COMPILER,
+        ),
     )
 
 

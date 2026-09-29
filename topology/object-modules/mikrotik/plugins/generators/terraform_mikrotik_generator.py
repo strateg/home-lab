@@ -168,6 +168,10 @@ class TerraformMikroTikGenerator(BaseGenerator):
         wireguard_tunnels = self._subscribe(
             ctx, "wireguard_tunnels", plugin_id="object.mikrotik.compiler.wireguard_tunnels"
         )
+        # W07 migration order item 4b: container attachment/publication shape
+        # derived at compile stage, not re-derived here
+        # (object.mikrotik.compiler.containers).
+        containers = self._subscribe(ctx, "containers", plugin_id="object.mikrotik.compiler.containers")
 
         try:
             projection = build_mikrotik_projection(
@@ -176,6 +180,7 @@ class TerraformMikroTikGenerator(BaseGenerator):
                 vlan_cidr_map=compiled_vlan_cidrs,
                 capability_flags=capability_flags,
                 wireguard_tunnels=wireguard_tunnels,
+                containers=containers,
             )
         except projection_error as exc:
             diagnostics.append(

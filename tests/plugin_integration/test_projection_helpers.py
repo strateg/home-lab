@@ -61,6 +61,24 @@ _wireguard_tunnels_spec.loader.exec_module(_wireguard_tunnels_module)
 # tunnels (all keys present, empty/default values) - not an empty dict.
 _EMPTY_WIREGUARD_TUNNELS = _wireguard_tunnels_module._extract_wireguard_tunnels([], set(), {})
 
+_CONTAINERS_MODULE_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "topology"
+    / "object-modules"
+    / "mikrotik"
+    / "plugins"
+    / "compilers"
+    / "containers_compiler.py"
+)
+_containers_spec = _importlib_util.spec_from_file_location(
+    "test_projection_helpers_containers_compiler", _CONTAINERS_MODULE_PATH
+)
+_containers_module = _importlib_util.module_from_spec(_containers_spec)
+_containers_spec.loader.exec_module(_containers_module)
+# W07 migration order item 4b: matches what the real compiler derives for zero
+# containers - an empty list, which is already the correct empty shape.
+_EMPTY_CONTAINERS = _containers_module._extract_containers([], set())
+
 _BOOTSTRAP_PROJECTIONS = load_bootstrap_projection_module()
 
 ProjectionError = _PROXMOX_PROJECTIONS.ProjectionError
@@ -76,15 +94,16 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
     passing `{}` is a fixture saying it declares no matrices and no domains. A
     test that cares about zone or CIDR content passes a real mapping.
 
-    `capability_flags` (W07 migration order item 1) and `wireguard_tunnels`
-    (W07 migration order item 4a) are likewise required and defaulted empty
-    the same way: these fixtures are not about capability-driven flag or
-    tunnel content.
+    `capability_flags` (W07 migration order item 1), `wireguard_tunnels`
+    (W07 migration order item 4a) and `containers` (W07 migration order
+    item 4b) are likewise required and defaulted empty the same way: these
+    fixtures are not about capability-, tunnel- or container-driven content.
     """
     kwargs.setdefault("composed_matrices_by_enforcer", {})
     kwargs.setdefault("vlan_cidr_map", {})
     kwargs.setdefault("capability_flags", _EMPTY_CAPABILITY_FLAGS)
     kwargs.setdefault("wireguard_tunnels", _EMPTY_WIREGUARD_TUNNELS)
+    kwargs.setdefault("containers", _EMPTY_CONTAINERS)
     return _raw_build_mikrotik_projection(compiled_json, **kwargs)
 
 

@@ -58,6 +58,33 @@ plugins:
     description: Derives MikroTik WireGuard tunnel/interface/peer shape at
       compile stage (W07 migration order item 4a) - relocated from the
       generate-stage projection so the fact is visible before any validator runs.
+  - id: object.mikrotik.compiler.containers
+    kind: compiler
+    entry: plugins/compilers/containers_compiler.py:MikrotikContainersCompiler
+    api_version: 1.x
+    stages:
+      - compile
+    phase: finalize
+    order: 67
+    depends_on:
+      - base.compiler.effective_model
+    timeout: 30
+    execution_mode: subinterpreter
+    consumes:
+      - key: effective_model_candidate
+        from_plugin: base.compiler.effective_model
+        required: true
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    produces:
+      - key: containers
+        scope: pipeline_shared
+    description: Derives MikroTik container attachment/publication shape at
+      compile stage (W07 migration order item 4b) - relocated from the
+      generate-stage projection so the fact is visible before any validator runs.
   - id: object.mikrotik.generator.terraform
     kind: generator
     entry: plugins/generators/terraform_mikrotik_generator.py:TerraformMikroTikGenerator
@@ -71,6 +98,7 @@ plugins:
       - base.compiler.security_matrix
       - object.mikrotik.compiler.capability_flags
       - object.mikrotik.compiler.wireguard_tunnels
+      - object.mikrotik.compiler.containers
     timeout: 30
     execution_mode: subinterpreter
     consumes:
@@ -102,6 +130,11 @@ plugins:
       # derived once at compile stage. The projection derives no substitute.
       - key: wireguard_tunnels
         from_plugin: object.mikrotik.compiler.wireguard_tunnels
+        required: true
+      # W07 migration order item 4b: container attachment/publication shape,
+      # derived once at compile stage. The projection derives no substitute.
+      - key: containers
+        from_plugin: object.mikrotik.compiler.containers
         required: true
     config:
       terraform_version: '>= 1.6.0'

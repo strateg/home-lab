@@ -302,6 +302,13 @@ codes:
     hint: >-
       object.mikrotik.compiler.wireguard_tunnels derived tunnel/interface/peer shape
       (W07 migration order item 4a). No action required.
+  I4212:
+    severity: info
+    stage: compile
+    title: MikroTik Containers Derived
+    hint: >-
+      object.mikrotik.compiler.containers derived container attachment/publication
+      shape (W07 migration order item 4b). No action required.
   I4301:
     severity: info
     stage: validate
