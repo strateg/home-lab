@@ -980,6 +980,55 @@ codes:
       Two scopes attributed to one enforcer declare a policy_overrides entry with the same name, which would
       collide at the same rendered resource address (D-COMP-2); no composed plan is published for that enforcer.
 
+  # Enforcer type/adapter resolution (ADR 0118/0119 D-TYPE-1..3), allocated
+  # 2026-09-29 in the same 7009-7019 sub-band, after SPC MODE review.
+  #
+  # W7015/W7016/W7017/W7019 are warnings, not errors: they fire during
+  # per-instance resolution for ANY instance declaring a device-kind
+  # capability, whether or not anything actually uses it as an enforcer
+  # (e.g. a zone-policy-capable device with no managed_by_ref pointing at
+  # it yet). An unreferenced, unresolved instance is latent, not a build
+  # failure. E7018 is the one enforced error, because it fires only for an
+  # instance an actual security_matrix scope depends on via managed_by_ref.
+  W7015:
+    severity: warning
+    stage: compile
+    title: Instance Declares Both Enforcer Device Kinds
+    hint: >-
+      An instance's effective capabilities include both cap.net.l3.security.firewall.zone_policy and
+      cap.compute.security.firewall.zone_policy. Enforcer type is exactly one device kind (D-TYPE-1);
+      resolution refuses rather than picking one.
+  W7016:
+    severity: warning
+    stage: compile
+    title: Enforcer Type Has No Compatible Adapter
+    hint: >-
+      An instance's resolved enforcer type has no adapter for its OS family, and it declares no direct
+      adapter capability either (D-TYPE-2). Unsupported combination, not a silent no-op.
+  W7017:
+    severity: warning
+    stage: compile
+    title: Enforcer Type Has More Than One Compatible Adapter
+    hint: >-
+      More than one OS family resolves an adapter for one instance's enforcer type (D-TYPE-2). No priority
+      order between them; ambiguous. Registered though unreachable under the current OS-family table, so it
+      stays caught if that table ever grows.
+  E7018:
+    severity: error
+    stage: compile
+    title: Scope's Enforcer Has No Resolved Type
+    hint: >-
+      A security matrix's managed_by_ref names an instance whose derived enforcer type is none (D-TYPE-1).
+      Replaces the disabled generic class.router target-class check for class.network.security_matrix.
+  W7019:
+    severity: warning
+    stage: compile
+    title: Direct Adapter Declaration Disagrees With OS-Family Resolution
+    hint: >-
+      An instance declares an adapter capability directly (cap.firewall.security_matrix.routeros or .pve)
+      that differs from the adapter its OS family resolves to (D-TYPE-2 reconciliation). Both are inputs to
+      the resolution per ADR 0119 D1.1; neither is preferred by priority.
+
   # Attachment and address domain (NET-ATTACHMENT, NET-ADDRESS-OWNER)
   E7020:
     severity: error

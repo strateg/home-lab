@@ -494,7 +494,7 @@ the real single-scope topology was the parity claim this made, verified
 (`git status` after a clean recompile shows no diff under `generated/`),
 the same discipline W05 and section 5.5 already established.
 
-## 5e. Enforcer type and adapter resolution, decided 2026-09-29, revised after SPC review (two passes)
+## 5e. Enforcer type and adapter resolution, decided 2026-09-29, revised after SPC review (two passes), implemented 2026-09-29
 
 **SPC MODE review, 2026-09-29, first pass.** The first version of this section
 was checked against the source documents it cites, not only against its own
@@ -524,6 +524,38 @@ device-level derived fact risked exactly the conflation D1.1 warns against,
 regardless of intent. Both are corrected below. The text from the first
 revision (unaffected by this pass) is otherwise unchanged; the original,
 pre-review text of this section is preserved at commit `8dd9a3a3`.
+
+**Implementation, 2026-09-29.** Building the reviewed design against the real
+topology surfaced three things the review itself had not: (1) the real
+enforcer of record, `rtr-mikrotik-chateau`, declared no
+`cap.net.l3.security.firewall.zone_policy` at all, even though its
+security-matrix instance is explicitly zone-based (LAN/guest/IoT/VPN/servers/
+management) - a genuine topology-data gap, fixed by adding the declaration
+to `obj.mikrotik.chateau_lte7_ax.yaml`, not by weakening D-TYPE-1's gate.
+(2) The `adapter_version` mechanism this record approved in the STEP 5
+re-entry - binding the resolving generator plugin's `api_version` - turned
+out wrong on inspection: `api_version: 1.x` is identical across *every*
+plugin in the entire framework (the kernel-API compatibility marker, not an
+adapter revision), so it would have carried zero adapter-specific
+information. `adapter_version` is `None` in the shipped provenance record
+instead, with the D2/V-07 gap stated honestly rather than papered over; see
+the corrected D-TYPE-2 text below. (3) Device-kind capabilities
+(`cap.net.l3.security.firewall.zone_policy`) live on the hardware object,
+while OS-family capabilities (`cap.os.routeros`) live on a *different*
+object under ADR 0064's embedded-OS model (`obj.mikrotik.chateau_lte7_ax` vs
+`obj.os.routeros.7.arm64`) - joined only at the instance level, through
+`os_refs`. `capability_compiler.py`'s per-object pass can never see both
+facts for one entity, so "Where this lives" below is corrected from that
+compiler to `effective_model_compiler.py`, which already performs exactly
+this join for OS/firmware capabilities. `enforcer_resolution` is keyed by
+instance id, not object id, as a direct consequence.
+
+Verified against the real topology after these three corrections: zero
+compile errors, `git status` shows no diff under `generated/` (purely
+additive), and one expected warning - `rtr-slate` (GL.iNet, OpenWrt) resolves
+type `network` with no compatible adapter, exactly the "OpenWrt or VyOS...
+neither with an adapter implemented here" case D-TYPE-2 already named before
+implementation.
 
 Resolves N-01/N-02/N-03 - the row section 4 called the single highest-value
 item. Bigger than section 5c: this is a resolution mechanism, not a channel
@@ -651,25 +683,29 @@ needing no new device-level declaration:
   that is not reachable today rather than one already reproduced, the same
   status as the "both types present" check above.
 
-**Adapter version (second-pass correction).** ADR 0119 D1.1 requires
-identity *and* version pinned together; the first pass resolved identity only.
-The resolving generator plugin's own manifest `api_version` field - already
-present and populated (`1.x` on both `object.mikrotik.generator.terraform`
-and `object.proxmox.generator.terraform` today) - is the version bound to the
-resolved adapter identity: no new versioning scheme is introduced, and none
-is invented for a concept (an adapter contract version distinct from the
-plugin that implements it) nothing in this codebase tracks separately today.
-This is a partial answer, stated as such: ADR 0119 D2 defines the full
-"execution context" record - which carries adapter identity and version
-together with routing domain, address family, hook and chain - as a
-conceptual contract whose "concrete manifest channel names and schemas must
-be registered in the implementation PR," i.e. not yet built. Section 4's own
-V-07 row already recorded this as blocked ("the derived scope/context
-contract must be registered before a field claims to carry resolved type and
-adapter identity") before this section existed. This decision supplies
-identity and a version signal now; binding both into a D2-conformant
-execution context remains V-07's open item, not a new one this section
-invents or silently closes.
+**Adapter version (corrected during implementation).** ADR 0119 D1.1 requires
+identity *and* version pinned together; the first two SPC-review passes
+resolved identity only, and the STEP 5 re-entry approved binding the
+resolving generator plugin's manifest `api_version` field as a version
+signal. Building it exposed the flaw the review missed: `api_version: 1.x`
+is not adapter-specific at all - it is identical on *every* plugin in the
+framework (discoverers, compilers, validators, generators, builders alike;
+checked with a repo-wide grep, not just the two generators this record
+originally looked at), because it is the kernel plugin-API compatibility
+marker, not a revision of the adapter it happens to sit on. Binding it as
+`adapter_version` would have produced the literal string `"1.x"` for both
+`.routeros` and `.pve`, telling a reader nothing D1.1's "identity and
+version" requirement needs. `adapter_version` is `None` in the shipped
+record instead - an honest gap, not a misleading constant. ADR 0119 D2
+defines the full "execution context" record - which would carry adapter
+identity and version together with routing domain, address family, hook and
+chain - as a conceptual contract whose "concrete manifest channel names and
+schemas must be registered in the implementation PR," i.e. not yet built.
+Section 4's own V-07 row already recorded this as blocked ("the derived
+scope/context contract must be registered before a field claims to carry
+resolved type and adapter identity") before this section existed, and stays
+blocked: this decision supplies identity now; version stays V-07's open
+item, not something this section invents a substitute for.
 
 **Reconciliation with a pre-existing direct declaration.**
 `cap.firewall.security_matrix.routeros`/`.pve` remain registered, declarable
@@ -748,55 +784,83 @@ by name, not by an absent generic class match.
 
 Same 7009-7019 sub-band, collision-checked clean (`grep -rEon
 '[EWI]70(09|1[5-9])'`, excl. `build/`, `.venv/` - only this record's own prose
-names them):
+and the implementation name them). Severity split by whether the finding is
+latent or referenced, corrected during implementation after an eager `error`
+severity on every resolution broke the real compile for `rtr-slate`
+(GL.iNet, OpenWrt: type resolves, no adapter exists - true and harmless,
+since nothing points `managed_by_ref` at it). Only `E7018` fires for an
+instance an actual security_matrix scope depends on; the rest fire during
+resolution itself, for any instance carrying a device-kind capability,
+whether or not anything uses it as an enforcer yet:
 
 | Code | Severity / stage | Condition |
 |---|---|---|
-| `E7015` | error / compile | Both device-kind firewall capabilities present on one object (D-TYPE-1 contradiction). |
-| `E7016` | error / compile | A resolved type has zero compatible adapters for the device's OS family (D-TYPE-2 unsupported). |
-| `E7017` | error / compile | A resolved type has more than one compatible adapter (D-TYPE-2 ambiguous). Unreachable under the current OS table; registered so it is never silently permitted if that changes. |
-| `E7018` | error / compile | `managed_by_ref` resolves to an instance with no derived enforcement type (N-01 replacement). |
-| `E7019` | error / compile | A direct adapter declaration disagrees with the OS-family-derived adapter for the same device (D-TYPE-2 reconciliation). |
+| `W7015` | warning / compile | Both device-kind firewall capabilities present on one instance's effective capabilities (D-TYPE-1 contradiction). |
+| `W7016` | warning / compile | A resolved type has zero compatible adapters for the instance's OS family (D-TYPE-2 unsupported). |
+| `W7017` | warning / compile | A resolved type has more than one compatible adapter (D-TYPE-2 ambiguous). Unreachable under the current OS table; registered so it is never silently permitted if that changes. |
+| `E7018` | error / compile | `managed_by_ref` resolves to an instance with no derived enforcement type (N-01 replacement). The one hard error: it only fires for a reference something actually depends on. |
+| `W7019` | warning / compile | A direct adapter declaration disagrees with the OS-family-derived adapter for the same instance (D-TYPE-2 reconciliation). |
 
 ### Where this lives
 
-`capability_compiler.py` already derives `cap.os.*`, `cap.vendor.*`,
-`cap.role.*` per object in one pass. D-TYPE-1/D-TYPE-2 read exactly that
-pass's own output (`caps`, after OS/vendor derivation already ran) and need
-no input this compiler does not already have in scope. A new method in the
-same plugin, publishing a new `enforcer_resolution` channel keyed by object
-id, is the natural placement - not a new plugin family for a derivation that
-shares its entire input with an existing one. The published shape carries
-provenance directly, per ADR 0119 D1.1's explicit requirement ("Resolution
-carries provenance: which declarations were considered, which were
-compatible, and why one remained"):
+**Corrected during implementation.** This record originally placed the new
+method in `capability_compiler.py`, reasoning that it "already derives
+`cap.os.*`, `cap.vendor.*`, `cap.role.*` per object in one pass" and D-TYPE-1/
+D-TYPE-2 needed nothing that compiler did not already have in scope. Building
+it against the real topology proved that wrong: `capability_compiler.py`
+iterates *objects*, and under ADR 0064's embedded-OS model a hardware
+object's device-kind capability and its OS family's capability are two
+different objects' facts (`obj.mikrotik.chateau_lte7_ax` declares the
+firewall capability; `cap.os.routeros` is derived on `obj.os.routeros.7.
+arm64`, a separate object reached only through an instance's `os_refs`). No
+single call into that compiler's per-object loop ever sees both.
+
+`effective_model_compiler.py`'s `_derive_instance_effective` already performs
+exactly this join for OS/firmware capabilities, per instance, via `os_refs` -
+it is the actual, already-instance-aware home. `enforcer_resolution` is
+published from there instead, **keyed by instance id** (not object id, as
+first written here): the caller assembles each instance's effective
+capability set from the hardware object's own `enabled_capabilities` plus
+both derived-capability sources (object-level and instance-level) before
+calling the resolver, mirroring how `_derive_instance_effective` already
+merges OS-derived capabilities into its own per-instance set. The published
+shape carries provenance directly, per ADR 0119 D1.1's explicit requirement
+("Resolution carries provenance: which declarations were considered, which
+were compatible, and why one remained"):
 
 ```
 {
   "type": "network" | "compute" | None,
   "adapter": "cap.firewall.security_matrix.routeros" | ... | None,
-  "adapter_version": "1.x" | None,   # the resolving generator plugin's api_version;
-                                       # a partial answer to D2's identity+version
-                                       # requirement, not the full execution-context
-                                       # record V-07 still blocks
+  "adapter_version": None,   # ADR 0119 D2's execution-context record (identity +
+                              # version together) is not yet implemented; V-07 stays
+                              # blocked. Not a placeholder value - see D-TYPE-2 above
+                              # for why binding api_version here would have been wrong.
   "considered": [...],   # every device-kind and OS-family capability inspected
   "compatible": [...],   # the subset that could have produced a result
   "reason": "...",       # why this outcome, or why refused
 }
 ```
 
-`security_matrix_compiler.py` (E7018) and the two reference validators
-(E7010's `managed_by_ref` check, and the retired exclusion's replacement)
-become its consumers.
+`declarative_reference_validator.py` and `network_core_refs_validator.py`
+(E7018, the N-01 replacement) are its consumers, subscribing to
+`base.compiler.effective_model`'s `enforcer_resolution` and looking a
+`managed_by_ref` value up directly as an instance id - no object_ref
+indirection needed, since the channel is already keyed the way
+`managed_by_ref` names things.
 
 ### What this decision does not do
 
-Not implemented: no code changes here, `enforcer_resolution` does not exist,
-`cap.compute.security.firewall.zone_policy` is not registered, `class.network.
-security_matrix`'s exclusion is not yet replaced. `adapter_version` supplies
-the resolving plugin's `api_version` as a partial signal; it does not close
-V-07 (the full D2 execution-context record), which stays blocked on G1/W03
-exactly as section 4 already recorded before this section existed.
+Implemented 2026-09-29: `enforcer_resolution` exists, published from
+`effective_model_compiler.py`; `cap.compute.security.firewall.zone_policy` is
+registered in `capability-catalog.yaml`; the `class.network.security_matrix`
+exclusion in both reference validators now has the dedicated E7018 check
+behind it. Verified against the real topology: zero compile errors, no diff
+under `generated/`, one expected `W7016` (`rtr-slate`). `adapter_version` is
+`None`, not a partial signal - see D-TYPE-2's corrected text above for why
+`api_version` was rejected rather than used. It does not close V-07 (the full
+D2 execution-context record), which stays blocked on G1/W03 exactly as
+section 4 already recorded before this section existed.
 `enabled_packs` (N-04) stays deferred: only two objects declare non-empty
 packs today (Chateau, GL.iNet). Precision correction from the SPC review:
 packs are not universally un-expanded - `capability_contract_validator.py`'s

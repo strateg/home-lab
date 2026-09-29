@@ -572,3 +572,53 @@
   `docs/diagnostics-catalog.md`, `enforcer_resolution` does not exist.
 - Verification: `check_adr_consistency.py --strict-titles` clean; diagnostic
   sub-band grep shows the five codes referenced only in this design record.
+
+## ADR 0118/0119 — enforcer type/adapter resolution, implemented, 2026-09-29
+
+- Implemented the design from the previous two entries. Building it against
+  the real topology found three things the SPC review itself had not:
+  1. The real enforcer of record, `rtr-mikrotik-chateau`, declared no
+     `cap.net.l3.security.firewall.zone_policy` at all, despite its
+     security-matrix instance being explicitly zone-based. Fixed as a
+     topology-data correction (`obj.mikrotik.chateau_lte7_ax.yaml`), not by
+     weakening the D-TYPE-1 gate.
+  2. The approved `adapter_version` mechanism (binding the resolving
+     generator's `api_version`) was wrong: `api_version: 1.x` is identical
+     across every plugin in the entire framework (the kernel-API
+     compatibility marker, not an adapter revision) - a repo-wide grep during
+     implementation found this, not the review. `adapter_version` ships as
+     `None`, honestly, rather than a misleading constant.
+  3. Device-kind capabilities live on the hardware object;
+     `cap.os.*` capabilities live on a *different* object under ADR 0064's
+     embedded-OS model, joined only at the instance level via `os_refs`.
+     `capability_compiler.py` (the design's chosen home) iterates objects and
+     can never see both facts for one entity. Moved to
+     `effective_model_compiler.py`, which already performs this exact join
+     for OS/firmware capabilities; `enforcer_resolution` is published keyed
+     by **instance id**, not object id.
+- Severity corrected during implementation: an eager `error` severity on
+  every resolution (not only referenced ones) broke the real compile for
+  `rtr-slate` (GL.iNet, OpenWrt - type resolves, no adapter exists, and
+  nothing points `managed_by_ref` at it). Renamed and downgraded four of the
+  five codes to warnings (`W7015`, `W7016`, `W7017`, `W7019`); `E7018` stays
+  the one hard error, since it only fires for an instance an actual
+  security_matrix scope depends on.
+- New capability registered: `cap.compute.security.firewall.zone_policy`
+  (`capability-catalog.yaml`). N-01 replaced in both
+  `declarative_reference_validator.py` and `network_core_refs_validator.py`
+  (kept in parity per `test_declarative_reference_validator_parity.py`).
+- Verified against the real topology: `check_adr_consistency.py
+  --strict-titles` clean; full compile is `errors=0 warnings=3`, the third
+  warning being the expected `W7016` for `rtr-slate`; `git status` shows no
+  diff under `generated/` (purely additive); manifests
+  (`compilers.yaml`/`validators.yaml`) and `framework.lock.yaml` updated for
+  the new `enforcer_resolution` produces/consumes wiring.
+- Tests: 13 new cases in `test_effective_model_compiler.py` (object-level and
+  cross-object/os_refs resolution, contradiction, unsupported, reconciliation
+  disagreement, non-enforcer omission) and 3 new cases in
+  `test_network_core_refs_validator.py` (E7018 accept/reject paths), all
+  passing, plus the targeted suites (`test_security_matrix_compiler.py`,
+  `test_declarative_reference_validator_parity.py`,
+  `test_backend_specialization_boundary.py`, `test_data_bus_contracts.py`,
+  `test_manifest.py`, `test_capability_contract_validator.py`,
+  `test_capability_contract_loader_compiler.py`), all clean.

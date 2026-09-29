@@ -274,7 +274,10 @@ def test_effective_model_execute_stage_commits_compiled_json_authoritatively(tmp
                 "compiled_json_owner": True,
                 "execution_mode": "subinterpreter",
                 "depends_on": ["base.compiler.instance_rows"],
-                "produces": [{"key": "effective_model_candidate", "scope": "pipeline_shared"}],
+                "produces": [
+                    {"key": "effective_model_candidate", "scope": "pipeline_shared"},
+                    {"key": "enforcer_resolution", "scope": "pipeline_shared"},
+                ],
                 "consumes": [
                     {"from_plugin": "base.compiler.instance_rows", "key": "normalized_rows", "required": True}
                 ],
@@ -366,7 +369,10 @@ def test_effective_model_execute_stage_requires_committed_rows(tmp_path):
                 "compiled_json_owner": True,
                 "execution_mode": "subinterpreter",
                 "depends_on": ["base.compiler.instance_rows"],
-                "produces": [{"key": "effective_model_candidate", "scope": "pipeline_shared"}],
+                "produces": [
+                    {"key": "effective_model_candidate", "scope": "pipeline_shared"},
+                    {"key": "enforcer_resolution", "scope": "pipeline_shared"},
+                ],
                 "consumes": [
                     {"from_plugin": "base.compiler.instance_rows", "key": "normalized_rows", "required": True}
                 ],
@@ -449,3 +455,364 @@ def test_effective_model_compiler_includes_inherited_lineage_fields():
     assert row["instance"]["resolved_lineage"] == ["class.base", "class.child"]
     assert ctx.compiled_json["classes"]["class.child"]["lineage"] == ["class.base", "class.child"]
     assert ctx.compiled_json["objects"]["obj.child"]["class_lineage"] == ["class.base", "class.child"]
+
+
+
+def test_effective_model_resolves_network_enforcer_from_object_level_os_capability():
+    """D-TYPE-1/D-TYPE-2: device-kind + OS family both on the object itself."""
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        raw_yaml={"version": "5.0.0", "model": "class-object-instance"},
+        classes={"class.router": {"class": "class.router", "version": "1.0.0"}},
+        objects={
+            "obj.router.test": {
+                "object": "obj.router.test",
+                "version": "1.0.0",
+                "class_ref": "class.router",
+                "enabled_capabilities": ["cap.net.l3.security.firewall.zone_policy"],
+            }
+        },
+        config={},
+        instance_bindings={"instance_bindings": {"devices": []}},
+    )
+    publish_for_test(
+        ctx,
+        "base.compiler.instance_rows",
+        "normalized_rows",
+        [
+            {
+                "group": "devices",
+                "instance": "rtr-1",
+                "layer": "L1",
+                "source_id": "rtr-1",
+                "class_ref": "class.router",
+                "object_ref": "obj.router.test",
+                "status": "modeled",
+                "notes": "",
+                "runtime": None,
+                "firmware_ref": None,
+                "os_refs": [],
+                "embedded_in": None,
+                "extensions": {},
+            }
+        ],
+    )
+    publish_for_test(
+        ctx,
+        "base.compiler.capabilities",
+        "derived_capabilities",
+        {"obj.router.test": ["cap.os.routeros"]},
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+
+    assert result.status == PluginStatus.SUCCESS
+    resolution = result.output_data["enforcer_resolution"]
+    assert resolution["rtr-1"]["type"] == "network"
+    assert resolution["rtr-1"]["adapter"] == "cap.firewall.security_matrix.routeros"
+    assert resolution["rtr-1"]["adapter_version"] is None
+
+
+def test_effective_model_resolves_enforcer_across_hardware_and_os_objects_via_os_refs():
+    """Regression: device-kind capability on the hardware object, OS family
+    capability on a SEPARATE object (ADR 0064 embedded-OS model), joined
+    only through the instance's os_refs - the real rtr-mikrotik-chateau shape
+    that surfaced this join requirement during implementation."""
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        raw_yaml={"version": "5.0.0", "model": "class-object-instance"},
+        classes={
+            "class.router": {"class": "class.router", "version": "1.0.0"},
+            "class.os": {"class": "class.os", "version": "1.0.0"},
+        },
+        objects={
+            "obj.router.test": {
+                "object": "obj.router.test",
+                "version": "1.0.0",
+                "class_ref": "class.router",
+                "enabled_capabilities": ["cap.net.l3.security.firewall.zone_policy"],
+            },
+            "obj.os.routeros.test": {
+                "object": "obj.os.routeros.test",
+                "version": "1.0.0",
+                "class_ref": "class.os",
+            },
+        },
+        config={},
+        instance_bindings={"instance_bindings": {"devices": []}},
+    )
+    publish_for_test(
+        ctx,
+        "base.compiler.instance_rows",
+        "normalized_rows",
+        [
+            {
+                "group": "devices",
+                "instance": "rtr-1",
+                "layer": "L1",
+                "source_id": "rtr-1",
+                "class_ref": "class.router",
+                "object_ref": "obj.router.test",
+                "status": "modeled",
+                "notes": "",
+                "runtime": None,
+                "firmware_ref": None,
+                "os_refs": ["inst.os.routeros.test"],
+                "embedded_in": None,
+                "extensions": {},
+            },
+            {
+                "group": "os",
+                "instance": "inst.os.routeros.test",
+                "layer": "L1",
+                "source_id": "inst.os.routeros.test",
+                "class_ref": "class.os",
+                "object_ref": "obj.os.routeros.test",
+                "status": "modeled",
+                "notes": "",
+                "runtime": None,
+                "firmware_ref": None,
+                "os_refs": [],
+                "embedded_in": None,
+                "extensions": {},
+            },
+        ],
+    )
+    publish_for_test(
+        ctx,
+        "base.compiler.capabilities",
+        "effective_os_map",
+        {"obj.os.routeros.test": {"family": "routeros", "architecture": "arm64"}},
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+
+    assert result.status == PluginStatus.SUCCESS
+    resolution = result.output_data["enforcer_resolution"]
+    assert resolution["rtr-1"]["type"] == "network"
+    assert resolution["rtr-1"]["adapter"] == "cap.firewall.security_matrix.routeros"
+    # The OS-instance row is not itself an enforcer candidate.
+    assert "inst.os.routeros.test" not in resolution
+
+
+def test_effective_model_refuses_both_device_kinds_at_once():
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        raw_yaml={"version": "5.0.0", "model": "class-object-instance"},
+        classes={"class.router": {"class": "class.router", "version": "1.0.0"}},
+        objects={
+            "obj.router.test": {
+                "object": "obj.router.test",
+                "version": "1.0.0",
+                "class_ref": "class.router",
+                "enabled_capabilities": [
+                    "cap.net.l3.security.firewall.zone_policy",
+                    "cap.compute.security.firewall.zone_policy",
+                ],
+            }
+        },
+        config={},
+        instance_bindings={"instance_bindings": {"devices": []}},
+    )
+    publish_for_test(
+        ctx,
+        "base.compiler.instance_rows",
+        "normalized_rows",
+        [
+            {
+                "group": "devices",
+                "instance": "rtr-1",
+                "layer": "L1",
+                "source_id": "rtr-1",
+                "class_ref": "class.router",
+                "object_ref": "obj.router.test",
+                "status": "modeled",
+                "notes": "",
+                "runtime": None,
+                "firmware_ref": None,
+                "os_refs": [],
+                "embedded_in": None,
+                "extensions": {},
+            }
+        ],
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+
+    assert result.status == PluginStatus.PARTIAL
+    assert any(diag.code == "W7015" for diag in result.diagnostics)
+    resolution = result.output_data["enforcer_resolution"]
+    assert resolution["rtr-1"]["type"] is None
+
+
+def test_effective_model_warns_when_resolved_type_has_no_compatible_adapter():
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        raw_yaml={"version": "5.0.0", "model": "class-object-instance"},
+        classes={"class.router": {"class": "class.router", "version": "1.0.0"}},
+        objects={
+            "obj.router.test": {
+                "object": "obj.router.test",
+                "version": "1.0.0",
+                "class_ref": "class.router",
+                "enabled_capabilities": ["cap.net.l3.security.firewall.zone_policy"],
+            }
+        },
+        config={},
+        instance_bindings={"instance_bindings": {"devices": []}},
+    )
+    publish_for_test(
+        ctx,
+        "base.compiler.instance_rows",
+        "normalized_rows",
+        [
+            {
+                "group": "devices",
+                "instance": "rtr-openwrt",
+                "layer": "L1",
+                "source_id": "rtr-openwrt",
+                "class_ref": "class.router",
+                "object_ref": "obj.router.test",
+                "status": "modeled",
+                "notes": "",
+                "runtime": None,
+                "firmware_ref": None,
+                "os_refs": [],
+                "embedded_in": None,
+                "extensions": {},
+            }
+        ],
+    )
+    publish_for_test(
+        ctx,
+        "base.compiler.capabilities",
+        "derived_capabilities",
+        {"obj.router.test": ["cap.os.openwrt"]},
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+
+    assert result.status == PluginStatus.PARTIAL
+    assert any(diag.code == "W7016" for diag in result.diagnostics)
+    resolution = result.output_data["enforcer_resolution"]
+    assert resolution["rtr-openwrt"]["type"] == "network"
+    assert resolution["rtr-openwrt"]["adapter"] is None
+
+
+def test_effective_model_flags_direct_adapter_declaration_disagreeing_with_os_family():
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        raw_yaml={"version": "5.0.0", "model": "class-object-instance"},
+        classes={"class.router": {"class": "class.router", "version": "1.0.0"}},
+        objects={
+            "obj.router.test": {
+                "object": "obj.router.test",
+                "version": "1.0.0",
+                "class_ref": "class.router",
+                "enabled_capabilities": [
+                    "cap.net.l3.security.firewall.zone_policy",
+                    "cap.firewall.security_matrix.pve",
+                ],
+            }
+        },
+        config={},
+        instance_bindings={"instance_bindings": {"devices": []}},
+    )
+    publish_for_test(
+        ctx,
+        "base.compiler.instance_rows",
+        "normalized_rows",
+        [
+            {
+                "group": "devices",
+                "instance": "rtr-1",
+                "layer": "L1",
+                "source_id": "rtr-1",
+                "class_ref": "class.router",
+                "object_ref": "obj.router.test",
+                "status": "modeled",
+                "notes": "",
+                "runtime": None,
+                "firmware_ref": None,
+                "os_refs": [],
+                "embedded_in": None,
+                "extensions": {},
+            }
+        ],
+    )
+    publish_for_test(
+        ctx,
+        "base.compiler.capabilities",
+        "derived_capabilities",
+        {"obj.router.test": ["cap.os.routeros"]},
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+
+    assert result.status == PluginStatus.PARTIAL
+    assert any(diag.code == "W7019" for diag in result.diagnostics)
+    resolution = result.output_data["enforcer_resolution"]
+    assert resolution["rtr-1"]["adapter"] is None
+
+
+def test_effective_model_omits_enforcer_resolution_for_non_enforcer_instances():
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        raw_yaml={"version": "5.0.0", "model": "class-object-instance"},
+        classes={"class.router": {"class": "class.router", "version": "1.0.0"}},
+        objects={
+            "obj.router.test": {
+                "object": "obj.router.test",
+                "version": "1.0.0",
+                "class_ref": "class.router",
+            }
+        },
+        config={},
+        instance_bindings={"instance_bindings": {"devices": []}},
+    )
+    publish_for_test(
+        ctx,
+        "base.compiler.instance_rows",
+        "normalized_rows",
+        [
+            {
+                "group": "devices",
+                "instance": "rtr-plain",
+                "layer": "L1",
+                "source_id": "rtr-plain",
+                "class_ref": "class.router",
+                "object_ref": "obj.router.test",
+                "status": "modeled",
+                "notes": "",
+                "runtime": None,
+                "firmware_ref": None,
+                "os_refs": [],
+                "embedded_in": None,
+                "extensions": {},
+            }
+        ],
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+
+    assert result.status == PluginStatus.SUCCESS
+    resolution = result.output_data["enforcer_resolution"]
+    assert "rtr-plain" not in resolution

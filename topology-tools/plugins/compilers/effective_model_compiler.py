@@ -7,6 +7,15 @@ assembly so parity gate can compare equivalent payloads.
 ADR 0106 + ADR 0104 integration: Subscribes to capability_compiler for derived
 capabilities instead of deriving independently. This eliminates code duplication
 and ensures consistent capability derivation across the pipeline.
+
+ADR 0118/0119 enforcer type/adapter resolution (D-TYPE-1..3): published here,
+per instance, as "enforcer_resolution" - not in capability_compiler.py. A
+hardware object's declared device-kind capability and its OS family's
+capability (cap.os.routeros, cap.os.proxmox) live on two different objects
+under ADR 0064's embedded-OS model (e.g. obj.mikrotik.chateau_lte7_ax vs
+obj.os.routeros.7.arm64) and are joined only here, at the instance level,
+via os_refs - the same join _derive_instance_effective already performs for
+OS/firmware capabilities.
 """
 
 from __future__ import annotations
@@ -271,6 +280,193 @@ class EffectiveModelCompiler(CompilerPlugin):
 
         return instance_derived_caps, instance_software_refs
 
+    # ADR 0118/0119 D-TYPE-1: enforcer type is gated by exactly one of these
+    # two mutually exclusive device-kind capabilities.
+    _ENFORCER_TYPE_CAPS: dict[str, str] = {
+        "network": "cap.net.l3.security.firewall.zone_policy",
+        "compute": "cap.compute.security.firewall.zone_policy",
+    }
+
+    # ADR 0118/0119 D-TYPE-2: type -> the cap.os.* family compatible with it,
+    # and the adapter identifier that OS family resolves to. One family per
+    # type today; a second entry per type would make W7017 (ambiguous)
+    # reachable, which is registered for that reason even though it cannot
+    # fire under this table.
+    _ENFORCER_ADAPTER_BY_TYPE: dict[str, dict[str, str]] = {
+        "network": {"cap.os.routeros": "cap.firewall.security_matrix.routeros"},
+        "compute": {"cap.os.proxmox": "cap.firewall.security_matrix.pve"},
+    }
+
+    _ENFORCER_ADAPTER_IDS: frozenset[str] = frozenset(
+        {
+            "cap.firewall.security_matrix.routeros",
+            "cap.firewall.security_matrix.pve",
+        }
+    )
+
+    def _resolve_enforcer(
+        self,
+        *,
+        instance_id: str,
+        effective_caps: set[str],
+        path: str,
+        stage: Stage,
+        diagnostics: list[PluginDiagnostic],
+    ) -> dict[str, Any] | None:
+        """Resolve enforcer type and adapter identity (ADR 0118/0119 D-TYPE-1..3).
+
+        This is dispatch among mutually exclusive device kinds, not
+        required_capabilities satisfaction: neither capability engine can
+        express "enforced by RouterOS OR Proxmox" as a conjunction. Returns
+        None for instances that declare neither device-kind capability (not
+        an enforcer candidate; type=none by absence from the published map).
+
+        `effective_caps` must already combine the hardware object's declared
+        enabled_capabilities with both the object- and instance-level
+        derived capabilities (the latter carries cap.os.* resolved through
+        os_refs) - the caller assembles this per instance, since no single
+        object carries every fact this resolution needs. Pack expansion
+        (enabled_packs) is deliberately not included - N-04 stays deferred.
+        """
+        present_types = [t for t, cap_id in self._ENFORCER_TYPE_CAPS.items() if cap_id in effective_caps]
+        if not present_types:
+            return None
+
+        if len(present_types) > 1:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="W7015",
+                    severity="warning",
+                    stage=stage,
+                    message=(
+                        f"Instance '{instance_id}' resolves both "
+                        f"'{self._ENFORCER_TYPE_CAPS['network']}' and "
+                        f"'{self._ENFORCER_TYPE_CAPS['compute']}'. An enforcer's type must be "
+                        "exactly one device kind (ADR 0118/0119 D-TYPE-1)."
+                    ),
+                    path=path,
+                )
+            )
+            return {
+                "type": None,
+                "adapter": None,
+                "adapter_version": None,
+                "considered": sorted(self._ENFORCER_TYPE_CAPS.values()),
+                "compatible": [],
+                "reason": "contradiction: both device-kind capabilities present",
+            }
+
+        enforcer_type = present_types[0]
+        adapter_by_os = self._ENFORCER_ADAPTER_BY_TYPE[enforcer_type]
+        considered = [self._ENFORCER_TYPE_CAPS[enforcer_type], *sorted(adapter_by_os)]
+        compatible_os = sorted(f for f in adapter_by_os if f in effective_caps)
+
+        direct_declaration = next((a for a in sorted(self._ENFORCER_ADAPTER_IDS) if a in effective_caps), None)
+        if direct_declaration is not None:
+            considered.append(direct_declaration)
+
+        if not compatible_os:
+            if direct_declaration is not None:
+                # ADR 0119 D1.1: a direct declaration alongside no matching
+                # OS-family fact is an input to the resolution, not an
+                # override - it is taken as the sole candidate here because
+                # there is nothing to reconcile it against.
+                return {
+                    "type": enforcer_type,
+                    "adapter": direct_declaration,
+                    "adapter_version": None,
+                    "considered": considered,
+                    "compatible": [direct_declaration],
+                    "reason": "no OS-family match; using the direct adapter declaration as sole candidate",
+                }
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="W7016",
+                    severity="warning",
+                    stage=stage,
+                    message=(
+                        f"Instance '{instance_id}' resolved enforcer type '{enforcer_type}' but no "
+                        "compatible adapter exists for its OS family (ADR 0118/0119 D-TYPE-2)."
+                    ),
+                    path=path,
+                )
+            )
+            return {
+                "type": enforcer_type,
+                "adapter": None,
+                "adapter_version": None,
+                "considered": considered,
+                "compatible": [],
+                "reason": "unsupported: no adapter for this type/OS-family combination",
+            }
+
+        if len(compatible_os) > 1:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="W7017",
+                    severity="warning",
+                    stage=stage,
+                    message=(
+                        f"Instance '{instance_id}' matches more than one OS family compatible with "
+                        f"enforcer type '{enforcer_type}' (ADR 0118/0119 D-TYPE-2); ambiguous, "
+                        "no priority order between them."
+                    ),
+                    path=path,
+                )
+            )
+            return {
+                "type": enforcer_type,
+                "adapter": None,
+                "adapter_version": None,
+                "considered": considered,
+                "compatible": sorted(adapter_by_os[f] for f in compatible_os),
+                "reason": "ambiguous: more than one compatible adapter",
+            }
+
+        derived_adapter = adapter_by_os[compatible_os[0]]
+
+        if direct_declaration is not None and direct_declaration != derived_adapter:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="W7019",
+                    severity="warning",
+                    stage=stage,
+                    message=(
+                        f"Instance '{instance_id}' declares adapter '{direct_declaration}' directly, "
+                        f"but its OS family resolves to '{derived_adapter}' (ADR 0118/0119 "
+                        "D-TYPE-2 reconciliation)."
+                    ),
+                    path=path,
+                )
+            )
+            return {
+                "type": enforcer_type,
+                "adapter": None,
+                "adapter_version": None,
+                "considered": considered,
+                "compatible": sorted({derived_adapter, direct_declaration}),
+                "reason": "reconciliation contradiction: direct declaration disagrees with OS-family derivation",
+            }
+
+        return {
+            "type": enforcer_type,
+            # ADR 0119 D2's execution-context record (identity + version
+            # together) is not yet implemented (blocked on G1/W03; see
+            # adr/0118-analysis/ENFORCER-SCOPE-IMPLEMENTATION-READINESS.md
+            # V-07). Plugin manifest api_version is NOT used as a stand-in:
+            # it is "1.x" on every plugin in the framework (the kernel-API
+            # compatibility marker), identical for every adapter, so it
+            # would carry no adapter-specific information at all.
+            "adapter": derived_adapter,
+            "adapter_version": None,
+            "considered": considered,
+            "compatible": [derived_adapter],
+            "reason": (
+                "resolved from type x OS family"
+                + (", confirmed by direct declaration" if direct_declaration is not None else "")
+            ),
+        }
+
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
         envelope_mode = getattr(ctx, "_snapshot", None) is not None
@@ -360,6 +556,8 @@ class EffectiveModelCompiler(CompilerPlugin):
             objects_index[object_id] = normalized_object
 
         by_group: dict[str, list[dict[str, Any]]] = {}
+        # ADR 0118/0119 D-TYPE-1..3
+        enforcer_resolution: dict[str, dict[str, Any]] = {}
         for row in rows:
             group_name = row.get("group")
             group_key = group_name if isinstance(group_name, str) and group_name else "ungrouped"
@@ -455,6 +653,27 @@ class EffectiveModelCompiler(CompilerPlugin):
                 if isinstance(os_ref, str) and os_ref:
                     effective_item["object"]["prerequisites"] = {"os_ref": os_ref}
 
+            # ADR 0118/0119 D-TYPE-1..3: combine the hardware object's declared
+            # enabled_capabilities with both derived-capability sources, since
+            # device-kind and OS-family facts live on two different objects
+            # (see module docstring) joined only at this instance level.
+            if instance_id_key:
+                enforcer_effective_caps: set[str] = set()
+                declared_enabled = object_payload.get("enabled_capabilities")
+                if isinstance(declared_enabled, list):
+                    enforcer_effective_caps.update(c for c in declared_enabled if isinstance(c, str))
+                enforcer_effective_caps.update(object_derived_caps.get(object_ref_key, []))
+                enforcer_effective_caps.update(instance_derived_caps.get(instance_id_key, []))
+                resolution = self._resolve_enforcer(
+                    instance_id=instance_id_key,
+                    effective_caps=enforcer_effective_caps,
+                    path=f"instance:{group_key}:{instance_id_key}",
+                    stage=stage,
+                    diagnostics=diagnostics,
+                )
+                if resolution is not None:
+                    enforcer_resolution[instance_id_key] = resolution
+
             by_group.setdefault(group_key, []).append(effective_item)
 
         for group_rows in by_group.values():
@@ -489,12 +708,16 @@ class EffectiveModelCompiler(CompilerPlugin):
 
         # Publish for dependent plugins and place into compiled_json candidate.
         ctx.publish("effective_model_candidate", candidate)
+        ctx.publish("enforcer_resolution", enforcer_resolution)
         if not envelope_mode:
             ctx.compiled_json = candidate
 
         return self.make_result(
             diagnostics=diagnostics,
-            output_data={"effective_model_candidate": candidate},
+            output_data={
+                "effective_model_candidate": candidate,
+                "enforcer_resolution": enforcer_resolution,
+            },
         )
 
     def on_finalize(self, ctx: PluginContext, stage: Stage) -> PluginResult:

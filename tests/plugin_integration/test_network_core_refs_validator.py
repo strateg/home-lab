@@ -175,3 +175,78 @@ def test_network_core_refs_validator_accepts_non_vlan_legacy_network_shape():
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.SUCCESS
     assert result.diagnostics == []
+
+
+
+def test_network_core_refs_validator_accepts_security_matrix_with_resolved_enforcer():
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {"group": "devices", "instance": "rtr-a", "class_ref": "class.router", "layer": "L1"},
+            {"group": "network", "instance": "inst.zone.a", "class_ref": "class.network.trust_zone", "layer": "L2"},
+            {
+                "group": "network",
+                "instance": "inst.matrix.a",
+                "class_ref": "class.network.security_matrix",
+                "layer": "L2",
+                "extensions": {"managed_by_ref": "rtr-a"},
+            },
+        ],
+    )
+    publish_for_test(
+        ctx,
+        "base.compiler.effective_model",
+        "enforcer_resolution",
+        {"rtr-a": {"type": "network", "adapter": "cap.firewall.security_matrix.routeros"}},
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert result.diagnostics == []
+
+
+def test_network_core_refs_validator_rejects_security_matrix_enforcer_with_no_resolved_type():
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {"group": "devices", "instance": "rtr-a", "class_ref": "class.router", "layer": "L1"},
+            {
+                "group": "network",
+                "instance": "inst.matrix.a",
+                "class_ref": "class.network.security_matrix",
+                "layer": "L2",
+                "extensions": {"managed_by_ref": "rtr-a"},
+            },
+        ],
+    )
+    publish_for_test(ctx, "base.compiler.effective_model", "enforcer_resolution", {})
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7018" for diag in result.diagnostics)
+
+
+def test_network_core_refs_validator_rejects_security_matrix_managed_by_ref_to_unknown_instance():
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {
+                "group": "network",
+                "instance": "inst.matrix.a",
+                "class_ref": "class.network.security_matrix",
+                "layer": "L2",
+                "extensions": {"managed_by_ref": "rtr-missing"},
+            },
+        ],
+    )
+    publish_for_test(ctx, "base.compiler.effective_model", "enforcer_resolution", {})
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7018" for diag in result.diagnostics)

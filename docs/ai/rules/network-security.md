@@ -104,8 +104,19 @@ network:
 | `cap.firewall.security_matrix.routeros` | MikroTik RouterOS enforcement |
 | `cap.firewall.security_matrix.pve` | Proxmox pve-firewall enforcement |
 | `cap.firewall.address_lists` | Device supports named address lists |
+| `cap.net.l3.security.firewall.zone_policy` | Router declares zone-based firewall (ADR 0118/0119 D-TYPE-1 enforcer-type gate) |
+| `cap.compute.security.firewall.zone_policy` | Hypervisor declares zone-based firewall (ADR 0118/0119 D-TYPE-1 enforcer-type gate) |
 
 **Note**: Trust levels and isolated flags are DATA (properties in topology), not capabilities.
+
+**Enforcer type/adapter resolution (ADR 0118/0119 D-TYPE-1..3)**: the three
+`cap.firewall.security_matrix*` identifiers above stay declarable, but
+`security_matrix`'s `managed_by_ref` no longer needs one declared directly -
+`effective_model_compiler.py` resolves enforcer type from exactly one of the
+two `zone_policy` capabilities above, then resolves adapter identity from
+type × the device's already-derived `cap.os.*` family, published per
+instance as `enforcer_resolution`. See
+`adr/0118-analysis/ENFORCER-SCOPE-IMPLEMENTATION-READINESS.md` section 5e.
 
 ## Generated Artifacts
 
