@@ -535,3 +535,40 @@
   capabilities) and is not required for this decision.
 - Not implemented: no code, schema or catalogue entry changed. `enforcer_resolution`
   does not exist yet.
+
+## ADR 0118/0119 — enforcer type/adapter resolution, SPC MODE review (two passes), 2026-09-29
+
+- The design entered at commit `8dd9a3a3` (previous entry) went through the
+  formal `docs/ai/spc-contract.md` 7-step protocol rather than being accepted
+  as written. **Correction to the previous entry:** its D-TYPE-3 bullet
+  ("the generic `cap.firewall.security_matrix` ... is retired") is
+  superseded by this entry - the SPC review's first pass found that
+  `CAPABILITY-SATISFACTION-CONTRACT.md` §5 forbids exactly that action
+  ("Legacy catalog entries are not reclassified by this amendment"), and its
+  §7 already treats `.pve` as the correct identifier with an unimplemented
+  generator as the actual gap. All three pre-registered identifiers
+  (`cap.firewall.security_matrix`, `.routeros`, `.pve`) are kept.
+- First pass, second finding: D-TYPE-2 had no rule for a device already
+  carrying a direct `.routeros`/`.pve` declaration alongside the
+  newly-resolved one - ADR 0119 D1.1's "generic capability alongside a
+  specific one... inputs to the resolution, not answers" case. Fixed with an
+  explicit reconciliation rule: agreement confirms, disagreement is a
+  distinct refusal (`E7019`), no priority order between the two inputs.
+- Second pass (STEP 7 compliance matrix run to completion) found two further
+  Critical gaps the first pass missed: (1) ADR 0119 D1.1 requires adapter
+  identity *and* version; only identity had been resolved. (2) The chosen
+  type values (`perimeter`/`internal`) are the exact strings
+  `class.network.security_matrix.yaml`'s `enforcement_plane` field already
+  uses for an axis ADR 0119 D1.1 states is independent of enforcer type.
+- Resolution, both user-confirmed: (1) the resolving generator plugin's
+  existing `api_version` manifest field (already `1.x` on both MikroTik and
+  Proxmox generators) is bound to the resolved adapter identity as a partial
+  version signal; full D2 execution-context binding remains this record's
+  pre-existing V-07 row, not newly closed. (2) type values renamed to
+  `network`/`compute` (naming the producing capability namespace), with
+  `perimeter`/`internal` reserved exclusively for `enforcement_plane`.
+- `E7015`-`E7019` (5, not 4) in the same sub-band, collision check re-run
+  clean. Still design-only: not registered in `error-catalog.yaml` or
+  `docs/diagnostics-catalog.md`, `enforcer_resolution` does not exist.
+- Verification: `check_adr_consistency.py --strict-titles` clean; diagnostic
+  sub-band grep shows the five codes referenced only in this design record.
