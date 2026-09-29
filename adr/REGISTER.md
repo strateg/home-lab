@@ -663,3 +663,40 @@
   the last one's function/line budget lowered to 13/1361 and its migration
   parametrize lists updated). Full `tests/plugin_integration` +
   `tests/plugin_contract` + `tests/kernel` run confirmed clean.
+
+## W07 migration order item 4a — WireGuard tunnel derivation moved to compile stage, 2026-09-29
+
+- `_extract_wireguard_tunnels` moved verbatim from `projections.py` (generate
+  stage) to a new plugin, `object.mikrotik.compiler.wireguard_tunnels`
+  (`topology/object-modules/mikrotik/plugins/compilers/
+  wireguard_tunnels_compiler.py`, compile stage) - the second compile-stage
+  compiler plugin an object module has registered, after item 1's
+  `capability_flags`. Uses the `on_finalize` delegation pattern from the
+  start (item 1's root-cause finding applied directly, no rediscovery
+  needed).
+- Consumes `base.compiler.effective_model`'s `effective_model_candidate`
+  (router ids, network rows) and `base.compiler.security_matrix`'s
+  `vlan_cidr_map`. `build_mikrotik_projection` gains `wireguard_tunnels` as a
+  required argument, the same "required, refuse `None`" contract the other
+  three channels already use.
+- Characterization (required before migrating, per the W05/N-07 lesson)
+  found no divergence to fix first: the function reads only topology
+  instance data plus the already-compiler-sourced `vlan_cidr_index`, not a
+  second derivation of a compiler-owned fact - lower risk than items 1-3.
+- Verified against the real topology: `check_adr_consistency.py
+  --strict-titles` clean; full compile is `errors=0 warnings=3`, unchanged
+  from baseline; `git status` shows no diff under `generated/`.
+- `projections.py` now 12 functions / 1179 lines (down from 13/1361);
+  `test_backend_specialization_boundary.py` budget lowered to match,
+  `_extract_wireguard_tunnels` added to the "migrated, gone rather than
+  dormant" list.
+- Same nine-file test-wiring pattern as item 1 applied again: the shared
+  helper `tests/helpers/mikrotik_security_channels.py` now derives
+  `wireguard_tunnels` from `ctx.compiled_json` the same way it already does
+  `capability_flags`; all `consumes_keys`/`allowed_dependencies` sets
+  extended to the new plugin id. Full targeted mikrotik/projection/
+  terraform/tuc slice (120 tests) and the boundary suite confirmed passing.
+- `adr/0118-analysis/W07-BACKEND-SPECIALIZATION-DECISION.md`'s migration
+  order item 4a marked done, with a note that this confirms the "dedicated
+  plugin per specialization" choice item 1 first established, rather than
+  one plugin accreting every concern.

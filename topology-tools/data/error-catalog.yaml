@@ -295,6 +295,13 @@ codes:
     hint: >-
       object.mikrotik.compiler.capability_flags derived conditional-generation flags
       (W07 migration order item 1). No action required.
+  I4211:
+    severity: info
+    stage: compile
+    title: MikroTik WireGuard Tunnels Derived
+    hint: >-
+      object.mikrotik.compiler.wireguard_tunnels derived tunnel/interface/peer shape
+      (W07 migration order item 4a). No action required.
   I4301:
     severity: info
     stage: validate

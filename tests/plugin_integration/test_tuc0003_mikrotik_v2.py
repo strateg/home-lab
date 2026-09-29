@@ -33,6 +33,7 @@ from kernel.plugin_runner import run_plugin_once
 from tests.helpers.mikrotik_security_channels import (
     SECURITY_MATRIX_COMPILER,
     CAPABILITY_FLAGS_COMPILER,
+    WIREGUARD_TUNNELS_COMPILER,
     empty_channel_subscriptions,
 )
 
@@ -100,7 +101,9 @@ def _build_snapshot(
         plugin_id=plugin_id,
         subscriptions=subscriptions,
         allowed_dependencies=frozenset(
-            {SECURITY_MATRIX_COMPILER, CAPABILITY_FLAGS_COMPILER} if subscriptions else ()
+            {SECURITY_MATRIX_COMPILER, CAPABILITY_FLAGS_COMPILER, WIREGUARD_TUNNELS_COMPILER}
+            if subscriptions
+            else ()
         ),
         stage=Stage.GENERATE,
         phase=Phase.RUN,

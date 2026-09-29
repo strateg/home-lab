@@ -280,15 +280,32 @@ Derived from what is checkable, not from what is easy.
    whatever remains once none of 4a-4i are called from it is the actual
    scope of a final step, not assumed now.
 
-   Each of 4a-4i needs the same three-part evidence 1-3 above recorded, sized
+   **4a done 2026-09-29.** `_extract_wireguard_tunnels` moved verbatim to
+   `object.mikrotik.compiler.wireguard_tunnels`, the second compile-stage
+   compiler plugin an object module has registered (after item 1's
+   `capability_flags`). It consumes `effective_model_candidate` (for router
+   ids and network rows) and `base.compiler.security_matrix`'s
+   `vlan_cidr_map`. The projection now takes `wireguard_tunnels` as a
+   required argument, the same "required, refuse `None`" contract the other
+   three channels already use. Characterization found no divergence to fix
+   first, unlike items the W05/N-07 pattern warned about: the function reads
+   only topology instance data (`endpoint_a`/`endpoint_b`/`tunnel_name`) plus
+   the already-compiler-sourced `vlan_cidr_index`, never re-deriving a fact
+   the compiler itself publishes. Real-topology parity: `generated/`
+   byte-identical (`git status` shows no diff); `errors=0 warnings=3`,
+   unchanged from the pre-existing baseline. Confirms the choice named in
+   (ii) below: a second, dedicated plugin per specialization, not one plugin
+   accreting every concern.
+
+   Each of 4b-4i needs the same three-part evidence 1-3 above recorded, sized
    to what the function actually risks: (i) a characterization step - does the
    projection already diverge from any compiler-published fact for this data,
    the way W05 did for zones and N-07 did for R1-R6 - checked by reading the
    function in full, not assumed absent because no defect is currently named;
    (ii) the compile-stage channel it moves to, and the object-module plugin
-   that owns it (`object.mikrotik.compiler.capability_flags` is the only
-   precedent so far; a second plugin may be preferable to one plugin
-   accreting every specialization, decided per item rather than in advance);
+   that owns it - items 1 and 4a each got their own dedicated plugin rather
+   than accreting into one, which later items should default to unless a
+   specific reason favors sharing;
    (iii) real-topology parity (`generated/` byte-identical, matching or lower
    `errors=`/`warnings=`) plus updated `test_backend_specialization_boundary.py`
    budgets and migration-list entries, the same pattern items 1-3 established.

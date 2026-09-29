@@ -29,14 +29,15 @@ DECISION = REPO_ROOT / "adr/0118-analysis/W07-BACKEND-SPECIALIZATION-DECISION.md
 # channel and the parity test, lowered again on 2026-09-29 when
 # _extract_security_matrix stopped re-deriving R1-R6 itself and started
 # reading the compiler's composed plan (ADR 0118-analysis/
-# ENFORCER-SCOPE-IMPLEMENTATION-READINESS.md sections 5c/5d, N-07), and
-# lowered again the same day when W07 migration order item 1
+# ENFORCER-SCOPE-IMPLEMENTATION-READINESS.md sections 5c/5d, N-07), lowered
+# again the same day when W07 migration order item 1
 # (_derive_mikrotik_capability_flags, _extract_capabilities) moved to
-# object.mikrotik.compiler.capability_flags, a compile-stage plugin. A budget
-# that stays above the real figure stops measuring, so it is lowered whenever
-# the debt is actually paid down.
-PROJECTION_FUNCTION_BUDGET = 13
-PROJECTION_LINE_BUDGET = 1361
+# object.mikrotik.compiler.capability_flags, and lowered again the same day
+# when item 4a (_extract_wireguard_tunnels) moved to object.mikrotik.
+# compiler.wireguard_tunnels. A budget that stays above the real figure
+# stops measuring, so it is lowered whenever the debt is actually paid down.
+PROJECTION_FUNCTION_BUDGET = 12
+PROJECTION_LINE_BUDGET = 1179
 
 
 def _functions() -> list[tuple[str, int]]:
@@ -140,6 +141,7 @@ def test_the_first_migration_candidates_still_exist(name: str) -> None:
         "_row_class",
         "_derive_mikrotik_capability_flags",
         "_extract_capabilities",
+        "_extract_wireguard_tunnels",
     ],
 )
 def test_the_migrated_helpers_are_gone_rather_than_dormant(name: str) -> None:
@@ -153,8 +155,11 @@ def test_the_migrated_helpers_are_gone_rather_than_dormant(name: str) -> None:
     `_extract_capabilities` (W07 migration order item 1, 2026-09-29) moved
     verbatim to `object.mikrotik.compiler.capability_flags`, a compile-stage
     plugin; the projection now reads `capability_flags`, a required argument,
-    instead of deriving it. Asserting they are gone is what stops the debt
-    from being paid on paper and reinstated in the next change.
+    instead of deriving it. `_extract_wireguard_tunnels` (W07 migration order
+    item 4a, 2026-09-29) moved the same way to `object.mikrotik.compiler.
+    wireguard_tunnels`; the projection now reads `wireguard_tunnels`, also a
+    required argument. Asserting they are gone is what stops the debt from
+    being paid on paper and reinstated in the next change.
     """
     assert name not in {function for function, _ in _functions()}
     assert name not in PROJECTION.read_text(encoding="utf-8")
