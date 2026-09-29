@@ -492,3 +492,46 @@
   (`c5f66c10`, `1336c12f`, `e72d0099`, `e868abbe`, `168b4f27`).
 - No design decision changes in this entry - implementation and bookkeeping
   only, against the design section 5c already decided.
+
+## ADR 0118/0119 — enforcer type/adapter resolution designed (D-TYPE-1..3), 2026-09-29
+
+- Resolves the capability-axis question section 4 named as the single
+  highest-value blocked item, larger than first framed. Before designing a
+  replacement, checked whether either capability engine could express
+  "enforced by RouterOS OR Proxmox" as written: `capability_contract_validator.py`
+  and `netmodel/capability.py`'s `Offer.applies_to` both match capability
+  identifiers exactly, with no prefix/hierarchy semantics and no `any_of`/`one_of`
+  construct anywhere in the schemas. `required_capabilities` on a class is a
+  conjunction; it cannot express dispatch among mutually exclusive adapters.
+  The earlier "recommended framing" (device axis = `cap.net.l3.security.
+  firewall.*`) is retired along with the namespace question it was answering -
+  a namespace choice does not fix a conjunction-only engine being asked to do
+  selection.
+- D-TYPE-1: enforcer type (perimeter/internal/none) is derived from exactly one
+  of two mutually exclusive device-kind capabilities:
+  `cap.net.l3.security.firewall.zone_policy` (existing, router-side) or a new
+  registration, `cap.compute.security.firewall.zone_policy` (hypervisor-side;
+  no such L1 capability existed for Proxmox before this, which is a second,
+  independent reason the router-only framing could not have worked).
+- D-TYPE-2: adapter is derived from type × the already-derived `cap.os.*`
+  family (`cap.os.routeros` -> `.routeros` adapter, `cap.os.proxmox` -> `.pve`),
+  not a third declared capability. Zero matching OS families refuses as
+  unsupported; more than one refuses as ambiguous with no priority order -
+  matching ADR 0119 D1.1's explicit dispatch contract. This makes
+  `cap.firewall.security_matrix.routeros`/`.pve` derived outputs, like
+  `cap.role.*` already are, closing N-03 without a redundant declaration.
+- D-TYPE-3: the generic `cap.firewall.security_matrix` (zero declarers, zero
+  consumers) is retired rather than repurposed as a `required_capabilities`
+  entry - resolution answers "is this a valid enforcer" directly, which is
+  N-01's `managed_by_ref` target-check replacement.
+- `E7015`-`E7018` allocated in the existing 7009-7019 sub-band, collision
+  check clean. Placement: an extension of `capability_compiler.py`'s existing
+  per-object derivation pass, not a new plugin family.
+- N-04 (`enabled_packs`) stays deferred, confirmed independently: only two
+  objects declare non-empty packs (Chateau, GL.iNet), and the real enforcer
+  does not need pack expansion to gain `.zone_policy` - a direct declaration
+  is narrower and sufficient. Fixing pack expansion has a wider blast radius
+  (Chateau's enabled `pack.router.enterprise` also lists BGP/OSPF/VRF
+  capabilities) and is not required for this decision.
+- Not implemented: no code, schema or catalogue entry changed. `enforcer_resolution`
+  does not exist yet.

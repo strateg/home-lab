@@ -17,7 +17,7 @@ Owns the ten open implementation rows: [conformance record](ENFORCER-AXIS-CONFOR
 Owns the layout decision: [W07](W07-BACKEND-SPECIALIZATION-DECISION.md).
 Owns gate sequencing: [roadmap](IMPLEMENTATION-ROADMAP-2026-09-15.md).
 
-**Implementation status, 2026-09-29 (updated).** Four changes have landed on
+**Implementation status, 2026-09-29 (updated).** Five changes have landed on
 branch `adr-0118-0119`, in order:
 
 1. `c5f66c10` - section 5: `matrix_by_enforcer` replaced by `scopes_by_enforcer`,
@@ -35,6 +35,13 @@ Evidence for each is in section 7. None closes W07/G4 - see section 6, unchanged
 Sections 1-3 are not revised: the measurements they record predate all five
 changes and are still accurate as a baseline for this tree. Section 4's
 sequencing reflects the current state after all five.
+
+**Section 5e, decided 2026-09-29, not yet coded.** The capability-axis question
+section 4 called the single highest-value item turned out to need a designed
+resolution mechanism, not a namespace choice - neither capability engine
+supports the OR-dispatch a device-axis declaration would have needed. Type and
+adapter resolution (D-TYPE-1..3), a new hypervisor-side capability, and
+`E7015`-`E7018` are specified; nothing is implemented yet.
 
 ## 1. What this record adds
 
@@ -138,20 +145,22 @@ Two smaller observations, recorded so they are not rediscovered:
 | V-13, N-05, plane default | **Done** - `c5f66c10` | `scopes_by_enforcer` published, complete and deterministic; `E7010`/`E7011` refuse the two silent gaps |
 | V-15 (Proxmox second/third derivation) | **Done** - `1336c12f` | dead second derivation deleted (zero consumers, confirmed by grep); golden snapshot updated; `depends_on: []` left as is, since no real consumer exists yet to justify wiring `scopes_by_enforcer` there |
 | V-09, V-10, V-14 | **Done** - `e868abbe`, `168b4f27` | `_extract_security_matrix` reads `composed_matrices_by_enforcer`; retired its own third R1-R6 derivation (N-07) rather than adding a fourth. Two-scope fixture in `test_projection_helpers.py`; real one-scope topology `generated/` byte-identical. V-10 closed for multi-*scope*; multi-*enforcer* stays with V-11/V-12 |
-| V-04, V-05, V-08, N-01-N-04 | **Blocked on a decision, not on code** | which registered namespace is the enforcement-capability axis (N-02), what becomes of the other three identifiers, and whether `enabled_packs` contribute to the effective set (N-04). Adding a declaration before that decision picks the axis by accident - the failure mode ADR 0119 D1.1 names |
+| V-04, V-05, N-01-N-03 | Design decided (section 5e); not yet coded | type/adapter resolution designed from first principles after finding neither capability engine supports the OR-dispatch a namespace fix alone would have needed (section 5e's opening finding). `enforcer_resolution`, the new hypervisor-side capability, and the E7015-E7018 diagnostics remain to implement |
+| V-08, N-04 | Deferred, independently | N-04 (`enabled_packs`) is not required for section 5e to be complete - the real enforcer needs only a direct declaration, not pack expansion - and is left as its own, wider-blast-radius decision |
 | V-07 | Blocked on G1/W03 | the derived scope/context contract must be registered before a field claims to carry resolved type and adapter identity |
 | V-11, V-12 | Blocked on a reviewed behaviour change | the W07 root/state migration relocates Terraform state; W07 records it as design preparation and explicitly not authorization to migrate state |
 
-The decision in row four is the single highest-value item this record surfaces,
-because it is cheap to get wrong silently. It belongs in the ADR corpus, not in a
-commit: it changes what "resolved from the device's declared enforcement
-capability" denotes. Recommended framing for that decision, not adopted here:
-the device axis is `cap.net.l3.security.firewall.*` (already L1, already declared
-by devices, already in `class.router`'s supported list), the three
-`cap.firewall.security_matrix*` identifiers are the *adapter/mechanism* axis rather
-than the device axis, and `enabled_packs` either expand into the effective set or
-stop being written as if they grant capabilities. That is a proposal requiring
-review, and section 5 does not depend on it.
+The decision this row named was the single highest-value item this record
+surfaced, and it turned out larger than the row itself: not which namespace
+names the device axis, but that neither capability engine can express
+"enforced by RouterOS OR Proxmox" as a `required_capabilities` conjunction at
+all, so the earlier "recommended framing" (device axis =
+`cap.net.l3.security.firewall.*`, the three `cap.firewall.security_matrix*`
+identifiers as an adapter axis) was retired along with the namespace framing
+it was patching. Section 5e records what replaced it: type and adapter both
+derived, dispatch kept separate from SEC-CAP satisfaction, and the generic
+`cap.firewall.security_matrix` retired rather than kept as an unused third
+layer. Section 5 does not depend on any of it.
 
 ## 5. The first change, specified
 
@@ -482,6 +491,177 @@ duplicating it a second time to cover multiplicity. Byte-identical output on
 the real single-scope topology was the parity claim this made, verified
 (`git status` after a clean recompile shows no diff under `generated/`),
 the same discipline W05 and section 5.5 already established.
+
+## 5e. Enforcer type and adapter resolution, decided 2026-09-29
+
+Resolves N-01/N-02/N-03 - the row section 4 called the single highest-value
+item. Bigger than section 5c: this is a resolution mechanism, not a channel
+fix, and it touches the shared capability model rather than one adapter's
+compiler. N-04 (`enabled_packs`) stays explicitly deferred - see the closing
+note - because this decision does not need it to be internally complete.
+
+### Why a namespace decision alone does not resolve this
+
+The first framing in section 4 asked which of two registered namespaces is
+"the" device axis. That framing assumed the fix was a declaration a device was
+missing. It is not, for a reason found by reading the resolution engines
+before designing another one:
+
+**Both the legacy engine and the SEC-CAP model match capability identifiers
+exactly, with no prefix or hierarchy semantics.**
+`capability_contract_validator.py:530` computes `missing = [cap for cap in
+class_required if cap not in expanded_effective]` - plain set membership.
+`netmodel/capability.py`'s `Offer.applies_to` (line 196) returns `False`
+unless `self.capability_ref != requirement.capability_ref` is exactly equal.
+Neither engine has an `any_of`/`one_of` construct anywhere in the schemas
+(searched; none exists). `required_capabilities` on a class is therefore a
+**conjunction**: every listed id must be present at once.
+
+A class cannot express "enforced by RouterOS OR Proxmox" as a
+`required_capabilities` list under either engine. Listing
+`cap.firewall.security_matrix.routeros` would force every future
+Proxmox-managed scope to also be RouterOS-capable; listing both would demand
+an enforcer be both at once. This is exactly the distinction ADR 0119 D1.1
+already draws and this record had not yet taken seriously: **type/adapter
+resolution is dispatch, a selection among alternatives with an ambiguity
+refusal, not a capability-satisfaction conjunction.** `resolve()` in
+`netmodel/capability.py` answers a different question on purpose - multiple
+matching offers strengthen a SATISFIED verdict there, because more evidence is
+not ambiguity. Reusing it for adapter selection would be wrong in the
+direction that matters: a device offering two competing adapters must be
+refused, not counted as doubly evidenced. The two mechanisms answer different
+questions and both stay separate, which is what D1.1 says explicitly: "capability
+membership never substitutes for [SEC-CAP's] question."
+
+### The missing hypervisor-side capability
+
+`cap.net.l3.security.firewall.zone_policy` (L1) is documented as
+`cap.net.* = Router/network device features`. No analogous capability exists
+under `cap.compute.*` (`= Hypervisor/host compute features`) for
+Proxmox-style zone-based enforcement (`obj.proxmox.ve.yaml` declares
+`cap.compute.host.hypervisor`, `.runtime.container_host`, `.runtime.vm_host`,
+`.storage.zfs` - nothing firewall-shaped). Without it, framing resolution
+around a single router-only capability structurally cannot reach the internal
+plane at all, which is a second reason the first framing was incomplete, not
+only wrong about mechanism. New registration, unclaimed (checked):
+
+```
+cap.compute.security.firewall.zone_policy   L1, cap.compute.* namespace
+  "Hypervisor enforces zone-based security policy for workloads it hosts"
+```
+
+### D-TYPE-1: enforcer type is derived from exactly one of two device-kind capabilities
+
+For each object, once its effective capability set is known (existing
+OS/vendor/role/bootstrap/firmware derivation - `enabled_packs` expansion is
+not required for this step; see the closing note):
+
+- `cap.net.l3.security.firewall.zone_policy` present, `cap.compute.security.
+  firewall.zone_policy` absent → type = `perimeter`.
+- The reverse → type = `internal`.
+- Both present → contradiction, refused with a diagnostic. Should not occur
+  structurally (a device is router-derived or compute-derived, not both), so
+  this is a check rather than an assumption, matching every other place this
+  record refuses rather than assumes.
+- Neither present → type = none. Not an error: most devices are not
+  enforcers, and the class hierarchy already scopes which devices these two
+  capabilities are meaningful for.
+
+Type is never read from an object or instance identifier, an object-module
+name, or which generator happens to exist - exactly what ADR 0119 D1.1
+requires and what N-01's disabled `target_class: class.router` check tried to
+approximate with a class name instead of a capability.
+
+### D-TYPE-2: adapter is derived from type × the already-derived OS family, not a third declared capability
+
+Given a non-none type, the adapter is resolved from `cap.os.*` - already
+computed by `capability_compiler.py`'s existing OS derivation, needing no new
+device-level declaration:
+
+- type=`perimeter`, `cap.os.routeros` present → adapter =
+  `cap.firewall.security_matrix.routeros`.
+- type=`internal`, `cap.os.proxmox` present → adapter =
+  `cap.firewall.security_matrix.pve`.
+- type resolved but no matching OS family (an OpenWrt or VyOS perimeter
+  device, say - both named in ADR 0119 D1.1's own prose, neither with an
+  adapter implemented here) → **zero compatible adapters, UNSUPPORTED**,
+  refused with a diagnostic naming the type and the device's actual OS. Not
+  silently unrendered, not approximated.
+- More than one OS family matching one type on one device → **AMBIGUOUS**,
+  refused, no priority order. Cannot occur under the current `_OS_FAMILY_CAPS`
+  table (one family per device), so this is a standing check against a case
+  that is not reachable today rather than one already reproduced, the same
+  status as the "both types present" check above.
+
+This makes `cap.firewall.security_matrix.routeros`/`.pve` **derived** outputs
+- published the same way `cap.role.*` already is - not capabilities a device
+separately declares. The redundant declaration N-03 found missing (Chateau
+lacks `.routeros`) is redundant because `cap.os.routeros` already carries the
+same fact; requiring a second declaration of it would be a second derivation
+of one fact, which this whole record has been retiring rather than adding.
+
+### D-TYPE-3: the generic `cap.firewall.security_matrix` is retired, not repurposed
+
+With adapter resolution independent of `required_capabilities`, `class.
+network.security_matrix` needs no `required_capabilities` entry for this at
+all: "is `managed_by_ref` a valid enforcer" is answered by "does type
+resolution produce a non-none type for that target," which is the N-01
+target-check's replacement directly, not a capability conjunction. The
+generic `cap.firewall.security_matrix` (no suffix) - zero declarers, zero
+consumers, confirmed by the original N-02 grep - has no remaining role once
+type is derived directly: retired from the catalogue rather than kept as an
+unused third layer between type and adapter.
+
+### N-01, replaced
+
+The `_NETWORK_CLASS_EXCLUSIONS` entry for `class.network.security_matrix` in
+`network_core_refs_validator.py` and `declarative_reference_validator.py`
+stays an exclusion from the generic `managed_by_ref -> class.router` check -
+that check is still the wrong shape for this field, unchanged from N-01's
+original finding. What replaces it is a dedicated check: `managed_by_ref`
+must resolve to an instance whose derived type (D-TYPE-1) is not none.
+A `managed_by_ref` naming a real instance with no enforcement type is refused
+by name, not by an absent generic class match.
+
+### Diagnostics
+
+Same 7009-7019 sub-band, collision-checked clean (`grep -rEon
+'[EWI]70(09|1[5-9])'`, excl. `build/`, `.venv/` - only this record's own prose
+names them):
+
+| Code | Severity / stage | Condition |
+|---|---|---|
+| `E7015` | error / compile | Both device-kind firewall capabilities present on one object (D-TYPE-1 contradiction). |
+| `E7016` | error / compile | A resolved type has zero compatible adapters for the device's OS family (D-TYPE-2 unsupported). |
+| `E7017` | error / compile | A resolved type has more than one compatible adapter (D-TYPE-2 ambiguous). Unreachable under the current OS table; registered so it is never silently permitted if that changes. |
+| `E7018` | error / compile | `managed_by_ref` resolves to an instance with no derived enforcement type (N-01 replacement). |
+
+### Where this lives
+
+`capability_compiler.py` already derives `cap.os.*`, `cap.vendor.*`,
+`cap.role.*` per object in one pass. D-TYPE-1/D-TYPE-2 read exactly that
+pass's own output (`caps`, after OS/vendor derivation already ran) and need
+no input this compiler does not already have in scope. A new method in the
+same plugin, publishing a new `enforcer_resolution` channel keyed by object
+id (`{type, adapter}` or a refusal reason), is the natural placement - not a
+new plugin family for a derivation that shares its entire input with an
+existing one. `security_matrix_compiler.py` (E7018) and the two reference
+validators (E7010's `managed_by_ref` check, and the retired exclusion's
+replacement) become its consumers.
+
+### What this decision does not do
+
+Not implemented: no code changes here, `enforcer_resolution` does not exist,
+`cap.compute.security.firewall.zone_policy` is not registered, `class.network.
+security_matrix`'s exclusion is not yet replaced. `enabled_packs` (N-04)
+stays deferred: only two objects declare non-empty packs today (Chateau,
+GL.iNet), and the real enforcer (Chateau) does not need packs fixed to gain
+`cap.net.l3.security.firewall.zone_policy` - a direct declaration on the
+object is the narrower, independently sufficient fix, verified by checking
+which packs each device actually enables before assuming otherwise. Fixing
+pack expansion is a separately-scoped, wider-blast-radius change (Chateau's
+`pack.router.enterprise` also lists BGP/OSPF/VRF capabilities that would
+newly appear) and is not required for this decision to be complete.
 
 ## 6. What this record does not do
 
