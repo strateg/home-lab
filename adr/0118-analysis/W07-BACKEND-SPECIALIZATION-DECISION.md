@@ -379,18 +379,33 @@ Derived from what is checkable, not from what is easy.
    and 4c's findings, no naming collision. Real-topology parity: `generated/`
    byte-identical; `errors=0 warnings=3`, unchanged.
 
-   Each of 4f-4i needs the same three-part evidence 1-3 above recorded, sized
+   **4f done 2026-09-29.** `_extract_bridge_vlans` moved verbatim to
+   `object.mikrotik.compiler.bridge_vlans`, the seventh dedicated
+   compile-stage compiler plugin, confirming the forward dependency 4c's
+   entry above named: it consumes `wifi_config` (item 4c) from
+   `object.mikrotik.compiler.wifi_config` as a subscribed channel, rather
+   than the local variable the projection used to thread into it, plus
+   `effective_model_candidate` (router rows) for the WiFi-membership side of
+   the derivation. No shared-loop slice or extra channel was needed this
+   time - the function's only inputs were already either a top-level router
+   list or another compiler's published output. Characterization found no
+   divergence and, checked given 4b's and 4c's findings, no naming
+   collision. Real-topology parity: `generated/` byte-identical; `errors=0
+   warnings=3`, unchanged.
+
+   Each of 4g-4i needs the same three-part evidence 1-3 above recorded, sized
    to what the function actually risks: (i) a characterization step - does the
    projection already diverge from any compiler-published fact for this data,
    the way W05 did for zones and N-07 did for R1-R6 - checked by reading the
    function in full, not assumed absent because no defect is currently named;
    (ii) the compile-stage channel it moves to, and the object-module plugin
-   that owns it - items 1, 4a, 4b, 4c, 4d and 4e each got their own dedicated
-   plugin rather than accreting into one, which later items should default
-   to unless a specific reason favors sharing, and a later item may need to
-   thread an earlier item's channel into whatever of its own logic still
-   lives in the projection, the way 4c's `wifi_config` now threads into
-   4f's still-local `_extract_bridge_vlans`. 4d additionally found that the
+   that owns it - items 1, 4a, 4b, 4c, 4d, 4e and 4f each got their own
+   dedicated plugin rather than accreting into one, which later items should
+   default to unless a specific reason favors sharing, and a later item may
+   need to subscribe to an earlier item's channel instead of a local
+   variable once that earlier item migrates, the way 4f's plugin subscribes
+   to 4c's `wifi_config` channel rather than the projection's local
+   `wifi_data`. 4d additionally found that the
    source function is not always an independent top-level extractor: a
    per-row builder called from inside a larger shared loop needs the loop's
    own row-selection/defaulting logic replicated for the rows it cares

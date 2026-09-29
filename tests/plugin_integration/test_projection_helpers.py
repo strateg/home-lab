@@ -127,6 +127,21 @@ _mac_vlan_assignments_spec = _importlib_util.spec_from_file_location(
 _mac_vlan_assignments_module = _importlib_util.module_from_spec(_mac_vlan_assignments_spec)
 _mac_vlan_assignments_spec.loader.exec_module(_mac_vlan_assignments_module)
 
+_BRIDGE_VLANS_MODULE_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "topology"
+    / "object-modules"
+    / "mikrotik"
+    / "plugins"
+    / "compilers"
+    / "bridge_vlans_compiler.py"
+)
+_bridge_vlans_spec = _importlib_util.spec_from_file_location(
+    "test_projection_helpers_bridge_vlans_compiler", _BRIDGE_VLANS_MODULE_PATH
+)
+_bridge_vlans_module = _importlib_util.module_from_spec(_bridge_vlans_spec)
+_bridge_vlans_spec.loader.exec_module(_bridge_vlans_module)
+
 _BOOTSTRAP_PROJECTIONS = load_bootstrap_projection_module()
 
 ProjectionError = _PROXMOX_PROJECTIONS.ProjectionError
@@ -216,6 +231,18 @@ def _derive_mac_vlan_assignments_for(compiled_json: dict) -> list[dict]:
     )
 
 
+def _derive_bridge_vlans_for(compiled_json: dict) -> list[dict]:
+    """Same derivation the real compile-stage compiler performs (W07 item 4f).
+
+    Depends on `wifi_config` (item 4c)'s already-derived datapath/interface
+    shape, the same forward dependency the W07 decision document recorded
+    when 4c moved.
+    """
+    _, routers, _, _ = _mikrotik_routers_and_rows(compiled_json)
+    wifi_data = _wifi_config_module._extract_wifi_config(routers)
+    return _bridge_vlans_module._extract_bridge_vlans(routers, wifi_data)
+
+
 def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
     """The compiler's channels are required arguments; these fixtures state them empty.
 
@@ -227,11 +254,12 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
     `capability_flags` (W07 migration order item 1), `wireguard_tunnels`
     (W07 migration order item 4a), `containers` (W07 migration order item
     4b), `wifi_config` (W07 migration order item 4c), `routing_policies`
-    (W07 migration order item 4d) and `mac_vlan_assignments` (W07 migration
-    order item 4e) are likewise required, and auto-derived here from the
-    fixture's own devices/network/container rows the same way the real
-    compile-stage compiler plugins would, unless a test passes its own value
-    to exercise a specific case - a fixture that builds real
+    (W07 migration order item 4d), `mac_vlan_assignments` (W07 migration
+    order item 4e) and `bridge_vlans` (W07 migration order item 4f) are
+    likewise required, and auto-derived here from the fixture's own
+    devices/network/container rows the same way the real compile-stage
+    compiler plugins would, unless a test passes its own value to exercise a
+    specific case - a fixture that builds real
     wifi/wireguard/container/routing-policy instance_data (like
     test_mikrotik_projection_extracts_wifi_interfaces) needs the derived
     content, not an empty stand-in that silently discards it.
@@ -257,6 +285,8 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
         kwargs["routing_policies"] = _derive_routing_policies_for(compiled_json)
     if "mac_vlan_assignments" not in kwargs:
         kwargs["mac_vlan_assignments"] = _derive_mac_vlan_assignments_for(compiled_json)
+    if "bridge_vlans" not in kwargs:
+        kwargs["bridge_vlans"] = _derive_bridge_vlans_for(compiled_json)
     return _raw_build_mikrotik_projection(compiled_json, **kwargs)
 
 

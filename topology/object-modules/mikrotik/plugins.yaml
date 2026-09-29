@@ -170,6 +170,37 @@ plugins:
     description: Derives MikroTik MAC-to-VLAN assignment shape at compile stage
       (W07 migration order item 4e) - relocated from the generate-stage
       projection so the fact is visible before any validator runs.
+  - id: object.mikrotik.compiler.bridge_vlans
+    kind: compiler
+    entry: plugins/compilers/bridge_vlans_compiler.py:MikrotikBridgeVlansCompiler
+    api_version: 1.x
+    stages:
+      - compile
+    phase: finalize
+    order: 71
+    depends_on:
+      - base.compiler.effective_model
+      - object.mikrotik.compiler.wifi_config
+    timeout: 30
+    execution_mode: subinterpreter
+    consumes:
+      - key: effective_model_candidate
+        from_plugin: base.compiler.effective_model
+        required: true
+      - key: wifi_config
+        from_plugin: object.mikrotik.compiler.wifi_config
+        required: true
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    produces:
+      - key: bridge_vlans
+        scope: pipeline_shared
+    description: Derives MikroTik bridge-VLAN membership shape at compile stage
+      (W07 migration order item 4f) - relocated from the generate-stage
+      projection so the fact is visible before any validator runs.
   - id: object.mikrotik.generator.terraform
     kind: generator
     entry: plugins/generators/terraform_mikrotik_generator.py:TerraformMikroTikGenerator
@@ -187,6 +218,7 @@ plugins:
       - object.mikrotik.compiler.wifi_config
       - object.mikrotik.compiler.routing_policies
       - object.mikrotik.compiler.mac_vlan_assignments
+      - object.mikrotik.compiler.bridge_vlans
     timeout: 30
     execution_mode: subinterpreter
     consumes:
@@ -238,6 +270,11 @@ plugins:
       # once at compile stage. The projection derives no substitute.
       - key: mac_vlan_assignments
         from_plugin: object.mikrotik.compiler.mac_vlan_assignments
+        required: true
+      # W07 migration order item 4f: bridge-VLAN membership shape, derived
+      # once at compile stage. The projection derives no substitute.
+      - key: bridge_vlans
+        from_plugin: object.mikrotik.compiler.bridge_vlans
         required: true
     config:
       terraform_version: '>= 1.6.0'

@@ -22,6 +22,7 @@ from tests.helpers.mikrotik_security_channels import (  # noqa: E402
     CAPABILITY_FLAGS_COMPILER,
     SECURITY_MATRIX_COMPILER,
     CONTAINERS_COMPILER,
+    BRIDGE_VLANS_COMPILER,
     MAC_VLAN_ASSIGNMENTS_COMPILER,
     ROUTING_POLICIES_COMPILER,
     WIFI_CONFIG_COMPILER,
@@ -127,6 +128,7 @@ def _run_generator(generator, ctx: PluginContext):
             WIFI_CONFIG_COMPILER,
             ROUTING_POLICIES_COMPILER,
             MAC_VLAN_ASSIGNMENTS_COMPILER,
+            BRIDGE_VLANS_COMPILER,
         ),
     )
 

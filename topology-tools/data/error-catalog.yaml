@@ -330,6 +330,13 @@ codes:
     hint: >-
       object.mikrotik.compiler.mac_vlan_assignments derived MAC-to-VLAN assignment
       shape (W07 migration order item 4e). No action required.
+  I4216:
+    severity: info
+    stage: compile
+    title: MikroTik Bridge VLANs Derived
+    hint: >-
+      object.mikrotik.compiler.bridge_vlans derived bridge-VLAN membership
+      shape (W07 migration order item 4f). No action required.
   I4301:
     severity: info
     stage: validate

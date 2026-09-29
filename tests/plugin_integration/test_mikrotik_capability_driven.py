@@ -165,6 +165,29 @@ _MAC_VLAN_ASSIGNMENTS_MODULE = _load_mac_vlan_assignments_module()
 _extract_mac_vlan_assignments = _MAC_VLAN_ASSIGNMENTS_MODULE._extract_mac_vlan_assignments
 _build_vlan_id_index = _MAC_VLAN_ASSIGNMENTS_MODULE._build_vlan_id_index
 
+
+def _load_bridge_vlans_module():
+    # W07 migration order item 4f: bridge-VLAN derivation moved from the
+    # projection (generate stage) to a compile-stage compiler plugin.
+    module_path = (
+        V5_ROOT
+        / "topology"
+        / "object-modules"
+        / "mikrotik"
+        / "plugins"
+        / "compilers"
+        / "bridge_vlans_compiler.py"
+    )
+    spec = importlib.util.spec_from_file_location("test_mikrotik_bridge_vlans_compiler", module_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+_BRIDGE_VLANS_MODULE = _load_bridge_vlans_module()
+_extract_bridge_vlans = _BRIDGE_VLANS_MODULE._extract_bridge_vlans
+
 # The producer the manifest lets this generator subscribe to. Both of its keys -
 # `security_matrices` and `vlan_cidr_map` - are declared `required: true`, because
 # the projection derives no substitute for either.
@@ -175,6 +198,7 @@ _CONTAINERS_COMPILER = "object.mikrotik.compiler.containers"
 _WIFI_CONFIG_COMPILER = "object.mikrotik.compiler.wifi_config"
 _ROUTING_POLICIES_COMPILER = "object.mikrotik.compiler.routing_policies"
 _MAC_VLAN_ASSIGNMENTS_COMPILER = "object.mikrotik.compiler.mac_vlan_assignments"
+_BRIDGE_VLANS_COMPILER = "object.mikrotik.compiler.bridge_vlans"
 _CONSUMED_KEYS = (
     _SECURITY_MATRIX_COMPILER,
     _CAPABILITY_FLAGS_COMPILER,
@@ -183,6 +207,7 @@ _CONSUMED_KEYS = (
     _WIFI_CONFIG_COMPILER,
     _ROUTING_POLICIES_COMPILER,
     _MAC_VLAN_ASSIGNMENTS_COMPILER,
+    _BRIDGE_VLANS_COMPILER,
 )
 
 
@@ -289,6 +314,19 @@ def _derive_mac_vlan_assignments_for_fixture(compiled_json: dict) -> list[dict]:
     )
 
 
+def _derive_bridge_vlans_for_fixture(compiled_json: dict) -> list[dict]:
+    """Same derivation the real compile-stage compiler performs, applied to a
+    test fixture's compiled_json directly (W07 migration order item 4f).
+
+    Depends on `wifi_config` (item 4c)'s already-derived datapath/interface
+    shape, the same forward dependency the W07 decision document recorded
+    when 4c moved.
+    """
+    _, routers, _, _ = _mikrotik_routers_and_network(compiled_json)
+    wifi_data = _derive_wifi_config_for_fixture(compiled_json)
+    return _extract_bridge_vlans(routers, wifi_data)
+
+
 def _semanticize(compiled_json: dict) -> dict:
     payload = copy.deepcopy(compiled_json)
     instances = payload.get("instances")
@@ -324,11 +362,11 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
     `capability_flags` (W07 migration order item 1), `wireguard_tunnels`
     (W07 migration order item 4a), `containers` (W07 migration order item
     4b), `wifi_config` (W07 migration order item 4c), `routing_policies`
-    (W07 migration order item 4d) and `mac_vlan_assignments` (W07 migration
-    order item 4e) are likewise required and are auto-derived here from the
-    same devices/network/container rows the real compile-stage compiler
-    plugins read, unless a test passes its own value to exercise a specific
-    case.
+    (W07 migration order item 4d), `mac_vlan_assignments` (W07 migration
+    order item 4e) and `bridge_vlans` (W07 migration order item 4f) are
+    likewise required and are auto-derived here from the same
+    devices/network/container rows the real compile-stage compiler plugins
+    read, unless a test passes its own value to exercise a specific case.
     """
     semantic = _semanticize(compiled_json)
     kwargs.setdefault("composed_matrices_by_enforcer", {})
@@ -353,6 +391,8 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
         kwargs["routing_policies"] = _derive_routing_policies_for_fixture(compiled_json)
     if "mac_vlan_assignments" not in kwargs:
         kwargs["mac_vlan_assignments"] = _derive_mac_vlan_assignments_for_fixture(compiled_json)
+    if "bridge_vlans" not in kwargs:
+        kwargs["bridge_vlans"] = _derive_bridge_vlans_for_fixture(compiled_json)
     return _raw_build_mikrotik_projection(semantic, **kwargs)
 
 
@@ -563,12 +603,13 @@ class TestMikroTikGeneratorCapabilityDriven:
             for key in ("composed_matrices_by_enforcer", "vlan_cidr_map"):
                 publish_for_test(ctx, _SECURITY_MATRIX_COMPILER, key, {})
             # capability_flags, wireguard_tunnels, containers, wifi_config,
-            # routing_policies and mac_vlan_assignments are likewise required
-            # (W07 migration order items 1, 4a, 4b, 4c, 4d, 4e). These
-            # fixtures test capability-driven template selection itself, so
-            # the published values must reflect the fixture's own
-            # capabilities/tunnels/containers/wifi/routing-policies/MAC-VLAN
-            # assignments, not an empty stand-in.
+            # routing_policies, mac_vlan_assignments and bridge_vlans are
+            # likewise required (W07 migration order items 1, 4a, 4b, 4c,
+            # 4d, 4e, 4f). These fixtures test capability-driven template
+            # selection itself, so the published values must reflect the
+            # fixture's own capabilities/tunnels/containers/wifi/
+            # routing-policies/MAC-VLAN/bridge-VLAN assignments, not an
+            # empty stand-in.
             publish_for_test(
                 ctx, _CAPABILITY_FLAGS_COMPILER, "capability_flags", _derive_flags_for_fixture(compiled_json)
             )
@@ -601,6 +642,12 @@ class TestMikroTikGeneratorCapabilityDriven:
                 _MAC_VLAN_ASSIGNMENTS_COMPILER,
                 "mac_vlan_assignments",
                 _derive_mac_vlan_assignments_for_fixture(compiled_json),
+            )
+            publish_for_test(
+                ctx,
+                _BRIDGE_VLANS_COMPILER,
+                "bridge_vlans",
+                _derive_bridge_vlans_for_fixture(compiled_json),
             )
         return ctx
 
@@ -742,7 +789,7 @@ class TestMikroTikGeneratorCapabilityDriven:
         assert any("base.compiler.security_matrix" in message for message in messages), messages
         assert not list((tmp_path / "generated").rglob("*.tf")), "artifacts were written despite the failure"
 
-    def test_the_manifest_declares_all_eight_channels_required(self) -> None:
+    def test_the_manifest_declares_all_nine_channels_required(self) -> None:
         """`required: false` is what let the absence pass as an empty result."""
         import sys as _sys
 
@@ -775,3 +822,6 @@ class TestMikroTikGeneratorCapabilityDriven:
         # W07 migration order item 4e: mac_vlan_assignments is required the same way.
         assert consumes["mac_vlan_assignments"]["from_plugin"] == _MAC_VLAN_ASSIGNMENTS_COMPILER
         assert consumes["mac_vlan_assignments"]["required"] is True
+        # W07 migration order item 4f: bridge_vlans is required the same way.
+        assert consumes["bridge_vlans"]["from_plugin"] == _BRIDGE_VLANS_COMPILER
+        assert consumes["bridge_vlans"]["required"] is True

@@ -867,3 +867,41 @@
   (an index fed by a shared-loop slice, and a migrated function's data need
   satisfied by a channel another compiler already publishes rather than a
   new one) for the benefit of items 4f-4i.
+
+## W07 migration order item 4f — bridge-VLAN derivation moved to compile stage, 2026-09-29
+
+- `_extract_bridge_vlans` moved verbatim from `projections.py` (generate
+  stage) to a new plugin, `object.mikrotik.compiler.bridge_vlans`
+  (`topology/object-modules/mikrotik/plugins/compilers/
+  bridge_vlans_compiler.py`, compile stage) - the seventh dedicated
+  compile-stage compiler plugin an object module has registered.
+- Confirms the forward dependency item 4c's entry recorded: this plugin
+  subscribes to `wifi_config` (item 4c) from `object.mikrotik.compiler.
+  wifi_config` as a published channel, rather than the local variable the
+  projection used to thread into it. It also consumes
+  `base.compiler.effective_model`'s `effective_model_candidate` for the
+  router-row side of the derivation. No shared-loop slice or extra channel
+  was needed this time - both inputs were already either a top-level router
+  list or another compiler's published output.
+- Characterization found no divergence and, checked given 4b's and 4c's
+  findings, no naming collision.
+- Verified against the real topology: `check_adr_consistency.py
+  --strict-titles` clean; full compile is `errors=0 warnings=3`, unchanged
+  from baseline; `git status` shows no diff under `generated/`; the real
+  topology's 1 bridge VLAN entry derived correctly (I4216).
+- `projections.py` now 7 functions / 632 lines (down from 8/720);
+  `test_backend_specialization_boundary.py` budget lowered to match,
+  `_extract_bridge_vlans` added to the "migrated, gone rather than dormant"
+  list.
+- Same test-wiring pattern as items 1/4a/4b/4c/4d/4e applied again,
+  including extending `mikrotik_security_channels.py`,
+  `test_projection_helpers.py` and `test_mikrotik_capability_driven.py`
+  with a bridge-VLAN derivation helper that depends on the wifi_config
+  derivation helper, the same forward dependency the real plugin has.
+  Targeted mikrotik/projection/terraform/tuc slice plus the full boundary
+  test file: 121 + 16 passed, clean.
+- `adr/0118-analysis/W07-BACKEND-SPECIALIZATION-DECISION.md`'s migration
+  order item 4f marked done, updating the guidance for items 4g-4i to
+  describe subscribing to an earlier item's channel once it migrates,
+  rather than threading a still-local variable into a not-yet-migrated
+  function.

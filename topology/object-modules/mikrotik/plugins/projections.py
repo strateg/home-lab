@@ -136,108 +136,6 @@ def _build_firewall_entry(row: dict[str, Any], *, managed_by_ref: str, objects_m
     }
 
 
-def _extract_bridge_vlans(
-    routers: list[dict[str, Any]],
-    wifi_data: dict[str, Any],
-) -> list[dict[str, Any]]:
-    """Extract bridge VLAN entries for WiFi interface VLAN membership.
-
-    When bridge_vlan_filtering is enabled, WiFi interfaces must be explicitly
-    added to bridge VLANs. Interfaces with datapaths that have no vlan_id go
-    to VLAN 1 (untagged), interfaces with vlan_id go to that VLAN (tagged on bridge).
-
-    Returns:
-        List of bridge VLAN entries:
-        [
-            {"bridge": "bridge", "vlan_id": 1, "untagged": ["bridge", "wifi1", "wifi2"], "tagged": []},
-            {"bridge": "bridge", "vlan_id": 55, "untagged": [], "tagged": ["bridge"]},
-        ]
-    """
-    bridge_vlans: dict[int, dict[str, Any]] = {}  # vlan_id -> entry
-
-    for router in routers:
-        instance_data = router.get("instance_data", {})
-        if not isinstance(instance_data, dict):
-            continue
-
-        observed = instance_data.get("observed_runtime", {})
-        if not isinstance(observed, dict):
-            continue
-
-        lan = observed.get("lan", {})
-        if not isinstance(lan, dict):
-            continue
-
-        # Check if VLAN filtering is enabled
-        vlan_filtering = lan.get("bridge_vlan_filtering", False)
-        if not vlan_filtering:
-            continue
-
-        bridge_name = str(lan.get("bridge_interface", "bridge")).strip() or "bridge"
-        bridge_ports = lan.get("bridge_ports", [])
-        if not isinstance(bridge_ports, list):
-            bridge_ports = []
-
-        # Build datapath -> vlan_id mapping from wifi_data
-        datapath_vlan: dict[str, int] = {}  # datapath name -> vlan_id (0 means native/VLAN 1)
-        for dp in wifi_data.get("datapaths", []):
-            dp_name = str(dp.get("name", "")).strip()
-            vlan_id = dp.get("vlan_id", 0)
-            if dp_name:
-                datapath_vlan[dp_name] = int(vlan_id) if vlan_id else 0
-
-        # Build interface -> datapath mapping from wifi_data
-        iface_datapath: dict[str, str] = {}  # interface name -> datapath name
-        for cfg in wifi_data.get("configurations", []):
-            cfg_name = str(cfg.get("name", "")).strip()
-            dp_name = str(cfg.get("datapath", "")).strip()
-            if cfg_name and dp_name:
-                # Find interface using this configuration
-                for iface in wifi_data.get("interfaces", []):
-                    if str(iface.get("configuration", "")).strip() == cfg_name:
-                        iface_name = str(iface.get("name", "")).strip()
-                        if iface_name:
-                            iface_datapath[iface_name] = dp_name
-
-        # Initialize VLAN 1 with bridge itself as untagged
-        if 1 not in bridge_vlans:
-            bridge_vlans[1] = {
-                "bridge": bridge_name,
-                "vlan_id": 1,
-                "untagged": [bridge_name],
-                "tagged": [],
-            }
-
-        # Process each bridge port
-        for port in bridge_ports:
-            port_name = str(port).strip()
-            if not port_name:
-                continue
-
-            # Check if this is a WiFi interface with a datapath
-            dp_name = iface_datapath.get(port_name, "")
-            vlan_id = datapath_vlan.get(dp_name, 0) if dp_name else 0
-
-            if vlan_id == 0:
-                # Native VLAN 1 - add as untagged
-                if port_name not in bridge_vlans[1]["untagged"]:
-                    bridge_vlans[1]["untagged"].append(port_name)
-            else:
-                # Tagged VLAN - create entry if needed
-                if vlan_id not in bridge_vlans:
-                    bridge_vlans[vlan_id] = {
-                        "bridge": bridge_name,
-                        "vlan_id": vlan_id,
-                        "untagged": [],
-                        "tagged": [bridge_name],  # Bridge itself is tagged for VLAN trunking
-                    }
-                # Add WiFi interface as untagged (it sends/receives untagged frames for this VLAN)
-                if port_name not in bridge_vlans[vlan_id]["untagged"]:
-                    bridge_vlans[vlan_id]["untagged"].append(port_name)
-
-    return sorted(bridge_vlans.values(), key=lambda x: x.get("vlan_id", 0))
-
-
 def _extract_security_matrix(
     router_ids: set[str],
     *,
@@ -345,6 +243,7 @@ def build_mikrotik_projection(
     wifi_config: dict[str, Any] | None = None,
     routing_policies: list[dict[str, Any]] | None = None,
     mac_vlan_assignments: list[dict[str, Any]] | None = None,
+    bridge_vlans: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build stable view for MikroTik Terraform generator.
 
@@ -393,6 +292,12 @@ def build_mikrotik_projection(
     mac_vlan_assignments` publishes (W07 migration order item 4e): bridge
     host entries for devices with a resolved VLAN and secrets reference
     (ADR 0117 L1/L2 separation). Derived the same way and for the same
+    reason as the channels above.
+
+    `bridge_vlans` is the channel `object.mikrotik.compiler.bridge_vlans`
+    publishes (W07 migration order item 4f): bridge VLAN-filtering entries
+    for WiFi interface VLAN membership, derived from `wifi_config` (item
+    4c)'s datapath/interface shape. Derived the same way and for the same
     reason as the channels above.
 
     `None` is an omission and is refused, because the alternative is a projection
@@ -448,6 +353,12 @@ def build_mikrotik_projection(
             "mac_vlan_assignments was not supplied; it is published by "
             "'object.mikrotik.compiler.mac_vlan_assignments' and this projection derives no "
             "substitute. Pass an empty list to state that there are no MAC-to-VLAN assignments."
+        )
+    if bridge_vlans is None:
+        raise ProjectionError(
+            "bridge_vlans was not supplied; it is published by "
+            "'object.mikrotik.compiler.bridge_vlans' and this projection derives no "
+            "substitute. Pass an empty list to state that there are no bridge VLAN entries."
         )
     # Extract objects map for property lookups (ADR contract: use compiled topology only)
     objects_map = compiled_json.get("objects", {})
@@ -663,8 +574,9 @@ def build_mikrotik_projection(
     # item 4c); this projection derives no substitute.
     wifi_data = wifi_config
 
-    # Extract bridge VLAN entries for WiFi interface membership
-    bridge_vlans = _extract_bridge_vlans(routers, wifi_data)
+    # Bridge-VLAN membership shape is the channel
+    # object.mikrotik.compiler.bridge_vlans publishes (W07 migration order
+    # item 4f); this projection derives no substitute.
 
     security_matrix = _extract_security_matrix(
         router_ids,

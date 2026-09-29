@@ -19,12 +19,14 @@ compiler.containers` (W07 migration order item 4b, 2026-09-29),
 order item 4c, 2026-09-29), `routing_policies` from `object.mikrotik.
 compiler.routing_policies` (W07 migration order item 4d, 2026-09-29) and
 `mac_vlan_assignments` from `object.mikrotik.compiler.mac_vlan_assignments`
-(W07 migration order item 4e, 2026-09-29), all six likewise `required: true`.
-Unlike the matrix/CIDR pair, these six are not published empty: capability-,
-tunnel-, container-, wifi-, routing-policy- and MAC-VLAN-driven tests need
-them to reflect the fixture's own routers, so `publish_empty_channels`
-derives all six from `ctx.compiled_json` the same way the real compile-stage
-plugins do.
+(W07 migration order item 4e, 2026-09-29) and `bridge_vlans` from
+`object.mikrotik.compiler.bridge_vlans` (W07 migration order item 4f,
+2026-09-29), all seven likewise `required: true`. Unlike the matrix/CIDR
+pair, these seven are not published empty: capability-, tunnel-, container-,
+wifi-, routing-policy-, MAC-VLAN- and bridge-VLAN-driven tests need them to
+reflect the fixture's own routers, so `publish_empty_channels` derives all
+seven from `ctx.compiled_json` the same way the real compile-stage plugins
+do.
 
 These helpers make the statement one line. Passing empty mappings for the
 matrix/CIDR channels means "this fixture declares no matrices and no address
@@ -45,6 +47,7 @@ CONTAINERS_COMPILER = "object.mikrotik.compiler.containers"
 WIFI_CONFIG_COMPILER = "object.mikrotik.compiler.wifi_config"
 ROUTING_POLICIES_COMPILER = "object.mikrotik.compiler.routing_policies"
 MAC_VLAN_ASSIGNMENTS_COMPILER = "object.mikrotik.compiler.mac_vlan_assignments"
+BRIDGE_VLANS_COMPILER = "object.mikrotik.compiler.bridge_vlans"
 CHANNEL_KEYS = ("composed_matrices_by_enforcer", "vlan_cidr_map")
 
 
@@ -84,6 +87,9 @@ _EMPTY_ROUTING_POLICIES: list[dict[str, Any]] = []
 
 _MAC_VLAN_ASSIGNMENTS_MODULE = _load_module("mac_vlan_assignments_compiler.py", "mac_vlan_assignments")
 _EMPTY_MAC_VLAN_ASSIGNMENTS: list[dict[str, Any]] = []
+
+_BRIDGE_VLANS_MODULE = _load_module("bridge_vlans_compiler.py", "bridge_vlans")
+_EMPTY_BRIDGE_VLANS: list[dict[str, Any]] = []
 
 
 def _mikrotik_router_ids(
@@ -220,13 +226,27 @@ def _derive_mac_vlan_assignments_for(compiled_json: Any) -> list[dict[str, Any]]
     )
 
 
+def _derive_bridge_vlans_for(compiled_json: Any) -> list[dict[str, Any]]:
+    """Same derivation the real compile-stage compiler performs (W07 item 4f).
+
+    Depends on `wifi_config` (item 4c)'s already-derived datapath/interface
+    shape, the same forward dependency the W07 decision document recorded
+    when 4c moved.
+    """
+    if not isinstance(compiled_json, dict):
+        return list(_EMPTY_BRIDGE_VLANS)
+    _, routers, _, _ = _mikrotik_router_ids(compiled_json)
+    wifi_data = _derive_wifi_config_for(compiled_json)
+    return _BRIDGE_VLANS_MODULE._extract_bridge_vlans(routers, wifi_data)
+
+
 def publish_empty_channels(ctx: Any) -> None:
     """Publish the matrix/CIDR channels empty, and capability_flags/
     wireguard_tunnels/containers/wifi_config/routing_policies/
-    mac_vlan_assignments derived from `ctx.compiled_json` (empty input still
-    produces the full shape the real compilers would, not a bare `{}`/`[]`,
-    so golden-snapshot and template-selection fixtures compare equal to
-    production output)."""
+    mac_vlan_assignments/bridge_vlans derived from `ctx.compiled_json`
+    (empty input still produces the full shape the real compilers would,
+    not a bare `{}`/`[]`, so golden-snapshot and template-selection
+    fixtures compare equal to production output)."""
     from tests.helpers.plugin_execution import publish_for_test
 
     for key in CHANNEL_KEYS:
@@ -249,15 +269,18 @@ def publish_empty_channels(ctx: Any) -> None:
         "mac_vlan_assignments",
         _derive_mac_vlan_assignments_for(compiled_json),
     )
+    publish_for_test(
+        ctx, BRIDGE_VLANS_COMPILER, "bridge_vlans", _derive_bridge_vlans_for(compiled_json)
+    )
 
 
 def empty_channel_subscriptions() -> dict[tuple[str, str], Any]:
     """The same, as the `subscriptions` mapping of a `PluginInputSnapshot`.
 
     No `compiled_json` is available at this call site, so `capability_flags`,
-    `wireguard_tunnels`, `containers`, `wifi_config`, `routing_policies` and
-    `mac_vlan_assignments` are the all-empty defaults rather than a
-    per-fixture derivation.
+    `wireguard_tunnels`, `containers`, `wifi_config`, `routing_policies`,
+    `mac_vlan_assignments` and `bridge_vlans` are the all-empty defaults
+    rather than a per-fixture derivation.
     """
     from kernel.plugin_base import SubscriptionValue
 
@@ -285,10 +308,14 @@ def empty_channel_subscriptions() -> dict[tuple[str, str], Any]:
         key="mac_vlan_assignments",
         value=list(_EMPTY_MAC_VLAN_ASSIGNMENTS),
     )
+    subscriptions[(BRIDGE_VLANS_COMPILER, "bridge_vlans")] = SubscriptionValue(
+        from_plugin=BRIDGE_VLANS_COMPILER, key="bridge_vlans", value=list(_EMPTY_BRIDGE_VLANS)
+    )
     return subscriptions
 
 
 __all__ = [
+    "BRIDGE_VLANS_COMPILER",
     "CAPABILITY_FLAGS_COMPILER",
     "CHANNEL_KEYS",
     "CONTAINERS_COMPILER",

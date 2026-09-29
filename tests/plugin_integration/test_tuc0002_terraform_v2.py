@@ -41,6 +41,7 @@ from tests.helpers.mikrotik_security_channels import (
     WIFI_CONFIG_COMPILER,
     ROUTING_POLICIES_COMPILER,
     MAC_VLAN_ASSIGNMENTS_COMPILER,
+    BRIDGE_VLANS_COMPILER,
     empty_channel_subscriptions,
 )
 
@@ -116,6 +117,7 @@ def _build_snapshot(
                 WIFI_CONFIG_COMPILER,
                 ROUTING_POLICIES_COMPILER,
                 MAC_VLAN_ASSIGNMENTS_COMPILER,
+                BRIDGE_VLANS_COMPILER,
             }
             if subscriptions
             else ()
