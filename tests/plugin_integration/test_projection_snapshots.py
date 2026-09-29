@@ -22,6 +22,27 @@ from plugins.generators.projections.ansible import build_ansible_projection  # n
 
 _PROXMOX_PROJECTIONS = load_object_projection_module("proxmox")
 _MIKROTIK_PROJECTIONS = load_object_projection_module("mikrotik")
+
+import importlib.util as _importlib_util
+
+_CAPABILITY_FLAGS_MODULE_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "topology"
+    / "object-modules"
+    / "mikrotik"
+    / "plugins"
+    / "compilers"
+    / "capability_flags_compiler.py"
+)
+_capability_flags_spec = _importlib_util.spec_from_file_location(
+    "test_projection_snapshots_capability_flags_compiler", _CAPABILITY_FLAGS_MODULE_PATH
+)
+_capability_flags_module = _importlib_util.module_from_spec(_capability_flags_spec)
+_capability_flags_spec.loader.exec_module(_capability_flags_module)
+# W07 migration order item 1: matches what the real compiler derives for zero
+# routers (all keys present, all False) - not an empty dict, which the golden
+# snapshot and templates do not treat the same way.
+_EMPTY_CAPABILITY_FLAGS = _capability_flags_module._derive_capability_flags([])
 _BOOTSTRAP_PROJECTIONS = load_bootstrap_projection_module()
 
 build_proxmox_projection = _PROXMOX_PROJECTIONS.build_proxmox_projection
@@ -35,9 +56,14 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
     and the projection derives no substitute. Omitting the argument is an error;
     passing `{}` is a fixture saying it declares no matrices and no domains. A
     test that cares about zone or CIDR content passes a real mapping.
+
+    `capability_flags` (W07 migration order item 1) is likewise required and
+    defaulted empty the same way: these fixtures are not about capability-driven
+    flag content.
     """
     kwargs.setdefault("composed_matrices_by_enforcer", {})
     kwargs.setdefault("vlan_cidr_map", {})
+    kwargs.setdefault("capability_flags", _EMPTY_CAPABILITY_FLAGS)
     return _raw_build_mikrotik_projection(compiled_json, **kwargs)
 
 

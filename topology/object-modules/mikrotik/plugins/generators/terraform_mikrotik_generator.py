@@ -105,10 +105,10 @@ class TerraformMikroTikGenerator(BaseGenerator):
         return f"https://{cls._DEFAULT_MIKROTIK_HOST}:{cls._DEFAULT_MIKROTIK_PORT}"
 
     @staticmethod
-    def _subscribe(ctx: PluginContext, key: str):
+    def _subscribe(ctx: PluginContext, key: str, *, plugin_id: str = "base.compiler.security_matrix"):
         """The compiler's channel, or None when it is not there.
 
-        The manifest declares both keys `required: true`, so the kernel refuses to
+        The manifest declares each key `required: true`, so the kernel refuses to
         run this plugin at all when the compiler published nothing (E8003) and
         this method should never observe an absence in the pipeline. It is kept
         total for direct callers, and `None` reaching the projection raises there
@@ -116,7 +116,7 @@ class TerraformMikroTikGenerator(BaseGenerator):
         to fall back to.
         """
         try:
-            return ctx.subscribe("base.compiler.security_matrix", key)
+            return ctx.subscribe(plugin_id, key)
         except Exception:  # noqa: BLE001 - the kernel owns the required-consume diagnostic
             return None
 
@@ -157,12 +157,18 @@ class TerraformMikroTikGenerator(BaseGenerator):
         # reads the compiler's already-composed, already-validated plan.
         composed_matrices = self._subscribe(ctx, "composed_matrices_by_enforcer")
         compiled_vlan_cidrs = self._subscribe(ctx, "vlan_cidr_map")
+        # W07 migration order item 1: conditional-generation flags derived at
+        # compile stage, not re-derived here (object.mikrotik.compiler.capability_flags).
+        capability_flags = self._subscribe(
+            ctx, "capability_flags", plugin_id="object.mikrotik.compiler.capability_flags"
+        )
 
         try:
             projection = build_mikrotik_projection(
                 payload,
                 composed_matrices_by_enforcer=composed_matrices,
                 vlan_cidr_map=compiled_vlan_cidrs,
+                capability_flags=capability_flags,
             )
         except projection_error as exc:
             diagnostics.append(

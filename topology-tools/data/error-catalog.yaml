@@ -288,6 +288,13 @@ codes:
     stage: compile
     title: Capabilities Derived
     hint: No action required.
+  I4210:
+    severity: info
+    stage: compile
+    title: MikroTik Capability Flags Derived
+    hint: >-
+      object.mikrotik.compiler.capability_flags derived conditional-generation flags
+      (W07 migration order item 1). No action required.
   I4301:
     severity: info
     stage: validate

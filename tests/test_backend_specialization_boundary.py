@@ -26,14 +26,17 @@ DECISION = REPO_ROOT / "adr/0118-analysis/W07-BACKEND-SPECIALIZATION-DECISION.md
 
 # Measured 2026-09-14 at commit 3312ca0b, lowered on 2026-09-15 when the two
 # VLAN-CIDR helpers and the zone oracle left the projection for the compiler's
-# channel and the parity test, and lowered again on 2026-09-29 when
+# channel and the parity test, lowered again on 2026-09-29 when
 # _extract_security_matrix stopped re-deriving R1-R6 itself and started
 # reading the compiler's composed plan (ADR 0118-analysis/
-# ENFORCER-SCOPE-IMPLEMENTATION-READINESS.md sections 5c/5d, N-07). A budget
+# ENFORCER-SCOPE-IMPLEMENTATION-READINESS.md sections 5c/5d, N-07), and
+# lowered again the same day when W07 migration order item 1
+# (_derive_mikrotik_capability_flags, _extract_capabilities) moved to
+# object.mikrotik.compiler.capability_flags, a compile-stage plugin. A budget
 # that stays above the real figure stops measuring, so it is lowered whenever
 # the debt is actually paid down.
-PROJECTION_FUNCTION_BUDGET = 15
-PROJECTION_LINE_BUDGET = 1399
+PROJECTION_FUNCTION_BUDGET = 13
+PROJECTION_LINE_BUDGET = 1361
 
 
 def _functions() -> list[tuple[str, int]]:
@@ -118,21 +121,39 @@ def test_the_migration_order_names_the_blocked_step() -> None:
     assert "N-07" in text
 
 
-@pytest.mark.parametrize("name", ["_derive_mikrotik_capability_flags"])
+@pytest.mark.parametrize("name", [])
 def test_the_first_migration_candidates_still_exist(name: str) -> None:
-    """If one has moved, the order in the decision needs updating with it."""
+    """If one has moved, the order in the decision needs updating with it.
+
+    Empty on purpose: `_derive_mikrotik_capability_flags`, the sole original
+    candidate, migrated on 2026-09-29 (W07 migration order item 1) and moved
+    to `test_the_migrated_helpers_are_gone_rather_than_dormant` below.
+    """
     assert name in {function for function, _ in _functions()}
 
 
-@pytest.mark.parametrize("name", ["_build_vlan_cidr_index", "_resolve_vlan_refs_to_cidrs", "_row_class"])
+@pytest.mark.parametrize(
+    "name",
+    [
+        "_build_vlan_cidr_index",
+        "_resolve_vlan_refs_to_cidrs",
+        "_row_class",
+        "_derive_mikrotik_capability_flags",
+        "_extract_capabilities",
+    ],
+)
 def test_the_migrated_helpers_are_gone_rather_than_dormant(name: str) -> None:
-    """Migrated on 2026-09-15. The point is the absence, not the line count.
+    """Migrated on 2026-09-15 and 2026-09-29. The point is the absence, not the line count.
 
     A helper kept "just in case" is a second derivation waiting to be reached
     for, which is what A24 forbids. `_build_vlan_cidr_index` and
     `_resolve_vlan_refs_to_cidrs` are replaced by `vlan_cidr_map` from
     `base.compiler.security_matrix`; `_row_class` served the zone oracle, which
-    now lives in the parity test. Asserting they are gone is what stops the debt
+    now lives in the parity test. `_derive_mikrotik_capability_flags` and
+    `_extract_capabilities` (W07 migration order item 1, 2026-09-29) moved
+    verbatim to `object.mikrotik.compiler.capability_flags`, a compile-stage
+    plugin; the projection now reads `capability_flags`, a required argument,
+    instead of deriving it. Asserting they are gone is what stops the debt
     from being paid on paper and reinstated in the next change.
     """
     assert name not in {function for function, _ in _functions()}

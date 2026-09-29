@@ -21,15 +21,52 @@ from kernel.plugin_base import PluginContext, PluginStatus, Stage  # noqa: E402
 from plugins.generators.object_projection_loader import load_object_projection_module  # noqa: E402
 
 _MIKROTIK_PROJECTIONS = load_object_projection_module("mikrotik")
-_derive_mikrotik_capability_flags = _MIKROTIK_PROJECTIONS._derive_mikrotik_capability_flags
-_extract_capabilities = _MIKROTIK_PROJECTIONS._extract_capabilities
 _raw_build_mikrotik_projection = _MIKROTIK_PROJECTIONS.build_mikrotik_projection
+
+
+def _load_capability_flags_module():
+    # W07 migration order item 1: capability-flag derivation moved from the
+    # projection (generate stage) to a compile-stage compiler plugin. Unit
+    # tests of the derivation logic itself now load it from there.
+    module_path = (
+        V5_ROOT
+        / "topology"
+        / "object-modules"
+        / "mikrotik"
+        / "plugins"
+        / "compilers"
+        / "capability_flags_compiler.py"
+    )
+    spec = importlib.util.spec_from_file_location("test_mikrotik_capability_flags_compiler", module_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+_CAPABILITY_FLAGS_MODULE = _load_capability_flags_module()
+_derive_mikrotik_capability_flags = _CAPABILITY_FLAGS_MODULE._derive_capability_flags
+_extract_capabilities = _CAPABILITY_FLAGS_MODULE._extract_capabilities
+_resolved_object_ref = _CAPABILITY_FLAGS_MODULE._resolved_object_ref
 
 # The producer the manifest lets this generator subscribe to. Both of its keys -
 # `security_matrices` and `vlan_cidr_map` - are declared `required: true`, because
 # the projection derives no substitute for either.
 _SECURITY_MATRIX_COMPILER = "base.compiler.security_matrix"
-_CONSUMED_KEYS = (_SECURITY_MATRIX_COMPILER,)
+_CAPABILITY_FLAGS_COMPILER = "object.mikrotik.compiler.capability_flags"
+_CONSUMED_KEYS = (_SECURITY_MATRIX_COMPILER, _CAPABILITY_FLAGS_COMPILER)
+
+
+def _derive_flags_for_fixture(compiled_json: dict) -> dict:
+    """Same derivation the real compile-stage compiler performs, applied to a
+    test fixture's compiled_json directly (W07 migration order item 1)."""
+    semantic = _semanticize(compiled_json)
+    instances = semantic.get("instances")
+    devices = instances.get("devices", []) if isinstance(instances, dict) else []
+    routers = [
+        row for row in devices if isinstance(row, dict) and _resolved_object_ref(row).startswith("obj.mikrotik.")
+    ]
+    return _derive_mikrotik_capability_flags(routers)
 
 
 def _semanticize(compiled_json: dict) -> dict:
@@ -63,10 +100,22 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
 
     They are required arguments now - the projection derives no substitute for
     `base.compiler.security_matrix` - so omission is an error and `{}` is a claim.
+
+    `capability_flags` is likewise required (W07 migration order item 1) and is
+    auto-derived here from the same devices the real compile-stage compiler
+    plugin reads, unless a test passes its own value to exercise a specific case.
     """
+    semantic = _semanticize(compiled_json)
     kwargs.setdefault("composed_matrices_by_enforcer", {})
     kwargs.setdefault("vlan_cidr_map", {})
-    return _raw_build_mikrotik_projection(_semanticize(compiled_json), **kwargs)
+    if "capability_flags" not in kwargs:
+        instances = semantic.get("instances")
+        devices = instances.get("devices", []) if isinstance(instances, dict) else []
+        routers = [
+            row for row in devices if isinstance(row, dict) and _resolved_object_ref(row).startswith("obj.mikrotik.")
+        ]
+        kwargs["capability_flags"] = _derive_mikrotik_capability_flags(routers)
+    return _raw_build_mikrotik_projection(semantic, **kwargs)
 
 
 def _load_generator_class():
@@ -275,6 +324,13 @@ class TestMikroTikGeneratorCapabilityDriven:
         if publish_channels:
             for key in ("composed_matrices_by_enforcer", "vlan_cidr_map"):
                 publish_for_test(ctx, _SECURITY_MATRIX_COMPILER, key, {})
+            # capability_flags is likewise required (W07 migration order item 1).
+            # These fixtures test capability-driven template selection itself, so
+            # the published value must reflect the fixture's own capabilities,
+            # not an empty stand-in.
+            publish_for_test(
+                ctx, _CAPABILITY_FLAGS_COMPILER, "capability_flags", _derive_flags_for_fixture(compiled_json)
+            )
         return ctx
 
     def test_generates_vpn_tf_when_wireguard_capability(self, tmp_path: Path) -> None:
@@ -415,7 +471,7 @@ class TestMikroTikGeneratorCapabilityDriven:
         assert any("base.compiler.security_matrix" in message for message in messages), messages
         assert not list((tmp_path / "generated").rglob("*.tf")), "artifacts were written despite the failure"
 
-    def test_the_manifest_declares_both_channels_required(self) -> None:
+    def test_the_manifest_declares_all_three_channels_required(self) -> None:
         """`required: false` is what let the absence pass as an empty result."""
         import sys as _sys
 
@@ -430,3 +486,6 @@ class TestMikroTikGeneratorCapabilityDriven:
         for key in ("composed_matrices_by_enforcer", "vlan_cidr_map"):
             assert consumes[key]["from_plugin"] == _SECURITY_MATRIX_COMPILER
             assert consumes[key]["required"] is True, f"{key} must block generation when absent"
+        # W07 migration order item 1: capability_flags is required the same way.
+        assert consumes["capability_flags"]["from_plugin"] == _CAPABILITY_FLAGS_COMPILER
+        assert consumes["capability_flags"]["required"] is True

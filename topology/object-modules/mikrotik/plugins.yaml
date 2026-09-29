@@ -1,5 +1,32 @@
 schema_version: 1
 plugins:
+  - id: object.mikrotik.compiler.capability_flags
+    kind: compiler
+    entry: plugins/compilers/capability_flags_compiler.py:MikrotikCapabilityFlagsCompiler
+    api_version: 1.x
+    stages:
+      - compile
+    phase: finalize
+    order: 65
+    depends_on:
+      - base.compiler.effective_model
+    timeout: 30
+    execution_mode: subinterpreter
+    consumes:
+      - key: effective_model_candidate
+        from_plugin: base.compiler.effective_model
+        required: true
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    produces:
+      - key: capability_flags
+        scope: pipeline_shared
+    description: Derives MikroTik conditional-generation capability flags at
+      compile stage (W07 migration order item 1) - relocated from the
+      generate-stage projection so the fact is visible before any validator runs.
   - id: object.mikrotik.generator.terraform
     kind: generator
     entry: plugins/generators/terraform_mikrotik_generator.py:TerraformMikroTikGenerator
@@ -11,6 +38,7 @@ plugins:
     migration_mode: migrated
     depends_on:
       - base.compiler.security_matrix
+      - object.mikrotik.compiler.capability_flags
     timeout: 30
     execution_mode: subinterpreter
     consumes:
@@ -31,6 +59,12 @@ plugins:
         required: true
       - key: vlan_cidr_map
         from_plugin: base.compiler.security_matrix
+        required: true
+      # W07 migration order item 1: conditional-generation booleans, derived
+      # once at compile stage. The projection derives no substitute, so an
+      # absent channel must block generation the same way the two above do.
+      - key: capability_flags
+        from_plugin: object.mikrotik.compiler.capability_flags
         required: true
     config:
       terraform_version: '>= 1.6.0'

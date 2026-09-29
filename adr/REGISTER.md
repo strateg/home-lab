@@ -622,3 +622,44 @@
   `test_backend_specialization_boundary.py`, `test_data_bus_contracts.py`,
   `test_manifest.py`, `test_capability_contract_validator.py`,
   `test_capability_contract_loader_compiler.py`), all clean.
+
+## W07 migration order item 1 — capability-flag derivation moved to compile stage, 2026-09-29
+
+- `_derive_mikrotik_capability_flags` and `_extract_capabilities` moved verbatim
+  from `topology/object-modules/mikrotik/plugins/projections.py` (generate
+  stage) to a new plugin, `object.mikrotik.compiler.capability_flags`
+  (`topology/object-modules/mikrotik/plugins/compilers/
+  capability_flags_compiler.py`, compile stage) - the first compile-stage
+  compiler plugin an object module has registered in this framework,
+  establishing the `object.<module>.compiler.plan -> backend_plan` seam
+  `adr/0118-analysis/W07-BACKEND-SPECIALIZATION-DECISION.md`'s Shape section
+  already specified.
+- Root cause found during implementation, not anticipated by the decision
+  document: `phase: finalize` plugins are dispatched through an `on_finalize`
+  hook, not `execute()` directly - `effective_model_compiler.py` already does
+  this via a one-line delegation, which the new plugin now mirrors. Diagnosed
+  by direct-execute vs full-stage-execute comparison after the plugin was
+  silently skipped (`skip_reason: "phase 'finalize' not implemented"`) despite
+  correct manifest registration and scheduling order.
+- `build_mikrotik_projection` gains `capability_flags` as a required argument
+  (the same "required, refuse `None`" contract `composed_matrices_by_enforcer`/
+  `vlan_cidr_map` already use); the generator's manifest `depends_on`/`consumes`
+  updated to match. `I4210` registered for the new plugin's per-run info
+  diagnostic.
+- Verified against the real topology: `check_adr_consistency.py
+  --strict-titles` clean; full compile is `errors=0 warnings=3`, unchanged
+  from the pre-existing baseline; `git status` shows no diff under
+  `generated/` (purely additive).
+- Tests: 9 files updated for the new required parameter and consumer wiring
+  (`test_mikrotik_capability_driven.py` - unit tests for the derivation logic
+  itself now import from the new module;
+  `tests/helpers/mikrotik_security_channels.py` - the shared fixture helper
+  now derives real `capability_flags` from `ctx.compiled_json` rather than
+  publishing empty, since capability-driven template-selection tests depend
+  on real content; `test_projection_helpers.py`, `test_projection_snapshots.py`,
+  `test_terraform_mikrotik_generator.py`, `test_generator_template_and_
+  publish_contract.py`, `test_tuc0002_terraform_v2.py`,
+  `test_tuc0003_mikrotik_v2.py`, `test_backend_specialization_boundary.py` -
+  the last one's function/line budget lowered to 13/1361 and its migration
+  parametrize lists updated). Full `tests/plugin_integration` +
+  `tests/plugin_contract` + `tests/kernel` run confirmed clean.

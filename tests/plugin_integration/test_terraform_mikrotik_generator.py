@@ -14,7 +14,11 @@ sys.path.insert(0, str(V5_TOOLS))
 
 from kernel.plugin_base import PluginContext, PluginStatus, Stage
 
-from tests.helpers.mikrotik_security_channels import SECURITY_MATRIX_COMPILER, publish_empty_channels
+from tests.helpers.mikrotik_security_channels import (
+    CAPABILITY_FLAGS_COMPILER,
+    SECURITY_MATRIX_COMPILER,
+    publish_empty_channels,
+)
 
 
 def _load_generator_class():
@@ -69,7 +73,7 @@ def _ctx(tmp_path: Path, compiled_json: dict) -> PluginContext:
 def _run_generator(generator, ctx: PluginContext):
     from tests.helpers.plugin_execution import run_plugin_for_test
 
-    return run_plugin_for_test(generator, ctx, Stage.GENERATE, consumes_keys=(SECURITY_MATRIX_COMPILER,))
+    return run_plugin_for_test(generator, ctx, Stage.GENERATE, consumes_keys=(SECURITY_MATRIX_COMPILER, CAPABILITY_FLAGS_COMPILER))
 
 
 def _compiled_fixture() -> dict:

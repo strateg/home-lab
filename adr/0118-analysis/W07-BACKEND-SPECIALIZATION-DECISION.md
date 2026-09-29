@@ -201,6 +201,17 @@ Derived from what is checkable, not from what is easy.
 
 1. `_derive_mikrotik_capability_flags` - smallest, and the one whose current
    placement contradicts the capability contract most directly.
+   **Done 2026-09-29.** Moved verbatim, along with `_extract_capabilities`, to
+   `object.mikrotik.compiler.capability_flags` - the first compile-stage
+   compiler plugin an object module has registered, establishing the `object.
+   <module>.compiler.plan -> backend_plan` seam this document's Shape section
+   already specified. The projection now takes `capability_flags` as a
+   required argument (the same "required, refuse `None`" contract
+   `composed_matrices_by_enforcer`/`vlan_cidr_map` already use) instead of
+   deriving it at generate stage. Real-topology parity: `generated/`
+   byte-identical (`git status` after a clean recompile shows no diff);
+   `errors=0 warnings=3`, matching the pre-existing baseline (the third
+   warning, `W7016` for `rtr-slate`, predates this change).
 2. `_build_vlan_cidr_index` and `_resolve_vlan_refs_to_cidrs` - pure reference
    resolution the compiler already performs; a duplicate authority to remove.
    **Done 2026-09-15** (`ed15dfbf`). Both are gone, along with `_row_class` and the zone
@@ -238,7 +249,49 @@ Derived from what is checkable, not from what is easy.
    match, and the manifest's `security_matrices` consume is replaced by
    `composed_matrices_by_enforcer` (the projection derives no substitute for
    either).
-4. Everything else, in descending size, each with parity evidence.
+4. Everything else, in descending size, each with parity evidence. Made
+   concrete on 2026-09-29 against the post-item-3 measurement (13 functions,
+   1,361 lines; `_derive_mikrotik_capability_flags`, `_extract_capabilities`,
+   `_build_vlan_cidr_index`, `_resolve_vlan_refs_to_cidrs` and `_row_class` are
+   already gone, so this list is what remains):
+
+   | Order | Function | Lines | Decides |
+   |---|---|---|---|
+   | 4a | `_extract_wireguard_tunnels` | 196 | Which tunnels this router terminates |
+   | 4b | `_extract_containers` | 191 | Container attachment and publication shape |
+   | 4c | `_extract_wifi_config` | 138 | Interface and VLAN membership |
+   | 4d | `_build_routing_policy_entry` | 110 | Policy-based routing, `*_vlan_ref` resolution |
+   | 4e | `_extract_mac_vlan_assignments` | 104 | MAC-to-VLAN binding |
+   | 4f | `_extract_bridge_vlans` | 99 | Bridge VLAN membership |
+   | 4g | `_build_vlan_entry` | 41 | VLAN row -> rendered shape |
+   | 4h | `_build_bridge_entry` | 21 | Bridge row -> rendered shape |
+   | 4i | `_build_firewall_entry` | 16 | Firewall-policy row -> rendered shape |
+
+   `_get_object_properties` (20 lines) and `_is_staged_row` (3 lines) are not
+   listed: neither makes a backend decision - the first is a compiled-object
+   property lookup, the second a status/notes predicate - so migrating them
+   independently would not pay down the debt this table measures; they move
+   with whichever caller needs them, if any survives the migration.
+
+   `build_mikrotik_projection` itself (329 lines) is deliberately last and
+   unordered here: it is the orchestrator that calls every function above, so
+   its own size is a consequence of theirs, not an independent candidate. As
+   4a-4i land it should shrink toward assembly and rendering-input shaping;
+   whatever remains once none of 4a-4i are called from it is the actual
+   scope of a final step, not assumed now.
+
+   Each of 4a-4i needs the same three-part evidence 1-3 above recorded, sized
+   to what the function actually risks: (i) a characterization step - does the
+   projection already diverge from any compiler-published fact for this data,
+   the way W05 did for zones and N-07 did for R1-R6 - checked by reading the
+   function in full, not assumed absent because no defect is currently named;
+   (ii) the compile-stage channel it moves to, and the object-module plugin
+   that owns it (`object.mikrotik.compiler.capability_flags` is the only
+   precedent so far; a second plugin may be preferable to one plugin
+   accreting every specialization, decided per item rather than in advance);
+   (iii) real-topology parity (`generated/` byte-identical, matching or lower
+   `errors=`/`warnings=`) plus updated `test_backend_specialization_boundary.py`
+   budgets and migration-list entries, the same pattern items 1-3 established.
 
 ## What would falsify this decision
 

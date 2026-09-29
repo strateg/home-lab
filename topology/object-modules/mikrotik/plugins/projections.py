@@ -20,63 +20,6 @@ from plugins.generators.projection_core import (  # ADR0078 WP-006: Group canoni
 )
 
 
-def _extract_capabilities(row: dict[str, Any]) -> set[str]:
-    """Extract capability IDs from instance row including object capabilities."""
-    caps: set[str] = set()
-
-    # Instance-level capabilities
-    instance_data = row.get("instance", {}) or {}
-    for field_name in ("capabilities", "derived_capabilities", "enabled_capabilities"):
-        raw_caps = instance_data.get(field_name)
-        if isinstance(raw_caps, list):
-            for cap in raw_caps:
-                if isinstance(cap, str) and cap:
-                    caps.add(cap)
-
-    # Object-level capabilities (from object definition)
-    obj_data = row.get("object", {}) or {}
-    for field_name in ("enabled_capabilities", "derived_capabilities", "vendor_capabilities"):
-        raw_caps = obj_data.get(field_name)
-        if isinstance(raw_caps, list):
-            for cap in raw_caps:
-                if isinstance(cap, str) and cap:
-                    caps.add(cap)
-
-    # Root-level capabilities (legacy compatibility)
-    for field_name in ("capabilities", "derived_capabilities", "enabled_capabilities"):
-        raw_caps = row.get(field_name)
-        if isinstance(raw_caps, list):
-            for cap in raw_caps:
-                if isinstance(cap, str) and cap:
-                    caps.add(cap)
-
-    return caps
-
-
-def _derive_mikrotik_capability_flags(routers: list[dict[str, Any]]) -> dict[str, bool]:
-    """Derive boolean capability flags for conditional Terraform generation.
-
-    ADR0078: Capabilities must come from object definitions, not hardcoded model checks.
-    """
-    all_caps: set[str] = set()
-    for router in routers:
-        all_caps.update(_extract_capabilities(router))
-
-    return {
-        "has_wireguard": any(cap.startswith("cap.net.overlay.vpn.wireguard") for cap in all_caps),
-        "has_openvpn": any(cap.startswith("cap.net.overlay.vpn.openvpn") for cap in all_caps),
-        "has_ipsec": "cap.net.overlay.vpn.ipsec" in all_caps,
-        "has_containers": "cap.net.platform.containers" in all_caps,
-        "has_qos_basic": "cap.net.l3.qos.basic" in all_caps,
-        "has_qos_advanced": "cap.net.l3.qos.advanced" in all_caps,
-        "has_lte": "cap.net.interface.lte" in all_caps,
-        "has_wifi": "cap.net.interface.wifi" in all_caps,
-        "has_vlan": "cap.net.l2.segmentation.vlan.8021q" in all_caps,
-        "has_multi_wan": "cap.net.l3.uplink.multi_uplink" in all_caps,
-        "has_failover": "cap.net.l3.uplink.failover" in all_caps,
-    }
-
-
 def _get_object_properties(object_ref: str, objects_map: dict[str, Any]) -> dict[str, Any]:
     """Get properties from compiled object map (effective topology).
 
@@ -1150,6 +1093,7 @@ def build_mikrotik_projection(
     *,
     composed_matrices_by_enforcer: dict[str, Any] | None = None,
     vlan_cidr_map: dict[str, str] | None = None,
+    capability_flags: dict[str, bool] | None = None,
 ) -> dict[str, Any]:
     """Build stable view for MikroTik Terraform generator.
 
@@ -1163,6 +1107,13 @@ def build_mikrotik_projection(
     sections 5c/5d, N-07): this module used to re-derive R1-R6 itself from raw
     `network_rows`, a third derivation of the same fact; it now reads the
     compiler's already-composed plan for each router directly.
+
+    `capability_flags` is the channel `object.mikrotik.compiler.capability_flags`
+    publishes (W07 migration order item 1): conditional-generation booleans
+    derived from the same objects/instances this projection already reads.
+    This projection no longer derives them itself, for the same reason it does
+    not re-derive the matrix or the CIDR map - the fact must exist at compile
+    stage, before any validator runs, not only when the generator renders.
 
     `None` is an omission and is refused, because the alternative is a projection
     that renders empty address lists and empty tunnel routes while reporting
@@ -1181,6 +1132,12 @@ def build_mikrotik_projection(
             "composed_matrices_by_enforcer was not supplied; it is published by "
             "'base.compiler.security_matrix' and this projection derives no substitute. "
             "Pass an empty mapping to state that there are no matrices."
+        )
+    if capability_flags is None:
+        raise ProjectionError(
+            "capability_flags was not supplied; it is published by "
+            "'object.mikrotik.compiler.capability_flags' and this projection derives no "
+            "substitute. Pass an empty mapping to state that no flags are set."
         )
     # Extract objects map for property lookups (ADR contract: use compiled topology only)
     objects_map = compiled_json.get("objects", {})
@@ -1423,7 +1380,6 @@ def build_mikrotik_projection(
     # Extract container configurations for MikroTik routers
     containers = _extract_containers(container_rows, router_ids)
 
-    capability_flags = _derive_mikrotik_capability_flags(routers)
     return {
         "routers": _sorted_rows(routers),
         "networks": _sorted_rows(networks),
