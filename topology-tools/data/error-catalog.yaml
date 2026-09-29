@@ -309,6 +309,13 @@ codes:
     hint: >-
       object.mikrotik.compiler.containers derived container attachment/publication
       shape (W07 migration order item 4b). No action required.
+  I4213:
+    severity: info
+    stage: compile
+    title: MikroTik WiFi Config Derived
+    hint: >-
+      object.mikrotik.compiler.wifi_config derived interface/VLAN membership shape
+      (W07 migration order item 4c). No action required.
   I4301:
     severity: info
     stage: validate

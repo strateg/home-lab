@@ -38,6 +38,7 @@ from tests.helpers.mikrotik_security_channels import (
     CAPABILITY_FLAGS_COMPILER,
     WIREGUARD_TUNNELS_COMPILER,
     CONTAINERS_COMPILER,
+    WIFI_CONFIG_COMPILER,
     empty_channel_subscriptions,
 )
 
@@ -110,6 +111,7 @@ def _build_snapshot(
                 CAPABILITY_FLAGS_COMPILER,
                 WIREGUARD_TUNNELS_COMPILER,
                 CONTAINERS_COMPILER,
+                WIFI_CONFIG_COMPILER,
             }
             if subscriptions
             else ()

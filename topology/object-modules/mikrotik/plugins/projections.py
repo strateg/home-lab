@@ -249,147 +249,6 @@ def _build_routing_policy_entry(
     }
 
 
-def _extract_wifi_config(routers: list[dict[str, Any]]) -> dict[str, Any]:
-    """Extract WiFi configuration from router instances.
-
-    Returns:
-        {
-            "datapaths": [...],      # Unique datapath configurations
-            "configurations": [...], # WiFi configurations (SSIDs)
-            "securities": [...],     # Security profiles
-            "interfaces": [...],     # Interface -> configuration bindings
-                                     # (entries with master_interface are
-                                     # virtual/slave APs that must be created)
-        }
-    """
-    datapaths: dict[str, dict[str, Any]] = {}  # keyed by name to dedupe
-    configurations: list[dict[str, Any]] = []
-    securities: dict[str, dict[str, Any]] = {}  # keyed by name to dedupe
-    interfaces: list[dict[str, Any]] = []
-
-    for router in routers:
-        instance_data = router.get("instance_data", {})
-        if not isinstance(instance_data, dict):
-            continue
-
-        observed = instance_data.get("observed_runtime", {})
-        if not isinstance(observed, dict):
-            continue
-
-        wifi_config = observed.get("wifi", {})
-        if not isinstance(wifi_config, dict):
-            continue
-
-        for iface_name, iface_data in wifi_config.items():
-            if not isinstance(iface_data, dict):
-                continue
-
-            ssid = iface_data.get("ssid")
-            if not ssid:
-                continue
-
-            # Extract datapath
-            datapath = iface_data.get("datapath")
-            if isinstance(datapath, dict):
-                dp_name = datapath.get("name", "")
-                if dp_name and dp_name not in datapaths:
-                    dp_entry: dict[str, Any] = {
-                        "name": dp_name,
-                        "bridge": datapath.get("bridge", "bridge"),
-                        "comment": f"{ssid} datapath - managed by topology",
-                    }
-                    # Only include vlan_id if present and non-zero
-                    vlan_id = datapath.get("vlan_id")
-                    if vlan_id:
-                        dp_entry["vlan_id"] = int(vlan_id)
-                    datapaths[dp_name] = dp_entry
-
-            # Extract security profile
-            # Supports both string format ("wpa2-psk") and object format:
-            # security:
-            #   authentication_types: [wpa2-psk, wpa3-psk]
-            #   fast_transition: true
-            #   fast_transition_over_ds: true
-            security = iface_data.get("security")
-            sec_name = None
-            if security:
-                sec_name = f"sec-{iface_name}"
-                if sec_name not in securities:
-                    sec_entry: dict[str, Any] = {
-                        "name": sec_name,
-                        "passphrase": True,  # indicates variable needed
-                        "comment": f"{ssid} security - managed by topology",
-                    }
-                    if isinstance(security, str):
-                        # Simple string format: "wpa2-psk"
-                        sec_entry["authentication_types"] = [security]
-                    elif isinstance(security, dict):
-                        # Object format with WPA3/FT support
-                        auth_types = security.get("authentication_types", [])
-                        if isinstance(auth_types, list):
-                            sec_entry["authentication_types"] = auth_types
-                        elif isinstance(auth_types, str):
-                            sec_entry["authentication_types"] = [auth_types]
-                        # Fast Transition (802.11r) support
-                        if security.get("fast_transition"):
-                            sec_entry["ft"] = True
-                        if security.get("fast_transition_over_ds"):
-                            sec_entry["ft_over_ds"] = True
-                    securities[sec_name] = sec_entry
-
-            # Build configuration entry
-            cfg_name = f"cfg-{iface_name}"
-            cfg_entry: dict[str, Any] = {
-                "name": cfg_name,
-                "ssid": ssid,
-                "mode": iface_data.get("mode", "ap"),
-                "comment": f"{ssid} - managed by topology",
-            }
-            if sec_name:
-                cfg_entry["security"] = sec_name
-            if isinstance(datapath, dict) and datapath.get("name"):
-                cfg_entry["datapath"] = datapath.get("name")
-
-            configurations.append(cfg_entry)
-
-            # Interface -> configuration binding. Staged SSIDs are not bound
-            # (their configuration exists but no AP broadcasts it yet).
-            # Entries with master_interface describe virtual (slave) APs
-            # (e.g. VPN-Germany on wifi1) which do NOT exist out of the box
-            # on a fresh RouterOS and must be created by the deploy tooling.
-            status = str(iface_data.get("status", "")).strip().lower()
-            if status != "staged":
-                iface_entry: dict[str, Any] = {
-                    # Physical slots use the mapping key (wifi1/wifi2);
-                    # virtual APs carry an explicit interface name.
-                    "name": str(iface_data.get("name") or iface_name),
-                    "configuration": cfg_name,
-                }
-                master = str(iface_data.get("master_interface") or "").strip()
-                if master:
-                    iface_entry["master_interface"] = master
-
-                # Channel configuration (frequency in MHz, band, width)
-                frequency = iface_data.get("frequency")
-                if frequency:
-                    iface_entry["frequency"] = int(frequency)
-                band = iface_data.get("band")
-                if band:
-                    iface_entry["band"] = str(band)
-                channel_width = iface_data.get("channel_width")
-                if channel_width:
-                    iface_entry["channel_width"] = str(channel_width)
-
-                interfaces.append(iface_entry)
-
-    return {
-        "datapaths": list(datapaths.values()),
-        "configurations": configurations,
-        "securities": list(securities.values()),
-        "interfaces": interfaces,
-    }
-
-
 def _extract_bridge_vlans(
     routers: list[dict[str, Any]],
     wifi_data: dict[str, Any],
@@ -703,6 +562,7 @@ def build_mikrotik_projection(
     capability_flags: dict[str, bool] | None = None,
     wireguard_tunnels: dict[str, Any] | None = None,
     containers: list[dict[str, Any]] | None = None,
+    wifi_config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build stable view for MikroTik Terraform generator.
 
@@ -734,6 +594,12 @@ def build_mikrotik_projection(
     publishes (W07 migration order item 4b): attachment and publication
     shape for every RouterOS container this router hosts. Derived the same
     way and for the same reason as the channels above.
+
+    `wifi_config` is the channel `object.mikrotik.compiler.wifi_config`
+    publishes (W07 migration order item 4c): datapath, configuration,
+    security profile and interface-binding shape for every WiFi interface
+    this router runs. Derived the same way and for the same reason as the
+    channels above.
 
     `None` is an omission and is refused, because the alternative is a projection
     that renders empty address lists and empty tunnel routes while reporting
@@ -770,6 +636,12 @@ def build_mikrotik_projection(
             "containers was not supplied; it is published by "
             "'object.mikrotik.compiler.containers' and this projection derives no "
             "substitute. Pass an empty list to state that there are no containers."
+        )
+    if wifi_config is None:
+        raise ProjectionError(
+            "wifi_config was not supplied; it is published by "
+            "'object.mikrotik.compiler.wifi_config' and this projection derives no "
+            "substitute. Pass an empty mapping to state that there is no WiFi configuration."
         )
     # Extract objects map for property lookups (ADR contract: use compiled topology only)
     objects_map = compiled_json.get("objects", {})
@@ -986,8 +858,10 @@ def build_mikrotik_projection(
     # order item 4a); this projection derives no substitute.
     wireguard_data = wireguard_tunnels
 
-    # Extract WiFi configurations from router instances
-    wifi_data = _extract_wifi_config(routers)
+    # WiFi interface/VLAN membership shape is the channel
+    # object.mikrotik.compiler.wifi_config publishes (W07 migration order
+    # item 4c); this projection derives no substitute.
+    wifi_data = wifi_config
 
     # Extract bridge VLAN entries for WiFi interface membership
     bridge_vlans = _extract_bridge_vlans(routers, wifi_data)

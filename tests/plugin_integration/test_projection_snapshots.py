@@ -80,6 +80,24 @@ _containers_spec.loader.exec_module(_containers_module)
 # containers - an empty list, which is already the correct empty shape.
 _EMPTY_CONTAINERS = _containers_module._extract_containers([], set())
 
+_WIFI_CONFIG_MODULE_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "topology"
+    / "object-modules"
+    / "mikrotik"
+    / "plugins"
+    / "compilers"
+    / "wifi_config_compiler.py"
+)
+_wifi_config_spec = _importlib_util.spec_from_file_location(
+    "test_projection_snapshots_wifi_config_compiler", _WIFI_CONFIG_MODULE_PATH
+)
+_wifi_config_module = _importlib_util.module_from_spec(_wifi_config_spec)
+_wifi_config_spec.loader.exec_module(_wifi_config_module)
+# W07 migration order item 4c: matches what the real compiler derives for zero
+# routers (all keys present, empty lists) - not an empty dict.
+_EMPTY_WIFI_CONFIG = _wifi_config_module._extract_wifi_config([])
+
 _BOOTSTRAP_PROJECTIONS = load_bootstrap_projection_module()
 
 build_proxmox_projection = _PROXMOX_PROJECTIONS.build_proxmox_projection
@@ -95,15 +113,17 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
     test that cares about zone or CIDR content passes a real mapping.
 
     `capability_flags` (W07 migration order item 1), `wireguard_tunnels`
-    (W07 migration order item 4a) and `containers` (W07 migration order
-    item 4b) are likewise required and defaulted empty the same way: these
-    fixtures are not about capability-, tunnel- or container-driven content.
+    (W07 migration order item 4a), `containers` (W07 migration order item
+    4b) and `wifi_config` (W07 migration order item 4c) are likewise
+    required and defaulted empty the same way: these fixtures are not about
+    capability-, tunnel-, container- or wifi-driven content.
     """
     kwargs.setdefault("composed_matrices_by_enforcer", {})
     kwargs.setdefault("vlan_cidr_map", {})
     kwargs.setdefault("capability_flags", _EMPTY_CAPABILITY_FLAGS)
     kwargs.setdefault("wireguard_tunnels", _EMPTY_WIREGUARD_TUNNELS)
     kwargs.setdefault("containers", _EMPTY_CONTAINERS)
+    kwargs.setdefault("wifi_config", _EMPTY_WIFI_CONFIG)
     return _raw_build_mikrotik_projection(compiled_json, **kwargs)
 
 

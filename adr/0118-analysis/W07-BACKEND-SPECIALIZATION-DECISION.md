@@ -316,18 +316,47 @@ Derived from what is checkable, not from what is easy.
    unchanged; the real topology's 6 containers derived correctly with the
    rename in place, confirming the fix.
 
-   Each of 4c-4i needs the same three-part evidence 1-3 above recorded, sized
+   **4c done 2026-09-29.** `_extract_wifi_config` moved verbatim to
+   `object.mikrotik.compiler.wifi_config`, the fourth dedicated compile-stage
+   compiler plugin. It consumes only `effective_model_candidate` (router
+   rows) - no dependency on `base.compiler.security_matrix`, same as item
+   4b. `_extract_bridge_vlans` (item 4f, still in the projection) takes this
+   function's output as an argument; the projection now threads the
+   `wifi_config` parameter into it locally instead of calling the removed
+   function, so 4f's migration will need `wifi_config` in scope when its
+   turn comes. Characterization found no divergence and no naming collision
+   this time (checked directly, given 4b's finding, by grepping the whole
+   function body for every generic-sounding name - `interfaces`,
+   `datapaths`, `configurations`, `securities` - before assuming it was
+   safe). It did surface a test-infrastructure gap instead of a production
+   one: `tests/plugin_integration/test_projection_helpers.py`'s
+   `build_mikrotik_projection` wrapper always defaulted the new required
+   channels to empty, which silently broke
+   `test_mikrotik_projection_extracts_wifi_interfaces` - a test that builds
+   real WiFi `instance_data` and expects it derived, not discarded. Fixed by
+   making the wrapper auto-derive all four channels from the fixture's own
+   rows, the same way `test_mikrotik_capability_driven.py`'s wrapper already
+   did, rather than hard-defaulting empty. Real-topology parity: `generated/`
+   byte-identical; `errors=0 warnings=3`, unchanged; the real topology's 5
+   WiFi interface bindings derived correctly.
+
+   Each of 4d-4i needs the same three-part evidence 1-3 above recorded, sized
    to what the function actually risks: (i) a characterization step - does the
    projection already diverge from any compiler-published fact for this data,
    the way W05 did for zones and N-07 did for R1-R6 - checked by reading the
    function in full, not assumed absent because no defect is currently named;
    (ii) the compile-stage channel it moves to, and the object-module plugin
-   that owns it - items 1, 4a and 4b each got their own dedicated plugin
+   that owns it - items 1, 4a, 4b and 4c each got their own dedicated plugin
    rather than accreting into one, which later items should default to
-   unless a specific reason favors sharing; and (i) is not a formality -
-   4b's characterization also caught a naming collision that would have
-   silently corrupted rendered output if migrated without reading the whole
-   function first;
+   unless a specific reason favors sharing, and a later item may need to
+   thread an earlier item's channel into whatever of its own logic still
+   lives in the projection, the way 4c's `wifi_config` now threads into
+   4f's still-local `_extract_bridge_vlans`; and (i) is not a formality -
+   4b's characterization caught a naming collision that would have silently
+   corrupted rendered output if migrated without reading the whole function
+   first, and 4c's caught that the test suite, not only the projection, can
+   silently default a required channel empty and discard real fixture
+   content;
    (iii) real-topology parity (`generated/` byte-identical, matching or lower
    `errors=`/`warnings=`) plus updated `test_backend_specialization_boundary.py`
    budgets and migration-list entries, the same pattern items 1-3 established.

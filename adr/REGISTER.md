@@ -741,3 +741,44 @@
 - `adr/0118-analysis/W07-BACKEND-SPECIALIZATION-DECISION.md`'s migration
   order item 4b marked done, naming the naming-collision finding explicitly
   since it is the kind of thing the characterization step exists to catch.
+
+## W07 migration order item 4c — WiFi config derivation moved to compile stage, 2026-09-29
+
+- `_extract_wifi_config` moved verbatim from `projections.py` (generate
+  stage) to a new plugin, `object.mikrotik.compiler.wifi_config`
+  (`topology/object-modules/mikrotik/plugins/compilers/wifi_config_compiler.py`,
+  compile stage) - the fourth dedicated compile-stage compiler plugin an
+  object module has registered.
+- Consumes only `base.compiler.effective_model`'s `effective_model_candidate`
+  (router rows) - no dependency on `base.compiler.security_matrix`, same as
+  item 4b. `build_mikrotik_projection` gains `wifi_config` as a required
+  argument. `_extract_bridge_vlans` (item 4f, still in the projection) takes
+  this function's output as its own argument; the projection now threads
+  the `wifi_config` parameter into it locally, so 4f's eventual migration
+  will need `wifi_config` already in scope.
+- Characterization found no divergence and, checked explicitly this time
+  given item 4b's finding, no naming collision either: grepped the whole
+  function body for every generic-sounding name (`interfaces`, `datapaths`,
+  `configurations`, `securities`) before concluding it was safe.
+- Surfaced a test-infrastructure gap instead: `test_projection_helpers.py`'s
+  `build_mikrotik_projection` wrapper always defaulted the new required
+  channels to empty, silently breaking
+  `test_mikrotik_projection_extracts_wifi_interfaces` (a test that builds
+  real WiFi `instance_data` and expects it derived). Fixed by making that
+  wrapper auto-derive all four channels from the fixture's own rows, the
+  same way `test_mikrotik_capability_driven.py`'s wrapper already did.
+- Verified against the real topology: `check_adr_consistency.py
+  --strict-titles` clean; full compile is `errors=0 warnings=3`, unchanged
+  from baseline; `git status` shows no diff under `generated/`; the real
+  topology's 5 WiFi interface bindings derived correctly.
+- `projections.py` now 10 functions / 877 lines (down from 11/1000);
+  `test_backend_specialization_boundary.py` budget lowered to match,
+  `_extract_wifi_config` added to the "migrated, gone rather than dormant"
+  list.
+- Same test-wiring pattern as items 1/4a/4b applied again, plus the
+  `test_projection_helpers.py` wrapper fix above. Targeted mikrotik/
+  projection/terraform/tuc slice: 120 passed, clean.
+- `adr/0118-analysis/W07-BACKEND-SPECIALIZATION-DECISION.md`'s migration
+  order item 4c marked done, naming both findings (no collision this time,
+  found by checking; the test-wrapper gap, found by a real content test
+  failing) and noting the forward dependency onto item 4f.

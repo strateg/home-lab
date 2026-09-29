@@ -79,11 +79,56 @@ _containers_spec.loader.exec_module(_containers_module)
 # containers - an empty list, which is already the correct empty shape.
 _EMPTY_CONTAINERS = _containers_module._extract_containers([], set())
 
+_WIFI_CONFIG_MODULE_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "topology"
+    / "object-modules"
+    / "mikrotik"
+    / "plugins"
+    / "compilers"
+    / "wifi_config_compiler.py"
+)
+_wifi_config_spec = _importlib_util.spec_from_file_location(
+    "test_projection_helpers_wifi_config_compiler", _WIFI_CONFIG_MODULE_PATH
+)
+_wifi_config_module = _importlib_util.module_from_spec(_wifi_config_spec)
+_wifi_config_spec.loader.exec_module(_wifi_config_module)
+# W07 migration order item 4c: matches what the real compiler derives for zero
+# routers (all keys present, empty lists) - not an empty dict.
+_EMPTY_WIFI_CONFIG = _wifi_config_module._extract_wifi_config([])
+
 _BOOTSTRAP_PROJECTIONS = load_bootstrap_projection_module()
 
 ProjectionError = _PROXMOX_PROJECTIONS.ProjectionError
 build_proxmox_projection = _PROXMOX_PROJECTIONS.build_proxmox_projection
 _raw_build_mikrotik_projection = _MIKROTIK_PROJECTIONS.build_mikrotik_projection
+
+
+def _mikrotik_routers_and_rows(compiled_json: dict) -> tuple[set[str], list[dict], list[dict], list[dict]]:
+    """(router instance ids, router rows, network-group rows, routeros_container-group rows)."""
+    instances = compiled_json.get("instances") if isinstance(compiled_json, dict) else None
+    if not isinstance(instances, dict):
+        return set(), [], [], []
+    devices = instances.get("devices", [])
+    if not isinstance(devices, list):
+        devices = []
+    network_rows = instances.get("network", [])
+    if not isinstance(network_rows, list):
+        network_rows = []
+    container_rows = instances.get("routeros_container", [])
+    if not isinstance(container_rows, list):
+        container_rows = []
+    resolved_object_ref = _capability_flags_module._resolved_object_ref
+    routers = [
+        row for row in devices if isinstance(row, dict) and resolved_object_ref(row).startswith("obj.mikrotik.")
+    ]
+    router_ids = {row.get("instance_id") for row in routers}
+    return (
+        {r for r in router_ids if isinstance(r, str) and r},
+        routers,
+        [r for r in network_rows if isinstance(r, dict)],
+        [r for r in container_rows if isinstance(r, dict)],
+    )
 
 
 def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
@@ -95,15 +140,32 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
     test that cares about zone or CIDR content passes a real mapping.
 
     `capability_flags` (W07 migration order item 1), `wireguard_tunnels`
-    (W07 migration order item 4a) and `containers` (W07 migration order
-    item 4b) are likewise required and defaulted empty the same way: these
-    fixtures are not about capability-, tunnel- or container-driven content.
+    (W07 migration order item 4a), `containers` (W07 migration order item
+    4b) and `wifi_config` (W07 migration order item 4c) are likewise
+    required, and auto-derived here from the fixture's own devices/network/
+    container rows the same way the real compile-stage compiler plugins
+    would, unless a test passes its own value to exercise a specific case -
+    a fixture that builds real wifi/wireguard/container instance_data (like
+    test_mikrotik_projection_extracts_wifi_interfaces) needs the derived
+    content, not an empty stand-in that silently discards it.
     """
     kwargs.setdefault("composed_matrices_by_enforcer", {})
     kwargs.setdefault("vlan_cidr_map", {})
-    kwargs.setdefault("capability_flags", _EMPTY_CAPABILITY_FLAGS)
-    kwargs.setdefault("wireguard_tunnels", _EMPTY_WIREGUARD_TUNNELS)
-    kwargs.setdefault("containers", _EMPTY_CONTAINERS)
+    if "capability_flags" not in kwargs:
+        _, routers, _, _ = _mikrotik_routers_and_rows(compiled_json)
+        kwargs["capability_flags"] = _capability_flags_module._derive_capability_flags(routers)
+    if (
+        "wireguard_tunnels" not in kwargs
+        or "containers" not in kwargs
+        or "wifi_config" not in kwargs
+    ):
+        router_ids, routers, network_rows, container_rows = _mikrotik_routers_and_rows(compiled_json)
+        kwargs.setdefault(
+            "wireguard_tunnels",
+            _wireguard_tunnels_module._extract_wireguard_tunnels(network_rows, router_ids, {}),
+        )
+        kwargs.setdefault("containers", _containers_module._extract_containers(container_rows, router_ids))
+        kwargs.setdefault("wifi_config", _wifi_config_module._extract_wifi_config(routers))
     return _raw_build_mikrotik_projection(compiled_json, **kwargs)
 
 
