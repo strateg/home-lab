@@ -136,119 +136,6 @@ def _build_firewall_entry(row: dict[str, Any], *, managed_by_ref: str, objects_m
     }
 
 
-def _build_routing_policy_entry(
-    row: dict[str, Any],
-    *,
-    managed_by_ref: str,
-    vlan_cidr_index: dict[str, str] | None = None,
-) -> dict[str, Any]:
-    """Extract policy-based routing configuration from network row.
-
-    Args:
-        row: Network instance row from compiled JSON.
-        managed_by_ref: Device instance ID managing this policy.
-        vlan_cidr_index: VLAN instance_id -> CIDR mapping for resolving refs.
-
-    Supports VLAN reference resolution (ADR-0111 extension):
-        - source_match.vlan_ref -> source_subnet (if value not provided)
-        - firewall_rules[].src_vlan_ref -> src_address
-        - firewall_rules[].dst_vlan_ref -> dst_address
-        - mangle_rules[].src_vlan_ref -> src_address
-        - mangle_rules[].dst_vlan_ref -> dst_address
-        - nat_rules[].src_vlan_ref -> src_address
-    """
-    if vlan_cidr_index is None:
-        vlan_cidr_index = {}
-
-    inst_data = row.get("instance_data", {}) or {}
-    mikrotik_config = inst_data.get("mikrotik_config", {}) or {}
-    if not isinstance(mikrotik_config, dict):
-        mikrotik_config = {}
-    source_match = inst_data.get("source_match", {}) or {}
-    if not isinstance(source_match, dict):
-        source_match = {}
-    target_gateway = inst_data.get("target_gateway", {}) or {}
-    if not isinstance(target_gateway, dict):
-        target_gateway = {}
-
-    instance_id = str(row.get("instance_id", "")).strip()
-    name = instance_id.replace("inst.routing_policy.", "").replace(".", "_").replace("-", "_")
-
-    # Resolve source_subnet from vlan_ref if value not provided
-    source_subnet = str(source_match.get("value", "")).strip()
-    if not source_subnet:
-        source_vlan_ref = str(source_match.get("vlan_ref", "")).strip()
-        if source_vlan_ref:
-            source_subnet = vlan_cidr_index.get(source_vlan_ref, "")
-
-    # Helper to resolve vlan refs in rule dicts
-    def resolve_rule_refs(rule: dict[str, Any]) -> dict[str, Any]:
-        """Resolve vlan_ref fields to actual CIDRs in a rule dict."""
-        resolved = dict(rule)
-        # src_vlan_ref -> src_address
-        src_ref = str(rule.get("src_vlan_ref", "")).strip()
-        if src_ref and not rule.get("src_address"):
-            cidr = vlan_cidr_index.get(src_ref)
-            if cidr:
-                resolved["src_address"] = cidr
-        # dst_vlan_ref -> dst_address
-        dst_ref = str(rule.get("dst_vlan_ref", "")).strip()
-        if dst_ref and not rule.get("dst_address"):
-            cidr = vlan_cidr_index.get(dst_ref)
-            if cidr:
-                resolved["dst_address"] = cidr
-        return resolved
-
-    mangle_rules = mikrotik_config.get("mangle_rules", [])
-    if not isinstance(mangle_rules, list):
-        mangle_rules = []
-    routing_table = mikrotik_config.get("routing_table", {})
-    if not isinstance(routing_table, dict):
-        routing_table = {}
-    routes = mikrotik_config.get("routes", [])
-    if not isinstance(routes, list):
-        routes = []
-    nat_rules = mikrotik_config.get("nat_rules", [])
-    if not isinstance(nat_rules, list):
-        nat_rules = []
-    mss_clamp = mikrotik_config.get("mss_clamp", {})
-    if not isinstance(mss_clamp, dict):
-        mss_clamp = {}
-    fasttrack = mikrotik_config.get("fasttrack", {})
-    if not isinstance(fasttrack, dict):
-        fasttrack = {}
-    notrack = mikrotik_config.get("notrack", [])
-    if not isinstance(notrack, list):
-        notrack = []
-    firewall_rules = mikrotik_config.get("firewall_rules", [])
-    if not isinstance(firewall_rules, list):
-        firewall_rules = []
-
-    # Resolve vlan refs in all rule types
-    resolved_mangle = [resolve_rule_refs(r) for r in mangle_rules if isinstance(r, dict)]
-    resolved_nat = [resolve_rule_refs(r) for r in nat_rules if isinstance(r, dict)]
-    resolved_firewall = [resolve_rule_refs(r) for r in firewall_rules if isinstance(r, dict)]
-
-    return {
-        "instance_id": instance_id,
-        "name": name,
-        "policy_name": str(inst_data.get("policy_name", "")).strip() or name,
-        "enabled": bool(inst_data.get("enabled", True)),
-        "source_subnet": source_subnet,
-        "tunnel_interface": str(target_gateway.get("value", "")).strip(),
-        "mangle_rules": resolved_mangle,
-        "routing_table": routing_table,
-        "routes": [route for route in routes if isinstance(route, dict)],
-        "nat_rules": resolved_nat,
-        "mss_clamp": mss_clamp if mss_clamp.get("new_mss") else None,
-        "fasttrack": fasttrack if fasttrack.get("enabled") else None,
-        "notrack": [rule for rule in notrack if isinstance(rule, dict)],
-        "firewall_rules": resolved_firewall,
-        "managed_by_ref": managed_by_ref,
-        "staged": _is_staged_row(row),
-    }
-
-
 def _extract_bridge_vlans(
     routers: list[dict[str, Any]],
     wifi_data: dict[str, Any],
@@ -563,6 +450,7 @@ def build_mikrotik_projection(
     wireguard_tunnels: dict[str, Any] | None = None,
     containers: list[dict[str, Any]] | None = None,
     wifi_config: dict[str, Any] | None = None,
+    routing_policies: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build stable view for MikroTik Terraform generator.
 
@@ -600,6 +488,12 @@ def build_mikrotik_projection(
     security profile and interface-binding shape for every WiFi interface
     this router runs. Derived the same way and for the same reason as the
     channels above.
+
+    `routing_policies` is the channel `object.mikrotik.compiler.
+    routing_policies` publishes (W07 migration order item 4d): mangle/NAT/
+    firewall rule shape for every policy-based route this router applies,
+    with `*_vlan_ref` fields already resolved against the compiler's CIDR
+    map. Derived the same way and for the same reason as the channels above.
 
     `None` is an omission and is refused, because the alternative is a projection
     that renders empty address lists and empty tunnel routes while reporting
@@ -643,6 +537,12 @@ def build_mikrotik_projection(
             "'object.mikrotik.compiler.wifi_config' and this projection derives no "
             "substitute. Pass an empty mapping to state that there is no WiFi configuration."
         )
+    if routing_policies is None:
+        raise ProjectionError(
+            "routing_policies was not supplied; it is published by "
+            "'object.mikrotik.compiler.routing_policies' and this projection derives no "
+            "substitute. Pass an empty list to state that there are no routing policies."
+        )
     # Extract objects map for property lookups (ADR contract: use compiled topology only)
     objects_map = compiled_json.get("objects", {})
     if not isinstance(objects_map, dict):
@@ -672,7 +572,6 @@ def build_mikrotik_projection(
     bridges: list[dict[str, Any]] = []
     vlans: list[dict[str, Any]] = []
     firewall_policies: list[dict[str, Any]] = []
-    routing_policies: list[dict[str, Any]] = []
 
     default_router_id = next(iter(sorted(router_ids)), "")
 
@@ -719,14 +618,9 @@ def build_mikrotik_projection(
                 vlan_entry = _build_vlan_entry(row, managed_by_ref=managed_by_ref, objects_map=objects_map)
                 vlans.append(vlan_entry)
 
-        # Extract policy-based routing (e.g. VPN VLAN via WireGuard) managed by MikroTik routers.
-        if "routing_policy" in object_ref:
-            if not managed_by_ref and len(router_ids) == 1:
-                managed_by_ref = default_router_id
-            if managed_by_ref in router_ids:
-                routing_policies.append(
-                    _build_routing_policy_entry(row, managed_by_ref=managed_by_ref, vlan_cidr_index=vlan_cidr_index)
-                )
+    # Policy-based routing shape is the channel
+    # object.mikrotik.compiler.routing_policies publishes (W07 migration
+    # order item 4d); this projection derives no substitute.
 
     # Extract firewall policies from dedicated firewall group.
     for idx, row in enumerate(firewall_rows):

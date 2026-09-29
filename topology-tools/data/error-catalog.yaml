@@ -316,6 +316,13 @@ codes:
     hint: >-
       object.mikrotik.compiler.wifi_config derived interface/VLAN membership shape
       (W07 migration order item 4c). No action required.
+  I4214:
+    severity: info
+    stage: compile
+    title: MikroTik Routing Policies Derived
+    hint: >-
+      object.mikrotik.compiler.routing_policies derived policy-based routing shape
+      (W07 migration order item 4d). No action required.
   I4301:
     severity: info
     stage: validate

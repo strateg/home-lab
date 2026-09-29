@@ -340,23 +340,44 @@ Derived from what is checkable, not from what is easy.
    byte-identical; `errors=0 warnings=3`, unchanged; the real topology's 5
    WiFi interface bindings derived correctly.
 
-   Each of 4d-4i needs the same three-part evidence 1-3 above recorded, sized
+   **4d done 2026-09-29.** `_build_routing_policy_entry` moved verbatim to
+   `object.mikrotik.compiler.routing_policies`, the fifth dedicated
+   compile-stage compiler plugin. Unlike items 4a-4c, the source function was
+   a per-row builder called from inside a larger shared loop (over `network`
+   rows) that also builds vlans and bridges in the same iteration - not an
+   independent top-level extractor. Migrating it required replicating the
+   loop's row-selection and `managed_by_ref`-resolution logic for
+   `routing_policy` rows specifically (checked against the original by
+   reading the surrounding loop in full, not just the builder function),
+   while leaving the vlan/bridge branches of that same loop untouched in the
+   projection. The plugin consumes `effective_model_candidate` (router ids,
+   network rows) and `base.compiler.security_matrix`'s `vlan_cidr_map`, same
+   as item 4a. Characterization found no divergence and, checked given 4b's
+   and 4c's findings, no naming collision. Real-topology parity: `generated/`
+   byte-identical; `errors=0 warnings=3`, unchanged; the real topology's 5
+   routing policies derived correctly.
+
+   Each of 4e-4i needs the same three-part evidence 1-3 above recorded, sized
    to what the function actually risks: (i) a characterization step - does the
    projection already diverge from any compiler-published fact for this data,
    the way W05 did for zones and N-07 did for R1-R6 - checked by reading the
    function in full, not assumed absent because no defect is currently named;
    (ii) the compile-stage channel it moves to, and the object-module plugin
-   that owns it - items 1, 4a, 4b and 4c each got their own dedicated plugin
-   rather than accreting into one, which later items should default to
-   unless a specific reason favors sharing, and a later item may need to
+   that owns it - items 1, 4a, 4b, 4c and 4d each got their own dedicated
+   plugin rather than accreting into one, which later items should default
+   to unless a specific reason favors sharing, and a later item may need to
    thread an earlier item's channel into whatever of its own logic still
    lives in the projection, the way 4c's `wifi_config` now threads into
-   4f's still-local `_extract_bridge_vlans`; and (i) is not a formality -
-   4b's characterization caught a naming collision that would have silently
-   corrupted rendered output if migrated without reading the whole function
-   first, and 4c's caught that the test suite, not only the projection, can
-   silently default a required channel empty and discard real fixture
-   content;
+   4f's still-local `_extract_bridge_vlans`. 4d additionally found that the
+   source function is not always an independent top-level extractor: a
+   per-row builder called from inside a larger shared loop needs the loop's
+   own row-selection/defaulting logic replicated for the rows it cares
+   about, checked against the surrounding loop in full, not only the
+   builder; and (i) is not a formality - 4b's characterization caught a
+   naming collision that would have silently corrupted rendered output if
+   migrated without reading the whole function first, and 4c's caught that
+   the test suite, not only the projection, can silently default a required
+   channel empty and discard real fixture content;
    (iii) real-topology parity (`generated/` byte-identical, matching or lower
    `errors=`/`warnings=`) plus updated `test_backend_specialization_boundary.py`
    budgets and migration-list entries, the same pattern items 1-3 established.

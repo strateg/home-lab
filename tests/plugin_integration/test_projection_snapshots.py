@@ -98,6 +98,10 @@ _wifi_config_spec.loader.exec_module(_wifi_config_module)
 # routers (all keys present, empty lists) - not an empty dict.
 _EMPTY_WIFI_CONFIG = _wifi_config_module._extract_wifi_config([])
 
+# W07 migration order item 4d: an empty list is already the correct empty
+# shape for routing_policies, the same as containers.
+_EMPTY_ROUTING_POLICIES: list[dict] = []
+
 _BOOTSTRAP_PROJECTIONS = load_bootstrap_projection_module()
 
 build_proxmox_projection = _PROXMOX_PROJECTIONS.build_proxmox_projection
@@ -114,9 +118,10 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
 
     `capability_flags` (W07 migration order item 1), `wireguard_tunnels`
     (W07 migration order item 4a), `containers` (W07 migration order item
-    4b) and `wifi_config` (W07 migration order item 4c) are likewise
-    required and defaulted empty the same way: these fixtures are not about
-    capability-, tunnel-, container- or wifi-driven content.
+    4b), `wifi_config` (W07 migration order item 4c) and `routing_policies`
+    (W07 migration order item 4d) are likewise required and defaulted empty
+    the same way: these fixtures are not about capability-, tunnel-,
+    container-, wifi- or routing-policy-driven content.
     """
     kwargs.setdefault("composed_matrices_by_enforcer", {})
     kwargs.setdefault("vlan_cidr_map", {})
@@ -124,6 +129,7 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
     kwargs.setdefault("wireguard_tunnels", _EMPTY_WIREGUARD_TUNNELS)
     kwargs.setdefault("containers", _EMPTY_CONTAINERS)
     kwargs.setdefault("wifi_config", _EMPTY_WIFI_CONFIG)
+    kwargs.setdefault("routing_policies", _EMPTY_ROUTING_POLICIES)
     return _raw_build_mikrotik_projection(compiled_json, **kwargs)
 
 

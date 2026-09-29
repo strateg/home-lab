@@ -118,6 +118,29 @@ def _load_wifi_config_module():
 _WIFI_CONFIG_MODULE = _load_wifi_config_module()
 _extract_wifi_config = _WIFI_CONFIG_MODULE._extract_wifi_config
 
+
+def _load_routing_policies_module():
+    # W07 migration order item 4d: routing-policy derivation moved from the
+    # projection (generate stage) to a compile-stage compiler plugin.
+    module_path = (
+        V5_ROOT
+        / "topology"
+        / "object-modules"
+        / "mikrotik"
+        / "plugins"
+        / "compilers"
+        / "routing_policies_compiler.py"
+    )
+    spec = importlib.util.spec_from_file_location("test_mikrotik_routing_policies_compiler", module_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+_ROUTING_POLICIES_MODULE = _load_routing_policies_module()
+_build_routing_policy_entry = _ROUTING_POLICIES_MODULE._build_routing_policy_entry
+
 # The producer the manifest lets this generator subscribe to. Both of its keys -
 # `security_matrices` and `vlan_cidr_map` - are declared `required: true`, because
 # the projection derives no substitute for either.
@@ -126,12 +149,14 @@ _CAPABILITY_FLAGS_COMPILER = "object.mikrotik.compiler.capability_flags"
 _WIREGUARD_TUNNELS_COMPILER = "object.mikrotik.compiler.wireguard_tunnels"
 _CONTAINERS_COMPILER = "object.mikrotik.compiler.containers"
 _WIFI_CONFIG_COMPILER = "object.mikrotik.compiler.wifi_config"
+_ROUTING_POLICIES_COMPILER = "object.mikrotik.compiler.routing_policies"
 _CONSUMED_KEYS = (
     _SECURITY_MATRIX_COMPILER,
     _CAPABILITY_FLAGS_COMPILER,
     _WIREGUARD_TUNNELS_COMPILER,
     _CONTAINERS_COMPILER,
     _WIFI_CONFIG_COMPILER,
+    _ROUTING_POLICIES_COMPILER,
 )
 
 
@@ -186,6 +211,31 @@ def _derive_wifi_config_for_fixture(compiled_json: dict) -> dict:
     return _extract_wifi_config(routers)
 
 
+def _derive_routing_policies_for_fixture(compiled_json: dict) -> list[dict]:
+    """Same derivation the real compile-stage compiler performs, applied to a
+    test fixture's compiled_json directly (W07 migration order item 4d).
+
+    Replicates the plugin's own row-selection/managed_by_ref-resolution
+    loop, not just a single all-routers call.
+    """
+    router_ids, _, network_rows, _ = _mikrotik_routers_and_network(compiled_json)
+    default_router_id = next(iter(sorted(router_ids)), "")
+    routing_policies: list[dict] = []
+    for row in network_rows:
+        object_ref = _resolved_object_ref(row)
+        if "routing_policy" not in object_ref:
+            continue
+        inst_data = row.get("instance_data", {}) if isinstance(row.get("instance_data"), dict) else {}
+        managed_by_ref = str(inst_data.get("managed_by_ref") or "").strip()
+        if not managed_by_ref and len(router_ids) == 1:
+            managed_by_ref = default_router_id
+        if managed_by_ref in router_ids:
+            routing_policies.append(
+                _build_routing_policy_entry(row, managed_by_ref=managed_by_ref, vlan_cidr_index={})
+            )
+    return routing_policies
+
+
 def _semanticize(compiled_json: dict) -> dict:
     payload = copy.deepcopy(compiled_json)
     instances = payload.get("instances")
@@ -220,10 +270,11 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
 
     `capability_flags` (W07 migration order item 1), `wireguard_tunnels`
     (W07 migration order item 4a), `containers` (W07 migration order item
-    4b) and `wifi_config` (W07 migration order item 4c) are likewise
-    required and are auto-derived here from the same devices/network/
-    container rows the real compile-stage compiler plugins read, unless a
-    test passes its own value to exercise a specific case.
+    4b), `wifi_config` (W07 migration order item 4c) and `routing_policies`
+    (W07 migration order item 4d) are likewise required and are auto-derived
+    here from the same devices/network/container rows the real compile-stage
+    compiler plugins read, unless a test passes its own value to exercise a
+    specific case.
     """
     semantic = _semanticize(compiled_json)
     kwargs.setdefault("composed_matrices_by_enforcer", {})
@@ -244,6 +295,8 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
         kwargs.setdefault("wireguard_tunnels", _extract_wireguard_tunnels(network_rows, router_ids, {}))
         kwargs.setdefault("containers", _extract_containers(container_rows, router_ids))
         kwargs.setdefault("wifi_config", _extract_wifi_config(routers))
+    if "routing_policies" not in kwargs:
+        kwargs["routing_policies"] = _derive_routing_policies_for_fixture(compiled_json)
     return _raw_build_mikrotik_projection(semantic, **kwargs)
 
 
@@ -453,11 +506,12 @@ class TestMikroTikGeneratorCapabilityDriven:
         if publish_channels:
             for key in ("composed_matrices_by_enforcer", "vlan_cidr_map"):
                 publish_for_test(ctx, _SECURITY_MATRIX_COMPILER, key, {})
-            # capability_flags, wireguard_tunnels, containers and wifi_config
-            # are likewise required (W07 migration order items 1, 4a, 4b,
-            # 4c). These fixtures test capability-driven template selection
-            # itself, so the published values must reflect the fixture's own
-            # capabilities/tunnels/containers/wifi, not an empty stand-in.
+            # capability_flags, wireguard_tunnels, containers, wifi_config
+            # and routing_policies are likewise required (W07 migration
+            # order items 1, 4a, 4b, 4c, 4d). These fixtures test
+            # capability-driven template selection itself, so the published
+            # values must reflect the fixture's own capabilities/tunnels/
+            # containers/wifi/routing-policies, not an empty stand-in.
             publish_for_test(
                 ctx, _CAPABILITY_FLAGS_COMPILER, "capability_flags", _derive_flags_for_fixture(compiled_json)
             )
@@ -478,6 +532,12 @@ class TestMikroTikGeneratorCapabilityDriven:
                 _WIFI_CONFIG_COMPILER,
                 "wifi_config",
                 _derive_wifi_config_for_fixture(compiled_json),
+            )
+            publish_for_test(
+                ctx,
+                _ROUTING_POLICIES_COMPILER,
+                "routing_policies",
+                _derive_routing_policies_for_fixture(compiled_json),
             )
         return ctx
 
@@ -619,7 +679,7 @@ class TestMikroTikGeneratorCapabilityDriven:
         assert any("base.compiler.security_matrix" in message for message in messages), messages
         assert not list((tmp_path / "generated").rglob("*.tf")), "artifacts were written despite the failure"
 
-    def test_the_manifest_declares_all_six_channels_required(self) -> None:
+    def test_the_manifest_declares_all_seven_channels_required(self) -> None:
         """`required: false` is what let the absence pass as an empty result."""
         import sys as _sys
 
@@ -646,3 +706,6 @@ class TestMikroTikGeneratorCapabilityDriven:
         # W07 migration order item 4c: wifi_config is required the same way.
         assert consumes["wifi_config"]["from_plugin"] == _WIFI_CONFIG_COMPILER
         assert consumes["wifi_config"]["required"] is True
+        # W07 migration order item 4d: routing_policies is required the same way.
+        assert consumes["routing_policies"]["from_plugin"] == _ROUTING_POLICIES_COMPILER
+        assert consumes["routing_policies"]["required"] is True

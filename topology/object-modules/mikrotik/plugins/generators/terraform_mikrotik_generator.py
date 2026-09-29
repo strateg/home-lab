@@ -176,6 +176,12 @@ class TerraformMikroTikGenerator(BaseGenerator):
         # derived at compile stage, not re-derived here
         # (object.mikrotik.compiler.wifi_config).
         wifi_config = self._subscribe(ctx, "wifi_config", plugin_id="object.mikrotik.compiler.wifi_config")
+        # W07 migration order item 4d: policy-based routing shape derived at
+        # compile stage, not re-derived here
+        # (object.mikrotik.compiler.routing_policies).
+        routing_policies = self._subscribe(
+            ctx, "routing_policies", plugin_id="object.mikrotik.compiler.routing_policies"
+        )
 
         try:
             projection = build_mikrotik_projection(
@@ -186,6 +192,7 @@ class TerraformMikroTikGenerator(BaseGenerator):
                 wireguard_tunnels=wireguard_tunnels,
                 containers=containers,
                 wifi_config=wifi_config,
+                routing_policies=routing_policies,
             )
         except projection_error as exc:
             diagnostics.append(

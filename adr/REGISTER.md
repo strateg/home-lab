@@ -782,3 +782,42 @@
   order item 4c marked done, naming both findings (no collision this time,
   found by checking; the test-wrapper gap, found by a real content test
   failing) and noting the forward dependency onto item 4f.
+
+## W07 migration order item 4d — routing-policy derivation moved to compile stage, 2026-09-29
+
+- `_build_routing_policy_entry` moved verbatim from `projections.py`
+  (generate stage) to a new plugin, `object.mikrotik.compiler.
+  routing_policies` (`topology/object-modules/mikrotik/plugins/compilers/
+  routing_policies_compiler.py`, compile stage) - the fifth dedicated
+  compile-stage compiler plugin an object module has registered.
+- Unlike items 4a-4c, the source function was a per-row builder called from
+  inside a larger shared loop (over `network` rows) that also builds vlans
+  and bridges in the same iteration, not an independent top-level extractor.
+  Migrating it required replicating the loop's row-selection and
+  `managed_by_ref`-resolution logic for `routing_policy` rows specifically -
+  checked against the original by reading the surrounding loop in full, not
+  just the builder function - while leaving the vlan/bridge branches of that
+  same loop untouched in the projection.
+- Consumes `base.compiler.effective_model`'s `effective_model_candidate`
+  (router ids, network rows) and `base.compiler.security_matrix`'s
+  `vlan_cidr_map`, same as item 4a. `build_mikrotik_projection` gains
+  `routing_policies` as a required argument.
+- Characterization found no divergence and, checked given 4b's and 4c's
+  findings, no naming collision.
+- Verified against the real topology: `check_adr_consistency.py
+  --strict-titles` clean; full compile is `errors=0 warnings=3`, unchanged
+  from baseline; `git status` shows no diff under `generated/`; the real
+  topology's 5 routing policies derived correctly.
+- `projections.py` now 9 functions / 774 lines (down from 10/877);
+  `test_backend_specialization_boundary.py` budget lowered to match,
+  `_build_routing_policy_entry` added to the "migrated, gone rather than
+  dormant" list.
+- Same test-wiring pattern as items 1/4a/4b/4c applied again, including
+  extending both `test_projection_helpers.py`'s auto-deriving wrapper and
+  `test_mikrotik_capability_driven.py`'s wrapper with a routing-policy
+  derivation helper that replicates the plugin's row-selection loop.
+  Targeted mikrotik/projection/terraform/tuc slice: 120 passed, clean.
+- `adr/0118-analysis/W07-BACKEND-SPECIALIZATION-DECISION.md`'s migration
+  order item 4d marked done, naming the new kind of migration this item
+  represents (extracting a slice of a shared loop, not an independent
+  function) for the benefit of items 4e-4i.

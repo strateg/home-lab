@@ -37,11 +37,12 @@ DECISION = REPO_ROOT / "adr/0118-analysis/W07-BACKEND-SPECIALIZATION-DECISION.md
 # wireguard_tunnels, lowered again the same day when item 4b
 # (_extract_containers) moved to object.mikrotik.compiler.containers, and
 # lowered again the same day when item 4c (_extract_wifi_config) moved to
-# object.mikrotik.compiler.wifi_config. A budget that stays above the real
-# figure stops measuring, so it is lowered whenever the debt is actually
-# paid down.
-PROJECTION_FUNCTION_BUDGET = 10
-PROJECTION_LINE_BUDGET = 877
+# object.mikrotik.compiler.wifi_config, and lowered again the same day when
+# item 4d (_build_routing_policy_entry) moved to object.mikrotik.compiler.
+# routing_policies. A budget that stays above the real figure stops
+# measuring, so it is lowered whenever the debt is actually paid down.
+PROJECTION_FUNCTION_BUDGET = 9
+PROJECTION_LINE_BUDGET = 774
 
 
 def _functions() -> list[tuple[str, int]]:
@@ -148,6 +149,7 @@ def test_the_first_migration_candidates_still_exist(name: str) -> None:
         "_extract_wireguard_tunnels",
         "_extract_containers",
         "_extract_wifi_config",
+        "_build_routing_policy_entry",
     ],
 )
 def test_the_migrated_helpers_are_gone_rather_than_dormant(name: str) -> None:
@@ -169,9 +171,12 @@ def test_the_migrated_helpers_are_gone_rather_than_dormant(name: str) -> None:
     the projection now reads `containers`, also a required argument.
     `_extract_wifi_config` (W07 migration order item 4c, 2026-09-29) moved
     the same way to `object.mikrotik.compiler.wifi_config`; the projection
-    now reads `wifi_config`, also a required argument. Asserting they are
-    gone is what stops the debt from being paid on paper and reinstated in
-    the next change.
+    now reads `wifi_config`, also a required argument.
+    `_build_routing_policy_entry` (W07 migration order item 4d, 2026-09-29)
+    moved the same way to `object.mikrotik.compiler.routing_policies`; the
+    projection now reads `routing_policies`, also a required argument.
+    Asserting they are gone is what stops the debt from being paid on paper
+    and reinstated in the next change.
     """
     assert name not in {function for function, _ in _functions()}
     assert name not in PROJECTION.read_text(encoding="utf-8")

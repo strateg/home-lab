@@ -18,6 +18,7 @@ from tests.helpers.mikrotik_security_channels import (
     CAPABILITY_FLAGS_COMPILER,
     SECURITY_MATRIX_COMPILER,
     CONTAINERS_COMPILER,
+    ROUTING_POLICIES_COMPILER,
     WIFI_CONFIG_COMPILER,
     WIREGUARD_TUNNELS_COMPILER,
     publish_empty_channels,
@@ -86,6 +87,7 @@ def _run_generator(generator, ctx: PluginContext):
             WIREGUARD_TUNNELS_COMPILER,
             CONTAINERS_COMPILER,
             WIFI_CONFIG_COMPILER,
+            ROUTING_POLICIES_COMPILER,
         ),
     )
 

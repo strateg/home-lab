@@ -14,13 +14,15 @@ It also consumes `capability_flags` from `object.mikrotik.compiler.
 capability_flags` (W07 migration order item 1, 2026-09-29),
 `wireguard_tunnels` from `object.mikrotik.compiler.wireguard_tunnels` (W07
 migration order item 4a, 2026-09-29), `containers` from `object.mikrotik.
-compiler.containers` (W07 migration order item 4b, 2026-09-29) and
+compiler.containers` (W07 migration order item 4b, 2026-09-29),
 `wifi_config` from `object.mikrotik.compiler.wifi_config` (W07 migration
-order item 4c, 2026-09-29), all four likewise `required: true`. Unlike the
-matrix/CIDR pair, these four are not published empty: capability-, tunnel-,
-container- and wifi-driven tests need them to reflect the fixture's own
-routers, so `publish_empty_channels` derives all four from
-`ctx.compiled_json` the same way the real compile-stage plugins do.
+order item 4c, 2026-09-29) and `routing_policies` from `object.mikrotik.
+compiler.routing_policies` (W07 migration order item 4d, 2026-09-29), all
+five likewise `required: true`. Unlike the matrix/CIDR pair, these five are
+not published empty: capability-, tunnel-, container-, wifi- and
+routing-policy-driven tests need them to reflect the fixture's own routers,
+so `publish_empty_channels` derives all five from `ctx.compiled_json` the
+same way the real compile-stage plugins do.
 
 These helpers make the statement one line. Passing empty mappings for the
 matrix/CIDR channels means "this fixture declares no matrices and no address
@@ -39,6 +41,7 @@ CAPABILITY_FLAGS_COMPILER = "object.mikrotik.compiler.capability_flags"
 WIREGUARD_TUNNELS_COMPILER = "object.mikrotik.compiler.wireguard_tunnels"
 CONTAINERS_COMPILER = "object.mikrotik.compiler.containers"
 WIFI_CONFIG_COMPILER = "object.mikrotik.compiler.wifi_config"
+ROUTING_POLICIES_COMPILER = "object.mikrotik.compiler.routing_policies"
 CHANNEL_KEYS = ("composed_matrices_by_enforcer", "vlan_cidr_map")
 
 
@@ -72,6 +75,9 @@ _EMPTY_CONTAINERS = _CONTAINERS_MODULE._extract_containers([], set())
 
 _WIFI_CONFIG_MODULE = _load_module("wifi_config_compiler.py", "wifi_config")
 _EMPTY_WIFI_CONFIG = _WIFI_CONFIG_MODULE._extract_wifi_config([])
+
+_ROUTING_POLICIES_MODULE = _load_module("routing_policies_compiler.py", "routing_policies")
+_EMPTY_ROUTING_POLICIES: list[dict[str, Any]] = []
 
 
 def _mikrotik_router_ids(
@@ -142,12 +148,44 @@ def _derive_wifi_config_for(compiled_json: Any) -> dict[str, Any]:
     return _WIFI_CONFIG_MODULE._extract_wifi_config(routers)
 
 
+def _derive_routing_policies_for(compiled_json: Any) -> list[dict[str, Any]]:
+    """Same derivation the real compile-stage compiler performs (W07 item 4d).
+
+    Replicates the plugin's own row-selection/managed_by_ref-resolution
+    loop, not just a single all-routers call - routing policies are built
+    per qualifying network row, not from the router list as a whole.
+    """
+    if not isinstance(compiled_json, dict):
+        return list(_EMPTY_ROUTING_POLICIES)
+    router_ids, _, network_rows, _ = _mikrotik_router_ids(compiled_json)
+    default_router_id = next(iter(sorted(router_ids)), "")
+    resolved_object_ref = _CAPABILITY_FLAGS_MODULE._resolved_object_ref
+    routing_policies: list[dict[str, Any]] = []
+    for row in network_rows:
+        if not isinstance(row, dict):
+            continue
+        object_ref = resolved_object_ref(row)
+        if "routing_policy" not in object_ref:
+            continue
+        inst_data = row.get("instance_data", {}) if isinstance(row.get("instance_data"), dict) else {}
+        managed_by_ref = str(inst_data.get("managed_by_ref") or "").strip()
+        if not managed_by_ref and len(router_ids) == 1:
+            managed_by_ref = default_router_id
+        if managed_by_ref in router_ids:
+            routing_policies.append(
+                _ROUTING_POLICIES_MODULE._build_routing_policy_entry(
+                    row, managed_by_ref=managed_by_ref, vlan_cidr_index={}
+                )
+            )
+    return routing_policies
+
+
 def publish_empty_channels(ctx: Any) -> None:
     """Publish the matrix/CIDR channels empty, and capability_flags/
-    wireguard_tunnels/containers/wifi_config derived from `ctx.compiled_json`
-    (empty input still produces the full shape the real compilers would, not
-    a bare `{}`/`[]`, so golden-snapshot and template-selection fixtures
-    compare equal to production output)."""
+    wireguard_tunnels/containers/wifi_config/routing_policies derived from
+    `ctx.compiled_json` (empty input still produces the full shape the real
+    compilers would, not a bare `{}`/`[]`, so golden-snapshot and
+    template-selection fixtures compare equal to production output)."""
     from tests.helpers.plugin_execution import publish_for_test
 
     for key in CHANNEL_KEYS:
@@ -161,14 +199,17 @@ def publish_empty_channels(ctx: Any) -> None:
     )
     publish_for_test(ctx, CONTAINERS_COMPILER, "containers", _derive_containers_for(compiled_json))
     publish_for_test(ctx, WIFI_CONFIG_COMPILER, "wifi_config", _derive_wifi_config_for(compiled_json))
+    publish_for_test(
+        ctx, ROUTING_POLICIES_COMPILER, "routing_policies", _derive_routing_policies_for(compiled_json)
+    )
 
 
 def empty_channel_subscriptions() -> dict[tuple[str, str], Any]:
     """The same, as the `subscriptions` mapping of a `PluginInputSnapshot`.
 
     No `compiled_json` is available at this call site, so `capability_flags`,
-    `wireguard_tunnels`, `containers` and `wifi_config` are the all-empty
-    defaults rather than a per-fixture derivation.
+    `wireguard_tunnels`, `containers`, `wifi_config` and `routing_policies`
+    are the all-empty defaults rather than a per-fixture derivation.
     """
     from kernel.plugin_base import SubscriptionValue
 
@@ -188,6 +229,9 @@ def empty_channel_subscriptions() -> dict[tuple[str, str], Any]:
     subscriptions[(WIFI_CONFIG_COMPILER, "wifi_config")] = SubscriptionValue(
         from_plugin=WIFI_CONFIG_COMPILER, key="wifi_config", value=dict(_EMPTY_WIFI_CONFIG)
     )
+    subscriptions[(ROUTING_POLICIES_COMPILER, "routing_policies")] = SubscriptionValue(
+        from_plugin=ROUTING_POLICIES_COMPILER, key="routing_policies", value=list(_EMPTY_ROUTING_POLICIES)
+    )
     return subscriptions
 
 
@@ -195,6 +239,7 @@ __all__ = [
     "CAPABILITY_FLAGS_COMPILER",
     "CHANNEL_KEYS",
     "CONTAINERS_COMPILER",
+    "ROUTING_POLICIES_COMPILER",
     "SECURITY_MATRIX_COMPILER",
     "WIFI_CONFIG_COMPILER",
     "WIREGUARD_TUNNELS_COMPILER",

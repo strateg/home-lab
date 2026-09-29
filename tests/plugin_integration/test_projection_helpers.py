@@ -97,6 +97,21 @@ _wifi_config_spec.loader.exec_module(_wifi_config_module)
 # routers (all keys present, empty lists) - not an empty dict.
 _EMPTY_WIFI_CONFIG = _wifi_config_module._extract_wifi_config([])
 
+_ROUTING_POLICIES_MODULE_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "topology"
+    / "object-modules"
+    / "mikrotik"
+    / "plugins"
+    / "compilers"
+    / "routing_policies_compiler.py"
+)
+_routing_policies_spec = _importlib_util.spec_from_file_location(
+    "test_projection_helpers_routing_policies_compiler", _ROUTING_POLICIES_MODULE_PATH
+)
+_routing_policies_module = _importlib_util.module_from_spec(_routing_policies_spec)
+_routing_policies_spec.loader.exec_module(_routing_policies_module)
+
 _BOOTSTRAP_PROJECTIONS = load_bootstrap_projection_module()
 
 ProjectionError = _PROXMOX_PROJECTIONS.ProjectionError
@@ -131,6 +146,33 @@ def _mikrotik_routers_and_rows(compiled_json: dict) -> tuple[set[str], list[dict
     )
 
 
+def _derive_routing_policies_for(compiled_json: dict) -> list[dict]:
+    """Same derivation the real compile-stage compiler performs (W07 item 4d).
+
+    Replicates the plugin's own row-selection/managed_by_ref-resolution
+    loop, not just a single all-routers call.
+    """
+    router_ids, _, network_rows, _ = _mikrotik_routers_and_rows(compiled_json)
+    default_router_id = next(iter(sorted(router_ids)), "")
+    resolved_object_ref = _capability_flags_module._resolved_object_ref
+    routing_policies: list[dict] = []
+    for row in network_rows:
+        object_ref = resolved_object_ref(row)
+        if "routing_policy" not in object_ref:
+            continue
+        inst_data = row.get("instance_data", {}) if isinstance(row.get("instance_data"), dict) else {}
+        managed_by_ref = str(inst_data.get("managed_by_ref") or "").strip()
+        if not managed_by_ref and len(router_ids) == 1:
+            managed_by_ref = default_router_id
+        if managed_by_ref in router_ids:
+            routing_policies.append(
+                _routing_policies_module._build_routing_policy_entry(
+                    row, managed_by_ref=managed_by_ref, vlan_cidr_index={}
+                )
+            )
+    return routing_policies
+
+
 def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
     """The compiler's channels are required arguments; these fixtures state them empty.
 
@@ -141,11 +183,12 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
 
     `capability_flags` (W07 migration order item 1), `wireguard_tunnels`
     (W07 migration order item 4a), `containers` (W07 migration order item
-    4b) and `wifi_config` (W07 migration order item 4c) are likewise
-    required, and auto-derived here from the fixture's own devices/network/
-    container rows the same way the real compile-stage compiler plugins
-    would, unless a test passes its own value to exercise a specific case -
-    a fixture that builds real wifi/wireguard/container instance_data (like
+    4b), `wifi_config` (W07 migration order item 4c) and `routing_policies`
+    (W07 migration order item 4d) are likewise required, and auto-derived
+    here from the fixture's own devices/network/container rows the same way
+    the real compile-stage compiler plugins would, unless a test passes its
+    own value to exercise a specific case - a fixture that builds real
+    wifi/wireguard/container/routing-policy instance_data (like
     test_mikrotik_projection_extracts_wifi_interfaces) needs the derived
     content, not an empty stand-in that silently discards it.
     """
@@ -166,6 +209,8 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
         )
         kwargs.setdefault("containers", _containers_module._extract_containers(container_rows, router_ids))
         kwargs.setdefault("wifi_config", _wifi_config_module._extract_wifi_config(routers))
+    if "routing_policies" not in kwargs:
+        kwargs["routing_policies"] = _derive_routing_policies_for(compiled_json)
     return _raw_build_mikrotik_projection(compiled_json, **kwargs)
 
 

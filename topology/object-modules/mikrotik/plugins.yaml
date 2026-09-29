@@ -112,6 +112,37 @@ plugins:
     description: Derives MikroTik WiFi interface/VLAN membership shape at
       compile stage (W07 migration order item 4c) - relocated from the
       generate-stage projection so the fact is visible before any validator runs.
+  - id: object.mikrotik.compiler.routing_policies
+    kind: compiler
+    entry: plugins/compilers/routing_policies_compiler.py:MikrotikRoutingPoliciesCompiler
+    api_version: 1.x
+    stages:
+      - compile
+    phase: finalize
+    order: 69
+    depends_on:
+      - base.compiler.effective_model
+      - base.compiler.security_matrix
+    timeout: 30
+    execution_mode: subinterpreter
+    consumes:
+      - key: effective_model_candidate
+        from_plugin: base.compiler.effective_model
+        required: true
+      - key: vlan_cidr_map
+        from_plugin: base.compiler.security_matrix
+        required: true
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    produces:
+      - key: routing_policies
+        scope: pipeline_shared
+    description: Derives MikroTik policy-based routing shape at compile stage
+      (W07 migration order item 4d) - relocated from the generate-stage
+      projection so the fact is visible before any validator runs.
   - id: object.mikrotik.generator.terraform
     kind: generator
     entry: plugins/generators/terraform_mikrotik_generator.py:TerraformMikroTikGenerator
@@ -127,6 +158,7 @@ plugins:
       - object.mikrotik.compiler.wireguard_tunnels
       - object.mikrotik.compiler.containers
       - object.mikrotik.compiler.wifi_config
+      - object.mikrotik.compiler.routing_policies
     timeout: 30
     execution_mode: subinterpreter
     consumes:
@@ -168,6 +200,11 @@ plugins:
       # derived once at compile stage. The projection derives no substitute.
       - key: wifi_config
         from_plugin: object.mikrotik.compiler.wifi_config
+        required: true
+      # W07 migration order item 4d: policy-based routing shape, derived
+      # once at compile stage. The projection derives no substitute.
+      - key: routing_policies
+        from_plugin: object.mikrotik.compiler.routing_policies
         required: true
     config:
       terraform_version: '>= 1.6.0'
