@@ -158,6 +158,64 @@ def test_mikrotik_projection_is_stable_and_scoped() -> None:
     assert [row["instance_id"] for row in projection["services"]] == ["svc-snmp"]
 
 
+def test_mikrotik_projection_reads_a_two_scope_composed_plan() -> None:
+    """The two-scope fixture section 5b/5d called for.
+
+    D-COMP-1..4 are exercised at the compiler in
+    tests/plugin_integration/test_security_matrix_compiler.py; this checks the
+    other half of the chain - that the projection and generator pass a
+    genuinely composed, multi-scope plan through unchanged rather than only
+    ever having been driven by a one-scope input. The real topology has
+    exactly one enabled scope, so this is the only place that shape is
+    exercised until it exists for real.
+    """
+    payload = _compiled_fixture()
+    composed = {
+        "rtr-mk": {
+            "zones": {
+                "inst.trust_zone.user": {"name": "User", "security_level": 3, "isolated": False, "cidrs": ["10.0.10.0/24"]},
+                "inst.trust_zone.dmz": {"name": "DMZ", "security_level": 1, "isolated": False, "cidrs": ["10.0.20.0/24"]},
+            },
+            "matrix": {
+                "inst.trust_zone.user": {
+                    "inst.trust_zone.user": {"action": "allow", "rule": "R1", "reason": "same zone", "log": False},
+                    "inst.trust_zone.dmz": {"action": "allow", "rule": "R3", "reason": "downhill", "log": False},
+                },
+                "inst.trust_zone.dmz": {
+                    "inst.trust_zone.dmz": {"action": "allow", "rule": "R1", "reason": "same zone", "log": False},
+                    "inst.trust_zone.user": {"action": "deny", "rule": "R4", "reason": "uphill", "log": True},
+                },
+            },
+            "policy_overrides": [
+                {
+                    "name": "user-to-dmz-web",
+                    "from_zone_ref": "inst.trust_zone.user",
+                    "to_zone_ref": "inst.trust_zone.dmz",
+                    "action": "accept",
+                    "src_vlan_ref": "inst.vlan.user",
+                }
+            ],
+            "scope_ids": ["inst.security_matrix.a", "inst.security_matrix.b"],
+        }
+    }
+    vlan_cidr_map = {"inst.vlan.user": "10.0.10.0/24"}
+
+    projection = build_mikrotik_projection(
+        payload,
+        composed_matrices_by_enforcer=composed,
+        vlan_cidr_map=vlan_cidr_map,
+    )
+
+    matrix = projection["security_matrix"]
+    assert matrix["instance_id"] == "inst.security_matrix.a, inst.security_matrix.b"
+    assert matrix["managed_by_ref"] == "rtr-mk"
+    assert set(matrix["zones"].keys()) == {"inst.trust_zone.user", "inst.trust_zone.dmz"}
+    assert matrix["matrix"]["inst.trust_zone.dmz"]["inst.trust_zone.user"]["action"] == "deny"
+    (override,) = matrix["policy_overrides"]
+    assert override["src_address"] == "10.0.10.0/24"
+    assert matrix["unresolved_vlan_refs"] == []
+
+
 def test_mikrotik_projection_extracts_routing_policies() -> None:
     payload = _compiled_fixture()
     payload["instances"]["network"].append(
