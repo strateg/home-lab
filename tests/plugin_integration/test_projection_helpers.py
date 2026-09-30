@@ -422,6 +422,19 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
     """
     kwargs.setdefault("composed_matrices_by_enforcer", {})
     kwargs.setdefault("vlan_cidr_map", {})
+    if "enforcer_resolution" not in kwargs:
+        # V-14: build_mikrotik_projection now selects routers by
+        # enforcer_resolution's adapter, not by object_ref name prefix.
+        # Fixtures below (and this wrapper's own router-derivation helpers)
+        # still identify "the routers" by name prefix - synthesize a
+        # matching resolution for each so existing tests keep picking the
+        # same routers by default. A test exercising the new capability
+        # check passes its own enforcer_resolution instead.
+        prefix_router_ids, _, _, _ = _mikrotik_routers_and_rows(compiled_json)
+        kwargs["enforcer_resolution"] = {
+            router_id: {"type": "network", "adapter": "cap.firewall.security_matrix.routeros"}
+            for router_id in prefix_router_ids
+        }
     if "capability_flags" not in kwargs:
         _, routers, _, _ = _mikrotik_routers_and_rows(compiled_json)
         kwargs["capability_flags"] = _capability_flags_module._derive_capability_flags(routers)
@@ -671,33 +684,34 @@ def test_mikrotik_projection_refuses_more_than_one_enforced_router() -> None:
         )
 
 
-def test_mikrotik_projection_accepts_a_router_ref_the_type_resolver_would_refuse() -> None:
-    """Characterization, ENFORCER-AXIS-CONFORMANCE.md section 4, counterexample
+def test_mikrotik_projection_refuses_a_router_ref_the_type_resolver_refuses() -> None:
+    """Regression, ENFORCER-AXIS-CONFORMANCE.md section 4, counterexample
     "Reference names a target with no enforcement capability | Visible
-    refusal; a valid instance_ref alone is insufficient" - **currently
-    violated**, not a regression test for desired behavior.
+    refusal; a valid instance_ref alone is insufficient" - **fixed
+    2026-09-30 (V-14)**. Was a characterization test (currently-violated)
+    before build_mikrotik_projection gained an enforcer_resolution parameter
+    and started selecting routers by its adapter instead of by
+    object_ref.startswith("obj.mikrotik.").
 
-    `base.compiler.effective_model` already computes and publishes a
-    definitive per-instance verdict (`enforcer_resolution`, D-TYPE-1..3): an
-    instance whose object declares no `cap.net.l3.security.firewall.
-    zone_policy` (or the compute-side equivalent) is not an enforcer
-    candidate and is omitted from it entirely. `build_mikrotik_projection`
-    never reads that channel - it has no parameter for it - and decides
-    "is this a router" purely by `object_ref.startswith("obj.mikrotik.")`,
-    a name-prefix check with no relationship to whether the compiler's own
-    resolver would recognize the instance as an enforcer at all.
+    `base.compiler.effective_model` computes and publishes a definitive
+    per-instance verdict (`enforcer_resolution`, D-TYPE-1..3): an instance
+    whose object declares no `cap.net.l3.security.firewall.zone_policy` (or
+    the compute-side equivalent) is not an enforcer candidate and is omitted
+    from it entirely. `build_mikrotik_projection` now reads that channel
+    directly, so a name-prefix match alone no longer qualifies an instance
+    as a router.
 
-    This pins the gap with both halves of the same instance shape run
+    This pins the fix with both halves of the same instance shape run
     through their real compilers, not an assumption about what
     `enforcer_resolution` would say: the object below has no
     `enabled_capabilities` at all, so D-TYPE-1 finds no device-kind
     capability and `_resolve_enforcer` returns `None` (the instance is
-    omitted from `enforcer_resolution`, confirmed here) - and the same
-    instance is still accepted as a router by the projection. Wiring this
-    channel into the object-module plugins that build `router_ids` (~10
-    files across MikroTik and Proxmox, none of which import
-    `enforcer_resolution` today) is deferred as a separate, larger change;
-    this test only characterizes the current gap.
+    omitted from `enforcer_resolution`, confirmed here) - and the projection
+    now excludes it from `routers` for the same reason. The compile-stage
+    compilers (`bridge_entries_compiler.py` and the other nine) and this
+    generate-stage projection share one selection rule now; the earlier
+    "~10 files, none of which import enforcer_resolution" gap this test
+    used to name is closed.
     """
     sys.path.insert(0, str(V5_TOOLS))
     from kernel import PluginContext as _EMPluginContext
@@ -772,13 +786,13 @@ def test_mikrotik_projection_accepts_a_router_ref_the_type_resolver_would_refuse
         }
     }
 
-    projection = build_mikrotik_projection(payload)
+    projection = build_mikrotik_projection(payload, enforcer_resolution=enforcer_resolution)
 
     # The counterexample's required result is "Visible refusal; a valid
-    # instance_ref alone is insufficient." This is what currently happens
-    # instead: the same instance the compiler's own resolver would not
-    # recognize as an enforcer is accepted as a router anyway.
-    assert [row["instance_id"] for row in projection["routers"]] == ["rtr-uncapable"]
+    # instance_ref alone is insufficient." rtr-uncapable is absent from the
+    # real compiler's own enforcer_resolution (asserted above), and the
+    # projection now agrees: excluded from routers, not silently accepted.
+    assert projection["routers"] == []
 
 
 def test_mikrotik_vlan_entries_silently_drops_an_ambiguous_target() -> None:
@@ -850,6 +864,19 @@ def test_mikrotik_vlan_entries_silently_drops_an_ambiguous_target() -> None:
     )
     _ve_publish_for_test(
         ctx, "base.compiler.effective_model", "effective_model_candidate", effective_model_candidate
+    )
+    # V-14 (ENFORCER-AXIS-CONFORMANCE.md): router_ids is now built from
+    # enforcer_resolution's adapter, not object_ref.startswith("obj.mikrotik.")
+    # - both rtr-a and rtr-b must resolve as RouterOS enforcers for the
+    # "two routers present" premise this test needs to hold.
+    _ve_publish_for_test(
+        ctx,
+        "base.compiler.effective_model",
+        "enforcer_resolution",
+        {
+            "rtr-a": {"type": "network", "adapter": "cap.firewall.security_matrix.routeros"},
+            "rtr-b": {"type": "network", "adapter": "cap.firewall.security_matrix.routeros"},
+        },
     )
 
     plugin = _vlan_entries_module.MikrotikVlanEntriesCompiler("object.mikrotik.compiler.vlan_entries")

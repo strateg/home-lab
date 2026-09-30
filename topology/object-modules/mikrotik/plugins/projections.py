@@ -17,6 +17,24 @@ from plugins.generators.projection_core import (  # ADR0078 WP-006: Group canoni
     _sorted_rows,
 )
 
+_MIKROTIK_ADAPTER = "cap.firewall.security_matrix.routeros"
+
+
+def _is_mikrotik_enforcer(instance_id: Any, enforcer_resolution: dict[str, Any]) -> bool:
+    """ADR 0118/0119 D-TYPE-1..3: is this instance a resolved RouterOS enforcer?
+
+    Selection by declared capability (enforcer_resolution's adapter), not by
+    object_ref name convention (ENFORCER-AXIS-CONFORMANCE.md V-14). Same
+    check as the compile-stage compilers' own copy of this helper (this
+    module does not import from `plugins/compilers/` - object modules
+    duplicate small helpers rather than cross-import, the same pattern
+    `_resolved_object_ref` already established across this whole family).
+    """
+    if not isinstance(instance_id, str) or not instance_id:
+        return False
+    resolution = enforcer_resolution.get(instance_id) if isinstance(enforcer_resolution, dict) else None
+    return isinstance(resolution, dict) and resolution.get("adapter") == _MIKROTIK_ADAPTER
+
 
 def _extract_security_matrix(
     router_ids: set[str],
@@ -148,6 +166,7 @@ def build_mikrotik_projection(
     vlans: list[dict[str, Any]] | None = None,
     bridges: list[dict[str, Any]] | None = None,
     firewall_policies: list[dict[str, Any]] | None = None,
+    enforcer_resolution: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build stable view for MikroTik Terraform generator.
 
@@ -304,6 +323,13 @@ def build_mikrotik_projection(
             "'object.mikrotik.compiler.firewall_entries' and this projection derives no "
             "substitute. Pass an empty list to state that there are no firewall policies."
         )
+    if enforcer_resolution is None:
+        raise ProjectionError(
+            "enforcer_resolution was not supplied; it is published by "
+            "'base.compiler.effective_model' and this projection derives no substitute. "
+            "Pass an empty mapping to state that no instance resolved an enforcer type "
+            "(ADR 0118-analysis/ENFORCER-AXIS-CONFORMANCE.md V-14)."
+        )
 
     groups = _instance_groups(compiled_json)
     devices = _group_rows(groups, canonical=GROUP_DEVICES)
@@ -313,9 +339,9 @@ def build_mikrotik_projection(
     routers: list[dict[str, Any]] = []
     router_ids: set[str] = set()
     for idx, row in enumerate(devices):
-        object_ref = _require_object_ref(row, path=f"compiled_json.instances.devices[{idx}]")
+        _require_object_ref(row, path=f"compiled_json.instances.devices[{idx}]")
         instance_id = _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.devices[{idx}]")
-        if object_ref.startswith("obj.mikrotik."):
+        if _is_mikrotik_enforcer(instance_id, enforcer_resolution):
             export_row = dict(row)
             export_row.pop("instance", None)
             instance_data = export_row.get("instance_data")

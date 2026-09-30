@@ -45,6 +45,7 @@ from pathlib import Path as _Path
 from typing import Any
 
 SECURITY_MATRIX_COMPILER = "base.compiler.security_matrix"
+EFFECTIVE_MODEL_COMPILER = "base.compiler.effective_model"
 CAPABILITY_FLAGS_COMPILER = "object.mikrotik.compiler.capability_flags"
 WIREGUARD_TUNNELS_COMPILER = "object.mikrotik.compiler.wireguard_tunnels"
 CONTAINERS_COMPILER = "object.mikrotik.compiler.containers"
@@ -365,6 +366,22 @@ def _derive_firewall_policies_for(compiled_json: Any) -> list[dict[str, Any]]:
     return firewall_policies
 
 
+def _derive_enforcer_resolution_for(compiled_json: Any) -> dict[str, Any]:
+    """V-14 (ENFORCER-AXIS-CONFORMANCE.md): the same resolution the real
+    `base.compiler.effective_model` would publish for each name-prefix
+    router this helper module already identifies, so callers that derive
+    the other ten channels from a fixture's real devices keep picking the
+    same routers now that `build_mikrotik_projection` and the ten
+    compile-stage compilers select by `enforcer_resolution`'s adapter
+    instead of by `object_ref` name prefix.
+    """
+    router_ids, _, _, _ = _mikrotik_router_ids(compiled_json)
+    return {
+        router_id: {"type": "network", "adapter": "cap.firewall.security_matrix.routeros"}
+        for router_id in router_ids
+    }
+
+
 def publish_empty_channels(ctx: Any) -> None:
     """Publish the matrix/CIDR channels empty, and capability_flags/
     wireguard_tunnels/containers/wifi_config/routing_policies/
@@ -377,6 +394,9 @@ def publish_empty_channels(ctx: Any) -> None:
     for key in CHANNEL_KEYS:
         publish_for_test(ctx, SECURITY_MATRIX_COMPILER, key, {})
     compiled_json = getattr(ctx, "compiled_json", None)
+    publish_for_test(
+        ctx, EFFECTIVE_MODEL_COMPILER, "enforcer_resolution", _derive_enforcer_resolution_for(compiled_json)
+    )
     publish_for_test(
         ctx, CAPABILITY_FLAGS_COMPILER, "capability_flags", _derive_capability_flags_for(compiled_json)
     )
@@ -419,6 +439,9 @@ def empty_channel_subscriptions() -> dict[tuple[str, str], Any]:
         (SECURITY_MATRIX_COMPILER, key): SubscriptionValue(from_plugin=SECURITY_MATRIX_COMPILER, key=key, value={})
         for key in CHANNEL_KEYS
     }
+    subscriptions[(EFFECTIVE_MODEL_COMPILER, "enforcer_resolution")] = SubscriptionValue(
+        from_plugin=EFFECTIVE_MODEL_COMPILER, key="enforcer_resolution", value={}
+    )
     subscriptions[(CAPABILITY_FLAGS_COMPILER, "capability_flags")] = SubscriptionValue(
         from_plugin=CAPABILITY_FLAGS_COMPILER, key="capability_flags", value=dict(_EMPTY_CAPABILITY_FLAGS)
     )
@@ -472,6 +495,11 @@ def derived_channel_subscriptions(compiled_json: Any) -> dict[tuple[str, str], A
         (SECURITY_MATRIX_COMPILER, key): SubscriptionValue(from_plugin=SECURITY_MATRIX_COMPILER, key=key, value={})
         for key in CHANNEL_KEYS
     }
+    subscriptions[(EFFECTIVE_MODEL_COMPILER, "enforcer_resolution")] = SubscriptionValue(
+        from_plugin=EFFECTIVE_MODEL_COMPILER,
+        key="enforcer_resolution",
+        value=_derive_enforcer_resolution_for(compiled_json),
+    )
     subscriptions[(CAPABILITY_FLAGS_COMPILER, "capability_flags")] = SubscriptionValue(
         from_plugin=CAPABILITY_FLAGS_COMPILER,
         key="capability_flags",
@@ -521,6 +549,7 @@ __all__ = [
     "CAPABILITY_FLAGS_COMPILER",
     "CHANNEL_KEYS",
     "CONTAINERS_COMPILER",
+    "EFFECTIVE_MODEL_COMPILER",
     "FIREWALL_ENTRIES_COMPILER",
     "MAC_VLAN_ASSIGNMENTS_COMPILER",
     "ROUTING_POLICIES_COMPILER",

@@ -16,6 +16,7 @@ from kernel.plugin_base import PluginContext, PluginStatus, Stage
 
 from tests.helpers.mikrotik_security_channels import (
     CAPABILITY_FLAGS_COMPILER,
+    EFFECTIVE_MODEL_COMPILER,
     SECURITY_MATRIX_COMPILER,
     CONTAINERS_COMPILER,
     BRIDGE_VLANS_COMPILER,
@@ -88,6 +89,7 @@ def _run_generator(generator, ctx: PluginContext):
         Stage.GENERATE,
         consumes_keys=(
             SECURITY_MATRIX_COMPILER,
+            EFFECTIVE_MODEL_COMPILER,
             CAPABILITY_FLAGS_COMPILER,
             WIREGUARD_TUNNELS_COMPILER,
             CONTAINERS_COMPILER,

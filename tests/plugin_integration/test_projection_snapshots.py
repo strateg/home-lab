@@ -153,6 +153,22 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
     """
     kwargs.setdefault("composed_matrices_by_enforcer", {})
     kwargs.setdefault("vlan_cidr_map", {})
+    if "enforcer_resolution" not in kwargs:
+        # V-14: build_mikrotik_projection selects routers by
+        # enforcer_resolution's adapter now, not by object_ref name prefix.
+        # These golden fixtures identify "the router" by name prefix -
+        # synthesize a matching resolution so the snapshot's router set is
+        # unchanged by default.
+        devices = compiled_json.get("instances", {}).get("devices", []) if isinstance(compiled_json, dict) else []
+        resolved_object_ref = _capability_flags_module._resolved_object_ref
+        kwargs["enforcer_resolution"] = {
+            row["instance_id"]: {"type": "network", "adapter": "cap.firewall.security_matrix.routeros"}
+            for row in devices
+            if isinstance(row, dict)
+            and isinstance(row.get("instance_id"), str)
+            and row["instance_id"]
+            and resolved_object_ref(row).startswith("obj.mikrotik.")
+        }
     kwargs.setdefault("capability_flags", _EMPTY_CAPABILITY_FLAGS)
     kwargs.setdefault("wireguard_tunnels", _EMPTY_WIREGUARD_TUNNELS)
     kwargs.setdefault("containers", _EMPTY_CONTAINERS)

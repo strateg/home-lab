@@ -28,6 +28,25 @@ def _resolved_object_ref(row: dict[str, Any]) -> str:
     return ""
 
 
+_MIKROTIK_ADAPTER = "cap.firewall.security_matrix.routeros"
+
+
+def _is_mikrotik_enforcer(instance_id: Any, enforcer_resolution: dict[str, Any]) -> bool:
+    """ADR 0118/0119 D-TYPE-1..3: is this instance a resolved RouterOS enforcer?
+
+    Selection by declared capability (enforcer_resolution's adapter), not by
+    object_ref name convention (ENFORCER-AXIS-CONFORMANCE.md V-14). A device
+    with no device-kind capability, or whose OS family resolves a different
+    (or no) adapter - rtr-slate, GL.iNet/OpenWrt, resolves enforcer type
+    "network" but no adapter - no longer qualifies just because its object_ref
+    happens to start with "obj.mikrotik.".
+    """
+    if not isinstance(instance_id, str) or not instance_id:
+        return False
+    resolution = enforcer_resolution.get(instance_id) if isinstance(enforcer_resolution, dict) else None
+    return isinstance(resolution, dict) and resolution.get("adapter") == _MIKROTIK_ADAPTER
+
+
 def _extract_containers(
     container_rows: list[dict[str, Any]],
     router_ids: set[str],
@@ -232,6 +251,7 @@ class MikrotikContainersCompiler(CompilerPlugin):
         diagnostics: list[PluginDiagnostic] = []
 
         effective_model = ctx.subscribe("base.compiler.effective_model", "effective_model_candidate")
+        enforcer_resolution = ctx.subscribe("base.compiler.effective_model", "enforcer_resolution")
         instances = effective_model.get("instances", {}) if isinstance(effective_model, dict) else {}
         devices = instances.get("devices", []) if isinstance(instances, dict) else []
         container_rows = instances.get("routeros_container", []) if isinstance(instances, dict) else []
@@ -240,14 +260,15 @@ class MikrotikContainersCompiler(CompilerPlugin):
         if not isinstance(container_rows, list):
             container_rows = []
 
+        if not isinstance(enforcer_resolution, dict):
+            enforcer_resolution = {}
+
         router_ids: set[str] = set()
         for row in devices:
             if not isinstance(row, dict):
                 continue
-            if not _resolved_object_ref(row).startswith("obj.mikrotik."):
-                continue
             instance_id = row.get("instance_id")
-            if isinstance(instance_id, str) and instance_id:
+            if _is_mikrotik_enforcer(instance_id, enforcer_resolution):
                 router_ids.add(instance_id)
 
         containers = _extract_containers(container_rows, router_ids)

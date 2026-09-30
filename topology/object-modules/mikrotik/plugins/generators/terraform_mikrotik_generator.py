@@ -208,6 +208,13 @@ class TerraformMikroTikGenerator(BaseGenerator):
         firewall_policies = self._subscribe(
             ctx, "firewall_policies", plugin_id="object.mikrotik.compiler.firewall_entries"
         )
+        # V-14 (ENFORCER-AXIS-CONFORMANCE.md): router selection by declared
+        # capability, not by object_ref name convention - completes the fix
+        # already applied to the ten compile-stage compilers, for this
+        # projection's own router_ids build.
+        enforcer_resolution = self._subscribe(
+            ctx, "enforcer_resolution", plugin_id="base.compiler.effective_model"
+        )
 
         try:
             projection = build_mikrotik_projection(
@@ -224,6 +231,7 @@ class TerraformMikroTikGenerator(BaseGenerator):
                 vlans=vlans,
                 bridges=bridges,
                 firewall_policies=firewall_policies,
+                enforcer_resolution=enforcer_resolution,
             )
         except projection_error as exc:
             diagnostics.append(

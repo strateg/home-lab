@@ -35,6 +35,7 @@ from kernel.plugin_runner import run_plugin_once
 
 from tests.helpers.mikrotik_security_channels import (
     SECURITY_MATRIX_COMPILER,
+    EFFECTIVE_MODEL_COMPILER,
     CAPABILITY_FLAGS_COMPILER,
     WIREGUARD_TUNNELS_COMPILER,
     CONTAINERS_COMPILER,
@@ -45,7 +46,7 @@ from tests.helpers.mikrotik_security_channels import (
     VLAN_ENTRIES_COMPILER,
     BRIDGE_ENTRIES_COMPILER,
     FIREWALL_ENTRIES_COMPILER,
-    empty_channel_subscriptions,
+    derived_channel_subscriptions,
 )
 
 # Expected Terraform plugin IDs
@@ -106,7 +107,10 @@ def _build_snapshot(
 
     # The MikroTik generator consumes both security-matrix channels and derives
     # no substitute; a snapshot without them is a blocked run, not an empty one.
-    subscriptions = empty_channel_subscriptions() if "mikrotik" in plugin_id else {}
+    # Derived (not empty) since V-14: router selection now depends on
+    # enforcer_resolution reflecting this fixture's own devices; using the
+    # all-empty variant would exclude every router this fixture declares.
+    subscriptions = derived_channel_subscriptions(compiled_json) if "mikrotik" in plugin_id else {}
 
     return PluginInputSnapshot(
         plugin_id=plugin_id,
@@ -114,6 +118,7 @@ def _build_snapshot(
         allowed_dependencies=frozenset(
             {
                 SECURITY_MATRIX_COMPILER,
+                EFFECTIVE_MODEL_COMPILER,
                 CAPABILITY_FLAGS_COMPILER,
                 WIREGUARD_TUNNELS_COMPILER,
                 CONTAINERS_COMPILER,

@@ -3689,6 +3689,100 @@ preflight/ownership/identity evidence, OOB and transition approval.
   purely the COMPILE-stage `router_ids` builders (V-14/the ~10-file wiring),
   a different mechanism from this VALIDATE-stage class-row check entirely.
 
+### V-14 MikroTik-side closed: router_ids by declared capability, 2026-09-30
+
+- With the VALIDATE-stage `managed_by_ref` checks (E7018/E7019/E7026) done,
+  the two remaining implementable-by-agent priorities were this (V-14's
+  MikroTik-side refactor) or stopping; V-07/V-11/V-12 stay blocked on
+  architectural decisions not for an agent to make. Chose this: it is the
+  last open piece of counterexample 4 ("Reference names a target with no
+  enforcement capability"), already characterized by
+  `test_mikrotik_projection_accepts_a_router_ref_the_type_resolver_would_
+  refuse`, and closes V-14's own finding (`grep -rn 'in object_ref\|in
+  instance_id\|startswith("obj\.' topology/object-modules/mikrotik/plugins/`
+  = 18 lines across 11 files, 2026-09-30 baseline).
+- Characterized the exact selection criterion needed before writing any fix
+  code, since the naive replacement is a real regression risk: `rtr-slate`
+  (a real device, GL.iNet Slate AX1800, `obj/glinet/obj.glinet.slate_
+  ax1800.yaml`) declares `cap.net.l3.security.firewall.zone_policy` and so
+  resolves `enforcer_resolution` type `"network"` (D-TYPE-1), but its OS
+  family is OpenWrt, not RouterOS, so D-TYPE-2 resolves no adapter - `type
+  == "network"` alone would have wrongly admitted it into every MikroTik-
+  specific `router_ids` set. The real topology's one MikroTik router (`rtr-
+  mikrotik-chateau`) resolves `adapter == "cap.firewall.security_matrix.
+  routeros"`; `rtr-slate` does not. Selection criterion: `enforcer_
+  resolution[instance_id].get("adapter") == "cap.firewall.security_matrix.
+  routeros"`, replacing `object_ref.startswith("obj.mikrotik.")` - true
+  declared-capability selection (D-TYPE-1..3), not a name-prefix
+  convention, and provably not a same-topology no-op the way E7019's real-
+  topology parity check often is.
+- Applied uniformly across all ten compile-stage compilers found by that
+  grep (`bridge_entries`, `firewall_entries`, `vlan_entries`, `routing_
+  policies`, `mac_vlan_assignments`, `containers`, `wireguard_tunnels`,
+  `wifi_config`, `bridge_vlans`, `capability_flags`): each gained a local
+  `_is_mikrotik_enforcer(instance_id, enforcer_resolution)` helper
+  (duplicated per file, matching this family's established "small helpers
+  duplicated, not cross-imported" convention already set by `_resolved_
+  object_ref`/`_get_object_properties`) and an `enforcer_resolution`
+  subscribe from `base.compiler.effective_model` alongside the existing
+  `effective_model_candidate` one. `plugins.yaml` gained a matching
+  `enforcer_resolution` consumes entry for each (`allowed_dependencies` is
+  keyed by producer plugin id, not key, so this was for documentation/
+  auditability parity with the existing `consumes` declarations, not a
+  runtime necessity - confirmed by reading `kernel/plugin_base.py`'s
+  `subscribe` and `specs.py`'s `declared_dependency_ids` before assuming
+  either way).
+- `projections.py`'s own `build_mikrotik_projection` (GENERATE stage, called
+  by `terraform_mikrotik_generator.py`) had the same pattern at its own
+  `router_ids` build - not dead code, unlike the different single-pick
+  pattern V-10 found dead at a different line in the same file. Gave it the
+  same fix: a new required `enforcer_resolution` parameter (same "required,
+  refuse None" `ProjectionError` contract the other nine channel parameters
+  already have), the same local `_is_mikrotik_enforcer` helper, and a new
+  `enforcer_resolution` consumes entry + `depends_on: base.compiler.
+  effective_model` on `object.mikrotik.generator.terraform`'s manifest
+  entry. This closes `test_mikrotik_projection_accepts_a_router_ref_the_
+  type_resolver_would_refuse` for real: converted from a characterization
+  test (asserted the bug) to a regression test (asserts the fix), renamed
+  to `test_mikrotik_projection_refuses_a_router_ref_the_type_resolver_
+  refuses`.
+- Test fixture fallout, all traced to the same root cause (fixtures that
+  identify "the router(s)" by name prefix, same as the code used to): four
+  files' local `build_mikrotik_projection` wrapper functions (`test_
+  projection_helpers.py`, `test_projection_snapshots.py`, `test_mikrotik_
+  capability_driven.py`) and one direct-generator-execution fixture (`test_
+  mikrotik_capability_driven.py`'s `_ctx`) needed a synthesized `enforcer_
+  resolution` default (or explicit publish), deriving it from the same
+  name-prefix router set the fixture already computes, so every test not
+  specifically exercising the new capability check keeps picking the same
+  routers as before. `test_mikrotik_vlan_entries_silently_drops_an_
+  ambiguous_target` (a different, still-open counterexample - "Shared
+  management endpoint, distinct target selectors") needed the same
+  treatment for its two-router premise to still hold; it is unaffected by
+  and does not test the V-14 fix itself. `test_the_manifest_declares_all_
+  twelve_channels_required` renamed to ...`_thirteen_...` with a new
+  assertion for the `enforcer_resolution` consumes entry.
+- `error-catalog.yaml` was not touched this time - no new diagnostic code,
+  since router selection is an internal compiler decision, not something
+  that emits a diagnostic of its own (an excluded router silently produces
+  fewer entries, the same as before; a VLAN/routing_policy/firewall_policy
+  row naming it as `managed_by_ref` is what `E7018`/`E7019`/`E7026` already
+  catch). `topology/object-modules/mikrotik/` is inside the framework
+  integrity boundary (`topology/framework.yaml`'s `include`): regenerated
+  `framework.lock.yaml` regardless, since these files changed.
+- Verified against the real topology: `errors=0 warnings=3`, unchanged; no
+  diff under `generated/` (the real router resolves the RouterOS adapter,
+  so nothing it manages was excluded); `check_adr_consistency.py --strict-
+  titles` clean.
+- Mid-verification process hygiene: a background full-suite run was
+  accidentally left running from an earlier step while a second one was
+  launched for this step, producing two concurrent processes reading/
+  writing overlapping `/tmp` state and two spurious failures neither
+  reproduced alone. Killed both, ran one clean instance instead of trusting
+  the noisy result - the same "characterize before concluding" discipline
+  this whole session has used for topology defects, applied to a tooling
+  anomaly instead.
+
 ## 6. Acceptance coverage ownership
 
 Coverage is assigned now; tests are implemented with their owning gate.

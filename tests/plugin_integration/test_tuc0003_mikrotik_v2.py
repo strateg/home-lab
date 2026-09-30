@@ -32,6 +32,7 @@ from kernel.plugin_runner import run_plugin_once
 
 from tests.helpers.mikrotik_security_channels import (
     SECURITY_MATRIX_COMPILER,
+    EFFECTIVE_MODEL_COMPILER,
     CAPABILITY_FLAGS_COMPILER,
     WIREGUARD_TUNNELS_COMPILER,
     CONTAINERS_COMPILER,
@@ -117,6 +118,7 @@ def _build_snapshot(
         allowed_dependencies=frozenset(
             {
                 SECURITY_MATRIX_COMPILER,
+                EFFECTIVE_MODEL_COMPILER,
                 CAPABILITY_FLAGS_COMPILER,
                 WIREGUARD_TUNNELS_COMPILER,
                 CONTAINERS_COMPILER,

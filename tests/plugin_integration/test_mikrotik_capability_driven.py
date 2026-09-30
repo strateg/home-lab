@@ -261,6 +261,7 @@ _build_firewall_entry = _FIREWALL_ENTRIES_MODULE._build_firewall_entry
 # `security_matrices` and `vlan_cidr_map` - are declared `required: true`, because
 # the projection derives no substitute for either.
 _SECURITY_MATRIX_COMPILER = "base.compiler.security_matrix"
+_EFFECTIVE_MODEL_COMPILER = "base.compiler.effective_model"
 _CAPABILITY_FLAGS_COMPILER = "object.mikrotik.compiler.capability_flags"
 _WIREGUARD_TUNNELS_COMPILER = "object.mikrotik.compiler.wireguard_tunnels"
 _CONTAINERS_COMPILER = "object.mikrotik.compiler.containers"
@@ -273,6 +274,7 @@ _BRIDGE_ENTRIES_COMPILER = "object.mikrotik.compiler.bridge_entries"
 _FIREWALL_ENTRIES_COMPILER = "object.mikrotik.compiler.firewall_entries"
 _CONSUMED_KEYS = (
     _SECURITY_MATRIX_COMPILER,
+    _EFFECTIVE_MODEL_COMPILER,
     _CAPABILITY_FLAGS_COMPILER,
     _WIREGUARD_TUNNELS_COMPILER,
     _CONTAINERS_COMPILER,
@@ -568,6 +570,17 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
     semantic = _semanticize(compiled_json)
     kwargs.setdefault("composed_matrices_by_enforcer", {})
     kwargs.setdefault("vlan_cidr_map", {})
+    if "enforcer_resolution" not in kwargs:
+        # V-14: build_mikrotik_projection selects routers by
+        # enforcer_resolution's adapter now, not by object_ref name prefix.
+        # These fixtures identify "the router(s)" by name prefix -
+        # synthesize a matching resolution for each so existing tests keep
+        # picking the same routers by default.
+        prefix_router_ids, _, _, _ = _mikrotik_routers_and_network(compiled_json)
+        kwargs["enforcer_resolution"] = {
+            router_id: {"type": "network", "adapter": "cap.firewall.security_matrix.routeros"}
+            for router_id in prefix_router_ids
+        }
     if "capability_flags" not in kwargs:
         instances = semantic.get("instances")
         devices = instances.get("devices", []) if isinstance(instances, dict) else []
@@ -805,6 +818,21 @@ class TestMikroTikGeneratorCapabilityDriven:
         if publish_channels:
             for key in ("composed_matrices_by_enforcer", "vlan_cidr_map"):
                 publish_for_test(ctx, _SECURITY_MATRIX_COMPILER, key, {})
+            # V-14 (ENFORCER-AXIS-CONFORMANCE.md): the projection now selects
+            # routers by enforcer_resolution's adapter, not by object_ref
+            # name prefix. These fixtures identify "the router(s)" by name
+            # prefix - synthesize a matching resolution for each so existing
+            # capability-driven-template-selection assertions are unaffected.
+            prefix_router_ids, _, _, _ = _mikrotik_routers_and_network(compiled_json)
+            publish_for_test(
+                ctx,
+                _EFFECTIVE_MODEL_COMPILER,
+                "enforcer_resolution",
+                {
+                    router_id: {"type": "network", "adapter": "cap.firewall.security_matrix.routeros"}
+                    for router_id in prefix_router_ids
+                },
+            )
             # capability_flags, wireguard_tunnels, containers, wifi_config,
             # routing_policies, mac_vlan_assignments, bridge_vlans, vlans,
             # bridges and firewall_policies are likewise required (W07
@@ -1011,7 +1039,7 @@ class TestMikroTikGeneratorCapabilityDriven:
         assert any("base.compiler.security_matrix" in message for message in messages), messages
         assert not list((tmp_path / "generated").rglob("*.tf")), "artifacts were written despite the failure"
 
-    def test_the_manifest_declares_all_twelve_channels_required(self) -> None:
+    def test_the_manifest_declares_all_thirteen_channels_required(self) -> None:
         """`required: false` is what let the absence pass as an empty result."""
         import sys as _sys
 
@@ -1056,3 +1084,8 @@ class TestMikroTikGeneratorCapabilityDriven:
         # W07 migration order item 4i: firewall_policies is required the same way.
         assert consumes["firewall_policies"]["from_plugin"] == _FIREWALL_ENTRIES_COMPILER
         assert consumes["firewall_policies"]["required"] is True
+        # V-14 (ENFORCER-AXIS-CONFORMANCE.md): enforcer_resolution is required
+        # the same way - router selection by declared capability, not by
+        # object_ref name convention.
+        assert consumes["enforcer_resolution"]["from_plugin"] == _EFFECTIVE_MODEL_COMPILER
+        assert consumes["enforcer_resolution"]["required"] is True

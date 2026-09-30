@@ -16,6 +16,9 @@ plugins:
       - key: effective_model_candidate
         from_plugin: base.compiler.effective_model
         required: true
+      - key: enforcer_resolution
+        from_plugin: base.compiler.effective_model
+        required: true
     config: {}
     config_schema:
       type: object
@@ -42,6 +45,9 @@ plugins:
     execution_mode: subinterpreter
     consumes:
       - key: effective_model_candidate
+        from_plugin: base.compiler.effective_model
+        required: true
+      - key: enforcer_resolution
         from_plugin: base.compiler.effective_model
         required: true
       - key: vlan_cidr_map
@@ -74,6 +80,9 @@ plugins:
       - key: effective_model_candidate
         from_plugin: base.compiler.effective_model
         required: true
+      - key: enforcer_resolution
+        from_plugin: base.compiler.effective_model
+        required: true
     config: {}
     config_schema:
       type: object
@@ -99,6 +108,9 @@ plugins:
     execution_mode: subinterpreter
     consumes:
       - key: effective_model_candidate
+        from_plugin: base.compiler.effective_model
+        required: true
+      - key: enforcer_resolution
         from_plugin: base.compiler.effective_model
         required: true
     config: {}
@@ -127,6 +139,9 @@ plugins:
     execution_mode: subinterpreter
     consumes:
       - key: effective_model_candidate
+        from_plugin: base.compiler.effective_model
+        required: true
+      - key: enforcer_resolution
         from_plugin: base.compiler.effective_model
         required: true
       - key: vlan_cidr_map
@@ -159,6 +174,9 @@ plugins:
       - key: effective_model_candidate
         from_plugin: base.compiler.effective_model
         required: true
+      - key: enforcer_resolution
+        from_plugin: base.compiler.effective_model
+        required: true
     config: {}
     config_schema:
       type: object
@@ -185,6 +203,9 @@ plugins:
     execution_mode: subinterpreter
     consumes:
       - key: effective_model_candidate
+        from_plugin: base.compiler.effective_model
+        required: true
+      - key: enforcer_resolution
         from_plugin: base.compiler.effective_model
         required: true
       - key: wifi_config
@@ -217,6 +238,9 @@ plugins:
       - key: effective_model_candidate
         from_plugin: base.compiler.effective_model
         required: true
+      - key: enforcer_resolution
+        from_plugin: base.compiler.effective_model
+        required: true
     config: {}
     config_schema:
       type: object
@@ -242,6 +266,9 @@ plugins:
     execution_mode: subinterpreter
     consumes:
       - key: effective_model_candidate
+        from_plugin: base.compiler.effective_model
+        required: true
+      - key: enforcer_resolution
         from_plugin: base.compiler.effective_model
         required: true
     config: {}
@@ -271,6 +298,9 @@ plugins:
       - key: effective_model_candidate
         from_plugin: base.compiler.effective_model
         required: true
+      - key: enforcer_resolution
+        from_plugin: base.compiler.effective_model
+        required: true
     config: {}
     config_schema:
       type: object
@@ -294,6 +324,7 @@ plugins:
     migration_mode: migrated
     depends_on:
       - base.compiler.security_matrix
+      - base.compiler.effective_model
       - object.mikrotik.compiler.capability_flags
       - object.mikrotik.compiler.wireguard_tunnels
       - object.mikrotik.compiler.containers
@@ -375,6 +406,14 @@ plugins:
       # derived once at compile stage. The projection derives no substitute.
       - key: firewall_policies
         from_plugin: object.mikrotik.compiler.firewall_entries
+        required: true
+      # V-14 (ENFORCER-AXIS-CONFORMANCE.md): router selection by declared
+      # capability (enforcer_resolution's adapter), not by object_ref name
+      # convention - the same fix already applied to the ten compile-stage
+      # compilers above, completed here for build_mikrotik_projection's own
+      # router_ids build.
+      - key: enforcer_resolution
+        from_plugin: base.compiler.effective_model
         required: true
     config:
       terraform_version: '>= 1.6.0'
