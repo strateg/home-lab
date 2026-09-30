@@ -308,3 +308,112 @@ def test_declarative_reference_validator_emits_power_source_error_for_duplicate_
 
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E7805" for diag in result.diagnostics)
+
+
+def test_declarative_reference_validator_emits_e7019_when_routing_policy_manager_resolves_to_compute_enforcer():
+    plugin = DeclarativeReferenceValidator("validator.declarative_refs", "1.x")
+    ctx = _context()
+    rows = [
+        {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1"},
+        {
+            "group": "network",
+            "instance": "inst.routing_policy.a",
+            "class_ref": "class.network.routing_policy",
+            "layer": "L2",
+            "extensions": {"managed_by_ref": "srv-a"},
+        },
+    ]
+    _publish_rows(ctx, rows)
+    # Routing-policy's managed_by_ref shares VLAN's strict "network" check
+    # (E7019), not security_matrix/firewall_policy's permissive one: a
+    # router's routing table is not something a hypervisor can take over.
+    _publish_enforcer_resolution(
+        ctx,
+        {"srv-a": {"type": "compute", "adapter": None, "adapter_version": None, "considered": [], "compatible": [], "reason": "test"}},
+    )
+
+    result = _execute(plugin, ctx)
+
+    assert result.status == PluginStatus.FAILED
+    e7019 = [diag for diag in result.diagnostics if diag.code == "E7019"]
+    assert len(e7019) == 1
+    assert e7019[0].path == "instance:network:inst.routing_policy.a.managed_by_ref"
+
+
+def test_declarative_reference_validator_accepts_routing_policy_with_network_enforcer():
+    plugin = DeclarativeReferenceValidator("validator.declarative_refs", "1.x")
+    ctx = _context()
+    rows = [
+        {"group": "devices", "instance": "rtr-a", "class_ref": "class.router", "layer": "L1"},
+        {
+            "group": "network",
+            "instance": "inst.routing_policy.a",
+            "class_ref": "class.network.routing_policy",
+            "layer": "L2",
+            "extensions": {"managed_by_ref": "rtr-a"},
+        },
+    ]
+    _publish_rows(ctx, rows)
+    _publish_enforcer_resolution(
+        ctx,
+        {"rtr-a": {"type": "network", "adapter": None, "adapter_version": None, "considered": [], "compatible": [], "reason": "test"}},
+    )
+
+    result = _execute(plugin, ctx)
+
+    assert result.status == PluginStatus.SUCCESS
+    assert result.diagnostics == []
+
+
+def test_declarative_reference_validator_emits_e7026_when_firewall_policy_manager_has_no_resolved_type():
+    plugin = DeclarativeReferenceValidator("validator.declarative_refs", "1.x")
+    ctx = _context()
+    rows = [
+        {"group": "devices", "instance": "rtr-a", "class_ref": "class.router", "layer": "L1"},
+        {
+            "group": "firewall",
+            "instance": "inst.fw.a",
+            "class_ref": "class.network.firewall_policy",
+            "layer": "L2",
+            "extensions": {"managed_by_ref": "rtr-a"},
+        },
+    ]
+    _publish_rows(ctx, rows)
+    # No enforcer_resolution entry for 'rtr-a': D-TYPE-1 found no device-kind
+    # capability, so the instance is omitted.
+    _publish_enforcer_resolution(ctx, {})
+
+    result = _execute(plugin, ctx)
+
+    assert result.status == PluginStatus.FAILED
+    e7026 = [diag for diag in result.diagnostics if diag.code == "E7026"]
+    assert len(e7026) == 1
+    assert e7026[0].path == "instance:firewall:inst.fw.a.managed_by_ref"
+
+
+def test_declarative_reference_validator_accepts_firewall_policy_with_compute_enforcer():
+    plugin = DeclarativeReferenceValidator("validator.declarative_refs", "1.x")
+    ctx = _context()
+    rows = [
+        {"group": "devices", "instance": "srv-a", "class_ref": "class.compute.hypervisor", "layer": "L1"},
+        {
+            "group": "firewall",
+            "instance": "inst.fw.a",
+            "class_ref": "class.network.firewall_policy",
+            "layer": "L2",
+            "extensions": {"managed_by_ref": "srv-a"},
+        },
+    ]
+    _publish_rows(ctx, rows)
+    # Firewall-policy's managed_by_ref shares security_matrix's permissive
+    # check (E7026 vs E7018): a hypervisor is a valid enforcer (ADR-0110),
+    # unlike VLAN/routing_policy's strict "network" requirement.
+    _publish_enforcer_resolution(
+        ctx,
+        {"srv-a": {"type": "compute", "adapter": None, "adapter_version": None, "considered": [], "compatible": [], "reason": "test"}},
+    )
+
+    result = _execute(plugin, ctx)
+
+    assert result.status == PluginStatus.SUCCESS
+    assert result.diagnostics == []

@@ -1093,11 +1093,12 @@ codes:
   E7019:
     severity: error
     stage: validate
-    title: VLAN's Enforcer Is Not A Network-Type Device
+    title: Network Row's Enforcer Is Not A Network-Type Device
     hint: >-
-      A VLAN's managed_by_ref names a class.router/L1 instance whose derived enforcer type (D-TYPE-1) is not
-      "network". Added alongside the existing class.router/L1 structural check (E7835), scoped to
-      class.network.vlan only.
+      A class.network.vlan or class.network.routing_policy row's managed_by_ref names a class.router/L1
+      instance whose derived enforcer type (D-TYPE-1) is not "network" - strict, unlike E7018/E7026's
+      permissive (network-or-compute) check. Added alongside the existing class.router/L1 structural check
+      (E7835).
   W7019:
     severity: warning
     stage: compile
@@ -1106,6 +1107,16 @@ codes:
       An instance declares an adapter capability directly (cap.firewall.security_matrix.routeros or .pve)
       that differs from the adapter its OS family resolves to (D-TYPE-2 reconciliation). Both are inputs to
       the resolution per ADR 0119 D1.1; neither is preferred by priority.
+  E7026:
+    severity: error
+    stage: validate
+    title: Firewall Policy's Enforcer Has No Resolved Type
+    hint: >-
+      A class.network.firewall_policy row's managed_by_ref names an instance whose derived enforcer type
+      (D-TYPE-1) is none. Permissive like E7018 (network or compute both accepted, ADR-0110), unlike
+      E7019's VLAN/routing_policy-only network requirement. class.network.firewall_policy has no structural
+      class.router/L1 check to layer onto - excluded from the generic path for the same reason
+      class.network.security_matrix is.
 
   # Attachment and address domain (NET-ATTACHMENT, NET-ADDRESS-OWNER)
   E7020:

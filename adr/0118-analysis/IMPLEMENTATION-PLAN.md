@@ -3627,6 +3627,68 @@ preflight/ownership/identity evidence, OOB and transition approval.
   counterexample 4's own test targets marked as still violated and
   unaffected by this change.
 
+### routing_policy and firewall_policy's managed_by_ref join the check, 2026-09-30
+
+- Given three remaining open items (V-07 and V-11/V-12 both blocked on
+  architectural decisions not for an agent to make; V-14's MikroTik-side
+  `router_ids`-by-capability refactor, ~10-11 files, COMPILE stage; or this
+  smaller extension), chose the smaller extension: the same E7019/E7018
+  pattern, applied to the two remaining `managed_by_ref`-bearing network-core
+  row kinds that had no check at all.
+- `class.network.routing_policy` was not excluded from `_is_network_row`
+  and already got the generic structural `class.router`/L1 check (E7835);
+  it now also gets E7019's strict "network"-type check, alongside
+  `class.network.vlan` - a router's own routing table is not something a
+  hypervisor can take over, the same reasoning VLAN's check already used.
+  Renamed the helper from `_validate_vlan_managed_by_enforcer_type` to
+  `_validate_network_type_managed_by_ref` to reflect the broader scope.
+- `class.network.firewall_policy` was fully excluded from `_is_network_row`
+  (grouped with bridge/trust_zone/firewall_rule/data_link/physical_link/qos,
+  none of which carry `managed_by_ref`) with no explanation in the exclusion
+  set's own comments or git history for why it specifically had no check at
+  all, despite real topology instances (`inst.fw.*`) setting `managed_by_ref`
+  in practice - neither class schema (`class.network.firewall_policy.yaml`,
+  `class.network.routing_policy.yaml`) declares the field at all, since it is
+  a cross-cutting instance field, not a class-specific schema property.
+  Given firewall_policy is conceptually closer to security_matrix (a
+  named security/firewall scope that could plausibly be enforced by a
+  router's zone policy or a hypervisor's own firewall stack, ADR-0110) than
+  to VLAN (an L2 network-topology construct that only a router administers),
+  gave it `E7018`'s permissive (network-or-compute) check instead of E7019's
+  strict one, under a new code `E7026` (no structural class.router/L1 check
+  to layer onto, since none existed before). `_validate_enforcer_type_ref`
+  gained `code`/`context_label` parameters (defaulting to `E7018`/"security
+  matrix", so the existing security_matrix call site is unchanged) so E7018
+  and E7026 share one implementation.
+- New code `E7026` allocated in `error-catalog.yaml`; `E7019`'s catalog
+  entry and hint text updated to describe both classes it now covers rather
+  than "VLAN only".
+- Tests: four new regression tests in `test_declarative_reference_validator.py`
+  (routing_policy: wrong/`"compute"` type, accepts `"network"`; firewall_policy:
+  missing type, accepts `"compute"`) - 11 tests, all passing. No existing test
+  in this file, the parity test, or `test_network_core_refs_validator.py` uses
+  a `routing_policy`/`firewall_policy` row, so none needed updating.
+- `error-catalog.yaml` is inside the framework integrity boundary again:
+  regenerated `framework.lock.yaml` (`generate-framework-lock.py --force`).
+- Verified against the real topology: `errors=0 warnings=3`, unchanged (the
+  real topology's `inst.routing_policy.*` and `inst.fw.*` instances are all
+  managed by the one real router, which resolves `"network"`); no diff under
+  `generated/`; `check_adr_consistency.py --strict-titles` clean.
+- Checked whether bridge or "MAC-VLAN-assignment" rows are also
+  `managed_by_ref`-bearing gaps at this VALIDATE-stage level, since earlier
+  text in this record grouped them with VLAN/firewall-policy/routing-policy:
+  they are not. `class.network.bridge`'s schema has no `managed_by_ref` field
+  at all (only `host_ref`, already checked as `E7836`), and "MAC-VLAN
+  assignment" is not a distinct instance class - `mac_vlan_assignments_
+  compiler.py` derives it from VLAN rows' own data, which `E7019` already
+  covers. All four `managed_by_ref`-bearing `_rule_network_core` row kinds
+  (security_matrix, vlan, routing_policy, firewall_policy) now have a
+  capability check. `ENFORCER-AXIS-CONFORMANCE.md`'s V-04 row and
+  counterexample 4's row updated again to name `E7026`, the newly-covered
+  classes, and this correction - the remaining gap those rows measure is
+  purely the COMPILE-stage `router_ids` builders (V-14/the ~10-file wiring),
+  a different mechanism from this VALIDATE-stage class-row check entirely.
+
 ## 6. Acceptance coverage ownership
 
 Coverage is assigned now; tests are implemented with their owning gate.

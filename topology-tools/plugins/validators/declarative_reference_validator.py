@@ -276,15 +276,21 @@ class DeclarativeReferenceValidator(ValidatorJsonPlugin):
         enforcer_resolution_error: str | None,
         stage: Stage,
         path: str,
+        code: str = "E7018",
+        context_label: str = "security matrix",
     ) -> list[PluginDiagnostic]:
         """N-01 replacement (ADR 0118/0119 D-TYPE-1..3).
 
-        class.network.security_matrix is excluded from the generic
+        class.network.security_matrix (code E7018) and class.network.
+        firewall_policy (code E7026) are both excluded from the generic
         managed_by_ref -> class.router check above (ADR-0110: the enforcer
         may be a router or a hypervisor). This is the dedicated check that
-        replaced it: managed_by_ref must resolve to an instance whose
-        derived enforcer type (published by base.compiler.capabilities as
-        enforcer_resolution) is not none.
+        replaces it for both: managed_by_ref must resolve to an instance
+        whose derived enforcer type (published by base.compiler.
+        effective_model as enforcer_resolution) is not none - either
+        "network" or "compute" is accepted, unlike the stricter
+        network-only check class.network.vlan and class.network.
+        routing_policy get from _validate_network_type_managed_by_ref.
         """
         diagnostics: list[PluginDiagnostic] = []
         value = self._resolve_field(ctx=ctx, row=row, key="managed_by_ref")
@@ -293,7 +299,7 @@ class DeclarativeReferenceValidator(ValidatorJsonPlugin):
         if not isinstance(value, str) or not value:
             diagnostics.append(
                 self.emit_diagnostic(
-                    code="E7018",
+                    code=code,
                     severity="error",
                     stage=stage,
                     message="'managed_by_ref' must be a non-empty instance id string when set.",
@@ -305,7 +311,7 @@ class DeclarativeReferenceValidator(ValidatorJsonPlugin):
         if not isinstance(target, dict):
             diagnostics.append(
                 self.emit_diagnostic(
-                    code="E7018",
+                    code=code,
                     severity="error",
                     stage=stage,
                     message=f"'managed_by_ref' references unknown instance '{value}'.",
@@ -316,7 +322,7 @@ class DeclarativeReferenceValidator(ValidatorJsonPlugin):
         if enforcer_resolution_error is not None:
             diagnostics.append(
                 self.emit_diagnostic(
-                    code="E7018",
+                    code=code,
                     severity="error",
                     stage=stage,
                     message=(
@@ -335,19 +341,19 @@ class DeclarativeReferenceValidator(ValidatorJsonPlugin):
         if enforcer_type is None:
             diagnostics.append(
                 self.emit_diagnostic(
-                    code="E7018",
+                    code=code,
                     severity="error",
                     stage=stage,
                     message=(
                         f"'managed_by_ref' target '{value}' has no resolved enforcer type "
-                        "(ADR 0118/0119 D-TYPE-1); it cannot enforce a security matrix."
+                        f"(ADR 0118/0119 D-TYPE-1); it cannot enforce a {context_label}."
                     ),
                     path=path,
                 )
             )
         return diagnostics
 
-    def _validate_vlan_managed_by_enforcer_type(
+    def _validate_network_type_managed_by_ref(
         self,
         *,
         row_by_id: dict[str, dict[str, Any]],
@@ -357,15 +363,22 @@ class DeclarativeReferenceValidator(ValidatorJsonPlugin):
         stage: Stage,
         path: str,
     ) -> list[PluginDiagnostic]:
-        """VLAN's managed_by_ref must resolve to a network-type enforcer (E7019).
+        """class.network.vlan/routing_policy's managed_by_ref must resolve to
+        a network-type enforcer (E7019).
 
         The generic class.router/L1 structural check (E7835) above already
         refuses an unknown instance or the wrong class/layer; this adds the
         capability layer on top of an otherwise structurally valid
         class.router reference, mirroring E7018's precedent for
-        class.network.security_matrix (ADR 0118/0119 D-TYPE-1..3). Scoped to
-        class.network.vlan only - class.network.firewall_policy and
-        class.network.routing_policy have no equivalent check yet.
+        class.network.security_matrix (ADR 0118/0119 D-TYPE-1..3), but
+        strict: exactly "network", not merely non-None - a router's own
+        VLAN/routing-table configuration is not something a hypervisor can
+        take over the way it can a security matrix or firewall policy
+        (ADR-0110). class.network.firewall_policy gets the permissive
+        (network-or-compute) check instead, via _validate_enforcer_type_ref
+        (E7026) - it has no structural class.router/L1 check to layer onto,
+        since it is excluded from the generic path for the same reason
+        class.network.security_matrix is.
         """
         if not isinstance(value, str) or not value:
             return []
@@ -379,7 +392,7 @@ class DeclarativeReferenceValidator(ValidatorJsonPlugin):
                     severity="error",
                     stage=stage,
                     message=(
-                        "Could not obtain enforcer resolution to validate VLAN 'managed_by_ref': "
+                        "Could not obtain enforcer resolution to validate 'managed_by_ref': "
                         f"{enforcer_resolution_error}"
                     ),
                     path=path,
@@ -395,7 +408,7 @@ class DeclarativeReferenceValidator(ValidatorJsonPlugin):
                     stage=stage,
                     message=(
                         f"'managed_by_ref' target '{value}' has no resolved network enforcer type "
-                        "(ADR 0118/0119 D-TYPE-1); it cannot manage a VLAN."
+                        "(ADR 0118/0119 D-TYPE-1)."
                     ),
                     path=path,
                 )
@@ -536,14 +549,14 @@ class DeclarativeReferenceValidator(ValidatorJsonPlugin):
                         path=f"{row_prefix}.managed_by_ref",
                     )
                 )
-                if class_ref == "class.network.vlan":
+                if class_ref in {"class.network.vlan", "class.network.routing_policy"}:
                     if enforcer_resolution is None and enforcer_resolution_error is None:
                         try:
                             enforcer_resolution = ctx.subscribe("base.compiler.effective_model", "enforcer_resolution")
                         except PluginDataExchangeError as exc:
                             enforcer_resolution_error = str(exc)
                     diagnostics.extend(
-                        self._validate_vlan_managed_by_enforcer_type(
+                        self._validate_network_type_managed_by_ref(
                             row_by_id=row_by_id,
                             value=self._resolve_field(ctx=ctx, row=row, key="managed_by_ref"),
                             enforcer_resolution=enforcer_resolution,
@@ -569,6 +582,27 @@ class DeclarativeReferenceValidator(ValidatorJsonPlugin):
                         enforcer_resolution_error=enforcer_resolution_error,
                         stage=stage,
                         path=f"{row_prefix}.managed_by_ref",
+                    )
+                )
+                continue
+
+            if class_ref == "class.network.firewall_policy":
+                if enforcer_resolution is None and enforcer_resolution_error is None:
+                    try:
+                        enforcer_resolution = ctx.subscribe("base.compiler.effective_model", "enforcer_resolution")
+                    except PluginDataExchangeError as exc:
+                        enforcer_resolution_error = str(exc)
+                diagnostics.extend(
+                    self._validate_enforcer_type_ref(
+                        ctx=ctx,
+                        row=row,
+                        row_by_id=row_by_id,
+                        enforcer_resolution=enforcer_resolution,
+                        enforcer_resolution_error=enforcer_resolution_error,
+                        stage=stage,
+                        path=f"{row_prefix}.managed_by_ref",
+                        code="E7026",
+                        context_label="firewall policy",
                     )
                 )
                 continue
