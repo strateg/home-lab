@@ -423,19 +423,40 @@ Derived from what is checkable, not from what is easy.
    Real-topology parity: `generated/` byte-identical; `errors=0 warnings=3`,
    unchanged; the real topology's 10 VLAN entries derived correctly.
 
-   Each of 4h-4i needs the same three-part evidence 1-3 above recorded, sized
+   **4h done 2026-09-30.** `_build_bridge_entry` moved verbatim to
+   `object.mikrotik.compiler.bridge_entries`, the ninth dedicated
+   compile-stage compiler plugin - the bridge branch of the same shared
+   `network`-row loop item 4g's VLAN branch came from, leaving that loop
+   with nothing left to build from either branch (only `networks.append`
+   and the required-object-ref/instance-id validation calls remain).
+   Characterization found no divergence and, checked given 4b's and 4c's
+   findings, no naming collision. Applying 4g's lesson directly this time:
+   before finalizing, every test whose fixture carries a real bridge row
+   was checked for a rendered-bridge assertion, not only the ones already
+   using a derivation helper - `test_tuc0003_mikrotik_v2.py`'s
+   `MIKROTIK_COMPILED_PAYLOAD` carries a `br-lan` bridge and one of its
+   tests asserts `resource "routeros_interface_bridge"` in the rendered
+   output, so `derived_channel_subscriptions` (added in 4g) gained a
+   `bridges` derivation in the same change that added the channel, rather
+   than waiting for that test to fail first. Real-topology parity:
+   `generated/` byte-identical; `errors=0 warnings=3`, unchanged; the real
+   topology derives 0 bridges, matching the pre-migration baseline (this
+   topology's LAN uses the native bridge interface directly rather than a
+   separate `obj.network.bridge` row).
+
+   Each of 4i needs the same three-part evidence 1-3 above recorded, sized
    to what the function actually risks: (i) a characterization step - does the
    projection already diverge from any compiler-published fact for this data,
    the way W05 did for zones and N-07 did for R1-R6 - checked by reading the
    function in full, not assumed absent because no defect is currently named;
    (ii) the compile-stage channel it moves to, and the object-module plugin
-   that owns it - items 1, 4a, 4b, 4c, 4d, 4e, 4f and 4g each got their own
-   dedicated plugin rather than accreting into one, which later items should
-   default to unless a specific reason favors sharing, and a later item may
-   need to subscribe to an earlier item's channel instead of a local
-   variable once that earlier item migrates, the way 4f's plugin subscribes
-   to 4c's `wifi_config` channel rather than the projection's local
-   `wifi_data`. 4d additionally found that the
+   that owns it - items 1, 4a, 4b, 4c, 4d, 4e, 4f, 4g and 4h each got their
+   own dedicated plugin rather than accreting into one, which later items
+   should default to unless a specific reason favors sharing, and a later
+   item may need to subscribe to an earlier item's channel instead of a
+   local variable once that earlier item migrates, the way 4f's plugin
+   subscribes to 4c's `wifi_config` channel rather than the projection's
+   local `wifi_data`. 4d additionally found that the
    source function is not always an independent top-level extractor: a
    per-row builder called from inside a larger shared loop needs the loop's
    own row-selection/defaulting logic replicated for the rows it cares

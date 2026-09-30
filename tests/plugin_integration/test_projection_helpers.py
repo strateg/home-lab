@@ -157,6 +157,21 @@ _vlan_entries_spec = _importlib_util.spec_from_file_location(
 _vlan_entries_module = _importlib_util.module_from_spec(_vlan_entries_spec)
 _vlan_entries_spec.loader.exec_module(_vlan_entries_module)
 
+_BRIDGE_ENTRIES_MODULE_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "topology"
+    / "object-modules"
+    / "mikrotik"
+    / "plugins"
+    / "compilers"
+    / "bridge_entries_compiler.py"
+)
+_bridge_entries_spec = _importlib_util.spec_from_file_location(
+    "test_projection_helpers_bridge_entries_compiler", _BRIDGE_ENTRIES_MODULE_PATH
+)
+_bridge_entries_module = _importlib_util.module_from_spec(_bridge_entries_spec)
+_bridge_entries_spec.loader.exec_module(_bridge_entries_module)
+
 _BOOTSTRAP_PROJECTIONS = load_bootstrap_projection_module()
 
 ProjectionError = _PROXMOX_PROJECTIONS.ProjectionError
@@ -299,6 +314,37 @@ def _derive_vlans_for(compiled_json: dict) -> list[dict]:
     return vlans
 
 
+def _derive_bridges_for(compiled_json: dict) -> list[dict]:
+    """Same derivation the real compile-stage compiler performs (W07 item 4h).
+
+    Replicates the plugin's own row-selection/managed_by_ref-resolution
+    loop (bridge branch of the shared network-row loop), the same
+    discipline item 4d's helper above established.
+    """
+    router_ids, _, network_rows, _ = _mikrotik_routers_and_rows(compiled_json)
+    objects_map = compiled_json.get("objects", {})
+    if not isinstance(objects_map, dict):
+        objects_map = {}
+    resolved_object_ref = _capability_flags_module._resolved_object_ref
+    bridges: list[dict] = []
+    for row in network_rows:
+        if not isinstance(row, dict):
+            continue
+        object_ref = resolved_object_ref(row)
+        if "bridge" not in object_ref:
+            continue
+        inst_data = row.get("instance_data", {}) if isinstance(row.get("instance_data"), dict) else {}
+        managed_by_ref = str(inst_data.get("managed_by_ref") or "").strip()
+        host_ref = str(inst_data.get("host_ref") or "").strip()
+        if not managed_by_ref and host_ref in router_ids:
+            managed_by_ref = host_ref
+        if managed_by_ref in router_ids:
+            bridges.append(
+                _bridge_entries_module._build_bridge_entry(row, managed_by_ref=managed_by_ref, objects_map=objects_map)
+            )
+    return bridges
+
+
 def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
     """The compiler's channels are required arguments; these fixtures state them empty.
 
@@ -311,12 +357,13 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
     (W07 migration order item 4a), `containers` (W07 migration order item
     4b), `wifi_config` (W07 migration order item 4c), `routing_policies`
     (W07 migration order item 4d), `mac_vlan_assignments` (W07 migration
-    order item 4e), `bridge_vlans` (W07 migration order item 4f) and
-    `vlans` (W07 migration order item 4g) are likewise required, and
-    auto-derived here from the fixture's own devices/network/container rows
-    the same way the real compile-stage compiler plugins would, unless a
-    test passes its own value to exercise a specific case - a fixture that
-    builds real wifi/wireguard/container/routing-policy instance_data (like
+    order item 4e), `bridge_vlans` (W07 migration order item 4f), `vlans`
+    (W07 migration order item 4g) and `bridges` (W07 migration order item
+    4h) are likewise required, and auto-derived here from the fixture's own
+    devices/network/container rows the same way the real compile-stage
+    compiler plugins would, unless a test passes its own value to exercise a
+    specific case - a fixture that builds real
+    wifi/wireguard/container/routing-policy instance_data (like
     test_mikrotik_projection_extracts_wifi_interfaces) needs the derived
     content, not an empty stand-in that silently discards it.
     """
@@ -345,6 +392,8 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
         kwargs["bridge_vlans"] = _derive_bridge_vlans_for(compiled_json)
     if "vlans" not in kwargs:
         kwargs["vlans"] = _derive_vlans_for(compiled_json)
+    if "bridges" not in kwargs:
+        kwargs["bridges"] = _derive_bridges_for(compiled_json)
     return _raw_build_mikrotik_projection(compiled_json, **kwargs)
 
 

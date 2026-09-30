@@ -20,6 +20,7 @@ from tests.helpers.mikrotik_security_channels import (
     CONTAINERS_COMPILER,
     BRIDGE_VLANS_COMPILER,
     VLAN_ENTRIES_COMPILER,
+    BRIDGE_ENTRIES_COMPILER,
     MAC_VLAN_ASSIGNMENTS_COMPILER,
     ROUTING_POLICIES_COMPILER,
     WIFI_CONFIG_COMPILER,
@@ -94,6 +95,7 @@ def _run_generator(generator, ctx: PluginContext):
             MAC_VLAN_ASSIGNMENTS_COMPILER,
             BRIDGE_VLANS_COMPILER,
             VLAN_ENTRIES_COMPILER,
+            BRIDGE_ENTRIES_COMPILER,
         ),
     )
 

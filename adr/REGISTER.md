@@ -962,3 +962,51 @@
   order item 4g marked done, naming the new lesson (a `PluginInputSnapshot`
   built directly, bypassing any projection wrapper, needs its own
   per-fixture channel derivation too) for the benefit of items 4h-4i.
+
+## W07 migration order item 4h — bridge-entry derivation moved to compile stage, 2026-09-30
+
+- `_build_bridge_entry` moved verbatim from `projections.py` (generate
+  stage) to a new plugin, `object.mikrotik.compiler.bridge_entries`
+  (`topology/object-modules/mikrotik/plugins/compilers/
+  bridge_entries_compiler.py`, compile stage) - the ninth dedicated
+  compile-stage compiler plugin an object module has registered, and the
+  bridge branch of the same shared `network`-row loop item 4g's VLAN branch
+  came from. With both branches now migrated, that loop keeps only
+  `networks.append` and the required-object-ref/instance-id validation
+  calls.
+- Consumes only `base.compiler.effective_model`'s `effective_model_candidate`
+  (router ids, network rows, objects) - no `base.compiler.security_matrix`
+  dependency, same as items 4b/4c/4e/4g. `build_mikrotik_projection` gains
+  `bridges` as a required argument.
+- Characterization found no divergence and, checked given 4b's and 4c's
+  findings, no naming collision.
+- Applied 4g's lesson directly this time: before finalizing, every test
+  whose fixture carries a real bridge row was checked for a
+  rendered-bridge assertion, not only the ones already using a derivation
+  helper. `test_tuc0003_mikrotik_v2.py`'s `MIKROTIK_COMPILED_PAYLOAD`
+  carries a `br-lan` bridge and one of its tests asserts
+  `resource "routeros_interface_bridge"` in the rendered output, so
+  `derived_channel_subscriptions` (added in item 4g) gained a `bridges`
+  derivation in the same change that added the `bridges` channel, rather
+  than waiting for that test to fail first the way item 4g's gap was found.
+- Verified against the real topology: `check_adr_consistency.py
+  --strict-titles` clean; full compile is `errors=0 warnings=3`, unchanged
+  from baseline; `git status` shows no diff under `generated/`; the real
+  topology derives 0 bridges, matching the pre-migration baseline (this
+  topology's LAN uses the native bridge interface directly rather than a
+  separate `obj.network.bridge` row) (I4218).
+- `projections.py` now 5 functions / 564 lines (down from 6/583);
+  `test_backend_specialization_boundary.py` budget lowered to match,
+  `_build_bridge_entry` added to the "migrated, gone rather than dormant"
+  list.
+- Same test-wiring pattern as items 1/4a-4g applied again, including
+  extending `mikrotik_security_channels.py`, `test_projection_helpers.py`
+  and `test_mikrotik_capability_driven.py` with a bridge-entry derivation
+  helper that replicates the plugin's row-selection loop, plus extending
+  `derived_channel_subscriptions` with the new channel proactively.
+  Targeted mikrotik/projection/terraform/tuc slice plus the full boundary
+  test file: 121 + 18 passed, clean on the first isolated run (no gap this
+  time, unlike item 4g).
+- `adr/0118-analysis/W07-BACKEND-SPECIALIZATION-DECISION.md`'s migration
+  order item 4h marked done. Only item 4i (`_build_firewall_entry`, 16
+  lines) remains in the migration order.

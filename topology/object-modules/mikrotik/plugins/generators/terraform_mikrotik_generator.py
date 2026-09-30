@@ -198,6 +198,10 @@ class TerraformMikroTikGenerator(BaseGenerator):
         # compile stage, not re-derived here
         # (object.mikrotik.compiler.vlan_entries).
         vlans = self._subscribe(ctx, "vlans", plugin_id="object.mikrotik.compiler.vlan_entries")
+        # W07 migration order item 4h: bridge row -> rendered shape derived at
+        # compile stage, not re-derived here
+        # (object.mikrotik.compiler.bridge_entries).
+        bridges = self._subscribe(ctx, "bridges", plugin_id="object.mikrotik.compiler.bridge_entries")
 
         try:
             projection = build_mikrotik_projection(
@@ -212,6 +216,7 @@ class TerraformMikroTikGenerator(BaseGenerator):
                 mac_vlan_assignments=mac_vlan_assignments,
                 bridge_vlans=bridge_vlans,
                 vlans=vlans,
+                bridges=bridges,
             )
         except projection_error as exc:
             diagnostics.append(

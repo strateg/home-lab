@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-from ipaddress import ip_interface
 from typing import Any
 
 from plugins.generators.projection_core import (  # ADR0078 WP-006: Group canonical name constants
@@ -47,30 +46,6 @@ def _is_staged_row(row: dict[str, Any]) -> bool:
     status = str(row.get("status", "")).strip().lower()
     notes = str(row.get("notes", "")).strip().lower()
     return status == "modeled" or "currently not configured" in notes
-
-
-def _build_bridge_entry(row: dict[str, Any], *, managed_by_ref: str, objects_map: dict[str, Any]) -> dict[str, Any]:
-    """Extract bridge configuration from network row."""
-    object_ref = _resolved_object_ref(row)
-    inst_data = row.get("instance_data", {}) or {}
-    props = _get_object_properties(object_ref, objects_map)
-    ip_addr = str(inst_data.get("ip") or "").strip()
-    cidr = str(inst_data.get("cidr") or "").strip()
-    if not cidr and ip_addr:
-        try:
-            cidr = str(ip_interface(ip_addr).network)
-        except ValueError:
-            cidr = ""
-    name = str(props.get("name") or row.get("instance_id", "").replace("inst.bridge.", "")).strip() or "bridge"
-    return {
-        "instance_id": row.get("instance_id", ""),
-        "name": name.replace(".", "_"),
-        "bridge_name": name,
-        "ip": ip_addr,
-        "cidr": cidr,
-        "managed_by_ref": managed_by_ref,
-        "staged": _is_staged_row(row),
-    }
 
 
 def _build_firewall_entry(row: dict[str, Any], *, managed_by_ref: str, objects_map: dict[str, Any]) -> dict[str, Any]:
@@ -201,6 +176,7 @@ def build_mikrotik_projection(
     mac_vlan_assignments: list[dict[str, Any]] | None = None,
     bridge_vlans: list[dict[str, Any]] | None = None,
     vlans: list[dict[str, Any]] | None = None,
+    bridges: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build stable view for MikroTik Terraform generator.
 
@@ -262,6 +238,11 @@ def build_mikrotik_projection(
     gateway, DHCP, DNS, MAC-assignment and interface-naming fields) for
     every VLAN a MikroTik router manages. Derived the same way and for the
     same reason as the channels above.
+
+    `bridges` is the channel `object.mikrotik.compiler.bridge_entries`
+    publishes (W07 migration order item 4h): bridge row -> rendered shape
+    (name, IP, CIDR) for every bridge a MikroTik router manages. Derived
+    the same way and for the same reason as the channels above.
 
     `None` is an omission and is refused, because the alternative is a projection
     that renders empty address lists and empty tunnel routes while reporting
@@ -329,6 +310,12 @@ def build_mikrotik_projection(
             "'object.mikrotik.compiler.vlan_entries' and this projection derives no "
             "substitute. Pass an empty list to state that there are no VLANs."
         )
+    if bridges is None:
+        raise ProjectionError(
+            "bridges was not supplied; it is published by "
+            "'object.mikrotik.compiler.bridge_entries' and this projection derives no "
+            "substitute. Pass an empty list to state that there are no bridges."
+        )
     # Extract objects map for property lookups (ADR contract: use compiled topology only)
     objects_map = compiled_json.get("objects", {})
     if not isinstance(objects_map, dict):
@@ -355,7 +342,6 @@ def build_mikrotik_projection(
             router_ids.add(instance_id)
 
     networks: list[dict[str, Any]] = []
-    bridges: list[dict[str, Any]] = []
     firewall_policies: list[dict[str, Any]] = []
 
     default_router_id = next(iter(sorted(router_ids)), "")
@@ -368,19 +354,14 @@ def build_mikrotik_projection(
 
     for idx, row in enumerate(network):
         _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.network[{idx}]")
-        object_ref = _require_object_ref(row, path=f"compiled_json.instances.network[{idx}]")
+        _require_object_ref(row, path=f"compiled_json.instances.network[{idx}]")
         export_row = dict(row)
         export_row.pop("instance", None)
         networks.append(export_row)
-        inst_data = row.get("instance_data", {}) if isinstance(row.get("instance_data"), dict) else {}
-        managed_by_ref = str(inst_data.get("managed_by_ref") or "").strip()
 
-        if "bridge" in object_ref:
-            host_ref = str(inst_data.get("host_ref") or "").strip()
-            if not managed_by_ref and host_ref in router_ids:
-                managed_by_ref = host_ref
-            if managed_by_ref in router_ids:
-                bridges.append(_build_bridge_entry(row, managed_by_ref=managed_by_ref, objects_map=objects_map))
+        # Bridge row -> rendered shape is the channel
+        # object.mikrotik.compiler.bridge_entries publishes (W07 migration
+        # order item 4h); this projection derives no substitute.
 
         # VLAN row -> rendered shape is the channel
         # object.mikrotik.compiler.vlan_entries publishes (W07 migration

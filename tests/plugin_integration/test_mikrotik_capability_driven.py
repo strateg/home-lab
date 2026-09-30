@@ -211,6 +211,29 @@ def _load_vlan_entries_module():
 _VLAN_ENTRIES_MODULE = _load_vlan_entries_module()
 _build_vlan_entry = _VLAN_ENTRIES_MODULE._build_vlan_entry
 
+
+def _load_bridge_entries_module():
+    # W07 migration order item 4h: bridge-entry derivation moved from the
+    # projection (generate stage) to a compile-stage compiler plugin.
+    module_path = (
+        V5_ROOT
+        / "topology"
+        / "object-modules"
+        / "mikrotik"
+        / "plugins"
+        / "compilers"
+        / "bridge_entries_compiler.py"
+    )
+    spec = importlib.util.spec_from_file_location("test_mikrotik_bridge_entries_compiler", module_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+_BRIDGE_ENTRIES_MODULE = _load_bridge_entries_module()
+_build_bridge_entry = _BRIDGE_ENTRIES_MODULE._build_bridge_entry
+
 # The producer the manifest lets this generator subscribe to. Both of its keys -
 # `security_matrices` and `vlan_cidr_map` - are declared `required: true`, because
 # the projection derives no substitute for either.
@@ -223,6 +246,7 @@ _ROUTING_POLICIES_COMPILER = "object.mikrotik.compiler.routing_policies"
 _MAC_VLAN_ASSIGNMENTS_COMPILER = "object.mikrotik.compiler.mac_vlan_assignments"
 _BRIDGE_VLANS_COMPILER = "object.mikrotik.compiler.bridge_vlans"
 _VLAN_ENTRIES_COMPILER = "object.mikrotik.compiler.vlan_entries"
+_BRIDGE_ENTRIES_COMPILER = "object.mikrotik.compiler.bridge_entries"
 _CONSUMED_KEYS = (
     _SECURITY_MATRIX_COMPILER,
     _CAPABILITY_FLAGS_COMPILER,
@@ -233,6 +257,7 @@ _CONSUMED_KEYS = (
     _MAC_VLAN_ASSIGNMENTS_COMPILER,
     _BRIDGE_VLANS_COMPILER,
     _VLAN_ENTRIES_COMPILER,
+    _BRIDGE_ENTRIES_COMPILER,
 )
 
 
@@ -398,6 +423,42 @@ def _derive_vlans_for_fixture(compiled_json: dict) -> list[dict]:
     return vlans
 
 
+def _derive_bridges_for_fixture(compiled_json: dict) -> list[dict]:
+    """Same derivation the real compile-stage compiler performs, applied to a
+    test fixture's compiled_json directly (W07 migration order item 4h).
+
+    Replicates the plugin's own row-selection/managed_by_ref-resolution
+    loop (bridge branch of the shared network-row loop), the same
+    discipline item 4d's helper above established.
+    """
+    semantic = _semanticize(compiled_json)
+    instances = semantic.get("instances")
+    network_rows = instances.get("network", []) if isinstance(instances, dict) else []
+    devices = instances.get("devices", []) if isinstance(instances, dict) else []
+    routers = [
+        row for row in devices if isinstance(row, dict) and _resolved_object_ref(row).startswith("obj.mikrotik.")
+    ]
+    router_ids = {row.get("instance_id") for row in routers if isinstance(row.get("instance_id"), str)}
+    objects_map = semantic.get("objects", {})
+    if not isinstance(objects_map, dict):
+        objects_map = {}
+    bridges: list[dict] = []
+    for row in network_rows:
+        if not isinstance(row, dict):
+            continue
+        object_ref = _resolved_object_ref(row)
+        if "bridge" not in object_ref:
+            continue
+        inst_data = row.get("instance_data", {}) if isinstance(row.get("instance_data"), dict) else {}
+        managed_by_ref = str(inst_data.get("managed_by_ref") or "").strip()
+        host_ref = str(inst_data.get("host_ref") or "").strip()
+        if not managed_by_ref and host_ref in router_ids:
+            managed_by_ref = host_ref
+        if managed_by_ref in router_ids:
+            bridges.append(_build_bridge_entry(row, managed_by_ref=managed_by_ref, objects_map=objects_map))
+    return bridges
+
+
 def _semanticize(compiled_json: dict) -> dict:
     payload = copy.deepcopy(compiled_json)
     instances = payload.get("instances")
@@ -434,11 +495,11 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
     (W07 migration order item 4a), `containers` (W07 migration order item
     4b), `wifi_config` (W07 migration order item 4c), `routing_policies`
     (W07 migration order item 4d), `mac_vlan_assignments` (W07 migration
-    order item 4e), `bridge_vlans` (W07 migration order item 4f) and
-    `vlans` (W07 migration order item 4g) are likewise required and are
-    auto-derived here from the same devices/network/container rows the real
-    compile-stage compiler plugins read, unless a test passes its own value
-    to exercise a specific case.
+    order item 4e), `bridge_vlans` (W07 migration order item 4f), `vlans`
+    (W07 migration order item 4g) and `bridges` (W07 migration order item
+    4h) are likewise required and are auto-derived here from the same
+    devices/network/container rows the real compile-stage compiler plugins
+    read, unless a test passes its own value to exercise a specific case.
     """
     semantic = _semanticize(compiled_json)
     kwargs.setdefault("composed_matrices_by_enforcer", {})
@@ -467,6 +528,8 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
         kwargs["bridge_vlans"] = _derive_bridge_vlans_for_fixture(compiled_json)
     if "vlans" not in kwargs:
         kwargs["vlans"] = _derive_vlans_for_fixture(compiled_json)
+    if "bridges" not in kwargs:
+        kwargs["bridges"] = _derive_bridges_for_fixture(compiled_json)
     return _raw_build_mikrotik_projection(semantic, **kwargs)
 
 
@@ -677,13 +740,13 @@ class TestMikroTikGeneratorCapabilityDriven:
             for key in ("composed_matrices_by_enforcer", "vlan_cidr_map"):
                 publish_for_test(ctx, _SECURITY_MATRIX_COMPILER, key, {})
             # capability_flags, wireguard_tunnels, containers, wifi_config,
-            # routing_policies, mac_vlan_assignments, bridge_vlans and vlans
-            # are likewise required (W07 migration order items 1, 4a, 4b,
-            # 4c, 4d, 4e, 4f, 4g). These fixtures test capability-driven
-            # template selection itself, so the published values must
-            # reflect the fixture's own capabilities/tunnels/containers/
-            # wifi/routing-policies/MAC-VLAN/bridge-VLAN/VLAN assignments,
-            # not an empty stand-in.
+            # routing_policies, mac_vlan_assignments, bridge_vlans, vlans
+            # and bridges are likewise required (W07 migration order items
+            # 1, 4a, 4b, 4c, 4d, 4e, 4f, 4g, 4h). These fixtures test
+            # capability-driven template selection itself, so the published
+            # values must reflect the fixture's own capabilities/tunnels/
+            # containers/wifi/routing-policies/MAC-VLAN/bridge-VLAN/VLAN/
+            # bridge assignments, not an empty stand-in.
             publish_for_test(
                 ctx, _CAPABILITY_FLAGS_COMPILER, "capability_flags", _derive_flags_for_fixture(compiled_json)
             )
@@ -728,6 +791,12 @@ class TestMikroTikGeneratorCapabilityDriven:
                 _VLAN_ENTRIES_COMPILER,
                 "vlans",
                 _derive_vlans_for_fixture(compiled_json),
+            )
+            publish_for_test(
+                ctx,
+                _BRIDGE_ENTRIES_COMPILER,
+                "bridges",
+                _derive_bridges_for_fixture(compiled_json),
             )
         return ctx
 
@@ -869,7 +938,7 @@ class TestMikroTikGeneratorCapabilityDriven:
         assert any("base.compiler.security_matrix" in message for message in messages), messages
         assert not list((tmp_path / "generated").rglob("*.tf")), "artifacts were written despite the failure"
 
-    def test_the_manifest_declares_all_ten_channels_required(self) -> None:
+    def test_the_manifest_declares_all_eleven_channels_required(self) -> None:
         """`required: false` is what let the absence pass as an empty result."""
         import sys as _sys
 
@@ -908,3 +977,6 @@ class TestMikroTikGeneratorCapabilityDriven:
         # W07 migration order item 4g: vlans is required the same way.
         assert consumes["vlans"]["from_plugin"] == _VLAN_ENTRIES_COMPILER
         assert consumes["vlans"]["required"] is True
+        # W07 migration order item 4h: bridges is required the same way.
+        assert consumes["bridges"]["from_plugin"] == _BRIDGE_ENTRIES_COMPILER
+        assert consumes["bridges"]["required"] is True
