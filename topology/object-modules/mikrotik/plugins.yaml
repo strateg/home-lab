@@ -201,6 +201,33 @@ plugins:
     description: Derives MikroTik bridge-VLAN membership shape at compile stage
       (W07 migration order item 4f) - relocated from the generate-stage
       projection so the fact is visible before any validator runs.
+  - id: object.mikrotik.compiler.vlan_entries
+    kind: compiler
+    entry: plugins/compilers/vlan_entries_compiler.py:MikrotikVlanEntriesCompiler
+    api_version: 1.x
+    stages:
+      - compile
+    phase: finalize
+    order: 72
+    depends_on:
+      - base.compiler.effective_model
+    timeout: 30
+    execution_mode: subinterpreter
+    consumes:
+      - key: effective_model_candidate
+        from_plugin: base.compiler.effective_model
+        required: true
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    produces:
+      - key: vlans
+        scope: pipeline_shared
+    description: Derives MikroTik VLAN row -> rendered shape at compile stage
+      (W07 migration order item 4g) - relocated from the generate-stage
+      projection so the fact is visible before any validator runs.
   - id: object.mikrotik.generator.terraform
     kind: generator
     entry: plugins/generators/terraform_mikrotik_generator.py:TerraformMikroTikGenerator
@@ -219,6 +246,7 @@ plugins:
       - object.mikrotik.compiler.routing_policies
       - object.mikrotik.compiler.mac_vlan_assignments
       - object.mikrotik.compiler.bridge_vlans
+      - object.mikrotik.compiler.vlan_entries
     timeout: 30
     execution_mode: subinterpreter
     consumes:
@@ -275,6 +303,11 @@ plugins:
       # once at compile stage. The projection derives no substitute.
       - key: bridge_vlans
         from_plugin: object.mikrotik.compiler.bridge_vlans
+        required: true
+      # W07 migration order item 4g: VLAN row -> rendered shape, derived
+      # once at compile stage. The projection derives no substitute.
+      - key: vlans
+        from_plugin: object.mikrotik.compiler.vlan_entries
         required: true
     config:
       terraform_version: '>= 1.6.0'

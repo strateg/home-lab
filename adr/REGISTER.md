@@ -905,3 +905,60 @@
   describe subscribing to an earlier item's channel once it migrates,
   rather than threading a still-local variable into a not-yet-migrated
   function.
+
+## W07 migration order item 4g — VLAN-entry derivation moved to compile stage, 2026-09-29
+
+- `_build_vlan_entry` moved verbatim from `projections.py` (generate stage)
+  to a new plugin, `object.mikrotik.compiler.vlan_entries`
+  (`topology/object-modules/mikrotik/plugins/compilers/
+  vlan_entries_compiler.py`, compile stage) - the eighth dedicated
+  compile-stage compiler plugin an object module has registered.
+- Like items 4d/4e, the source function was a per-row builder inside the
+  same shared `network`-row loop that also builds bridges. Migrating it
+  required replicating the VLAN branch's row-selection and
+  `managed_by_ref`-resolution logic (including an `ip_allocations` fallback
+  the bridge branch does not have) - checked against the full network-row
+  loop, not just the builder - while leaving the bridge branch of that same
+  loop untouched in the projection.
+- Consumes only `base.compiler.effective_model`'s `effective_model_candidate`
+  (router ids, network rows, objects) - no `base.compiler.security_matrix`
+  dependency, same as items 4b/4c/4e. `build_mikrotik_projection` gains
+  `vlans` as a required argument.
+- Characterization found no divergence and, checked given 4b's and 4c's
+  findings, no naming collision.
+- It did surface a test-infrastructure gap, the same kind item 4c found but
+  in a different helper: `tests/plugin_integration/test_tuc0003_mikrotik_v2.py`
+  builds a `PluginInputSnapshot` directly (no `ctx` to publish through) via
+  `empty_channel_subscriptions()`, and one of its three tests asserts on a
+  real VLAN (`inst.vlan.guest`) its fixture actually carries - the all-empty
+  stand-in silently rendered "no VLANs configured" instead of failing
+  loudly. `vlans` is the first of the eight non-matrix channels this
+  fixture's assertions depend on with real content, which is why the gap
+  surfaced only now. Fixed by adding `derived_channel_subscriptions
+  (compiled_json)` to `tests/helpers/mikrotik_security_channels.py` - the
+  `PluginInputSnapshot` counterpart to `publish_empty_channels`, deriving
+  all eight channels from a given semantic payload - and switching that one
+  file's `_build_snapshot` to use it; `empty_channel_subscriptions()`
+  itself is untouched, since other callers genuinely want the all-empty
+  stand-in.
+- Verified against the real topology: `check_adr_consistency.py
+  --strict-titles` clean; full compile is `errors=0 warnings=3`, unchanged
+  from baseline; `git status` shows no diff under `generated/`; the real
+  topology's 10 VLAN entries derived correctly (I4217).
+- `projections.py` now 6 functions / 583 lines (down from 7/632);
+  `test_backend_specialization_boundary.py` budget lowered to match,
+  `_build_vlan_entry` added to the "migrated, gone rather than dormant"
+  list.
+- Same test-wiring pattern as items 1/4a/4b/4c/4d/4e/4f applied again,
+  including extending `mikrotik_security_channels.py`,
+  `test_projection_helpers.py` and `test_mikrotik_capability_driven.py`
+  with a VLAN-entry derivation helper that replicates the plugin's
+  row-selection loop, plus the new `derived_channel_subscriptions` helper
+  and its one call site. Targeted mikrotik/projection/terraform/tuc slice
+  plus the full boundary test file: 121 + 17 passed, clean (after fixing
+  the test_tuc0003 gap - the first isolated run surfaced 1 failure, real
+  and reproducible, not a stale-read or contention false alarm).
+- `adr/0118-analysis/W07-BACKEND-SPECIALIZATION-DECISION.md`'s migration
+  order item 4g marked done, naming the new lesson (a `PluginInputSnapshot`
+  built directly, bypassing any projection wrapper, needs its own
+  per-fixture channel derivation too) for the benefit of items 4h-4i.

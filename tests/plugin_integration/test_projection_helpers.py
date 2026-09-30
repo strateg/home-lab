@@ -142,6 +142,21 @@ _bridge_vlans_spec = _importlib_util.spec_from_file_location(
 _bridge_vlans_module = _importlib_util.module_from_spec(_bridge_vlans_spec)
 _bridge_vlans_spec.loader.exec_module(_bridge_vlans_module)
 
+_VLAN_ENTRIES_MODULE_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "topology"
+    / "object-modules"
+    / "mikrotik"
+    / "plugins"
+    / "compilers"
+    / "vlan_entries_compiler.py"
+)
+_vlan_entries_spec = _importlib_util.spec_from_file_location(
+    "test_projection_helpers_vlan_entries_compiler", _VLAN_ENTRIES_MODULE_PATH
+)
+_vlan_entries_module = _importlib_util.module_from_spec(_vlan_entries_spec)
+_vlan_entries_spec.loader.exec_module(_vlan_entries_module)
+
 _BOOTSTRAP_PROJECTIONS = load_bootstrap_projection_module()
 
 ProjectionError = _PROXMOX_PROJECTIONS.ProjectionError
@@ -243,6 +258,47 @@ def _derive_bridge_vlans_for(compiled_json: dict) -> list[dict]:
     return _bridge_vlans_module._extract_bridge_vlans(routers, wifi_data)
 
 
+def _derive_vlans_for(compiled_json: dict) -> list[dict]:
+    """Same derivation the real compile-stage compiler performs (W07 item 4g).
+
+    Replicates the plugin's own row-selection/managed_by_ref-resolution
+    loop (VLAN branch of the shared network-row loop), the same discipline
+    item 4d's helper above established.
+    """
+    router_ids, _, network_rows, _ = _mikrotik_routers_and_rows(compiled_json)
+    objects_map = compiled_json.get("objects", {})
+    if not isinstance(objects_map, dict):
+        objects_map = {}
+    default_router_id = next(iter(sorted(router_ids)), "")
+    resolved_object_ref = _capability_flags_module._resolved_object_ref
+    vlans: list[dict] = []
+    for row in network_rows:
+        if not isinstance(row, dict):
+            continue
+        object_ref = resolved_object_ref(row)
+        if "vlan" not in object_ref or "routing_policy" in object_ref:
+            continue
+        inst_data = row.get("instance_data", {}) if isinstance(row.get("instance_data"), dict) else {}
+        managed_by_ref = str(inst_data.get("managed_by_ref") or "").strip()
+        if not managed_by_ref and len(router_ids) == 1:
+            managed_by_ref = default_router_id
+        if not managed_by_ref:
+            allocations = inst_data.get("ip_allocations")
+            if isinstance(allocations, list):
+                for item in allocations:
+                    if not isinstance(item, dict):
+                        continue
+                    device_ref = str(item.get("device_ref") or "").strip()
+                    if device_ref in router_ids:
+                        managed_by_ref = device_ref
+                        break
+        if managed_by_ref in router_ids:
+            vlans.append(
+                _vlan_entries_module._build_vlan_entry(row, managed_by_ref=managed_by_ref, objects_map=objects_map)
+            )
+    return vlans
+
+
 def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
     """The compiler's channels are required arguments; these fixtures state them empty.
 
@@ -255,12 +311,12 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
     (W07 migration order item 4a), `containers` (W07 migration order item
     4b), `wifi_config` (W07 migration order item 4c), `routing_policies`
     (W07 migration order item 4d), `mac_vlan_assignments` (W07 migration
-    order item 4e) and `bridge_vlans` (W07 migration order item 4f) are
-    likewise required, and auto-derived here from the fixture's own
-    devices/network/container rows the same way the real compile-stage
-    compiler plugins would, unless a test passes its own value to exercise a
-    specific case - a fixture that builds real
-    wifi/wireguard/container/routing-policy instance_data (like
+    order item 4e), `bridge_vlans` (W07 migration order item 4f) and
+    `vlans` (W07 migration order item 4g) are likewise required, and
+    auto-derived here from the fixture's own devices/network/container rows
+    the same way the real compile-stage compiler plugins would, unless a
+    test passes its own value to exercise a specific case - a fixture that
+    builds real wifi/wireguard/container/routing-policy instance_data (like
     test_mikrotik_projection_extracts_wifi_interfaces) needs the derived
     content, not an empty stand-in that silently discards it.
     """
@@ -287,6 +343,8 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
         kwargs["mac_vlan_assignments"] = _derive_mac_vlan_assignments_for(compiled_json)
     if "bridge_vlans" not in kwargs:
         kwargs["bridge_vlans"] = _derive_bridge_vlans_for(compiled_json)
+    if "vlans" not in kwargs:
+        kwargs["vlans"] = _derive_vlans_for(compiled_json)
     return _raw_build_mikrotik_projection(compiled_json, **kwargs)
 
 

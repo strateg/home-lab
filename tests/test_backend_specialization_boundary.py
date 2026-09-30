@@ -42,11 +42,13 @@ DECISION = REPO_ROOT / "adr/0118-analysis/W07-BACKEND-SPECIALIZATION-DECISION.md
 # routing_policies, and lowered again the same day when item 4e
 # (_extract_mac_vlan_assignments) moved to object.mikrotik.compiler.
 # mac_vlan_assignments, and lowered again the same day when item 4f
-# (_extract_bridge_vlans) moved to object.mikrotik.compiler.bridge_vlans.
-# A budget that stays above the real figure stops measuring, so it is
-# lowered whenever the debt is actually paid down.
-PROJECTION_FUNCTION_BUDGET = 7
-PROJECTION_LINE_BUDGET = 632
+# (_extract_bridge_vlans) moved to object.mikrotik.compiler.bridge_vlans,
+# and lowered again the same day when item 4g (_build_vlan_entry) moved to
+# object.mikrotik.compiler.vlan_entries. A budget that stays above the real
+# figure stops measuring, so it is lowered whenever the debt is actually
+# paid down.
+PROJECTION_FUNCTION_BUDGET = 6
+PROJECTION_LINE_BUDGET = 583
 
 
 def _functions() -> list[tuple[str, int]]:
@@ -156,6 +158,7 @@ def test_the_first_migration_candidates_still_exist(name: str) -> None:
         "_build_routing_policy_entry",
         "_extract_mac_vlan_assignments",
         "_extract_bridge_vlans",
+        "_build_vlan_entry",
     ],
 )
 def test_the_migrated_helpers_are_gone_rather_than_dormant(name: str) -> None:
@@ -187,7 +190,9 @@ def test_the_migrated_helpers_are_gone_rather_than_dormant(name: str) -> None:
     also a required argument. `_extract_bridge_vlans` (W07 migration order
     item 4f, 2026-09-29) moved the same way to `object.mikrotik.compiler.
     bridge_vlans`; the projection now reads `bridge_vlans`, also a required
-    argument.
+    argument. `_build_vlan_entry` (W07 migration order item 4g, 2026-09-29)
+    moved the same way to `object.mikrotik.compiler.vlan_entries`; the
+    projection now reads `vlans`, also a required argument.
     Asserting they are gone is what stops the debt from being paid on paper
     and reinstated in the next change.
     """

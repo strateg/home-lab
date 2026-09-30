@@ -49,50 +49,6 @@ def _is_staged_row(row: dict[str, Any]) -> bool:
     return status == "modeled" or "currently not configured" in notes
 
 
-def _build_vlan_entry(row: dict[str, Any], *, managed_by_ref: str, objects_map: dict[str, Any]) -> dict[str, Any]:
-    """Extract VLAN configuration from network row."""
-    object_ref = _resolved_object_ref(row)
-    inst_data = row.get("instance_data", {}) or {}
-
-    # Get properties from compiled object map (effective topology)
-    props = _get_object_properties(object_ref, objects_map)
-
-    # Instance data overrides object properties
-    vlan_id = inst_data.get("vlan_id") or props.get("vlan_id")
-    cidr = inst_data.get("cidr") or props.get("cidr")
-    gateway = inst_data.get("gateway") or props.get("gateway")
-    mtu = inst_data.get("mtu") or props.get("mtu", 1500)
-    dhcp_enabled = inst_data.get("dhcp_enabled") if "dhcp_enabled" in inst_data else props.get("dhcp_enabled", False)
-    dns_servers = inst_data.get("dns_servers") or props.get("dns_servers", [])
-
-    is_native_lan = int(vlan_id or 0) == 1
-    interface_name = "bridge" if is_native_lan else f"vlan{vlan_id}"
-
-    # Extract MAC assignments for bridge host entries
-    mac_assignments = inst_data.get("mac_assignments") or props.get("mac_assignments", [])
-    if not isinstance(mac_assignments, list):
-        mac_assignments = []
-
-    return {
-        "instance_id": row.get("instance_id", ""),
-        "name": row.get("instance_id", "").replace("inst.vlan.", "").replace(".", "_"),
-        "vlan_id": vlan_id,
-        "cidr": cidr,
-        "gateway": gateway,
-        "mtu": mtu,
-        "dhcp_enabled": dhcp_enabled,
-        "dhcp_range": inst_data.get("dhcp_range"),
-        "dns_servers": dns_servers,
-        "managed_by_ref": managed_by_ref,
-        "trust_zone_ref": inst_data.get("trust_zone_ref"),
-        "staged": _is_staged_row(row),
-        "is_native_lan": is_native_lan,
-        "interface_name": interface_name,
-        "interface_is_resource": not is_native_lan,
-        "mac_assignments": mac_assignments,
-    }
-
-
 def _build_bridge_entry(row: dict[str, Any], *, managed_by_ref: str, objects_map: dict[str, Any]) -> dict[str, Any]:
     """Extract bridge configuration from network row."""
     object_ref = _resolved_object_ref(row)
@@ -244,6 +200,7 @@ def build_mikrotik_projection(
     routing_policies: list[dict[str, Any]] | None = None,
     mac_vlan_assignments: list[dict[str, Any]] | None = None,
     bridge_vlans: list[dict[str, Any]] | None = None,
+    vlans: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build stable view for MikroTik Terraform generator.
 
@@ -299,6 +256,12 @@ def build_mikrotik_projection(
     for WiFi interface VLAN membership, derived from `wifi_config` (item
     4c)'s datapath/interface shape. Derived the same way and for the same
     reason as the channels above.
+
+    `vlans` is the channel `object.mikrotik.compiler.vlan_entries` publishes
+    (W07 migration order item 4g): VLAN row -> rendered shape (CIDR,
+    gateway, DHCP, DNS, MAC-assignment and interface-naming fields) for
+    every VLAN a MikroTik router manages. Derived the same way and for the
+    same reason as the channels above.
 
     `None` is an omission and is refused, because the alternative is a projection
     that renders empty address lists and empty tunnel routes while reporting
@@ -360,6 +323,12 @@ def build_mikrotik_projection(
             "'object.mikrotik.compiler.bridge_vlans' and this projection derives no "
             "substitute. Pass an empty list to state that there are no bridge VLAN entries."
         )
+    if vlans is None:
+        raise ProjectionError(
+            "vlans was not supplied; it is published by "
+            "'object.mikrotik.compiler.vlan_entries' and this projection derives no "
+            "substitute. Pass an empty list to state that there are no VLANs."
+        )
     # Extract objects map for property lookups (ADR contract: use compiled topology only)
     objects_map = compiled_json.get("objects", {})
     if not isinstance(objects_map, dict):
@@ -387,7 +356,6 @@ def build_mikrotik_projection(
 
     networks: list[dict[str, Any]] = []
     bridges: list[dict[str, Any]] = []
-    vlans: list[dict[str, Any]] = []
     firewall_policies: list[dict[str, Any]] = []
 
     default_router_id = next(iter(sorted(router_ids)), "")
@@ -414,26 +382,9 @@ def build_mikrotik_projection(
             if managed_by_ref in router_ids:
                 bridges.append(_build_bridge_entry(row, managed_by_ref=managed_by_ref, objects_map=objects_map))
 
-        # Extract VLANs managed by MikroTik routers.
-        # Note: routing_policy objects (e.g. obj.network.routing_policy.vpn_vlan)
-        # also contain "vlan" in their ref and must not be treated as VLANs.
-        if "vlan" in object_ref and "routing_policy" not in object_ref:
-            if not managed_by_ref and len(router_ids) == 1:
-                # VLAN instances are treated as router-owned in single-router topology.
-                managed_by_ref = default_router_id
-            if not managed_by_ref:
-                allocations = inst_data.get("ip_allocations")
-                if isinstance(allocations, list):
-                    for item in allocations:
-                        if not isinstance(item, dict):
-                            continue
-                        device_ref = str(item.get("device_ref") or "").strip()
-                        if device_ref in router_ids:
-                            managed_by_ref = device_ref
-                            break
-            if managed_by_ref in router_ids:
-                vlan_entry = _build_vlan_entry(row, managed_by_ref=managed_by_ref, objects_map=objects_map)
-                vlans.append(vlan_entry)
+        # VLAN row -> rendered shape is the channel
+        # object.mikrotik.compiler.vlan_entries publishes (W07 migration
+        # order item 4g); this projection derives no substitute.
 
     # Policy-based routing shape is the channel
     # object.mikrotik.compiler.routing_policies publishes (W07 migration

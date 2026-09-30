@@ -393,13 +393,43 @@ Derived from what is checkable, not from what is easy.
    collision. Real-topology parity: `generated/` byte-identical; `errors=0
    warnings=3`, unchanged.
 
-   Each of 4g-4i needs the same three-part evidence 1-3 above recorded, sized
+   **4g done 2026-09-29.** `_build_vlan_entry` moved verbatim to
+   `object.mikrotik.compiler.vlan_entries`, the eighth dedicated
+   compile-stage compiler plugin. Like item 4d/4e, the source function was
+   a per-row builder inside the same shared `network`-row loop that also
+   builds bridges; migrating it required replicating the VLAN branch's
+   row-selection and `managed_by_ref`-resolution logic (including the
+   `ip_allocations` fallback item 4d's branch does not have), leaving the
+   bridge branch of that same loop untouched in the projection.
+   Characterization found no divergence and, checked given 4b's and 4c's
+   findings, no naming collision. It did surface a test-infrastructure gap,
+   the same kind item 4c found but in a different helper:
+   `tests/plugin_integration/test_tuc0003_mikrotik_v2.py` builds a
+   `PluginInputSnapshot` directly (no `ctx` to publish through) via
+   `empty_channel_subscriptions()`, and one of its three tests asserts on a
+   real VLAN (`inst.vlan.guest`) its fixture, `MIKROTIK_COMPILED_PAYLOAD`,
+   actually carries - the all-empty stand-in silently rendered "no VLANs
+   configured" instead of failing loudly. `vlans` is the first of the eight
+   non-matrix channels this fixture's assertions depend on with real
+   content, which is why the gap surfaced only now rather than at items
+   1/4a-4f. Fixed by adding `derived_channel_subscriptions(compiled_json)`
+   to `tests/helpers/mikrotik_security_channels.py` - the
+   `PluginInputSnapshot` counterpart to `publish_empty_channels`, deriving
+   all eight channels from a given semantic payload instead of publishing
+   them empty - and switching that one file's `_build_snapshot` to use it;
+   `empty_channel_subscriptions()` itself is untouched, since other callers
+   genuinely want the all-empty stand-in (negative tests, capability-driven
+   template-selection fixtures with no VLAN/tunnel/container content).
+   Real-topology parity: `generated/` byte-identical; `errors=0 warnings=3`,
+   unchanged; the real topology's 10 VLAN entries derived correctly.
+
+   Each of 4h-4i needs the same three-part evidence 1-3 above recorded, sized
    to what the function actually risks: (i) a characterization step - does the
    projection already diverge from any compiler-published fact for this data,
    the way W05 did for zones and N-07 did for R1-R6 - checked by reading the
    function in full, not assumed absent because no defect is currently named;
    (ii) the compile-stage channel it moves to, and the object-module plugin
-   that owns it - items 1, 4a, 4b, 4c, 4d, 4e and 4f each got their own
+   that owns it - items 1, 4a, 4b, 4c, 4d, 4e, 4f and 4g each got their own
    dedicated plugin rather than accreting into one, which later items should
    default to unless a specific reason favors sharing, and a later item may
    need to subscribe to an earlier item's channel instead of a local
@@ -411,17 +441,23 @@ Derived from what is checkable, not from what is easy.
    own row-selection/defaulting logic replicated for the rows it cares
    about, checked against the surrounding loop in full, not only the
    builder - 4e found the same shape one level removed, an index fed by a
-   slice of that same loop rather than a per-row builder. 4e also found that
-   a migrated function's data need is not always satisfied by the two
+   slice of that same loop rather than a per-row builder, and 4g found the
+   original shape again in the same loop 4d's branch shares. 4e also found
+   that a migrated function's data need is not always satisfied by the two
    channels items 1-4d used (network/device rows and `vlan_cidr_map`): a
    compiler already publishes what's needed (here, `effective_model.
    objects`), found by reading that compiler's own construction rather than
    assumed absent or re-derived locally; and (i) is not a formality - 4b's
    characterization caught a naming collision that would have silently
    corrupted rendered output if migrated without reading the whole function
-   first, and 4c's caught that the test suite, not only the projection, can
-   silently default a required channel empty and discard real fixture
-   content;
+   first, 4c's caught that a test wrapper around `build_mikrotik_projection`
+   can silently default a required channel empty and discard real fixture
+   content, and 4g's caught the same failure mode one layer down: a test
+   that builds a `PluginInputSnapshot` directly, bypassing any wrapper,
+   needs its own per-fixture channel derivation too, not just the wrapper
+   layer - checked by running every test the migrated function's rendered
+   output could plausibly reach, not only the ones already using a
+   derivation helper;
    (iii) real-topology parity (`generated/` byte-identical, matching or lower
    `errors=`/`warnings=`) plus updated `test_backend_specialization_boundary.py`
    budgets and migration-list entries, the same pattern items 1-3 established.

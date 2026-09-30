@@ -337,6 +337,13 @@ codes:
     hint: >-
       object.mikrotik.compiler.bridge_vlans derived bridge-VLAN membership
       shape (W07 migration order item 4f). No action required.
+  I4217:
+    severity: info
+    stage: compile
+    title: MikroTik VLAN Entries Derived
+    hint: >-
+      object.mikrotik.compiler.vlan_entries derived VLAN row -> rendered
+      shape (W07 migration order item 4g). No action required.
   I4301:
     severity: info
     stage: validate
