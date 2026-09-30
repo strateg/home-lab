@@ -102,16 +102,16 @@ a description of current behavior.
 
 These refine existing W03/W06/W07 and A24/A26/A30 obligations, not new acceptance IDs.
 
-| Counterexample / positive control | Required result |
-|---|---|
-| Two devices of one type | Both projections retained, no target/resource leakage |
-| Two scopes/planes on one device; reverse input order | Both scopes retained deterministically, or explicit unsupported-multiplicity diagnostic |
-| Generic + specific capabilities; multiple enforcement mechanisms | Provenance retained; no first-match type/adapter selection |
-| Reference names a target with no enforcement capability | Visible refusal; a valid instance_ref alone is insufficient |
-| Zero or multiple compatible adapters | Visible unsupported/ambiguous result; no approximate rendering |
-| Shared management endpoint, distinct target selectors | Valid explicit binding accepted; ambiguous target refused |
-| Adapter identity/version changed after checking | Affected plan/evidence binding invalidated |
-| Shared resource/state/apply unit | One writer and declared coupling; no isolation claim from directory layout |
+| Counterexample / positive control | Required result | Status |
+|---|---|---|
+| Two devices of one type | Both projections retained, no target/resource leakage | **Independence pinned 2026-09-30** at the enforcer-resolution layer (`test_effective_model_resolves_two_instances_of_one_type_independently`, passed on first run - already-correct, `_resolve_enforcer` takes only per-call arguments and `enforcer_resolution` is keyed by instance_id). "Both projections retained" through to rendering is not implemented - blocked on V-11/V-12 - see the next row's fallback |
+| Two scopes/planes on one device; reverse input order | Both scopes retained deterministically, or explicit unsupported-multiplicity diagnostic | **Split.** One-enforcer/two-scope retention was already covered (`test_mikrotik_projection_reads_a_two_scope_composed_plan`, predates this reconciliation) - that is V-09's closed concern. The **second outcome implemented 2026-09-30**: `_extract_security_matrix` now raises `ProjectionError` instead of silently picking the sorted-first enforcer when `composed_matrices_by_enforcer` holds a plan for more than one (`test_mikrotik_projection_refuses_more_than_one_enforced_router`). This is V-10's territory more than this row's title, given the V-10/V-14 misattribution section 2b already found - the row groupings in this table predate that finding and were not re-drawn |
+| Generic + specific capabilities; multiple enforcement mechanisms | Provenance retained; no first-match type/adapter selection | Not implemented |
+| Reference names a target with no enforcement capability | Visible refusal; a valid instance_ref alone is insufficient | Not implemented |
+| Zero or multiple compatible adapters | Visible unsupported/ambiguous result; no approximate rendering | Partially covered by existing D-TYPE-2 tests (`test_effective_model_warns_when_resolved_type_has_no_compatible_adapter`, W7016/W7017) at the resolution layer; not re-verified at rendering |
+| Shared management endpoint, distinct target selectors | Valid explicit binding accepted; ambiguous target refused | Not implemented |
+| Adapter identity/version changed after checking | Affected plan/evidence binding invalidated | Not implemented |
+| Shared resource/state/apply unit | One writer and declared coupling; no isolation claim from directory layout | Not implemented |
 
 Implement counterexamples and the complete index contract before adding its first
 consumer. Preserve the positive controls: rejecting all targets is not a correct
@@ -124,10 +124,14 @@ before `_extract_security_matrix` was wired to the composed result it feeds
 (`e868abbe`, 2026-09-29) - the ordering this section asked for, followed. It also
 extended two rows from repeated measurement: `security_matrices` is complete in
 membership but permutation-sensitive in order, and V-09 is a singular return type
-across projection, generator and template rather than one dropped row. The
-counterexamples table above remains unimplemented: none of its eight rows map to
-V-04/V-05/V-09/V-13/V-15 (section 2a); most map to V-10/V-11/V-12, still open (section 2b). The
-readiness record closes no gate, and neither does this reconciliation - see section 5.
+across projection, generator and template rather than one dropped row. Two of the
+eight counterexample rows above gained real evidence on 2026-09-30 (Status column);
+the rest remain unimplemented. None of the eight map to V-04/V-05/V-09/V-13/V-15
+(section 2a, closed); most map to V-10/V-11/V-12, still open (section 2b) - V-10's
+own gap is now an explicit refusal rather than a silent one, which is real
+progress but not the closure V-10's title asks for (multi-enforcer rendering stays
+blocked on V-11/V-12). The readiness record closes no gate, and neither does this
+reconciliation or the 2026-09-30 implementation above - see section 5.
 
 ## 5. What this record does not claim
 

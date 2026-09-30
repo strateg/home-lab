@@ -1073,3 +1073,45 @@
   clarifying that completing the migration order does not by itself close
   W07/G4 - that gate also depends on the conformance record in
   `ENFORCER-AXIS-CONFORMANCE.md`.
+
+## ENFORCER-AXIS-CONFORMANCE.md reconciliation and first counterexample, 2026-09-30
+
+- Reconciled `ENFORCER-AXIS-CONFORMANCE.md`'s ten open rows against
+  `ENFORCER-SCOPE-IMPLEMENTATION-READINESS.md`'s own sequencing record and
+  the real commits it cites, none of which the conformance table had been
+  updated to reflect. Five rows closed (V-04, V-05, V-09, V-13, V-15), one
+  split (V-14: Proxmox closed, MikroTik worse - the W07 migration order
+  raised its substring-selector count from 9 to 18), four unchanged (V-07,
+  V-10, V-11, V-12). Found and corrected a misattribution in the readiness
+  record's own sequencing table: it credited V-10 as closed alongside V-09,
+  but V-10's own wording and evidence (the single-router assumption) were
+  never what that commit fixed, per the commit's own message. Both
+  documents corrected; `IMPLEMENTATION-PLAN.md`'s W07-completion entry
+  (added the same day) updated to match rather than repeat the same error.
+- Implemented and pinned the conformance record's first counterexample
+  (section 4, "Two devices of one type"): `test_effective_model_resolves_
+  two_instances_of_one_type_independently` in
+  `tests/plugin_integration/test_effective_model_compiler.py` confirms two
+  enforcer instances of one type resolve independently at the D-TYPE
+  layer, with divergent outcomes (one resolves, one hits W7016) - passed on
+  the first run, confirming already-correct behavior rather than finding a
+  defect there.
+- Implemented the second counterexample's accepted fallback outcome ("or
+  explicit unsupported-multiplicity diagnostic"): `_extract_security_matrix`
+  in `topology/object-modules/mikrotik/plugins/projections.py` used to
+  silently pick the sorted-first enforcer when `composed_matrices_by_
+  enforcer` held a composed plan for more than one - V-10's defect, latent
+  because the real topology has exactly one router. It now raises
+  `ProjectionError` naming every enforcer it found, citing the V-11/V-12
+  Terraform state-layout question this does not decide. Pinned by
+  `test_mikrotik_projection_refuses_more_than_one_enforced_router` in
+  `tests/plugin_integration/test_projection_helpers.py`. This is real
+  progress on V-10 (silent to explicit) but not the closure V-10's title
+  asks for (multi-enforcer rendering itself stays blocked on V-11/V-12).
+- Verified against the real topology: `check_adr_consistency.py
+  --strict-titles` clean; full compile is `errors=0 warnings=3`, unchanged
+  from baseline (the refusal never fires there - one router, one composed
+  plan); `git status` shows no diff under `generated/`. Targeted mikrotik/
+  projection/effective-model test slice: 99 passed, 1 skipped.
+- `adr/0118-analysis/ENFORCER-AXIS-CONFORMANCE.md`'s section 4
+  counterexamples table gained a Status column recording both results.

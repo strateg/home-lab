@@ -51,11 +51,17 @@ def _extract_security_matrix(
     Multiple enforcers in `router_ids` are not distinguished: this
     projection's render context carries one `security_matrix` value for the
     whole rendered root, which is the still-blocked V-11/V-12 layout
-    question, not this step's scope. The sorted-first router id with a
-    composed plan is selected - deterministic, and matching the
+    question, not this step's scope - fixing rendering to carry one value
+    per enforcer needs that Terraform state-layout decision first, not a
+    local change here. What changed (ENFORCER-AXIS-CONFORMANCE.md section 4,
+    "Two scopes/planes on one device" counterexample, its accepted second
+    outcome): more than one enforcer holding a composed plan used to be
+    silently resolved by picking the sorted-first router id, matching the
     single-router assumption `default_router_id` already makes elsewhere in
-    this module - rather than depending on row order the way the retired
-    derivation implicitly did.
+    this module. That silent choice is now an explicit `ProjectionError`
+    instead - the real topology has exactly one router with a composed plan,
+    so this refusal cannot fire there; it exists for the day a second one is
+    added before V-11/V-12 is resolved.
 
     Returns:
         {
@@ -68,10 +74,23 @@ def _extract_security_matrix(
             "unresolved_vlan_refs": [...],
         }
     """
-    for router_id in sorted(router_ids):
-        composed = composed_matrices_by_enforcer.get(router_id)
-        if not isinstance(composed, dict):
-            continue
+    enforced_router_ids = sorted(
+        router_id
+        for router_id in router_ids
+        if isinstance(composed_matrices_by_enforcer.get(router_id), dict)
+    )
+    if len(enforced_router_ids) > 1:
+        raise ProjectionError(
+            "composed_matrices_by_enforcer holds a composed plan for more than one "
+            f"enforcer ({', '.join(enforced_router_ids)}). This projection's render "
+            "context carries one security_matrix value for the whole rendered root "
+            "(ADR 0118-analysis/ENFORCER-AXIS-CONFORMANCE.md V-11/V-12, blocked on a "
+            "reviewed Terraform state-layout change) and cannot silently pick one. "
+            "Multi-enforcer rendering needs that layout decision first."
+        )
+
+    for router_id in enforced_router_ids:
+        composed = composed_matrices_by_enforcer[router_id]
 
         # F05: resolve src_vlan_ref/dst_vlan_ref to src_address/dst_address.
         # Operates on copies so the published channel is never mutated by a

@@ -601,6 +601,148 @@ def test_effective_model_resolves_enforcer_across_hardware_and_os_objects_via_os
     assert "inst.os.routeros.test" not in resolution
 
 
+def test_effective_model_resolves_two_instances_of_one_type_independently():
+    """Counterexample 1, ENFORCER-AXIS-CONFORMANCE.md section 4: two devices of
+    one type - both projections retained, no target/resource leakage.
+
+    Both instances share the same device-kind object (obj.router.test, the
+    same hardware capability every instance of it inherits) but resolve
+    through different OS objects via os_refs - one supported (routeros), one
+    not (openwrt) - so a leak in either direction would be visible: rtr-1
+    picking up rtr-2's failure, or rtr-2 silently inheriting rtr-1's adapter.
+    `_resolve_enforcer` takes only per-call arguments and `enforcer_resolution`
+    is keyed by instance_id, so this pins that structural independence rather
+    than a currently-unverified assumption.
+    """
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        raw_yaml={"version": "5.0.0", "model": "class-object-instance"},
+        classes={
+            "class.router": {"class": "class.router", "version": "1.0.0"},
+            "class.os": {"class": "class.os", "version": "1.0.0"},
+        },
+        objects={
+            "obj.router.test": {
+                "object": "obj.router.test",
+                "version": "1.0.0",
+                "class_ref": "class.router",
+                "enabled_capabilities": ["cap.net.l3.security.firewall.zone_policy"],
+            },
+            "obj.os.routeros.test": {
+                "object": "obj.os.routeros.test",
+                "version": "1.0.0",
+                "class_ref": "class.os",
+            },
+            "obj.os.openwrt.test": {
+                "object": "obj.os.openwrt.test",
+                "version": "1.0.0",
+                "class_ref": "class.os",
+            },
+        },
+        config={},
+        instance_bindings={"instance_bindings": {"devices": []}},
+    )
+    publish_for_test(
+        ctx,
+        "base.compiler.instance_rows",
+        "normalized_rows",
+        [
+            {
+                "group": "devices",
+                "instance": "rtr-1",
+                "layer": "L1",
+                "source_id": "rtr-1",
+                "class_ref": "class.router",
+                "object_ref": "obj.router.test",
+                "status": "modeled",
+                "notes": "",
+                "runtime": None,
+                "firmware_ref": None,
+                "os_refs": ["inst.os.routeros.test"],
+                "embedded_in": None,
+                "extensions": {},
+            },
+            {
+                "group": "os",
+                "instance": "inst.os.routeros.test",
+                "layer": "L1",
+                "source_id": "inst.os.routeros.test",
+                "class_ref": "class.os",
+                "object_ref": "obj.os.routeros.test",
+                "status": "modeled",
+                "notes": "",
+                "runtime": None,
+                "firmware_ref": None,
+                "os_refs": [],
+                "embedded_in": None,
+                "extensions": {},
+            },
+            {
+                "group": "devices",
+                "instance": "rtr-2",
+                "layer": "L1",
+                "source_id": "rtr-2",
+                "class_ref": "class.router",
+                "object_ref": "obj.router.test",
+                "status": "modeled",
+                "notes": "",
+                "runtime": None,
+                "firmware_ref": None,
+                "os_refs": ["inst.os.openwrt.test"],
+                "embedded_in": None,
+                "extensions": {},
+            },
+            {
+                "group": "os",
+                "instance": "inst.os.openwrt.test",
+                "layer": "L1",
+                "source_id": "inst.os.openwrt.test",
+                "class_ref": "class.os",
+                "object_ref": "obj.os.openwrt.test",
+                "status": "modeled",
+                "notes": "",
+                "runtime": None,
+                "firmware_ref": None,
+                "os_refs": [],
+                "embedded_in": None,
+                "extensions": {},
+            },
+        ],
+    )
+    publish_for_test(
+        ctx,
+        "base.compiler.capabilities",
+        "effective_os_map",
+        {
+            "obj.os.routeros.test": {"family": "routeros", "architecture": "arm64"},
+            "obj.os.openwrt.test": {"family": "openwrt", "architecture": "arm64"},
+        },
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+
+    assert result.status == PluginStatus.PARTIAL
+    w7016 = [diag for diag in result.diagnostics if diag.code == "W7016"]
+    assert len(w7016) == 1
+    assert "rtr-2" in w7016[0].message
+    assert "rtr-1" not in w7016[0].message
+
+    resolution = result.output_data["enforcer_resolution"]
+    assert set(resolution) == {"rtr-1", "rtr-2"}
+    assert resolution["rtr-1"]["type"] == "network"
+    assert resolution["rtr-1"]["adapter"] == "cap.firewall.security_matrix.routeros"
+    assert resolution["rtr-1"]["reason"] == "resolved from type x OS family"
+    assert resolution["rtr-2"]["type"] == "network"
+    assert resolution["rtr-2"]["adapter"] is None
+    assert resolution["rtr-2"]["reason"] == "unsupported: no adapter for this type/OS-family combination"
+    # The OS-instance rows are not themselves enforcer candidates.
+    assert "inst.os.routeros.test" not in resolution
+    assert "inst.os.openwrt.test" not in resolution
+
+
 def test_effective_model_refuses_both_device_kinds_at_once():
     registry = _registry()
     ctx = PluginContext(

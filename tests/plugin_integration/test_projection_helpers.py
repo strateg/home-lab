@@ -627,6 +627,50 @@ def test_mikrotik_projection_reads_a_two_scope_composed_plan() -> None:
     assert matrix["unresolved_vlan_refs"] == []
 
 
+def test_mikrotik_projection_refuses_more_than_one_enforced_router() -> None:
+    """Counterexample, ENFORCER-AXIS-CONFORMANCE.md section 4: "Two scopes/planes
+    on one device; reverse input order" - the accepted second outcome, an
+    explicit unsupported-multiplicity diagnostic, since retaining both is
+    blocked on V-11/V-12's Terraform state-layout question.
+
+    `_extract_security_matrix` used to silently pick the sorted-first router
+    id when `composed_matrices_by_enforcer` held a plan for more than one
+    enforcer (V-10). The real topology has exactly one, so this was latent,
+    not active - the same "found before it could bite" pattern as W05/N-07.
+    """
+    payload = _compiled_fixture()
+    payload["instances"]["devices"].append(
+        {
+            "instance_id": "rtr-mk-2",
+            "instance": {
+                "materializes_object": "obj.mikrotik.chateau_lte7_ax",
+                "materializes_class": "class.network.router",
+            },
+        }
+    )
+    composed = {
+        "rtr-mk": {
+            "zones": {"inst.trust_zone.user": {"name": "User", "security_level": 3, "isolated": False, "cidrs": []}},
+            "matrix": {},
+            "policy_overrides": [],
+            "scope_ids": ["inst.security_matrix.a"],
+        },
+        "rtr-mk-2": {
+            "zones": {"inst.trust_zone.guest": {"name": "Guest", "security_level": 1, "isolated": True, "cidrs": []}},
+            "matrix": {},
+            "policy_overrides": [],
+            "scope_ids": ["inst.security_matrix.b"],
+        },
+    }
+
+    with pytest.raises(ProjectionError, match="more than one"):
+        build_mikrotik_projection(
+            payload,
+            composed_matrices_by_enforcer=composed,
+            vlan_cidr_map={},
+        )
+
+
 def test_mikrotik_projection_extracts_routing_policies() -> None:
     payload = _compiled_fixture()
     payload["instances"]["network"].append(
