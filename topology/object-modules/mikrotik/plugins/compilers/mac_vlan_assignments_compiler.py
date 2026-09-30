@@ -89,7 +89,7 @@ def _build_vlan_id_index(
     router_ids: set[str],
     default_router_id: str,
     objects_map: dict[str, Any],
-) -> dict[str, int]:
+) -> tuple[dict[str, int], list[str]]:
     """Replicates the VLAN branch of build_mikrotik_projection's network-row loop.
 
     Only the instance_id -> vlan_id mapping is needed here, not the full
@@ -97,8 +97,15 @@ def _build_vlan_id_index(
     4g) - but the row-selection and managed_by_ref-resolution must match it
     exactly, or a VLAN this plugin skips (or wrongly includes) silently drops
     (or fabricates) MAC assignments for that VLAN.
+
+    Returns the index plus the sorted instance ids of VLAN rows whose
+    managed_by_ref could not be resolved at all (V-10: an ambiguous target
+    among 0 or several candidate routers, not merely "not this compiler's
+    router") - the caller emits a diagnostic for each rather than the row
+    being silently absent from the index.
     """
     vlan_id_index: dict[str, int] = {}
+    ambiguous_instance_ids: list[str] = []
     for row in network_rows:
         if not isinstance(row, dict):
             continue
@@ -119,6 +126,11 @@ def _build_vlan_id_index(
                     if device_ref in router_ids:
                         managed_by_ref = device_ref
                         break
+        if not managed_by_ref:
+            instance_id = str(row.get("instance_id", "")).strip()
+            if instance_id:
+                ambiguous_instance_ids.append(instance_id)
+            continue
         if managed_by_ref not in router_ids:
             continue
         props = _get_object_properties(object_ref, objects_map)
@@ -126,7 +138,7 @@ def _build_vlan_id_index(
         instance_id = str(row.get("instance_id", "")).strip()
         if instance_id and vlan_id:
             vlan_id_index[instance_id] = int(vlan_id)
-    return vlan_id_index
+    return vlan_id_index, sorted(ambiguous_instance_ids)
 
 
 def _extract_mac_vlan_assignments(
@@ -271,12 +283,29 @@ class MikrotikMacVlanAssignmentsCompiler(CompilerPlugin):
                 router_ids.add(instance_id)
         default_router_id = next(iter(sorted(router_ids)), "")
 
-        vlan_id_index = _build_vlan_id_index(
+        vlan_id_index, ambiguous_vlan_ids = _build_vlan_id_index(
             network_rows,
             router_ids=router_ids,
             default_router_id=default_router_id,
             objects_map=objects_map,
         )
+        for ambiguous_instance_id in ambiguous_vlan_ids:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7027",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        f"'{ambiguous_instance_id}' has no managed_by_ref and no matching "
+                        f"ip_allocations entry, with {len(router_ids)} candidate router(s) "
+                        "present; refusing an ambiguous target rather than silently "
+                        "dropping the row's MAC-to-VLAN assignments (ADR 0119 D1: "
+                        "multiplicity a channel cannot represent must be refused with a "
+                        "diagnostic)."
+                    ),
+                    path=f"instance:network:{ambiguous_instance_id}.managed_by_ref",
+                )
+            )
 
         mac_vlan_assignments = _extract_mac_vlan_assignments(
             {"network": network_rows, "devices": devices},

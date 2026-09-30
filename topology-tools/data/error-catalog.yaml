@@ -1117,6 +1117,15 @@ codes:
       E7019's VLAN/routing_policy-only network requirement. class.network.firewall_policy has no structural
       class.router/L1 check to layer onto - excluded from the generic path for the same reason
       class.network.security_matrix is.
+  E7027:
+    severity: error
+    stage: compile
+    title: Network Row's Managed-By Target Is Ambiguous
+    hint: >-
+      A VLAN, bridge, firewall-policy, routing-policy or MAC-VLAN-assignment row has no managed_by_ref
+      (and, where applicable, no matching ip_allocations/host_ref fallback), with zero or several candidate
+      MikroTik routers present. V-10 (ENFORCER-AXIS-CONFORMANCE.md): a channel that cannot represent this
+      multiplicity refuses it with a diagnostic (ADR 0119 D1) instead of silently dropping the row.
 
   # Attachment and address domain (NET-ATTACHMENT, NET-ADDRESS-OWNER)
   E7020:

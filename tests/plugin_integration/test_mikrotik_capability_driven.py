@@ -379,7 +379,7 @@ def _derive_mac_vlan_assignments_for_fixture(compiled_json: dict) -> list[dict]:
     if not isinstance(objects_map, dict):
         objects_map = {}
     default_router_id = next(iter(sorted(router_ids)), "")
-    vlan_id_index = _build_vlan_id_index(
+    vlan_id_index, _ambiguous_vlan_ids = _build_vlan_id_index(
         network_rows,
         router_ids=router_ids,
         default_router_id=default_router_id,

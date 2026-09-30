@@ -181,6 +181,23 @@ class MikrotikVlanEntriesCompiler(CompilerPlugin):
                         if device_ref in router_ids:
                             managed_by_ref = device_ref
                             break
+            if not managed_by_ref:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E7027",
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            f"'{row.get('instance_id', '')}' has no managed_by_ref and no "
+                            f"matching ip_allocations entry, with {len(router_ids)} candidate "
+                            "router(s) present; refusing an ambiguous target rather than "
+                            "silently dropping the row (ADR 0119 D1: multiplicity a channel "
+                            "cannot represent must be refused with a diagnostic)."
+                        ),
+                        path=f"instance:network:{row.get('instance_id', '')}.managed_by_ref",
+                    )
+                )
+                continue
             if managed_by_ref in router_ids:
                 vlans.append(_build_vlan_entry(row, managed_by_ref=managed_by_ref, objects_map=objects_map))
 

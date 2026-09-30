@@ -3852,6 +3852,97 @@ preflight/ownership/identity evidence, OOB and transition approval.
   the section 2 "Net" summary corrected from "closed or majority-closed" to
   plain "closed."
 
+### SPC MODE on V-07/V-10/V-11/V-12; V-10's per-row refusal implemented, 2026-09-30
+
+- Invoked `docs/ai/spc-contract.md`'s 7-step protocol to work through the
+  remaining open rows. STEP 0 (read first) covered ADR 0118, ADR 0119 in
+  full, `ENFORCER-SCOPE-IMPLEMENTATION-READINESS.md` in full,
+  `W07-BACKEND-SPECIALIZATION-DECISION.md` in full, this document's G1/G3/G4/
+  §8/§9 sections, ADR 0057, the real `generated/home-lab/terraform/mikrotik/`
+  structure, and the generator's remote-state config - before drawing any
+  conclusion, per the protocol's own STEP 0 gate.
+- That reading surfaced a scope-defining fact rather than a solution: V-07
+  and V-10/V-11/V-12 are not one architectural decision. V-07 (the ADR 0119
+  D2 execution-context record) is blocked on G1/W03 - the full L4/L5/L2
+  strict-profile schema registration, a separate, multi-gate initiative
+  (G1→G2→...→G8) that has not started (W02/W03 not landed). V-10/V-11/V-12's
+  Terraform apply-unit/state-layout question is a bounded, self-contained
+  decision - and, reading `W07-BACKEND-SPECIALIZATION-DECISION.md` in full,
+  already **decided** on 2026-09-14: one Terraform root per enforcer
+  instance (`terraform/<backend>/<enforcer instance id>/`, following the
+  `bootstrap/<device>/` precedent), with the earlier justification
+  ("a root holds one unaliased provider") explicitly withdrawn as wrong
+  (`alias` supports several configurations of one provider) and a real
+  justification substituted (reducing cross-enforcer state/apply coupling).
+  That document already states what remains is implementation, gated by
+  "a separately reviewed behaviour change" - not further architecture. Real
+  Terraform state for this deployment is local (`terraform_remote_state`
+  disabled, unset in `projects/home-lab/`), so any actual state migration
+  can only be prepared as a runbook for the human operator to execute
+  against their own state - this session has no access to it.
+- Given the choice put to the user - work through the (already-decided,
+  execution-gated) architecture further, or identify and implement whatever
+  needs no further architectural decision - the user chose the latter.
+  V-10 ("No single-instance assumption") has a piece that fits exactly:
+  `_extract_security_matrix` already converted its own silent single-router
+  pick into an explicit `ProjectionError` (commit `2e59504b`, this session);
+  four of the five compile-stage compilers the W07 migration order copied
+  the same shared-loop pattern into (`vlan_entries`, `firewall_entries`,
+  `routing_policies`, `mac_vlan_assignments`) still silently drop a row
+  whose `managed_by_ref` cannot be resolved among zero or several candidate
+  routers, with no diagnostic - exactly `test_mikrotik_vlan_entries_
+  silently_drops_an_ambiguous_target`'s characterization. Applying the same
+  "silent to explicit refusal" step to these four needs no Terraform-layout
+  decision at all - it is a COMPILE-stage diagnostic, per-row, and never
+  fires while `router_ids` has exactly one entry (the real topology today).
+- New code `E7027` (error, stage compile) allocated in `error-catalog.yaml`
+  and raised by all four: `'<instance_id>' has no managed_by_ref ... with N
+  candidate router(s) present; refusing an ambiguous target rather than
+  silently dropping the row`. `mac_vlan_assignments_compiler.py`'s
+  `_build_vlan_id_index` (a plain function, not a plugin, so it cannot emit
+  diagnostics itself) was changed to return `(index, ambiguous_instance_ids)`
+  instead of just `index`, with the caller emitting `E7027` for each; two
+  other callers of this function (`tests/helpers/mikrotik_security_channels.py`,
+  `test_mikrotik_capability_driven.py`'s own copy) needed the same tuple-
+  unpack fix, found by grepping every call site rather than assuming the one
+  in the production plugin was the only one.
+- `bridge_entries_compiler.py` was deliberately **not** given this fix.
+  Characterizing it first (per this session's standing discipline) found it
+  has no single-router default at all - only a `host_ref` fallback - and
+  adding `E7027` there immediately broke the real compile: the real
+  topology's two bridge rows (`inst.bridge.containers`, `inst.bridge.vmbr0`)
+  both declare `host_ref` at the instance's *top level*, not under
+  `instance_data` where the compiler's `inst_data.get("host_ref")` looks,
+  so both have always silently compiled to zero bridges (matching item 4h's
+  own "the real topology derives 0 bridges" note, whose cause was never
+  investigated until now). Reverted immediately on discovery rather than
+  fixed inline - fixing the field-location bug changes real rendered output
+  (bridges that have never rendered would start to) and needs its own
+  characterization and review, not a diagnostic-only change bundled into
+  this one. Recorded in `ENFORCER-AXIS-CONFORMANCE.md`'s V-10 row and the
+  "Shared management endpoint" counterexample row as a new, separate,
+  still-open finding.
+- Tests: the characterization test for `vlan_entries` converted to a
+  regression test (renamed `..._refuses_an_ambiguous_target`, asserting the
+  `E7027` diagnostic and its path rather than its absence), plus three new
+  analogous regression tests for `firewall_entries`, `routing_policies` and
+  `mac_vlan_assignments` - each built its own minimal two-router fixture
+  rather than reusing one assumed-equivalent case, since `firewall_entries`
+  reads a dedicated `firewall` instance group and the others read `network`.
+  24 tests in `test_projection_helpers.py`, all passing.
+- Verified against the real topology: `errors=0 warnings=3`, unchanged (the
+  fix only fires when `router_ids` has 0 or 2+ entries, never true there);
+  no diff under `generated/`; targeted mikrotik/terraform/tuc00/bridge/vlan/
+  routing_policy/wireguard/firewall slice (153 passed); full
+  `plugin_integration` suite and `plugin_contract`/`kernel` run for final
+  verification before commit.
+- `ENFORCER-AXIS-CONFORMANCE.md` updated: V-10's row records this as an
+  interim closure (matching `_extract_security_matrix`'s own earlier step,
+  not full multi-enforcer rendering, which stays blocked on V-11/V-12) and
+  stays in section 2b (still open); the "Shared management endpoint"
+  counterexample (section 4) updated the same way, naming the new
+  `bridge_entries_compiler.py` finding explicitly.
+
 ## 6. Acceptance coverage ownership
 
 Coverage is assigned now; tests are implemented with their owning gate.

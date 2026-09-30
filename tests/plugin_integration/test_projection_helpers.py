@@ -264,7 +264,7 @@ def _derive_mac_vlan_assignments_for(compiled_json: dict) -> list[dict]:
     if not isinstance(objects_map, dict):
         objects_map = {}
     default_router_id = next(iter(sorted(router_ids)), "")
-    vlan_id_index = _mac_vlan_assignments_module._build_vlan_id_index(
+    vlan_id_index, _ambiguous_vlan_ids = _mac_vlan_assignments_module._build_vlan_id_index(
         network_rows,
         router_ids=router_ids,
         default_router_id=default_router_id,
@@ -795,27 +795,40 @@ def test_mikrotik_projection_refuses_a_router_ref_the_type_resolver_refuses() ->
     assert projection["routers"] == []
 
 
-def test_mikrotik_vlan_entries_silently_drops_an_ambiguous_target() -> None:
-    """Characterization, ENFORCER-AXIS-CONFORMANCE.md section 4, counterexample
+def test_mikrotik_vlan_entries_refuses_an_ambiguous_target() -> None:
+    """Regression, ENFORCER-AXIS-CONFORMANCE.md section 4, counterexample
     "Shared management endpoint, distinct target selectors | Valid explicit
-    binding accepted; ambiguous target refused" - **currently violated**,
-    not a regression test for desired behavior.
+    binding accepted; ambiguous target refused" - **fixed 2026-09-30 (V-10)**.
+    Was a characterization test (currently-violated) before
+    `object.mikrotik.compiler.vlan_entries` gained an `E7027` refusal.
 
     With two routers present (the "shared management endpoint" only becomes
     ambiguous once there is more than one candidate), a VLAN row with no
     `managed_by_ref` and no matching `ip_allocations` entry has no way to
     select which router should manage it - exactly "ambiguous target". The
     single-router default (`if not managed_by_ref and len(router_ids) == 1`)
-    does not apply once `router_ids` has two entries, so the plugin's own
-    `if managed_by_ref in router_ids:` guard silently excludes the row
-    instead - the same class of gap V-10 characterized for
-    `_extract_security_matrix`, but here for `object.mikrotik.compiler.
-    vlan_entries` specifically, and with no diagnostic at all rather than a
-    `ProjectionError`. `bridge_entries_compiler.py`, `firewall_entries_
-    compiler.py`, `mac_vlan_assignments_compiler.py` and
-    `routing_policies_compiler.py` share this exact pattern verbatim (all
-    five were migrated from the same source loop); this test does not
-    repeat it five times.
+    does not apply once `router_ids` has two entries, so the plugin now
+    emits `E7027` naming the row and skips it, instead of the `if
+    managed_by_ref in router_ids:` guard silently excluding it with no
+    diagnostic at all - the same class of gap V-10 characterized for
+    `_extract_security_matrix` (fixed earlier as an explicit
+    `ProjectionError` there), closed here the same way but per-row rather
+    than whole-plugin, since one ambiguous row must not block every other
+    VLAN this plugin derives. `firewall_entries_compiler.py`, `mac_vlan_
+    assignments_compiler.py` and `routing_policies_compiler.py` share the
+    same fix (all migrated from the same source loop); this test does not
+    repeat it three times. `bridge_entries_compiler.py` does NOT share this
+    fix: it has no single-router default at all (only a `host_ref`
+    fallback), and the real topology's two bridge rows
+    (`inst.bridge.containers`, `inst.bridge.vmbr0`) both have a `host_ref`
+    naming the real router but at the *top level* of the instance, not
+    under `instance_data` where `_resolved_object_ref`'s sibling read
+    expects it - a separate, pre-existing defect (bridges have always
+    compiled to zero, silently) that adding this diagnostic there would
+    have turned into two hard compile errors on the real topology.
+    Characterizing and fixing that field-location bug is out of this
+    change's scope; a diagnostic was not added to `bridge_entries_compiler.py`
+    to avoid papering over it with a new error on real production input.
     """
     from kernel import PluginContext as _VEPluginContext
     from kernel.plugin_base import Stage as _VEStage
@@ -887,11 +900,180 @@ def test_mikrotik_vlan_entries_silently_drops_an_ambiguous_target() -> None:
     )
 
     # The counterexample's required result is "ambiguous target refused" -
-    # a visible diagnostic naming the row. This is what currently happens
-    # instead: success, zero VLANs, and no diagnostic mentions the dropped
-    # instance at all.
+    # a visible diagnostic naming the row. Zero VLANs still, but now with an
+    # E7027 explicitly naming the dropped instance rather than silence.
     assert result.output_data["vlans"] == []
-    assert not any("inst.vlan.ambiguous" in diag.message for diag in result.diagnostics)
+    e7027 = [diag for diag in result.diagnostics if diag.code == "E7027"]
+    assert len(e7027) == 1
+    assert "inst.vlan.ambiguous" in e7027[0].message
+    assert e7027[0].path == "instance:network:inst.vlan.ambiguous.managed_by_ref"
+
+
+def _two_router_effective_model(rows_by_group: dict[str, list[dict]]) -> dict:
+    devices = [
+        {
+            "instance_id": router_id,
+            "instance": {
+                "extends_object": "obj.mikrotik.chateau_lte7_ax",
+                "materializes_object": "obj.mikrotik.chateau_lte7_ax",
+            },
+        }
+        for router_id in ("rtr-a", "rtr-b")
+    ]
+    instances = {"devices": devices}
+    instances.update(rows_by_group)
+    return {"instances": instances, "objects": {}}
+
+
+def _two_router_enforcer_resolution() -> dict:
+    return {
+        router_id: {"type": "network", "adapter": "cap.firewall.security_matrix.routeros"}
+        for router_id in ("rtr-a", "rtr-b")
+    }
+
+
+def test_mikrotik_firewall_entries_refuses_an_ambiguous_target() -> None:
+    """Regression, V-10, same fix as the VLAN case above, for
+    `object.mikrotik.compiler.firewall_entries`."""
+    from kernel import PluginContext as _FEPluginContext
+    from kernel.plugin_base import Stage as _FEStage
+    from tests.helpers.plugin_execution import publish_for_test as _fe_publish_for_test
+    from tests.helpers.plugin_execution import run_plugin_for_test as _fe_run_plugin_for_test
+
+    effective_model_candidate = _two_router_effective_model(
+        {
+            "firewall": [
+                {
+                    "instance_id": "inst.fw.ambiguous",
+                    "instance": {
+                        "extends_object": "obj.network.firewall_policy.ambiguous",
+                        "materializes_object": "obj.network.firewall_policy.ambiguous",
+                        "extends_class": "class.network.firewall_policy",
+                        "materializes_class": "class.network.firewall_policy",
+                    },
+                    "instance_data": {"name": "ambiguous"},
+                }
+            ]
+        }
+    )
+    ctx = _FEPluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        compiled_json={"instances": {"devices": [], "network": [], "services": []}},
+        output_dir="/tmp",
+        config={},
+    )
+    _fe_publish_for_test(ctx, "base.compiler.effective_model", "effective_model_candidate", effective_model_candidate)
+    _fe_publish_for_test(ctx, "base.compiler.effective_model", "enforcer_resolution", _two_router_enforcer_resolution())
+
+    plugin = _firewall_entries_module.MikrotikFirewallEntriesCompiler("object.mikrotik.compiler.firewall_entries")
+    result = _fe_run_plugin_for_test(plugin, ctx, _FEStage.COMPILE, consumes_keys={"base.compiler.effective_model"})
+
+    assert result.output_data["firewall_policies"] == []
+    e7027 = [diag for diag in result.diagnostics if diag.code == "E7027"]
+    assert len(e7027) == 1
+    assert "inst.fw.ambiguous" in e7027[0].message
+    assert e7027[0].path == "instance:firewall:inst.fw.ambiguous.managed_by_ref"
+
+
+def test_mikrotik_routing_policies_refuses_an_ambiguous_target() -> None:
+    """Regression, V-10, same fix as the VLAN case above, for
+    `object.mikrotik.compiler.routing_policies`."""
+    from kernel import PluginContext as _RPPluginContext
+    from kernel.plugin_base import Stage as _RPStage
+    from tests.helpers.plugin_execution import publish_for_test as _rp_publish_for_test
+    from tests.helpers.plugin_execution import run_plugin_for_test as _rp_run_plugin_for_test
+
+    effective_model_candidate = _two_router_effective_model(
+        {
+            "network": [
+                {
+                    "instance_id": "inst.routing_policy.ambiguous",
+                    "instance": {
+                        "extends_object": "obj.network.routing_policy.ambiguous",
+                        "materializes_object": "obj.network.routing_policy.ambiguous",
+                        "extends_class": "class.network.routing_policy",
+                        "materializes_class": "class.network.routing_policy",
+                    },
+                    "instance_data": {"policy_name": "ambiguous"},
+                }
+            ]
+        }
+    )
+    ctx = _RPPluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        compiled_json={"instances": {"devices": [], "network": [], "services": []}},
+        output_dir="/tmp",
+        config={},
+    )
+    _rp_publish_for_test(ctx, "base.compiler.effective_model", "effective_model_candidate", effective_model_candidate)
+    _rp_publish_for_test(ctx, "base.compiler.effective_model", "enforcer_resolution", _two_router_enforcer_resolution())
+    _rp_publish_for_test(ctx, "base.compiler.security_matrix", "vlan_cidr_map", {})
+
+    plugin = _routing_policies_module.MikrotikRoutingPoliciesCompiler("object.mikrotik.compiler.routing_policies")
+    result = _rp_run_plugin_for_test(
+        plugin,
+        ctx,
+        _RPStage.COMPILE,
+        consumes_keys={"base.compiler.effective_model", "base.compiler.security_matrix"},
+    )
+
+    assert result.output_data["routing_policies"] == []
+    e7027 = [diag for diag in result.diagnostics if diag.code == "E7027"]
+    assert len(e7027) == 1
+    assert "inst.routing_policy.ambiguous" in e7027[0].message
+    assert e7027[0].path == "instance:network:inst.routing_policy.ambiguous.managed_by_ref"
+
+
+def test_mikrotik_mac_vlan_assignments_refuses_an_ambiguous_target() -> None:
+    """Regression, V-10, same fix as the VLAN case above, for
+    `object.mikrotik.compiler.mac_vlan_assignments` (derived from VLAN rows,
+    same as `vlan_entries`)."""
+    from kernel import PluginContext as _MVPluginContext
+    from kernel.plugin_base import Stage as _MVStage
+    from tests.helpers.plugin_execution import publish_for_test as _mv_publish_for_test
+    from tests.helpers.plugin_execution import run_plugin_for_test as _mv_run_plugin_for_test
+
+    effective_model_candidate = _two_router_effective_model(
+        {
+            "network": [
+                {
+                    "instance_id": "inst.vlan.ambiguous",
+                    "instance": {
+                        "extends_object": "obj.network.vlan.ambiguous",
+                        "materializes_object": "obj.network.vlan.ambiguous",
+                        "extends_class": "class.network.vlan",
+                        "materializes_class": "class.network.vlan",
+                    },
+                    "instance_data": {"vlan_id": 40, "cidr": "10.0.40.0/24"},
+                }
+            ]
+        }
+    )
+    ctx = _MVPluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        compiled_json={"instances": {"devices": [], "network": [], "services": []}},
+        output_dir="/tmp",
+        config={},
+    )
+    _mv_publish_for_test(ctx, "base.compiler.effective_model", "effective_model_candidate", effective_model_candidate)
+    _mv_publish_for_test(ctx, "base.compiler.effective_model", "enforcer_resolution", _two_router_enforcer_resolution())
+
+    plugin = _mac_vlan_assignments_module.MikrotikMacVlanAssignmentsCompiler(
+        "object.mikrotik.compiler.mac_vlan_assignments"
+    )
+    result = _mv_run_plugin_for_test(plugin, ctx, _MVStage.COMPILE, consumes_keys={"base.compiler.effective_model"})
+
+    assert result.output_data["mac_vlan_assignments"] == []
+    e7027 = [diag for diag in result.diagnostics if diag.code == "E7027"]
+    assert len(e7027) == 1
+    assert "inst.vlan.ambiguous" in e7027[0].message
+    assert e7027[0].path == "instance:network:inst.vlan.ambiguous.managed_by_ref"
 
 
 def test_mikrotik_projection_extracts_routing_policies() -> None:

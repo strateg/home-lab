@@ -230,7 +230,7 @@ def _derive_mac_vlan_assignments_for(compiled_json: Any) -> list[dict[str, Any]]
     router_ids, _, network_rows, _ = _mikrotik_router_ids(compiled_json)
     objects_map = _mikrotik_objects_map(compiled_json)
     default_router_id = next(iter(sorted(router_ids)), "")
-    vlan_id_index = _MAC_VLAN_ASSIGNMENTS_MODULE._build_vlan_id_index(
+    vlan_id_index, _ambiguous_vlan_ids = _MAC_VLAN_ASSIGNMENTS_MODULE._build_vlan_id_index(
         network_rows,
         router_ids=router_ids,
         default_router_id=default_router_id,
