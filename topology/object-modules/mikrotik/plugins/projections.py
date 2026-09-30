@@ -85,7 +85,7 @@ def _extract_security_matrix(
         {
             "instance_id": "inst.security_matrix.mikrotik",  # or several scope
                                                                # ids, comma-joined
-            "managed_by_ref": "rtr-mikrotik-chateau",
+            "managed_by_ref": "rtr-mikrotik-example",
             "zones": {...},
             "matrix": {...},
             "policy_overrides": [...],
