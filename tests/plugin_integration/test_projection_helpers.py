@@ -671,6 +671,116 @@ def test_mikrotik_projection_refuses_more_than_one_enforced_router() -> None:
         )
 
 
+def test_mikrotik_projection_accepts_a_router_ref_the_type_resolver_would_refuse() -> None:
+    """Characterization, ENFORCER-AXIS-CONFORMANCE.md section 4, counterexample
+    "Reference names a target with no enforcement capability | Visible
+    refusal; a valid instance_ref alone is insufficient" - **currently
+    violated**, not a regression test for desired behavior.
+
+    `base.compiler.effective_model` already computes and publishes a
+    definitive per-instance verdict (`enforcer_resolution`, D-TYPE-1..3): an
+    instance whose object declares no `cap.net.l3.security.firewall.
+    zone_policy` (or the compute-side equivalent) is not an enforcer
+    candidate and is omitted from it entirely. `build_mikrotik_projection`
+    never reads that channel - it has no parameter for it - and decides
+    "is this a router" purely by `object_ref.startswith("obj.mikrotik.")`,
+    a name-prefix check with no relationship to whether the compiler's own
+    resolver would recognize the instance as an enforcer at all.
+
+    This pins the gap with both halves of the same instance shape run
+    through their real compilers, not an assumption about what
+    `enforcer_resolution` would say: the object below has no
+    `enabled_capabilities` at all, so D-TYPE-1 finds no device-kind
+    capability and `_resolve_enforcer` returns `None` (the instance is
+    omitted from `enforcer_resolution`, confirmed here) - and the same
+    instance is still accepted as a router by the projection. Wiring this
+    channel into the object-module plugins that build `router_ids` (~10
+    files across MikroTik and Proxmox, none of which import
+    `enforcer_resolution` today) is deferred as a separate, larger change;
+    this test only characterizes the current gap.
+    """
+    sys.path.insert(0, str(V5_TOOLS))
+    from kernel import PluginContext as _EMPluginContext
+    from kernel import PluginRegistry as _EMPluginRegistry
+    from kernel import PluginStatus as _EMPluginStatus
+    from kernel.plugin_base import Stage as _EMStage
+    from tests.helpers.plugin_execution import publish_for_test as _em_publish_for_test
+
+    em_registry = _EMPluginRegistry(V5_TOOLS)
+    em_registry.load_manifest(V5_TOOLS / "plugins" / "plugins.yaml")
+    em_ctx = _EMPluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        raw_yaml={"version": "5.0.0", "model": "class-object-instance"},
+        classes={"class.router": {"class": "class.router", "version": "1.0.0"}},
+        objects={
+            "obj.mikrotik.no_zone_policy": {
+                "object": "obj.mikrotik.no_zone_policy",
+                "version": "1.0.0",
+                "class_ref": "class.router",
+                # No enabled_capabilities at all: no device-kind capability,
+                # so D-TYPE-1 finds nothing to gate an enforcer type on.
+            }
+        },
+        config={},
+        instance_bindings={"instance_bindings": {"devices": []}},
+    )
+    _em_publish_for_test(
+        em_ctx,
+        "base.compiler.instance_rows",
+        "normalized_rows",
+        [
+            {
+                "group": "devices",
+                "instance": "rtr-uncapable",
+                "layer": "L1",
+                "source_id": "rtr-uncapable",
+                "class_ref": "class.router",
+                "object_ref": "obj.mikrotik.no_zone_policy",
+                "status": "modeled",
+                "notes": "",
+                "runtime": None,
+                "firmware_ref": None,
+                "os_refs": [],
+                "embedded_in": None,
+                "extensions": {},
+            }
+        ],
+    )
+
+    em_result = em_registry.execute_plugin("base.compiler.effective_model", em_ctx, _EMStage.COMPILE)
+    assert em_result.status == _EMPluginStatus.SUCCESS
+    enforcer_resolution = em_result.output_data["enforcer_resolution"]
+    # D-TYPE-1: no device-kind capability declared, so this instance is not
+    # an enforcer candidate at all - omitted, not present with type=None.
+    assert "rtr-uncapable" not in enforcer_resolution
+
+    payload = {
+        "instances": {
+            "devices": [
+                {
+                    "instance_id": "rtr-uncapable",
+                    "instance": {
+                        "materializes_object": "obj.mikrotik.no_zone_policy",
+                        "materializes_class": "class.network.router",
+                    },
+                }
+            ],
+            "network": [],
+            "services": [],
+        }
+    }
+
+    projection = build_mikrotik_projection(payload)
+
+    # The counterexample's required result is "Visible refusal; a valid
+    # instance_ref alone is insufficient." This is what currently happens
+    # instead: the same instance the compiler's own resolver would not
+    # recognize as an enforcer is accepted as a router anyway.
+    assert [row["instance_id"] for row in projection["routers"]] == ["rtr-uncapable"]
+
+
 def test_mikrotik_projection_extracts_routing_policies() -> None:
     payload = _compiled_fixture()
     payload["instances"]["network"].append(
