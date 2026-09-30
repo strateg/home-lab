@@ -12,7 +12,7 @@
 | Rule | Key Point |
 |------|-----------|
 | One decision = one ADR | Never split or merge arbitrarily |
-| REGISTER.md | Update with every ADR change |
+| REGISTER.md | Index only: update the ADR's table row (Status/Date/Supersedes) when it changes. Never append narrative, decisions, or dated work-log entries there - those belong in the ADR's own `adr/NNNN-analysis/` directory |
 | Adapters | Reference rulebook only, no divergent content |
 | Conflicts | ADR wins over compact rules |
 | AI commits | Include `AI-Agent` and `AI-Tokens` metadata |
@@ -28,7 +28,7 @@
 | Step | Action | Artifact |
 |------|--------|----------|
 | 1 | Create ADR | `adr/NNNN-short-title.md` |
-| 2 | Update register | `adr/REGISTER.md` |
+| 2 | Update register row | `adr/REGISTER.md` (table row only - Status/Date/Supersedes, not narrative) |
 | 3 | Analysis (if large) | `adr/NNNN-analysis/` directory |
 | 4 | Update rules | `docs/ai/rules/*.md` if affected |
 | 5 | Validate | `task validate:adr-consistency` |
@@ -70,6 +70,7 @@ Add or update rules when:
 | Bloated ADR files | Hard to maintain | Use analysis directories |
 | Missing AI metadata | Breaks accountability | Add AI-Agent, AI-Tokens |
 | Rule without source_adr | Untraceable | Link to ADRs |
+| Dated narrative appended to REGISTER.md | Turns the ADR index into an unbounded work log (ADR 0118/0119 accumulated 1,000+ lines this way before being moved out, 2026-09-30) | Table row update only; narrative goes in `adr/NNNN-analysis/` |
 
 ## Validation
 
