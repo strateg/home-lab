@@ -351,6 +351,13 @@ codes:
     hint: >-
       object.mikrotik.compiler.bridge_entries derived bridge row -> rendered
       shape (W07 migration order item 4h). No action required.
+  I4219:
+    severity: info
+    stage: compile
+    title: MikroTik Firewall Entries Derived
+    hint: >-
+      object.mikrotik.compiler.firewall_entries derived firewall-policy row
+      -> rendered shape (W07 migration order item 4i). No action required.
   I4301:
     severity: info
     stage: validate

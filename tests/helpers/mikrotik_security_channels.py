@@ -22,14 +22,15 @@ compiler.routing_policies` (W07 migration order item 4d, 2026-09-29) and
 (W07 migration order item 4e, 2026-09-29), `bridge_vlans` from
 `object.mikrotik.compiler.bridge_vlans` (W07 migration order item 4f,
 2026-09-29), `vlans` from `object.mikrotik.compiler.vlan_entries` (W07
-migration order item 4g, 2026-09-29) and `bridges` from `object.mikrotik.
-compiler.bridge_entries` (W07 migration order item 4h, 2026-09-29), all
-nine likewise `required: true`. Unlike the matrix/CIDR pair, these nine are
-not published empty: capability-, tunnel-, container-, wifi-,
-routing-policy-, MAC-VLAN-, bridge-VLAN-, VLAN- and bridge-driven tests
-need them to reflect the fixture's own routers, so `publish_empty_channels`
-derives all nine from `ctx.compiled_json` the same way the real
-compile-stage plugins do.
+migration order item 4g, 2026-09-29), `bridges` from `object.mikrotik.
+compiler.bridge_entries` (W07 migration order item 4h, 2026-09-29) and
+`firewall_policies` from `object.mikrotik.compiler.firewall_entries` (W07
+migration order item 4i, 2026-09-30), all ten likewise `required: true`.
+Unlike the matrix/CIDR pair, these ten are not published empty: capability-,
+tunnel-, container-, wifi-, routing-policy-, MAC-VLAN-, bridge-VLAN-,
+VLAN-, bridge- and firewall-policy-driven tests need them to reflect the
+fixture's own routers, so `publish_empty_channels` derives all ten from
+`ctx.compiled_json` the same way the real compile-stage plugins do.
 
 These helpers make the statement one line. Passing empty mappings for the
 matrix/CIDR channels means "this fixture declares no matrices and no address
@@ -53,6 +54,7 @@ MAC_VLAN_ASSIGNMENTS_COMPILER = "object.mikrotik.compiler.mac_vlan_assignments"
 BRIDGE_VLANS_COMPILER = "object.mikrotik.compiler.bridge_vlans"
 VLAN_ENTRIES_COMPILER = "object.mikrotik.compiler.vlan_entries"
 BRIDGE_ENTRIES_COMPILER = "object.mikrotik.compiler.bridge_entries"
+FIREWALL_ENTRIES_COMPILER = "object.mikrotik.compiler.firewall_entries"
 CHANNEL_KEYS = ("composed_matrices_by_enforcer", "vlan_cidr_map")
 
 
@@ -101,6 +103,9 @@ _EMPTY_VLANS: list[dict[str, Any]] = []
 
 _BRIDGE_ENTRIES_MODULE = _load_module("bridge_entries_compiler.py", "bridge_entries")
 _EMPTY_BRIDGES: list[dict[str, Any]] = []
+
+_FIREWALL_ENTRIES_MODULE = _load_module("firewall_entries_compiler.py", "firewall_entries")
+_EMPTY_FIREWALL_POLICIES: list[dict[str, Any]] = []
 
 
 def _mikrotik_router_ids(
@@ -323,13 +328,50 @@ def _derive_bridges_for(compiled_json: Any) -> list[dict[str, Any]]:
     return bridges
 
 
+def _derive_firewall_policies_for(compiled_json: Any) -> list[dict[str, Any]]:
+    """Same derivation the real compile-stage compiler performs (W07 item 4i).
+
+    Replicates the plugin's own row-selection/managed_by_ref-resolution
+    loop over the dedicated `firewall` instance group - its own loop, not a
+    shared one, unlike items 4d/4e/4g/4h.
+    """
+    if not isinstance(compiled_json, dict):
+        return list(_EMPTY_FIREWALL_POLICIES)
+    router_ids, _, _, _ = _mikrotik_router_ids(compiled_json)
+    objects_map = _mikrotik_objects_map(compiled_json)
+    instances = compiled_json.get("instances")
+    firewall_rows = instances.get("firewall", []) if isinstance(instances, dict) else []
+    if not isinstance(firewall_rows, list):
+        firewall_rows = []
+    default_router_id = next(iter(sorted(router_ids)), "")
+    resolved_object_ref = _CAPABILITY_FLAGS_MODULE._resolved_object_ref
+    firewall_policies: list[dict[str, Any]] = []
+    for row in firewall_rows:
+        if not isinstance(row, dict):
+            continue
+        object_ref = resolved_object_ref(row)
+        if "firewall_policy" not in object_ref:
+            continue
+        inst_data = row.get("instance_data", {}) if isinstance(row.get("instance_data"), dict) else {}
+        managed_by_ref = str(inst_data.get("managed_by_ref") or "").strip()
+        if not managed_by_ref and len(router_ids) == 1:
+            managed_by_ref = default_router_id
+        if managed_by_ref in router_ids:
+            firewall_policies.append(
+                _FIREWALL_ENTRIES_MODULE._build_firewall_entry(
+                    row, managed_by_ref=managed_by_ref, objects_map=objects_map
+                )
+            )
+    return firewall_policies
+
+
 def publish_empty_channels(ctx: Any) -> None:
     """Publish the matrix/CIDR channels empty, and capability_flags/
     wireguard_tunnels/containers/wifi_config/routing_policies/
-    mac_vlan_assignments/bridge_vlans/vlans/bridges derived from
-    `ctx.compiled_json` (empty input still produces the full shape the real
-    compilers would, not a bare `{}`/`[]`, so golden-snapshot and
-    template-selection fixtures compare equal to production output)."""
+    mac_vlan_assignments/bridge_vlans/vlans/bridges/firewall_policies
+    derived from `ctx.compiled_json` (empty input still produces the full
+    shape the real compilers would, not a bare `{}`/`[]`, so golden-snapshot
+    and template-selection fixtures compare equal to production output)."""
     from tests.helpers.plugin_execution import publish_for_test
 
     for key in CHANNEL_KEYS:
@@ -357,6 +399,9 @@ def publish_empty_channels(ctx: Any) -> None:
     )
     publish_for_test(ctx, VLAN_ENTRIES_COMPILER, "vlans", _derive_vlans_for(compiled_json))
     publish_for_test(ctx, BRIDGE_ENTRIES_COMPILER, "bridges", _derive_bridges_for(compiled_json))
+    publish_for_test(
+        ctx, FIREWALL_ENTRIES_COMPILER, "firewall_policies", _derive_firewall_policies_for(compiled_json)
+    )
 
 
 def empty_channel_subscriptions() -> dict[tuple[str, str], Any]:
@@ -364,8 +409,9 @@ def empty_channel_subscriptions() -> dict[tuple[str, str], Any]:
 
     No `compiled_json` is available at this call site, so `capability_flags`,
     `wireguard_tunnels`, `containers`, `wifi_config`, `routing_policies`,
-    `mac_vlan_assignments`, `bridge_vlans`, `vlans` and `bridges` are the
-    all-empty defaults rather than a per-fixture derivation.
+    `mac_vlan_assignments`, `bridge_vlans`, `vlans`, `bridges` and
+    `firewall_policies` are the all-empty defaults rather than a per-fixture
+    derivation.
     """
     from kernel.plugin_base import SubscriptionValue
 
@@ -402,11 +448,14 @@ def empty_channel_subscriptions() -> dict[tuple[str, str], Any]:
     subscriptions[(BRIDGE_ENTRIES_COMPILER, "bridges")] = SubscriptionValue(
         from_plugin=BRIDGE_ENTRIES_COMPILER, key="bridges", value=list(_EMPTY_BRIDGES)
     )
+    subscriptions[(FIREWALL_ENTRIES_COMPILER, "firewall_policies")] = SubscriptionValue(
+        from_plugin=FIREWALL_ENTRIES_COMPILER, key="firewall_policies", value=list(_EMPTY_FIREWALL_POLICIES)
+    )
     return subscriptions
 
 
 def derived_channel_subscriptions(compiled_json: Any) -> dict[tuple[str, str], Any]:
-    """Same shape as `empty_channel_subscriptions`, but each of the nine
+    """Same shape as `empty_channel_subscriptions`, but each of the ten
     non-matrix/CIDR channels is derived from `compiled_json` the same way
     `publish_empty_channels` derives them for a `PluginContext`.
 
@@ -458,6 +507,11 @@ def derived_channel_subscriptions(compiled_json: Any) -> dict[tuple[str, str], A
     subscriptions[(BRIDGE_ENTRIES_COMPILER, "bridges")] = SubscriptionValue(
         from_plugin=BRIDGE_ENTRIES_COMPILER, key="bridges", value=_derive_bridges_for(compiled_json)
     )
+    subscriptions[(FIREWALL_ENTRIES_COMPILER, "firewall_policies")] = SubscriptionValue(
+        from_plugin=FIREWALL_ENTRIES_COMPILER,
+        key="firewall_policies",
+        value=_derive_firewall_policies_for(compiled_json),
+    )
     return subscriptions
 
 
@@ -467,6 +521,7 @@ __all__ = [
     "CAPABILITY_FLAGS_COMPILER",
     "CHANNEL_KEYS",
     "CONTAINERS_COMPILER",
+    "FIREWALL_ENTRIES_COMPILER",
     "MAC_VLAN_ASSIGNMENTS_COMPILER",
     "ROUTING_POLICIES_COMPILER",
     "SECURITY_MATRIX_COMPILER",

@@ -44,12 +44,15 @@ DECISION = REPO_ROOT / "adr/0118-analysis/W07-BACKEND-SPECIALIZATION-DECISION.md
 # mac_vlan_assignments, and lowered again the same day when item 4f
 # (_extract_bridge_vlans) moved to object.mikrotik.compiler.bridge_vlans,
 # and lowered again the same day when item 4g (_build_vlan_entry) moved to
-# object.mikrotik.compiler.vlan_entries, and lowered again on 2026-09-30
-# when item 4h (_build_bridge_entry) moved to object.mikrotik.compiler.
-# bridge_entries. A budget that stays above the real figure stops
+# object.mikrotik.compiler.vlan_entries, lowered again on 2026-09-30 when
+# item 4h (_build_bridge_entry) moved to object.mikrotik.compiler.
+# bridge_entries, and lowered a final time the same day when item 4i
+# (_build_firewall_entry) moved to object.mikrotik.compiler.
+# firewall_entries - completing the W07 migration order: every function the
+# decision named has moved. A budget that stays above the real figure stops
 # measuring, so it is lowered whenever the debt is actually paid down.
-PROJECTION_FUNCTION_BUDGET = 5
-PROJECTION_LINE_BUDGET = 564
+PROJECTION_FUNCTION_BUDGET = 2
+PROJECTION_LINE_BUDGET = 518
 
 
 def _functions() -> list[tuple[str, int]]:
@@ -161,6 +164,9 @@ def test_the_first_migration_candidates_still_exist(name: str) -> None:
         "_extract_bridge_vlans",
         "_build_vlan_entry",
         "_build_bridge_entry",
+        "_build_firewall_entry",
+        "_get_object_properties",
+        "_is_staged_row",
     ],
 )
 def test_the_migrated_helpers_are_gone_rather_than_dormant(name: str) -> None:
@@ -198,6 +204,15 @@ def test_the_migrated_helpers_are_gone_rather_than_dormant(name: str) -> None:
     `_build_bridge_entry` (W07 migration order item 4h, 2026-09-30) moved
     the same way to `object.mikrotik.compiler.bridge_entries`; the
     projection now reads `bridges`, also a required argument.
+    `_build_firewall_entry` (W07 migration order item 4i, 2026-09-30) moved
+    the same way to `object.mikrotik.compiler.firewall_entries`; the
+    projection now reads `firewall_policies`, also a required argument -
+    completing the W07 migration order. `_get_object_properties` and
+    `_is_staged_row` were never independent migration candidates (neither
+    makes a backend decision, per the decision document), but `_build_
+    firewall_entry` was their last caller in the projection; removed as
+    dead code in the same change rather than left dormant for a future
+    caller that would silently reintroduce the derivation A24 forbids.
     Asserting they are gone is what stops the debt from being paid on paper
     and reinstated in the next change.
     """

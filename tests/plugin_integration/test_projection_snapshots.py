@@ -121,6 +121,11 @@ _EMPTY_VLANS: list[dict] = []
 # mac_vlan_assignments/bridge_vlans/vlans.
 _EMPTY_BRIDGES: list[dict] = []
 
+# W07 migration order item 4i: an empty list is already the correct empty
+# shape for firewall_policies, the same as containers/routing_policies/
+# mac_vlan_assignments/bridge_vlans/vlans/bridges.
+_EMPTY_FIREWALL_POLICIES: list[dict] = []
+
 _BOOTSTRAP_PROJECTIONS = load_bootstrap_projection_module()
 
 build_proxmox_projection = _PROXMOX_PROJECTIONS.build_proxmox_projection
@@ -140,11 +145,11 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
     4b), `wifi_config` (W07 migration order item 4c), `routing_policies`
     (W07 migration order item 4d), `mac_vlan_assignments` (W07 migration
     order item 4e), `bridge_vlans` (W07 migration order item 4f), `vlans`
-    (W07 migration order item 4g) and `bridges` (W07 migration order item
-    4h) are likewise required and defaulted empty the same way: these
-    fixtures are not about capability-, tunnel-, container-, wifi-,
-    routing-policy-, MAC-VLAN-, bridge-VLAN-, VLAN- or bridge-driven
-    content.
+    (W07 migration order item 4g), `bridges` (W07 migration order item 4h)
+    and `firewall_policies` (W07 migration order item 4i) are likewise
+    required and defaulted empty the same way: these fixtures are not about
+    capability-, tunnel-, container-, wifi-, routing-policy-, MAC-VLAN-,
+    bridge-VLAN-, VLAN-, bridge- or firewall-policy-driven content.
     """
     kwargs.setdefault("composed_matrices_by_enforcer", {})
     kwargs.setdefault("vlan_cidr_map", {})
@@ -157,6 +162,7 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
     kwargs.setdefault("bridge_vlans", _EMPTY_BRIDGE_VLANS)
     kwargs.setdefault("vlans", _EMPTY_VLANS)
     kwargs.setdefault("bridges", _EMPTY_BRIDGES)
+    kwargs.setdefault("firewall_policies", _EMPTY_FIREWALL_POLICIES)
     return _raw_build_mikrotik_projection(compiled_json, **kwargs)
 
 

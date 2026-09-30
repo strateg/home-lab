@@ -202,6 +202,12 @@ class TerraformMikroTikGenerator(BaseGenerator):
         # compile stage, not re-derived here
         # (object.mikrotik.compiler.bridge_entries).
         bridges = self._subscribe(ctx, "bridges", plugin_id="object.mikrotik.compiler.bridge_entries")
+        # W07 migration order item 4i: firewall-policy row -> rendered shape
+        # derived at compile stage, not re-derived here
+        # (object.mikrotik.compiler.firewall_entries).
+        firewall_policies = self._subscribe(
+            ctx, "firewall_policies", plugin_id="object.mikrotik.compiler.firewall_entries"
+        )
 
         try:
             projection = build_mikrotik_projection(
@@ -217,6 +223,7 @@ class TerraformMikroTikGenerator(BaseGenerator):
                 bridge_vlans=bridge_vlans,
                 vlans=vlans,
                 bridges=bridges,
+                firewall_policies=firewall_policies,
             )
         except projection_error as exc:
             diagnostics.append(

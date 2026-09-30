@@ -14,57 +14,8 @@ from plugins.generators.projection_core import (  # ADR0078 WP-006: Group canoni
     _instance_groups,
     _require_non_empty_str,
     _require_object_ref,
-    _resolved_object_ref,
     _sorted_rows,
 )
-
-
-def _get_object_properties(object_ref: str, objects_map: dict[str, Any]) -> dict[str, Any]:
-    """Get properties from compiled object map (effective topology).
-
-    Args:
-        object_ref: Object reference (e.g., "obj.network.vlan.servers")
-        objects_map: The objects dict from compiled_json["objects"]
-
-    Returns:
-        Properties dict from object definition, or empty dict if not found.
-    """
-    if not object_ref or not isinstance(objects_map, dict):
-        return {}
-
-    obj_data = objects_map.get(object_ref)
-    if not isinstance(obj_data, dict):
-        return {}
-
-    props = obj_data.get("properties")
-    if isinstance(props, dict):
-        return props
-    return {}
-
-
-def _is_staged_row(row: dict[str, Any]) -> bool:
-    status = str(row.get("status", "")).strip().lower()
-    notes = str(row.get("notes", "")).strip().lower()
-    return status == "modeled" or "currently not configured" in notes
-
-
-def _build_firewall_entry(row: dict[str, Any], *, managed_by_ref: str, objects_map: dict[str, Any]) -> dict[str, Any]:
-    """Extract firewall policy from network row."""
-    object_ref = _resolved_object_ref(row)
-    props = _get_object_properties(object_ref, objects_map)
-    inst_data = row.get("instance_data", {}) or {}
-
-    return {
-        "instance_id": row.get("instance_id", ""),
-        "name": row.get("instance_id", "").replace("inst.fw.", "").replace(".", "_"),
-        "chain": str(inst_data.get("chain") or "forward"),
-        "managed_by_ref": managed_by_ref,
-        "priority": int(props.get("priority", 1000)),
-        "default_action": str(props.get("default_action", "drop")),
-        "rules": props.get("rules", []) if isinstance(props.get("rules"), list) else [],
-        "comment": str(row.get("notes", "")),
-        "staged": _is_staged_row(row),
-    }
 
 
 def _extract_security_matrix(
@@ -177,6 +128,7 @@ def build_mikrotik_projection(
     bridge_vlans: list[dict[str, Any]] | None = None,
     vlans: list[dict[str, Any]] | None = None,
     bridges: list[dict[str, Any]] | None = None,
+    firewall_policies: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build stable view for MikroTik Terraform generator.
 
@@ -243,6 +195,17 @@ def build_mikrotik_projection(
     publishes (W07 migration order item 4h): bridge row -> rendered shape
     (name, IP, CIDR) for every bridge a MikroTik router manages. Derived
     the same way and for the same reason as the channels above.
+
+    `firewall_policies` is the channel `object.mikrotik.compiler.
+    firewall_entries` publishes (W07 migration order item 4i):
+    firewall-policy row -> rendered shape (chain, priority, default action,
+    rules) for every firewall policy a MikroTik router manages. Derived the
+    same way and for the same reason as the channels above. The zone/CIDR
+    resolution this projection still applies to the channel's output is not
+    part of the derivation itself: it depends on `vlans`, itself already a
+    compile-stage channel, the same way policy-based routing's
+    `src_vlan_ref` resolution stays local to the routing_policies plugin's
+    own scope.
 
     `None` is an omission and is refused, because the alternative is a projection
     that renders empty address lists and empty tunnel routes while reporting
@@ -316,16 +279,17 @@ def build_mikrotik_projection(
             "'object.mikrotik.compiler.bridge_entries' and this projection derives no "
             "substitute. Pass an empty list to state that there are no bridges."
         )
-    # Extract objects map for property lookups (ADR contract: use compiled topology only)
-    objects_map = compiled_json.get("objects", {})
-    if not isinstance(objects_map, dict):
-        objects_map = {}
+    if firewall_policies is None:
+        raise ProjectionError(
+            "firewall_policies was not supplied; it is published by "
+            "'object.mikrotik.compiler.firewall_entries' and this projection derives no "
+            "substitute. Pass an empty list to state that there are no firewall policies."
+        )
 
     groups = _instance_groups(compiled_json)
     devices = _group_rows(groups, canonical=GROUP_DEVICES)
     network = _group_rows(groups, canonical=GROUP_NETWORK)
     service_rows = _group_rows(groups, canonical=GROUP_SERVICES)
-    firewall_rows = groups.get("firewall", [])
 
     routers: list[dict[str, Any]] = []
     router_ids: set[str] = set()
@@ -342,7 +306,6 @@ def build_mikrotik_projection(
             router_ids.add(instance_id)
 
     networks: list[dict[str, Any]] = []
-    firewall_policies: list[dict[str, Any]] = []
 
     default_router_id = next(iter(sorted(router_ids)), "")
 
@@ -371,18 +334,9 @@ def build_mikrotik_projection(
     # object.mikrotik.compiler.routing_policies publishes (W07 migration
     # order item 4d); this projection derives no substitute.
 
-    # Extract firewall policies from dedicated firewall group.
-    for idx, row in enumerate(firewall_rows):
-        _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.firewall[{idx}]")
-        object_ref = _require_object_ref(row, path=f"compiled_json.instances.firewall[{idx}]")
-        if "firewall_policy" not in object_ref:
-            continue
-        inst_data = row.get("instance_data", {}) if isinstance(row.get("instance_data"), dict) else {}
-        managed_by_ref = str(inst_data.get("managed_by_ref") or "").strip()
-        if not managed_by_ref and len(router_ids) == 1:
-            managed_by_ref = default_router_id
-        if managed_by_ref in router_ids:
-            firewall_policies.append(_build_firewall_entry(row, managed_by_ref=managed_by_ref, objects_map=objects_map))
+    # Firewall-policy row -> rendered shape is the channel
+    # object.mikrotik.compiler.firewall_entries publishes (W07 migration
+    # order item 4i); this projection derives no substitute.
 
     selected_services: list[dict[str, Any]] = []
     for idx, row in enumerate(service_rows):

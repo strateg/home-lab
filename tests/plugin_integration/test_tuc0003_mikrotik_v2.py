@@ -41,6 +41,7 @@ from tests.helpers.mikrotik_security_channels import (
     BRIDGE_VLANS_COMPILER,
     VLAN_ENTRIES_COMPILER,
     BRIDGE_ENTRIES_COMPILER,
+    FIREWALL_ENTRIES_COMPILER,
     derived_channel_subscriptions,
 )
 
@@ -125,6 +126,7 @@ def _build_snapshot(
                 BRIDGE_VLANS_COMPILER,
                 VLAN_ENTRIES_COMPILER,
                 BRIDGE_ENTRIES_COMPILER,
+                FIREWALL_ENTRIES_COMPILER,
             }
             if subscriptions
             else ()

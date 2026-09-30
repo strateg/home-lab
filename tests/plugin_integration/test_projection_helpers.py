@@ -172,6 +172,21 @@ _bridge_entries_spec = _importlib_util.spec_from_file_location(
 _bridge_entries_module = _importlib_util.module_from_spec(_bridge_entries_spec)
 _bridge_entries_spec.loader.exec_module(_bridge_entries_module)
 
+_FIREWALL_ENTRIES_MODULE_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "topology"
+    / "object-modules"
+    / "mikrotik"
+    / "plugins"
+    / "compilers"
+    / "firewall_entries_compiler.py"
+)
+_firewall_entries_spec = _importlib_util.spec_from_file_location(
+    "test_projection_helpers_firewall_entries_compiler", _FIREWALL_ENTRIES_MODULE_PATH
+)
+_firewall_entries_module = _importlib_util.module_from_spec(_firewall_entries_spec)
+_firewall_entries_spec.loader.exec_module(_firewall_entries_module)
+
 _BOOTSTRAP_PROJECTIONS = load_bootstrap_projection_module()
 
 ProjectionError = _PROXMOX_PROJECTIONS.ProjectionError
@@ -345,6 +360,43 @@ def _derive_bridges_for(compiled_json: dict) -> list[dict]:
     return bridges
 
 
+def _derive_firewall_policies_for(compiled_json: dict) -> list[dict]:
+    """Same derivation the real compile-stage compiler performs (W07 item 4i).
+
+    Replicates the plugin's own row-selection/managed_by_ref-resolution
+    loop over the dedicated `firewall` instance group - its own loop, not a
+    shared one, unlike items 4d/4e/4g/4h.
+    """
+    router_ids, _, _, _ = _mikrotik_routers_and_rows(compiled_json)
+    instances = compiled_json.get("instances")
+    firewall_rows = instances.get("firewall", []) if isinstance(instances, dict) else []
+    if not isinstance(firewall_rows, list):
+        firewall_rows = []
+    objects_map = compiled_json.get("objects", {})
+    if not isinstance(objects_map, dict):
+        objects_map = {}
+    default_router_id = next(iter(sorted(router_ids)), "")
+    resolved_object_ref = _capability_flags_module._resolved_object_ref
+    firewall_policies: list[dict] = []
+    for row in firewall_rows:
+        if not isinstance(row, dict):
+            continue
+        object_ref = resolved_object_ref(row)
+        if "firewall_policy" not in object_ref:
+            continue
+        inst_data = row.get("instance_data", {}) if isinstance(row.get("instance_data"), dict) else {}
+        managed_by_ref = str(inst_data.get("managed_by_ref") or "").strip()
+        if not managed_by_ref and len(router_ids) == 1:
+            managed_by_ref = default_router_id
+        if managed_by_ref in router_ids:
+            firewall_policies.append(
+                _firewall_entries_module._build_firewall_entry(
+                    row, managed_by_ref=managed_by_ref, objects_map=objects_map
+                )
+            )
+    return firewall_policies
+
+
 def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
     """The compiler's channels are required arguments; these fixtures state them empty.
 
@@ -358,8 +410,9 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
     4b), `wifi_config` (W07 migration order item 4c), `routing_policies`
     (W07 migration order item 4d), `mac_vlan_assignments` (W07 migration
     order item 4e), `bridge_vlans` (W07 migration order item 4f), `vlans`
-    (W07 migration order item 4g) and `bridges` (W07 migration order item
-    4h) are likewise required, and auto-derived here from the fixture's own
+    (W07 migration order item 4g), `bridges` (W07 migration order item 4h)
+    and `firewall_policies` (W07 migration order item 4i) are likewise
+    required, and auto-derived here from the fixture's own
     devices/network/container rows the same way the real compile-stage
     compiler plugins would, unless a test passes its own value to exercise a
     specific case - a fixture that builds real
@@ -394,6 +447,8 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
         kwargs["vlans"] = _derive_vlans_for(compiled_json)
     if "bridges" not in kwargs:
         kwargs["bridges"] = _derive_bridges_for(compiled_json)
+    if "firewall_policies" not in kwargs:
+        kwargs["firewall_policies"] = _derive_firewall_policies_for(compiled_json)
     return _raw_build_mikrotik_projection(compiled_json, **kwargs)
 
 

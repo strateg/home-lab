@@ -1010,3 +1010,66 @@
 - `adr/0118-analysis/W07-BACKEND-SPECIALIZATION-DECISION.md`'s migration
   order item 4h marked done. Only item 4i (`_build_firewall_entry`, 16
   lines) remains in the migration order.
+
+## W07 migration order item 4i — firewall-entry derivation moved to compile stage, completing the migration order, 2026-09-30
+
+- `_build_firewall_entry` moved verbatim from `projections.py` (generate
+  stage) to a new plugin, `object.mikrotik.compiler.firewall_entries`
+  (`topology/object-modules/mikrotik/plugins/compilers/
+  firewall_entries_compiler.py`, compile stage) - the tenth and final
+  dedicated compile-stage compiler plugin the W07 migration order calls
+  for. Unlike items 4d/4e/4g/4h, the source function's loop was never
+  shared with any other row kind - its own dedicated loop over the
+  `firewall` instance group, the same independent-extractor shape items
+  4a-4c had.
+- Consumes only `base.compiler.effective_model`'s `effective_model_candidate`
+  (router ids, `firewall`-group rows, objects) - no `base.compiler.
+  security_matrix` dependency, same as items 4b/4c/4e/4g/4h.
+  `build_mikrotik_projection` gains `firewall_policies` as a required
+  argument.
+- Characterization found no divergence and, checked given 4b's and 4c's
+  findings, no naming collision.
+- With this function's departure, `_get_object_properties` and
+  `_is_staged_row` lost their last caller in the projection. Per the W07
+  decision document's own reasoning, neither makes a backend decision, so
+  neither was an independent migration candidate - but leaving them in
+  place once nothing called them would be exactly the dormant-helper risk
+  A24 exists to prevent. Removed as dead code in the same change.
+- The zone/CIDR resolution `build_mikrotik_projection` still applies to
+  this channel's output (trust-zone-to-CIDR matching, `src_zone_ref`/
+  `dst_zone_ref` normalization) is not part of `_build_firewall_entry` and
+  stays in the projection, the same way policy-based routing's
+  `src_vlan_ref` resolution stays local to the routing_policies plugin.
+- Applied item 4h's discipline again: every test whose fixture carries a
+  real firewall-policy row was checked before finalizing, not only after a
+  failure. `test_terraform_mikrotik_generator.py`'s
+  `test_terraform_mikrotik_generator_reflects_full_network_topology`
+  asserts on real firewall-filter output (`guest_isolated_default`,
+  `iot_isolated_default`) and passed on the first isolated run, because
+  `publish_empty_channels`/`derived_channel_subscriptions` already derive
+  `firewall_policies` from the fixture the same way every other channel
+  does - no test-infrastructure gap this time.
+- Verified against the real topology: `check_adr_consistency.py
+  --strict-titles` clean; full compile is `errors=0 warnings=3`, unchanged
+  from baseline; `git status` shows no diff under `generated/`; the real
+  topology's 4 firewall-policy entries derived correctly (I4219).
+- `projections.py` is now 2 functions / 518 lines (down from 5/564 at item
+  4h, and from 17/1,565 at the W07 baseline) - `_extract_security_matrix`
+  and `build_mikrotik_projection` itself, exactly the scope the decision
+  document named in advance as what a final step would actually be.
+  `test_backend_specialization_boundary.py` budget lowered to match, and
+  `_build_firewall_entry`, `_get_object_properties`, `_is_staged_row`
+  added to the "migrated, gone rather than dormant" list.
+- Same test-wiring pattern as items 1/4a-4h applied again, including
+  extending `mikrotik_security_channels.py`, `test_projection_helpers.py`
+  and `test_mikrotik_capability_driven.py` with a firewall-entry derivation
+  helper that replicates the plugin's own dedicated loop. Targeted
+  mikrotik/projection/terraform/tuc slice plus the full boundary test file:
+  121 + 21 passed, clean on the first isolated run.
+- `adr/0118-analysis/W07-BACKEND-SPECIALIZATION-DECISION.md`'s migration
+  order item 4i marked done, completing the migration order (items 1,
+  4a-4i). The document's "What this decision does not do" section's stale
+  function/line count updated to match, and a closing note added
+  clarifying that completing the migration order does not by itself close
+  W07/G4 - that gate also depends on the conformance record in
+  `ENFORCER-AXIS-CONFORMANCE.md`.

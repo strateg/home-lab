@@ -186,14 +186,19 @@ Recording this is design preparation. It is not authorization to migrate state.
 ## What this decision does not do
 
 The decision itself changes no runtime. Its original measurement at `3312ca0b`
-was 17 functions / 1,565 lines. Step 2 landed in `ed15dfbf`; the current recorded
-projection is 15 functions / 1,518 lines. Historical W05 derivation findings do not
-mean its removed fallback still runs. Remaining per-scope extraction/index defects
-are listed in [the conformance record](ENFORCER-AXIS-CONFORMANCE.md).
+was 17 functions / 1,565 lines. Step 2 landed in `ed15dfbf`; the projection was
+15 functions / 1,518 lines before the migration order below started, and is
+2 functions / 518 lines now that all of it (items 1, 4a-4i) has landed
+(2026-09-30) - `_extract_security_matrix` and `build_mikrotik_projection`
+itself, the scope the "Migration order" section named in advance as what a
+final step would actually be. Historical W05 derivation findings do not
+mean its removed fallback still runs. Remaining per-scope extraction/index
+defects are listed in [the conformance record](ENFORCER-AXIS-CONFORMANCE.md).
 
 Migration remains bounded and evidence-driven: legacy parity for unchanged
 behaviour, explicit review for semantic changes and artifact/state relocation.
-Neither the completed helper removal nor this amendment closes W07/G4.
+Every migration-order function moving does not by itself close W07/G4: that
+gate also depends on the conformance record above and is not asserted here.
 
 ## Migration order
 
@@ -444,44 +449,51 @@ Derived from what is checkable, not from what is easy.
    topology's LAN uses the native bridge interface directly rather than a
    separate `obj.network.bridge` row).
 
-   Each of 4i needs the same three-part evidence 1-3 above recorded, sized
-   to what the function actually risks: (i) a characterization step - does the
-   projection already diverge from any compiler-published fact for this data,
-   the way W05 did for zones and N-07 did for R1-R6 - checked by reading the
-   function in full, not assumed absent because no defect is currently named;
-   (ii) the compile-stage channel it moves to, and the object-module plugin
-   that owns it - items 1, 4a, 4b, 4c, 4d, 4e, 4f, 4g and 4h each got their
-   own dedicated plugin rather than accreting into one, which later items
-   should default to unless a specific reason favors sharing, and a later
-   item may need to subscribe to an earlier item's channel instead of a
-   local variable once that earlier item migrates, the way 4f's plugin
-   subscribes to 4c's `wifi_config` channel rather than the projection's
-   local `wifi_data`. 4d additionally found that the
-   source function is not always an independent top-level extractor: a
-   per-row builder called from inside a larger shared loop needs the loop's
-   own row-selection/defaulting logic replicated for the rows it cares
-   about, checked against the surrounding loop in full, not only the
-   builder - 4e found the same shape one level removed, an index fed by a
-   slice of that same loop rather than a per-row builder, and 4g found the
-   original shape again in the same loop 4d's branch shares. 4e also found
-   that a migrated function's data need is not always satisfied by the two
-   channels items 1-4d used (network/device rows and `vlan_cidr_map`): a
-   compiler already publishes what's needed (here, `effective_model.
-   objects`), found by reading that compiler's own construction rather than
-   assumed absent or re-derived locally; and (i) is not a formality - 4b's
-   characterization caught a naming collision that would have silently
-   corrupted rendered output if migrated without reading the whole function
-   first, 4c's caught that a test wrapper around `build_mikrotik_projection`
-   can silently default a required channel empty and discard real fixture
-   content, and 4g's caught the same failure mode one layer down: a test
-   that builds a `PluginInputSnapshot` directly, bypassing any wrapper,
-   needs its own per-fixture channel derivation too, not just the wrapper
-   layer - checked by running every test the migrated function's rendered
-   output could plausibly reach, not only the ones already using a
-   derivation helper;
-   (iii) real-topology parity (`generated/` byte-identical, matching or lower
-   `errors=`/`warnings=`) plus updated `test_backend_specialization_boundary.py`
-   budgets and migration-list entries, the same pattern items 1-3 established.
+   **4i done 2026-09-30, completing the W07 migration order.**
+   `_build_firewall_entry` moved verbatim to `object.mikrotik.compiler.
+   firewall_entries`, the tenth and final dedicated compile-stage compiler
+   plugin. Unlike items 4d/4e/4g/4h, the source function's loop was never
+   shared with any other row kind - it is its own dedicated loop over the
+   `firewall` instance group, the same independent-extractor shape items
+   4a-4c had. Consumes only `effective_model_candidate` (router ids,
+   `firewall`-group rows, objects) - no `base.compiler.security_matrix`
+   dependency, same as items 4b/4c/4e/4g/4h. Characterization found no
+   divergence and, checked given 4b's and 4c's findings, no naming
+   collision. With this function's departure, `_get_object_properties` and
+   `_is_staged_row` lost their last caller in the projection; per this
+   document's own reasoning that neither makes a backend decision, they
+   were removed as dead code in the same change rather than left dormant
+   for some future caller to silently reach for - the exact risk A24
+   exists to prevent. The zone/CIDR resolution `build_mikrotik_projection`
+   still applies to this channel's output (trust-zone-to-CIDR matching,
+   `src_zone_ref`/`dst_zone_ref` normalization) is not part of
+   `_build_firewall_entry` and stays in the projection, the same way
+   policy-based routing's `src_vlan_ref` resolution stays local to the
+   routing_policies plugin. Applying 4h's discipline again: every test
+   whose fixture carries a real firewall-policy row was checked before
+   finalizing, not only after a failure -
+   `test_terraform_mikrotik_generator.py`'s
+   `test_terraform_mikrotik_generator_reflects_full_network_topology`
+   asserts on real firewall-filter output, and it passed on the first
+   isolated run because `publish_empty_channels`/`derived_channel_
+   subscriptions` already derive `firewall_policies` from the fixture the
+   same way every other channel does - no test-infrastructure gap this
+   time. Real-topology parity: `generated/` byte-identical; `errors=0
+   warnings=3`, unchanged; the real topology's 4 firewall-policy entries
+   derived correctly.
+
+   `projections.py` is now 2 functions / 518 lines - `_extract_security_matrix`
+   and `build_mikrotik_projection` itself, exactly the "orchestrator plus
+   what genuinely can't move" scope the "Each of 4a-4i" section above said
+   would be the actual scope of a final step rather than assumed in
+   advance. Every function the migration-order table named (4a-4i) has
+   moved; `_get_object_properties` and `_is_staged_row` are gone rather
+   than migrated, since they were never independent candidates. The debt
+   this document opened with - "1,565 lines whose output is pinned only by
+   artifact parity" - is paid down to the two functions that were always
+   going to stay: the security-matrix reader (reads the compiler's already-
+   composed plan, does F05 CIDR resolution the compiler doesn't own) and
+   the orchestrator that assembles every channel into one rendered shape.
 
 ## What would falsify this decision
 
