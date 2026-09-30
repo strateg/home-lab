@@ -781,6 +781,90 @@ def test_mikrotik_projection_accepts_a_router_ref_the_type_resolver_would_refuse
     assert [row["instance_id"] for row in projection["routers"]] == ["rtr-uncapable"]
 
 
+def test_mikrotik_vlan_entries_silently_drops_an_ambiguous_target() -> None:
+    """Characterization, ENFORCER-AXIS-CONFORMANCE.md section 4, counterexample
+    "Shared management endpoint, distinct target selectors | Valid explicit
+    binding accepted; ambiguous target refused" - **currently violated**,
+    not a regression test for desired behavior.
+
+    With two routers present (the "shared management endpoint" only becomes
+    ambiguous once there is more than one candidate), a VLAN row with no
+    `managed_by_ref` and no matching `ip_allocations` entry has no way to
+    select which router should manage it - exactly "ambiguous target". The
+    single-router default (`if not managed_by_ref and len(router_ids) == 1`)
+    does not apply once `router_ids` has two entries, so the plugin's own
+    `if managed_by_ref in router_ids:` guard silently excludes the row
+    instead - the same class of gap V-10 characterized for
+    `_extract_security_matrix`, but here for `object.mikrotik.compiler.
+    vlan_entries` specifically, and with no diagnostic at all rather than a
+    `ProjectionError`. `bridge_entries_compiler.py`, `firewall_entries_
+    compiler.py`, `mac_vlan_assignments_compiler.py` and
+    `routing_policies_compiler.py` share this exact pattern verbatim (all
+    five were migrated from the same source loop); this test does not
+    repeat it five times.
+    """
+    from kernel import PluginContext as _VEPluginContext
+    from kernel.plugin_base import Stage as _VEStage
+    from tests.helpers.plugin_execution import publish_for_test as _ve_publish_for_test
+    from tests.helpers.plugin_execution import run_plugin_for_test as _ve_run_plugin_for_test
+
+    effective_model_candidate = {
+        "instances": {
+            "devices": [
+                {
+                    "instance_id": "rtr-a",
+                    "instance": {
+                        "extends_object": "obj.mikrotik.chateau_lte7_ax",
+                        "materializes_object": "obj.mikrotik.chateau_lte7_ax",
+                    },
+                },
+                {
+                    "instance_id": "rtr-b",
+                    "instance": {
+                        "extends_object": "obj.mikrotik.chateau_lte7_ax",
+                        "materializes_object": "obj.mikrotik.chateau_lte7_ax",
+                    },
+                },
+            ],
+            "network": [
+                {
+                    "instance_id": "inst.vlan.ambiguous",
+                    "instance": {
+                        "extends_object": "obj.network.vlan.ambiguous",
+                        "materializes_object": "obj.network.vlan.ambiguous",
+                    },
+                    "instance_data": {"vlan_id": 40, "cidr": "10.0.40.0/24"},
+                }
+            ],
+        },
+        "objects": {},
+    }
+
+    ctx = _VEPluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        compiled_json={"instances": {"devices": [], "network": [], "services": []}},
+        output_dir="/tmp",
+        config={},
+    )
+    _ve_publish_for_test(
+        ctx, "base.compiler.effective_model", "effective_model_candidate", effective_model_candidate
+    )
+
+    plugin = _vlan_entries_module.MikrotikVlanEntriesCompiler("object.mikrotik.compiler.vlan_entries")
+    result = _ve_run_plugin_for_test(
+        plugin, ctx, _VEStage.COMPILE, consumes_keys={"base.compiler.effective_model"}
+    )
+
+    # The counterexample's required result is "ambiguous target refused" -
+    # a visible diagnostic naming the row. This is what currently happens
+    # instead: success, zero VLANs, and no diagnostic mentions the dropped
+    # instance at all.
+    assert result.output_data["vlans"] == []
+    assert not any("inst.vlan.ambiguous" in diag.message for diag in result.diagnostics)
+
+
 def test_mikrotik_projection_extracts_routing_policies() -> None:
     payload = _compiled_fixture()
     payload["instances"]["network"].append(

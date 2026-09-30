@@ -853,6 +853,63 @@ def test_effective_model_warns_when_resolved_type_has_no_compatible_adapter():
     assert resolution["rtr-openwrt"]["adapter"] is None
 
 
+def test_effective_model_warns_when_resolved_type_has_ambiguous_adapters(monkeypatch):
+    """Counterexample, ENFORCER-AXIS-CONFORMANCE.md section 4: "Zero or
+    multiple compatible adapters | Visible unsupported/ambiguous result; no
+    approximate rendering". The zero-adapter half is already covered above
+    (W7016); this covers the multiple-adapter half (W7017).
+
+    `_ENFORCER_ADAPTER_BY_TYPE["network"]` has exactly one OS-family entry
+    today (`cap.os.routeros`), so `len(compatible_os) > 1` cannot be reached
+    through any real capability declaration - the module's own comment
+    calls W7017 "unreachable under the current OS table; registered so it
+    is never silently permitted if that changes." A structurally
+    unreachable branch is still a real branch: this unit-tests
+    `_resolve_enforcer` directly, with the class table monkeypatched to
+    carry two OS families for one type, to confirm the branch itself does
+    what it claims - visible ambiguity, not an approximate first pick -
+    rather than leaving it unverified until some future OS addition reaches
+    it for the first time in production.
+    """
+    from plugins.compilers.effective_model_compiler import EffectiveModelCompiler
+
+    monkeypatch.setattr(
+        EffectiveModelCompiler,
+        "_ENFORCER_ADAPTER_BY_TYPE",
+        {
+            "network": {
+                "cap.os.routeros": "cap.firewall.security_matrix.routeros",
+                "cap.os.openwrt": "cap.firewall.security_matrix.openwrt",
+            },
+            "compute": {"cap.os.proxmox": "cap.firewall.security_matrix.pve"},
+        },
+    )
+
+    compiler = EffectiveModelCompiler(PLUGIN_ID)
+    diagnostics: list = []
+    resolution = compiler._resolve_enforcer(
+        instance_id="rtr-ambiguous",
+        effective_caps={
+            "cap.net.l3.security.firewall.zone_policy",
+            "cap.os.routeros",
+            "cap.os.openwrt",
+        },
+        path="instance:devices:rtr-ambiguous",
+        stage=Stage.COMPILE,
+        diagnostics=diagnostics,
+    )
+
+    assert any(diag.code == "W7017" for diag in diagnostics)
+    assert resolution is not None
+    assert resolution["type"] == "network"
+    assert resolution["adapter"] is None
+    assert resolution["reason"] == "ambiguous: more than one compatible adapter"
+    assert resolution["compatible"] == [
+        "cap.firewall.security_matrix.openwrt",
+        "cap.firewall.security_matrix.routeros",
+    ]
+
+
 def test_effective_model_flags_direct_adapter_declaration_disagreeing_with_os_family():
     registry = _registry()
     ctx = PluginContext(
