@@ -34,7 +34,16 @@ def _publish_rows(ctx: PluginContext, rows: list[dict]) -> None:
 
 
 def _execute(plugin: DeclarativeReferenceValidator, ctx: PluginContext):
-    return run_plugin_for_test(plugin, ctx, Stage.VALIDATE, consumes_keys={"base.compiler.instance_rows"})
+    return run_plugin_for_test(
+        plugin,
+        ctx,
+        Stage.VALIDATE,
+        consumes_keys={"base.compiler.instance_rows", "base.compiler.effective_model"},
+    )
+
+
+def _publish_enforcer_resolution(ctx: PluginContext, resolution: dict) -> None:
+    publish_for_test(ctx, "base.compiler.effective_model", "enforcer_resolution", resolution)
 
 
 def test_declarative_reference_validator_accepts_valid_dns_backup_service_dependencies():
@@ -151,6 +160,10 @@ def test_declarative_reference_validator_accepts_valid_network_core_and_power_so
         },
     ]
     _publish_rows(ctx, rows)
+    _publish_enforcer_resolution(
+        ctx,
+        {"rtr-a": {"type": "network", "adapter": None, "adapter_version": None, "considered": [], "compatible": [], "reason": "test"}},
+    )
 
     result = _execute(plugin, ctx)
 
@@ -177,11 +190,96 @@ def test_declarative_reference_validator_emits_network_core_error_for_unknown_br
         },
     ]
     _publish_rows(ctx, rows)
+    _publish_enforcer_resolution(
+        ctx,
+        {"rtr-a": {"type": "network", "adapter": None, "adapter_version": None, "considered": [], "compatible": [], "reason": "test"}},
+    )
 
     result = _execute(plugin, ctx)
 
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E7833" for diag in result.diagnostics)
+
+
+def test_declarative_reference_validator_emits_e7019_when_vlan_manager_has_no_network_enforcer_type():
+    plugin = DeclarativeReferenceValidator("validator.declarative_refs", "1.x")
+    ctx = _context()
+    rows = [
+        {"group": "devices", "instance": "rtr-a", "class_ref": "class.router", "layer": "L1"},
+        {"group": "network", "instance": "inst.zone.a", "class_ref": "class.network.trust_zone", "layer": "L2"},
+        {
+            "group": "network",
+            "instance": "inst.bridge.a",
+            "class_ref": "class.network.bridge",
+            "layer": "L2",
+            "extensions": {},
+        },
+        {
+            "group": "network",
+            "instance": "inst.vlan.a",
+            "class_ref": "class.network.vlan",
+            "layer": "L2",
+            "extensions": {
+                "bridge_ref": "inst.bridge.a",
+                "trust_zone_ref": "inst.zone.a",
+                "managed_by_ref": "rtr-a",
+            },
+        },
+    ]
+    _publish_rows(ctx, rows)
+    # No enforcer_resolution entry for 'rtr-a' at all: D-TYPE-1 found no
+    # device-kind capability, so the instance is omitted (same shape as
+    # ENFORCER-AXIS-CONFORMANCE.md section 4's "no enforcement capability"
+    # counterexample).
+    _publish_enforcer_resolution(ctx, {})
+
+    result = _execute(plugin, ctx)
+
+    assert result.status == PluginStatus.FAILED
+    e7019 = [diag for diag in result.diagnostics if diag.code == "E7019"]
+    assert len(e7019) == 1
+    assert e7019[0].path == "instance:network:inst.vlan.a.managed_by_ref"
+
+
+def test_declarative_reference_validator_emits_e7019_when_vlan_manager_resolves_to_compute_enforcer():
+    plugin = DeclarativeReferenceValidator("validator.declarative_refs", "1.x")
+    ctx = _context()
+    rows = [
+        {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1"},
+        {"group": "network", "instance": "inst.zone.a", "class_ref": "class.network.trust_zone", "layer": "L2"},
+        {
+            "group": "network",
+            "instance": "inst.bridge.a",
+            "class_ref": "class.network.bridge",
+            "layer": "L2",
+            "extensions": {},
+        },
+        {
+            "group": "network",
+            "instance": "inst.vlan.a",
+            "class_ref": "class.network.vlan",
+            "layer": "L2",
+            "extensions": {
+                "bridge_ref": "inst.bridge.a",
+                "trust_zone_ref": "inst.zone.a",
+                "managed_by_ref": "srv-a",
+            },
+        },
+    ]
+    _publish_rows(ctx, rows)
+    # 'srv-a' resolves as a compute-type enforcer (ADR-0110 hypervisor case):
+    # valid for a security_matrix's managed_by_ref, not for a VLAN's.
+    _publish_enforcer_resolution(
+        ctx,
+        {"srv-a": {"type": "compute", "adapter": None, "adapter_version": None, "considered": [], "compatible": [], "reason": "test"}},
+    )
+
+    result = _execute(plugin, ctx)
+
+    assert result.status == PluginStatus.FAILED
+    e7019 = [diag for diag in result.diagnostics if diag.code == "E7019"]
+    assert len(e7019) == 1
+    assert e7019[0].path == "instance:network:inst.vlan.a.managed_by_ref"
 
 
 def test_declarative_reference_validator_emits_power_source_error_for_duplicate_outlet():

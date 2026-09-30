@@ -347,6 +347,61 @@ class DeclarativeReferenceValidator(ValidatorJsonPlugin):
             )
         return diagnostics
 
+    def _validate_vlan_managed_by_enforcer_type(
+        self,
+        *,
+        row_by_id: dict[str, dict[str, Any]],
+        value: Any,
+        enforcer_resolution: dict[str, Any] | None,
+        enforcer_resolution_error: str | None,
+        stage: Stage,
+        path: str,
+    ) -> list[PluginDiagnostic]:
+        """VLAN's managed_by_ref must resolve to a network-type enforcer (E7019).
+
+        The generic class.router/L1 structural check (E7835) above already
+        refuses an unknown instance or the wrong class/layer; this adds the
+        capability layer on top of an otherwise structurally valid
+        class.router reference, mirroring E7018's precedent for
+        class.network.security_matrix (ADR 0118/0119 D-TYPE-1..3). Scoped to
+        class.network.vlan only - class.network.firewall_policy and
+        class.network.routing_policy have no equivalent check yet.
+        """
+        if not isinstance(value, str) or not value:
+            return []
+        target = row_by_id.get(value)
+        if not isinstance(target, dict) or target.get("class_ref") != "class.router" or target.get("layer") != "L1":
+            return []  # E7835 already reports this
+        if enforcer_resolution_error is not None:
+            return [
+                self.emit_diagnostic(
+                    code="E7019",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        "Could not obtain enforcer resolution to validate VLAN 'managed_by_ref': "
+                        f"{enforcer_resolution_error}"
+                    ),
+                    path=path,
+                )
+            ]
+        resolution = enforcer_resolution.get(value) if isinstance(enforcer_resolution, dict) else None
+        enforcer_type = resolution.get("type") if isinstance(resolution, dict) else None
+        if enforcer_type != "network":
+            return [
+                self.emit_diagnostic(
+                    code="E7019",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        f"'managed_by_ref' target '{value}' has no resolved network enforcer type "
+                        "(ADR 0118/0119 D-TYPE-1); it cannot manage a VLAN."
+                    ),
+                    path=path,
+                )
+            ]
+        return []
+
     # Rule: DNS refs
     def _rule_dns(
         self,
@@ -481,6 +536,22 @@ class DeclarativeReferenceValidator(ValidatorJsonPlugin):
                         path=f"{row_prefix}.managed_by_ref",
                     )
                 )
+                if class_ref == "class.network.vlan":
+                    if enforcer_resolution is None and enforcer_resolution_error is None:
+                        try:
+                            enforcer_resolution = ctx.subscribe("base.compiler.effective_model", "enforcer_resolution")
+                        except PluginDataExchangeError as exc:
+                            enforcer_resolution_error = str(exc)
+                    diagnostics.extend(
+                        self._validate_vlan_managed_by_enforcer_type(
+                            row_by_id=row_by_id,
+                            value=self._resolve_field(ctx=ctx, row=row, key="managed_by_ref"),
+                            enforcer_resolution=enforcer_resolution,
+                            enforcer_resolution_error=enforcer_resolution_error,
+                            stage=stage,
+                            path=f"{row_prefix}.managed_by_ref",
+                        )
+                    )
                 continue
 
             if class_ref == "class.network.security_matrix":

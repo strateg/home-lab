@@ -3569,6 +3569,64 @@ preflight/ownership/identity evidence, OOB and transition approval.
   mikrotik/projection/effective-model test slice: 34 passed (test_projection_
   helpers.py + test_effective_model_compiler.py in full).
 
+### VLAN managed_by_ref gains a network-enforcer-type check (E7019), 2026-09-30
+
+- The "zero consumers anywhere" framing above was overclaimed: it was scoped
+  to the MikroTik/Proxmox object-module plugin trees and missed the
+  framework-level VALIDATE stage. `declarative_reference_validator.py`
+  (registered as `base.validator.network_core_refs`; `network_core_refs_
+  validator.py` is the same logic kept only as the parity test's legacy
+  baseline, not itself registered in any manifest) already subscribes to
+  `enforcer_resolution` and raises `E7018` for `class.network.security_matrix`
+  rows' `managed_by_ref` - just not for VLAN, bridge, firewall-policy,
+  routing-policy or MAC-VLAN-assignment rows, each validated by separate,
+  purely structural logic in the same file. Corrected in
+  `ENFORCER-AXIS-CONFORMANCE.md` (commit `6e254609`) before this entry.
+- Given three scoping options, chose the minimal one: fix VLAN's
+  `managed_by_ref` only, leaving firewall_policy/routing_policy's (already
+  broader, pre-existing) gap untouched as separate future work.
+- `_rule_network_core` in `declarative_reference_validator.py` gains a new
+  `class.network.vlan`-only branch alongside the existing generic
+  `class.router`/L1 structural check (`E7835`): a new helper,
+  `_validate_vlan_managed_by_enforcer_type`, runs only when that structural
+  check already passed (avoiding a duplicate diagnostic for the same root
+  cause) and requires the resolved `enforcer_resolution` type to be exactly
+  `"network"`, not merely non-`None` - a hypervisor resolved as `"compute"`
+  is valid for a security matrix (ADR-0110) but not for a VLAN. New code
+  `E7019` allocated in `error-catalog.yaml` (`E7018`'s empty adjacent slot in
+  the same 7009-7019 sub-band), `severity: error`, `stage: validate`
+  (`E7018`'s own catalog entry says `stage: compile`, a pre-existing
+  mismatch against where it actually runs - not touched here).
+- Scoped strictly per instruction: `class.network.firewall_policy` and
+  `class.network.routing_policy` still have no enforcer-type check on their
+  own `managed_by_ref`, and the COMPILE-stage object-module compilers that
+  build `router_ids` (the ~10-file gap counterexample 4 characterizes) are
+  unchanged - this only adds a VALIDATE-stage guard for the case where a
+  VLAN's `managed_by_ref` is explicitly set.
+- Tests: two new regression tests in `test_declarative_reference_validator.py`
+  (missing enforcer type; wrong/`"compute"` type). Three "accepts valid"
+  tests in the same file and in `test_network_core_refs_validator.py` needed
+  an added `enforcer_resolution` publish to stay green (E7019 now fires for
+  them otherwise); the parity test (`test_declarative_reference_validator_
+  parity.py`) needed the same, plus widening its `_run` helper's
+  `consumes_keys` to include `base.compiler.effective_model` - the legacy
+  reference file never reads that channel, so parity is preserved by making
+  the new check pass silently on that fixture, not by touching the legacy
+  file. 42 tests passed across the three files.
+- `topology-tools/data/error-catalog.yaml` is inside the framework integrity
+  boundary: regenerated `projects/home-lab/framework.lock.yaml` (`generate-
+  framework-lock.py --force`) after adding `E7019`, per `docs/framework/
+  FRAMEWORK-V5.md`'s documented recovery for `E7824`.
+- Verified against the real topology: `errors=0 warnings=3`, unchanged from
+  baseline (the one real router resolves `"network"`, so `E7019` never fires
+  there); `git status` shows no diff under `generated/`;
+  `check_adr_consistency.py --strict-titles` clean.
+- `ENFORCER-AXIS-CONFORMANCE.md` updated: V-04's row (section 2a) and
+  counterexample 4's row (section 4) now describe the VALIDATE-stage E7019
+  guard precisely, while keeping the COMPILE-stage/projection gap that
+  counterexample 4's own test targets marked as still violated and
+  unaffected by this change.
+
 ## 6. Acceptance coverage ownership
 
 Coverage is assigned now; tests are implemented with their owning gate.

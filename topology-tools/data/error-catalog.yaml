@@ -1090,6 +1090,14 @@ codes:
     hint: >-
       A security matrix's managed_by_ref names an instance whose derived enforcer type is none (D-TYPE-1).
       Replaces the disabled generic class.router target-class check for class.network.security_matrix.
+  E7019:
+    severity: error
+    stage: validate
+    title: VLAN's Enforcer Is Not A Network-Type Device
+    hint: >-
+      A VLAN's managed_by_ref names a class.router/L1 instance whose derived enforcer type (D-TYPE-1) is not
+      "network". Added alongside the existing class.router/L1 structural check (E7835), scoped to
+      class.network.vlan only.
   W7019:
     severity: warning
     stage: compile
