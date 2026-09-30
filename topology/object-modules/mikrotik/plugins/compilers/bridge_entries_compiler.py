@@ -33,6 +33,21 @@ def _resolved_object_ref(row: dict[str, Any]) -> str:
     return ""
 
 
+def _resolved_class_ref(row: dict[str, Any]) -> str:
+    """Declared class, mirroring _resolved_object_ref's own resolution order.
+
+    V-14 (ENFORCER-AXIS-CONFORMANCE.md): row-kind selection by declared
+    class, not by matching a substring against the object_ref name.
+    """
+    instance_block = row.get("instance")
+    if isinstance(instance_block, dict):
+        for field in ("extends_class", "materializes_class"):
+            value = instance_block.get(field)
+            if isinstance(value, str) and value:
+                return value
+    return ""
+
+
 _MIKROTIK_ADAPTER = "cap.firewall.security_matrix.routeros"
 
 
@@ -127,8 +142,7 @@ class MikrotikBridgeEntriesCompiler(CompilerPlugin):
         for row in network_rows:
             if not isinstance(row, dict):
                 continue
-            object_ref = _resolved_object_ref(row)
-            if "bridge" not in object_ref:
+            if _resolved_class_ref(row) != "class.network.bridge":
                 continue
             inst_data = row.get("instance_data", {}) if isinstance(row.get("instance_data"), dict) else {}
             managed_by_ref = str(inst_data.get("managed_by_ref") or "").strip()

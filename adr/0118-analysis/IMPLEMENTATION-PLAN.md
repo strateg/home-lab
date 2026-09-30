@@ -3783,6 +3783,75 @@ preflight/ownership/identity evidence, OOB and transition approval.
   this whole session has used for topology defects, applied to a tooling
   anomaly instead.
 
+### V-14 fully closed: row-kind selection by declared class, 2026-09-30
+
+- The user confirmed V-14 as the next priority after the router-selection
+  half landed. The remaining row-kind-selection half (7 lines across 6
+  files: `bridge_entries`, `firewall_entries`, `vlan_entries`, `mac_vlan_
+  assignments`, `routing_policies`, `wireguard_tunnels`) decides "is this
+  network row a VLAN/bridge/routing-policy/firewall-policy row" by matching
+  a substring against `object_ref` - a name convention, not the declared
+  class V-14 asks for, even though `effective_model_candidate`'s rows
+  already carry `instance.extends_class`/`materializes_class` (populated
+  by `effective_model_compiler.py` the same way `extends_object`/
+  `materializes_object` are) - confirmed by reading the compiler's own
+  normalization code before assuming the field existed.
+- Added a `_resolved_class_ref(row)` helper to each of the six files,
+  mirroring the existing `_resolved_object_ref`'s exact resolution order
+  (`extends_class` then `materializes_class`), and replaced each substring
+  check with a declared-class comparison: `class.network.bridge`,
+  `.firewall_policy`, `.vlan` (both `vlan_entries` and `mac_vlan_
+  assignments`, since MAC-VLAN assignment is derived from VLAN row data),
+  `.routing_policy`, and `.tunnel_link` for WireGuard. Verified each class
+  name against the real class-module `@extends` chain and a real instance
+  file before using it, not assumed from the object's name.
+- This also fixed a live aliasing bug the substring approach was working
+  around, not just a style issue: `obj.network.routing_policy.vpn_vlan`
+  contains the substring `"vlan"`, so `vlan_entries_compiler.py` and
+  `mac_vlan_assignments_compiler.py` both needed an explicit `or
+  "routing_policy" in object_ref` exclusion to avoid misclassifying it as a
+  VLAN row. The class-based check has no such aliasing risk - a genuine
+  correctness improvement, not only a V-14-compliance one.
+- `wireguard_tunnels_compiler.py`'s case needed a documented boundary
+  rather than a deeper fix: `class.network.tunnel_link` has exactly one
+  extending object today (`obj.network.wireguard_tunnel`), so the class
+  check alone is sufficient for the current corpus, but the compiler's own
+  extracted shape (`endpoint_a`/`endpoint_b`, listen port, peers) is
+  WireGuard-specific - a future non-WireGuard `tunnel_link` object would
+  additionally need a `tunnel_type` property check (threading `objects_map`
+  into `_extract_wireguard_tunnels`'s signature, a broader change than the
+  other five files needed). Noted in the code rather than solved
+  speculatively for a class that has no second member yet.
+- Caught one test-fixture risk before it became a silent false pass: `test_
+  mikrotik_vlan_entries_silently_drops_an_ambiguous_target`'s `inst.vlan.
+  ambiguous` fixture row set `extends_object`/`materializes_object` but not
+  `extends_class`/`materializes_class` - with the new class-based filter,
+  this row would have been excluded for lacking a class match instead of
+  reaching the `managed_by_ref` ambiguity logic the test exists to
+  characterize, and the test's `vlans == []` assertion would have kept
+  passing for the wrong reason. Added the missing `materializes_class:
+  class.network.vlan` field so the test still exercises the gap it names.
+  Checked the other MikroTik-adjacent test files for the same risk
+  (`test_mikrotik_capability_driven.py`, `test_terraform_mikrotik_
+  generator.py`, `test_tuc0002_terraform_v2.py`, `test_tuc0003_mikrotik_
+  v2.py`) - none construct raw VLAN/bridge/routing-policy/firewall-policy/
+  wireguard-tunnel network rows without a class field already set, so none
+  needed the same fix.
+- `grep -rn 'in object_ref\|in instance_id\|startswith("obj\.'
+  topology/object-modules/mikrotik/plugins/` now returns zero real code
+  matches (one harmless comment line remains, an unrelated ADR-0117 note).
+  V-14 is fully closed, not split, for the first time since the W07
+  migration order copied the pattern into ten new files.
+- Verified against the real topology: `errors=0 warnings=3`, unchanged; no
+  diff under `generated/`; targeted mikrotik/terraform/tuc00/bridge/vlan/
+  routing_policy/wireguard/firewall test slice (150 passed);
+  `check_adr_consistency.py --strict-titles` clean; `plugin_contract`/
+  `kernel` (408 passed, the same pre-existing unrelated `projections.py`
+  "chateau" hardcode failure confirmed again).
+- `ENFORCER-AXIS-CONFORMANCE.md`'s V-14 row updated to "fully closed," and
+  the section 2 "Net" summary corrected from "closed or majority-closed" to
+  plain "closed."
+
 ## 6. Acceptance coverage ownership
 
 Coverage is assigned now; tests are implemented with their owning gate.

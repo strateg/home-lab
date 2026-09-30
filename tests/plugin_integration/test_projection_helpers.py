@@ -846,6 +846,8 @@ def test_mikrotik_vlan_entries_silently_drops_an_ambiguous_target() -> None:
                     "instance": {
                         "extends_object": "obj.network.vlan.ambiguous",
                         "materializes_object": "obj.network.vlan.ambiguous",
+                        "extends_class": "class.network.vlan",
+                        "materializes_class": "class.network.vlan",
                     },
                     "instance_data": {"vlan_id": 40, "cidr": "10.0.40.0/24"},
                 }

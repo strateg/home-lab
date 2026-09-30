@@ -28,6 +28,21 @@ def _resolved_object_ref(row: dict[str, Any]) -> str:
     return ""
 
 
+def _resolved_class_ref(row: dict[str, Any]) -> str:
+    """Declared class, mirroring _resolved_object_ref's own resolution order.
+
+    V-14 (ENFORCER-AXIS-CONFORMANCE.md): row-kind selection by declared
+    class, not by matching a substring against the object_ref name.
+    """
+    instance_block = row.get("instance")
+    if isinstance(instance_block, dict):
+        for field in ("extends_class", "materializes_class"):
+            value = instance_block.get(field)
+            if isinstance(value, str) and value:
+                return value
+    return ""
+
+
 _MIKROTIK_ADAPTER = "cap.firewall.security_matrix.routeros"
 
 
@@ -80,8 +95,12 @@ def _extract_wireguard_tunnels(
     interfaces_by_name: dict[str, dict[str, Any]] = {}
 
     for row in network_rows:
-        object_ref = _resolved_object_ref(row)
-        if "wireguard_tunnel" not in object_ref:
+        # class.network.tunnel_link has exactly one extending object today
+        # (obj.network.wireguard_tunnel) - a future non-WireGuard tunnel_link
+        # object would also need a tunnel_type property check, since this
+        # compiler's shape (endpoint_a/b, listen_port, peers) is WireGuard-
+        # specific; not needed for the corpus as it stands.
+        if _resolved_class_ref(row) != "class.network.tunnel_link":
             continue
 
         inst_data = row.get("instance_data", {})
