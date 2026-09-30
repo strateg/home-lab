@@ -34,21 +34,40 @@ finding a provider resource does not establish rendering or backend conformance.
 
 ## 2. Open — the implementation does not meet what the corpus now requires
 
-There are **ten** open implementation rows: V-04, V-05, V-07 and V-09..V-15.
-Their status is not changed by the documentation amendment.
+**Reconciled 2026-09-30** against `ENFORCER-SCOPE-IMPLEMENTATION-READINESS.md`'s
+own sequencing record (2026-09-28) and the real commits it cites, none of which
+this table had been updated to reflect. Five of the original ten rows are closed;
+one is closed on one side and worse on the other; four are unchanged. This
+reconciliation is itself a static/code re-read, the same evidence class the
+original measurement used - not a live/dynamic re-verification.
+
+### 2a. Closed since the 2026-09-15 baseline
+
+| ID | Requirement | Closed by | Evidence |
+|---|---|---|---|
+| V-04 | Type resolution and target validation use declared enforcement capability | `7d6a2072` (D-TYPE-1..3) | `cap.firewall.security_matrix.routeros`/`.pve` are no longer zero-consumer: `effective_model_compiler.py:296-303` uses them as D-TYPE-2's adapter-identifier vocabulary, and `test_effective_model_compiler.py:515,599,729` assert them as resolved values |
+| V-05 | Devices declare what they enforce | `7d6a2072` | `obj.mikrotik.chateau_lte7_ax.yaml:262` declares `cap.net.l3.security.firewall.zone_policy`, exactly the device-kind capability `effective_model_compiler.py`'s `_ENFORCER_TYPE_CAPS["network"]` gates D-TYPE-1 on |
+| V-09 | Every scope of an enforcer is projected | `e868abbe`, `168b4f27` | `_extract_security_matrix` now reads `composed_matrices_by_enforcer[router_id]`, which `security_matrix_compiler.py` already composes from the complete `scopes_by_enforcer` index (all scope_ids for that one enforcer merged, not the first match). The two-scope fixture in `test_projection_helpers.py` and the real one-scope topology (`generated/` byte-identical) both cover it. **Scoped to one enforcer**, per the commit's own text - see V-10 |
+| V-13 | Enforcer-to-scope index is complete and deterministic | `c5f66c10` | `matrix_by_enforcer` no longer exists (`test_security_matrix_compiler.py:608` asserts it `not in` published keys); `scopes_by_enforcer` replaces it as `dict[str, list[str]]`, and `composed_matrices_by_enforcer` (the real consumer's channel) is built from it, not from a one-entry-per-enforcer dict; `E7010`/`E7011` registered |
+| V-15 | One derivation per fact, pipeline-wide (Proxmox side) | `1336c12f` | `_extract_security_matrix_proxmox` is deleted; `proxmox/plugins/projections.py:115-124` records why (dead, zero consumers, confirmed by grep) and that a real consumer subscribes to `scopes_by_enforcer` directly when Proxmox firewall rendering stops being a stub |
+
+### 2b. Still open, unchanged since the 2026-09-15 baseline
 
 | ID | Requirement | State | Evidence |
 |---|---|---|---|
-| V-04 | Type resolution and target validation use declared enforcement capability | `cap.firewall.security_matrix`, `.routeros` and `.pve` are registered in the catalogue and have **zero** consumers | `grep -rn cap.firewall.security_matrix` outside the catalogue returns nothing across `*.py`, `*.yaml`, `*.j2` |
-| V-05 | Devices declare what they enforce | **No** device object declares any `cap.firewall.*` enforcement capability | Only `obj.network.firewall_policy.established_related.yaml` declares `cap.firewall.*`, and only `stateful` / `connection_tracking` |
-| V-07 | Resolved type and adapter identity available in the derived scope/context contract | Derivation/consumer contract remains open; do not add a duplicate authored type field | G1/W03 must register the derived contract; absence from authored class properties alone is not proof about compiled output |
-| V-09 | Every scope of an enforcer is projected | `_extract_security_matrix` returns inside its loop; the first matching matrix wins, the rest are dropped silently | `projections.py:105` (line renumbered by the W07 migration order, 2026-09-30; the defect itself is unchanged - this function was not a migration candidate) |
-| V-10 | No single-instance assumption | The pattern - `default_router_id = next(iter(sorted(router_ids)), "")` feeding a branch guarded by `len(router_ids) == 1`, commented "single-router topology" - was replicated verbatim into four new compile-stage plugins by the W07 migration order (2026-09-30), which moved the functions that used it rather than fixing it: `routing_policies_compiler.py:173,200`, `vlan_entries_compiler.py:125,138`, `mac_vlan_assignments_compiler.py:76,236`, `firewall_entries_compiler.py:103,114`. In `projections.py` itself the assumption is now dead code: `default_router_id` (line 310) has no remaining reader, since every branch that used it moved out with the functions it fed. |
+| V-07 | Resolved type and adapter identity available in the derived scope/context contract | `enforcer_resolution` now exists and is wired as a plugin data-flow channel (`compilers.yaml:601`, `validators.yaml:483`), but that is not the G1/W03-registered scope/context **contract** this row asks for - a produces/consumes wire-up is not a schema registration | `topology-tools/plugins/manifests/compilers.yaml:601`; no `enforcer_resolution` entry in `topology-tools/schemas/` |
+| V-10 | No single-instance assumption | `e868abbe`'s own commit message states this explicitly: *"Multiple enforcers in router_ids are not handled - the render context still carries one security_matrix value for the whole root, the still-blocked V-11/V-12 layout question, explicitly out of this step's scope"* - its new code chose the sorted-first router id "matching the single-router assumption already made elsewhere in this module," not removing it. The readiness record's own sequencing table (`ENFORCER-SCOPE-IMPLEMENTATION-READINESS.md` section 4) groups V-10 into the same "Done" row as V-09 with the gloss "closed for multi-scope; multi-enforcer stays with V-11/V-12" - but V-10's own wording and original evidence were always about multi-*enforcer*, not multi-scope; that gloss appears to attribute V-09's closure to V-10 as well. The W07 migration order (2026-09-29/30) replicated the pattern verbatim into four new plugins rather than fixing it, and it is now dead code in `projections.py` itself | `default_router_id = next(iter(sorted(router_ids)), "")` and `len(router_ids) == 1`, replicated in `routing_policies_compiler.py:173,200`, `vlan_entries_compiler.py:125,138`, `mac_vlan_assignments_compiler.py:76,236`, `firewall_entries_compiler.py:103,114`; dead (no reader) at `projections.py:310` |
 | V-11 | Explicit apply-unit/state/resource mapping; selected adapter layout implements it | One Terraform root per module; one unaliased `provider "routeros"` bound to one `var.mikrotik_host`; one state | `generated/home-lab/terraform/mikrotik/provider.tf` |
 | V-12 | Connection binding per target | `mikrotik_host`, `mikrotik_api_host` and one `terraform_remote_state` are single-valued in plugin config | `topology/object-modules/mikrotik/plugins.yaml` |
-| V-13 | Enforcer-to-scope index is complete and deterministic | `matrix_by_enforcer` is published with **zero** subscribers, and it is a one-entry-per-enforcer dict; see section 3 | `security_matrix_compiler.py:118,146`; `grep` for `subscribe(... "matrix_by_enforcer")` returns nothing |
-| V-14 | Selection by declared class or capability | 9 substring selectors remain in the MikroTik projection, 2 in the Proxmox projection | `grep -n 'in object_ref\|in instance_id\|startswith("obj\.'` |
-| V-15 | One derivation per fact, pipeline-wide | `_extract_security_matrix_proxmox` is a second derivation: `STUB`, selects on two substrings of `instance_id`, consumes no channel, and its module declares `depends_on: []` with no `consumes` | `proxmox/plugins/projections.py:52`; `proxmox/plugins.yaml` |
+| V-14 | Selection by declared class or capability | **Proxmox side closed** (`1336c12f`, 2 → 0, the deleted stub). **MikroTik side not closed, and worse**: the W07 migration order (2026-09-29/30) copied the router-filter and row-kind selectors verbatim into each of the ten new plugins rather than replacing them with declared-class/capability selection, so the count rose from 9 (one file) to 18 (across eleven files). The readiness record's section 4 groups V-14 into the same "Done" row as V-09/V-10 for `e868abbe`; that commit only removed the one substring selector inside `_extract_security_matrix` itself (replaced by a direct `composed_matrices_by_enforcer[router_id]` lookup) - a real, local fix, but not the corpus-wide finding this row measures | `grep -rn 'in object_ref\|in instance_id\|startswith("obj\.' topology/object-modules/mikrotik/plugins/` = 18 lines across 11 files (2026-09-30); `topology/object-modules/proxmox/plugins/` = 0 |
+
+**Net: five of the original ten rows are closed (V-04, V-05, V-09, V-13, V-15); one
+is split (V-14: Proxmox closed, MikroTik worse); four are unchanged (V-07, V-10,
+V-11, V-12).** Where the readiness record's own sequencing table groups a row
+under a "Done" commit alongside others, this section verifies each row
+individually against current code rather than inheriting the grouping - two of
+those groupings (V-10, V-14) turned out narrower than the row they were filed
+under.
 
 ## 3. The index defect, reproduced
 
@@ -72,6 +91,13 @@ would therefore not establish completeness or determinism. The channel contract 
 fixed first - a complete collection in a deterministic order, or an explicit refusal
 of multiplicity it cannot represent - and tested, before any consumer reads it.
 
+**Closed by `c5f66c10` (V-13, section 2a).** `matrix_by_enforcer` no longer exists;
+`scopes_by_enforcer` is the complete, deterministic `dict[str, list[str]]` this
+section called for, and the real consumer (`_extract_security_matrix`) reads
+`composed_matrices_by_enforcer`, built from it, not a one-entry-per-enforcer dict.
+The reproduction above is retained as the record of what the defect was, not as
+a description of current behavior.
+
 ## 4. Next implementation checks (planned, not executed here)
 
 These refine existing W03/W06/W07 and A24/A26/A30 obligations, not new acceptance IDs.
@@ -87,19 +113,29 @@ These refine existing W03/W06/W07 and A24/A26/A30 obligations, not new acceptanc
 | Adapter identity/version changed after checking | Affected plan/evidence binding invalidated |
 | Shared resource/state/apply unit | One writer and declared coupling; no isolation claim from directory layout |
 
-Implement counterexamples and the complete `matrix_by_enforcer` contract before
-adding its first consumer. Preserve the positive controls: rejecting all targets
-is not a correct implementation of deterministic dispatch.
+Implement counterexamples and the complete index contract before adding its first
+consumer. Preserve the positive controls: rejecting all targets is not a correct
+implementation of deterministic dispatch.
 
 The [readiness record](ENFORCER-SCOPE-IMPLEMENTATION-READINESS.md), 2026-09-28,
-sequences these rows, specifies that first channel change, and extends two rows
-here from repeated measurement: `security_matrices` is complete in membership but
-permutation-sensitive in order, and V-09 is a singular return type across
-projection, generator and template rather than one dropped row. It closes no gate.
+sequenced these rows and specified that first channel change ahead of any
+consumer: `scopes_by_enforcer` (`c5f66c10`, 2026-09-28) replaced `matrix_by_enforcer`
+before `_extract_security_matrix` was wired to the composed result it feeds
+(`e868abbe`, 2026-09-29) - the ordering this section asked for, followed. It also
+extended two rows from repeated measurement: `security_matrices` is complete in
+membership but permutation-sensitive in order, and V-09 is a singular return type
+across projection, generator and template rather than one dropped row. The
+counterexamples table above remains unimplemented: none of its eight rows map to
+V-04/V-05/V-09/V-13/V-15 (section 2a); most map to V-10/V-11/V-12, still open (section 2b). The
+readiness record closes no gate, and neither does this reconciliation - see section 5.
 
 ## 5. What this record does not claim
 
 No gate is closed by anything here. Nothing is qualified. The rows in section 1 are
-statements the corpus now makes, not behaviour that was verified on a device, and
-the rows in section 2 describe source/output gaps rather than an installed system.
-The section 4 tests remain implementation work, not evidence produced by this record.
+statements the corpus now makes, not behaviour that was verified on a device; the
+open rows in section 2b describe source/output gaps rather than an installed
+system; and the 2026-09-30 reconciliation that closed five section 2a rows is a
+static/code re-read, the same evidence class as the original measurement, not a
+live or dynamic re-verification, and not a gate closure - see section 2's own
+opening note. The section 4 tests remain implementation work, not evidence
+produced by this record.

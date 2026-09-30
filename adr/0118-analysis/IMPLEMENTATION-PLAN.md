@@ -1,7 +1,8 @@
 # ADR 0118/0119 — implementation plan
 
 Status: reviewed implementation plan for the **Accepted** architecture, G0a closed
-2026-09-10. Revision 4, 2026-09-11 (capability satisfaction amendment). **No implementation gate is closed by this plan.**
+2026-09-10. Revision 4, 2026-09-11 (capability satisfaction amendment); revision 5,
+2026-09-30 (W07 migration order completion recorded; no gate closes). **No implementation gate is closed by this plan.**
 No topology migration, code change, secret access, live inspection or deployment
 is authorized by editing this document.
 
@@ -13,12 +14,26 @@ this plan assigns implementation work and evidence to those gates.
 [Review findings](IMPLEMENTATION-PLAN-REVIEW-2026-09-11.md) explain the corrections.
 
 Current enforcer/scope contract: ADR 0119 D1-D1.1 rev 3.4. The
-[conformance record](ENFORCER-AXIS-CONFORMANCE.md) owns its ten open implementation
-rows and planned counterexamples; [W07](W07-BACKEND-SPECIALIZATION-DECISION.md)
-records the selected layout, not a completed migration. First test multi-instance,
-multi-scope, adapter ambiguity and shared-target cases; then fix the complete
-`matrix_by_enforcer` contract before adding consumers. Historical measurements
-below retain their original revision and do not establish current gate closure.
+[conformance record](ENFORCER-AXIS-CONFORMANCE.md) owned ten open implementation
+rows at its 2026-09-15 baseline; **reconciled 2026-09-30** against real commits
+that predate this plan's own W07 entry, five are now closed (V-04, V-05, V-09,
+V-13, V-15), one is split (V-14: closed for Proxmox, worse for MikroTik - the W07
+migration multiplied its substring selectors from 9 to 18), and four remain open
+unchanged (V-07, V-10, V-11, V-12). [W07](W07-BACKEND-SPECIALIZATION-DECISION.md)
+records the selected layout. **Its migration order (items 1, 4a-4i) completed
+2026-09-30** - see the dated entry below and `adr/REGISTER.md` - moving every
+function that made a backend decision in the MikroTik generate-stage projection
+into a compile-stage plugin. This closes no gate: the migration touches none of
+the conformance record's remaining open rows, and it made V-14 measurably worse
+by copying the row-kind and router-filter selectors verbatim into ten new files
+instead of replacing them with declared-class/capability selection - a direct
+cost of migrating per function with parity evidence rather than fixing what each
+function assumed. The single-router assumption V-10 names is now replicated
+across four of those plugins instead of living in one function. First test
+multi-instance, multi-scope, adapter ambiguity and shared-target cases; then fix
+the complete enforcer-to-scope index contract (`scopes_by_enforcer`, already
+published) before adding further consumers. Historical measurements below retain
+their original revision and do not establish current gate closure.
 
 Capability amendment baseline: commit `493867d5`, branch development; revision 3
 was clean before this documentation change. The earlier review baseline was
@@ -96,7 +111,7 @@ Owners are roles; a human assignee must be recorded before execution.
 | W04 Intent and provenance | Core compiler, source/default/@on provenance, domain resolution, candidate adapter; derive complete capability requirements | W03; effective-model and provenance channel contracts | G2, compiler maintainer |
 | W05 Legacy projection parity | security_matrix channels and MikroTik projection integration | W01; characterize both existing derivations first | Prerequisite to backend cutover, generator maintainer. **Characterization done 2026-09-11: derivations diverge, cutover blocked** — see [W05 characterization](W05-ZONE-DERIVATION-CHARACTERIZATION.md) |
 | W06 Plan and checker | Core plan, predicates/path/state algebra, capability composition/strategies, independent oracle and SEC-CAP validation | W04 and bounded capability requirements | G3, security/compiler owner |
-| W07 Backend specialization/render | Versioned adapter offers, effective applicability, complete execution contexts and deterministic rendering; no negotiation in generate | W05/W06; target feasibility record | G4, backend owner |
+| W07 Backend specialization/render | Versioned adapter offers, effective applicability, complete execution contexts and deterministic rendering; no negotiation in generate | W05/W06; target feasibility record | G4, backend owner. **Migration order complete 2026-09-30**: every function that made a backend decision in the MikroTik generate-stage projection moved to a compile-stage plugin — see [W07 decision](W07-BACKEND-SPECIALIZATION-DECISION.md). This satisfies "no negotiation in generate" for those functions only; versioned adapter offers, effective applicability and complete execution contexts remain undesigned, and G4 stays open — see [conformance record](ENFORCER-AXIS-CONFORMANCE.md) |
 | W08 Artifact/bundle closure | Existing bundle schema/manifest; security/offer/strategy/evidence digest closure and invalidation tests | Contract designed with W06; integrated with W07 | G4 offline closure, build/release owner |
 | W09 Topology/flow inventory | Services, domains, leases, planned intents, zone conflicts, legacy VPN mapping | Inventory now; freeze only after W03/W04; migration requires G1-G4 | G5, topology/flow owner |
 | W10 Transaction/recovery | Existing runner, owner-delegated operations, fresh effective-capability checks, journal, revocation, OOB/recovery evidence | W08; topology/ownership input and feasibility findings | G6, deploy/scope owner |
@@ -854,6 +869,52 @@ not go stale, the compile-before-validate seam must stay, and the blocked step m
 keep being named. The decision records its own falsifier - a specialization needing
 information that exists only after generation would put the seam in the wrong place
 - because a decision with no stated falsifier is a preference.
+
+### W07 migration order complete, 2026-09-29/2026-09-30
+
+The migration order this section named ("No code was moved" above; capability
+flags first, then the reference resolution, then the W05-blocked matrix step) ran
+to completion across ten items - `W07-BACKEND-SPECIALIZATION-DECISION.md`'s table,
+items 1 and 4a-4i - each with real-topology parity evidence (`generated/`
+byte-identical, `errors=0 warnings=3` unchanged) and its own dated entry in
+`adr/REGISTER.md`. The MikroTik generate-stage projection this section measured
+at 17 functions / 1,565 lines is now 2 functions / 518 lines:
+`_extract_security_matrix` (its own multi-*scope*-per-enforcer defect closed by
+separate, earlier work in this program - `e868abbe`, `168b4f27`, see below - but
+still limited to one *enforcer*, the still-open V-11/V-12 layout question) and
+`build_mikrotik_projection` itself, the orchestrator this section predicted would
+be what remained. Ten new compile-stage compiler plugins were registered, one per
+migrated function, each consumed by `object.mikrotik.generator.terraform` as a
+required channel.
+
+Two real defects surfaced during migration, not before it: item 4b found a local
+variable shadowing a new required parameter, which would have silently corrupted
+rendered container output; item 4g found a test building a `PluginInputSnapshot`
+directly, bypassing the projection's own auto-deriving wrapper, whose fixture's
+real VLAN was silently discarded by an all-empty channel stand-in rather than
+rendered. Both are fixed; both are recorded in `REGISTER.md`'s item 4b/4g entries.
+
+**What this does and does not establish.** It satisfies the constraint this
+decision opened with - specialization not occurring only in a generator after
+validation ran - for the ten functions named. It does not close G4: the exit
+criteria two sections below (independent differential tests, digest closure,
+tamper/omission/stale-evidence negatives) are untouched.
+
+`ENFORCER-AXIS-CONFORMANCE.md`'s ten rows were reconciled the same day (2026-09-30)
+against real commits, five of them (V-04, V-05, V-09, V-13, V-15) already closed by
+work earlier in this program, before this migration started - the conformance
+record's own table had simply never been updated to say so. The migration itself
+touches none of the remaining open rows except by making one worse: V-10's
+single-router assumption (`default_router_id = next(iter(sorted(router_ids)), "")`
+feeding a `len(router_ids) == 1` branch) was carried verbatim into four of the ten
+new plugins rather than fixed - replicated four times instead of living in one
+function, and dead code in `projections.py` itself now that nothing there reads
+it - and V-14's substring-selector count rose from 9 (one file) to 18 (across
+eleven files), since each new plugin re-implements its own router-filter and
+row-kind selection rather than sharing one. Migration relocates where
+specialization runs; it does not audit what each relocated function assumes, and
+moving one function into ten files multiplies whatever that function assumed by
+ten.
 
 ### PR1 from the post-fix review, 2026-09-14 — gates restored
 
