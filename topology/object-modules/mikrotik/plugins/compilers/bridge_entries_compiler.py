@@ -146,9 +146,36 @@ class MikrotikBridgeEntriesCompiler(CompilerPlugin):
                 continue
             inst_data = row.get("instance_data", {}) if isinstance(row.get("instance_data"), dict) else {}
             managed_by_ref = str(inst_data.get("managed_by_ref") or "").strip()
-            host_ref = str(inst_data.get("host_ref") or "").strip()
-            if not managed_by_ref and host_ref in router_ids:
+            # ADR 0107 D9: host_ref is a reserved top-level row key, promoted
+            # out of extensions/instance_data - read it from there, not from
+            # instance_data where it never lands (a bug found 2026-09-30: the
+            # real topology's two bridge rows both declare host_ref, but both
+            # silently compiled to zero bridges because of this lookup).
+            host_ref = str(row.get("host_ref") or "").strip()
+            if not managed_by_ref and host_ref and host_ref in router_ids:
                 managed_by_ref = host_ref
+            if not managed_by_ref and not host_ref:
+                # V-10: neither field declared at all - genuinely no placement
+                # signal, not merely "not this compiler's concern" (a host_ref
+                # naming a real non-router instance, e.g. a Proxmox bridge, is
+                # a deliberate, correct exclusion handled below without a
+                # diagnostic).
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E7027",
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            f"'{row.get('instance_id', '')}' has neither managed_by_ref nor "
+                            f"host_ref, with {len(router_ids)} candidate router(s) present; "
+                            "refusing an ambiguous target rather than silently dropping the "
+                            "row (ADR 0119 D1: multiplicity a channel cannot represent must "
+                            "be refused with a diagnostic)."
+                        ),
+                        path=f"instance:network:{row.get('instance_id', '')}.managed_by_ref",
+                    )
+                )
+                continue
             if managed_by_ref in router_ids:
                 bridges.append(_build_bridge_entry(row, managed_by_ref=managed_by_ref, objects_map=objects_map))
 

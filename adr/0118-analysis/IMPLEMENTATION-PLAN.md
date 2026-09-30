@@ -3943,6 +3943,96 @@ preflight/ownership/identity evidence, OOB and transition approval.
   counterexample (section 4) updated the same way, naming the new
   `bridge_entries_compiler.py` finding explicitly.
 
+### `bridge_entries_compiler.py`'s host_ref bug: characterized and fixed, 2026-09-30
+
+- User asked directly for the newly-discovered `bridge_entries_compiler.py`
+  finding to be characterized and fixed. Characterizing it before touching
+  code found the bug was deeper than "wrong dict key": `host_ref` is an ADR
+  0107 D9 reserved top-level row key, "semantically equivalent to
+  `object_ref`", promoted out of `extensions` on `normalized_rows` by
+  `instance_rows_compiler.py`. `effective_model_compiler.py` - which
+  `bridge_entries_compiler.py` actually subscribes to - never propagated
+  `host_ref` into `effective_model_candidate` at all, not as a top-level
+  field and not nested in `instance_block` alongside `object_ref`'s own
+  equivalents (`extends_object`/`materializes_object`). So the bridge
+  compiler's `instance_data.get("host_ref")` was reading the wrong location
+  on top of a channel that never carried the value in the first place -
+  fixing only the read location, as first attempted, would have changed
+  nothing.
+- Fixed both layers: `effective_model_compiler.py`'s `effective_item` gained
+  `"host_ref": row.get("host_ref")`, a plain top-level passthrough matching
+  how `status`/`notes`/`runtime` are already copied (not nested in
+  `instance_block`, which specifically models class/object/software
+  identity, not placement references). `bridge_entries_compiler.py` now
+  reads `row.get("host_ref")` directly, per ADR 0107 D9's own stated
+  migration instruction for consumers of this field ("MUST be updated to
+  read `row.host_ref` directly").
+- This is the first change this session that **deliberately and correctly**
+  changes real `generated/` output, not a parity-preserving one: the real
+  topology's `inst.bridge.containers` (RouterOS container bridge, `host_ref:
+  rtr-mikrotik-chateau`, "hosts veth1 for Docker workloads" per its own
+  notes) now renders a `routeros_interface_bridge` resource and a
+  `routeros_ip_address` for `172.18.0.1/24`, where before it silently
+  compiled to nothing. `inst.bridge.vmbr0` (`host_ref: srv-gamayun`, a
+  Proxmox host, confirmed by reading its instance file) correctly continues
+  to be excluded - not a bug, a legitimate "not this backend's bridge"
+  exclusion, verified by checking `srv-gamayun` really is Proxmox-classed
+  before assuming the fix wouldn't also wrongly pull it in.
+- **Critical process finding, self-caught while verifying this specific
+  change:** `generated/` is fully gitignored (`git ls-files generated/`
+  returns zero files), so every "verified: `git status` shows no diff under
+  `generated/`" claim made earlier in this session (and apparently in prior
+  sessions too, per commits `54dccf75` through `e8bbe89c`) proved nothing -
+  `git status` on an ignored path is empty whether or not the content
+  changed. This is exactly what this document's own §9 already warns about
+  ("a clean status is not evidence of an unchanged artifact... comparison
+  means generating both sides and comparing content hashes") and the
+  warning was not connected to the session's own repeated shortcut until
+  this fix's real, intended `generated/` change made the gap visible.
+  Verified properly here: `git worktree add` a detached checkout of this
+  change's parent commit, compiled both trees, `diff -rq` the two `generated/`
+  outputs directly. Result: exactly `interfaces.tf`/`addresses.tf`/
+  `outputs.tf` differ in content (the one new bridge, its address, the
+  updated count) plus known non-semantic timestamp/generation-time fields in
+  five report/manifest JSON files (W13-class, already excluded by
+  convention) - nothing else, confirming this fix's blast radius is exactly
+  as intended. The same method was used to spot-check the immediately
+  preceding commit (`e8bbe89c`) against its own parent, confirming it was in
+  fact parity-preserving as claimed despite the invalid verification method -
+  no known harm from the mistake, but the method itself was wrong throughout
+  and must not be repeated; future "no diff under `generated/`" claims in
+  this record require the worktree-diff method, not `git status`.
+- Completed V-10's `E7027` refusal for `bridge_entries_compiler.py` too, in
+  the same pass, since it had been explicitly deferred only because of this
+  bug: a bridge row with *neither* `managed_by_ref` nor `host_ref` declared
+  at all (zero placement signal, the same "ambiguous" shape the other four
+  compilers already refuse) now gets `E7027`; a `host_ref` naming a real,
+  resolvable non-router instance (`inst.bridge.vmbr0`'s actual shape) stays
+  silently excluded with no diagnostic, since that is a deliberate, resolved
+  exclusion, not ambiguity - a distinction the other four files' fix did not
+  need to make, since none of them have an analogous "declared but points at
+  a different backend entirely" case.
+- Tests: `test_effective_model_compiler_propagates_host_ref` (the root-cause
+  fix, in `test_effective_model_compiler.py`), plus three tests in
+  `test_projection_helpers.py` - resolves-via-host_ref (the original bug,
+  now fixed), refuses-a-row-with-no-placement-signal-at-all (`E7027`), and
+  silently-excludes-a-non-router-host (confirms the Proxmox-bridge case
+  stays silent, not newly noisy). 43 tests in the two files combined, all
+  passing; targeted mikrotik/terraform/tuc00/bridge/vlan/routing_policy/
+  wireguard/firewall/effective_model slice (177 passed).
+- While fixing this, also found and corrected two now-stale rows in
+  `ENFORCER-AXIS-CONFORMANCE.md` left over from before the V-14 commit
+  landed: the "Reference names a target with no enforcement capability"
+  counterexample (section 4) and V-04's caveat (section 2a) both still said
+  the compile-stage compilers had no consumer of `enforcer_resolution` and
+  cited a since-renamed test by its old name - true when written, false
+  since `035601f7`, never updated until noticed while working nearby.
+  Corrected both to reflect V-14's actual closed state.
+- Verified against the real topology: `errors=0 warnings=3`, unchanged (only
+  the bridge output itself changes, not diagnostic counts);
+  `check_adr_consistency.py --strict-titles` clean; full `plugin_integration`
+  suite run for final verification before commit.
+
 ## 6. Acceptance coverage ownership
 
 Coverage is assigned now; tests are implemented with their owning gate.

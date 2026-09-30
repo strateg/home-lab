@@ -457,6 +457,66 @@ def test_effective_model_compiler_includes_inherited_lineage_fields():
     assert ctx.compiled_json["objects"]["obj.child"]["class_lineage"] == ["class.base", "class.child"]
 
 
+def test_effective_model_compiler_propagates_host_ref():
+    """ADR 0107 D9: host_ref is a first-class reserved row key, "semantically
+    equivalent to object_ref" - promoted out of extensions on normalized_rows
+    (instance_rows_compiler.py's _RESERVED_ROW_KEYS), so it must reach
+    effective_model_candidate too, the same way object_ref does.
+
+    Bug found 2026-09-30: `effective_item` never carried it (top level or
+    nested), so any compile-stage compiler reading only
+    effective_model_candidate - bridge_entries_compiler.py, specifically -
+    could never resolve a row's host_ref, regardless of where it looked.
+    The real topology's `inst.bridge.containers` (host_ref:
+    rtr-mikrotik-chateau) silently compiled to zero bridges as a result.
+    """
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        raw_yaml={"version": "5.0.0", "model": "class-object-instance"},
+        classes={"class.network.bridge": {"class": "class.network.bridge", "version": "1.0.0"}},
+        objects={
+            "obj.network.bridge.test": {
+                "object": "obj.network.bridge.test",
+                "version": "1.0.0",
+                "class_ref": "class.network.bridge",
+            },
+        },
+        config={},
+        instance_bindings={"instance_bindings": {"devices": []}},
+    )
+    publish_for_test(
+        ctx,
+        "base.compiler.instance_rows",
+        "normalized_rows",
+        [
+            {
+                "group": "network",
+                "instance": "inst.bridge.test",
+                "layer": "L2",
+                "source_id": "bridge-test",
+                "class_ref": "class.network.bridge",
+                "object_ref": "obj.network.bridge.test",
+                "status": "modeled",
+                "notes": "",
+                "runtime": None,
+                "firmware_ref": None,
+                "os_refs": [],
+                "embedded_in": None,
+                "host_ref": "rtr-a",
+                "extensions": {},
+            }
+        ],
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+
+    assert result.status == PluginStatus.SUCCESS
+    row = ctx.compiled_json["instances"]["network"][0]
+    assert row["host_ref"] == "rtr-a"
+
 
 def test_effective_model_resolves_network_enforcer_from_object_level_os_capability():
     """D-TYPE-1/D-TYPE-2: device-kind + OS family both on the object itself."""

@@ -1076,6 +1076,188 @@ def test_mikrotik_mac_vlan_assignments_refuses_an_ambiguous_target() -> None:
     assert e7027[0].path == "instance:network:inst.vlan.ambiguous.managed_by_ref"
 
 
+def test_mikrotik_bridge_entries_resolves_via_host_ref_field() -> None:
+    """Regression, 2026-09-30: `bridge_entries_compiler.py` read
+    `instance_data.get("host_ref")`, but ADR 0107 D9 reserves `host_ref` as a
+    top-level row key promoted OUT of extensions/instance_data - the same
+    place `effective_model_compiler.py` was found not to propagate it to at
+    all (fixed there: `effective_item["host_ref"] = row.get("host_ref")`).
+    A bridge row with no `managed_by_ref`, only `host_ref`, silently compiled
+    to nothing regardless of router count; the real topology's
+    `inst.bridge.containers` is exactly this shape. One router, so the
+    `managed_by_ref` structural default never applies either - only the
+    `host_ref` fallback can resolve it.
+    """
+    from kernel import PluginContext as _BEPluginContext
+    from kernel.plugin_base import Stage as _BEStage
+    from tests.helpers.plugin_execution import publish_for_test as _be_publish_for_test
+    from tests.helpers.plugin_execution import run_plugin_for_test as _be_run_plugin_for_test
+
+    effective_model_candidate = {
+        "instances": {
+            "devices": [
+                {
+                    "instance_id": "rtr-a",
+                    "instance": {
+                        "extends_object": "obj.mikrotik.chateau_lte7_ax",
+                        "materializes_object": "obj.mikrotik.chateau_lte7_ax",
+                    },
+                }
+            ],
+            "network": [
+                {
+                    "instance_id": "inst.bridge.test",
+                    "instance": {
+                        "extends_object": "obj.network.bridge.test",
+                        "materializes_object": "obj.network.bridge.test",
+                        "extends_class": "class.network.bridge",
+                        "materializes_class": "class.network.bridge",
+                    },
+                    "host_ref": "rtr-a",
+                    "instance_data": {"ip": "172.18.0.1/24"},
+                }
+            ],
+        },
+        "objects": {"obj.network.bridge.test": {"properties": {"name": "test"}}},
+    }
+    ctx = _BEPluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        compiled_json={"instances": {"devices": [], "network": [], "services": []}},
+        output_dir="/tmp",
+        config={},
+    )
+    _be_publish_for_test(ctx, "base.compiler.effective_model", "effective_model_candidate", effective_model_candidate)
+    _be_publish_for_test(
+        ctx,
+        "base.compiler.effective_model",
+        "enforcer_resolution",
+        {"rtr-a": {"type": "network", "adapter": "cap.firewall.security_matrix.routeros"}},
+    )
+
+    plugin = _bridge_entries_module.MikrotikBridgeEntriesCompiler("object.mikrotik.compiler.bridge_entries")
+    result = _be_run_plugin_for_test(plugin, ctx, _BEStage.COMPILE, consumes_keys={"base.compiler.effective_model"})
+
+    bridges = result.output_data["bridges"]
+    assert len(bridges) == 1
+    assert bridges[0]["instance_id"] == "inst.bridge.test"
+    assert bridges[0]["managed_by_ref"] == "rtr-a"
+    assert bridges[0]["cidr"] == "172.18.0.0/24"
+
+
+def test_mikrotik_bridge_entries_refuses_a_row_with_no_placement_signal_at_all() -> None:
+    """Regression, V-10, completing bridge_entries_compiler.py's fix now that
+    the host_ref lookup bug above is fixed: a row with neither
+    `managed_by_ref` nor `host_ref` set at all has no placement signal - the
+    same "ambiguous, refuse rather than drop" case the other four compilers
+    already got, extended here since it was explicitly deferred only because
+    of the host_ref bug."""
+    from kernel import PluginContext as _BE2PluginContext
+    from kernel.plugin_base import Stage as _BE2Stage
+    from tests.helpers.plugin_execution import publish_for_test as _be2_publish_for_test
+    from tests.helpers.plugin_execution import run_plugin_for_test as _be2_run_plugin_for_test
+
+    effective_model_candidate = _two_router_effective_model(
+        {
+            "network": [
+                {
+                    "instance_id": "inst.bridge.ambiguous",
+                    "instance": {
+                        "extends_object": "obj.network.bridge.ambiguous",
+                        "materializes_object": "obj.network.bridge.ambiguous",
+                        "extends_class": "class.network.bridge",
+                        "materializes_class": "class.network.bridge",
+                    },
+                    "instance_data": {},
+                }
+            ]
+        }
+    )
+    ctx = _BE2PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        compiled_json={"instances": {"devices": [], "network": [], "services": []}},
+        output_dir="/tmp",
+        config={},
+    )
+    _be2_publish_for_test(ctx, "base.compiler.effective_model", "effective_model_candidate", effective_model_candidate)
+    _be2_publish_for_test(
+        ctx, "base.compiler.effective_model", "enforcer_resolution", _two_router_enforcer_resolution()
+    )
+
+    plugin = _bridge_entries_module.MikrotikBridgeEntriesCompiler("object.mikrotik.compiler.bridge_entries")
+    result = _be2_run_plugin_for_test(plugin, ctx, _BE2Stage.COMPILE, consumes_keys={"base.compiler.effective_model"})
+
+    assert result.output_data["bridges"] == []
+    e7027 = [diag for diag in result.diagnostics if diag.code == "E7027"]
+    assert len(e7027) == 1
+    assert "inst.bridge.ambiguous" in e7027[0].message
+    assert e7027[0].path == "instance:network:inst.bridge.ambiguous.managed_by_ref"
+
+
+def test_mikrotik_bridge_entries_silently_excludes_a_non_router_host() -> None:
+    """A `host_ref` naming a real, resolvable instance that just isn't a
+    MikroTik router (a Proxmox host, say - `inst.bridge.vmbr0` in the real
+    topology) is a deliberate, correct exclusion, not ambiguity: no E7027,
+    since the field IS declared and DOES resolve, just not to a candidate
+    this compiler owns."""
+    from kernel import PluginContext as _BE3PluginContext
+    from kernel.plugin_base import Stage as _BE3Stage
+    from tests.helpers.plugin_execution import publish_for_test as _be3_publish_for_test
+    from tests.helpers.plugin_execution import run_plugin_for_test as _be3_run_plugin_for_test
+
+    effective_model_candidate = {
+        "instances": {
+            "devices": [
+                {
+                    "instance_id": "rtr-a",
+                    "instance": {
+                        "extends_object": "obj.mikrotik.chateau_lte7_ax",
+                        "materializes_object": "obj.mikrotik.chateau_lte7_ax",
+                    },
+                }
+            ],
+            "network": [
+                {
+                    "instance_id": "inst.bridge.proxmox",
+                    "instance": {
+                        "extends_object": "obj.network.bridge.proxmox",
+                        "materializes_object": "obj.network.bridge.proxmox",
+                        "extends_class": "class.network.bridge",
+                        "materializes_class": "class.network.bridge",
+                    },
+                    "host_ref": "srv-not-a-router",
+                    "instance_data": {},
+                }
+            ],
+        },
+        "objects": {},
+    }
+    ctx = _BE3PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        compiled_json={"instances": {"devices": [], "network": [], "services": []}},
+        output_dir="/tmp",
+        config={},
+    )
+    _be3_publish_for_test(ctx, "base.compiler.effective_model", "effective_model_candidate", effective_model_candidate)
+    _be3_publish_for_test(
+        ctx,
+        "base.compiler.effective_model",
+        "enforcer_resolution",
+        {"rtr-a": {"type": "network", "adapter": "cap.firewall.security_matrix.routeros"}},
+    )
+
+    plugin = _bridge_entries_module.MikrotikBridgeEntriesCompiler("object.mikrotik.compiler.bridge_entries")
+    result = _be3_run_plugin_for_test(plugin, ctx, _BE3Stage.COMPILE, consumes_keys={"base.compiler.effective_model"})
+
+    assert result.output_data["bridges"] == []
+    assert not any(diag.code == "E7027" for diag in result.diagnostics)
+
+
 def test_mikrotik_projection_extracts_routing_policies() -> None:
     payload = _compiled_fixture()
     payload["instances"]["network"].append(

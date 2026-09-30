@@ -590,6 +590,12 @@ class EffectiveModelCompiler(CompilerPlugin):
                 "status": row.get("status"),
                 "notes": row.get("notes"),
                 "runtime": row.get("runtime"),
+                # ADR 0107 D9: host_ref is a first-class reserved row key,
+                # "semantically equivalent to object_ref" - promoted out of
+                # extensions on normalized_rows, so it must be propagated
+                # here the same explicit way, not read back from
+                # instance_data/extensions where it never lands.
+                "host_ref": row.get("host_ref"),
                 "class": {
                     "version": class_payload.get("version"),
                     "os_policy": class_payload.get("os_policy", "allowed"),
