@@ -51,8 +51,19 @@ DECISION = REPO_ROOT / "adr/0118-analysis/W07-BACKEND-SPECIALIZATION-DECISION.md
 # firewall_entries - completing the W07 migration order: every function the
 # decision named has moved. A budget that stays above the real figure stops
 # measuring, so it is lowered whenever the debt is actually paid down.
+#
+# Raised 518 -> 528 on 2026-09-30 (V-14, ENFORCER-AXIS-CONFORMANCE.md):
+# build_mikrotik_projection gained a required enforcer_resolution parameter
+# and its own "required, refuse None" ProjectionError check, the same
+# contract shape every other channel parameter in this function already
+# carries (capability_flags, wireguard_tunnels, ...) - not new
+# specialization, the same fact this file already tracks nine times over.
+# The router-selection check itself (ADR 0118/0119 D-TYPE-1..3: select by
+# enforcer_resolution's adapter, not by object_ref name convention) is
+# inlined at its one call site rather than a named helper, so the function
+# count stays at 2 - only the line budget moves.
 PROJECTION_FUNCTION_BUDGET = 2
-PROJECTION_LINE_BUDGET = 518
+PROJECTION_LINE_BUDGET = 528
 
 
 def _functions() -> list[tuple[str, int]]:

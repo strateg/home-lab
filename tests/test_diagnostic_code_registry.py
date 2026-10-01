@@ -48,6 +48,15 @@ CATALOG = load_catalog(CATALOG_PATH)
 
 # Codes emitted without a catalog entry, as measured on 2026-09-11. This list may
 # shrink. A code that is not on it and not in the catalog is a new violation.
+#
+# E9204 added 2026-09-30: introduced by the W07 migration order (item 4f,
+# bridge_vlans_compiler.py, commit 977de44d) as the exact same "failed to
+# obtain a required channel" pattern its siblings E9201/E9202/E9203 already
+# use in other MikroTik plugins - added here rather than registered alone in
+# error-catalog.yaml, to match those siblings rather than create an
+# inconsistency where one of four identical-shape codes is registered and
+# the other three are not. Registering the whole E92xx family properly is
+# separate, wider-blast-radius debt-paydown, not done here.
 KNOWN_UNREGISTERED = frozenset(
 (
     "E3101 E3102 E3103 E3104 E3105 E3106 E3107 E3202 E6800 E6810 E6811 E6812 E7108 E7109 E7200 E7201 "
@@ -58,7 +67,7 @@ KNOWN_UNREGISTERED = frozenset(
     "E7872 E7873 E7874 E7875 E7876 E7877 E7880 E7881 E7882 E7883 E7884 E7885 E7886 E7887 E7888 E7890 "
     "E7891 E7892 E7893 E7894 E7895 E7896 E7897 E7898 E7899 E7900 E7901 E7902 E7903 E7904 E7905 E7906 "
     "E7910 E7911 E7912 E7913 E7920 E7921 E7922 E7923 E8020 E8021 E8205 E8206 E8941 E9101 E9102 E9103 "
-    "E9201 E9202 E9203 E9210 E9211 E9301 E9302 E9303 E9391 E9394 E9396 E9399 E9400 E9401 E9402 E9403 "
+    "E9201 E9202 E9203 E9204 E9210 E9211 E9301 E9302 E9303 E9391 E9394 E9396 E9399 E9400 E9401 E9402 E9403 "
     "E9404 E9501 E9502 E9503 E9504 E9601 E9602 E9603 E9700 E9701 E9702 E9703 E9704 E9705 E9720 E9730 "
     "E9731 E9732 E9733 E9734 E9735 E9736 E9737 E9738 E9739 E9740 E9741 E9742 E9743 E9744 E9745 E9746 "
     "E9747 E9748 E9749 E9750 E9751 E9752 E9753 E9754 E9755 E9756 E9757 E9758 E9759 E9760 E9761 E9801 "

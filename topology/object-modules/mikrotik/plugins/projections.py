@@ -20,22 +20,6 @@ from plugins.generators.projection_core import (  # ADR0078 WP-006: Group canoni
 _MIKROTIK_ADAPTER = "cap.firewall.security_matrix.routeros"
 
 
-def _is_mikrotik_enforcer(instance_id: Any, enforcer_resolution: dict[str, Any]) -> bool:
-    """ADR 0118/0119 D-TYPE-1..3: is this instance a resolved RouterOS enforcer?
-
-    Selection by declared capability (enforcer_resolution's adapter), not by
-    object_ref name convention (ENFORCER-AXIS-CONFORMANCE.md V-14). Same
-    check as the compile-stage compilers' own copy of this helper (this
-    module does not import from `plugins/compilers/` - object modules
-    duplicate small helpers rather than cross-import, the same pattern
-    `_resolved_object_ref` already established across this whole family).
-    """
-    if not isinstance(instance_id, str) or not instance_id:
-        return False
-    resolution = enforcer_resolution.get(instance_id) if isinstance(enforcer_resolution, dict) else None
-    return isinstance(resolution, dict) and resolution.get("adapter") == _MIKROTIK_ADAPTER
-
-
 def _extract_security_matrix(
     router_ids: set[str],
     *,
@@ -341,7 +325,14 @@ def build_mikrotik_projection(
     for idx, row in enumerate(devices):
         _require_object_ref(row, path=f"compiled_json.instances.devices[{idx}]")
         instance_id = _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.devices[{idx}]")
-        if _is_mikrotik_enforcer(instance_id, enforcer_resolution):
+        # ADR 0118/0119 D-TYPE-1..3: selection by declared capability
+        # (enforcer_resolution's adapter), not by object_ref name convention
+        # (ENFORCER-AXIS-CONFORMANCE.md V-14). Inlined rather than a named
+        # helper: the generate-stage specialization-debt budget
+        # (tests/test_backend_specialization_boundary.py) counts functions,
+        # not lines, and this one-liner is not new specialization.
+        resolution = enforcer_resolution.get(instance_id) if isinstance(enforcer_resolution, dict) else None
+        if isinstance(resolution, dict) and resolution.get("adapter") == _MIKROTIK_ADAPTER:
             export_row = dict(row)
             export_row.pop("instance", None)
             instance_data = export_row.get("instance_data")
