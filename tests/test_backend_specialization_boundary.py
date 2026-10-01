@@ -62,6 +62,13 @@ DECISION = REPO_ROOT / "adr/0118-analysis/W07-BACKEND-SPECIALIZATION-DECISION.md
 # enforcer_resolution's adapter, not by object_ref name convention) is
 # inlined at its one call site rather than a named helper, so the function
 # count stays at 2 - only the line budget moves.
+#
+# The russian-vpn branch's feat(vpn) commit (merged 2026-10-01) added a
+# "privileged" boolean field to _extract_containers's dict literal when it
+# was rebased onto a pre-W07-migration development. _extract_containers no
+# longer lives here (item 4b moved it to object.mikrotik.compiler.containers
+# above), so that field landed in containers_compiler.py instead when this
+# merge resolved the conflict - no change to this budget.
 PROJECTION_FUNCTION_BUDGET = 2
 PROJECTION_LINE_BUDGET = 528
 

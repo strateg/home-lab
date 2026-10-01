@@ -231,6 +231,7 @@ def _extract_containers(
                 "root_dir": str(runtime.get("root_dir", "")).strip(),
                 "start_on_boot": bool(runtime.get("start_on_boot", True)),
                 "logging": bool(runtime.get("logging", True)),
+                "privileged": bool(runtime.get("privileged", False)),
                 "comment": comment,
                 "veth_name": veth_name,
                 "veth_address": veth_address,
