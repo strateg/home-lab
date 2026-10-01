@@ -19,7 +19,18 @@ from kernel.plugin_base import PluginContext, PluginStatus, Stage  # noqa: E402
 from plugins.generators.ansible_inventory_generator import AnsibleInventoryGenerator  # noqa: E402
 
 from tests.helpers.mikrotik_security_channels import (  # noqa: E402
+    CAPABILITY_FLAGS_COMPILER,
+    EFFECTIVE_MODEL_COMPILER,
     SECURITY_MATRIX_COMPILER,
+    CONTAINERS_COMPILER,
+    BRIDGE_VLANS_COMPILER,
+    VLAN_ENTRIES_COMPILER,
+    BRIDGE_ENTRIES_COMPILER,
+    FIREWALL_ENTRIES_COMPILER,
+    MAC_VLAN_ASSIGNMENTS_COMPILER,
+    ROUTING_POLICIES_COMPILER,
+    WIFI_CONFIG_COMPILER,
+    WIREGUARD_TUNNELS_COMPILER,
     publish_empty_channels,
 )
 
@@ -109,7 +120,25 @@ def _ctx(tmp_path: Path, compiled_json: dict, plugin_config: dict | None = None)
 def _run_generator(generator, ctx: PluginContext):
     from tests.helpers.plugin_execution import run_plugin_for_test
 
-    return run_plugin_for_test(generator, ctx, Stage.GENERATE, consumes_keys=(SECURITY_MATRIX_COMPILER,))
+    return run_plugin_for_test(
+        generator,
+        ctx,
+        Stage.GENERATE,
+        consumes_keys=(
+            SECURITY_MATRIX_COMPILER,
+            EFFECTIVE_MODEL_COMPILER,
+            CAPABILITY_FLAGS_COMPILER,
+            WIREGUARD_TUNNELS_COMPILER,
+            CONTAINERS_COMPILER,
+            WIFI_CONFIG_COMPILER,
+            ROUTING_POLICIES_COMPILER,
+            MAC_VLAN_ASSIGNMENTS_COMPILER,
+            BRIDGE_VLANS_COMPILER,
+            VLAN_ENTRIES_COMPILER,
+            BRIDGE_ENTRIES_COMPILER,
+            FIREWALL_ENTRIES_COMPILER,
+        ),
+    )
 
 
 def _semanticize(compiled_json: dict) -> dict:

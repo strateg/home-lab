@@ -105,10 +105,10 @@ class TerraformMikroTikGenerator(BaseGenerator):
         return f"https://{cls._DEFAULT_MIKROTIK_HOST}:{cls._DEFAULT_MIKROTIK_PORT}"
 
     @staticmethod
-    def _subscribe(ctx: PluginContext, key: str):
+    def _subscribe(ctx: PluginContext, key: str, *, plugin_id: str = "base.compiler.security_matrix"):
         """The compiler's channel, or None when it is not there.
 
-        The manifest declares both keys `required: true`, so the kernel refuses to
+        The manifest declares each key `required: true`, so the kernel refuses to
         run this plugin at all when the compiler published nothing (E8003) and
         this method should never observe an absence in the pipeline. It is kept
         total for direct callers, and `None` reaching the projection raises there
@@ -116,7 +116,7 @@ class TerraformMikroTikGenerator(BaseGenerator):
         to fall back to.
         """
         try:
-            return ctx.subscribe("base.compiler.security_matrix", key)
+            return ctx.subscribe(plugin_id, key)
         except Exception:  # noqa: BLE001 - the kernel owns the required-consume diagnostic
             return None
 
@@ -150,14 +150,88 @@ class TerraformMikroTikGenerator(BaseGenerator):
         # `additional_networks` and the compiler did not - the compiler learned
         # the field, and the generator's copy is now gone rather than dormant.
         # The channels are required, so an absent compiler blocks generation.
-        compiled_matrices = self._subscribe(ctx, "security_matrices")
+        #
+        # composed_matrices_by_enforcer replaces security_matrices (N-07): the
+        # projection used to re-derive R1-R6 itself from raw network_rows, a
+        # third derivation of the compiler's own _calculate_matrix; it now
+        # reads the compiler's already-composed, already-validated plan.
+        composed_matrices = self._subscribe(ctx, "composed_matrices_by_enforcer")
         compiled_vlan_cidrs = self._subscribe(ctx, "vlan_cidr_map")
+        # W07 migration order item 1: conditional-generation flags derived at
+        # compile stage, not re-derived here (object.mikrotik.compiler.capability_flags).
+        capability_flags = self._subscribe(
+            ctx, "capability_flags", plugin_id="object.mikrotik.compiler.capability_flags"
+        )
+        # W07 migration order item 4a: WireGuard tunnel/interface/peer shape
+        # derived at compile stage, not re-derived here
+        # (object.mikrotik.compiler.wireguard_tunnels).
+        wireguard_tunnels = self._subscribe(
+            ctx, "wireguard_tunnels", plugin_id="object.mikrotik.compiler.wireguard_tunnels"
+        )
+        # W07 migration order item 4b: container attachment/publication shape
+        # derived at compile stage, not re-derived here
+        # (object.mikrotik.compiler.containers).
+        containers = self._subscribe(ctx, "containers", plugin_id="object.mikrotik.compiler.containers")
+        # W07 migration order item 4c: WiFi interface/VLAN membership shape
+        # derived at compile stage, not re-derived here
+        # (object.mikrotik.compiler.wifi_config).
+        wifi_config = self._subscribe(ctx, "wifi_config", plugin_id="object.mikrotik.compiler.wifi_config")
+        # W07 migration order item 4d: policy-based routing shape derived at
+        # compile stage, not re-derived here
+        # (object.mikrotik.compiler.routing_policies).
+        routing_policies = self._subscribe(
+            ctx, "routing_policies", plugin_id="object.mikrotik.compiler.routing_policies"
+        )
+        # W07 migration order item 4e: MAC-to-VLAN assignment shape derived at
+        # compile stage, not re-derived here
+        # (object.mikrotik.compiler.mac_vlan_assignments).
+        mac_vlan_assignments = self._subscribe(
+            ctx, "mac_vlan_assignments", plugin_id="object.mikrotik.compiler.mac_vlan_assignments"
+        )
+        # W07 migration order item 4f: bridge-VLAN membership shape derived at
+        # compile stage, not re-derived here
+        # (object.mikrotik.compiler.bridge_vlans).
+        bridge_vlans = self._subscribe(
+            ctx, "bridge_vlans", plugin_id="object.mikrotik.compiler.bridge_vlans"
+        )
+        # W07 migration order item 4g: VLAN row -> rendered shape derived at
+        # compile stage, not re-derived here
+        # (object.mikrotik.compiler.vlan_entries).
+        vlans = self._subscribe(ctx, "vlans", plugin_id="object.mikrotik.compiler.vlan_entries")
+        # W07 migration order item 4h: bridge row -> rendered shape derived at
+        # compile stage, not re-derived here
+        # (object.mikrotik.compiler.bridge_entries).
+        bridges = self._subscribe(ctx, "bridges", plugin_id="object.mikrotik.compiler.bridge_entries")
+        # W07 migration order item 4i: firewall-policy row -> rendered shape
+        # derived at compile stage, not re-derived here
+        # (object.mikrotik.compiler.firewall_entries).
+        firewall_policies = self._subscribe(
+            ctx, "firewall_policies", plugin_id="object.mikrotik.compiler.firewall_entries"
+        )
+        # V-14 (ENFORCER-AXIS-CONFORMANCE.md): router selection by declared
+        # capability, not by object_ref name convention - completes the fix
+        # already applied to the ten compile-stage compilers, for this
+        # projection's own router_ids build.
+        enforcer_resolution = self._subscribe(
+            ctx, "enforcer_resolution", plugin_id="base.compiler.effective_model"
+        )
 
         try:
             projection = build_mikrotik_projection(
                 payload,
-                security_matrices=compiled_matrices,
+                composed_matrices_by_enforcer=composed_matrices,
                 vlan_cidr_map=compiled_vlan_cidrs,
+                capability_flags=capability_flags,
+                wireguard_tunnels=wireguard_tunnels,
+                containers=containers,
+                wifi_config=wifi_config,
+                routing_policies=routing_policies,
+                mac_vlan_assignments=mac_vlan_assignments,
+                bridge_vlans=bridge_vlans,
+                vlans=vlans,
+                bridges=bridges,
+                firewall_policies=firewall_policies,
+                enforcer_resolution=enforcer_resolution,
             )
         except projection_error as exc:
             diagnostics.append(

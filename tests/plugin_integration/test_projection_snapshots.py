@@ -22,6 +22,110 @@ from plugins.generators.projections.ansible import build_ansible_projection  # n
 
 _PROXMOX_PROJECTIONS = load_object_projection_module("proxmox")
 _MIKROTIK_PROJECTIONS = load_object_projection_module("mikrotik")
+
+import importlib.util as _importlib_util
+
+_CAPABILITY_FLAGS_MODULE_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "topology"
+    / "object-modules"
+    / "mikrotik"
+    / "plugins"
+    / "compilers"
+    / "capability_flags_compiler.py"
+)
+_capability_flags_spec = _importlib_util.spec_from_file_location(
+    "test_projection_snapshots_capability_flags_compiler", _CAPABILITY_FLAGS_MODULE_PATH
+)
+_capability_flags_module = _importlib_util.module_from_spec(_capability_flags_spec)
+_capability_flags_spec.loader.exec_module(_capability_flags_module)
+# W07 migration order item 1: matches what the real compiler derives for zero
+# routers (all keys present, all False) - not an empty dict, which the golden
+# snapshot and templates do not treat the same way.
+_EMPTY_CAPABILITY_FLAGS = _capability_flags_module._derive_capability_flags([])
+
+_WIREGUARD_TUNNELS_MODULE_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "topology"
+    / "object-modules"
+    / "mikrotik"
+    / "plugins"
+    / "compilers"
+    / "wireguard_tunnels_compiler.py"
+)
+_wireguard_tunnels_spec = _importlib_util.spec_from_file_location(
+    "test_projection_snapshots_wireguard_tunnels_compiler", _WIREGUARD_TUNNELS_MODULE_PATH
+)
+_wireguard_tunnels_module = _importlib_util.module_from_spec(_wireguard_tunnels_spec)
+_wireguard_tunnels_spec.loader.exec_module(_wireguard_tunnels_module)
+# W07 migration order item 4a: matches what the real compiler derives for zero
+# tunnels (all keys present, empty/default values) - not an empty dict.
+_EMPTY_WIREGUARD_TUNNELS = _wireguard_tunnels_module._extract_wireguard_tunnels([], set(), {})
+
+_CONTAINERS_MODULE_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "topology"
+    / "object-modules"
+    / "mikrotik"
+    / "plugins"
+    / "compilers"
+    / "containers_compiler.py"
+)
+_containers_spec = _importlib_util.spec_from_file_location(
+    "test_projection_snapshots_containers_compiler", _CONTAINERS_MODULE_PATH
+)
+_containers_module = _importlib_util.module_from_spec(_containers_spec)
+_containers_spec.loader.exec_module(_containers_module)
+# W07 migration order item 4b: matches what the real compiler derives for zero
+# containers - an empty list, which is already the correct empty shape.
+_EMPTY_CONTAINERS = _containers_module._extract_containers([], set())
+
+_WIFI_CONFIG_MODULE_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "topology"
+    / "object-modules"
+    / "mikrotik"
+    / "plugins"
+    / "compilers"
+    / "wifi_config_compiler.py"
+)
+_wifi_config_spec = _importlib_util.spec_from_file_location(
+    "test_projection_snapshots_wifi_config_compiler", _WIFI_CONFIG_MODULE_PATH
+)
+_wifi_config_module = _importlib_util.module_from_spec(_wifi_config_spec)
+_wifi_config_spec.loader.exec_module(_wifi_config_module)
+# W07 migration order item 4c: matches what the real compiler derives for zero
+# routers (all keys present, empty lists) - not an empty dict.
+_EMPTY_WIFI_CONFIG = _wifi_config_module._extract_wifi_config([])
+
+# W07 migration order item 4d: an empty list is already the correct empty
+# shape for routing_policies, the same as containers.
+_EMPTY_ROUTING_POLICIES: list[dict] = []
+
+# W07 migration order item 4e: an empty list is already the correct empty
+# shape for mac_vlan_assignments, the same as containers/routing_policies.
+_EMPTY_MAC_VLAN_ASSIGNMENTS: list[dict] = []
+
+# W07 migration order item 4f: an empty list is already the correct empty
+# shape for bridge_vlans, the same as containers/routing_policies/
+# mac_vlan_assignments.
+_EMPTY_BRIDGE_VLANS: list[dict] = []
+
+# W07 migration order item 4g: an empty list is already the correct empty
+# shape for vlans, the same as containers/routing_policies/
+# mac_vlan_assignments/bridge_vlans.
+_EMPTY_VLANS: list[dict] = []
+
+# W07 migration order item 4h: an empty list is already the correct empty
+# shape for bridges, the same as containers/routing_policies/
+# mac_vlan_assignments/bridge_vlans/vlans.
+_EMPTY_BRIDGES: list[dict] = []
+
+# W07 migration order item 4i: an empty list is already the correct empty
+# shape for firewall_policies, the same as containers/routing_policies/
+# mac_vlan_assignments/bridge_vlans/vlans/bridges.
+_EMPTY_FIREWALL_POLICIES: list[dict] = []
+
 _BOOTSTRAP_PROJECTIONS = load_bootstrap_projection_module()
 
 build_proxmox_projection = _PROXMOX_PROJECTIONS.build_proxmox_projection
@@ -35,9 +139,46 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
     and the projection derives no substitute. Omitting the argument is an error;
     passing `{}` is a fixture saying it declares no matrices and no domains. A
     test that cares about zone or CIDR content passes a real mapping.
+
+    `capability_flags` (W07 migration order item 1), `wireguard_tunnels`
+    (W07 migration order item 4a), `containers` (W07 migration order item
+    4b), `wifi_config` (W07 migration order item 4c), `routing_policies`
+    (W07 migration order item 4d), `mac_vlan_assignments` (W07 migration
+    order item 4e), `bridge_vlans` (W07 migration order item 4f), `vlans`
+    (W07 migration order item 4g), `bridges` (W07 migration order item 4h)
+    and `firewall_policies` (W07 migration order item 4i) are likewise
+    required and defaulted empty the same way: these fixtures are not about
+    capability-, tunnel-, container-, wifi-, routing-policy-, MAC-VLAN-,
+    bridge-VLAN-, VLAN-, bridge- or firewall-policy-driven content.
     """
-    kwargs.setdefault("security_matrices", {})
+    kwargs.setdefault("composed_matrices_by_enforcer", {})
     kwargs.setdefault("vlan_cidr_map", {})
+    if "enforcer_resolution" not in kwargs:
+        # V-14: build_mikrotik_projection selects routers by
+        # enforcer_resolution's adapter now, not by object_ref name prefix.
+        # These golden fixtures identify "the router" by name prefix -
+        # synthesize a matching resolution so the snapshot's router set is
+        # unchanged by default.
+        devices = compiled_json.get("instances", {}).get("devices", []) if isinstance(compiled_json, dict) else []
+        resolved_object_ref = _capability_flags_module._resolved_object_ref
+        kwargs["enforcer_resolution"] = {
+            row["instance_id"]: {"type": "network", "adapter": "cap.firewall.security_matrix.routeros"}
+            for row in devices
+            if isinstance(row, dict)
+            and isinstance(row.get("instance_id"), str)
+            and row["instance_id"]
+            and resolved_object_ref(row).startswith("obj.mikrotik.")
+        }
+    kwargs.setdefault("capability_flags", _EMPTY_CAPABILITY_FLAGS)
+    kwargs.setdefault("wireguard_tunnels", _EMPTY_WIREGUARD_TUNNELS)
+    kwargs.setdefault("containers", _EMPTY_CONTAINERS)
+    kwargs.setdefault("wifi_config", _EMPTY_WIFI_CONFIG)
+    kwargs.setdefault("routing_policies", _EMPTY_ROUTING_POLICIES)
+    kwargs.setdefault("mac_vlan_assignments", _EMPTY_MAC_VLAN_ASSIGNMENTS)
+    kwargs.setdefault("bridge_vlans", _EMPTY_BRIDGE_VLANS)
+    kwargs.setdefault("vlans", _EMPTY_VLANS)
+    kwargs.setdefault("bridges", _EMPTY_BRIDGES)
+    kwargs.setdefault("firewall_policies", _EMPTY_FIREWALL_POLICIES)
     return _raw_build_mikrotik_projection(compiled_json, **kwargs)
 
 

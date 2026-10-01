@@ -113,9 +113,18 @@ class SecurityMatrixCompiler(CompilerPlugin):
         for zone_ref in zone_vlans:
             zone_vlans[zone_ref].sort()
 
-        # Process each security matrix instance
+        # Process each security matrix instance, in a stable order so that
+        # security_matrices and scopes_by_enforcer below do not depend on the
+        # order normalized_rows happened to arrive in (ADR 0119 D4).
+        matrix_instances.sort(key=lambda row: str(row.get("instance") or row.get("instance_id") or ""))
+
         security_matrices: dict[str, dict[str, Any]] = {}
-        matrix_by_enforcer: dict[str, str] = {}
+        # (enforcer_id, scope_id) pairs for every scope that passed attribution
+        # and plane validation. Grouped into scopes_by_enforcer after the loop,
+        # once every pair is known, so the published index is never built by
+        # overwriting one entry per enforcer (ADR 0119 D1.1: one enforcer may
+        # hold several scopes).
+        enforcer_scope_pairs: list[tuple[str, str]] = []
 
         for matrix_row in matrix_instances:
             matrix_id = matrix_row.get("instance", "") or matrix_row.get("instance_id", "")
@@ -140,18 +149,60 @@ class SecurityMatrixCompiler(CompilerPlugin):
                 )
                 continue
 
-            # Extract managed_by_ref for enforcer mapping
+            # Extract managed_by_ref for enforcer attribution. Required by the
+            # class schema; an unattributed scope is enforced by nobody and,
+            # before this check, compiled clean and said nothing (ADR 0118
+            # analysis N-05). status: disabled is the one declared exemption -
+            # it is the only convention the topology already uses to mark a
+            # scope as intentionally not active, and status is otherwise inert
+            # everywhere else in the pipeline, so this does not invent a new
+            # general disabled-skip contract, only exempts a diagnostic newly
+            # added by this change from a row the author already marked so.
+            row_status = str(matrix_row.get("status") or "").strip().lower()
+            is_disabled = row_status == "disabled"
             managed_by_ref = extensions.get("managed_by_ref") or matrix_row.get("managed_by_ref")
-            if isinstance(managed_by_ref, str):
-                matrix_by_enforcer[managed_by_ref] = matrix_id
+            if not isinstance(managed_by_ref, str) or not managed_by_ref.strip():
+                if not is_disabled:
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E7010",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"Security matrix '{matrix_id}' declares no managed_by_ref. "
+                                "A scope with no enforcer is enforced by nobody."
+                            ),
+                            path=f"instance:{matrix_id}.managed_by_ref",
+                        )
+                    )
+                continue
+            managed_by_ref = managed_by_ref.strip()
 
-            # Extract enforcement_plane (perimeter or internal)
+            # Extract enforcement_plane (perimeter or internal). No silent
+            # default: the class schema makes this required, and a default
+            # here was live only because every current instance happens to
+            # declare it (ADR 0118 analysis, latent default finding).
             enforcement_plane = (
                 extensions.get("enforcement_plane")
                 or matrix_row.get("enforcement_plane")
                 or self._get_object_property(matrix_row, "enforcement_plane", ctx)
-                or "perimeter"
             )
+            if not isinstance(enforcement_plane, str) or not enforcement_plane.strip():
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E7011",
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            f"Security matrix '{matrix_id}' declares no enforcement_plane, "
+                            "and neither instance nor object supplies one."
+                        ),
+                        path=f"instance:{matrix_id}.enforcement_plane",
+                    )
+                )
+                continue
+
+            enforcer_scope_pairs.append((managed_by_ref, matrix_id))
 
             # Extract policy_overrides from object + instance (merged)
             policy_overrides = self._merge_policy_overrides(matrix_row, extensions, ctx)
@@ -208,10 +259,134 @@ class SecurityMatrixCompiler(CompilerPlugin):
                 "statistics": stats,
             }
 
+        # Group scopes by enforcer: complete (every attributed scope appears)
+        # and deterministic (sorted keys, sorted values) regardless of input
+        # row order. One enforcer may hold several scopes (ADR 0119 D1.1);
+        # W7012 flags that case because no current adapter renders it, not
+        # because the model forbids it.
+        scopes_by_grouped: dict[str, list[str]] = {}
+        for enforcer_id, scope_id in enforcer_scope_pairs:
+            scopes_by_grouped.setdefault(enforcer_id, []).append(scope_id)
+        scopes_by_enforcer: dict[str, list[str]] = {
+            enforcer_id: sorted(scope_ids) for enforcer_id, scope_ids in sorted(scopes_by_grouped.items())
+        }
+        for enforcer_id, scope_ids in scopes_by_enforcer.items():
+            if len(scope_ids) > 1:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="W7012",
+                        severity="warning",
+                        stage=stage,
+                        message=(
+                            f"Enforcer '{enforcer_id}' holds {len(scope_ids)} scopes: "
+                            f"{', '.join(scope_ids)}. No current adapter renders more than one "
+                            "scope per enforcer."
+                        ),
+                        path=f"instance:{enforcer_id}",
+                    )
+                )
+
+        # Compose one validated plan per enforcer from its attributed scopes
+        # (ADR 0118-analysis/ENFORCER-SCOPE-IMPLEMENTATION-READINESS.md
+        # section 5c, D-COMP-1..4). This fulfils ADR 0119 D1's existing
+        # requirement - composition across scopes sharing an enforcer is
+        # validated, not assumed - rather than adding a new obligation.
+        #
+        # D-COMP-1: zone_refs must be pairwise disjoint across the scopes one
+        # enforcer holds. A matrix cell for (from_zone, to_zone) can only
+        # exist in a scope whose zone_refs names both, so disjointness makes a
+        # cross-scope cell collision structurally impossible - there is no
+        # equal-cells comparison to get subtly wrong. D-COMP-2: policy
+        # override names must be unique per enforcer, since only names
+        # rendered into the same Terraform root can collide at
+        # routeros_ip_firewall_filter.zone_override_<name>. Both are refused,
+        # not silently resolved: an enforcer with either violation gets no
+        # composed plan published, the same as an unattributed scope gets no
+        # index entry under E7010.
+        composed_matrices_by_enforcer: dict[str, dict[str, Any]] = {}
+        for enforcer_id, scope_ids in scopes_by_enforcer.items():
+            scopes_for_enforcer = [security_matrices[scope_id] for scope_id in scope_ids]
+
+            zone_ref_owner: dict[str, str] = {}
+            has_conflict = False
+            for scope in scopes_for_enforcer:
+                scope_id = scope["instance_id"]
+                for zone_ref in set(scope.get("zone_refs") or []):
+                    owner = zone_ref_owner.get(zone_ref)
+                    if owner is not None and owner != scope_id:
+                        diagnostics.append(
+                            self.emit_diagnostic(
+                                code="E7013",
+                                severity="error",
+                                stage=stage,
+                                message=(
+                                    f"Zone '{zone_ref}' is claimed by both '{owner}' and '{scope_id}', "
+                                    f"both attributed to enforcer '{enforcer_id}'. Scopes sharing an "
+                                    "enforcer must have disjoint zone_refs."
+                                ),
+                                path=f"instance:{enforcer_id}.zone_refs",
+                            )
+                        )
+                        has_conflict = True
+                    else:
+                        zone_ref_owner[zone_ref] = scope_id
+
+            override_name_owner: dict[str, str] = {}
+            for scope in scopes_for_enforcer:
+                scope_id = scope["instance_id"]
+                for override in scope.get("policy_overrides") or []:
+                    if not isinstance(override, dict):
+                        continue
+                    name = override.get("name")
+                    if not isinstance(name, str) or not name:
+                        continue
+                    owner = override_name_owner.get(name)
+                    if owner is not None and owner != scope_id:
+                        diagnostics.append(
+                            self.emit_diagnostic(
+                                code="E7014",
+                                severity="error",
+                                stage=stage,
+                                message=(
+                                    f"Policy override '{name}' is declared by both '{owner}' and "
+                                    f"'{scope_id}', both attributed to enforcer '{enforcer_id}'. "
+                                    "Override names must be unique per enforcer."
+                                ),
+                                path=f"instance:{enforcer_id}.policy_overrides",
+                            )
+                        )
+                        has_conflict = True
+                    else:
+                        override_name_owner[name] = scope_id
+
+            if has_conflict:
+                continue
+
+            composed_zones: dict[str, Any] = {}
+            composed_matrix: dict[str, dict[str, Any]] = {}
+            composed_overrides: list[dict[str, Any]] = []
+            for scope in scopes_for_enforcer:
+                composed_zones.update(scope.get("zones") or {})
+                for from_zone, to_zones in (scope.get("matrix") or {}).items():
+                    composed_matrix.setdefault(from_zone, {}).update(to_zones)
+                composed_overrides.extend(scope.get("policy_overrides") or [])
+
+            composed_matrices_by_enforcer[enforcer_id] = {
+                "zones": composed_zones,
+                "matrix": composed_matrix,
+                "policy_overrides": composed_overrides,
+                # The composing scope ids, in the same sorted order used to
+                # build the plan. Lets a consumer label the composed plan
+                # (e.g. a generated-file comment) without a second
+                # subscription to scopes_by_enforcer for the same fact.
+                "scope_ids": list(scope_ids),
+            }
+
         # Publish for downstream plugins (validators, generators)
         ctx.publish("security_matrices", security_matrices)
         ctx.publish("zone_vlans", zone_vlans)
-        ctx.publish("matrix_by_enforcer", matrix_by_enforcer)
+        ctx.publish("scopes_by_enforcer", scopes_by_enforcer)
+        ctx.publish("composed_matrices_by_enforcer", composed_matrices_by_enforcer)
         ctx.publish("vlan_cidr_map", vlan_cidr_map)
 
         return self.make_result(

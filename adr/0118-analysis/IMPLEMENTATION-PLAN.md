@@ -1,7 +1,8 @@
 # ADR 0118/0119 — implementation plan
 
 Status: reviewed implementation plan for the **Accepted** architecture, G0a closed
-2026-09-10. Revision 4, 2026-09-11 (capability satisfaction amendment). **No implementation gate is closed by this plan.**
+2026-09-10. Revision 4, 2026-09-11 (capability satisfaction amendment); revision 5,
+2026-09-30 (W07 migration order completion recorded; no gate closes). **No implementation gate is closed by this plan.**
 No topology migration, code change, secret access, live inspection or deployment
 is authorized by editing this document.
 
@@ -13,12 +14,26 @@ this plan assigns implementation work and evidence to those gates.
 [Review findings](IMPLEMENTATION-PLAN-REVIEW-2026-09-11.md) explain the corrections.
 
 Current enforcer/scope contract: ADR 0119 D1-D1.1 rev 3.4. The
-[conformance record](ENFORCER-AXIS-CONFORMANCE.md) owns its ten open implementation
-rows and planned counterexamples; [W07](W07-BACKEND-SPECIALIZATION-DECISION.md)
-records the selected layout, not a completed migration. First test multi-instance,
-multi-scope, adapter ambiguity and shared-target cases; then fix the complete
-`matrix_by_enforcer` contract before adding consumers. Historical measurements
-below retain their original revision and do not establish current gate closure.
+[conformance record](ENFORCER-AXIS-CONFORMANCE.md) owned ten open implementation
+rows at its 2026-09-15 baseline; **reconciled 2026-09-30** against real commits
+that predate this plan's own W07 entry, five are now closed (V-04, V-05, V-09,
+V-13, V-15), one is split (V-14: closed for Proxmox, worse for MikroTik - the W07
+migration multiplied its substring selectors from 9 to 18), and four remain open
+unchanged (V-07, V-10, V-11, V-12). [W07](W07-BACKEND-SPECIALIZATION-DECISION.md)
+records the selected layout. **Its migration order (items 1, 4a-4i) completed
+2026-09-30** - see the dated entry below and `adr/REGISTER.md` - moving every
+function that made a backend decision in the MikroTik generate-stage projection
+into a compile-stage plugin. This closes no gate: the migration touches none of
+the conformance record's remaining open rows, and it made V-14 measurably worse
+by copying the row-kind and router-filter selectors verbatim into ten new files
+instead of replacing them with declared-class/capability selection - a direct
+cost of migrating per function with parity evidence rather than fixing what each
+function assumed. The single-router assumption V-10 names is now replicated
+across four of those plugins instead of living in one function. First test
+multi-instance, multi-scope, adapter ambiguity and shared-target cases; then fix
+the complete enforcer-to-scope index contract (`scopes_by_enforcer`, already
+published) before adding further consumers. Historical measurements below retain
+their original revision and do not establish current gate closure.
 
 Capability amendment baseline: commit `493867d5`, branch development; revision 3
 was clean before this documentation change. The earlier review baseline was
@@ -96,7 +111,7 @@ Owners are roles; a human assignee must be recorded before execution.
 | W04 Intent and provenance | Core compiler, source/default/@on provenance, domain resolution, candidate adapter; derive complete capability requirements | W03; effective-model and provenance channel contracts | G2, compiler maintainer |
 | W05 Legacy projection parity | security_matrix channels and MikroTik projection integration | W01; characterize both existing derivations first | Prerequisite to backend cutover, generator maintainer. **Characterization done 2026-09-11: derivations diverge, cutover blocked** — see [W05 characterization](W05-ZONE-DERIVATION-CHARACTERIZATION.md) |
 | W06 Plan and checker | Core plan, predicates/path/state algebra, capability composition/strategies, independent oracle and SEC-CAP validation | W04 and bounded capability requirements | G3, security/compiler owner |
-| W07 Backend specialization/render | Versioned adapter offers, effective applicability, complete execution contexts and deterministic rendering; no negotiation in generate | W05/W06; target feasibility record | G4, backend owner |
+| W07 Backend specialization/render | Versioned adapter offers, effective applicability, complete execution contexts and deterministic rendering; no negotiation in generate | W05/W06; target feasibility record | G4, backend owner. **Migration order complete 2026-09-30**: every function that made a backend decision in the MikroTik generate-stage projection moved to a compile-stage plugin — see [W07 decision](W07-BACKEND-SPECIALIZATION-DECISION.md). This satisfies "no negotiation in generate" for those functions only; versioned adapter offers, effective applicability and complete execution contexts remain undesigned, and G4 stays open — see [conformance record](ENFORCER-AXIS-CONFORMANCE.md) |
 | W08 Artifact/bundle closure | Existing bundle schema/manifest; security/offer/strategy/evidence digest closure and invalidation tests | Contract designed with W06; integrated with W07 | G4 offline closure, build/release owner |
 | W09 Topology/flow inventory | Services, domains, leases, planned intents, zone conflicts, legacy VPN mapping | Inventory now; freeze only after W03/W04; migration requires G1-G4 | G5, topology/flow owner |
 | W10 Transaction/recovery | Existing runner, owner-delegated operations, fresh effective-capability checks, journal, revocation, OOB/recovery evidence | W08; topology/ownership input and feasibility findings | G6, deploy/scope owner |
@@ -854,6 +869,52 @@ not go stale, the compile-before-validate seam must stay, and the blocked step m
 keep being named. The decision records its own falsifier - a specialization needing
 information that exists only after generation would put the seam in the wrong place
 - because a decision with no stated falsifier is a preference.
+
+### W07 migration order complete, 2026-09-29/2026-09-30
+
+The migration order this section named ("No code was moved" above; capability
+flags first, then the reference resolution, then the W05-blocked matrix step) ran
+to completion across ten items - `W07-BACKEND-SPECIALIZATION-DECISION.md`'s table,
+items 1 and 4a-4i - each with real-topology parity evidence (`generated/`
+byte-identical, `errors=0 warnings=3` unchanged) and its own dated entry in
+`adr/REGISTER.md`. The MikroTik generate-stage projection this section measured
+at 17 functions / 1,565 lines is now 2 functions / 518 lines:
+`_extract_security_matrix` (its own multi-*scope*-per-enforcer defect closed by
+separate, earlier work in this program - `e868abbe`, `168b4f27`, see below - but
+still limited to one *enforcer*, the still-open V-11/V-12 layout question) and
+`build_mikrotik_projection` itself, the orchestrator this section predicted would
+be what remained. Ten new compile-stage compiler plugins were registered, one per
+migrated function, each consumed by `object.mikrotik.generator.terraform` as a
+required channel.
+
+Two real defects surfaced during migration, not before it: item 4b found a local
+variable shadowing a new required parameter, which would have silently corrupted
+rendered container output; item 4g found a test building a `PluginInputSnapshot`
+directly, bypassing the projection's own auto-deriving wrapper, whose fixture's
+real VLAN was silently discarded by an all-empty channel stand-in rather than
+rendered. Both are fixed; both are recorded in `REGISTER.md`'s item 4b/4g entries.
+
+**What this does and does not establish.** It satisfies the constraint this
+decision opened with - specialization not occurring only in a generator after
+validation ran - for the ten functions named. It does not close G4: the exit
+criteria two sections below (independent differential tests, digest closure,
+tamper/omission/stale-evidence negatives) are untouched.
+
+`ENFORCER-AXIS-CONFORMANCE.md`'s ten rows were reconciled the same day (2026-09-30)
+against real commits, five of them (V-04, V-05, V-09, V-13, V-15) already closed by
+work earlier in this program, before this migration started - the conformance
+record's own table had simply never been updated to say so. The migration itself
+touches none of the remaining open rows except by making one worse: V-10's
+single-router assumption (`default_router_id = next(iter(sorted(router_ids)), "")`
+feeding a `len(router_ids) == 1` branch) was carried verbatim into four of the ten
+new plugins rather than fixed - replicated four times instead of living in one
+function, and dead code in `projections.py` itself now that nothing there reads
+it - and V-14's substring-selector count rose from 9 (one file) to 18 (across
+eleven files), since each new plugin re-implements its own router-filter and
+row-kind selection rather than sharing one. Migration relocates where
+specialization runs; it does not audit what each relocated function assumes, and
+moving one function into ten files multiplies whatever that function assumed by
+ten.
 
 ### PR1 from the post-fix review, 2026-09-14 — gates restored
 
@@ -2473,6 +2534,1504 @@ The wider project and other platform profiles remain unqualified.
 G8 authorizes a qualification statement, not an automatic production apply.
 A production deployment additionally needs the exact approved bundle, current
 preflight/ownership/identity evidence, OOB and transition approval.
+
+## 5A. ADR 0118/0119 dated implementation narrative (moved from `adr/REGISTER.md`, 2026-09-30)
+
+`adr/REGISTER.md` is the ADR index; this narrative accumulated there from the first ADR 0118/0119 revision (2026-09-10) through the W07 migration order's completion and initial conformance-counterexample work (2026-09-30) and does not belong in an index table. Moved here verbatim, in its original order, with no content changed.
+
+### ADR 0118/0119 revision — 2026-09-10
+
+- ADR 0118 remains **Proposed**: one attachment/publication/policy model replaces
+  the contradictory earlier D1-D21; capability-qualified scope and explicit legacy boundary.
+- ADR 0119 remains **Proposed**: one authorization-preserving plan replaces
+  producer priorities; formal obligations, safe transition and observed-state contract.
+- ADR 0110 remains **Implemented** for its existing R1-R6 behavior; added an
+  explicit cross-reference to the unimplemented strict-profile proposal.
+- Supporting contracts: [migration and acceptance](0118-analysis/MIGRATION-AND-ACCEPTANCE.md),
+  [formal obligations](0119-analysis/FORMAL-CONTRACT.md),
+  [assurance profile](0119-analysis/ASSURANCE-PROFILE.md).
+- No topology migration, backend qualification or compliance approval is implied.
+
+### ADR 0118/0119 revision 2 — 2026-09-10 (SPC rebuild)
+
+- ADR 0118 stays **Proposed**: adds D4.1 legacy-to-strict translation, a
+  derived-field contract and D8 making the authoring surface a measured property.
+- ADR 0119 stays **Proposed**: states plan ownership against ADR 0110's M1-B
+  enforcer ownership and restores the explicit terminal-deny obligation.
+- ADR 0110 stays **Implemented**; its R1-R6 behavior and `managed_by_ref`
+  semantics are unchanged and now referenced explicitly by the proposal.
+- Change record: [SPC rebuild](0118-analysis/SPC-REBUILD-2026-09-10.md).
+- Still no migration, backend qualification, deployment or compliance approval.
+
+### ADR 0118/0119 implementation analysis — 2026-09-10
+
+- [Final implementation proposal](0118-analysis/FINAL-IMPLEMENTATION-PROPOSAL.md)
+  and [reproducible evidence](0118-analysis/FINAL-PROPOSAL-EVIDENCE-2026-09-10.md).
+- Recommends named source mappings, explicit binding lifecycle, two compiler
+  plugins and a qualified transaction-based pilot; records baseline failures.
+- Analysis only: these refinements are not adopted into normative rev 2 yet.
+  Both ADRs remain **Proposed**; no runtime change, migration or deployment.
+
+### ADR 0118/0119 revision 3 — final architecture proposal, 2026-09-10
+
+- Both ADRs remain **Proposed**; [final architecture proposal](0118-analysis/FINAL-ARCHITECTURE-PROPOSAL.md)
+  is the current design review target, with synchronized examples/formal contract.
+- Resolves named identity/inheritance, allocation ownership, binding lifecycle,
+  original/frontend coordinate semantics, bounded profile and writer responsibilities.
+- Supersedes rev 2 array authoring sketches and blanket consumer/domain input
+  confusion. Earlier implementation exploration is historical and not adopted.
+- No plugin count, backend priority, execution tool, code change or deployment
+  is approved by this design revision. Human architectural acceptance is pending.
+
+### ADR 0118/0119 revision 3.1 — applicability corrections, 2026-09-10
+
+- [Final proposal](0118-analysis/FINAL-ARCHITECTURE-PROPOSAL.md) updated from the
+  [rev 3 applicability review](../docs/reports/2026-09-10-adr0118-0119-rev3-applicability-review.md).
+- [Review response and evidence](0118-analysis/REV3-APPLICABILITY-RESPONSE.md)
+  records accepted conditions, qualified claims and fresh static counts.
+- Adds route/tunnel/interface-NAT ownership, downward runtime realization,
+  framework/core semantic authority and the existing Terraform/Ansible boundary.
+- Clarifies scoped network version keys, local-key grammar, zone migration,
+  planned-intent visibility, shared-chain composition and OOB prerequisites.
+- Runtime, topology and generated artifacts are unchanged by the revision itself.
+
+### ADR 0118/0119 architecture acceptance — 2026-09-10 (gate G0a)
+
+- Both ADRs move from **Proposed** to **Accepted**: the architecture contract
+  AD-01..AD-10 is adopted as the project's target network model.
+- Basis: [rev 3.1 applicability review](../docs/reports/2026-09-10-adr0118-0119-rev31-applicability-review.md),
+  which found all five rev 3 conditions closed, plus the
+  [SPC acceptability review](../docs/reports/2026-09-10-adr0118-0119-spc-acceptability-review.md).
+- Two remaining documentation defects were corrected before acceptance: the legacy
+  upward `container_ref` inventory is 6 files, not 4, and authored `routing_mark`
+  appears in 9 files, both now in the migration plan section 2C; acceptance scenario
+  A24 makes single-source derivation of zone membership and `vlan_cidr_map` checkable.
+- **What acceptance does not mean.** Gate G0b (named owners for HA-01..HA-10 and the
+  tailoring record) is **not** closed. Gates G1-G8 are open, A01-A24 are unclosed, no
+  backend is qualified, and no deployment, migration or device change is authorized.
+  Compliance claims remain bounded by the assurance profile.
+- ADR 0110 stays **Implemented**; its R1-R6 legacy behavior is unchanged, and the
+  strict profile is not active anywhere.
+- Implementation planning followed in the same SPC cycle: the gate-by-gate
+  [implementation plan](0118-analysis/IMPLEMENTATION-PLAN.md) derives structure
+  from AD-01..AD-10, uses the gate as its unit, and records four open decisions
+  with owners. It authorizes no code, migration or deployment.
+
+### ADR 0118/0119 implementation-plan review — 2026-09-11
+
+- [Plan revision 2](0118-analysis/IMPLEMENTATION-PLAN.md) replaces the unsupported
+  independent-prework claim and missing I01-I41 registry with W01-W12 dependencies.
+- [Review](0118-analysis/IMPLEMENTATION-PLAN-REVIEW-2026-09-11.md) records findings,
+  baseline evidence and corrections: numeric diagnostics at G1, pre-validation
+  specialization, immutable bundle closure at G4, scoped conformance and safe ownership.
+- ADRs remain **Accepted**, implementation unimplemented; G0b/G1-G8 and A01-A24
+  are not closed by this documentation review. No source migration or deployment.
+
+### ADR 0118/0119 revision 3.2 — capability satisfaction, 2026-09-11
+
+- Both ADRs remain **Accepted**, implementation **not implemented**. At the user's
+  direction the [architecture proposal](0118-analysis/FINAL-ARCHITECTURE-PROPOSAL.md)
+  adds AD-11: derived requirements, scoped offers and evidence-relative resolution.
+- [Shared capability contract](0119-analysis/CAPABILITY-SATISFACTION-CONTRACT.md)
+  reuses ADR 0106 catalog/packs/derivation. No second intent database, runtime stage,
+  automatic topology fallback, grant or transfer of resource ownership is introduced.
+- [Formal contract](0119-analysis/FORMAL-CONTRACT.md) adds SEC-CAP; selected
+  versions/strategies/conditions and evidence bind to intent/plan/bundle digests.
+  Offline candidate readiness remains distinct from fresh live activation evidence.
+- [Plan revision 4](0118-analysis/IMPLEMENTATION-PLAN.md) extends W03/W04/W06/W07/
+  W08/W10/W11 without discarding revision 3 diagnostic, governance, stop/reversibility
+  or entry-condition provisions. [Acceptance](0118-analysis/MIGRATION-AND-ACCEPTANCE.md)
+  adds A25-A32; existing A01-A24 remain unchanged.
+- G0a base acceptance and its historical reviews are retained; those reviews are
+  not independent review evidence for rev 3.2. G0b/G1-G8 and A01-A32 remain open.
+  No catalog/runtime/schema implementation, device change, qualification or deploy.
+
+### ADR 0118/0119 rev 3.2a — capability amendment supplement, 2026-09-11
+
+- SPC review of rev 3.2. Both ADRs remain **Accepted**, implementation **not
+  implemented**. No decision is withdrawn; three under-specified points in AD-11
+  are corrected and the amendment's repository-level premises are re-grounded.
+- **Determinism:** rev 3.2 required offer content to be hash-bound while listing
+  qualification evidence references as offer content, which contradicts its own
+  claim that a fresh identical observation leaves the semantic plan unchanged.
+  [Contract §4.1](0119-analysis/CAPABILITY-SATISFACTION-CONTRACT.md) now splits the
+  offer into a digest-bearing semantic core and a separately hashed evidence annex;
+  [formal contract](0119-analysis/FORMAL-CONTRACT.md) binds the split to `W_g`.
+- **Inventory:** `complete(R_g, Omega_g)` was self-referential. Omega_g now has an
+  external lower bound anchored to the ADR 0118 D6 path list, shared with SEC-PATH.
+- **Status vocabulary:** the tri-state is mapped one-directionally onto the
+  pre-existing `unsupported` flow verdict, so neither collapses into the other.
+- **Corrected premises:** `E8020`/`E8021`/`E3202` are raised in code but are not
+  registered in `topology-tools/data/error-catalog.yaml`, so rev 3.2's instruction
+  to preserve their meaning had no registered subject; the capability catalog
+  reaches runtime as identifiers only and is a closed vocabulary, so offers cannot
+  live in it; the acceptance baseline pointer was five commits stale.
+- **Vocabulary debt:** six recorded enforcement gaps (acceleration/FastTrack, the
+  Docker `DOCKER-USER` versus nftables hook, IPv6 family, the Proxmox generator
+  STUB, the nine unrendered LXC attachments, `untracked` admission) are mapped onto
+  existing A-cases; four still lack any catalog identifier and are therefore
+  unverified by construction until W03 registers one.
+- A25-A32 gain terminal evidence levels. Registers are unchanged: A01-A32 for
+  acceptance, W01-W12 for work. No new ADR, gate, plugin, catalog entry, runtime
+  change, test result, qualification or deployment authorization.
+
+### ADR 0118 D7 amendment — authoritative-field contract, 2026-09-11
+
+- Adds the inverse of the derived-field contract: an object supplies reusable
+  shape and defaults and must not author a value that identifies or classifies
+  one concrete entity.
+- Established by two findings, not by argument. `obj.network.vlan.vpn_tunnel`
+  declared a VLAN id and prefix that all four instances overrode; the values were
+  reachable by none of them and a fifth VLAN would have inherited a collision.
+  `obj.network.trust_zone.vpn_tunnel` declared a security level and isolation
+  flag correct for one of its two zones and wrong for the other.
+- Both were corrected as parity-preserving layering moves: effective values and
+  rendered artifacts unchanged, verified byte-for-byte.
+- Open and deliberately not folded in: `inst.trust_zone.vpn_exit` still renders
+  as "VPN Tunnel Zone" because it inherited that name. Correcting it changes
+  rendered comments and is a separate reviewed change.
+- No gate closed, nothing qualified, no deployment implied.
+
+### ADR0118/0119 — approval producer implementation proposal, 2026-09-15
+
+- Adds [proposed approval producer contract](0119-analysis/APPROVAL-PRODUCER-CONTRACT-PROPOSAL.md): L7 signed review, separately pinned authority/context, exact validate-stage manifest channel and admission binding.
+- Keeps approval separate from semantic verification, source promotion and activation. A real signed decision cannot relabel a legacy plan.
+- Status: Proposed implementation contract, not accepted or implemented; parent ADR statuses unchanged. No G3 closure, backend qualification, actual approver assignment or deployment authorization.
+
+### ADR 0118/0119 rev 3.3 — enforcer type and enforcer instance, 2026-09-15
+
+- ADR 0119 stays **Accepted**; adds **D1.1**. An enforcer has a type, resolved
+  from the device's declared enforcement capability under ADR 0106, never from an
+  identifier and never from which object module owns a generator. One type, one
+  renderer. Artifacts are produced per enforcer instance: two enforcers of one
+  type are two scopes, two projections and two independent artifact sets with
+  their own connection identity and applied state. Enforcement plane stays a
+  third, orthogonal axis. D2 adds enforcer type to the execution context; D3
+  states the generate stage renders one artifact set per instance.
+- ADR 0118 stays **Accepted**; D6 now says its table lists runtime targets, not
+  enforcers - a workload's runtime does not select the enforcer covering its
+  paths, and one runtime may be covered by several enforcers of different types.
+- ADR 0110 stays **Implemented**. An erratum corrects the §1.1 transcription
+  against the implemented class schema: `enforcement_plane` is required,
+  `address_space` exists, `device_assignments` does not, and `managed_by_ref`
+  carries no `target_class` - `class.router` was dropped because an enforcer need
+  not be a router. R1-R6 behaviour and M1-B are unchanged.
+- [W07 decision](0118-analysis/W07-BACKEND-SPECIALIZATION-DECISION.md) is amended:
+  the seam is parameterised by enforcer type rather than by backend, and a second
+  time by enforcer instance. Records the chosen Terraform layout
+  `terraform/<backend>/<enforcer instance id>/` as an implementation choice, and
+  states that adopting it is a reviewed behaviour change affecting 24 of 163
+  emitted paths, not a refactor.
+- Basis: SPC analysis of 2026-09-15 in this session. Measured: four devices with
+  four distinct OS declared in the topology; `cap.firewall.security_matrix`,
+  `.routeros` and `.pve` registered in the catalogue with zero consumers; a
+  published `matrix_by_enforcer` index with zero subscribers; and a single
+  unaliased `provider "routeros"` in one Terraform root.
+- No code, schema or artifact changed. No gate closed, nothing qualified, no
+  deployment implied.
+
+### ADR 0118/0119 rev 3.4 — enforcer axes corrected after review, 2026-09-15
+
+- Corrects rev 3.3 against the [rev 3.3 review](../docs/reports/2026-09-15-adr0118-0119-rev33-review-0202f253.md).
+  Both ADRs stay **Accepted**; ADR 0110 stays **Implemented**. No gate closed.
+- **Cardinality (R1).** ADR 0119 D1 now states the direction: one scope names
+  exactly one enforcer, one enforcer may hold several scopes on several planes. A
+  scope carries its own identity and is never keyed by its `managed_by_ref`. An
+  enforcer-to-scope index must carry every scope in a deterministic order or refuse
+  the multiplicity with a diagnostic. Plane separation is semantic and is not
+  evidence that shared chains or resources are isolated.
+- **Separation (R2).** D1.1 no longer demands one address, credential set and state
+  per enforcer. It states six distinctions - enforcer identity, scope/context,
+  connection binding, resource identity and writer, state namespace, apply unit -
+  and requires unambiguous target selection with a single writer per resource.
+  Several targets may share a management endpoint; sharing a binding, state
+  namespace or apply unit is allowed where the coupling is declared and its
+  reconciliation and recovery validated. Scope attribution is not a failure domain.
+- **Dispatch (R3).** "One type, one renderer" is replaced. A type names a family of
+  enforcement semantics; for each target context exactly one compatible versioned
+  adapter is resolved, zero is unsupported, more than one blocks with no priority or
+  first-match fallback. Resolution carries provenance, and the adapter's identity
+  and version are pinned before validation and enter the plan's verifiable identity.
+- **Layout justification (R4).** The W07 claim that a Terraform root holds one
+  unaliased provider configuration is withdrawn: Terraform supports several
+  configurations of one provider through `alias`. Root-per-instance is justified
+  instead by state, writer and transaction boundaries, the aliased alternative is
+  named and its rejection reasoned, each adapter's selected layout is tabulated, and
+  moving roots now requires a resource/state/consumer inventory and a
+  no-unintended-recreation plan rather than a path rename.
+- **Erratum authority (R5).** ADR 0110's erratum separates the stale transcription
+  from the normative amendment that dropped `target_class: class.router`, states the
+  reason, requires the replacement to check an enforcement-capable target rather
+  than accept any `instance_ref`, and no longer says the implemented file is the
+  authority over an accepted contract.
+- **Harmonization and evidence (R6).** AD-01 and AD-08 in the
+  [architecture proposal](0118-analysis/FINAL-ARCHITECTURE-PROPOSAL.md) carry the
+  cardinality and the ownership distinctions. The findings matrix is published as
+  [enforcer axis conformance](0118-analysis/ENFORCER-AXIS-CONFORMANCE.md) instead of
+  living only in a commit message.
+- The index defect is reproduced in that record: two matrices on one enforcer
+  compile SUCCESS with no diagnostics and `matrix_by_enforcer` keeps whichever came
+  last, which is also a D4 permutation violation.
+- No code, schema or artifact changed. Ten implementation gaps remain open and
+  are listed in section 2 of the conformance record.
+
+### Rev 3.4 editorial consolidation
+
+- Removes remaining enforcer=scope and per-instance-artifact wording from D1.1
+  and the W07 stage diagram; scope attribution and declared apply units are retained.
+- Synchronizes the design annex header, enforcement-plane terminology, current
+  implementation-plan entrypoint, capability supplement and scoped AI rule packs/map.
+- Separates W07 layout goals from proven state/resource/failure isolation; the root
+  migration remains a future reviewed change, not an authorization or completed work.
+- Corrects the conformance count to ten open implementation rows; distinguishes
+  corpus coverage, feasibility observations and planned regression tests.
+- Corrects rev 3.4 document dates to 2026-09-15, matching both author and committer
+  timestamps of `48a7ac3f`. No new revision, implementation gate or qualification
+  status is introduced by this consolidation.
+
+### ADR 0118/0119 — enforcer/scope implementation readiness, 2026-09-28
+
+- Adds [readiness record](0118-analysis/ENFORCER-SCOPE-IMPLEMENTATION-READINESS.md):
+  a re-measured baseline, an independent reproduction of the V-13 index defect, and
+  a bounded specification for the next code change. Both ADRs stay **Accepted**;
+  ADR 0110 stays **Implemented**. No gate closed, nothing qualified.
+- Corrects two conformance rows from measurement rather than from restatement:
+  `security_matrices` is complete in membership but permutation-sensitive in order,
+  and V-09 is a singular return type across projection, generator and template
+  rather than one dropped row.
+- Records five new findings, `N-01`..`N-05`. The load-bearing one is that V-04/V-05
+  is blocked on a namespace decision, not on adding a declaration: the three
+  `cap.firewall.security_matrix*` identifiers are registered at L2 with device
+  summaries while the catalogue reserves that namespace for policy objects and
+  already carries an L1 device slot, `cap.net.l3.security.firewall.zone_policy`.
+  The enforcer of record declares neither, `enabled_packs` never reach the
+  effective capability set, and an unattributed scope compiles clean and is
+  enforced by nobody.
+- Sequences the ten open rows into implementable-now, blocked-on-V-13 and
+  blocked-on-a-decision. The capability-axis decision is raised as a proposal
+  requiring review; it is not taken there.
+- Proposes `E7010`, `E7011` and `W7012` inside the existing ADR 0118/0119
+  allocation, with the collision check recorded. No code, schema, manifest or
+  artifact changed; no code has been written against this specification.
+
+### ADR 0118/0119 — enforcer/scope readiness record updated after implementation, 2026-09-28
+
+- Marks readiness record section 5 (`matrix_by_enforcer` → `scopes_by_enforcer`,
+  `E7010`/`E7011`/`W7012`) as done, referencing commit `c5f66c10` on branch
+  `adr-0118-0119`, with its actual validation evidence replacing the earlier plan.
+- Updates the section 4 sequencing table: V-13/N-05/plane-default done; V-09,
+  V-10, V-14 (the projection/generator/template consumer chain) move from
+  blocked-on-V-13 to the next implementable-now candidate.
+- Adds section 5b: a sketch, not a specification, of the consumer chain's touch
+  points and open questions (two-scope fixture, rendered shape, parity
+  evidence) - explicitly not authorization to begin that change.
+- Records an open, separately tracked finding: `pytest tests` shows 125 failures
+  confined to `tests/plugin_integration/test_security_plan_validator.py`, which
+  passes 77/77 in isolation. Bisected to somewhere among the ~100
+  `plugin_integration` files collected before it; five other directories and the
+  immediately adjacent file are individually cleared. Reasoned as unlikely to be
+  caused by `c5f66c10` (disjoint files) but not yet confirmed by a rerun. Not
+  part of the ADR 0118/0119 scope.
+- No code, schema or artifact changed by this entry.
+
+### ADR 0118/0119 — consumer-chain finding N-06, pollution investigation closed, 2026-09-28
+
+- Corrects the readiness record's section 5b: "one rendered block per scope"
+  was wrong. `zone_firewall.tf.j2` emits exactly one terminal-deny resource and
+  `vpn.tf.j2` hardcodes two more references to it by name; RouterOS has one
+  `forward` chain per device regardless of how many scopes it holds. New
+  finding N-06 records this and redirects V-09/V-10/V-14 from a generate-stage
+  rendering change to a compile-stage composition step: zones union safely
+  (shared origin data), matrix cells and policy-override names do not and need
+  explicit conflict diagnostics rather than a silent last-write-wins merge -
+  the same defect class V-13 fixed for the enforcer index, one level deeper.
+  Not started; this is corrected design work, not code.
+- Closes the test-pollution investigation opened while validating `c5f66c10`.
+  The original 125 failures in `test_security_plan_validator.py` were not
+  reproduced: every preceding directory and both halves of the preceding
+  `plugin_integration` files were cleared individually, and the decisive
+  check - the exact natural collection order `pytest tests` itself uses,
+  reconstructed and run through the target file inclusive - passed the target
+  clean (1981 passed, 1 skipped, 1 unrelated failure explained by process
+  timing relative to `1336c12f`). Closed as an investigated, not reproduced,
+  anomaly, most likely resource exhaustion specific to the original
+  2573-test run, not a code defect requiring a fix.
+- No code, schema or artifact changed by this entry.
+
+### ADR 0118/0119 — composition contract decided (D-COMP-1..4), 2026-09-28
+
+- Resolves the two design questions N-06 left open, narrower in scope than
+  N-02: how the MikroTik adapter composes several scopes on one enforcer, a
+  case unexercised anywhere in the real topology today. Fulfils ADR 0119 D1's
+  existing requirement that composition across scopes sharing an enforcer be
+  validated rather than assumed; does not amend the ADR.
+- D-COMP-1: scopes composed for one enforcer must have pairwise-disjoint
+  `zone_refs`, refused on overlap. Deliberately stricter than an
+  equal-cells-are-safe merge - it makes a matrix-cell collision between scopes
+  structurally impossible rather than something to adjudicate, at the cost of
+  refusing a legitimate future case (two scopes sharing a zone for different
+  concerns) until that is its own reviewed decision.
+- D-COMP-2: `policy_overrides` names must be unique per enforcer (not
+  globally), refused on collision rather than silently disambiguated - the
+  same reasoning D1.1 already applies to adapter resolution.
+- D-COMP-3/D-COMP-4: the composed shape (zones/matrix union, overrides
+  concatenated) and its determinism (scopes processed in
+  `scopes_by_enforcer`'s existing sorted order).
+- New diagnostics `E7013`/`E7014`, collision-checked clean in the 7009-7019
+  sub-band of the existing ADR 0118/0119 allocation.
+- Not implemented: `security_matrix_compiler.py` does not yet compose, no test
+  exercises D-COMP-1..4. Removes the design blockers section 5b listed for
+  V-09/V-10/V-14; a two-scope fixture and parity evidence remain open before
+  that chain can be specified the way section 5 was for V-13.
+
+### ADR 0118/0119 — V-09/V-10/V-14 landed, readiness record closed out, 2026-09-29
+
+- `e868abbe`: `_extract_security_matrix` in the MikroTik projection reads the
+  compiler's `composed_matrices_by_enforcer` instead of re-deriving zone
+  membership and R1-R6 itself. Finding N-07 (recorded first, before coding)
+  characterized that local computation as a third independent derivation of
+  the same fact, diverged from the compiler in three ways found by reading
+  both implementations side by side - none active on the real topology's data.
+  `security_matrices` retired entirely as a MikroTik consume (manifest,
+  generator, projection signature) rather than left accepted-but-unread.
+  `tests/test_backend_specialization_boundary.py`'s line budget lowered
+  1518 -> 1399, matching the function's 209 -> 94 line shrink; the W07
+  decision document's migration-order step 3 marked Done.
+- `168b4f27`: the two-scope composed-plan fixture section 5b/5d called for,
+  in `test_projection_helpers.py` - exercises `build_mikrotik_projection`
+  with a genuinely multi-scope composed plan, which the real topology (one
+  enabled scope) cannot exercise on its own.
+- Real-topology parity verified: `generated/` byte-identical after a clean
+  recompile, `errors=0 warnings=2` matching the recorded baseline.
+- Readiness record reconciled: V-09/V-10/V-14 marked Done in section 4;
+  sections 5b/5d's now-resolved open items struck through; evidence for both
+  commits added to section 7; the status banner lists all five landed changes
+  (`c5f66c10`, `1336c12f`, `e72d0099`, `e868abbe`, `168b4f27`).
+- No design decision changes in this entry - implementation and bookkeeping
+  only, against the design section 5c already decided.
+
+### ADR 0118/0119 — enforcer type/adapter resolution designed (D-TYPE-1..3), 2026-09-29
+
+- Resolves the capability-axis question section 4 named as the single
+  highest-value blocked item, larger than first framed. Before designing a
+  replacement, checked whether either capability engine could express
+  "enforced by RouterOS OR Proxmox" as written: `capability_contract_validator.py`
+  and `netmodel/capability.py`'s `Offer.applies_to` both match capability
+  identifiers exactly, with no prefix/hierarchy semantics and no `any_of`/`one_of`
+  construct anywhere in the schemas. `required_capabilities` on a class is a
+  conjunction; it cannot express dispatch among mutually exclusive adapters.
+  The earlier "recommended framing" (device axis = `cap.net.l3.security.
+  firewall.*`) is retired along with the namespace question it was answering -
+  a namespace choice does not fix a conjunction-only engine being asked to do
+  selection.
+- D-TYPE-1: enforcer type (perimeter/internal/none) is derived from exactly one
+  of two mutually exclusive device-kind capabilities:
+  `cap.net.l3.security.firewall.zone_policy` (existing, router-side) or a new
+  registration, `cap.compute.security.firewall.zone_policy` (hypervisor-side;
+  no such L1 capability existed for Proxmox before this, which is a second,
+  independent reason the router-only framing could not have worked).
+- D-TYPE-2: adapter is derived from type × the already-derived `cap.os.*`
+  family (`cap.os.routeros` -> `.routeros` adapter, `cap.os.proxmox` -> `.pve`),
+  not a third declared capability. Zero matching OS families refuses as
+  unsupported; more than one refuses as ambiguous with no priority order -
+  matching ADR 0119 D1.1's explicit dispatch contract. This makes
+  `cap.firewall.security_matrix.routeros`/`.pve` derived outputs, like
+  `cap.role.*` already are, closing N-03 without a redundant declaration.
+- D-TYPE-3: the generic `cap.firewall.security_matrix` (zero declarers, zero
+  consumers) is retired rather than repurposed as a `required_capabilities`
+  entry - resolution answers "is this a valid enforcer" directly, which is
+  N-01's `managed_by_ref` target-check replacement.
+- `E7015`-`E7018` allocated in the existing 7009-7019 sub-band, collision
+  check clean. Placement: an extension of `capability_compiler.py`'s existing
+  per-object derivation pass, not a new plugin family.
+- N-04 (`enabled_packs`) stays deferred, confirmed independently: only two
+  objects declare non-empty packs (Chateau, GL.iNet), and the real enforcer
+  does not need pack expansion to gain `.zone_policy` - a direct declaration
+  is narrower and sufficient. Fixing pack expansion has a wider blast radius
+  (Chateau's enabled `pack.router.enterprise` also lists BGP/OSPF/VRF
+  capabilities) and is not required for this decision.
+- Not implemented: no code, schema or catalogue entry changed. `enforcer_resolution`
+  does not exist yet.
+
+### ADR 0118/0119 — enforcer type/adapter resolution, SPC MODE review (two passes), 2026-09-29
+
+- The design entered at commit `8dd9a3a3` (previous entry) went through the
+  formal `docs/ai/spc-contract.md` 7-step protocol rather than being accepted
+  as written. **Correction to the previous entry:** its D-TYPE-3 bullet
+  ("the generic `cap.firewall.security_matrix` ... is retired") is
+  superseded by this entry - the SPC review's first pass found that
+  `CAPABILITY-SATISFACTION-CONTRACT.md` §5 forbids exactly that action
+  ("Legacy catalog entries are not reclassified by this amendment"), and its
+  §7 already treats `.pve` as the correct identifier with an unimplemented
+  generator as the actual gap. All three pre-registered identifiers
+  (`cap.firewall.security_matrix`, `.routeros`, `.pve`) are kept.
+- First pass, second finding: D-TYPE-2 had no rule for a device already
+  carrying a direct `.routeros`/`.pve` declaration alongside the
+  newly-resolved one - ADR 0119 D1.1's "generic capability alongside a
+  specific one... inputs to the resolution, not answers" case. Fixed with an
+  explicit reconciliation rule: agreement confirms, disagreement is a
+  distinct refusal (`E7019`), no priority order between the two inputs.
+- Second pass (STEP 7 compliance matrix run to completion) found two further
+  Critical gaps the first pass missed: (1) ADR 0119 D1.1 requires adapter
+  identity *and* version; only identity had been resolved. (2) The chosen
+  type values (`perimeter`/`internal`) are the exact strings
+  `class.network.security_matrix.yaml`'s `enforcement_plane` field already
+  uses for an axis ADR 0119 D1.1 states is independent of enforcer type.
+- Resolution, both user-confirmed: (1) the resolving generator plugin's
+  existing `api_version` manifest field (already `1.x` on both MikroTik and
+  Proxmox generators) is bound to the resolved adapter identity as a partial
+  version signal; full D2 execution-context binding remains this record's
+  pre-existing V-07 row, not newly closed. (2) type values renamed to
+  `network`/`compute` (naming the producing capability namespace), with
+  `perimeter`/`internal` reserved exclusively for `enforcement_plane`.
+- `E7015`-`E7019` (5, not 4) in the same sub-band, collision check re-run
+  clean. Still design-only: not registered in `error-catalog.yaml` or
+  `docs/diagnostics-catalog.md`, `enforcer_resolution` does not exist.
+- Verification: `check_adr_consistency.py --strict-titles` clean; diagnostic
+  sub-band grep shows the five codes referenced only in this design record.
+
+### ADR 0118/0119 — enforcer type/adapter resolution, implemented, 2026-09-29
+
+- Implemented the design from the previous two entries. Building it against
+  the real topology found three things the SPC review itself had not:
+  1. The real enforcer of record, `rtr-mikrotik-chateau`, declared no
+     `cap.net.l3.security.firewall.zone_policy` at all, despite its
+     security-matrix instance being explicitly zone-based. Fixed as a
+     topology-data correction (`obj.mikrotik.chateau_lte7_ax.yaml`), not by
+     weakening the D-TYPE-1 gate.
+  2. The approved `adapter_version` mechanism (binding the resolving
+     generator's `api_version`) was wrong: `api_version: 1.x` is identical
+     across every plugin in the entire framework (the kernel-API
+     compatibility marker, not an adapter revision) - a repo-wide grep during
+     implementation found this, not the review. `adapter_version` ships as
+     `None`, honestly, rather than a misleading constant.
+  3. Device-kind capabilities live on the hardware object;
+     `cap.os.*` capabilities live on a *different* object under ADR 0064's
+     embedded-OS model, joined only at the instance level via `os_refs`.
+     `capability_compiler.py` (the design's chosen home) iterates objects and
+     can never see both facts for one entity. Moved to
+     `effective_model_compiler.py`, which already performs this exact join
+     for OS/firmware capabilities; `enforcer_resolution` is published keyed
+     by **instance id**, not object id.
+- Severity corrected during implementation: an eager `error` severity on
+  every resolution (not only referenced ones) broke the real compile for
+  `rtr-slate` (GL.iNet, OpenWrt - type resolves, no adapter exists, and
+  nothing points `managed_by_ref` at it). Renamed and downgraded four of the
+  five codes to warnings (`W7015`, `W7016`, `W7017`, `W7019`); `E7018` stays
+  the one hard error, since it only fires for an instance an actual
+  security_matrix scope depends on.
+- New capability registered: `cap.compute.security.firewall.zone_policy`
+  (`capability-catalog.yaml`). N-01 replaced in both
+  `declarative_reference_validator.py` and `network_core_refs_validator.py`
+  (kept in parity per `test_declarative_reference_validator_parity.py`).
+- Verified against the real topology: `check_adr_consistency.py
+  --strict-titles` clean; full compile is `errors=0 warnings=3`, the third
+  warning being the expected `W7016` for `rtr-slate`; `git status` shows no
+  diff under `generated/` (purely additive); manifests
+  (`compilers.yaml`/`validators.yaml`) and `framework.lock.yaml` updated for
+  the new `enforcer_resolution` produces/consumes wiring.
+- Tests: 13 new cases in `test_effective_model_compiler.py` (object-level and
+  cross-object/os_refs resolution, contradiction, unsupported, reconciliation
+  disagreement, non-enforcer omission) and 3 new cases in
+  `test_network_core_refs_validator.py` (E7018 accept/reject paths), all
+  passing, plus the targeted suites (`test_security_matrix_compiler.py`,
+  `test_declarative_reference_validator_parity.py`,
+  `test_backend_specialization_boundary.py`, `test_data_bus_contracts.py`,
+  `test_manifest.py`, `test_capability_contract_validator.py`,
+  `test_capability_contract_loader_compiler.py`), all clean.
+
+### W07 migration order item 1 — capability-flag derivation moved to compile stage, 2026-09-29
+
+- `_derive_mikrotik_capability_flags` and `_extract_capabilities` moved verbatim
+  from `topology/object-modules/mikrotik/plugins/projections.py` (generate
+  stage) to a new plugin, `object.mikrotik.compiler.capability_flags`
+  (`topology/object-modules/mikrotik/plugins/compilers/
+  capability_flags_compiler.py`, compile stage) - the first compile-stage
+  compiler plugin an object module has registered in this framework,
+  establishing the `object.<module>.compiler.plan -> backend_plan` seam
+  `adr/0118-analysis/W07-BACKEND-SPECIALIZATION-DECISION.md`'s Shape section
+  already specified.
+- Root cause found during implementation, not anticipated by the decision
+  document: `phase: finalize` plugins are dispatched through an `on_finalize`
+  hook, not `execute()` directly - `effective_model_compiler.py` already does
+  this via a one-line delegation, which the new plugin now mirrors. Diagnosed
+  by direct-execute vs full-stage-execute comparison after the plugin was
+  silently skipped (`skip_reason: "phase 'finalize' not implemented"`) despite
+  correct manifest registration and scheduling order.
+- `build_mikrotik_projection` gains `capability_flags` as a required argument
+  (the same "required, refuse `None`" contract `composed_matrices_by_enforcer`/
+  `vlan_cidr_map` already use); the generator's manifest `depends_on`/`consumes`
+  updated to match. `I4210` registered for the new plugin's per-run info
+  diagnostic.
+- Verified against the real topology: `check_adr_consistency.py
+  --strict-titles` clean; full compile is `errors=0 warnings=3`, unchanged
+  from the pre-existing baseline; `git status` shows no diff under
+  `generated/` (purely additive).
+- Tests: 9 files updated for the new required parameter and consumer wiring
+  (`test_mikrotik_capability_driven.py` - unit tests for the derivation logic
+  itself now import from the new module;
+  `tests/helpers/mikrotik_security_channels.py` - the shared fixture helper
+  now derives real `capability_flags` from `ctx.compiled_json` rather than
+  publishing empty, since capability-driven template-selection tests depend
+  on real content; `test_projection_helpers.py`, `test_projection_snapshots.py`,
+  `test_terraform_mikrotik_generator.py`, `test_generator_template_and_
+  publish_contract.py`, `test_tuc0002_terraform_v2.py`,
+  `test_tuc0003_mikrotik_v2.py`, `test_backend_specialization_boundary.py` -
+  the last one's function/line budget lowered to 13/1361 and its migration
+  parametrize lists updated). Full `tests/plugin_integration` +
+  `tests/plugin_contract` + `tests/kernel` run confirmed clean.
+
+### W07 migration order item 4a — WireGuard tunnel derivation moved to compile stage, 2026-09-29
+
+- `_extract_wireguard_tunnels` moved verbatim from `projections.py` (generate
+  stage) to a new plugin, `object.mikrotik.compiler.wireguard_tunnels`
+  (`topology/object-modules/mikrotik/plugins/compilers/
+  wireguard_tunnels_compiler.py`, compile stage) - the second compile-stage
+  compiler plugin an object module has registered, after item 1's
+  `capability_flags`. Uses the `on_finalize` delegation pattern from the
+  start (item 1's root-cause finding applied directly, no rediscovery
+  needed).
+- Consumes `base.compiler.effective_model`'s `effective_model_candidate`
+  (router ids, network rows) and `base.compiler.security_matrix`'s
+  `vlan_cidr_map`. `build_mikrotik_projection` gains `wireguard_tunnels` as a
+  required argument, the same "required, refuse `None`" contract the other
+  three channels already use.
+- Characterization (required before migrating, per the W05/N-07 lesson)
+  found no divergence to fix first: the function reads only topology
+  instance data plus the already-compiler-sourced `vlan_cidr_index`, not a
+  second derivation of a compiler-owned fact - lower risk than items 1-3.
+- Verified against the real topology: `check_adr_consistency.py
+  --strict-titles` clean; full compile is `errors=0 warnings=3`, unchanged
+  from baseline; `git status` shows no diff under `generated/`.
+- `projections.py` now 12 functions / 1179 lines (down from 13/1361);
+  `test_backend_specialization_boundary.py` budget lowered to match,
+  `_extract_wireguard_tunnels` added to the "migrated, gone rather than
+  dormant" list.
+- Same nine-file test-wiring pattern as item 1 applied again: the shared
+  helper `tests/helpers/mikrotik_security_channels.py` now derives
+  `wireguard_tunnels` from `ctx.compiled_json` the same way it already does
+  `capability_flags`; all `consumes_keys`/`allowed_dependencies` sets
+  extended to the new plugin id. Full targeted mikrotik/projection/
+  terraform/tuc slice (120 tests) and the boundary suite confirmed passing.
+- `adr/0118-analysis/W07-BACKEND-SPECIALIZATION-DECISION.md`'s migration
+  order item 4a marked done, with a note that this confirms the "dedicated
+  plugin per specialization" choice item 1 first established, rather than
+  one plugin accreting every concern.
+
+### W07 migration order item 4b — container derivation moved to compile stage, 2026-09-29
+
+- `_extract_containers` moved verbatim from `projections.py` (generate
+  stage) to a new plugin, `object.mikrotik.compiler.containers`
+  (`topology/object-modules/mikrotik/plugins/compilers/containers_compiler.py`,
+  compile stage) - the third dedicated compile-stage compiler plugin an
+  object module has registered, after item 1's `capability_flags` and item
+  4a's `wireguard_tunnels`.
+- Consumes only `base.compiler.effective_model`'s `effective_model_candidate`
+  (router ids, `routeros_container`-group rows) - no dependency on
+  `base.compiler.security_matrix`, since container derivation touches no
+  zone/CIDR fact. `build_mikrotik_projection` gains `containers` as a
+  required argument (a plain list; `[]` is already the correct empty shape,
+  unlike the dict-shaped channels).
+- Characterization found no divergence to fix first, same as item 4a - but
+  also caught a real hazard: the projection already had an unrelated local
+  variable also named `containers` (observed-runtime bridge-interface
+  config, a different meaning entirely), which would have silently shadowed
+  the new parameter for the rest of the function and corrupted rendered
+  output if migrated without reading the whole function body first. Found
+  by grepping the function for the parameter name before finalizing, not by
+  a test; renamed to `observed_containers`.
+- Verified against the real topology: `check_adr_consistency.py
+  --strict-titles` clean; full compile is `errors=0 warnings=3`, unchanged
+  from baseline; `git status` shows no diff under `generated/`; the real
+  topology's 6 containers derived correctly with the rename in place.
+- `projections.py` now 11 functions / 1000 lines (down from 12/1179);
+  `test_backend_specialization_boundary.py` budget lowered to match,
+  `_extract_containers` added to the "migrated, gone rather than dormant"
+  list.
+- Same nine-file test-wiring pattern as items 1/4a applied again. Targeted
+  mikrotik/projection/terraform/tuc slice: 118 passed (2 unrelated errors in
+  `test_tuc0001_router_data_link.py`, root-caused to CPU contention from a
+  concurrently-running full-suite background job - every one of the ~30
+  underlying timeouts hit completely unrelated validators, dns_refs through
+  vm_refs, none touching MikroTik/containers/wireguard; a clean non-strict
+  compile immediately prior showed zero errors).
+- `adr/0118-analysis/W07-BACKEND-SPECIALIZATION-DECISION.md`'s migration
+  order item 4b marked done, naming the naming-collision finding explicitly
+  since it is the kind of thing the characterization step exists to catch.
+
+### W07 migration order item 4c — WiFi config derivation moved to compile stage, 2026-09-29
+
+- `_extract_wifi_config` moved verbatim from `projections.py` (generate
+  stage) to a new plugin, `object.mikrotik.compiler.wifi_config`
+  (`topology/object-modules/mikrotik/plugins/compilers/wifi_config_compiler.py`,
+  compile stage) - the fourth dedicated compile-stage compiler plugin an
+  object module has registered.
+- Consumes only `base.compiler.effective_model`'s `effective_model_candidate`
+  (router rows) - no dependency on `base.compiler.security_matrix`, same as
+  item 4b. `build_mikrotik_projection` gains `wifi_config` as a required
+  argument. `_extract_bridge_vlans` (item 4f, still in the projection) takes
+  this function's output as its own argument; the projection now threads
+  the `wifi_config` parameter into it locally, so 4f's eventual migration
+  will need `wifi_config` already in scope.
+- Characterization found no divergence and, checked explicitly this time
+  given item 4b's finding, no naming collision either: grepped the whole
+  function body for every generic-sounding name (`interfaces`, `datapaths`,
+  `configurations`, `securities`) before concluding it was safe.
+- Surfaced a test-infrastructure gap instead: `test_projection_helpers.py`'s
+  `build_mikrotik_projection` wrapper always defaulted the new required
+  channels to empty, silently breaking
+  `test_mikrotik_projection_extracts_wifi_interfaces` (a test that builds
+  real WiFi `instance_data` and expects it derived). Fixed by making that
+  wrapper auto-derive all four channels from the fixture's own rows, the
+  same way `test_mikrotik_capability_driven.py`'s wrapper already did.
+- Verified against the real topology: `check_adr_consistency.py
+  --strict-titles` clean; full compile is `errors=0 warnings=3`, unchanged
+  from baseline; `git status` shows no diff under `generated/`; the real
+  topology's 5 WiFi interface bindings derived correctly.
+- `projections.py` now 10 functions / 877 lines (down from 11/1000);
+  `test_backend_specialization_boundary.py` budget lowered to match,
+  `_extract_wifi_config` added to the "migrated, gone rather than dormant"
+  list.
+- Same test-wiring pattern as items 1/4a/4b applied again, plus the
+  `test_projection_helpers.py` wrapper fix above. Targeted mikrotik/
+  projection/terraform/tuc slice: 120 passed, clean.
+- `adr/0118-analysis/W07-BACKEND-SPECIALIZATION-DECISION.md`'s migration
+  order item 4c marked done, naming both findings (no collision this time,
+  found by checking; the test-wrapper gap, found by a real content test
+  failing) and noting the forward dependency onto item 4f.
+
+### W07 migration order item 4d — routing-policy derivation moved to compile stage, 2026-09-29
+
+- `_build_routing_policy_entry` moved verbatim from `projections.py`
+  (generate stage) to a new plugin, `object.mikrotik.compiler.
+  routing_policies` (`topology/object-modules/mikrotik/plugins/compilers/
+  routing_policies_compiler.py`, compile stage) - the fifth dedicated
+  compile-stage compiler plugin an object module has registered.
+- Unlike items 4a-4c, the source function was a per-row builder called from
+  inside a larger shared loop (over `network` rows) that also builds vlans
+  and bridges in the same iteration, not an independent top-level extractor.
+  Migrating it required replicating the loop's row-selection and
+  `managed_by_ref`-resolution logic for `routing_policy` rows specifically -
+  checked against the original by reading the surrounding loop in full, not
+  just the builder function - while leaving the vlan/bridge branches of that
+  same loop untouched in the projection.
+- Consumes `base.compiler.effective_model`'s `effective_model_candidate`
+  (router ids, network rows) and `base.compiler.security_matrix`'s
+  `vlan_cidr_map`, same as item 4a. `build_mikrotik_projection` gains
+  `routing_policies` as a required argument.
+- Characterization found no divergence and, checked given 4b's and 4c's
+  findings, no naming collision.
+- Verified against the real topology: `check_adr_consistency.py
+  --strict-titles` clean; full compile is `errors=0 warnings=3`, unchanged
+  from baseline; `git status` shows no diff under `generated/`; the real
+  topology's 5 routing policies derived correctly.
+- `projections.py` now 9 functions / 774 lines (down from 10/877);
+  `test_backend_specialization_boundary.py` budget lowered to match,
+  `_build_routing_policy_entry` added to the "migrated, gone rather than
+  dormant" list.
+- Same test-wiring pattern as items 1/4a/4b/4c applied again, including
+  extending both `test_projection_helpers.py`'s auto-deriving wrapper and
+  `test_mikrotik_capability_driven.py`'s wrapper with a routing-policy
+  derivation helper that replicates the plugin's row-selection loop.
+  Targeted mikrotik/projection/terraform/tuc slice: 120 passed, clean.
+- `adr/0118-analysis/W07-BACKEND-SPECIALIZATION-DECISION.md`'s migration
+  order item 4d marked done, naming the new kind of migration this item
+  represents (extracting a slice of a shared loop, not an independent
+  function) for the benefit of items 4e-4i.
+
+### W07 migration order item 4e — MAC-to-VLAN assignment derivation moved to compile stage, 2026-09-29
+
+- `_extract_mac_vlan_assignments` moved verbatim from `projections.py`
+  (generate stage) to a new plugin, `object.mikrotik.compiler.
+  mac_vlan_assignments` (`topology/object-modules/mikrotik/plugins/
+  compilers/mac_vlan_assignments_compiler.py`, compile stage) - the sixth
+  dedicated compile-stage compiler plugin an object module has registered.
+- It needed a VLAN `instance_id -> vlan_id` index the projection used to
+  build from its own already-filtered `vlans` list - itself a slice of the
+  same shared per-`network`-row loop item 4d's migration already drew from,
+  the same "per-row builder/index fed by a shared loop" shape 4d named.
+  Rather than replicate the whole VLAN branch (still generate-stage, item
+  4g), the plugin replicates only the row-selection, `managed_by_ref`-
+  resolution and `vlan_id`-fallback logic needed to build the index itself -
+  checked against the full network-row loop in `build_mikrotik_projection`,
+  not only the removed function.
+- This is also the first migration whose derivation needs object-level
+  properties (`_get_object_properties`'s `objects_map` fallback for
+  `vlan_id`), which `base.compiler.effective_model` already publishes under
+  `effective_model_candidate["objects"]` - confirmed by reading the
+  compiler's own `objects_index` construction, not assumed present.
+- Consumes only `base.compiler.effective_model`'s `effective_model_candidate`
+  (router ids, network rows, objects) - no `base.compiler.security_matrix`
+  dependency, same as items 4b/4c. `build_mikrotik_projection` gains
+  `mac_vlan_assignments` as a required argument.
+- Characterization found no divergence and, checked given 4b's and 4c's
+  findings, no naming collision.
+- Verified against the real topology: full compile is `errors=0 warnings=3`,
+  unchanged from baseline; `git status` shows no diff under `generated/`;
+  the real topology's 3 MAC-to-VLAN assignments derived correctly (I4215).
+- `projections.py` now 8 functions / 720 lines (down from 9/774);
+  `test_backend_specialization_boundary.py` budget lowered to match,
+  `_extract_mac_vlan_assignments` added to the "migrated, gone rather than
+  dormant" list.
+- Same test-wiring pattern as items 1/4a/4b/4c/4d applied again, including
+  extending `mikrotik_security_channels.py`, `test_projection_helpers.py`
+  and `test_mikrotik_capability_driven.py` with a MAC-VLAN derivation helper
+  that replicates the plugin's own vlan_id_index-building loop slice.
+  Targeted mikrotik/projection/terraform/tuc slice plus the full boundary
+  test file: 121 + 15 passed, clean.
+- `adr/0118-analysis/W07-BACKEND-SPECIALIZATION-DECISION.md`'s migration
+  order item 4e marked done, naming the two new lessons this item adds
+  (an index fed by a shared-loop slice, and a migrated function's data need
+  satisfied by a channel another compiler already publishes rather than a
+  new one) for the benefit of items 4f-4i.
+
+### W07 migration order item 4f — bridge-VLAN derivation moved to compile stage, 2026-09-29
+
+- `_extract_bridge_vlans` moved verbatim from `projections.py` (generate
+  stage) to a new plugin, `object.mikrotik.compiler.bridge_vlans`
+  (`topology/object-modules/mikrotik/plugins/compilers/
+  bridge_vlans_compiler.py`, compile stage) - the seventh dedicated
+  compile-stage compiler plugin an object module has registered.
+- Confirms the forward dependency item 4c's entry recorded: this plugin
+  subscribes to `wifi_config` (item 4c) from `object.mikrotik.compiler.
+  wifi_config` as a published channel, rather than the local variable the
+  projection used to thread into it. It also consumes
+  `base.compiler.effective_model`'s `effective_model_candidate` for the
+  router-row side of the derivation. No shared-loop slice or extra channel
+  was needed this time - both inputs were already either a top-level router
+  list or another compiler's published output.
+- Characterization found no divergence and, checked given 4b's and 4c's
+  findings, no naming collision.
+- Verified against the real topology: `check_adr_consistency.py
+  --strict-titles` clean; full compile is `errors=0 warnings=3`, unchanged
+  from baseline; `git status` shows no diff under `generated/`; the real
+  topology's 1 bridge VLAN entry derived correctly (I4216).
+- `projections.py` now 7 functions / 632 lines (down from 8/720);
+  `test_backend_specialization_boundary.py` budget lowered to match,
+  `_extract_bridge_vlans` added to the "migrated, gone rather than dormant"
+  list.
+- Same test-wiring pattern as items 1/4a/4b/4c/4d/4e applied again,
+  including extending `mikrotik_security_channels.py`,
+  `test_projection_helpers.py` and `test_mikrotik_capability_driven.py`
+  with a bridge-VLAN derivation helper that depends on the wifi_config
+  derivation helper, the same forward dependency the real plugin has.
+  Targeted mikrotik/projection/terraform/tuc slice plus the full boundary
+  test file: 121 + 16 passed, clean.
+- `adr/0118-analysis/W07-BACKEND-SPECIALIZATION-DECISION.md`'s migration
+  order item 4f marked done, updating the guidance for items 4g-4i to
+  describe subscribing to an earlier item's channel once it migrates,
+  rather than threading a still-local variable into a not-yet-migrated
+  function.
+
+### W07 migration order item 4g — VLAN-entry derivation moved to compile stage, 2026-09-29
+
+- `_build_vlan_entry` moved verbatim from `projections.py` (generate stage)
+  to a new plugin, `object.mikrotik.compiler.vlan_entries`
+  (`topology/object-modules/mikrotik/plugins/compilers/
+  vlan_entries_compiler.py`, compile stage) - the eighth dedicated
+  compile-stage compiler plugin an object module has registered.
+- Like items 4d/4e, the source function was a per-row builder inside the
+  same shared `network`-row loop that also builds bridges. Migrating it
+  required replicating the VLAN branch's row-selection and
+  `managed_by_ref`-resolution logic (including an `ip_allocations` fallback
+  the bridge branch does not have) - checked against the full network-row
+  loop, not just the builder - while leaving the bridge branch of that same
+  loop untouched in the projection.
+- Consumes only `base.compiler.effective_model`'s `effective_model_candidate`
+  (router ids, network rows, objects) - no `base.compiler.security_matrix`
+  dependency, same as items 4b/4c/4e. `build_mikrotik_projection` gains
+  `vlans` as a required argument.
+- Characterization found no divergence and, checked given 4b's and 4c's
+  findings, no naming collision.
+- It did surface a test-infrastructure gap, the same kind item 4c found but
+  in a different helper: `tests/plugin_integration/test_tuc0003_mikrotik_v2.py`
+  builds a `PluginInputSnapshot` directly (no `ctx` to publish through) via
+  `empty_channel_subscriptions()`, and one of its three tests asserts on a
+  real VLAN (`inst.vlan.guest`) its fixture actually carries - the all-empty
+  stand-in silently rendered "no VLANs configured" instead of failing
+  loudly. `vlans` is the first of the eight non-matrix channels this
+  fixture's assertions depend on with real content, which is why the gap
+  surfaced only now. Fixed by adding `derived_channel_subscriptions
+  (compiled_json)` to `tests/helpers/mikrotik_security_channels.py` - the
+  `PluginInputSnapshot` counterpart to `publish_empty_channels`, deriving
+  all eight channels from a given semantic payload - and switching that one
+  file's `_build_snapshot` to use it; `empty_channel_subscriptions()`
+  itself is untouched, since other callers genuinely want the all-empty
+  stand-in.
+- Verified against the real topology: `check_adr_consistency.py
+  --strict-titles` clean; full compile is `errors=0 warnings=3`, unchanged
+  from baseline; `git status` shows no diff under `generated/`; the real
+  topology's 10 VLAN entries derived correctly (I4217).
+- `projections.py` now 6 functions / 583 lines (down from 7/632);
+  `test_backend_specialization_boundary.py` budget lowered to match,
+  `_build_vlan_entry` added to the "migrated, gone rather than dormant"
+  list.
+- Same test-wiring pattern as items 1/4a/4b/4c/4d/4e/4f applied again,
+  including extending `mikrotik_security_channels.py`,
+  `test_projection_helpers.py` and `test_mikrotik_capability_driven.py`
+  with a VLAN-entry derivation helper that replicates the plugin's
+  row-selection loop, plus the new `derived_channel_subscriptions` helper
+  and its one call site. Targeted mikrotik/projection/terraform/tuc slice
+  plus the full boundary test file: 121 + 17 passed, clean (after fixing
+  the test_tuc0003 gap - the first isolated run surfaced 1 failure, real
+  and reproducible, not a stale-read or contention false alarm).
+- `adr/0118-analysis/W07-BACKEND-SPECIALIZATION-DECISION.md`'s migration
+  order item 4g marked done, naming the new lesson (a `PluginInputSnapshot`
+  built directly, bypassing any projection wrapper, needs its own
+  per-fixture channel derivation too) for the benefit of items 4h-4i.
+
+### W07 migration order item 4h — bridge-entry derivation moved to compile stage, 2026-09-30
+
+- `_build_bridge_entry` moved verbatim from `projections.py` (generate
+  stage) to a new plugin, `object.mikrotik.compiler.bridge_entries`
+  (`topology/object-modules/mikrotik/plugins/compilers/
+  bridge_entries_compiler.py`, compile stage) - the ninth dedicated
+  compile-stage compiler plugin an object module has registered, and the
+  bridge branch of the same shared `network`-row loop item 4g's VLAN branch
+  came from. With both branches now migrated, that loop keeps only
+  `networks.append` and the required-object-ref/instance-id validation
+  calls.
+- Consumes only `base.compiler.effective_model`'s `effective_model_candidate`
+  (router ids, network rows, objects) - no `base.compiler.security_matrix`
+  dependency, same as items 4b/4c/4e/4g. `build_mikrotik_projection` gains
+  `bridges` as a required argument.
+- Characterization found no divergence and, checked given 4b's and 4c's
+  findings, no naming collision.
+- Applied 4g's lesson directly this time: before finalizing, every test
+  whose fixture carries a real bridge row was checked for a
+  rendered-bridge assertion, not only the ones already using a derivation
+  helper. `test_tuc0003_mikrotik_v2.py`'s `MIKROTIK_COMPILED_PAYLOAD`
+  carries a `br-lan` bridge and one of its tests asserts
+  `resource "routeros_interface_bridge"` in the rendered output, so
+  `derived_channel_subscriptions` (added in item 4g) gained a `bridges`
+  derivation in the same change that added the `bridges` channel, rather
+  than waiting for that test to fail first the way item 4g's gap was found.
+- Verified against the real topology: `check_adr_consistency.py
+  --strict-titles` clean; full compile is `errors=0 warnings=3`, unchanged
+  from baseline; `git status` shows no diff under `generated/`; the real
+  topology derives 0 bridges, matching the pre-migration baseline (this
+  topology's LAN uses the native bridge interface directly rather than a
+  separate `obj.network.bridge` row) (I4218).
+- `projections.py` now 5 functions / 564 lines (down from 6/583);
+  `test_backend_specialization_boundary.py` budget lowered to match,
+  `_build_bridge_entry` added to the "migrated, gone rather than dormant"
+  list.
+- Same test-wiring pattern as items 1/4a-4g applied again, including
+  extending `mikrotik_security_channels.py`, `test_projection_helpers.py`
+  and `test_mikrotik_capability_driven.py` with a bridge-entry derivation
+  helper that replicates the plugin's row-selection loop, plus extending
+  `derived_channel_subscriptions` with the new channel proactively.
+  Targeted mikrotik/projection/terraform/tuc slice plus the full boundary
+  test file: 121 + 18 passed, clean on the first isolated run (no gap this
+  time, unlike item 4g).
+- `adr/0118-analysis/W07-BACKEND-SPECIALIZATION-DECISION.md`'s migration
+  order item 4h marked done. Only item 4i (`_build_firewall_entry`, 16
+  lines) remains in the migration order.
+
+### W07 migration order item 4i — firewall-entry derivation moved to compile stage, completing the migration order, 2026-09-30
+
+- `_build_firewall_entry` moved verbatim from `projections.py` (generate
+  stage) to a new plugin, `object.mikrotik.compiler.firewall_entries`
+  (`topology/object-modules/mikrotik/plugins/compilers/
+  firewall_entries_compiler.py`, compile stage) - the tenth and final
+  dedicated compile-stage compiler plugin the W07 migration order calls
+  for. Unlike items 4d/4e/4g/4h, the source function's loop was never
+  shared with any other row kind - its own dedicated loop over the
+  `firewall` instance group, the same independent-extractor shape items
+  4a-4c had.
+- Consumes only `base.compiler.effective_model`'s `effective_model_candidate`
+  (router ids, `firewall`-group rows, objects) - no `base.compiler.
+  security_matrix` dependency, same as items 4b/4c/4e/4g/4h.
+  `build_mikrotik_projection` gains `firewall_policies` as a required
+  argument.
+- Characterization found no divergence and, checked given 4b's and 4c's
+  findings, no naming collision.
+- With this function's departure, `_get_object_properties` and
+  `_is_staged_row` lost their last caller in the projection. Per the W07
+  decision document's own reasoning, neither makes a backend decision, so
+  neither was an independent migration candidate - but leaving them in
+  place once nothing called them would be exactly the dormant-helper risk
+  A24 exists to prevent. Removed as dead code in the same change.
+- The zone/CIDR resolution `build_mikrotik_projection` still applies to
+  this channel's output (trust-zone-to-CIDR matching, `src_zone_ref`/
+  `dst_zone_ref` normalization) is not part of `_build_firewall_entry` and
+  stays in the projection, the same way policy-based routing's
+  `src_vlan_ref` resolution stays local to the routing_policies plugin.
+- Applied item 4h's discipline again: every test whose fixture carries a
+  real firewall-policy row was checked before finalizing, not only after a
+  failure. `test_terraform_mikrotik_generator.py`'s
+  `test_terraform_mikrotik_generator_reflects_full_network_topology`
+  asserts on real firewall-filter output (`guest_isolated_default`,
+  `iot_isolated_default`) and passed on the first isolated run, because
+  `publish_empty_channels`/`derived_channel_subscriptions` already derive
+  `firewall_policies` from the fixture the same way every other channel
+  does - no test-infrastructure gap this time.
+- Verified against the real topology: `check_adr_consistency.py
+  --strict-titles` clean; full compile is `errors=0 warnings=3`, unchanged
+  from baseline; `git status` shows no diff under `generated/`; the real
+  topology's 4 firewall-policy entries derived correctly (I4219).
+- `projections.py` is now 2 functions / 518 lines (down from 5/564 at item
+  4h, and from 17/1,565 at the W07 baseline) - `_extract_security_matrix`
+  and `build_mikrotik_projection` itself, exactly the scope the decision
+  document named in advance as what a final step would actually be.
+  `test_backend_specialization_boundary.py` budget lowered to match, and
+  `_build_firewall_entry`, `_get_object_properties`, `_is_staged_row`
+  added to the "migrated, gone rather than dormant" list.
+- Same test-wiring pattern as items 1/4a-4h applied again, including
+  extending `mikrotik_security_channels.py`, `test_projection_helpers.py`
+  and `test_mikrotik_capability_driven.py` with a firewall-entry derivation
+  helper that replicates the plugin's own dedicated loop. Targeted
+  mikrotik/projection/terraform/tuc slice plus the full boundary test file:
+  121 + 21 passed, clean on the first isolated run.
+- `adr/0118-analysis/W07-BACKEND-SPECIALIZATION-DECISION.md`'s migration
+  order item 4i marked done, completing the migration order (items 1,
+  4a-4i). The document's "What this decision does not do" section's stale
+  function/line count updated to match, and a closing note added
+  clarifying that completing the migration order does not by itself close
+  W07/G4 - that gate also depends on the conformance record in
+  `ENFORCER-AXIS-CONFORMANCE.md`.
+
+### ENFORCER-AXIS-CONFORMANCE.md reconciliation and first counterexample, 2026-09-30
+
+- Reconciled `ENFORCER-AXIS-CONFORMANCE.md`'s ten open rows against
+  `ENFORCER-SCOPE-IMPLEMENTATION-READINESS.md`'s own sequencing record and
+  the real commits it cites, none of which the conformance table had been
+  updated to reflect. Five rows closed (V-04, V-05, V-09, V-13, V-15), one
+  split (V-14: Proxmox closed, MikroTik worse - the W07 migration order
+  raised its substring-selector count from 9 to 18), four unchanged (V-07,
+  V-10, V-11, V-12). Found and corrected a misattribution in the readiness
+  record's own sequencing table: it credited V-10 as closed alongside V-09,
+  but V-10's own wording and evidence (the single-router assumption) were
+  never what that commit fixed, per the commit's own message. Both
+  documents corrected; `IMPLEMENTATION-PLAN.md`'s W07-completion entry
+  (added the same day) updated to match rather than repeat the same error.
+- Implemented and pinned the conformance record's first counterexample
+  (section 4, "Two devices of one type"): `test_effective_model_resolves_
+  two_instances_of_one_type_independently` in
+  `tests/plugin_integration/test_effective_model_compiler.py` confirms two
+  enforcer instances of one type resolve independently at the D-TYPE
+  layer, with divergent outcomes (one resolves, one hits W7016) - passed on
+  the first run, confirming already-correct behavior rather than finding a
+  defect there.
+- Implemented the second counterexample's accepted fallback outcome ("or
+  explicit unsupported-multiplicity diagnostic"): `_extract_security_matrix`
+  in `topology/object-modules/mikrotik/plugins/projections.py` used to
+  silently pick the sorted-first enforcer when `composed_matrices_by_
+  enforcer` held a composed plan for more than one - V-10's defect, latent
+  because the real topology has exactly one router. It now raises
+  `ProjectionError` naming every enforcer it found, citing the V-11/V-12
+  Terraform state-layout question this does not decide. Pinned by
+  `test_mikrotik_projection_refuses_more_than_one_enforced_router` in
+  `tests/plugin_integration/test_projection_helpers.py`. This is real
+  progress on V-10 (silent to explicit) but not the closure V-10's title
+  asks for (multi-enforcer rendering itself stays blocked on V-11/V-12).
+- Verified against the real topology: `check_adr_consistency.py
+  --strict-titles` clean; full compile is `errors=0 warnings=3`, unchanged
+  from baseline (the refusal never fires there - one router, one composed
+  plan); `git status` shows no diff under `generated/`. Targeted mikrotik/
+  projection/effective-model test slice: 99 passed, 1 skipped.
+- `adr/0118-analysis/ENFORCER-AXIS-CONFORMANCE.md`'s section 4
+  counterexamples table gained a Status column recording both results.
+
+### Counterexample 4 characterized: enforcer_resolution has zero consumers, 2026-09-30
+
+- Investigating counterexample 3 ("Generic + specific capabilities...
+  Provenance retained") found it has no implemented mechanism to test
+  against - `provenance` does not appear anywhere in `capability_compiler.py`
+  - and overlaps V-07, already blocked on G1/W03. Assessed and deferred
+  rather than guessed at; `ENFORCER-AXIS-CONFORMANCE.md` section 4 records
+  why.
+- That investigation surfaced a larger, concrete finding: `enforcer_resolution`
+  (D-TYPE-1..3, `7d6a2072`) has **zero consumers anywhere** in the MikroTik or
+  Proxmox plugin trees. Every plugin that builds `router_ids` still decides
+  "is this an enforcer" by `object_ref.startswith("obj.mikrotik.")`, a
+  name-prefix check with no relationship to whether the compiler's own
+  resolver would recognize the instance as a valid enforcer at all. This is
+  exactly counterexample 4: "Reference names a target with no enforcement
+  capability | Visible refusal; a valid instance_ref alone is insufficient" -
+  currently the opposite is true.
+- Characterized, not fixed, per explicit direction: added
+  `test_mikrotik_projection_accepts_a_router_ref_the_type_resolver_would_
+  refuse` in `tests/plugin_integration/test_projection_helpers.py`, running
+  the same instance shape through both real compilers - `effective_model_
+  compiler` correctly omits an instance with no declared device-kind
+  capability from `enforcer_resolution`, and `build_mikrotik_projection`
+  still accepts the same instance as a router. Wiring `enforcer_resolution`
+  into the ~10 files across MikroTik and Proxmox that build `router_ids` is
+  deferred as its own, larger change - not attempted here.
+- Also added a caveat to V-04's closed row (section 2a): V-04's *type
+  resolution* half is genuinely closed against its original zero-consumer
+  evidence, but its *target validation* half is not - `enforcer_resolution`
+  existing and being computed is not the same as anything downstream
+  validating against it, which this counterexample now demonstrates
+  concretely rather than by inference.
+- Verified: `check_adr_consistency.py --strict-titles` clean; targeted
+  mikrotik/projection/effective-model test slice: 34 passed (test_projection_
+  helpers.py + test_effective_model_compiler.py in full).
+
+### VLAN managed_by_ref gains a network-enforcer-type check (E7019), 2026-09-30
+
+- The "zero consumers anywhere" framing above was overclaimed: it was scoped
+  to the MikroTik/Proxmox object-module plugin trees and missed the
+  framework-level VALIDATE stage. `declarative_reference_validator.py`
+  (registered as `base.validator.network_core_refs`; `network_core_refs_
+  validator.py` is the same logic kept only as the parity test's legacy
+  baseline, not itself registered in any manifest) already subscribes to
+  `enforcer_resolution` and raises `E7018` for `class.network.security_matrix`
+  rows' `managed_by_ref` - just not for VLAN, bridge, firewall-policy,
+  routing-policy or MAC-VLAN-assignment rows, each validated by separate,
+  purely structural logic in the same file. Corrected in
+  `ENFORCER-AXIS-CONFORMANCE.md` (commit `6e254609`) before this entry.
+- Given three scoping options, chose the minimal one: fix VLAN's
+  `managed_by_ref` only, leaving firewall_policy/routing_policy's (already
+  broader, pre-existing) gap untouched as separate future work.
+- `_rule_network_core` in `declarative_reference_validator.py` gains a new
+  `class.network.vlan`-only branch alongside the existing generic
+  `class.router`/L1 structural check (`E7835`): a new helper,
+  `_validate_vlan_managed_by_enforcer_type`, runs only when that structural
+  check already passed (avoiding a duplicate diagnostic for the same root
+  cause) and requires the resolved `enforcer_resolution` type to be exactly
+  `"network"`, not merely non-`None` - a hypervisor resolved as `"compute"`
+  is valid for a security matrix (ADR-0110) but not for a VLAN. New code
+  `E7019` allocated in `error-catalog.yaml` (`E7018`'s empty adjacent slot in
+  the same 7009-7019 sub-band), `severity: error`, `stage: validate`
+  (`E7018`'s own catalog entry says `stage: compile`, a pre-existing
+  mismatch against where it actually runs - not touched here).
+- Scoped strictly per instruction: `class.network.firewall_policy` and
+  `class.network.routing_policy` still have no enforcer-type check on their
+  own `managed_by_ref`, and the COMPILE-stage object-module compilers that
+  build `router_ids` (the ~10-file gap counterexample 4 characterizes) are
+  unchanged - this only adds a VALIDATE-stage guard for the case where a
+  VLAN's `managed_by_ref` is explicitly set.
+- Tests: two new regression tests in `test_declarative_reference_validator.py`
+  (missing enforcer type; wrong/`"compute"` type). Three "accepts valid"
+  tests in the same file and in `test_network_core_refs_validator.py` needed
+  an added `enforcer_resolution` publish to stay green (E7019 now fires for
+  them otherwise); the parity test (`test_declarative_reference_validator_
+  parity.py`) needed the same, plus widening its `_run` helper's
+  `consumes_keys` to include `base.compiler.effective_model` - the legacy
+  reference file never reads that channel, so parity is preserved by making
+  the new check pass silently on that fixture, not by touching the legacy
+  file. 42 tests passed across the three files.
+- `topology-tools/data/error-catalog.yaml` is inside the framework integrity
+  boundary: regenerated `projects/home-lab/framework.lock.yaml` (`generate-
+  framework-lock.py --force`) after adding `E7019`, per `docs/framework/
+  FRAMEWORK-V5.md`'s documented recovery for `E7824`.
+- Verified against the real topology: `errors=0 warnings=3`, unchanged from
+  baseline (the one real router resolves `"network"`, so `E7019` never fires
+  there); `git status` shows no diff under `generated/`;
+  `check_adr_consistency.py --strict-titles` clean.
+- `ENFORCER-AXIS-CONFORMANCE.md` updated: V-04's row (section 2a) and
+  counterexample 4's row (section 4) now describe the VALIDATE-stage E7019
+  guard precisely, while keeping the COMPILE-stage/projection gap that
+  counterexample 4's own test targets marked as still violated and
+  unaffected by this change.
+
+### routing_policy and firewall_policy's managed_by_ref join the check, 2026-09-30
+
+- Given three remaining open items (V-07 and V-11/V-12 both blocked on
+  architectural decisions not for an agent to make; V-14's MikroTik-side
+  `router_ids`-by-capability refactor, ~10-11 files, COMPILE stage; or this
+  smaller extension), chose the smaller extension: the same E7019/E7018
+  pattern, applied to the two remaining `managed_by_ref`-bearing network-core
+  row kinds that had no check at all.
+- `class.network.routing_policy` was not excluded from `_is_network_row`
+  and already got the generic structural `class.router`/L1 check (E7835);
+  it now also gets E7019's strict "network"-type check, alongside
+  `class.network.vlan` - a router's own routing table is not something a
+  hypervisor can take over, the same reasoning VLAN's check already used.
+  Renamed the helper from `_validate_vlan_managed_by_enforcer_type` to
+  `_validate_network_type_managed_by_ref` to reflect the broader scope.
+- `class.network.firewall_policy` was fully excluded from `_is_network_row`
+  (grouped with bridge/trust_zone/firewall_rule/data_link/physical_link/qos,
+  none of which carry `managed_by_ref`) with no explanation in the exclusion
+  set's own comments or git history for why it specifically had no check at
+  all, despite real topology instances (`inst.fw.*`) setting `managed_by_ref`
+  in practice - neither class schema (`class.network.firewall_policy.yaml`,
+  `class.network.routing_policy.yaml`) declares the field at all, since it is
+  a cross-cutting instance field, not a class-specific schema property.
+  Given firewall_policy is conceptually closer to security_matrix (a
+  named security/firewall scope that could plausibly be enforced by a
+  router's zone policy or a hypervisor's own firewall stack, ADR-0110) than
+  to VLAN (an L2 network-topology construct that only a router administers),
+  gave it `E7018`'s permissive (network-or-compute) check instead of E7019's
+  strict one, under a new code `E7026` (no structural class.router/L1 check
+  to layer onto, since none existed before). `_validate_enforcer_type_ref`
+  gained `code`/`context_label` parameters (defaulting to `E7018`/"security
+  matrix", so the existing security_matrix call site is unchanged) so E7018
+  and E7026 share one implementation.
+- New code `E7026` allocated in `error-catalog.yaml`; `E7019`'s catalog
+  entry and hint text updated to describe both classes it now covers rather
+  than "VLAN only".
+- Tests: four new regression tests in `test_declarative_reference_validator.py`
+  (routing_policy: wrong/`"compute"` type, accepts `"network"`; firewall_policy:
+  missing type, accepts `"compute"`) - 11 tests, all passing. No existing test
+  in this file, the parity test, or `test_network_core_refs_validator.py` uses
+  a `routing_policy`/`firewall_policy` row, so none needed updating.
+- `error-catalog.yaml` is inside the framework integrity boundary again:
+  regenerated `framework.lock.yaml` (`generate-framework-lock.py --force`).
+- Verified against the real topology: `errors=0 warnings=3`, unchanged (the
+  real topology's `inst.routing_policy.*` and `inst.fw.*` instances are all
+  managed by the one real router, which resolves `"network"`); no diff under
+  `generated/`; `check_adr_consistency.py --strict-titles` clean.
+- Checked whether bridge or "MAC-VLAN-assignment" rows are also
+  `managed_by_ref`-bearing gaps at this VALIDATE-stage level, since earlier
+  text in this record grouped them with VLAN/firewall-policy/routing-policy:
+  they are not. `class.network.bridge`'s schema has no `managed_by_ref` field
+  at all (only `host_ref`, already checked as `E7836`), and "MAC-VLAN
+  assignment" is not a distinct instance class - `mac_vlan_assignments_
+  compiler.py` derives it from VLAN rows' own data, which `E7019` already
+  covers. All four `managed_by_ref`-bearing `_rule_network_core` row kinds
+  (security_matrix, vlan, routing_policy, firewall_policy) now have a
+  capability check. `ENFORCER-AXIS-CONFORMANCE.md`'s V-04 row and
+  counterexample 4's row updated again to name `E7026`, the newly-covered
+  classes, and this correction - the remaining gap those rows measure is
+  purely the COMPILE-stage `router_ids` builders (V-14/the ~10-file wiring),
+  a different mechanism from this VALIDATE-stage class-row check entirely.
+
+### V-14 MikroTik-side closed: router_ids by declared capability, 2026-09-30
+
+- With the VALIDATE-stage `managed_by_ref` checks (E7018/E7019/E7026) done,
+  the two remaining implementable-by-agent priorities were this (V-14's
+  MikroTik-side refactor) or stopping; V-07/V-11/V-12 stay blocked on
+  architectural decisions not for an agent to make. Chose this: it is the
+  last open piece of counterexample 4 ("Reference names a target with no
+  enforcement capability"), already characterized by
+  `test_mikrotik_projection_accepts_a_router_ref_the_type_resolver_would_
+  refuse`, and closes V-14's own finding (`grep -rn 'in object_ref\|in
+  instance_id\|startswith("obj\.' topology/object-modules/mikrotik/plugins/`
+  = 18 lines across 11 files, 2026-09-30 baseline).
+- Characterized the exact selection criterion needed before writing any fix
+  code, since the naive replacement is a real regression risk: `rtr-slate`
+  (a real device, GL.iNet Slate AX1800, `obj/glinet/obj.glinet.slate_
+  ax1800.yaml`) declares `cap.net.l3.security.firewall.zone_policy` and so
+  resolves `enforcer_resolution` type `"network"` (D-TYPE-1), but its OS
+  family is OpenWrt, not RouterOS, so D-TYPE-2 resolves no adapter - `type
+  == "network"` alone would have wrongly admitted it into every MikroTik-
+  specific `router_ids` set. The real topology's one MikroTik router (`rtr-
+  mikrotik-chateau`) resolves `adapter == "cap.firewall.security_matrix.
+  routeros"`; `rtr-slate` does not. Selection criterion: `enforcer_
+  resolution[instance_id].get("adapter") == "cap.firewall.security_matrix.
+  routeros"`, replacing `object_ref.startswith("obj.mikrotik.")` - true
+  declared-capability selection (D-TYPE-1..3), not a name-prefix
+  convention, and provably not a same-topology no-op the way E7019's real-
+  topology parity check often is.
+- Applied uniformly across all ten compile-stage compilers found by that
+  grep (`bridge_entries`, `firewall_entries`, `vlan_entries`, `routing_
+  policies`, `mac_vlan_assignments`, `containers`, `wireguard_tunnels`,
+  `wifi_config`, `bridge_vlans`, `capability_flags`): each gained a local
+  `_is_mikrotik_enforcer(instance_id, enforcer_resolution)` helper
+  (duplicated per file, matching this family's established "small helpers
+  duplicated, not cross-imported" convention already set by `_resolved_
+  object_ref`/`_get_object_properties`) and an `enforcer_resolution`
+  subscribe from `base.compiler.effective_model` alongside the existing
+  `effective_model_candidate` one. `plugins.yaml` gained a matching
+  `enforcer_resolution` consumes entry for each (`allowed_dependencies` is
+  keyed by producer plugin id, not key, so this was for documentation/
+  auditability parity with the existing `consumes` declarations, not a
+  runtime necessity - confirmed by reading `kernel/plugin_base.py`'s
+  `subscribe` and `specs.py`'s `declared_dependency_ids` before assuming
+  either way).
+- `projections.py`'s own `build_mikrotik_projection` (GENERATE stage, called
+  by `terraform_mikrotik_generator.py`) had the same pattern at its own
+  `router_ids` build - not dead code, unlike the different single-pick
+  pattern V-10 found dead at a different line in the same file. Gave it the
+  same fix: a new required `enforcer_resolution` parameter (same "required,
+  refuse None" `ProjectionError` contract the other nine channel parameters
+  already have), the same local `_is_mikrotik_enforcer` helper, and a new
+  `enforcer_resolution` consumes entry + `depends_on: base.compiler.
+  effective_model` on `object.mikrotik.generator.terraform`'s manifest
+  entry. This closes `test_mikrotik_projection_accepts_a_router_ref_the_
+  type_resolver_would_refuse` for real: converted from a characterization
+  test (asserted the bug) to a regression test (asserts the fix), renamed
+  to `test_mikrotik_projection_refuses_a_router_ref_the_type_resolver_
+  refuses`.
+- Test fixture fallout, all traced to the same root cause (fixtures that
+  identify "the router(s)" by name prefix, same as the code used to): four
+  files' local `build_mikrotik_projection` wrapper functions (`test_
+  projection_helpers.py`, `test_projection_snapshots.py`, `test_mikrotik_
+  capability_driven.py`) and one direct-generator-execution fixture (`test_
+  mikrotik_capability_driven.py`'s `_ctx`) needed a synthesized `enforcer_
+  resolution` default (or explicit publish), deriving it from the same
+  name-prefix router set the fixture already computes, so every test not
+  specifically exercising the new capability check keeps picking the same
+  routers as before. `test_mikrotik_vlan_entries_silently_drops_an_
+  ambiguous_target` (a different, still-open counterexample - "Shared
+  management endpoint, distinct target selectors") needed the same
+  treatment for its two-router premise to still hold; it is unaffected by
+  and does not test the V-14 fix itself. `test_the_manifest_declares_all_
+  twelve_channels_required` renamed to ...`_thirteen_...` with a new
+  assertion for the `enforcer_resolution` consumes entry.
+- `error-catalog.yaml` was not touched this time - no new diagnostic code,
+  since router selection is an internal compiler decision, not something
+  that emits a diagnostic of its own (an excluded router silently produces
+  fewer entries, the same as before; a VLAN/routing_policy/firewall_policy
+  row naming it as `managed_by_ref` is what `E7018`/`E7019`/`E7026` already
+  catch). `topology/object-modules/mikrotik/` is inside the framework
+  integrity boundary (`topology/framework.yaml`'s `include`): regenerated
+  `framework.lock.yaml` regardless, since these files changed.
+- Verified against the real topology: `errors=0 warnings=3`, unchanged; no
+  diff under `generated/` (the real router resolves the RouterOS adapter,
+  so nothing it manages was excluded); `check_adr_consistency.py --strict-
+  titles` clean.
+- Mid-verification process hygiene: a background full-suite run was
+  accidentally left running from an earlier step while a second one was
+  launched for this step, producing two concurrent processes reading/
+  writing overlapping `/tmp` state and two spurious failures neither
+  reproduced alone. Killed both, ran one clean instance instead of trusting
+  the noisy result - the same "characterize before concluding" discipline
+  this whole session has used for topology defects, applied to a tooling
+  anomaly instead.
+
+### V-14 fully closed: row-kind selection by declared class, 2026-09-30
+
+- The user confirmed V-14 as the next priority after the router-selection
+  half landed. The remaining row-kind-selection half (7 lines across 6
+  files: `bridge_entries`, `firewall_entries`, `vlan_entries`, `mac_vlan_
+  assignments`, `routing_policies`, `wireguard_tunnels`) decides "is this
+  network row a VLAN/bridge/routing-policy/firewall-policy row" by matching
+  a substring against `object_ref` - a name convention, not the declared
+  class V-14 asks for, even though `effective_model_candidate`'s rows
+  already carry `instance.extends_class`/`materializes_class` (populated
+  by `effective_model_compiler.py` the same way `extends_object`/
+  `materializes_object` are) - confirmed by reading the compiler's own
+  normalization code before assuming the field existed.
+- Added a `_resolved_class_ref(row)` helper to each of the six files,
+  mirroring the existing `_resolved_object_ref`'s exact resolution order
+  (`extends_class` then `materializes_class`), and replaced each substring
+  check with a declared-class comparison: `class.network.bridge`,
+  `.firewall_policy`, `.vlan` (both `vlan_entries` and `mac_vlan_
+  assignments`, since MAC-VLAN assignment is derived from VLAN row data),
+  `.routing_policy`, and `.tunnel_link` for WireGuard. Verified each class
+  name against the real class-module `@extends` chain and a real instance
+  file before using it, not assumed from the object's name.
+- This also fixed a live aliasing bug the substring approach was working
+  around, not just a style issue: `obj.network.routing_policy.vpn_vlan`
+  contains the substring `"vlan"`, so `vlan_entries_compiler.py` and
+  `mac_vlan_assignments_compiler.py` both needed an explicit `or
+  "routing_policy" in object_ref` exclusion to avoid misclassifying it as a
+  VLAN row. The class-based check has no such aliasing risk - a genuine
+  correctness improvement, not only a V-14-compliance one.
+- `wireguard_tunnels_compiler.py`'s case needed a documented boundary
+  rather than a deeper fix: `class.network.tunnel_link` has exactly one
+  extending object today (`obj.network.wireguard_tunnel`), so the class
+  check alone is sufficient for the current corpus, but the compiler's own
+  extracted shape (`endpoint_a`/`endpoint_b`, listen port, peers) is
+  WireGuard-specific - a future non-WireGuard `tunnel_link` object would
+  additionally need a `tunnel_type` property check (threading `objects_map`
+  into `_extract_wireguard_tunnels`'s signature, a broader change than the
+  other five files needed). Noted in the code rather than solved
+  speculatively for a class that has no second member yet.
+- Caught one test-fixture risk before it became a silent false pass: `test_
+  mikrotik_vlan_entries_silently_drops_an_ambiguous_target`'s `inst.vlan.
+  ambiguous` fixture row set `extends_object`/`materializes_object` but not
+  `extends_class`/`materializes_class` - with the new class-based filter,
+  this row would have been excluded for lacking a class match instead of
+  reaching the `managed_by_ref` ambiguity logic the test exists to
+  characterize, and the test's `vlans == []` assertion would have kept
+  passing for the wrong reason. Added the missing `materializes_class:
+  class.network.vlan` field so the test still exercises the gap it names.
+  Checked the other MikroTik-adjacent test files for the same risk
+  (`test_mikrotik_capability_driven.py`, `test_terraform_mikrotik_
+  generator.py`, `test_tuc0002_terraform_v2.py`, `test_tuc0003_mikrotik_
+  v2.py`) - none construct raw VLAN/bridge/routing-policy/firewall-policy/
+  wireguard-tunnel network rows without a class field already set, so none
+  needed the same fix.
+- `grep -rn 'in object_ref\|in instance_id\|startswith("obj\.'
+  topology/object-modules/mikrotik/plugins/` now returns zero real code
+  matches (one harmless comment line remains, an unrelated ADR-0117 note).
+  V-14 is fully closed, not split, for the first time since the W07
+  migration order copied the pattern into ten new files.
+- Verified against the real topology: `errors=0 warnings=3`, unchanged; no
+  diff under `generated/`; targeted mikrotik/terraform/tuc00/bridge/vlan/
+  routing_policy/wireguard/firewall test slice (150 passed);
+  `check_adr_consistency.py --strict-titles` clean; `plugin_contract`/
+  `kernel` (408 passed, the same pre-existing unrelated `projections.py`
+  "chateau" hardcode failure confirmed again).
+- `ENFORCER-AXIS-CONFORMANCE.md`'s V-14 row updated to "fully closed," and
+  the section 2 "Net" summary corrected from "closed or majority-closed" to
+  plain "closed."
+
+### SPC MODE on V-07/V-10/V-11/V-12; V-10's per-row refusal implemented, 2026-09-30
+
+- Invoked `docs/ai/spc-contract.md`'s 7-step protocol to work through the
+  remaining open rows. STEP 0 (read first) covered ADR 0118, ADR 0119 in
+  full, `ENFORCER-SCOPE-IMPLEMENTATION-READINESS.md` in full,
+  `W07-BACKEND-SPECIALIZATION-DECISION.md` in full, this document's G1/G3/G4/
+  §8/§9 sections, ADR 0057, the real `generated/home-lab/terraform/mikrotik/`
+  structure, and the generator's remote-state config - before drawing any
+  conclusion, per the protocol's own STEP 0 gate.
+- That reading surfaced a scope-defining fact rather than a solution: V-07
+  and V-10/V-11/V-12 are not one architectural decision. V-07 (the ADR 0119
+  D2 execution-context record) is blocked on G1/W03 - the full L4/L5/L2
+  strict-profile schema registration, a separate, multi-gate initiative
+  (G1→G2→...→G8) that has not started (W02/W03 not landed). V-10/V-11/V-12's
+  Terraform apply-unit/state-layout question is a bounded, self-contained
+  decision - and, reading `W07-BACKEND-SPECIALIZATION-DECISION.md` in full,
+  already **decided** on 2026-09-14: one Terraform root per enforcer
+  instance (`terraform/<backend>/<enforcer instance id>/`, following the
+  `bootstrap/<device>/` precedent), with the earlier justification
+  ("a root holds one unaliased provider") explicitly withdrawn as wrong
+  (`alias` supports several configurations of one provider) and a real
+  justification substituted (reducing cross-enforcer state/apply coupling).
+  That document already states what remains is implementation, gated by
+  "a separately reviewed behaviour change" - not further architecture. Real
+  Terraform state for this deployment is local (`terraform_remote_state`
+  disabled, unset in `projects/home-lab/`), so any actual state migration
+  can only be prepared as a runbook for the human operator to execute
+  against their own state - this session has no access to it.
+- Given the choice put to the user - work through the (already-decided,
+  execution-gated) architecture further, or identify and implement whatever
+  needs no further architectural decision - the user chose the latter.
+  V-10 ("No single-instance assumption") has a piece that fits exactly:
+  `_extract_security_matrix` already converted its own silent single-router
+  pick into an explicit `ProjectionError` (commit `2e59504b`, this session);
+  four of the five compile-stage compilers the W07 migration order copied
+  the same shared-loop pattern into (`vlan_entries`, `firewall_entries`,
+  `routing_policies`, `mac_vlan_assignments`) still silently drop a row
+  whose `managed_by_ref` cannot be resolved among zero or several candidate
+  routers, with no diagnostic - exactly `test_mikrotik_vlan_entries_
+  silently_drops_an_ambiguous_target`'s characterization. Applying the same
+  "silent to explicit refusal" step to these four needs no Terraform-layout
+  decision at all - it is a COMPILE-stage diagnostic, per-row, and never
+  fires while `router_ids` has exactly one entry (the real topology today).
+- New code `E7027` (error, stage compile) allocated in `error-catalog.yaml`
+  and raised by all four: `'<instance_id>' has no managed_by_ref ... with N
+  candidate router(s) present; refusing an ambiguous target rather than
+  silently dropping the row`. `mac_vlan_assignments_compiler.py`'s
+  `_build_vlan_id_index` (a plain function, not a plugin, so it cannot emit
+  diagnostics itself) was changed to return `(index, ambiguous_instance_ids)`
+  instead of just `index`, with the caller emitting `E7027` for each; two
+  other callers of this function (`tests/helpers/mikrotik_security_channels.py`,
+  `test_mikrotik_capability_driven.py`'s own copy) needed the same tuple-
+  unpack fix, found by grepping every call site rather than assuming the one
+  in the production plugin was the only one.
+- `bridge_entries_compiler.py` was deliberately **not** given this fix.
+  Characterizing it first (per this session's standing discipline) found it
+  has no single-router default at all - only a `host_ref` fallback - and
+  adding `E7027` there immediately broke the real compile: the real
+  topology's two bridge rows (`inst.bridge.containers`, `inst.bridge.vmbr0`)
+  both declare `host_ref` at the instance's *top level*, not under
+  `instance_data` where the compiler's `inst_data.get("host_ref")` looks,
+  so both have always silently compiled to zero bridges (matching item 4h's
+  own "the real topology derives 0 bridges" note, whose cause was never
+  investigated until now). Reverted immediately on discovery rather than
+  fixed inline - fixing the field-location bug changes real rendered output
+  (bridges that have never rendered would start to) and needs its own
+  characterization and review, not a diagnostic-only change bundled into
+  this one. Recorded in `ENFORCER-AXIS-CONFORMANCE.md`'s V-10 row and the
+  "Shared management endpoint" counterexample row as a new, separate,
+  still-open finding.
+- Tests: the characterization test for `vlan_entries` converted to a
+  regression test (renamed `..._refuses_an_ambiguous_target`, asserting the
+  `E7027` diagnostic and its path rather than its absence), plus three new
+  analogous regression tests for `firewall_entries`, `routing_policies` and
+  `mac_vlan_assignments` - each built its own minimal two-router fixture
+  rather than reusing one assumed-equivalent case, since `firewall_entries`
+  reads a dedicated `firewall` instance group and the others read `network`.
+  24 tests in `test_projection_helpers.py`, all passing.
+- Verified against the real topology: `errors=0 warnings=3`, unchanged (the
+  fix only fires when `router_ids` has 0 or 2+ entries, never true there);
+  no diff under `generated/`; targeted mikrotik/terraform/tuc00/bridge/vlan/
+  routing_policy/wireguard/firewall slice (153 passed); full
+  `plugin_integration` suite and `plugin_contract`/`kernel` run for final
+  verification before commit.
+- `ENFORCER-AXIS-CONFORMANCE.md` updated: V-10's row records this as an
+  interim closure (matching `_extract_security_matrix`'s own earlier step,
+  not full multi-enforcer rendering, which stays blocked on V-11/V-12) and
+  stays in section 2b (still open); the "Shared management endpoint"
+  counterexample (section 4) updated the same way, naming the new
+  `bridge_entries_compiler.py` finding explicitly.
+
+### `bridge_entries_compiler.py`'s host_ref bug: characterized and fixed, 2026-09-30
+
+- User asked directly for the newly-discovered `bridge_entries_compiler.py`
+  finding to be characterized and fixed. Characterizing it before touching
+  code found the bug was deeper than "wrong dict key": `host_ref` is an ADR
+  0107 D9 reserved top-level row key, "semantically equivalent to
+  `object_ref`", promoted out of `extensions` on `normalized_rows` by
+  `instance_rows_compiler.py`. `effective_model_compiler.py` - which
+  `bridge_entries_compiler.py` actually subscribes to - never propagated
+  `host_ref` into `effective_model_candidate` at all, not as a top-level
+  field and not nested in `instance_block` alongside `object_ref`'s own
+  equivalents (`extends_object`/`materializes_object`). So the bridge
+  compiler's `instance_data.get("host_ref")` was reading the wrong location
+  on top of a channel that never carried the value in the first place -
+  fixing only the read location, as first attempted, would have changed
+  nothing.
+- Fixed both layers: `effective_model_compiler.py`'s `effective_item` gained
+  `"host_ref": row.get("host_ref")`, a plain top-level passthrough matching
+  how `status`/`notes`/`runtime` are already copied (not nested in
+  `instance_block`, which specifically models class/object/software
+  identity, not placement references). `bridge_entries_compiler.py` now
+  reads `row.get("host_ref")` directly, per ADR 0107 D9's own stated
+  migration instruction for consumers of this field ("MUST be updated to
+  read `row.host_ref` directly").
+- This is the first change this session that **deliberately and correctly**
+  changes real `generated/` output, not a parity-preserving one: the real
+  topology's `inst.bridge.containers` (RouterOS container bridge, `host_ref:
+  rtr-mikrotik-chateau`, "hosts veth1 for Docker workloads" per its own
+  notes) now renders a `routeros_interface_bridge` resource and a
+  `routeros_ip_address` for `172.18.0.1/24`, where before it silently
+  compiled to nothing. `inst.bridge.vmbr0` (`host_ref: srv-gamayun`, a
+  Proxmox host, confirmed by reading its instance file) correctly continues
+  to be excluded - not a bug, a legitimate "not this backend's bridge"
+  exclusion, verified by checking `srv-gamayun` really is Proxmox-classed
+  before assuming the fix wouldn't also wrongly pull it in.
+- **Critical process finding, self-caught while verifying this specific
+  change:** `generated/` is fully gitignored (`git ls-files generated/`
+  returns zero files), so every "verified: `git status` shows no diff under
+  `generated/`" claim made earlier in this session (and apparently in prior
+  sessions too, per commits `54dccf75` through `e8bbe89c`) proved nothing -
+  `git status` on an ignored path is empty whether or not the content
+  changed. This is exactly what this document's own §9 already warns about
+  ("a clean status is not evidence of an unchanged artifact... comparison
+  means generating both sides and comparing content hashes") and the
+  warning was not connected to the session's own repeated shortcut until
+  this fix's real, intended `generated/` change made the gap visible.
+  Verified properly here: `git worktree add` a detached checkout of this
+  change's parent commit, compiled both trees, `diff -rq` the two `generated/`
+  outputs directly. Result: exactly `interfaces.tf`/`addresses.tf`/
+  `outputs.tf` differ in content (the one new bridge, its address, the
+  updated count) plus known non-semantic timestamp/generation-time fields in
+  five report/manifest JSON files (W13-class, already excluded by
+  convention) - nothing else, confirming this fix's blast radius is exactly
+  as intended. The same method was used to spot-check the immediately
+  preceding commit (`e8bbe89c`) against its own parent, confirming it was in
+  fact parity-preserving as claimed despite the invalid verification method -
+  no known harm from the mistake, but the method itself was wrong throughout
+  and must not be repeated; future "no diff under `generated/`" claims in
+  this record require the worktree-diff method, not `git status`.
+- Completed V-10's `E7027` refusal for `bridge_entries_compiler.py` too, in
+  the same pass, since it had been explicitly deferred only because of this
+  bug: a bridge row with *neither* `managed_by_ref` nor `host_ref` declared
+  at all (zero placement signal, the same "ambiguous" shape the other four
+  compilers already refuse) now gets `E7027`; a `host_ref` naming a real,
+  resolvable non-router instance (`inst.bridge.vmbr0`'s actual shape) stays
+  silently excluded with no diagnostic, since that is a deliberate, resolved
+  exclusion, not ambiguity - a distinction the other four files' fix did not
+  need to make, since none of them have an analogous "declared but points at
+  a different backend entirely" case.
+- Tests: `test_effective_model_compiler_propagates_host_ref` (the root-cause
+  fix, in `test_effective_model_compiler.py`), plus three tests in
+  `test_projection_helpers.py` - resolves-via-host_ref (the original bug,
+  now fixed), refuses-a-row-with-no-placement-signal-at-all (`E7027`), and
+  silently-excludes-a-non-router-host (confirms the Proxmox-bridge case
+  stays silent, not newly noisy). 43 tests in the two files combined, all
+  passing; targeted mikrotik/terraform/tuc00/bridge/vlan/routing_policy/
+  wireguard/firewall/effective_model slice (177 passed).
+- While fixing this, also found and corrected two now-stale rows in
+  `ENFORCER-AXIS-CONFORMANCE.md` left over from before the V-14 commit
+  landed: the "Reference names a target with no enforcement capability"
+  counterexample (section 4) and V-04's caveat (section 2a) both still said
+  the compile-stage compilers had no consumer of `enforcer_resolution` and
+  cited a since-renamed test by its old name - true when written, false
+  since `035601f7`, never updated until noticed while working nearby.
+  Corrected both to reflect V-14's actual closed state.
+- Verified against the real topology: `errors=0 warnings=3`, unchanged (only
+  the bridge output itself changes, not diagnostic counts);
+  `check_adr_consistency.py --strict-titles` clean; full `plugin_integration`
+  suite run for final verification before commit.
 
 ## 6. Acceptance coverage ownership
 

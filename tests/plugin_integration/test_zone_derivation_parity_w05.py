@@ -236,7 +236,7 @@ def test_the_generator_consumes_the_channel_rather_than_deriving() -> None:
     spec = next(item for item in manifest["plugins"] if item["id"] == "object.mikrotik.generator.terraform")
     consumed = {(item["key"], item["from_plugin"]) for item in spec.get("consumes", [])}
 
-    assert ("security_matrices", "base.compiler.security_matrix") in consumed
+    assert ("composed_matrices_by_enforcer", "base.compiler.security_matrix") in consumed
     assert ("vlan_cidr_map", "base.compiler.security_matrix") in consumed
 
     generator = REPO_ROOT / "topology/object-modules/mikrotik/plugins/generators/terraform_mikrotik_generator.py"
@@ -251,7 +251,7 @@ def test_the_generator_consumes_the_channel_rather_than_deriving() -> None:
     }
 
     assert {
-        "security_matrices",
+        "composed_matrices_by_enforcer",
         "vlan_cidr_map",
     } <= passed, "the generator subscribes but does not hand the channel to the projection"
 

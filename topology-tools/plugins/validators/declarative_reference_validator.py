@@ -266,6 +266,155 @@ class DeclarativeReferenceValidator(ValidatorJsonPlugin):
             )
         return diagnostics
 
+    def _validate_enforcer_type_ref(
+        self,
+        *,
+        ctx: PluginContext,
+        row: dict[str, Any],
+        row_by_id: dict[str, dict[str, Any]],
+        enforcer_resolution: dict[str, Any] | None,
+        enforcer_resolution_error: str | None,
+        stage: Stage,
+        path: str,
+        code: str = "E7018",
+        context_label: str = "security matrix",
+    ) -> list[PluginDiagnostic]:
+        """N-01 replacement (ADR 0118/0119 D-TYPE-1..3).
+
+        class.network.security_matrix (code E7018) and class.network.
+        firewall_policy (code E7026) are both excluded from the generic
+        managed_by_ref -> class.router check above (ADR-0110: the enforcer
+        may be a router or a hypervisor). This is the dedicated check that
+        replaces it for both: managed_by_ref must resolve to an instance
+        whose derived enforcer type (published by base.compiler.
+        effective_model as enforcer_resolution) is not none - either
+        "network" or "compute" is accepted, unlike the stricter
+        network-only check class.network.vlan and class.network.
+        routing_policy get from _validate_network_type_managed_by_ref.
+        """
+        diagnostics: list[PluginDiagnostic] = []
+        value = self._resolve_field(ctx=ctx, row=row, key="managed_by_ref")
+        if value is None:
+            return diagnostics
+        if not isinstance(value, str) or not value:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code=code,
+                    severity="error",
+                    stage=stage,
+                    message="'managed_by_ref' must be a non-empty instance id string when set.",
+                    path=path,
+                )
+            )
+            return diagnostics
+        target = row_by_id.get(value)
+        if not isinstance(target, dict):
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code=code,
+                    severity="error",
+                    stage=stage,
+                    message=f"'managed_by_ref' references unknown instance '{value}'.",
+                    path=path,
+                )
+            )
+            return diagnostics
+        if enforcer_resolution_error is not None:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code=code,
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        "Could not obtain enforcer resolution to validate 'managed_by_ref': "
+                        f"{enforcer_resolution_error}"
+                    ),
+                    path=path,
+                )
+            )
+            return diagnostics
+        # enforcer_resolution is keyed by instance id (base.compiler.effective_model):
+        # device-kind and OS-family facts live on two different objects under
+        # ADR 0064's embedded-OS model, joined only at the instance level.
+        resolution = enforcer_resolution.get(value) if isinstance(enforcer_resolution, dict) else None
+        enforcer_type = resolution.get("type") if isinstance(resolution, dict) else None
+        if enforcer_type is None:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code=code,
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        f"'managed_by_ref' target '{value}' has no resolved enforcer type "
+                        f"(ADR 0118/0119 D-TYPE-1); it cannot enforce a {context_label}."
+                    ),
+                    path=path,
+                )
+            )
+        return diagnostics
+
+    def _validate_network_type_managed_by_ref(
+        self,
+        *,
+        row_by_id: dict[str, dict[str, Any]],
+        value: Any,
+        enforcer_resolution: dict[str, Any] | None,
+        enforcer_resolution_error: str | None,
+        stage: Stage,
+        path: str,
+    ) -> list[PluginDiagnostic]:
+        """class.network.vlan/routing_policy's managed_by_ref must resolve to
+        a network-type enforcer (E7019).
+
+        The generic class.router/L1 structural check (E7835) above already
+        refuses an unknown instance or the wrong class/layer; this adds the
+        capability layer on top of an otherwise structurally valid
+        class.router reference, mirroring E7018's precedent for
+        class.network.security_matrix (ADR 0118/0119 D-TYPE-1..3), but
+        strict: exactly "network", not merely non-None - a router's own
+        VLAN/routing-table configuration is not something a hypervisor can
+        take over the way it can a security matrix or firewall policy
+        (ADR-0110). class.network.firewall_policy gets the permissive
+        (network-or-compute) check instead, via _validate_enforcer_type_ref
+        (E7026) - it has no structural class.router/L1 check to layer onto,
+        since it is excluded from the generic path for the same reason
+        class.network.security_matrix is.
+        """
+        if not isinstance(value, str) or not value:
+            return []
+        target = row_by_id.get(value)
+        if not isinstance(target, dict) or target.get("class_ref") != "class.router" or target.get("layer") != "L1":
+            return []  # E7835 already reports this
+        if enforcer_resolution_error is not None:
+            return [
+                self.emit_diagnostic(
+                    code="E7019",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        "Could not obtain enforcer resolution to validate 'managed_by_ref': "
+                        f"{enforcer_resolution_error}"
+                    ),
+                    path=path,
+                )
+            ]
+        resolution = enforcer_resolution.get(value) if isinstance(enforcer_resolution, dict) else None
+        enforcer_type = resolution.get("type") if isinstance(resolution, dict) else None
+        if enforcer_type != "network":
+            return [
+                self.emit_diagnostic(
+                    code="E7019",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        f"'managed_by_ref' target '{value}' has no resolved network enforcer type "
+                        "(ADR 0118/0119 D-TYPE-1)."
+                    ),
+                    path=path,
+                )
+            ]
+        return []
+
     # Rule: DNS refs
     def _rule_dns(
         self,
@@ -355,6 +504,8 @@ class DeclarativeReferenceValidator(ValidatorJsonPlugin):
         stage: Stage,
     ) -> list[PluginDiagnostic]:
         diagnostics: list[PluginDiagnostic] = []
+        enforcer_resolution: dict[str, Any] | None = None
+        enforcer_resolution_error: str | None = None
         for row in rows:
             class_ref = row.get("class_ref")
             row_prefix = self._row_prefix(row)
@@ -396,6 +547,62 @@ class DeclarativeReferenceValidator(ValidatorJsonPlugin):
                         code="E7835",
                         stage=stage,
                         path=f"{row_prefix}.managed_by_ref",
+                    )
+                )
+                if class_ref in {"class.network.vlan", "class.network.routing_policy"}:
+                    if enforcer_resolution is None and enforcer_resolution_error is None:
+                        try:
+                            enforcer_resolution = ctx.subscribe("base.compiler.effective_model", "enforcer_resolution")
+                        except PluginDataExchangeError as exc:
+                            enforcer_resolution_error = str(exc)
+                    diagnostics.extend(
+                        self._validate_network_type_managed_by_ref(
+                            row_by_id=row_by_id,
+                            value=self._resolve_field(ctx=ctx, row=row, key="managed_by_ref"),
+                            enforcer_resolution=enforcer_resolution,
+                            enforcer_resolution_error=enforcer_resolution_error,
+                            stage=stage,
+                            path=f"{row_prefix}.managed_by_ref",
+                        )
+                    )
+                continue
+
+            if class_ref == "class.network.security_matrix":
+                if enforcer_resolution is None and enforcer_resolution_error is None:
+                    try:
+                        enforcer_resolution = ctx.subscribe("base.compiler.effective_model", "enforcer_resolution")
+                    except PluginDataExchangeError as exc:
+                        enforcer_resolution_error = str(exc)
+                diagnostics.extend(
+                    self._validate_enforcer_type_ref(
+                        ctx=ctx,
+                        row=row,
+                        row_by_id=row_by_id,
+                        enforcer_resolution=enforcer_resolution,
+                        enforcer_resolution_error=enforcer_resolution_error,
+                        stage=stage,
+                        path=f"{row_prefix}.managed_by_ref",
+                    )
+                )
+                continue
+
+            if class_ref == "class.network.firewall_policy":
+                if enforcer_resolution is None and enforcer_resolution_error is None:
+                    try:
+                        enforcer_resolution = ctx.subscribe("base.compiler.effective_model", "enforcer_resolution")
+                    except PluginDataExchangeError as exc:
+                        enforcer_resolution_error = str(exc)
+                diagnostics.extend(
+                    self._validate_enforcer_type_ref(
+                        ctx=ctx,
+                        row=row,
+                        row_by_id=row_by_id,
+                        enforcer_resolution=enforcer_resolution,
+                        enforcer_resolution_error=enforcer_resolution_error,
+                        stage=stage,
+                        path=f"{row_prefix}.managed_by_ref",
+                        code="E7026",
+                        context_label="firewall policy",
                     )
                 )
                 continue

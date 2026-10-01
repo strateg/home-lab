@@ -542,7 +542,9 @@ plugins:
     scope: pipeline_shared
   - key: zone_vlans
     scope: pipeline_shared
-  - key: matrix_by_enforcer
+  - key: scopes_by_enforcer
+    scope: pipeline_shared
+  - key: composed_matrices_by_enforcer
     scope: pipeline_shared
   - key: vlan_cidr_map
     scope: pipeline_shared
@@ -596,6 +598,8 @@ plugins:
   produces:
   - key: effective_model_candidate
     scope: pipeline_shared
+  - key: enforcer_resolution
+    scope: pipeline_shared
   consumes:
   - from_plugin: base.compiler.instance_rows
     key: normalized_rows
@@ -610,5 +614,7 @@ plugins:
     key: effective_firmware_map
     required: false
   description: Assembles candidate effective model in compile stage (ADR 0069 WS2). Subscribes to capability_compiler for
-    derived capabilities (ADR 0106 + ADR 0104).
+    derived capabilities (ADR 0106 + ADR 0104). Also resolves enforcer type/adapter per instance
+    (ADR 0118/0119 D-TYPE-1..3), since only the instance level joins a hardware object's declared
+    capabilities with the OS-object capabilities reached through its os_refs.
   execution_mode: subinterpreter

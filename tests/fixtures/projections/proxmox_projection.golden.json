@@ -34,7 +34,6 @@
       "object_ref": "obj.proxmox.ve"
     }
   ],
-  "security_matrix": {},
   "services": [
     {
       "instance_id": "svc-redis",

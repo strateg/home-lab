@@ -49,52 +49,6 @@ def _derive_proxmox_capability_flags(
     }
 
 
-def _extract_security_matrix_proxmox(
-    network_rows: list[dict[str, Any]],
-    proxmox_node_ids: set[str],
-) -> dict[str, Any]:
-    """Extract security matrix configuration for Proxmox nodes (ADR 0110).
-
-    STUB: Returns empty dict until inst.security_matrix.proxmox is created.
-
-    When implemented, returns:
-        {
-            "zones": {...},  # Zone definitions with security_level, isolated, cidrs
-            "matrix": {...},  # Zone-to-zone policy matrix
-            "policy_overrides": [...],  # Explicit policy overrides
-            "instance_id": "inst.security_matrix.proxmox",
-        }
-    """
-    for row in network_rows:
-        instance_id = str(row.get("instance_id", "")).strip()
-        if "security_matrix" not in instance_id:
-            continue
-        if "proxmox" not in instance_id:
-            continue
-
-        inst_data = row.get("instance_data", {})
-        if not isinstance(inst_data, dict):
-            continue
-
-        # Check if this matrix is managed by one of our Proxmox nodes
-        managed_by = str(inst_data.get("managed_by_ref", "")).strip()
-        if managed_by and managed_by not in proxmox_node_ids:
-            continue
-
-        # TODO: Implement full extraction when inst.security_matrix.proxmox exists
-        # For now, return stub data
-        return {
-            "instance_id": instance_id,
-            "zones": {},
-            "matrix": {},
-            "policy_overrides": [],
-            "status": "stub",
-        }
-
-    # No Proxmox security matrix found
-    return {}
-
-
 @dataclass
 class ProxmoxLXC:
     """Typed LXC container for Proxmox Terraform."""
@@ -125,23 +79,16 @@ def build_proxmox_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     lxc = _group_rows(groups, canonical=GROUP_LXC)
     input_service_rows = _group_rows(groups, canonical=GROUP_SERVICES)
 
-    # Also get network rows for security matrix extraction (ADR 0110)
-    network_rows = groups.get("network", [])
-    if not isinstance(network_rows, list):
-        network_rows = []
-
     proxmox_nodes: list[dict[str, Any]] = []
-    proxmox_node_ids: set[str] = set()
     for idx, row in enumerate(devices):
         object_ref = _require_object_ref(row, path=f"compiled_json.instances.devices[{idx}]")
         if object_ref == "obj.proxmox.ve":
-            instance_id = _require_non_empty_str(
-                row, field="instance_id", path=f"compiled_json.instances.devices[{idx}]"
-            )
+            # Validates non-empty instance_id; the value itself is not needed
+            # here now that no consumer keys off a locally built id set.
+            _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.devices[{idx}]")
             export_row = dict(row)
             export_row.pop("instance", None)
             proxmox_nodes.append(export_row)
-            proxmox_node_ids.add(instance_id)
 
     lxc_rows: list[dict[str, Any]] = []
     lxc_targets: set[str] = set()
@@ -165,15 +112,23 @@ def build_proxmox_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
 
     capability_flags = _derive_proxmox_capability_flags(proxmox_nodes, lxc_rows, service_rows)
 
-    # Extract security matrix for Proxmox (ADR 0110 - STUB)
-    security_matrix = _extract_security_matrix_proxmox(network_rows, proxmox_node_ids)
+    # ADR 0119 D1 - one derivation per fact, pipeline-wide. This projection
+    # used to carry a second, string-selecting derivation of the enforcer/scope
+    # relation core.security_matrix_compiler now owns correctly
+    # (scopes_by_enforcer, by declared class, complete and deterministic).
+    # It fed nothing: no generator reads projection["security_matrix"]
+    # (grep confirms terraform_proxmox_generator.py never does), so this is
+    # deletion of a dead second derivation, not a behaviour change - the same
+    # pattern ed15dfbf already applied to the MikroTik generator's own dormant
+    # fallback. When Proxmox firewall rendering stops being a stub, its
+    # consumer subscribes to scopes_by_enforcer directly; this projection is
+    # not the place to pre-wire an unused subscription for it.
 
     return {
         "proxmox_nodes": _sorted_rows(proxmox_nodes),
         "lxc": _sorted_rows(lxc_rows),
         "services": _sorted_rows(service_rows),
         "capabilities": capability_flags,
-        "security_matrix": security_matrix,
         "counts": {
             "proxmox_nodes": len(proxmox_nodes),
             "lxc": len(lxc_rows),

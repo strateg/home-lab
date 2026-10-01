@@ -38,6 +38,15 @@ def _publish_rows(ctx: PluginContext, rows: list[dict]) -> None:
     publish_for_test(ctx, "base.compiler.instance_rows", "normalized_rows", rows)
 
 
+def _publish_network_enforcer(ctx: PluginContext, instance_id: str = "rtr-a") -> None:
+    publish_for_test(
+        ctx,
+        "base.compiler.effective_model",
+        "enforcer_resolution",
+        {instance_id: {"type": "network", "adapter": "cap.firewall.security_matrix.routeros"}},
+    )
+
+
 def _valid_rows() -> list[dict]:
     return [
         {"group": "devices", "instance": "rtr-a", "class_ref": "class.router", "layer": "L1"},
@@ -68,6 +77,7 @@ def test_network_core_refs_validator_accepts_valid_refs():
     registry = _registry()
     ctx = _context()
     _publish_rows(ctx, _valid_rows())
+    _publish_network_enforcer(ctx)
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.SUCCESS
@@ -128,6 +138,7 @@ def test_network_core_refs_validator_supports_top_level_fields():
     rows[-1]["trust_zone_ref"] = rows[-1]["extensions"].pop("trust_zone_ref")  # type: ignore[index]
     rows[-1]["managed_by_ref"] = rows[-1]["extensions"].pop("managed_by_ref")  # type: ignore[index]
     _publish_rows(ctx, rows)
+    _publish_network_enforcer(ctx)
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.SUCCESS
@@ -154,6 +165,7 @@ def test_network_core_refs_validator_supports_object_property_fields():
     rows[-1].pop("extensions")  # type: ignore[index]
     rows[-1]["object_ref"] = "obj.vlan.a"  # type: ignore[index]
     _publish_rows(ctx, rows)
+    _publish_network_enforcer(ctx)
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.SUCCESS
@@ -175,3 +187,78 @@ def test_network_core_refs_validator_accepts_non_vlan_legacy_network_shape():
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.SUCCESS
     assert result.diagnostics == []
+
+
+
+def test_network_core_refs_validator_accepts_security_matrix_with_resolved_enforcer():
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {"group": "devices", "instance": "rtr-a", "class_ref": "class.router", "layer": "L1"},
+            {"group": "network", "instance": "inst.zone.a", "class_ref": "class.network.trust_zone", "layer": "L2"},
+            {
+                "group": "network",
+                "instance": "inst.matrix.a",
+                "class_ref": "class.network.security_matrix",
+                "layer": "L2",
+                "extensions": {"managed_by_ref": "rtr-a"},
+            },
+        ],
+    )
+    publish_for_test(
+        ctx,
+        "base.compiler.effective_model",
+        "enforcer_resolution",
+        {"rtr-a": {"type": "network", "adapter": "cap.firewall.security_matrix.routeros"}},
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert result.diagnostics == []
+
+
+def test_network_core_refs_validator_rejects_security_matrix_enforcer_with_no_resolved_type():
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {"group": "devices", "instance": "rtr-a", "class_ref": "class.router", "layer": "L1"},
+            {
+                "group": "network",
+                "instance": "inst.matrix.a",
+                "class_ref": "class.network.security_matrix",
+                "layer": "L2",
+                "extensions": {"managed_by_ref": "rtr-a"},
+            },
+        ],
+    )
+    publish_for_test(ctx, "base.compiler.effective_model", "enforcer_resolution", {})
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7018" for diag in result.diagnostics)
+
+
+def test_network_core_refs_validator_rejects_security_matrix_managed_by_ref_to_unknown_instance():
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {
+                "group": "network",
+                "instance": "inst.matrix.a",
+                "class_ref": "class.network.security_matrix",
+                "layer": "L2",
+                "extensions": {"managed_by_ref": "rtr-missing"},
+            },
+        ],
+    )
+    publish_for_test(ctx, "base.compiler.effective_model", "enforcer_resolution", {})
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7018" for diag in result.diagnostics)

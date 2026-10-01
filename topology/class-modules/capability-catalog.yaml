@@ -1402,6 +1402,16 @@ capabilities:
     layer: L1
     stability: stable
 
+  - @capability: cap.compute.security.firewall.zone_policy
+    title: Hypervisor Zone-Based Firewall
+    summary: Hypervisor enforces zone-based security policy for workloads it hosts.
+    domain: firewall
+    layer: L1
+    stability: stable
+    adr_refs:
+      - "0118"
+      - "0119"
+
   - @capability: cap.compute.workload.container
     title: Container Workload Contract
     summary: Supports container workload semantics (allocation, lifecycle, execution).

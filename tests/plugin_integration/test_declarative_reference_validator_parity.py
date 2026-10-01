@@ -45,7 +45,12 @@ def _publish_rows(ctx: PluginContext, rows: list[dict[str, Any]]) -> None:
 def _run(plugin: Any, ctx: PluginContext, *, plugin_id: str) -> list[PluginDiagnostic]:
     from tests.helpers.plugin_execution import run_plugin_for_test
 
-    return run_plugin_for_test(plugin, ctx, Stage.VALIDATE, consumes_keys={"base.compiler.instance_rows"}).diagnostics
+    return run_plugin_for_test(
+        plugin,
+        ctx,
+        Stage.VALIDATE,
+        consumes_keys={"base.compiler.instance_rows", "base.compiler.effective_model"},
+    ).diagnostics
 
 
 def _triple(diags: list[PluginDiagnostic]) -> set[tuple[str, str, str]]:
@@ -188,6 +193,20 @@ def test_declarative_reference_validator_matches_legacy_diagnostics(
     )
     _publish_rows(legacy_ctx, rows)
     _publish_rows(declarative_ctx, rows)
+    if rule == "network_core":
+        # The declarative validator's VLAN managed_by_ref check (E7019) also
+        # consults base.compiler.effective_model's enforcer_resolution; the
+        # legacy validator never reads this channel. Resolve 'rtr-a' to a
+        # network-type enforcer so the new check stays silent and both sides
+        # keep emitting the same diagnostics for this fixture's bridge_ref
+        # defect (E7833) - this is a parity fixture for the pre-existing
+        # structural checks, not a place to also exercise the new check.
+        publish_for_test(
+            declarative_ctx,
+            "base.compiler.effective_model",
+            "enforcer_resolution",
+            {"rtr-a": {"type": "network", "adapter": None, "adapter_version": None, "considered": [], "compatible": [], "reason": "test"}},
+        )
 
     legacy = legacy_cls(f"legacy.{rule}", "1.x")
     declarative = DeclarativeReferenceValidator(f"declarative.{rule}", "1.x")

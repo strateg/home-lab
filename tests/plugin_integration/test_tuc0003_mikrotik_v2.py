@@ -32,7 +32,18 @@ from kernel.plugin_runner import run_plugin_once
 
 from tests.helpers.mikrotik_security_channels import (
     SECURITY_MATRIX_COMPILER,
-    empty_channel_subscriptions,
+    EFFECTIVE_MODEL_COMPILER,
+    CAPABILITY_FLAGS_COMPILER,
+    WIREGUARD_TUNNELS_COMPILER,
+    CONTAINERS_COMPILER,
+    WIFI_CONFIG_COMPILER,
+    ROUTING_POLICIES_COMPILER,
+    MAC_VLAN_ASSIGNMENTS_COMPILER,
+    BRIDGE_VLANS_COMPILER,
+    VLAN_ENTRIES_COMPILER,
+    BRIDGE_ENTRIES_COMPILER,
+    FIREWALL_ENTRIES_COMPILER,
+    derived_channel_subscriptions,
 )
 
 
@@ -93,18 +104,41 @@ def _build_snapshot(
 
     # The MikroTik generator consumes both security-matrix channels and derives
     # no substitute; a snapshot without them is a blocked run, not an empty one.
-    subscriptions = empty_channel_subscriptions() if "mikrotik" in plugin_id else {}
+    # The other eight channels are derived from this fixture's own semantic
+    # payload rather than published empty: MIKROTIK_COMPILED_PAYLOAD carries
+    # real VLAN rows this module's assertions check for in rendered output,
+    # and an empty stand-in would silently discard them (the same test-suite
+    # gap item 4c's characterization found in a different helper).
+    semantic_payload = _semanticize(compiled_json)
+    subscriptions = derived_channel_subscriptions(semantic_payload) if "mikrotik" in plugin_id else {}
 
     return PluginInputSnapshot(
         plugin_id=plugin_id,
         subscriptions=subscriptions,
-        allowed_dependencies=frozenset({SECURITY_MATRIX_COMPILER} if subscriptions else ()),
+        allowed_dependencies=frozenset(
+            {
+                SECURITY_MATRIX_COMPILER,
+                EFFECTIVE_MODEL_COMPILER,
+                CAPABILITY_FLAGS_COMPILER,
+                WIREGUARD_TUNNELS_COMPILER,
+                CONTAINERS_COMPILER,
+                WIFI_CONFIG_COMPILER,
+                ROUTING_POLICIES_COMPILER,
+                MAC_VLAN_ASSIGNMENTS_COMPILER,
+                BRIDGE_VLANS_COMPILER,
+                VLAN_ENTRIES_COMPILER,
+                BRIDGE_ENTRIES_COMPILER,
+                FIREWALL_ENTRIES_COMPILER,
+            }
+            if subscriptions
+            else ()
+        ),
         stage=Stage.GENERATE,
         phase=Phase.RUN,
         topology_path="topology/topology.yaml",
         profile="test",
         config=config,
-        compiled_json=_semanticize(compiled_json),
+        compiled_json=semantic_payload,
         output_dir=str(tmp_path),
         workspace_root=str(tmp_path / "generated"),
     )

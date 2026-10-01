@@ -17,6 +17,32 @@ Owns the ten open implementation rows: [conformance record](ENFORCER-AXIS-CONFOR
 Owns the layout decision: [W07](W07-BACKEND-SPECIALIZATION-DECISION.md).
 Owns gate sequencing: [roadmap](IMPLEMENTATION-ROADMAP-2026-09-15.md).
 
+**Implementation status, 2026-09-29 (updated).** Five changes have landed on
+branch `adr-0118-0119`, in order:
+
+1. `c5f66c10` - section 5: `matrix_by_enforcer` replaced by `scopes_by_enforcer`,
+   `E7010`/`E7011`/`W7012` added, section 5.4 counterexamples as `TestScopesByEnforcer`.
+2. `1336c12f` - V-15: the Proxmox projection's dead second derivation deleted.
+3. `e72d0099` - section 5c: `composed_matrices_by_enforcer` published, `E7013`/`E7014`
+   added, `TestComposedMatricesByEnforcer`.
+4. `e868abbe` - sections 5b/5d (N-07): `_extract_security_matrix` reads the
+   composed plan instead of re-deriving R1-R6 itself, its third independent
+   derivation of that fact; real-topology `generated/` verified byte-identical.
+5. `168b4f27` - the two-scope composed-plan fixture `e868abbe` still needed,
+   in `test_projection_helpers.py`.
+
+Evidence for each is in section 7. None closes W07/G4 - see section 6, unchanged.
+Sections 1-3 are not revised: the measurements they record predate all five
+changes and are still accurate as a baseline for this tree. Section 4's
+sequencing reflects the current state after all five.
+
+**Section 5e, decided 2026-09-29, not yet coded.** The capability-axis question
+section 4 called the single highest-value item turned out to need a designed
+resolution mechanism, not a namespace choice - neither capability engine
+supports the OR-dispatch a device-axis declaration would have needed. Type and
+adapter resolution (D-TYPE-1..3), a new hypervisor-side capability, and
+`E7015`-`E7018` are specified; nothing is implemented yet.
+
 ## 1. What this record adds
 
 The conformance record lists ten open implementation rows and eight planned
@@ -116,23 +142,28 @@ Two smaller observations, recorded so they are not rediscovered:
 
 | Row | State | What it waits on |
 |---|---|---|
-| V-13, N-05, plane default | **Implementable now** | nothing; zero subscribers on `matrix_by_enforcer`, so no consumer migration is entangled |
-| V-15 (Proxmox second/third derivation) | Implementable now | the channel contract below, so the stub has something to consume |
-| V-09, V-10, V-14 | Blocked on V-13 landing | the consumer chain is a return-type change across projection, generator and template; it needs the channel to be able to express multiplicity first |
-| V-04, V-05, V-08, N-01-N-04 | **Blocked on a decision, not on code** | which registered namespace is the enforcement-capability axis (N-02), what becomes of the other three identifiers, and whether `enabled_packs` contribute to the effective set (N-04). Adding a declaration before that decision picks the axis by accident - the failure mode ADR 0119 D1.1 names |
+| V-13, N-05, plane default | **Done** - `c5f66c10` | `scopes_by_enforcer` published, complete and deterministic; `E7010`/`E7011` refuse the two silent gaps |
+| V-15 (Proxmox second/third derivation) | **Done** - `1336c12f` | dead second derivation deleted (zero consumers, confirmed by grep); golden snapshot updated; `depends_on: []` left as is, since no real consumer exists yet to justify wiring `scopes_by_enforcer` there |
+| V-09, V-14 | **Done** - `e868abbe`, `168b4f27` | `_extract_security_matrix` reads `composed_matrices_by_enforcer`; retired its own third R1-R6 derivation (N-07) rather than adding a fourth. Two-scope fixture in `test_projection_helpers.py`; real one-scope topology `generated/` byte-identical. **Correction, 2026-09-30 reconciliation in `ENFORCER-AXIS-CONFORMANCE.md` §2:** V-10 does not belong in this row. V-09 (multi-*scope*-per-enforcer) is what this commit closed; V-10's own wording and original evidence (`default_router_id`, `len(router_ids) == 1`) were always about multi-*enforcer*, which `e868abbe`'s own commit message calls "explicitly out of this step's scope" and files under V-11/V-12 - the "V-10 closed for multi-scope" gloss above attributed V-09's closure to V-10 as well. V-14 is also narrower than stated: this commit removed the one substring selector inside `_extract_security_matrix` itself, not the corpus-wide finding V-14 measures - the W07 migration order (2026-09-29/30) subsequently raised that count from 9 to 18 by copying selectors into ten new plugins. V-10 remains open |
+| V-04, V-05, N-01-N-03 | **Done** - `7d6a2072` | type/adapter resolution designed from first principles after finding neither capability engine supports the OR-dispatch a namespace fix alone would have needed (section 5e's opening finding), then implemented in `effective_model_compiler.py` (not `capability_compiler.py` as first designed - see section 5e's implementation note) after building it against the real topology found the design's chosen placement could not see both the facts it needed. `enforcer_resolution` published per instance; `cap.compute.security.firewall.zone_policy` registered; W7015/W7016/W7017/E7018/W7019 implemented; N-01 replaced in both reference validators |
+| V-08, N-04 | Deferred, independently | N-04 (`enabled_packs`) is not required for section 5e to be complete - the real enforcer needs only a direct declaration, not pack expansion - and is left as its own, wider-blast-radius decision |
 | V-07 | Blocked on G1/W03 | the derived scope/context contract must be registered before a field claims to carry resolved type and adapter identity |
+| V-10 | Open, same as V-11/V-12 | the single-router/multi-enforcer assumption `e868abbe` explicitly left in place; the W07 migration order (2026-09-29/30) replicated it into four new plugins rather than fixing it, per the correction above |
 | V-11, V-12 | Blocked on a reviewed behaviour change | the W07 root/state migration relocates Terraform state; W07 records it as design preparation and explicitly not authorization to migrate state |
 
-The decision in row four is the single highest-value item this record surfaces,
-because it is cheap to get wrong silently. It belongs in the ADR corpus, not in a
-commit: it changes what "resolved from the device's declared enforcement
-capability" denotes. Recommended framing for that decision, not adopted here:
-the device axis is `cap.net.l3.security.firewall.*` (already L1, already declared
-by devices, already in `class.router`'s supported list), the three
-`cap.firewall.security_matrix*` identifiers are the *adapter/mechanism* axis rather
-than the device axis, and `enabled_packs` either expand into the effective set or
-stop being written as if they grant capabilities. That is a proposal requiring
-review, and section 5 does not depend on it.
+The decision this row named was the single highest-value item this record
+surfaced, and it turned out larger than the row itself: not which namespace
+names the device axis, but that neither capability engine can express
+"enforced by RouterOS OR Proxmox" as a `required_capabilities` conjunction at
+all, so the earlier "recommended framing" (device axis =
+`cap.net.l3.security.firewall.*`, the three `cap.firewall.security_matrix*`
+identifiers as an adapter axis) was retired along with the namespace framing
+it was patching. Section 5e records what replaced it: type and adapter both
+derived, dispatch kept separate from SEC-CAP satisfaction, and the pre-registered
+`cap.firewall.security_matrix`/`.routeros`/`.pve` kept exactly as registered -
+an SPC-mode review of section 5e found the first draft proposed retiring the
+generic identifier, which a governing supplement forbids; see section 5e's own
+revision note. Section 5 does not depend on any of it.
 
 ## 5. The first change, specified
 
@@ -224,6 +255,629 @@ resolved before the change lands. Evidence: two compilations under symmetric
 conditions with the declared W13 exclusions, plus the full suite and the narrowest
 relevant Task gate.
 
+## 5b. Next candidate: corrected, and larger than first sketched
+
+V-09/V-10/V-14 - the consumer chain - is the next implementable-now row per
+section 4. The first version of this section proposed "one rendered block per
+scope." That is wrong, for a reason found by reading the templates rather than
+guessing the shape, and the correction changes where the work belongs.
+
+### N-06: RouterOS has one forward chain, not one per scope
+
+`zone_firewall.tf.j2` emits exactly one terminal-deny resource,
+`routeros_ip_firewall_filter.zone_drop_all_forward`, and every deny and
+policy-override rule in the same file places itself before it by that literal
+Terraform address. `vpn.tf.j2` references the same address by name at two more
+call sites, to place tunnel-egress and container firewall rules ahead of it.
+Five hardcoded references across two files, confirmed by grep, all assuming
+there is exactly one.
+
+This is not a template limitation to lift. RouterOS has one `forward` chain per
+device; a device with two scopes still has one chain, and a chain can only
+have one meaningful final deny - whichever renders last is the one that acts,
+and every earlier rule's `place_before` target has to be it. "One block per
+scope" would either collide two resources both named
+`zone_drop_all_forward`, or rename them per scope and leave `vpn.tf.j2`
+pointing at an arbitrary one of several. Rendering-multiple-blocks is not a
+looser version of the correct fix; it does not compile into a correct result
+at all, the same character of mistake section 3.1(b) found in the original
+V-09 read of `_extract_security_matrix`.
+
+**What follows: composition, not iteration.** Two scopes on one enforcer must
+become one validated, composed plan before anything renders - matching ADR
+0119 D1's own language, "one logical plan authority producing one projection
+per scope" feeding "one owned resource set per apply unit," and D1's explicit
+warning that composition across scopes sharing an enforcer is checked, not
+assumed. Concretely, for the MikroTik adapter's existing single-chain,
+single-root shape:
+
+- **Zones union safely.** A zone's data (`name`, `security_level`, `isolated`,
+  `cidrs`) is read from one shared `zone_index` in the compiler regardless of
+  which scope references it (`security_matrix_compiler.py`), so two scopes
+  naming the same `zone_ref` carry identical data. A dict union across scopes
+  - what `projections.py:1519` already does for the single scope it reads
+    today - produces no duplicate address-list resource and needs no conflict
+    check.
+- **Matrix cells do not.** `matrix` is `{from_zone: {to_zone: cell}}`, authored
+  per scope. Two scopes disagreeing on the same `(from_zone, to_zone)` pair is
+  a real contradiction, not a naming collision, and silently keeping whichever
+  scope's cell a dict-update processed last would be the *same defect class*
+  V-13 fixed for the enforcer index - a silent, input-order-dependent
+  overwrite - reintroduced one level deeper. It needs an explicit check and a
+  diagnostic, not a merge.
+- **Policy overrides do not either.** They are an authored list, not a dict, so
+  concatenating two scopes' lists loses nothing by itself - but
+  `zone_override_{{ override_name }}` derives the Terraform resource name from
+  the override's own `name` field alone, which nothing enforces as unique
+  across separate `security_matrix` instances. Two scopes each authoring an
+  override called e.g. `admin-access` collide at the same
+  `routeros_ip_firewall_filter.zone_override_admin_access` address.
+- **Render order is a plan property, not a template one.** ADR 0119 D4 already
+  requires deterministic order without semantic guessing; the composed cell/
+  override sequence needs its own fixed order (scope-id sorted, matching
+  `scopes_by_enforcer`'s own determinism) fed to the template, not left to
+  however Jinja happens to iterate a merged structure.
+
+**Where it belongs.** ADR 0119 D4 already draws this line for the terminal
+deny - "the plan compiler emits it and the template only renders it" - and the
+same rule applies to composition: it is compile-stage work, most naturally an
+extension of `security_matrix_compiler.py` (which already owns one derivation
+of this fact) consuming its own `security_matrices` and `scopes_by_enforcer`
+output to build one validated composed plan per enforcer with an *unchanged*
+shape - the same `{zones, matrix, policy_overrides}` dict `zone_firewall.tf.j2`
+already consumes. Read this way, the generate-stage touch points from the
+first sketch shrink to almost nothing: the projection and template keep
+consuming one flat structure per enforcer; only what feeds it changes, from
+first-match to composed-and-checked. What grows is a new compile-stage
+composition step with real conflict semantics to design - closer in size to a
+second D1.1-style contract than to section 5's channel rename.
+
+**Touch points, corrected:**
+
+```
+security_matrix_compiler.py   DONE (e72d0099, section 5c): composes
+                               scopes_by_enforcer[e] into one validated
+                               per-enforcer plan, diagnoses matrix-cell and
+                               override-name conflicts instead of merging them
+projections.py  _extract_security_matrix(...)   DONE (e868abbe): reads
+                composed_matrices_by_enforcer for the sorted-first router
+                with a composed plan; retired its own R1-R6 re-derivation (N-07)
+templates/terraform/zone_firewall.tf.j2   unchanged in shape, as planned;
+                                           consumes composed input, untouched
+templates/terraform/vpn.tf.j2             unchanged; the single zone_drop_all_forward
+                                           reference stays valid because there is still one
+```
+
+**What it needed before it could be specified like section 5 was - all four
+resolved or landed.**
+
+- ~~Conflict semantics for matrix cells~~ - resolved, section 5c D-COMP-1:
+  disjoint zones make the conflict structurally impossible rather than
+  something to adjudicate.
+- ~~A decided uniqueness rule for policy-override names~~ - resolved, section
+  5c D-COMP-2: unique per enforcer, refused on collision.
+- ~~A two-scope MikroTik fixture~~ - landed,
+  `test_mikrotik_projection_reads_a_two_scope_composed_plan` in
+  `test_projection_helpers.py` (`168b4f27`): a synthetic two-scope composed
+  plan through `build_mikrotik_projection`, checking the union, the
+  comma-joined `instance_id` and vlan-ref resolution on the composed
+  overrides.
+- ~~Parity evidence against the real topology's one-scope case~~ - landed:
+  `generated/` byte-identical after a clean recompile. The conformance
+  record's two-device and zero/multiple-adapter counterexamples remain out of
+  this chain's scope - they belong to V-04/V-05 and the capability-axis
+  decision, unaffected by this step.
+
+## 5c. Composition contract, decided 2026-09-28
+
+The two open questions above are resolved here, narrower in scope than N-02:
+this governs only how the MikroTik adapter composes several scopes on one
+enforcer, a case unexercised anywhere in the real topology today. It fulfils
+ADR 0119 D1's existing requirement - "composition across scopes sharing an
+enforcer... validated rather than assumed" - rather than amending the ADR.
+
+**D-COMP-1, zones: pairwise disjoint, refused on overlap.** Scopes composed
+for one enforcer must not share a `zone_ref`. This is deliberately stricter
+than "merge if identical": a cell for `(from_zone, to_zone)` can only exist in
+a scope whose `zone_refs` contains both, so disjoint zones make a matrix-cell
+collision between scopes structurally impossible - there is no equal-cells
+comparison to design, implement or get subtly wrong. The cost is real: a
+future need for two scopes to legitimately share a zone (e.g. one scope for
+base connectivity, another for audit logging over the same zone) is refused
+today, not accommodated. That is the intended direction - starting strict and
+loosening later is a reviewed amendment; starting permissive and restricting
+later breaks whatever already relied on the permissive behaviour. If that need
+arises, it is a new decision, not a bug in this one.
+
+**D-COMP-2, policy overrides: unique names, refused on collision.** Every
+`policy_overrides` entry's `name` must be unique across every scope one
+enforcer composes - not globally, since the Terraform root is per enforcer
+today and only names rendered into one root can collide at
+`routeros_ip_firewall_filter.zone_override_<name>`. Two different enforcers
+may reuse a name freely. This is a refusal, not a rename-to-disambiguate:
+silently qualifying a collided name would hide the authoring problem inside
+generated output instead of surfacing it to the author, the same reasoning
+D1.1 already applies to adapter resolution - ambiguity is reported, not
+guessed past.
+
+**D-COMP-3, composed shape.** For enforcer `e` with scopes `scopes_by_enforcer[e]`
+in their existing sorted order: `zones = union` of each scope's zones (safe
+under D-COMP-1: disjoint keys, no collision possible), `matrix = union` of
+each scope's matrix (safe for the same reason - a shared key is exactly what
+D-COMP-1 refuses upstream), `policy_overrides = concatenation` in scope order,
+each entry already name-unique under D-COMP-2. The composed dict has the same
+`{zones, matrix, policy_overrides}` shape `zone_firewall.tf.j2` already
+consumes; nothing downstream of composition needs to change shape.
+
+**D-COMP-4, determinism.** Scopes are processed in the sorted order
+`scopes_by_enforcer` already establishes, so the composed plan does not depend
+on `normalized_rows` input order - the same guarantee V-13 established for the
+index one level up, extended through composition rather than left to stop at
+the index.
+
+**Diagnostics.** `E7013` (zone_refs overlap between scopes sharing an
+enforcer) and `E7014` (policy_override name collision across scopes sharing
+an enforcer), both error/compile, in the same 7009-7019 sub-band; collision
+check re-run and clean (`grep -rEon '[EWI]70(1[3-9])'`, excl. `build/`,
+`.venv/` - only this record's own prose mentions the numbers).
+
+**Implemented, separate commit.** D-COMP-1..4 are coded in
+`security_matrix_compiler.py`, publishing a new `composed_matrices_by_enforcer`
+channel (zero subscribers so far - the same safe, testable-in-isolation shape
+V-13's channel had before anything read it). `E7013`/`E7014` fire on the
+counterexamples in `TestComposedMatricesByEnforcer`: overlapping zones,
+colliding override names, order-independence, two-enforcer independence, and a
+single-scope positive control confirming composition of one scope is a no-op.
+Real topology: `errors=0 warnings=2` (matches baseline), `generated/`
+byte-unchanged, since the one enabled scope composes trivially with itself.
+
+**Wired, separate commit (`e868abbe`).** `_extract_security_matrix` now reads
+`composed_matrices_by_enforcer` for the sorted-first router with a composed
+plan, resolving only `src_vlan_ref`/`dst_vlan_ref` addressing itself (the F05
+fix, which the compiler does not own). The two-scope fixture and real-topology
+parity evidence are both in section 5b's closing list, resolved.
+
+## 5d. N-07: `_extract_security_matrix` re-derives R1-R6, not just zones
+
+Found by reading `_extract_security_matrix` in full before wiring it, rather
+than assuming "reads `network_rows` directly" meant only zone selection.
+
+It does not read `security_matrices[matrix_id]["matrix"]` or
+`["policy_overrides"]` at all. It re-scans `network_rows` for the matrix
+instance, reads `inst_data` and `objects_map` directly, and runs its own R1-R6
+implementation - a third derivation of the same fact, after the compiler's
+`_calculate_matrix` and the W05 test oracle in
+`test_zone_derivation_parity_w05.py`. `compiled_zones` (from
+`security_matrices`) supplies only zone *names/levels*; the projection
+computes every matrix cell itself.
+
+Comparing the two implementations line by line, three points diverge in text,
+none currently in output:
+
+- **R6 ordering.** The compiler checks R6 before R1-R5; the projection
+  computes R1-R5 for every pair first, then applies R6 as a final unconditional
+  overwrite. For a stored cell this produces the same final value either way -
+  R6 wins regardless of order - so this is a difference in intermediate steps,
+  not in the published result.
+- **R1 vs R1b.** The compiler distinguishes `enforcement_plane`: same-zone is
+  `R1`/allow for `perimeter`, `R1b`/deny-by-default for `internal`. The
+  projection has only the perimeter behaviour, unconditionally. Latent on this
+  topology: every MikroTik matrix today declares `enforcement_plane: perimeter`
+  (`obj.network.security_matrix.soho`), so the compiler's own R1 branch is the
+  one that would apply, and it agrees with the projection's hardcoded rule. An
+  `internal`-plane MikroTik matrix would disagree; none exists.
+- **R2 untrusted match.** The compiler: `"untrusted" in to_zone.lower() or
+  (to_level == 0 and to_name.lower() == "untrusted zone")` (exact name match).
+  The projection: the same first clause, `to_level == 0 and "untrusted" in
+  to_name.lower()` (substring). The real zone's ref is
+  `inst.trust_zone.untrusted` and its name is `Untrusted Zone`
+  (`obj.network.trust_zone.untrusted.yaml:8`), so the first `or`-clause -
+  identical in both - already matches; the diverging second clause is never
+  reached for this topology's actual data.
+
+All three are the same character of finding as the silent `"perimeter"`
+default in section 3.2: a divergence that is real in the source and inactive
+only because of how the current topology happens to be shaped, not because the
+two implementations are equivalent. `src_vlan_ref`/`dst_vlan_ref` resolution
+to `src_address`/`dst_address` (the F05 fix) is not part of this finding - the
+compiler never does it, so there is one owner, not two, and it stays in the
+projection as a legitimate post-composition step needing `vlan_cidr_map`.
+
+**Consequence for V-09/V-10/V-14, landed.** Wiring the projection to
+`composed_matrices_by_enforcer` was not a return-type change on top of the
+existing computation, as the touch-points table in section 5b first implied -
+it retired this third derivation, consuming the compiler's already-composed
+`matrix`/`policy_overrides` per enforcer instead of recomputing them. That
+was a larger, and on net smaller-risk, change than "keep computing locally,
+just loop over more scopes": it removed duplicated logic rather than
+duplicating it a second time to cover multiplicity. Byte-identical output on
+the real single-scope topology was the parity claim this made, verified
+(`git status` after a clean recompile shows no diff under `generated/`),
+the same discipline W05 and section 5.5 already established.
+
+## 5e. Enforcer type and adapter resolution, decided 2026-09-29, revised after SPC review (two passes), implemented 2026-09-29
+
+**SPC MODE review, 2026-09-29, first pass.** The first version of this section
+was checked against the source documents it cites, not only against its own
+reasoning. Two Critical-severity findings changed it: D-TYPE-3 proposed
+retiring `cap.firewall.security_matrix`, which [`CAPABILITY-SATISFACTION-
+CONTRACT.md` §5](../0119-analysis/CAPABILITY-SATISFACTION-CONTRACT.md) states
+directly - "Legacy catalog entries are not reclassified by this amendment" -
+and which that same document's §7 already treats
+`cap.firewall.security_matrix.pve` as the *correct* identifier for Proxmox
+enforcement, its gap being the unimplemented generator, not the vocabulary.
+Retiring it was withdrawn, not patched. Second, D-TYPE-2 had no rule for a
+device that already carries a direct `.routeros`/`.pve` declaration alongside
+the newly-resolved one - the exact "generic capability alongside a
+specific one... inputs to the resolution, not answers" case ADR 0119 D1.1
+names - which the review found uncovered rather than mishandled.
+
+**SPC MODE review, second pass.** Running the full seven-step protocol to
+completion (STEP 7 compliance matrix) against the first-pass text found two
+further Critical gaps the first pass had not surfaced: (1) ADR 0119 D1.1
+requires the selected adapter's identity **and version**; the first pass
+resolved identity only. (2) The `type` values chosen - `perimeter`/`internal`
+- are the exact enum `class.network.security_matrix.yaml` already uses for
+the authored, scope-level `enforcement_plane` field, which ADR 0119 D1.1
+states explicitly is an independent axis ("It says what part of the path a
+scope covers, not what its enforcer is"). Reusing the same two strings for a
+device-level derived fact risked exactly the conflation D1.1 warns against,
+regardless of intent. Both are corrected below. The text from the first
+revision (unaffected by this pass) is otherwise unchanged; the original,
+pre-review text of this section is preserved at commit `8dd9a3a3`.
+
+**Implementation, 2026-09-29.** Building the reviewed design against the real
+topology surfaced three things the review itself had not: (1) the real
+enforcer of record, `rtr-mikrotik-chateau`, declared no
+`cap.net.l3.security.firewall.zone_policy` at all, even though its
+security-matrix instance is explicitly zone-based (LAN/guest/IoT/VPN/servers/
+management) - a genuine topology-data gap, fixed by adding the declaration
+to `obj.mikrotik.chateau_lte7_ax.yaml`, not by weakening D-TYPE-1's gate.
+(2) The `adapter_version` mechanism this record approved in the STEP 5
+re-entry - binding the resolving generator plugin's `api_version` - turned
+out wrong on inspection: `api_version: 1.x` is identical across *every*
+plugin in the entire framework (the kernel-API compatibility marker, not an
+adapter revision), so it would have carried zero adapter-specific
+information. `adapter_version` is `None` in the shipped provenance record
+instead, with the D2/V-07 gap stated honestly rather than papered over; see
+the corrected D-TYPE-2 text below. (3) Device-kind capabilities
+(`cap.net.l3.security.firewall.zone_policy`) live on the hardware object,
+while OS-family capabilities (`cap.os.routeros`) live on a *different*
+object under ADR 0064's embedded-OS model (`obj.mikrotik.chateau_lte7_ax` vs
+`obj.os.routeros.7.arm64`) - joined only at the instance level, through
+`os_refs`. `capability_compiler.py`'s per-object pass can never see both
+facts for one entity, so "Where this lives" below is corrected from that
+compiler to `effective_model_compiler.py`, which already performs exactly
+this join for OS/firmware capabilities. `enforcer_resolution` is keyed by
+instance id, not object id, as a direct consequence.
+
+Verified against the real topology after these three corrections: zero
+compile errors, `git status` shows no diff under `generated/` (purely
+additive), and one expected warning - `rtr-slate` (GL.iNet, OpenWrt) resolves
+type `network` with no compatible adapter, exactly the "OpenWrt or VyOS...
+neither with an adapter implemented here" case D-TYPE-2 already named before
+implementation.
+
+Resolves N-01/N-02/N-03 - the row section 4 called the single highest-value
+item. Bigger than section 5c: this is a resolution mechanism, not a channel
+fix, and it touches the shared capability model rather than one adapter's
+compiler. N-04 (`enabled_packs`) stays explicitly deferred - see the closing
+note - because this decision does not need it to be internally complete.
+
+### Why a namespace decision alone does not resolve this
+
+The first framing in section 4 asked which of two registered namespaces is
+"the" device axis. That framing assumed the fix was a declaration a device was
+missing. It is not, for a reason found by reading the resolution engines
+before designing another one:
+
+**Both the legacy engine and the SEC-CAP model match capability identifiers
+exactly, with no prefix or hierarchy semantics.**
+`capability_contract_validator.py:530` computes `missing = [cap for cap in
+class_required if cap not in expanded_effective]` - plain set membership.
+`netmodel/capability.py`'s `Offer.applies_to` (line 196) returns `False`
+unless `self.capability_ref != requirement.capability_ref` is exactly equal.
+Neither engine has an `any_of`/`one_of` construct anywhere in the schemas
+(searched; none exists). `required_capabilities` on a class is therefore a
+**conjunction**: every listed id must be present at once.
+
+A class cannot express "enforced by RouterOS OR Proxmox" as a
+`required_capabilities` list under either engine. Listing
+`cap.firewall.security_matrix.routeros` would force every future
+Proxmox-managed scope to also be RouterOS-capable; listing both would demand
+an enforcer be both at once. This is exactly the distinction ADR 0119 D1.1
+already draws and this record had not yet taken seriously: **type/adapter
+resolution is dispatch, a selection among alternatives with an ambiguity
+refusal, not a capability-satisfaction conjunction.** `resolve()` in
+`netmodel/capability.py` answers a different question on purpose - multiple
+matching offers strengthen a SATISFIED verdict there, because more evidence is
+not ambiguity. Reusing it for adapter selection would be wrong in the
+direction that matters: a device offering two competing adapters must be
+refused, not counted as doubly evidenced. The two mechanisms answer different
+questions and both stay separate, which is what D1.1 says explicitly: "capability
+membership never substitutes for [SEC-CAP's] question."
+
+What follows does **not** conclude the pre-registered vocabulary was wrong -
+only that a `required_capabilities` conjunction cannot dispatch across it.
+The three existing identifiers are kept exactly as registered; see D-TYPE-3.
+
+### The missing hypervisor-side capability
+
+`cap.net.l3.security.firewall.zone_policy` (L1) is documented as
+`cap.net.* = Router/network device features`. No analogous capability exists
+under `cap.compute.*` (`= Hypervisor/host compute features`) for
+Proxmox-style zone-based enforcement (`obj.proxmox.ve.yaml` declares
+`cap.compute.host.hypervisor`, `.runtime.container_host`, `.runtime.vm_host`,
+`.storage.zfs` - nothing firewall-shaped). Without it, framing resolution
+around a single router-only capability structurally cannot reach the internal
+plane at all, which is a second reason the first framing was incomplete, not
+only wrong about mechanism. New registration, unclaimed (checked), reusing
+the existing `cap.compute.*` namespace rather than opening a new one:
+
+```
+cap.compute.security.firewall.zone_policy   L1, cap.compute.* namespace
+  "Hypervisor enforces zone-based security policy for workloads it hosts"
+```
+
+### D-TYPE-1: enforcer type is derived from exactly one of two device-kind capabilities
+
+**Type labels, second-pass correction.** The two type values are `network`
+and `compute` - naming which capability namespace produced them
+(`cap.net.*` vs `cap.compute.*`), not `perimeter`/`internal`. Those two words
+stay reserved for the authored, scope-level `enforcement_plane` field
+(`class.network.security_matrix.yaml`), which ADR 0119 D1.1 states is an
+independent axis. In the current topology a `network`-type enforcer in
+practice carries `perimeter`-plane scopes and a `compute`-type enforcer
+carries `internal`-plane ones, but that correspondence is a fact about
+today's data, stated in prose here, not a shared enum - D1.1 is explicit that
+plane "is not what its enforcer is," and a device's type must remain legible
+as its own fact if that correspondence ever stops holding.
+
+For each object, once its effective capability set is known (existing
+OS/vendor/role/bootstrap/firmware derivation - `enabled_packs` expansion is
+not required for this step; see the closing note):
+
+- `cap.net.l3.security.firewall.zone_policy` present, `cap.compute.security.
+  firewall.zone_policy` absent → type = `network`.
+- The reverse → type = `compute`.
+- Both present → contradiction, refused with a diagnostic. Should not occur
+  structurally (a device is router-derived or compute-derived, not both -
+  `obj.mikrotik.chateau_lte7_ax` extends `class.router`, `obj.proxmox.ve`
+  extends `class.compute.hypervisor.proxmox`, disjoint class trees), so this
+  is a check rather than an assumption, matching every other place this
+  record refuses rather than assumes.
+- Neither present → type = none. Not an error: most devices are not
+  enforcers, and the class hierarchy already scopes which devices these two
+  capabilities are meaningful for.
+
+**This is a different axis from D1.1's "inputs to the resolution, not
+answers" caution**, checked explicitly rather than assumed after the SPC
+review raised the question: that caution concerns *adapter*-level
+declarations - a device offering a generic mechanism alongside a specific one,
+or several mechanisms at once - which is D-TYPE-2's case, handled there. Type
+is a device-*kind* marker gated by mutually exclusive class ancestry, not an
+adapter declaration a device could legitimately hold more than one of.
+
+Type is never read from an object or instance identifier, an object-module
+name, or which generator happens to exist - exactly what ADR 0119 D1.1
+requires and what N-01's disabled `target_class: class.router` check tried to
+approximate with a class name instead of a capability.
+
+### D-TYPE-2: adapter identity and version are derived from type × the already-derived OS family, reconciled against any existing declaration
+
+Given a non-none type, the adapter **identity** is resolved from `cap.os.*` -
+already computed by `capability_compiler.py`'s existing OS derivation,
+needing no new device-level declaration:
+
+- type=`network`, `cap.os.routeros` present → adapter identity =
+  `cap.firewall.security_matrix.routeros`.
+- type=`compute`, `cap.os.proxmox` present → adapter identity =
+  `cap.firewall.security_matrix.pve`.
+- type resolved but no matching OS family (an OpenWrt or VyOS perimeter-plane
+  device, say - both named in ADR 0119 D1.1's own prose, neither with an
+  adapter implemented here) → **zero compatible adapters, UNSUPPORTED**,
+  refused with a diagnostic naming the type and the device's actual OS. Not
+  silently unrendered, not approximated.
+- More than one OS family matching one type on one device → **AMBIGUOUS**,
+  refused, no priority order. Cannot occur under the current `_OS_FAMILY_CAPS`
+  table (one family per device), so this is a standing check against a case
+  that is not reachable today rather than one already reproduced, the same
+  status as the "both types present" check above.
+
+**Adapter version (corrected during implementation).** ADR 0119 D1.1 requires
+identity *and* version pinned together; the first two SPC-review passes
+resolved identity only, and the STEP 5 re-entry approved binding the
+resolving generator plugin's manifest `api_version` field as a version
+signal. Building it exposed the flaw the review missed: `api_version: 1.x`
+is not adapter-specific at all - it is identical on *every* plugin in the
+framework (discoverers, compilers, validators, generators, builders alike;
+checked with a repo-wide grep, not just the two generators this record
+originally looked at), because it is the kernel plugin-API compatibility
+marker, not a revision of the adapter it happens to sit on. Binding it as
+`adapter_version` would have produced the literal string `"1.x"` for both
+`.routeros` and `.pve`, telling a reader nothing D1.1's "identity and
+version" requirement needs. `adapter_version` is `None` in the shipped
+record instead - an honest gap, not a misleading constant. ADR 0119 D2
+defines the full "execution context" record - which would carry adapter
+identity and version together with routing domain, address family, hook and
+chain - as a conceptual contract whose "concrete manifest channel names and
+schemas must be registered in the implementation PR," i.e. not yet built.
+Section 4's own V-07 row already recorded this as blocked ("the derived
+scope/context contract must be registered before a field claims to carry
+resolved type and adapter identity") before this section existed, and stays
+blocked: this decision supplies identity now; version stays V-07's open
+item, not something this section invents a substitute for.
+
+**Reconciliation with a pre-existing direct declaration.**
+`cap.firewall.security_matrix.routeros`/`.pve` remain registered, declarable
+identifiers (D-TYPE-3) - a device may already carry one directly, independent
+of this resolution. This is exactly ADR 0119 D1.1's "a device may declare a
+generic enforcement capability alongside a specific one... inputs to the
+resolution, not answers": if a device declares the adapter identity directly
+*and* the OS-family derivation resolves the same identity, that is confirming
+evidence, not ambiguity. If a direct declaration and the OS-family-derived
+result **disagree** (a device declares `.pve` but `cap.os.*` derives
+`routeros`, say), that is refused as a resolution contradiction distinct from
+D-TYPE-2's zero/ambiguous cases - the two inputs the resolution was given
+cannot both be honoured, and neither is preferred by priority. A direct
+declaration with no matching OS-family fact at all behaves as a candidate the
+resolution considers, not as an automatic override of what `cap.os.*` says.
+
+**"Target context" is this device, for this profile.** ADR 0119 D1.1
+resolves an adapter "for each target context"; ADR 0119 D2 defines context
+more richly (routing domain, address family, hook, chain). This record
+collapses context to the device itself: every enforcer in scope today has
+exactly one management endpoint and one rendering target, so device and
+context coincide. This is a scoping decision for the current bounded profile,
+not a general claim that they are the same thing - the same discipline
+D-COMP-1 already applied ("narrower in scope than N-02"). A future device
+with more than one target context would need this revisited, not silently
+assumed to still hold.
+
+This makes `cap.firewall.security_matrix.routeros`/`.pve` **derived, and
+independently checkable, outputs** - published the same way `cap.role.*`
+already is - rather than the only source of truth for adapter identity. The
+declaration N-03 found missing (Chateau lacks a direct `.routeros`
+declaration) is not required for resolution to work: `cap.os.routeros`
+already carries the same fact, and resolution's own output supplies the
+identifier without a second authored declaration of one fact.
+
+### D-TYPE-3: the pre-registered adapter identifiers are kept, and become resolution's own output vocabulary
+
+**Revised after SPC review; the original version of this section proposed
+retiring `cap.firewall.security_matrix` and is withdrawn, not narrowed.**
+[`CAPABILITY-SATISFACTION-CONTRACT.md` §5](../0119-analysis/CAPABILITY-SATISFACTION-CONTRACT.md)
+states plainly: "Legacy catalog entries are not reclassified by this
+amendment," and reuse of `cap.firewall.*` for L2 policy capabilities is listed
+among the namespaces to preserve. Its §7 goes further, discussing
+`cap.firewall.security_matrix.pve` by name as the *right* identifier for
+"Proxmox enforcement," with the gap named as "asserts nothing about the
+generator" - the backend is unimplemented, not the vocabulary wrong. The AI
+rule pack repeats the same instruction: "Preserve cap.net.*, cap.firewall.*,
+cap.workload.*, cap.operations.* ownership." Retiring any of the three would
+have executed the one action every source that discusses this vocabulary
+says not to take.
+
+All three identifiers - `cap.firewall.security_matrix`,
+`.routeros`, `.pve` - stay in the catalogue exactly as registered, with their
+existing `vendor:`/`stability:` metadata unchanged. What changes is only that
+resolution (D-TYPE-1/D-TYPE-2) does not depend on a device declaring them:
+"is `managed_by_ref` a valid enforcer" is answered by "does type resolution
+produce a non-none type for that target" (the N-01 target-check's
+replacement, below), and "which adapter" is resolved rather than declared.
+The generic `cap.firewall.security_matrix` remains available as the family
+identifier the resolved adapter belongs to - unused by any check this record
+adds, but not removed, since nothing here requires its removal and the
+governing supplement forbids it.
+
+### N-01, replaced
+
+The `_NETWORK_CLASS_EXCLUSIONS` entry for `class.network.security_matrix` in
+`network_core_refs_validator.py` and `declarative_reference_validator.py`
+stays an exclusion from the generic `managed_by_ref -> class.router` check -
+that check is still the wrong shape for this field, unchanged from N-01's
+original finding. What replaces it is a dedicated check: `managed_by_ref`
+must resolve to an instance whose derived type (D-TYPE-1) is not none.
+A `managed_by_ref` naming a real instance with no enforcement type is refused
+by name, not by an absent generic class match.
+
+### Diagnostics
+
+Same 7009-7019 sub-band, collision-checked clean (`grep -rEon
+'[EWI]70(09|1[5-9])'`, excl. `build/`, `.venv/` - only this record's own prose
+and the implementation name them). Severity split by whether the finding is
+latent or referenced, corrected during implementation after an eager `error`
+severity on every resolution broke the real compile for `rtr-slate`
+(GL.iNet, OpenWrt: type resolves, no adapter exists - true and harmless,
+since nothing points `managed_by_ref` at it). Only `E7018` fires for an
+instance an actual security_matrix scope depends on; the rest fire during
+resolution itself, for any instance carrying a device-kind capability,
+whether or not anything uses it as an enforcer yet:
+
+| Code | Severity / stage | Condition |
+|---|---|---|
+| `W7015` | warning / compile | Both device-kind firewall capabilities present on one instance's effective capabilities (D-TYPE-1 contradiction). |
+| `W7016` | warning / compile | A resolved type has zero compatible adapters for the instance's OS family (D-TYPE-2 unsupported). |
+| `W7017` | warning / compile | A resolved type has more than one compatible adapter (D-TYPE-2 ambiguous). Unreachable under the current OS table; registered so it is never silently permitted if that changes. |
+| `E7018` | error / compile | `managed_by_ref` resolves to an instance with no derived enforcement type (N-01 replacement). The one hard error: it only fires for a reference something actually depends on. |
+| `W7019` | warning / compile | A direct adapter declaration disagrees with the OS-family-derived adapter for the same instance (D-TYPE-2 reconciliation). |
+
+### Where this lives
+
+**Corrected during implementation.** This record originally placed the new
+method in `capability_compiler.py`, reasoning that it "already derives
+`cap.os.*`, `cap.vendor.*`, `cap.role.*` per object in one pass" and D-TYPE-1/
+D-TYPE-2 needed nothing that compiler did not already have in scope. Building
+it against the real topology proved that wrong: `capability_compiler.py`
+iterates *objects*, and under ADR 0064's embedded-OS model a hardware
+object's device-kind capability and its OS family's capability are two
+different objects' facts (`obj.mikrotik.chateau_lte7_ax` declares the
+firewall capability; `cap.os.routeros` is derived on `obj.os.routeros.7.
+arm64`, a separate object reached only through an instance's `os_refs`). No
+single call into that compiler's per-object loop ever sees both.
+
+`effective_model_compiler.py`'s `_derive_instance_effective` already performs
+exactly this join for OS/firmware capabilities, per instance, via `os_refs` -
+it is the actual, already-instance-aware home. `enforcer_resolution` is
+published from there instead, **keyed by instance id** (not object id, as
+first written here): the caller assembles each instance's effective
+capability set from the hardware object's own `enabled_capabilities` plus
+both derived-capability sources (object-level and instance-level) before
+calling the resolver, mirroring how `_derive_instance_effective` already
+merges OS-derived capabilities into its own per-instance set. The published
+shape carries provenance directly, per ADR 0119 D1.1's explicit requirement
+("Resolution carries provenance: which declarations were considered, which
+were compatible, and why one remained"):
+
+```
+{
+  "type": "network" | "compute" | None,
+  "adapter": "cap.firewall.security_matrix.routeros" | ... | None,
+  "adapter_version": None,   # ADR 0119 D2's execution-context record (identity +
+                              # version together) is not yet implemented; V-07 stays
+                              # blocked. Not a placeholder value - see D-TYPE-2 above
+                              # for why binding api_version here would have been wrong.
+  "considered": [...],   # every device-kind and OS-family capability inspected
+  "compatible": [...],   # the subset that could have produced a result
+  "reason": "...",       # why this outcome, or why refused
+}
+```
+
+`declarative_reference_validator.py` and `network_core_refs_validator.py`
+(E7018, the N-01 replacement) are its consumers, subscribing to
+`base.compiler.effective_model`'s `enforcer_resolution` and looking a
+`managed_by_ref` value up directly as an instance id - no object_ref
+indirection needed, since the channel is already keyed the way
+`managed_by_ref` names things.
+
+### What this decision does not do
+
+Implemented 2026-09-29: `enforcer_resolution` exists, published from
+`effective_model_compiler.py`; `cap.compute.security.firewall.zone_policy` is
+registered in `capability-catalog.yaml`; the `class.network.security_matrix`
+exclusion in both reference validators now has the dedicated E7018 check
+behind it. Verified against the real topology: zero compile errors, no diff
+under `generated/`, one expected `W7016` (`rtr-slate`). `adapter_version` is
+`None`, not a partial signal - see D-TYPE-2's corrected text above for why
+`api_version` was rejected rather than used. It does not close V-07 (the full
+D2 execution-context record), which stays blocked on G1/W03 exactly as
+section 4 already recorded before this section existed.
+`enabled_packs` (N-04) stays deferred: only two objects declare non-empty
+packs today (Chateau, GL.iNet). Precision correction from the SPC review:
+packs are not universally un-expanded - `capability_contract_validator.py`'s
+own required-capability check already expands `enabled_packs` into a local
+`expanded_effective` set (`_expand_capabilities`, lines 490-497) - but that
+expansion is internal to the validator's own pass and is not published for
+other consumers, and `capability_compiler.py`'s `derived_capabities` channel
+(what generators and projections actually read) does not include it. The
+real enforcer does not need this fixed regardless: a direct declaration is
+the narrower, independently sufficient fix, verified by checking which packs
+each device actually enables before assuming otherwise. Fixing the compiler's
+channel to include pack expansion is a separately-scoped, wider-blast-radius
+change (Chateau's `pack.router.enterprise` also lists BGP/OSPF/VRF
+capabilities that would newly appear) and is not required for this decision
+to be complete.
+
 ## 6. What this record does not do
 
 No gate advances. `W07`/`G4` are not closed by section 5: it repairs one published
@@ -235,12 +889,118 @@ record authorizes a state migration, a device operation or a deployment.
 
 ## 7. Command evidence
 
+Evidence for sections 1-3 (unchanged baseline, before `c5f66c10`):
+
 ```
 pytest tests/test_backend_specialization_boundary.py -q     9 passed
 grep -rEon '[EWI]70(09|1[0-9])' ... (excl. build/, .venv/)  no matches
 grep -rn 'subscribe(.*matrix_by_enforcer'                   no matches
-pytest tests -q -p no:randomly                              see below
 ```
 
-Full-suite result at this tree: PENDING at the time of writing; it is a measurement
-of the unchanged baseline, and no claim in this record depends on it.
+Evidence for section 5, at `c5f66c10`:
+
+```
+ad hoc counterexample script, mirroring 5.4 exactly     6/6 + positive control pass
+pytest tests/plugin_integration/test_security_matrix_compiler.py -q      31 passed
+pytest tests/plugin_contract/test_integration_tests_no_legacy_publish_registry.py -q
+                                                                            1 passed
+pytest tests/test_diagnostic_code_registry.py tests/test_plugin_registry.py -q
+                                                                           17 passed
+generate-framework-lock.py --force && verify-framework-lock.py --strict   OK
+compile-topology.py (canonical invocation)                errors=0 warnings=2
+                                              (matches the last recorded baseline)
+git status after compile                          generated/ unchanged, byte-identical
+```
+
+Evidence for V-15, at `1336c12f`:
+
+```
+pytest tests/plugin_integration/test_projection_snapshots.py
+      tests/plugin_integration/test_projection_helpers.py
+      tests/plugin_integration/test_terraform_proxmox_generator.py
+      tests/plugin_integration/test_generator_projection_contract.py
+      tests/plugin_contract/test_object_generator_ownership.py
+      tests/plugin_contract/test_projection_ownership_boundaries.py -q    49 passed
+pytest tests/plugin_regression/test_terraform_proxmox_parity.py
+      tests/plugin_integration/test_bootstrap_generators.py -q  13 passed, 1 skipped
+pytest tests/test_diagnostic_code_registry.py
+      tests/test_backend_specialization_boundary.py -q                   20 passed
+generate-framework-lock.py --force && verify-framework-lock.py --strict   OK
+compile-topology.py (canonical invocation)                errors=0 warnings=2
+git status after compile                          generated/ unchanged, byte-identical
+```
+
+Evidence for section 5c (D-COMP-1..4), at `e72d0099`:
+
+```
+pytest tests/plugin_integration/test_security_matrix_compiler.py -q      36 passed
+pytest tests/plugin_contract/test_integration_tests_no_legacy_publish_registry.py
+      tests/test_diagnostic_code_registry.py tests/test_plugin_registry.py
+      tests/test_backend_specialization_boundary.py -q                   27 passed
+pytest tests/plugin_contract/test_manifest.py
+      tests/plugin_contract/test_validate_plugin_manifests.py -q         40 passed
+pytest tests/plugin_integration/test_mikrotik_capability_driven.py
+      tests/plugin_integration/test_generator_projection_contract.py
+      tests/plugin_integration/test_zone_derivation_parity_w05.py
+      tests/plugin_regression/test_terraform_mikrotik_parity.py -q
+                                                       34 passed, 1 skipped
+generate-framework-lock.py --force && verify-framework-lock.py --strict   OK
+compile-topology.py (canonical invocation)                errors=0 warnings=2
+git status after compile                          generated/ unchanged, byte-identical
+```
+
+Evidence for sections 5b/5d (V-09/V-10/V-14, N-07), at `e868abbe` and the fixture at `168b4f27`:
+
+```
+pytest tests/plugin_integration/test_security_matrix_compiler.py
+      tests/plugin_integration/test_projection_helpers.py
+      tests/plugin_integration/test_projection_snapshots.py
+      tests/plugin_integration/test_mikrotik_capability_driven.py
+      tests/plugin_integration/test_zone_derivation_parity_w05.py
+      tests/plugin_integration/test_generator_projection_contract.py
+      tests/plugin_integration/test_terraform_mikrotik_generator.py
+      tests/plugin_integration/test_mikrotik_runtime_baseline_contract.py
+      tests/plugin_integration/test_tuc0002_terraform_v2.py
+      tests/plugin_integration/test_tuc0003_mikrotik_v2.py
+      tests/plugin_integration/test_generator_template_and_publish_contract.py
+      tests/test_backend_specialization_boundary.py
+      tests/test_diagnostic_code_registry.py tests/test_plugin_registry.py
+      tests/plugin_contract/test_manifest.py
+      tests/plugin_contract/test_validate_plugin_manifests.py
+      tests/plugin_contract/test_integration_tests_no_legacy_publish_registry.py
+      tests/plugin_regression/test_terraform_mikrotik_parity.py -q
+                                                       200 passed, 1 skipped
+generate-framework-lock.py --force && verify-framework-lock.py --strict   OK
+compile-topology.py (canonical invocation)                errors=0 warnings=2
+                                        (matches the last recorded baseline)
+git status after compile                          generated/ unchanged, byte-identical
+```
+
+A full `pytest tests -q -p no:randomly` was run once on this tree, before
+`c5f66c10`: 125 failed, all in `tests/plugin_integration/test_security_plan_validator.py`,
+which passes 77/77 in isolation. That result was investigated rather than
+accepted at face value. Bisection cleared every directory collected before the
+target - `ai_rules`, `kernel`, `netmodel`, `orchestration`, `plugin_api`,
+`plugin_contract` - both individually and combined, and cleared both halves of
+the ~100 `plugin_integration` files collected before the target within that
+directory. The decisive check was the exact natural collection order `pytest
+tests` itself uses, reconstructed file-by-file and run as one invocation
+through the target inclusive (291-file collection order captured once, first
+201 files, exit code 0): **1981 passed, 1 skipped, 1 failed - and the failure
+was not the target file.** `test_security_plan_validator.py` passed clean, all
+77 of its tests, under the exact conditions that had produced 125 failures.
+The one failure that did occur (`test_projection_matches_golden_snapshot
+[proxmox-...]`) is explained: that pytest process started before `1336c12f`
+landed the golden-snapshot update V-15 required, so it ran against
+already-superseded source.
+
+No reproducible order-dependent pollution was found. The original 125 failures
+are best explained as a one-off condition specific to that one 52-minute,
+2573-test run - resource exhaustion (disk, file descriptors) from the many
+subprocess-heavy bootstrap/compile tests plugin_integration and plugin_contract
+both carry is the leading candidate, given the failure did not survive an exact
+structural reproduction. This is closed as an investigated, not reproduced,
+anomaly - not as a fixed bug, since nothing was found to fix. A fresh full
+`pytest tests` run remains the only way to see whether it recurs; it has not
+been re-run in full since this tree's V-13/V-15 changes landed. No claim in
+this record or in sections 5/5b depends on that outcome.

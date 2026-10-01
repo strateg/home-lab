@@ -34,21 +34,50 @@ finding a provider resource does not establish rendering or backend conformance.
 
 ## 2. Open — the implementation does not meet what the corpus now requires
 
-There are **ten** open implementation rows: V-04, V-05, V-07 and V-09..V-15.
-Their status is not changed by the documentation amendment.
+**Reconciled 2026-09-30** against `ENFORCER-SCOPE-IMPLEMENTATION-READINESS.md`'s
+own sequencing record (2026-09-28) and the real commits it cites, none of which
+this table had been updated to reflect. Five of the original ten rows are closed;
+one is closed on one side and worse on the other; four are unchanged. This
+reconciliation is itself a static/code re-read, the same evidence class the
+original measurement used - not a live/dynamic re-verification.
+
+### 2a. Closed since the 2026-09-15 baseline
+
+| ID | Requirement | Closed by | Evidence |
+|---|---|---|---|
+| V-04 | Type resolution and target validation use declared enforcement capability | `7d6a2072` (D-TYPE-1..3); VLAN, routing-policy and firewall-policy slices closed 2026-09-30 | `cap.firewall.security_matrix.routeros`/`.pve` are no longer zero-consumer: `effective_model_compiler.py:296-303` uses them as D-TYPE-2's adapter-identifier vocabulary, and `test_effective_model_compiler.py:515,599,729` assert them as resolved values. **Caveat, 2026-09-30, corrected same day, updated same day, extended same day:** this closes the row's *type resolution* half, measured against the original zero-consumer evidence. The *target validation* half is real but narrower than the row's own title suggests: `declarative_reference_validator.py` (framework-level, VALIDATE stage) subscribes to `enforcer_resolution` and raises `E7018` for `class.network.security_matrix` rows (permissive: `"network"` or `"compute"`), `E7019` for `class.network.vlan` and, as of the same-day extension, `class.network.routing_policy` rows (`_validate_network_type_managed_by_ref`, strict: `"network"` only, layered on the existing structural `class.router`/L1 check), and `E7026` for `class.network.firewall_policy` rows (same permissive check as `E7018`, no structural check to layer onto - excluded from the generic path for the same ADR-0110 reason `security_matrix` is). **Correction, same day:** earlier text here also named bridge and "MAC-VLAN-assignment" rows as still-uncovered `managed_by_ref`-bearing kinds; neither is. `class.network.bridge`'s schema has no `managed_by_ref` at all (only `host_ref`, already `E7836`), and MAC-VLAN assignment is not a distinct instance class - `mac_vlan_assignments_compiler.py` derives it from VLAN rows' own data, which `E7019` already covers. All four `managed_by_ref`-bearing `_rule_network_core` row kinds now have a capability check. **Correction, 2026-09-30 (V-14):** this caveat originally went on to say the COMPILE-stage compiler plugins that build `router_ids` had no consumer of `enforcer_resolution` at all, citing that as the "Reference names a target with no enforcement capability" counterexample's own gap - true when written, stale by the time V-14 landed the same day and never updated here until now. All ten MikroTik compile-stage compilers now select `router_ids` via `enforcer_resolution`'s adapter (V-14, section 2a); see that counterexample's row in section 4 for the current state. An implicit (unset `managed_by_ref`, single-router-default) row of any VALIDATE-covered class still is not covered by `E7018`/`E7019`/`E7026`, since they only run when the field is present - that gap is what V-10's per-row `E7027` refusal (section 2b) now catches instead, at COMPILE stage |
+| V-05 | Devices declare what they enforce | `7d6a2072` | `obj.mikrotik.chateau_lte7_ax.yaml:262` declares `cap.net.l3.security.firewall.zone_policy`, exactly the device-kind capability `effective_model_compiler.py`'s `_ENFORCER_TYPE_CAPS["network"]` gates D-TYPE-1 on |
+| V-09 | Every scope of an enforcer is projected | `e868abbe`, `168b4f27` | `_extract_security_matrix` now reads `composed_matrices_by_enforcer[router_id]`, which `security_matrix_compiler.py` already composes from the complete `scopes_by_enforcer` index (all scope_ids for that one enforcer merged, not the first match). The two-scope fixture in `test_projection_helpers.py` and the real one-scope topology (`generated/` byte-identical) both cover it. **Scoped to one enforcer**, per the commit's own text - see V-10 |
+| V-13 | Enforcer-to-scope index is complete and deterministic | `c5f66c10` | `matrix_by_enforcer` no longer exists (`test_security_matrix_compiler.py:608` asserts it `not in` published keys); `scopes_by_enforcer` replaces it as `dict[str, list[str]]`, and `composed_matrices_by_enforcer` (the real consumer's channel) is built from it, not from a one-entry-per-enforcer dict; `E7010`/`E7011` registered |
+| V-15 | One derivation per fact, pipeline-wide (Proxmox side) | `1336c12f` | `_extract_security_matrix_proxmox` is deleted; `proxmox/plugins/projections.py:115-124` records why (dead, zero consumers, confirmed by grep) and that a real consumer subscribes to `scopes_by_enforcer` directly when Proxmox firewall rendering stops being a stub |
+| V-14 | Selection by declared class or capability | `1336c12f` (Proxmox side); `enforcer_resolution`-based router selection and `materializes_class`-based row-kind selection, 2026-09-30 (both MikroTik halves) | **Fully closed.** Proxmox: `_extract_security_matrix_proxmox` deleted (2 → 0). MikroTik router-filter half (`object_ref.startswith("obj.mikrotik.")`, "is this instance a valid router/enforcer") is `enforcer_resolution[instance_id].get("adapter") == "cap.firewall.security_matrix.routeros"` in all ten compile-stage compilers plus `projections.py`'s `build_mikrotik_projection` (not dead code, unlike the different pattern V-10 found dead in the same file) and its caller `terraform_mikrotik_generator.py` - true declared-capability selection (D-TYPE-1..3), confirmed not a same-topology no-op: `rtr-slate` (real device, GL.iNet/OpenWrt) resolves enforcer type `"network"` but no RouterOS adapter, so a naive `type == "network"` replacement would have wrongly admitted it; the adapter check correctly excludes it. MikroTik row-kind-selection half (`"vlan" not in object_ref`, `"bridge" not in object_ref`, etc. - "is this network row a VLAN/bridge/routing-policy/firewall-policy row") is now a new `_resolved_class_ref(row)` helper (mirroring the existing `_resolved_object_ref`'s own `instance.extends_class`/`materializes_class` resolution) compared against the declared class (`class.network.vlan`, `.bridge`, `.firewall_policy`, `.routing_policy`, `.tunnel_link` for WireGuard) - true declared-class selection, not a name-prefix convention. This also fixed a live aliasing bug the old code worked around with an explicit exclusion: `obj.network.routing_policy.vpn_vlan` contains the substring `"vlan"`, so `vlan_entries_compiler.py` and `mac_vlan_assignments_compiler.py` needed `or "routing_policy" in object_ref` to avoid misclassifying it - the class-based check has no such aliasing risk. `class.network.tunnel_link` has exactly one extending object today (`obj.network.wireguard_tunnel`); a future non-WireGuard tunnel_link object would additionally need a `tunnel_type` property check, since `wireguard_tunnels_compiler.py`'s extracted shape is WireGuard-specific - not needed for the corpus as it stands, noted in the code rather than solved speculatively | `grep -rn 'in object_ref\|in instance_id\|startswith("obj\.' topology/object-modules/mikrotik/plugins/` = 0 real matches, 2026-09-30 post-fix (1 comment line, `mac_vlan_assignments_compiler.py:170`, an unrelated ADR-0117 note about `instance_id` naming; was 18 across 11 files at the W07-migration-order baseline, 7 across 6 files after the router-selection half closed); `topology/object-modules/proxmox/plugins/` = 0 |
+
+### 2b. Still open, unchanged since the 2026-09-15 baseline
 
 | ID | Requirement | State | Evidence |
 |---|---|---|---|
-| V-04 | Type resolution and target validation use declared enforcement capability | `cap.firewall.security_matrix`, `.routeros` and `.pve` are registered in the catalogue and have **zero** consumers | `grep -rn cap.firewall.security_matrix` outside the catalogue returns nothing across `*.py`, `*.yaml`, `*.j2` |
-| V-05 | Devices declare what they enforce | **No** device object declares any `cap.firewall.*` enforcement capability | Only `obj.network.firewall_policy.established_related.yaml` declares `cap.firewall.*`, and only `stateful` / `connection_tracking` |
-| V-07 | Resolved type and adapter identity available in the derived scope/context contract | Derivation/consumer contract remains open; do not add a duplicate authored type field | G1/W03 must register the derived contract; absence from authored class properties alone is not proof about compiled output |
-| V-09 | Every scope of an enforcer is projected | `_extract_security_matrix` returns inside its loop; the first matching matrix wins, the rest are dropped silently | `projections.py:750` |
-| V-10 | No single-instance assumption | `default_router_id = next(iter(sorted(router_ids)), "")` and a branch guarded by `len(router_ids) == 1`, commented "single-router topology" | `projections.py:1327`, `:1355` |
+| V-07 | Resolved type and adapter identity available in the derived scope/context contract | `enforcer_resolution` now exists and is wired as a plugin data-flow channel (`compilers.yaml:601`, `validators.yaml:483`), but that is not the G1/W03-registered scope/context **contract** this row asks for - a produces/consumes wire-up is not a schema registration | `topology-tools/plugins/manifests/compilers.yaml:601`; no `enforcer_resolution` entry in `topology-tools/schemas/` |
+| V-10 | No single-instance assumption | `e868abbe`'s own commit message states this explicitly: *"Multiple enforcers in router_ids are not handled - the render context still carries one security_matrix value for the whole root, the still-blocked V-11/V-12 layout question, explicitly out of this step's scope"* - its new code chose the sorted-first router id "matching the single-router assumption already made elsewhere in this module," not removing it. The readiness record's own sequencing table (`ENFORCER-SCOPE-IMPLEMENTATION-READINESS.md` section 4) groups V-10 into the same "Done" row as V-09 with the gloss "closed for multi-scope; multi-enforcer stays with V-11/V-12" - but V-10's own wording and original evidence were always about multi-*enforcer*, not multi-scope; that gloss appears to attribute V-09's closure to V-10 as well. **Interim closure, 2026-09-30 - matches `_extract_security_matrix`'s own earlier pattern, not full multi-enforcer rendering.** All five compile-stage compilers (`vlan_entries`, `firewall_entries`, `routing_policies`, `mac_vlan_assignments`, `bridge_entries`) now emit `E7027` naming the row and skip it, instead of silently excluding a row with no placement signal - the same "silent to explicit refusal" step `_extract_security_matrix` already took, not the actual multi-enforcer attribution/rendering V-10's title still asks for (that remains blocked on V-11/V-12, same as before). `bridge_entries_compiler.py` initially did **not** get this fix, same day: characterizing it first found a separate, real, pre-existing defect - `host_ref` is an ADR 0107 D9 reserved top-level row key ("semantically equivalent to `object_ref`"), but `effective_model_compiler.py` never propagated it into `effective_model_candidate` at all (not top-level, not nested), and the bridge compiler additionally read it from the wrong place (`instance_data`) besides. The real topology's `inst.bridge.containers` (declares `host_ref: rtr-mikrotik-chateau`) had therefore always silently compiled to zero bridges. **Both fixed same day**: `effective_model_compiler.py` now propagates `host_ref` (mirroring how `object_ref` already is); the bridge compiler reads `row.get("host_ref")` directly. `inst.bridge.containers` now correctly renders one `routeros_interface_bridge` resource (a real, intended change to generated output, verified by direct content diff across two compiles - `git status` on this gitignored directory proves nothing, a mistake this record's own verification made and caught only now); `inst.bridge.vmbr0` (`host_ref: srv-gamayun`, a Proxmox host) correctly stays excluded with no diagnostic - a deliberate, resolved exclusion, not ambiguity | `E7027` in `error-catalog.yaml`; regression tests `test_mikrotik_{vlan_entries,firewall_entries,routing_policies,mac_vlan_assignments,bridge_entries}_refuses_an_ambiguous_target`-family in `test_projection_helpers.py`, plus `test_effective_model_compiler_propagates_host_ref`; real topology `errors=0 warnings=3` unchanged; `generated/` diff verified by direct file comparison (git worktree, two separate compiles): exactly `interfaces.tf`/`addresses.tf`/`outputs.tf` gain the one new bridge and its address, nothing else; dead (no reader) at `projections.py:310`, unchanged |
 | V-11 | Explicit apply-unit/state/resource mapping; selected adapter layout implements it | One Terraform root per module; one unaliased `provider "routeros"` bound to one `var.mikrotik_host`; one state | `generated/home-lab/terraform/mikrotik/provider.tf` |
 | V-12 | Connection binding per target | `mikrotik_host`, `mikrotik_api_host` and one `terraform_remote_state` are single-valued in plugin config | `topology/object-modules/mikrotik/plugins.yaml` |
-| V-13 | Enforcer-to-scope index is complete and deterministic | `matrix_by_enforcer` is published with **zero** subscribers, and it is a one-entry-per-enforcer dict; see section 3 | `security_matrix_compiler.py:118,146`; `grep` for `subscribe(... "matrix_by_enforcer")` returns nothing |
-| V-14 | Selection by declared class or capability | 9 substring selectors remain in the MikroTik projection, 2 in the Proxmox projection | `grep -n 'in object_ref\|in instance_id\|startswith("obj\.'` |
-| V-15 | One derivation per fact, pipeline-wide | `_extract_security_matrix_proxmox` is a second derivation: `STUB`, selects on two substrings of `instance_id`, consumes no channel, and its module declares `depends_on: []` with no `consumes` | `proxmox/plugins/projections.py:52`; `proxmox/plugins.yaml` |
+
+**Net, 2026-09-30 update: six of the original ten rows are closed (V-04, V-05,
+V-09, V-13, V-14, V-15); four remain open (V-07, V-10, V-11, V-12), one of
+them (V-10) with interim progress recorded in its row rather than closed.**
+V-14 moved from 2b to 2a earlier the same day - it was "split" (Proxmox closed,
+MikroTik worse) as of the prior reconciliation; the MikroTik router-selection
+half closed first, and the row-kind-selection remnant closed the same day,
+fully closing the row. V-10 stays in this section: the silent-to-explicit-
+refusal step it needed (matching `_extract_security_matrix`'s own earlier
+fix) landed for all five files (`bridge_entries_compiler.py` in a same-day
+follow-up, after fixing the `host_ref` defect that initially blocked it),
+but the row's own title - multi-enforcer attribution and rendering - is
+still blocked on V-11/V-12, unchanged. Where
+the readiness record's own sequencing table groups a row under a "Done"
+commit alongside others, this section verifies each row individually against
+current code rather than inheriting the
+grouping - two of those groupings (V-10, V-14) turned out narrower than the
+row they were filed under, at the time they were first assessed.
 
 ## 3. The index defect, reproduced
 
@@ -72,34 +101,63 @@ would therefore not establish completeness or determinism. The channel contract 
 fixed first - a complete collection in a deterministic order, or an explicit refusal
 of multiplicity it cannot represent - and tested, before any consumer reads it.
 
+**Closed by `c5f66c10` (V-13, section 2a).** `matrix_by_enforcer` no longer exists;
+`scopes_by_enforcer` is the complete, deterministic `dict[str, list[str]]` this
+section called for, and the real consumer (`_extract_security_matrix`) reads
+`composed_matrices_by_enforcer`, built from it, not a one-entry-per-enforcer dict.
+The reproduction above is retained as the record of what the defect was, not as
+a description of current behavior.
+
 ## 4. Next implementation checks (planned, not executed here)
 
 These refine existing W03/W06/W07 and A24/A26/A30 obligations, not new acceptance IDs.
 
-| Counterexample / positive control | Required result |
-|---|---|
-| Two devices of one type | Both projections retained, no target/resource leakage |
-| Two scopes/planes on one device; reverse input order | Both scopes retained deterministically, or explicit unsupported-multiplicity diagnostic |
-| Generic + specific capabilities; multiple enforcement mechanisms | Provenance retained; no first-match type/adapter selection |
-| Reference names a target with no enforcement capability | Visible refusal; a valid instance_ref alone is insufficient |
-| Zero or multiple compatible adapters | Visible unsupported/ambiguous result; no approximate rendering |
-| Shared management endpoint, distinct target selectors | Valid explicit binding accepted; ambiguous target refused |
-| Adapter identity/version changed after checking | Affected plan/evidence binding invalidated |
-| Shared resource/state/apply unit | One writer and declared coupling; no isolation claim from directory layout |
+| Counterexample / positive control | Required result | Status |
+|---|---|---|
+| Two devices of one type | Both projections retained, no target/resource leakage | **Independence pinned 2026-09-30** at the enforcer-resolution layer (`test_effective_model_resolves_two_instances_of_one_type_independently`, passed on first run - already-correct, `_resolve_enforcer` takes only per-call arguments and `enforcer_resolution` is keyed by instance_id). "Both projections retained" through to rendering is not implemented - blocked on V-11/V-12 - see the next row's fallback |
+| Two scopes/planes on one device; reverse input order | Both scopes retained deterministically, or explicit unsupported-multiplicity diagnostic | **Split.** One-enforcer/two-scope retention was already covered (`test_mikrotik_projection_reads_a_two_scope_composed_plan`, predates this reconciliation) - that is V-09's closed concern. The **second outcome implemented 2026-09-30**: `_extract_security_matrix` now raises `ProjectionError` instead of silently picking the sorted-first enforcer when `composed_matrices_by_enforcer` holds a plan for more than one (`test_mikrotik_projection_refuses_more_than_one_enforced_router`). This is V-10's territory more than this row's title, given the V-10/V-14 misattribution section 2b already found - the row groupings in this table predate that finding and were not re-drawn |
+| Generic + specific capabilities; multiple enforcement mechanisms | Provenance retained; no first-match type/adapter selection | **Assessed 2026-09-30, not attempted**: "provenance" here has no implemented mechanism to test against - `grep -rn provenance` in `capability_compiler.py` returns nothing, and this overlaps V-07 (already blocked on G1/W03 registering the derived scope/context contract). Writing a test would mean designing new infrastructure, not characterizing existing behavior; deferred rather than guessed at |
+| Reference names a target with no enforcement capability | Visible refusal; a valid instance_ref alone is insufficient | **Closed, 2026-09-30 (V-14). Correction, same day: this row went stale between the VALIDATE-stage work above and the V-14 commit and was not updated until now.** `test_mikrotik_projection_refuses_a_router_ref_the_type_resolver_refuses` (renamed from `..._accepts_a_router_ref_...` when the fix landed) runs the same instance shape through both compilers - `effective_model_compiler` correctly omits it from `enforcer_resolution` (no device-kind capability, D-TYPE-1 finds no candidate), and `build_mikrotik_projection` now agrees: it reads `enforcer_resolution` directly (a new required parameter) and excludes the instance from `routers`, the same declared-capability selection all ten compile-stage compilers (`bridge_entries`, `firewall_entries`, `routing_policies`, `mac_vlan_assignments`, `vlan_entries`, `containers`, `wireguard_tunnels`, `wifi_config`, `bridge_vlans`, `capability_flags`) also gained. `object_ref.startswith("obj.mikrotik.")` no longer appears anywhere in the module (`grep` confirms zero matches). Separately, `declarative_reference_validator.py` raises `E7019`/`E7026` (VALIDATE stage) for the same underlying defect when a VLAN/routing-policy/firewall-policy row's `managed_by_ref` is *explicitly set* and does not resolve to an acceptable enforcer type - a second, earlier layer catching the same class of error before GENERATE, for those row shapes when the field is present |
+| Zero or multiple compatible adapters | Visible unsupported/ambiguous result; no approximate rendering | **Both halves covered at the resolution layer.** Zero: `test_effective_model_warns_when_resolved_type_has_no_compatible_adapter` (W7016, pre-existing). Multiple: `test_effective_model_warns_when_resolved_type_has_ambiguous_adapters`, added 2026-09-30 - `_ENFORCER_ADAPTER_BY_TYPE` has exactly one OS-family entry per type today, so W7017 is structurally unreachable via any real capability declaration; unit-tests `_resolve_enforcer` directly with the class table monkeypatched to two entries, confirming the branch itself refuses rather than approximates. Neither half re-verified at rendering - no rendering path can reach either state while `_ENFORCER_ADAPTER_BY_TYPE` has one entry per type |
+| Shared management endpoint, distinct target selectors | Valid explicit binding accepted; ambiguous target refused | **Fixed 2026-09-30 (V-10), all five files.** `test_mikrotik_vlan_entries_refuses_an_ambiguous_target` (was a characterization test, `..._silently_drops_...`, before the fix) gives `object.mikrotik.compiler.vlan_entries` two routers and a VLAN row with no `managed_by_ref` and no matching `ip_allocations` entry - genuinely ambiguous, since the single-router default only applies with exactly one router. The row now emits `E7027` naming it and is skipped, rather than silently excluded with no diagnostic at all. `firewall_entries_compiler.py`, `routing_policies_compiler.py` and `mac_vlan_assignments_compiler.py` share the same fix, each with its own regression test in `test_projection_helpers.py`. `bridge_entries_compiler.py` did **not** get this fix the same day it landed for the other four: characterizing it surfaced a separate, real, pre-existing defect first - `host_ref` (ADR 0107 D9's reserved row key) was never propagated into `effective_model_candidate` by `effective_model_compiler.py` at all, and the bridge compiler additionally read it from the wrong place (`instance_data`) besides, so the real topology's two bridge rows had always silently compiled to zero bridges; adding `E7027` there before fixing that broke the real compile with two hard errors during verification, caught before landing and reverted. **Both fixed the same day, in a follow-up pass**: `effective_model_compiler.py` now propagates `host_ref`; the bridge compiler reads it correctly and gained the same `E7027` refusal (for "neither field declared at all" only - a `host_ref` naming a real non-router instance, like the real topology's `inst.bridge.vmbr0`/Proxmox, is a deliberate, resolved exclusion, not ambiguity, and stays silent). `inst.bridge.containers` now renders for the first time |
+| Adapter identity/version changed after checking | Affected plan/evidence binding invalidated | **Assessed 2026-09-30, not attempted**: `adapter_version` is `None` everywhere it is produced (`effective_model_compiler.py`, six call sites) - there is no populated version to change, and no plan/evidence digest-invalidation mechanism exists yet to test against (a search for `plan_digest`, `evidence_digest` and `invalidat` under `topology-tools/plugins/` finds only the unrelated security-plan validators). This is W08/G4 territory (offline artifact digest closure), not yet built; deferred rather than guessed at, same reasoning as counterexample 3 |
+| Shared resource/state/apply unit | One writer and declared coupling; no isolation claim from directory layout | **Assessed 2026-09-30, blocked**: this is V-11/V-12's own territory (Terraform state/resource layout), already recorded in section 2b as blocked on a reviewed Terraform state-layout change that design preparation alone does not authorize. Not attempted for the same reason V-11/V-12 remain open |
 
-Implement counterexamples and the complete `matrix_by_enforcer` contract before
-adding its first consumer. Preserve the positive controls: rejecting all targets
-is not a correct implementation of deterministic dispatch.
+Implement counterexamples and the complete index contract before adding its first
+consumer. Preserve the positive controls: rejecting all targets is not a correct
+implementation of deterministic dispatch.
 
 The [readiness record](ENFORCER-SCOPE-IMPLEMENTATION-READINESS.md), 2026-09-28,
-sequences these rows, specifies that first channel change, and extends two rows
-here from repeated measurement: `security_matrices` is complete in membership but
-permutation-sensitive in order, and V-09 is a singular return type across
-projection, generator and template rather than one dropped row. It closes no gate.
+sequenced these rows and specified that first channel change ahead of any
+consumer: `scopes_by_enforcer` (`c5f66c10`, 2026-09-28) replaced `matrix_by_enforcer`
+before `_extract_security_matrix` was wired to the composed result it feeds
+(`e868abbe`, 2026-09-29) - the ordering this section asked for, followed. It also
+extended two rows from repeated measurement: `security_matrices` is complete in
+membership but permutation-sensitive in order, and V-09 is a singular return type
+across projection, generator and template rather than one dropped row. All eight
+counterexample rows above carry real 2026-09-30 evidence now (Status column):
+two closed (1, 5), two split with one half fixed (2, 6 - both the same class of
+silent-drop gap V-10 already named, now demonstrated in `vlan_entries_compiler.py`
+alongside `_extract_security_matrix`), two characterized as currently violated
+without a fix attempted (4, and 6's still-open half), and two assessed and
+deferred because the infrastructure they would test does not exist yet (3, 7) or
+because fixing them is blocked on the same reviewed layout change as V-11/V-12
+(8). None of the eight map to V-04/V-05/V-09/V-13/V-15 (section 2a, closed); most
+map to V-10/V-11/V-12, still open (section 2b) - V-10's own gap is now an
+explicit refusal in one place (`_extract_security_matrix`) and a demonstrated,
+unfixed silent drop in five more (`vlan_entries_compiler.py` and the four other
+verbatim-migrated plugins), which is real progress but not the closure V-10's
+title asks for (multi-enforcer rendering stays blocked on V-11/V-12). The
+readiness record closes no gate, and neither does this reconciliation or the
+2026-09-30 work above - see section 5.
 
 ## 5. What this record does not claim
 
 No gate is closed by anything here. Nothing is qualified. The rows in section 1 are
-statements the corpus now makes, not behaviour that was verified on a device, and
-the rows in section 2 describe source/output gaps rather than an installed system.
-The section 4 tests remain implementation work, not evidence produced by this record.
+statements the corpus now makes, not behaviour that was verified on a device; the
+open rows in section 2b describe source/output gaps rather than an installed
+system; and the 2026-09-30 reconciliation that closed five section 2a rows is a
+static/code re-read, the same evidence class as the original measurement, not a
+live or dynamic re-verification, and not a gate closure - see section 2's own
+opening note. The section 4 tests remain implementation work, not evidence
+produced by this record.

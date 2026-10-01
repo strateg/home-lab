@@ -21,15 +21,507 @@ from kernel.plugin_base import PluginContext, PluginStatus, Stage  # noqa: E402
 from plugins.generators.object_projection_loader import load_object_projection_module  # noqa: E402
 
 _MIKROTIK_PROJECTIONS = load_object_projection_module("mikrotik")
-_derive_mikrotik_capability_flags = _MIKROTIK_PROJECTIONS._derive_mikrotik_capability_flags
-_extract_capabilities = _MIKROTIK_PROJECTIONS._extract_capabilities
 _raw_build_mikrotik_projection = _MIKROTIK_PROJECTIONS.build_mikrotik_projection
+
+
+def _load_capability_flags_module():
+    # W07 migration order item 1: capability-flag derivation moved from the
+    # projection (generate stage) to a compile-stage compiler plugin. Unit
+    # tests of the derivation logic itself now load it from there.
+    module_path = (
+        V5_ROOT
+        / "topology"
+        / "object-modules"
+        / "mikrotik"
+        / "plugins"
+        / "compilers"
+        / "capability_flags_compiler.py"
+    )
+    spec = importlib.util.spec_from_file_location("test_mikrotik_capability_flags_compiler", module_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+_CAPABILITY_FLAGS_MODULE = _load_capability_flags_module()
+_derive_mikrotik_capability_flags = _CAPABILITY_FLAGS_MODULE._derive_capability_flags
+_extract_capabilities = _CAPABILITY_FLAGS_MODULE._extract_capabilities
+_resolved_object_ref = _CAPABILITY_FLAGS_MODULE._resolved_object_ref
+
+
+def _load_wireguard_tunnels_module():
+    # W07 migration order item 4a: WireGuard tunnel derivation moved from the
+    # projection (generate stage) to a compile-stage compiler plugin.
+    module_path = (
+        V5_ROOT
+        / "topology"
+        / "object-modules"
+        / "mikrotik"
+        / "plugins"
+        / "compilers"
+        / "wireguard_tunnels_compiler.py"
+    )
+    spec = importlib.util.spec_from_file_location("test_mikrotik_wireguard_tunnels_compiler", module_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+_WIREGUARD_TUNNELS_MODULE = _load_wireguard_tunnels_module()
+_extract_wireguard_tunnels = _WIREGUARD_TUNNELS_MODULE._extract_wireguard_tunnels
+
+
+def _load_containers_module():
+    # W07 migration order item 4b: container derivation moved from the
+    # projection (generate stage) to a compile-stage compiler plugin.
+    module_path = (
+        V5_ROOT
+        / "topology"
+        / "object-modules"
+        / "mikrotik"
+        / "plugins"
+        / "compilers"
+        / "containers_compiler.py"
+    )
+    spec = importlib.util.spec_from_file_location("test_mikrotik_containers_compiler", module_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+_CONTAINERS_MODULE = _load_containers_module()
+_extract_containers = _CONTAINERS_MODULE._extract_containers
+
+
+def _load_wifi_config_module():
+    # W07 migration order item 4c: WiFi config derivation moved from the
+    # projection (generate stage) to a compile-stage compiler plugin.
+    module_path = (
+        V5_ROOT
+        / "topology"
+        / "object-modules"
+        / "mikrotik"
+        / "plugins"
+        / "compilers"
+        / "wifi_config_compiler.py"
+    )
+    spec = importlib.util.spec_from_file_location("test_mikrotik_wifi_config_compiler", module_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+_WIFI_CONFIG_MODULE = _load_wifi_config_module()
+_extract_wifi_config = _WIFI_CONFIG_MODULE._extract_wifi_config
+
+
+def _load_routing_policies_module():
+    # W07 migration order item 4d: routing-policy derivation moved from the
+    # projection (generate stage) to a compile-stage compiler plugin.
+    module_path = (
+        V5_ROOT
+        / "topology"
+        / "object-modules"
+        / "mikrotik"
+        / "plugins"
+        / "compilers"
+        / "routing_policies_compiler.py"
+    )
+    spec = importlib.util.spec_from_file_location("test_mikrotik_routing_policies_compiler", module_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+_ROUTING_POLICIES_MODULE = _load_routing_policies_module()
+_build_routing_policy_entry = _ROUTING_POLICIES_MODULE._build_routing_policy_entry
+
+
+def _load_mac_vlan_assignments_module():
+    # W07 migration order item 4e: MAC-to-VLAN assignment derivation moved
+    # from the projection (generate stage) to a compile-stage compiler plugin.
+    module_path = (
+        V5_ROOT
+        / "topology"
+        / "object-modules"
+        / "mikrotik"
+        / "plugins"
+        / "compilers"
+        / "mac_vlan_assignments_compiler.py"
+    )
+    spec = importlib.util.spec_from_file_location("test_mikrotik_mac_vlan_assignments_compiler", module_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+_MAC_VLAN_ASSIGNMENTS_MODULE = _load_mac_vlan_assignments_module()
+_extract_mac_vlan_assignments = _MAC_VLAN_ASSIGNMENTS_MODULE._extract_mac_vlan_assignments
+_build_vlan_id_index = _MAC_VLAN_ASSIGNMENTS_MODULE._build_vlan_id_index
+
+
+def _load_bridge_vlans_module():
+    # W07 migration order item 4f: bridge-VLAN derivation moved from the
+    # projection (generate stage) to a compile-stage compiler plugin.
+    module_path = (
+        V5_ROOT
+        / "topology"
+        / "object-modules"
+        / "mikrotik"
+        / "plugins"
+        / "compilers"
+        / "bridge_vlans_compiler.py"
+    )
+    spec = importlib.util.spec_from_file_location("test_mikrotik_bridge_vlans_compiler", module_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+_BRIDGE_VLANS_MODULE = _load_bridge_vlans_module()
+_extract_bridge_vlans = _BRIDGE_VLANS_MODULE._extract_bridge_vlans
+
+
+def _load_vlan_entries_module():
+    # W07 migration order item 4g: VLAN-entry derivation moved from the
+    # projection (generate stage) to a compile-stage compiler plugin.
+    module_path = (
+        V5_ROOT
+        / "topology"
+        / "object-modules"
+        / "mikrotik"
+        / "plugins"
+        / "compilers"
+        / "vlan_entries_compiler.py"
+    )
+    spec = importlib.util.spec_from_file_location("test_mikrotik_vlan_entries_compiler", module_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+_VLAN_ENTRIES_MODULE = _load_vlan_entries_module()
+_build_vlan_entry = _VLAN_ENTRIES_MODULE._build_vlan_entry
+
+
+def _load_bridge_entries_module():
+    # W07 migration order item 4h: bridge-entry derivation moved from the
+    # projection (generate stage) to a compile-stage compiler plugin.
+    module_path = (
+        V5_ROOT
+        / "topology"
+        / "object-modules"
+        / "mikrotik"
+        / "plugins"
+        / "compilers"
+        / "bridge_entries_compiler.py"
+    )
+    spec = importlib.util.spec_from_file_location("test_mikrotik_bridge_entries_compiler", module_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+_BRIDGE_ENTRIES_MODULE = _load_bridge_entries_module()
+_build_bridge_entry = _BRIDGE_ENTRIES_MODULE._build_bridge_entry
+
+
+def _load_firewall_entries_module():
+    # W07 migration order item 4i: firewall-entry derivation moved from the
+    # projection (generate stage) to a compile-stage compiler plugin.
+    module_path = (
+        V5_ROOT
+        / "topology"
+        / "object-modules"
+        / "mikrotik"
+        / "plugins"
+        / "compilers"
+        / "firewall_entries_compiler.py"
+    )
+    spec = importlib.util.spec_from_file_location("test_mikrotik_firewall_entries_compiler", module_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+_FIREWALL_ENTRIES_MODULE = _load_firewall_entries_module()
+_build_firewall_entry = _FIREWALL_ENTRIES_MODULE._build_firewall_entry
 
 # The producer the manifest lets this generator subscribe to. Both of its keys -
 # `security_matrices` and `vlan_cidr_map` - are declared `required: true`, because
 # the projection derives no substitute for either.
 _SECURITY_MATRIX_COMPILER = "base.compiler.security_matrix"
-_CONSUMED_KEYS = (_SECURITY_MATRIX_COMPILER,)
+_EFFECTIVE_MODEL_COMPILER = "base.compiler.effective_model"
+_CAPABILITY_FLAGS_COMPILER = "object.mikrotik.compiler.capability_flags"
+_WIREGUARD_TUNNELS_COMPILER = "object.mikrotik.compiler.wireguard_tunnels"
+_CONTAINERS_COMPILER = "object.mikrotik.compiler.containers"
+_WIFI_CONFIG_COMPILER = "object.mikrotik.compiler.wifi_config"
+_ROUTING_POLICIES_COMPILER = "object.mikrotik.compiler.routing_policies"
+_MAC_VLAN_ASSIGNMENTS_COMPILER = "object.mikrotik.compiler.mac_vlan_assignments"
+_BRIDGE_VLANS_COMPILER = "object.mikrotik.compiler.bridge_vlans"
+_VLAN_ENTRIES_COMPILER = "object.mikrotik.compiler.vlan_entries"
+_BRIDGE_ENTRIES_COMPILER = "object.mikrotik.compiler.bridge_entries"
+_FIREWALL_ENTRIES_COMPILER = "object.mikrotik.compiler.firewall_entries"
+_CONSUMED_KEYS = (
+    _SECURITY_MATRIX_COMPILER,
+    _EFFECTIVE_MODEL_COMPILER,
+    _CAPABILITY_FLAGS_COMPILER,
+    _WIREGUARD_TUNNELS_COMPILER,
+    _CONTAINERS_COMPILER,
+    _WIFI_CONFIG_COMPILER,
+    _ROUTING_POLICIES_COMPILER,
+    _MAC_VLAN_ASSIGNMENTS_COMPILER,
+    _BRIDGE_VLANS_COMPILER,
+    _VLAN_ENTRIES_COMPILER,
+    _BRIDGE_ENTRIES_COMPILER,
+    _FIREWALL_ENTRIES_COMPILER,
+)
+
+
+def _mikrotik_routers_and_network(compiled_json: dict) -> tuple[set[str], list[dict], list[dict], list[dict]]:
+    semantic = _semanticize(compiled_json)
+    instances = semantic.get("instances")
+    devices = instances.get("devices", []) if isinstance(instances, dict) else []
+    network_rows = instances.get("network", []) if isinstance(instances, dict) else []
+    container_rows = instances.get("routeros_container", []) if isinstance(instances, dict) else []
+    routers = [
+        row for row in devices if isinstance(row, dict) and _resolved_object_ref(row).startswith("obj.mikrotik.")
+    ]
+    router_ids = {row.get("instance_id") for row in routers}
+    return (
+        {r for r in router_ids if isinstance(r, str) and r},
+        routers,
+        [r for r in network_rows if isinstance(r, dict)],
+        [r for r in container_rows if isinstance(r, dict)],
+    )
+
+
+def _derive_flags_for_fixture(compiled_json: dict) -> dict:
+    """Same derivation the real compile-stage compiler performs, applied to a
+    test fixture's compiled_json directly (W07 migration order item 1)."""
+    semantic = _semanticize(compiled_json)
+    instances = semantic.get("instances")
+    devices = instances.get("devices", []) if isinstance(instances, dict) else []
+    routers = [
+        row for row in devices if isinstance(row, dict) and _resolved_object_ref(row).startswith("obj.mikrotik.")
+    ]
+    return _derive_mikrotik_capability_flags(routers)
+
+
+def _derive_wireguard_tunnels_for_fixture(compiled_json: dict) -> dict:
+    """Same derivation the real compile-stage compiler performs, applied to a
+    test fixture's compiled_json directly (W07 migration order item 4a)."""
+    router_ids, _, network_rows, _ = _mikrotik_routers_and_network(compiled_json)
+    return _extract_wireguard_tunnels(network_rows, router_ids, {})
+
+
+def _derive_containers_for_fixture(compiled_json: dict) -> list[dict]:
+    """Same derivation the real compile-stage compiler performs, applied to a
+    test fixture's compiled_json directly (W07 migration order item 4b)."""
+    router_ids, _, _, container_rows = _mikrotik_routers_and_network(compiled_json)
+    return _extract_containers(container_rows, router_ids)
+
+
+def _derive_wifi_config_for_fixture(compiled_json: dict) -> dict:
+    """Same derivation the real compile-stage compiler performs, applied to a
+    test fixture's compiled_json directly (W07 migration order item 4c)."""
+    _, routers, _, _ = _mikrotik_routers_and_network(compiled_json)
+    return _extract_wifi_config(routers)
+
+
+def _derive_routing_policies_for_fixture(compiled_json: dict) -> list[dict]:
+    """Same derivation the real compile-stage compiler performs, applied to a
+    test fixture's compiled_json directly (W07 migration order item 4d).
+
+    Replicates the plugin's own row-selection/managed_by_ref-resolution
+    loop, not just a single all-routers call.
+    """
+    router_ids, _, network_rows, _ = _mikrotik_routers_and_network(compiled_json)
+    default_router_id = next(iter(sorted(router_ids)), "")
+    routing_policies: list[dict] = []
+    for row in network_rows:
+        object_ref = _resolved_object_ref(row)
+        if "routing_policy" not in object_ref:
+            continue
+        inst_data = row.get("instance_data", {}) if isinstance(row.get("instance_data"), dict) else {}
+        managed_by_ref = str(inst_data.get("managed_by_ref") or "").strip()
+        if not managed_by_ref and len(router_ids) == 1:
+            managed_by_ref = default_router_id
+        if managed_by_ref in router_ids:
+            routing_policies.append(
+                _build_routing_policy_entry(row, managed_by_ref=managed_by_ref, vlan_cidr_index={})
+            )
+    return routing_policies
+
+
+def _derive_mac_vlan_assignments_for_fixture(compiled_json: dict) -> list[dict]:
+    """Same derivation the real compile-stage compiler performs, applied to a
+    test fixture's compiled_json directly (W07 migration order item 4e).
+
+    Replicates the plugin's own vlan_id_index-building slice of the shared
+    network-row loop, the same discipline item 4d's helper above established.
+    """
+    semantic = _semanticize(compiled_json)
+    router_ids, _, network_rows, _ = _mikrotik_routers_and_network(compiled_json)
+    instances = semantic.get("instances")
+    devices = instances.get("devices", []) if isinstance(instances, dict) else []
+    objects_map = semantic.get("objects", {})
+    if not isinstance(objects_map, dict):
+        objects_map = {}
+    default_router_id = next(iter(sorted(router_ids)), "")
+    vlan_id_index, _ambiguous_vlan_ids = _build_vlan_id_index(
+        network_rows,
+        router_ids=router_ids,
+        default_router_id=default_router_id,
+        objects_map=objects_map,
+    )
+    return _extract_mac_vlan_assignments(
+        {"network": network_rows, "devices": [row for row in devices if isinstance(row, dict)]},
+        vlan_id_index,
+    )
+
+
+def _derive_bridge_vlans_for_fixture(compiled_json: dict) -> list[dict]:
+    """Same derivation the real compile-stage compiler performs, applied to a
+    test fixture's compiled_json directly (W07 migration order item 4f).
+
+    Depends on `wifi_config` (item 4c)'s already-derived datapath/interface
+    shape, the same forward dependency the W07 decision document recorded
+    when 4c moved.
+    """
+    _, routers, _, _ = _mikrotik_routers_and_network(compiled_json)
+    wifi_data = _derive_wifi_config_for_fixture(compiled_json)
+    return _extract_bridge_vlans(routers, wifi_data)
+
+
+def _derive_vlans_for_fixture(compiled_json: dict) -> list[dict]:
+    """Same derivation the real compile-stage compiler performs, applied to a
+    test fixture's compiled_json directly (W07 migration order item 4g).
+
+    Replicates the plugin's own row-selection/managed_by_ref-resolution
+    loop (VLAN branch of the shared network-row loop), the same discipline
+    item 4d's helper above established.
+    """
+    semantic = _semanticize(compiled_json)
+    instances = semantic.get("instances")
+    network_rows = instances.get("network", []) if isinstance(instances, dict) else []
+    devices = instances.get("devices", []) if isinstance(instances, dict) else []
+    routers = [
+        row for row in devices if isinstance(row, dict) and _resolved_object_ref(row).startswith("obj.mikrotik.")
+    ]
+    router_ids = {row.get("instance_id") for row in routers if isinstance(row.get("instance_id"), str)}
+    default_router_id = next(iter(sorted(router_ids)), "")
+    objects_map = semantic.get("objects", {})
+    if not isinstance(objects_map, dict):
+        objects_map = {}
+    vlans: list[dict] = []
+    for row in network_rows:
+        if not isinstance(row, dict):
+            continue
+        object_ref = _resolved_object_ref(row)
+        if "vlan" not in object_ref or "routing_policy" in object_ref:
+            continue
+        inst_data = row.get("instance_data", {}) if isinstance(row.get("instance_data"), dict) else {}
+        managed_by_ref = str(inst_data.get("managed_by_ref") or "").strip()
+        if not managed_by_ref and len(router_ids) == 1:
+            managed_by_ref = default_router_id
+        if not managed_by_ref:
+            allocations = inst_data.get("ip_allocations")
+            if isinstance(allocations, list):
+                for item in allocations:
+                    if not isinstance(item, dict):
+                        continue
+                    device_ref = str(item.get("device_ref") or "").strip()
+                    if device_ref in router_ids:
+                        managed_by_ref = device_ref
+                        break
+        if managed_by_ref in router_ids:
+            vlans.append(_build_vlan_entry(row, managed_by_ref=managed_by_ref, objects_map=objects_map))
+    return vlans
+
+
+def _derive_bridges_for_fixture(compiled_json: dict) -> list[dict]:
+    """Same derivation the real compile-stage compiler performs, applied to a
+    test fixture's compiled_json directly (W07 migration order item 4h).
+
+    Replicates the plugin's own row-selection/managed_by_ref-resolution
+    loop (bridge branch of the shared network-row loop), the same
+    discipline item 4d's helper above established.
+    """
+    semantic = _semanticize(compiled_json)
+    instances = semantic.get("instances")
+    network_rows = instances.get("network", []) if isinstance(instances, dict) else []
+    devices = instances.get("devices", []) if isinstance(instances, dict) else []
+    routers = [
+        row for row in devices if isinstance(row, dict) and _resolved_object_ref(row).startswith("obj.mikrotik.")
+    ]
+    router_ids = {row.get("instance_id") for row in routers if isinstance(row.get("instance_id"), str)}
+    objects_map = semantic.get("objects", {})
+    if not isinstance(objects_map, dict):
+        objects_map = {}
+    bridges: list[dict] = []
+    for row in network_rows:
+        if not isinstance(row, dict):
+            continue
+        object_ref = _resolved_object_ref(row)
+        if "bridge" not in object_ref:
+            continue
+        inst_data = row.get("instance_data", {}) if isinstance(row.get("instance_data"), dict) else {}
+        managed_by_ref = str(inst_data.get("managed_by_ref") or "").strip()
+        host_ref = str(inst_data.get("host_ref") or "").strip()
+        if not managed_by_ref and host_ref in router_ids:
+            managed_by_ref = host_ref
+        if managed_by_ref in router_ids:
+            bridges.append(_build_bridge_entry(row, managed_by_ref=managed_by_ref, objects_map=objects_map))
+    return bridges
+
+
+def _derive_firewall_policies_for_fixture(compiled_json: dict) -> list[dict]:
+    """Same derivation the real compile-stage compiler performs, applied to a
+    test fixture's compiled_json directly (W07 migration order item 4i).
+
+    Replicates the plugin's own row-selection/managed_by_ref-resolution
+    loop over the dedicated `firewall` instance group - its own loop, not a
+    shared one, unlike items 4d/4e/4g/4h.
+    """
+    semantic = _semanticize(compiled_json)
+    instances = semantic.get("instances")
+    firewall_rows = instances.get("firewall", []) if isinstance(instances, dict) else []
+    devices = instances.get("devices", []) if isinstance(instances, dict) else []
+    routers = [
+        row for row in devices if isinstance(row, dict) and _resolved_object_ref(row).startswith("obj.mikrotik.")
+    ]
+    router_ids = {row.get("instance_id") for row in routers if isinstance(row.get("instance_id"), str)}
+    default_router_id = next(iter(sorted(router_ids)), "")
+    objects_map = semantic.get("objects", {})
+    if not isinstance(objects_map, dict):
+        objects_map = {}
+    firewall_policies: list[dict] = []
+    for row in firewall_rows:
+        if not isinstance(row, dict):
+            continue
+        object_ref = _resolved_object_ref(row)
+        if "firewall_policy" not in object_ref:
+            continue
+        inst_data = row.get("instance_data", {}) if isinstance(row.get("instance_data"), dict) else {}
+        managed_by_ref = str(inst_data.get("managed_by_ref") or "").strip()
+        if not managed_by_ref and len(router_ids) == 1:
+            managed_by_ref = default_router_id
+        if managed_by_ref in router_ids:
+            firewall_policies.append(
+                _build_firewall_entry(row, managed_by_ref=managed_by_ref, objects_map=objects_map)
+            )
+    return firewall_policies
 
 
 def _semanticize(compiled_json: dict) -> dict:
@@ -63,10 +555,61 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
 
     They are required arguments now - the projection derives no substitute for
     `base.compiler.security_matrix` - so omission is an error and `{}` is a claim.
+
+    `capability_flags` (W07 migration order item 1), `wireguard_tunnels`
+    (W07 migration order item 4a), `containers` (W07 migration order item
+    4b), `wifi_config` (W07 migration order item 4c), `routing_policies`
+    (W07 migration order item 4d), `mac_vlan_assignments` (W07 migration
+    order item 4e), `bridge_vlans` (W07 migration order item 4f), `vlans`
+    (W07 migration order item 4g), `bridges` (W07 migration order item 4h)
+    and `firewall_policies` (W07 migration order item 4i) are likewise
+    required and are auto-derived here from the same devices/network/
+    container rows the real compile-stage compiler plugins read, unless a
+    test passes its own value to exercise a specific case.
     """
-    kwargs.setdefault("security_matrices", {})
+    semantic = _semanticize(compiled_json)
+    kwargs.setdefault("composed_matrices_by_enforcer", {})
     kwargs.setdefault("vlan_cidr_map", {})
-    return _raw_build_mikrotik_projection(_semanticize(compiled_json), **kwargs)
+    if "enforcer_resolution" not in kwargs:
+        # V-14: build_mikrotik_projection selects routers by
+        # enforcer_resolution's adapter now, not by object_ref name prefix.
+        # These fixtures identify "the router(s)" by name prefix -
+        # synthesize a matching resolution for each so existing tests keep
+        # picking the same routers by default.
+        prefix_router_ids, _, _, _ = _mikrotik_routers_and_network(compiled_json)
+        kwargs["enforcer_resolution"] = {
+            router_id: {"type": "network", "adapter": "cap.firewall.security_matrix.routeros"}
+            for router_id in prefix_router_ids
+        }
+    if "capability_flags" not in kwargs:
+        instances = semantic.get("instances")
+        devices = instances.get("devices", []) if isinstance(instances, dict) else []
+        routers = [
+            row for row in devices if isinstance(row, dict) and _resolved_object_ref(row).startswith("obj.mikrotik.")
+        ]
+        kwargs["capability_flags"] = _derive_mikrotik_capability_flags(routers)
+    if (
+        "wireguard_tunnels" not in kwargs
+        or "containers" not in kwargs
+        or "wifi_config" not in kwargs
+    ):
+        router_ids, routers, network_rows, container_rows = _mikrotik_routers_and_network(compiled_json)
+        kwargs.setdefault("wireguard_tunnels", _extract_wireguard_tunnels(network_rows, router_ids, {}))
+        kwargs.setdefault("containers", _extract_containers(container_rows, router_ids))
+        kwargs.setdefault("wifi_config", _extract_wifi_config(routers))
+    if "routing_policies" not in kwargs:
+        kwargs["routing_policies"] = _derive_routing_policies_for_fixture(compiled_json)
+    if "mac_vlan_assignments" not in kwargs:
+        kwargs["mac_vlan_assignments"] = _derive_mac_vlan_assignments_for_fixture(compiled_json)
+    if "bridge_vlans" not in kwargs:
+        kwargs["bridge_vlans"] = _derive_bridge_vlans_for_fixture(compiled_json)
+    if "vlans" not in kwargs:
+        kwargs["vlans"] = _derive_vlans_for_fixture(compiled_json)
+    if "bridges" not in kwargs:
+        kwargs["bridges"] = _derive_bridges_for_fixture(compiled_json)
+    if "firewall_policies" not in kwargs:
+        kwargs["firewall_policies"] = _derive_firewall_policies_for_fixture(compiled_json)
+    return _raw_build_mikrotik_projection(semantic, **kwargs)
 
 
 def _load_generator_class():
@@ -273,8 +816,89 @@ class TestMikroTikGeneratorCapabilityDriven:
         # leave them absent - absence is a blocked generation, which
         # `test_the_generator_blocks_when_the_compiler_published_nothing` covers.
         if publish_channels:
-            for key in ("security_matrices", "vlan_cidr_map"):
+            for key in ("composed_matrices_by_enforcer", "vlan_cidr_map"):
                 publish_for_test(ctx, _SECURITY_MATRIX_COMPILER, key, {})
+            # V-14 (ENFORCER-AXIS-CONFORMANCE.md): the projection now selects
+            # routers by enforcer_resolution's adapter, not by object_ref
+            # name prefix. These fixtures identify "the router(s)" by name
+            # prefix - synthesize a matching resolution for each so existing
+            # capability-driven-template-selection assertions are unaffected.
+            prefix_router_ids, _, _, _ = _mikrotik_routers_and_network(compiled_json)
+            publish_for_test(
+                ctx,
+                _EFFECTIVE_MODEL_COMPILER,
+                "enforcer_resolution",
+                {
+                    router_id: {"type": "network", "adapter": "cap.firewall.security_matrix.routeros"}
+                    for router_id in prefix_router_ids
+                },
+            )
+            # capability_flags, wireguard_tunnels, containers, wifi_config,
+            # routing_policies, mac_vlan_assignments, bridge_vlans, vlans,
+            # bridges and firewall_policies are likewise required (W07
+            # migration order items 1, 4a, 4b, 4c, 4d, 4e, 4f, 4g, 4h, 4i).
+            # These fixtures test capability-driven template selection
+            # itself, so the published values must reflect the fixture's
+            # own capabilities/tunnels/containers/wifi/routing-policies/
+            # MAC-VLAN/bridge-VLAN/VLAN/bridge/firewall-policy assignments,
+            # not an empty stand-in.
+            publish_for_test(
+                ctx, _CAPABILITY_FLAGS_COMPILER, "capability_flags", _derive_flags_for_fixture(compiled_json)
+            )
+            publish_for_test(
+                ctx,
+                _WIREGUARD_TUNNELS_COMPILER,
+                "wireguard_tunnels",
+                _derive_wireguard_tunnels_for_fixture(compiled_json),
+            )
+            publish_for_test(
+                ctx,
+                _CONTAINERS_COMPILER,
+                "containers",
+                _derive_containers_for_fixture(compiled_json),
+            )
+            publish_for_test(
+                ctx,
+                _WIFI_CONFIG_COMPILER,
+                "wifi_config",
+                _derive_wifi_config_for_fixture(compiled_json),
+            )
+            publish_for_test(
+                ctx,
+                _ROUTING_POLICIES_COMPILER,
+                "routing_policies",
+                _derive_routing_policies_for_fixture(compiled_json),
+            )
+            publish_for_test(
+                ctx,
+                _MAC_VLAN_ASSIGNMENTS_COMPILER,
+                "mac_vlan_assignments",
+                _derive_mac_vlan_assignments_for_fixture(compiled_json),
+            )
+            publish_for_test(
+                ctx,
+                _BRIDGE_VLANS_COMPILER,
+                "bridge_vlans",
+                _derive_bridge_vlans_for_fixture(compiled_json),
+            )
+            publish_for_test(
+                ctx,
+                _VLAN_ENTRIES_COMPILER,
+                "vlans",
+                _derive_vlans_for_fixture(compiled_json),
+            )
+            publish_for_test(
+                ctx,
+                _BRIDGE_ENTRIES_COMPILER,
+                "bridges",
+                _derive_bridges_for_fixture(compiled_json),
+            )
+            publish_for_test(
+                ctx,
+                _FIREWALL_ENTRIES_COMPILER,
+                "firewall_policies",
+                _derive_firewall_policies_for_fixture(compiled_json),
+            )
         return ctx
 
     def test_generates_vpn_tf_when_wireguard_capability(self, tmp_path: Path) -> None:
@@ -415,7 +1039,7 @@ class TestMikroTikGeneratorCapabilityDriven:
         assert any("base.compiler.security_matrix" in message for message in messages), messages
         assert not list((tmp_path / "generated").rglob("*.tf")), "artifacts were written despite the failure"
 
-    def test_the_manifest_declares_both_channels_required(self) -> None:
+    def test_the_manifest_declares_all_thirteen_channels_required(self) -> None:
         """`required: false` is what let the absence pass as an empty result."""
         import sys as _sys
 
@@ -427,6 +1051,41 @@ class TestMikroTikGeneratorCapabilityDriven:
         spec = next(item for item in manifest["plugins"] if item["id"] == "object.mikrotik.generator.terraform")
         consumes = {item["key"]: item for item in spec.get("consumes", [])}
 
-        for key in ("security_matrices", "vlan_cidr_map"):
+        for key in ("composed_matrices_by_enforcer", "vlan_cidr_map"):
             assert consumes[key]["from_plugin"] == _SECURITY_MATRIX_COMPILER
             assert consumes[key]["required"] is True, f"{key} must block generation when absent"
+        # W07 migration order item 1: capability_flags is required the same way.
+        assert consumes["capability_flags"]["from_plugin"] == _CAPABILITY_FLAGS_COMPILER
+        assert consumes["capability_flags"]["required"] is True
+        # W07 migration order item 4a: wireguard_tunnels is required the same way.
+        assert consumes["wireguard_tunnels"]["from_plugin"] == _WIREGUARD_TUNNELS_COMPILER
+        assert consumes["wireguard_tunnels"]["required"] is True
+        # W07 migration order item 4b: containers is required the same way.
+        assert consumes["containers"]["from_plugin"] == _CONTAINERS_COMPILER
+        assert consumes["containers"]["required"] is True
+        # W07 migration order item 4c: wifi_config is required the same way.
+        assert consumes["wifi_config"]["from_plugin"] == _WIFI_CONFIG_COMPILER
+        assert consumes["wifi_config"]["required"] is True
+        # W07 migration order item 4d: routing_policies is required the same way.
+        assert consumes["routing_policies"]["from_plugin"] == _ROUTING_POLICIES_COMPILER
+        assert consumes["routing_policies"]["required"] is True
+        # W07 migration order item 4e: mac_vlan_assignments is required the same way.
+        assert consumes["mac_vlan_assignments"]["from_plugin"] == _MAC_VLAN_ASSIGNMENTS_COMPILER
+        assert consumes["mac_vlan_assignments"]["required"] is True
+        # W07 migration order item 4f: bridge_vlans is required the same way.
+        assert consumes["bridge_vlans"]["from_plugin"] == _BRIDGE_VLANS_COMPILER
+        assert consumes["bridge_vlans"]["required"] is True
+        # W07 migration order item 4g: vlans is required the same way.
+        assert consumes["vlans"]["from_plugin"] == _VLAN_ENTRIES_COMPILER
+        assert consumes["vlans"]["required"] is True
+        # W07 migration order item 4h: bridges is required the same way.
+        assert consumes["bridges"]["from_plugin"] == _BRIDGE_ENTRIES_COMPILER
+        assert consumes["bridges"]["required"] is True
+        # W07 migration order item 4i: firewall_policies is required the same way.
+        assert consumes["firewall_policies"]["from_plugin"] == _FIREWALL_ENTRIES_COMPILER
+        assert consumes["firewall_policies"]["required"] is True
+        # V-14 (ENFORCER-AXIS-CONFORMANCE.md): enforcer_resolution is required
+        # the same way - router selection by declared capability, not by
+        # object_ref name convention.
+        assert consumes["enforcer_resolution"]["from_plugin"] == _EFFECTIVE_MODEL_COMPILER
+        assert consumes["enforcer_resolution"]["required"] is True

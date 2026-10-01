@@ -259,6 +259,7 @@ enabled_capabilities:
   # -------------------------------------------------------------------------
   - cap.net.l3.translation.dnat             # Port forwarding
   - cap.net.l3.security.firewall.l7_filtering        # Layer 7 filtering
+  - cap.net.l3.security.firewall.zone_policy    # Zone-based policies (inst.security_matrix.mikrotik)
 
   # -------------------------------------------------------------------------
   # VPN

@@ -53,10 +53,30 @@ class NetworkCoreRefsValidator(ValidatorJsonPlugin):
             if isinstance(row_id, str) and row_id:
                 row_by_id[row_id] = row
 
+        enforcer_resolution: dict[str, Any] | None = None
+        enforcer_resolution_error: str | None = None
         for row in rows:
             class_ref = row.get("class_ref")
             if self._is_network_row(row):
                 self._validate_vlan_refs(ctx=ctx, row=row, row_by_id=row_by_id, stage=stage, diagnostics=diagnostics)
+            elif class_ref == "class.network.security_matrix":
+                if enforcer_resolution is None and enforcer_resolution_error is None:
+                    try:
+                        enforcer_resolution = ctx.subscribe("base.compiler.effective_model", "enforcer_resolution")
+                    except PluginDataExchangeError as exc:
+                        enforcer_resolution_error = str(exc)
+                row_id = row.get("instance")
+                group = row.get("group")
+                self._validate_enforcer_type_ref(
+                    ctx=ctx,
+                    row=row,
+                    row_by_id=row_by_id,
+                    enforcer_resolution=enforcer_resolution,
+                    enforcer_resolution_error=enforcer_resolution_error,
+                    stage=stage,
+                    diagnostics=diagnostics,
+                    path=f"instance:{group}:{row_id}.managed_by_ref",
+                )
             elif class_ref == "class.network.bridge":
                 self._validate_bridge_refs(ctx=ctx, row=row, row_by_id=row_by_id, stage=stage, diagnostics=diagnostics)
 
@@ -160,6 +180,86 @@ class NetworkCoreRefsValidator(ValidatorJsonPlugin):
                     stage=stage,
                     message=f"Bridge host_ref '{host_ref}' must target layer L1, got '{target_layer}'.",
                     path=f"{row_prefix}.host_ref",
+                )
+            )
+
+    def _validate_enforcer_type_ref(
+        self,
+        *,
+        ctx: PluginContext,
+        row: dict[str, Any],
+        row_by_id: dict[str, dict[str, Any]],
+        enforcer_resolution: dict[str, Any] | None,
+        enforcer_resolution_error: str | None,
+        stage: Stage,
+        diagnostics: list[PluginDiagnostic],
+        path: str,
+    ) -> None:
+        """N-01 replacement (ADR 0118/0119 D-TYPE-1..3).
+
+        class.network.security_matrix is excluded from _is_network_row's
+        generic managed_by_ref -> class.router check (ADR-0110: the enforcer
+        may be a router or a hypervisor). This is the dedicated check that
+        replaced it: managed_by_ref must resolve to an instance whose
+        derived enforcer type (published by base.compiler.capabilities as
+        enforcer_resolution) is not none.
+        """
+        value = self._resolve_field(ctx=ctx, row=row, key="managed_by_ref")
+        if value is None:
+            return
+        if not isinstance(value, str) or not value:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7018",
+                    severity="error",
+                    stage=stage,
+                    message="'managed_by_ref' must be a non-empty instance id string when set.",
+                    path=path,
+                )
+            )
+            return
+        target = row_by_id.get(value)
+        if not isinstance(target, dict):
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7018",
+                    severity="error",
+                    stage=stage,
+                    message=f"'managed_by_ref' references unknown instance '{value}'.",
+                    path=path,
+                )
+            )
+            return
+        if enforcer_resolution_error is not None:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7018",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        "Could not obtain enforcer resolution to validate 'managed_by_ref': "
+                        f"{enforcer_resolution_error}"
+                    ),
+                    path=path,
+                )
+            )
+            return
+        # enforcer_resolution is keyed by instance id (base.compiler.effective_model):
+        # device-kind and OS-family facts live on two different objects under
+        # ADR 0064's embedded-OS model, joined only at the instance level.
+        resolution = enforcer_resolution.get(value) if isinstance(enforcer_resolution, dict) else None
+        enforcer_type = resolution.get("type") if isinstance(resolution, dict) else None
+        if enforcer_type is None:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7018",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        f"'managed_by_ref' target '{value}' has no resolved enforcer type "
+                        "(ADR 0118/0119 D-TYPE-1); it cannot enforce a security matrix."
+                    ),
+                    path=path,
                 )
             )
 

@@ -455,6 +455,7 @@ plugins:
   order: 126
   depends_on:
   - base.compiler.instance_rows
+  - base.compiler.effective_model
   timeout: 30
   config:
     enabled_rules:
@@ -478,6 +479,9 @@ plugins:
   - from_plugin: base.compiler.instance_rows
     key: normalized_rows
     required: true
+  - from_plugin: base.compiler.effective_model
+    key: enforcer_resolution
+    required: false
   description: Validates VLAN/bridge core refs (bridge/trust-zone/manager/host).
   execution_mode: subinterpreter
 - id: base.validator.network_vlan_tags

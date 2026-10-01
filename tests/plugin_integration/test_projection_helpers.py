@@ -21,11 +21,380 @@ from plugins.generators.projections.topology_graph import build_topology_project
 
 _PROXMOX_PROJECTIONS = load_object_projection_module("proxmox")
 _MIKROTIK_PROJECTIONS = load_object_projection_module("mikrotik")
+
+import importlib.util as _importlib_util
+
+_CAPABILITY_FLAGS_MODULE_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "topology"
+    / "object-modules"
+    / "mikrotik"
+    / "plugins"
+    / "compilers"
+    / "capability_flags_compiler.py"
+)
+_capability_flags_spec = _importlib_util.spec_from_file_location(
+    "test_projection_helpers_capability_flags_compiler", _CAPABILITY_FLAGS_MODULE_PATH
+)
+_capability_flags_module = _importlib_util.module_from_spec(_capability_flags_spec)
+_capability_flags_spec.loader.exec_module(_capability_flags_module)
+# W07 migration order item 1: matches what the real compiler derives for zero
+# routers (all keys present, all False) - not an empty dict, which the golden
+# snapshot and templates do not treat the same way.
+_EMPTY_CAPABILITY_FLAGS = _capability_flags_module._derive_capability_flags([])
+
+_WIREGUARD_TUNNELS_MODULE_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "topology"
+    / "object-modules"
+    / "mikrotik"
+    / "plugins"
+    / "compilers"
+    / "wireguard_tunnels_compiler.py"
+)
+_wireguard_tunnels_spec = _importlib_util.spec_from_file_location(
+    "test_projection_helpers_wireguard_tunnels_compiler", _WIREGUARD_TUNNELS_MODULE_PATH
+)
+_wireguard_tunnels_module = _importlib_util.module_from_spec(_wireguard_tunnels_spec)
+_wireguard_tunnels_spec.loader.exec_module(_wireguard_tunnels_module)
+# W07 migration order item 4a: matches what the real compiler derives for zero
+# tunnels (all keys present, empty/default values) - not an empty dict.
+_EMPTY_WIREGUARD_TUNNELS = _wireguard_tunnels_module._extract_wireguard_tunnels([], set(), {})
+
+_CONTAINERS_MODULE_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "topology"
+    / "object-modules"
+    / "mikrotik"
+    / "plugins"
+    / "compilers"
+    / "containers_compiler.py"
+)
+_containers_spec = _importlib_util.spec_from_file_location(
+    "test_projection_helpers_containers_compiler", _CONTAINERS_MODULE_PATH
+)
+_containers_module = _importlib_util.module_from_spec(_containers_spec)
+_containers_spec.loader.exec_module(_containers_module)
+# W07 migration order item 4b: matches what the real compiler derives for zero
+# containers - an empty list, which is already the correct empty shape.
+_EMPTY_CONTAINERS = _containers_module._extract_containers([], set())
+
+_WIFI_CONFIG_MODULE_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "topology"
+    / "object-modules"
+    / "mikrotik"
+    / "plugins"
+    / "compilers"
+    / "wifi_config_compiler.py"
+)
+_wifi_config_spec = _importlib_util.spec_from_file_location(
+    "test_projection_helpers_wifi_config_compiler", _WIFI_CONFIG_MODULE_PATH
+)
+_wifi_config_module = _importlib_util.module_from_spec(_wifi_config_spec)
+_wifi_config_spec.loader.exec_module(_wifi_config_module)
+# W07 migration order item 4c: matches what the real compiler derives for zero
+# routers (all keys present, empty lists) - not an empty dict.
+_EMPTY_WIFI_CONFIG = _wifi_config_module._extract_wifi_config([])
+
+_ROUTING_POLICIES_MODULE_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "topology"
+    / "object-modules"
+    / "mikrotik"
+    / "plugins"
+    / "compilers"
+    / "routing_policies_compiler.py"
+)
+_routing_policies_spec = _importlib_util.spec_from_file_location(
+    "test_projection_helpers_routing_policies_compiler", _ROUTING_POLICIES_MODULE_PATH
+)
+_routing_policies_module = _importlib_util.module_from_spec(_routing_policies_spec)
+_routing_policies_spec.loader.exec_module(_routing_policies_module)
+
+_MAC_VLAN_ASSIGNMENTS_MODULE_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "topology"
+    / "object-modules"
+    / "mikrotik"
+    / "plugins"
+    / "compilers"
+    / "mac_vlan_assignments_compiler.py"
+)
+_mac_vlan_assignments_spec = _importlib_util.spec_from_file_location(
+    "test_projection_helpers_mac_vlan_assignments_compiler", _MAC_VLAN_ASSIGNMENTS_MODULE_PATH
+)
+_mac_vlan_assignments_module = _importlib_util.module_from_spec(_mac_vlan_assignments_spec)
+_mac_vlan_assignments_spec.loader.exec_module(_mac_vlan_assignments_module)
+
+_BRIDGE_VLANS_MODULE_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "topology"
+    / "object-modules"
+    / "mikrotik"
+    / "plugins"
+    / "compilers"
+    / "bridge_vlans_compiler.py"
+)
+_bridge_vlans_spec = _importlib_util.spec_from_file_location(
+    "test_projection_helpers_bridge_vlans_compiler", _BRIDGE_VLANS_MODULE_PATH
+)
+_bridge_vlans_module = _importlib_util.module_from_spec(_bridge_vlans_spec)
+_bridge_vlans_spec.loader.exec_module(_bridge_vlans_module)
+
+_VLAN_ENTRIES_MODULE_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "topology"
+    / "object-modules"
+    / "mikrotik"
+    / "plugins"
+    / "compilers"
+    / "vlan_entries_compiler.py"
+)
+_vlan_entries_spec = _importlib_util.spec_from_file_location(
+    "test_projection_helpers_vlan_entries_compiler", _VLAN_ENTRIES_MODULE_PATH
+)
+_vlan_entries_module = _importlib_util.module_from_spec(_vlan_entries_spec)
+_vlan_entries_spec.loader.exec_module(_vlan_entries_module)
+
+_BRIDGE_ENTRIES_MODULE_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "topology"
+    / "object-modules"
+    / "mikrotik"
+    / "plugins"
+    / "compilers"
+    / "bridge_entries_compiler.py"
+)
+_bridge_entries_spec = _importlib_util.spec_from_file_location(
+    "test_projection_helpers_bridge_entries_compiler", _BRIDGE_ENTRIES_MODULE_PATH
+)
+_bridge_entries_module = _importlib_util.module_from_spec(_bridge_entries_spec)
+_bridge_entries_spec.loader.exec_module(_bridge_entries_module)
+
+_FIREWALL_ENTRIES_MODULE_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "topology"
+    / "object-modules"
+    / "mikrotik"
+    / "plugins"
+    / "compilers"
+    / "firewall_entries_compiler.py"
+)
+_firewall_entries_spec = _importlib_util.spec_from_file_location(
+    "test_projection_helpers_firewall_entries_compiler", _FIREWALL_ENTRIES_MODULE_PATH
+)
+_firewall_entries_module = _importlib_util.module_from_spec(_firewall_entries_spec)
+_firewall_entries_spec.loader.exec_module(_firewall_entries_module)
+
 _BOOTSTRAP_PROJECTIONS = load_bootstrap_projection_module()
 
 ProjectionError = _PROXMOX_PROJECTIONS.ProjectionError
 build_proxmox_projection = _PROXMOX_PROJECTIONS.build_proxmox_projection
 _raw_build_mikrotik_projection = _MIKROTIK_PROJECTIONS.build_mikrotik_projection
+
+
+def _mikrotik_routers_and_rows(compiled_json: dict) -> tuple[set[str], list[dict], list[dict], list[dict]]:
+    """(router instance ids, router rows, network-group rows, routeros_container-group rows)."""
+    instances = compiled_json.get("instances") if isinstance(compiled_json, dict) else None
+    if not isinstance(instances, dict):
+        return set(), [], [], []
+    devices = instances.get("devices", [])
+    if not isinstance(devices, list):
+        devices = []
+    network_rows = instances.get("network", [])
+    if not isinstance(network_rows, list):
+        network_rows = []
+    container_rows = instances.get("routeros_container", [])
+    if not isinstance(container_rows, list):
+        container_rows = []
+    resolved_object_ref = _capability_flags_module._resolved_object_ref
+    routers = [
+        row for row in devices if isinstance(row, dict) and resolved_object_ref(row).startswith("obj.mikrotik.")
+    ]
+    router_ids = {row.get("instance_id") for row in routers}
+    return (
+        {r for r in router_ids if isinstance(r, str) and r},
+        routers,
+        [r for r in network_rows if isinstance(r, dict)],
+        [r for r in container_rows if isinstance(r, dict)],
+    )
+
+
+def _derive_routing_policies_for(compiled_json: dict) -> list[dict]:
+    """Same derivation the real compile-stage compiler performs (W07 item 4d).
+
+    Replicates the plugin's own row-selection/managed_by_ref-resolution
+    loop, not just a single all-routers call.
+    """
+    router_ids, _, network_rows, _ = _mikrotik_routers_and_rows(compiled_json)
+    default_router_id = next(iter(sorted(router_ids)), "")
+    resolved_object_ref = _capability_flags_module._resolved_object_ref
+    routing_policies: list[dict] = []
+    for row in network_rows:
+        object_ref = resolved_object_ref(row)
+        if "routing_policy" not in object_ref:
+            continue
+        inst_data = row.get("instance_data", {}) if isinstance(row.get("instance_data"), dict) else {}
+        managed_by_ref = str(inst_data.get("managed_by_ref") or "").strip()
+        if not managed_by_ref and len(router_ids) == 1:
+            managed_by_ref = default_router_id
+        if managed_by_ref in router_ids:
+            routing_policies.append(
+                _routing_policies_module._build_routing_policy_entry(
+                    row, managed_by_ref=managed_by_ref, vlan_cidr_index={}
+                )
+            )
+    return routing_policies
+
+
+def _derive_mac_vlan_assignments_for(compiled_json: dict) -> list[dict]:
+    """Same derivation the real compile-stage compiler performs (W07 item 4e).
+
+    Replicates the plugin's own vlan_id_index-building slice of the shared
+    network-row loop, the same discipline item 4d's helper above established.
+    """
+    router_ids, _, network_rows, _ = _mikrotik_routers_and_rows(compiled_json)
+    devices = (
+        compiled_json.get("instances", {}).get("devices", [])
+        if isinstance(compiled_json.get("instances"), dict)
+        else []
+    )
+    objects_map = compiled_json.get("objects", {})
+    if not isinstance(objects_map, dict):
+        objects_map = {}
+    default_router_id = next(iter(sorted(router_ids)), "")
+    vlan_id_index, _ambiguous_vlan_ids = _mac_vlan_assignments_module._build_vlan_id_index(
+        network_rows,
+        router_ids=router_ids,
+        default_router_id=default_router_id,
+        objects_map=objects_map,
+    )
+    return _mac_vlan_assignments_module._extract_mac_vlan_assignments(
+        {"network": network_rows, "devices": [row for row in devices if isinstance(row, dict)]},
+        vlan_id_index,
+    )
+
+
+def _derive_bridge_vlans_for(compiled_json: dict) -> list[dict]:
+    """Same derivation the real compile-stage compiler performs (W07 item 4f).
+
+    Depends on `wifi_config` (item 4c)'s already-derived datapath/interface
+    shape, the same forward dependency the W07 decision document recorded
+    when 4c moved.
+    """
+    _, routers, _, _ = _mikrotik_routers_and_rows(compiled_json)
+    wifi_data = _wifi_config_module._extract_wifi_config(routers)
+    return _bridge_vlans_module._extract_bridge_vlans(routers, wifi_data)
+
+
+def _derive_vlans_for(compiled_json: dict) -> list[dict]:
+    """Same derivation the real compile-stage compiler performs (W07 item 4g).
+
+    Replicates the plugin's own row-selection/managed_by_ref-resolution
+    loop (VLAN branch of the shared network-row loop), the same discipline
+    item 4d's helper above established.
+    """
+    router_ids, _, network_rows, _ = _mikrotik_routers_and_rows(compiled_json)
+    objects_map = compiled_json.get("objects", {})
+    if not isinstance(objects_map, dict):
+        objects_map = {}
+    default_router_id = next(iter(sorted(router_ids)), "")
+    resolved_object_ref = _capability_flags_module._resolved_object_ref
+    vlans: list[dict] = []
+    for row in network_rows:
+        if not isinstance(row, dict):
+            continue
+        object_ref = resolved_object_ref(row)
+        if "vlan" not in object_ref or "routing_policy" in object_ref:
+            continue
+        inst_data = row.get("instance_data", {}) if isinstance(row.get("instance_data"), dict) else {}
+        managed_by_ref = str(inst_data.get("managed_by_ref") or "").strip()
+        if not managed_by_ref and len(router_ids) == 1:
+            managed_by_ref = default_router_id
+        if not managed_by_ref:
+            allocations = inst_data.get("ip_allocations")
+            if isinstance(allocations, list):
+                for item in allocations:
+                    if not isinstance(item, dict):
+                        continue
+                    device_ref = str(item.get("device_ref") or "").strip()
+                    if device_ref in router_ids:
+                        managed_by_ref = device_ref
+                        break
+        if managed_by_ref in router_ids:
+            vlans.append(
+                _vlan_entries_module._build_vlan_entry(row, managed_by_ref=managed_by_ref, objects_map=objects_map)
+            )
+    return vlans
+
+
+def _derive_bridges_for(compiled_json: dict) -> list[dict]:
+    """Same derivation the real compile-stage compiler performs (W07 item 4h).
+
+    Replicates the plugin's own row-selection/managed_by_ref-resolution
+    loop (bridge branch of the shared network-row loop), the same
+    discipline item 4d's helper above established.
+    """
+    router_ids, _, network_rows, _ = _mikrotik_routers_and_rows(compiled_json)
+    objects_map = compiled_json.get("objects", {})
+    if not isinstance(objects_map, dict):
+        objects_map = {}
+    resolved_object_ref = _capability_flags_module._resolved_object_ref
+    bridges: list[dict] = []
+    for row in network_rows:
+        if not isinstance(row, dict):
+            continue
+        object_ref = resolved_object_ref(row)
+        if "bridge" not in object_ref:
+            continue
+        inst_data = row.get("instance_data", {}) if isinstance(row.get("instance_data"), dict) else {}
+        managed_by_ref = str(inst_data.get("managed_by_ref") or "").strip()
+        host_ref = str(inst_data.get("host_ref") or "").strip()
+        if not managed_by_ref and host_ref in router_ids:
+            managed_by_ref = host_ref
+        if managed_by_ref in router_ids:
+            bridges.append(
+                _bridge_entries_module._build_bridge_entry(row, managed_by_ref=managed_by_ref, objects_map=objects_map)
+            )
+    return bridges
+
+
+def _derive_firewall_policies_for(compiled_json: dict) -> list[dict]:
+    """Same derivation the real compile-stage compiler performs (W07 item 4i).
+
+    Replicates the plugin's own row-selection/managed_by_ref-resolution
+    loop over the dedicated `firewall` instance group - its own loop, not a
+    shared one, unlike items 4d/4e/4g/4h.
+    """
+    router_ids, _, _, _ = _mikrotik_routers_and_rows(compiled_json)
+    instances = compiled_json.get("instances")
+    firewall_rows = instances.get("firewall", []) if isinstance(instances, dict) else []
+    if not isinstance(firewall_rows, list):
+        firewall_rows = []
+    objects_map = compiled_json.get("objects", {})
+    if not isinstance(objects_map, dict):
+        objects_map = {}
+    default_router_id = next(iter(sorted(router_ids)), "")
+    resolved_object_ref = _capability_flags_module._resolved_object_ref
+    firewall_policies: list[dict] = []
+    for row in firewall_rows:
+        if not isinstance(row, dict):
+            continue
+        object_ref = resolved_object_ref(row)
+        if "firewall_policy" not in object_ref:
+            continue
+        inst_data = row.get("instance_data", {}) if isinstance(row.get("instance_data"), dict) else {}
+        managed_by_ref = str(inst_data.get("managed_by_ref") or "").strip()
+        if not managed_by_ref and len(router_ids) == 1:
+            managed_by_ref = default_router_id
+        if managed_by_ref in router_ids:
+            firewall_policies.append(
+                _firewall_entries_module._build_firewall_entry(
+                    row, managed_by_ref=managed_by_ref, objects_map=objects_map
+                )
+            )
+    return firewall_policies
 
 
 def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
@@ -35,9 +404,64 @@ def build_mikrotik_projection(compiled_json: dict, **kwargs) -> dict:
     and the projection derives no substitute. Omitting the argument is an error;
     passing `{}` is a fixture saying it declares no matrices and no domains. A
     test that cares about zone or CIDR content passes a real mapping.
+
+    `capability_flags` (W07 migration order item 1), `wireguard_tunnels`
+    (W07 migration order item 4a), `containers` (W07 migration order item
+    4b), `wifi_config` (W07 migration order item 4c), `routing_policies`
+    (W07 migration order item 4d), `mac_vlan_assignments` (W07 migration
+    order item 4e), `bridge_vlans` (W07 migration order item 4f), `vlans`
+    (W07 migration order item 4g), `bridges` (W07 migration order item 4h)
+    and `firewall_policies` (W07 migration order item 4i) are likewise
+    required, and auto-derived here from the fixture's own
+    devices/network/container rows the same way the real compile-stage
+    compiler plugins would, unless a test passes its own value to exercise a
+    specific case - a fixture that builds real
+    wifi/wireguard/container/routing-policy instance_data (like
+    test_mikrotik_projection_extracts_wifi_interfaces) needs the derived
+    content, not an empty stand-in that silently discards it.
     """
-    kwargs.setdefault("security_matrices", {})
+    kwargs.setdefault("composed_matrices_by_enforcer", {})
     kwargs.setdefault("vlan_cidr_map", {})
+    if "enforcer_resolution" not in kwargs:
+        # V-14: build_mikrotik_projection now selects routers by
+        # enforcer_resolution's adapter, not by object_ref name prefix.
+        # Fixtures below (and this wrapper's own router-derivation helpers)
+        # still identify "the routers" by name prefix - synthesize a
+        # matching resolution for each so existing tests keep picking the
+        # same routers by default. A test exercising the new capability
+        # check passes its own enforcer_resolution instead.
+        prefix_router_ids, _, _, _ = _mikrotik_routers_and_rows(compiled_json)
+        kwargs["enforcer_resolution"] = {
+            router_id: {"type": "network", "adapter": "cap.firewall.security_matrix.routeros"}
+            for router_id in prefix_router_ids
+        }
+    if "capability_flags" not in kwargs:
+        _, routers, _, _ = _mikrotik_routers_and_rows(compiled_json)
+        kwargs["capability_flags"] = _capability_flags_module._derive_capability_flags(routers)
+    if (
+        "wireguard_tunnels" not in kwargs
+        or "containers" not in kwargs
+        or "wifi_config" not in kwargs
+    ):
+        router_ids, routers, network_rows, container_rows = _mikrotik_routers_and_rows(compiled_json)
+        kwargs.setdefault(
+            "wireguard_tunnels",
+            _wireguard_tunnels_module._extract_wireguard_tunnels(network_rows, router_ids, {}),
+        )
+        kwargs.setdefault("containers", _containers_module._extract_containers(container_rows, router_ids))
+        kwargs.setdefault("wifi_config", _wifi_config_module._extract_wifi_config(routers))
+    if "routing_policies" not in kwargs:
+        kwargs["routing_policies"] = _derive_routing_policies_for(compiled_json)
+    if "mac_vlan_assignments" not in kwargs:
+        kwargs["mac_vlan_assignments"] = _derive_mac_vlan_assignments_for(compiled_json)
+    if "bridge_vlans" not in kwargs:
+        kwargs["bridge_vlans"] = _derive_bridge_vlans_for(compiled_json)
+    if "vlans" not in kwargs:
+        kwargs["vlans"] = _derive_vlans_for(compiled_json)
+    if "bridges" not in kwargs:
+        kwargs["bridges"] = _derive_bridges_for(compiled_json)
+    if "firewall_policies" not in kwargs:
+        kwargs["firewall_policies"] = _derive_firewall_policies_for(compiled_json)
     return _raw_build_mikrotik_projection(compiled_json, **kwargs)
 
 
@@ -156,6 +580,682 @@ def test_mikrotik_projection_is_stable_and_scoped() -> None:
     assert [row["instance_id"] for row in projection["routers"]] == ["rtr-mk"]
     assert [row["instance_id"] for row in projection["networks"]] == ["inst.net.lan", "inst.net.wan"]
     assert [row["instance_id"] for row in projection["services"]] == ["svc-snmp"]
+
+
+def test_mikrotik_projection_reads_a_two_scope_composed_plan() -> None:
+    """The two-scope fixture section 5b/5d called for.
+
+    D-COMP-1..4 are exercised at the compiler in
+    tests/plugin_integration/test_security_matrix_compiler.py; this checks the
+    other half of the chain - that the projection and generator pass a
+    genuinely composed, multi-scope plan through unchanged rather than only
+    ever having been driven by a one-scope input. The real topology has
+    exactly one enabled scope, so this is the only place that shape is
+    exercised until it exists for real.
+    """
+    payload = _compiled_fixture()
+    composed = {
+        "rtr-mk": {
+            "zones": {
+                "inst.trust_zone.user": {"name": "User", "security_level": 3, "isolated": False, "cidrs": ["10.0.10.0/24"]},
+                "inst.trust_zone.dmz": {"name": "DMZ", "security_level": 1, "isolated": False, "cidrs": ["10.0.20.0/24"]},
+            },
+            "matrix": {
+                "inst.trust_zone.user": {
+                    "inst.trust_zone.user": {"action": "allow", "rule": "R1", "reason": "same zone", "log": False},
+                    "inst.trust_zone.dmz": {"action": "allow", "rule": "R3", "reason": "downhill", "log": False},
+                },
+                "inst.trust_zone.dmz": {
+                    "inst.trust_zone.dmz": {"action": "allow", "rule": "R1", "reason": "same zone", "log": False},
+                    "inst.trust_zone.user": {"action": "deny", "rule": "R4", "reason": "uphill", "log": True},
+                },
+            },
+            "policy_overrides": [
+                {
+                    "name": "user-to-dmz-web",
+                    "from_zone_ref": "inst.trust_zone.user",
+                    "to_zone_ref": "inst.trust_zone.dmz",
+                    "action": "accept",
+                    "src_vlan_ref": "inst.vlan.user",
+                }
+            ],
+            "scope_ids": ["inst.security_matrix.a", "inst.security_matrix.b"],
+        }
+    }
+    vlan_cidr_map = {"inst.vlan.user": "10.0.10.0/24"}
+
+    projection = build_mikrotik_projection(
+        payload,
+        composed_matrices_by_enforcer=composed,
+        vlan_cidr_map=vlan_cidr_map,
+    )
+
+    matrix = projection["security_matrix"]
+    assert matrix["instance_id"] == "inst.security_matrix.a, inst.security_matrix.b"
+    assert matrix["managed_by_ref"] == "rtr-mk"
+    assert set(matrix["zones"].keys()) == {"inst.trust_zone.user", "inst.trust_zone.dmz"}
+    assert matrix["matrix"]["inst.trust_zone.dmz"]["inst.trust_zone.user"]["action"] == "deny"
+    (override,) = matrix["policy_overrides"]
+    assert override["src_address"] == "10.0.10.0/24"
+    assert matrix["unresolved_vlan_refs"] == []
+
+
+def test_mikrotik_projection_refuses_more_than_one_enforced_router() -> None:
+    """Counterexample, ENFORCER-AXIS-CONFORMANCE.md section 4: "Two scopes/planes
+    on one device; reverse input order" - the accepted second outcome, an
+    explicit unsupported-multiplicity diagnostic, since retaining both is
+    blocked on V-11/V-12's Terraform state-layout question.
+
+    `_extract_security_matrix` used to silently pick the sorted-first router
+    id when `composed_matrices_by_enforcer` held a plan for more than one
+    enforcer (V-10). The real topology has exactly one, so this was latent,
+    not active - the same "found before it could bite" pattern as W05/N-07.
+    """
+    payload = _compiled_fixture()
+    payload["instances"]["devices"].append(
+        {
+            "instance_id": "rtr-mk-2",
+            "instance": {
+                "materializes_object": "obj.mikrotik.chateau_lte7_ax",
+                "materializes_class": "class.network.router",
+            },
+        }
+    )
+    composed = {
+        "rtr-mk": {
+            "zones": {"inst.trust_zone.user": {"name": "User", "security_level": 3, "isolated": False, "cidrs": []}},
+            "matrix": {},
+            "policy_overrides": [],
+            "scope_ids": ["inst.security_matrix.a"],
+        },
+        "rtr-mk-2": {
+            "zones": {"inst.trust_zone.guest": {"name": "Guest", "security_level": 1, "isolated": True, "cidrs": []}},
+            "matrix": {},
+            "policy_overrides": [],
+            "scope_ids": ["inst.security_matrix.b"],
+        },
+    }
+
+    with pytest.raises(ProjectionError, match="more than one"):
+        build_mikrotik_projection(
+            payload,
+            composed_matrices_by_enforcer=composed,
+            vlan_cidr_map={},
+        )
+
+
+def test_mikrotik_projection_refuses_a_router_ref_the_type_resolver_refuses() -> None:
+    """Regression, ENFORCER-AXIS-CONFORMANCE.md section 4, counterexample
+    "Reference names a target with no enforcement capability | Visible
+    refusal; a valid instance_ref alone is insufficient" - **fixed
+    2026-09-30 (V-14)**. Was a characterization test (currently-violated)
+    before build_mikrotik_projection gained an enforcer_resolution parameter
+    and started selecting routers by its adapter instead of by
+    object_ref.startswith("obj.mikrotik.").
+
+    `base.compiler.effective_model` computes and publishes a definitive
+    per-instance verdict (`enforcer_resolution`, D-TYPE-1..3): an instance
+    whose object declares no `cap.net.l3.security.firewall.zone_policy` (or
+    the compute-side equivalent) is not an enforcer candidate and is omitted
+    from it entirely. `build_mikrotik_projection` now reads that channel
+    directly, so a name-prefix match alone no longer qualifies an instance
+    as a router.
+
+    This pins the fix with both halves of the same instance shape run
+    through their real compilers, not an assumption about what
+    `enforcer_resolution` would say: the object below has no
+    `enabled_capabilities` at all, so D-TYPE-1 finds no device-kind
+    capability and `_resolve_enforcer` returns `None` (the instance is
+    omitted from `enforcer_resolution`, confirmed here) - and the projection
+    now excludes it from `routers` for the same reason. The compile-stage
+    compilers (`bridge_entries_compiler.py` and the other nine) and this
+    generate-stage projection share one selection rule now; the earlier
+    "~10 files, none of which import enforcer_resolution" gap this test
+    used to name is closed.
+    """
+    sys.path.insert(0, str(V5_TOOLS))
+    from kernel import PluginContext as _EMPluginContext
+    from kernel import PluginRegistry as _EMPluginRegistry
+    from kernel import PluginStatus as _EMPluginStatus
+    from kernel.plugin_base import Stage as _EMStage
+    from tests.helpers.plugin_execution import publish_for_test as _em_publish_for_test
+
+    em_registry = _EMPluginRegistry(V5_TOOLS)
+    em_registry.load_manifest(V5_TOOLS / "plugins" / "plugins.yaml")
+    em_ctx = _EMPluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        raw_yaml={"version": "5.0.0", "model": "class-object-instance"},
+        classes={"class.router": {"class": "class.router", "version": "1.0.0"}},
+        objects={
+            "obj.mikrotik.no_zone_policy": {
+                "object": "obj.mikrotik.no_zone_policy",
+                "version": "1.0.0",
+                "class_ref": "class.router",
+                # No enabled_capabilities at all: no device-kind capability,
+                # so D-TYPE-1 finds nothing to gate an enforcer type on.
+            }
+        },
+        config={},
+        instance_bindings={"instance_bindings": {"devices": []}},
+    )
+    _em_publish_for_test(
+        em_ctx,
+        "base.compiler.instance_rows",
+        "normalized_rows",
+        [
+            {
+                "group": "devices",
+                "instance": "rtr-uncapable",
+                "layer": "L1",
+                "source_id": "rtr-uncapable",
+                "class_ref": "class.router",
+                "object_ref": "obj.mikrotik.no_zone_policy",
+                "status": "modeled",
+                "notes": "",
+                "runtime": None,
+                "firmware_ref": None,
+                "os_refs": [],
+                "embedded_in": None,
+                "extensions": {},
+            }
+        ],
+    )
+
+    em_result = em_registry.execute_plugin("base.compiler.effective_model", em_ctx, _EMStage.COMPILE)
+    assert em_result.status == _EMPluginStatus.SUCCESS
+    enforcer_resolution = em_result.output_data["enforcer_resolution"]
+    # D-TYPE-1: no device-kind capability declared, so this instance is not
+    # an enforcer candidate at all - omitted, not present with type=None.
+    assert "rtr-uncapable" not in enforcer_resolution
+
+    payload = {
+        "instances": {
+            "devices": [
+                {
+                    "instance_id": "rtr-uncapable",
+                    "instance": {
+                        "materializes_object": "obj.mikrotik.no_zone_policy",
+                        "materializes_class": "class.network.router",
+                    },
+                }
+            ],
+            "network": [],
+            "services": [],
+        }
+    }
+
+    projection = build_mikrotik_projection(payload, enforcer_resolution=enforcer_resolution)
+
+    # The counterexample's required result is "Visible refusal; a valid
+    # instance_ref alone is insufficient." rtr-uncapable is absent from the
+    # real compiler's own enforcer_resolution (asserted above), and the
+    # projection now agrees: excluded from routers, not silently accepted.
+    assert projection["routers"] == []
+
+
+def test_mikrotik_vlan_entries_refuses_an_ambiguous_target() -> None:
+    """Regression, ENFORCER-AXIS-CONFORMANCE.md section 4, counterexample
+    "Shared management endpoint, distinct target selectors | Valid explicit
+    binding accepted; ambiguous target refused" - **fixed 2026-09-30 (V-10)**.
+    Was a characterization test (currently-violated) before
+    `object.mikrotik.compiler.vlan_entries` gained an `E7027` refusal.
+
+    With two routers present (the "shared management endpoint" only becomes
+    ambiguous once there is more than one candidate), a VLAN row with no
+    `managed_by_ref` and no matching `ip_allocations` entry has no way to
+    select which router should manage it - exactly "ambiguous target". The
+    single-router default (`if not managed_by_ref and len(router_ids) == 1`)
+    does not apply once `router_ids` has two entries, so the plugin now
+    emits `E7027` naming the row and skips it, instead of the `if
+    managed_by_ref in router_ids:` guard silently excluding it with no
+    diagnostic at all - the same class of gap V-10 characterized for
+    `_extract_security_matrix` (fixed earlier as an explicit
+    `ProjectionError` there), closed here the same way but per-row rather
+    than whole-plugin, since one ambiguous row must not block every other
+    VLAN this plugin derives. `firewall_entries_compiler.py`, `mac_vlan_
+    assignments_compiler.py` and `routing_policies_compiler.py` share the
+    same fix (all migrated from the same source loop); this test does not
+    repeat it three times. `bridge_entries_compiler.py` does NOT share this
+    fix: it has no single-router default at all (only a `host_ref`
+    fallback), and the real topology's two bridge rows
+    (`inst.bridge.containers`, `inst.bridge.vmbr0`) both have a `host_ref`
+    naming the real router but at the *top level* of the instance, not
+    under `instance_data` where `_resolved_object_ref`'s sibling read
+    expects it - a separate, pre-existing defect (bridges have always
+    compiled to zero, silently) that adding this diagnostic there would
+    have turned into two hard compile errors on the real topology.
+    Characterizing and fixing that field-location bug is out of this
+    change's scope; a diagnostic was not added to `bridge_entries_compiler.py`
+    to avoid papering over it with a new error on real production input.
+    """
+    from kernel import PluginContext as _VEPluginContext
+    from kernel.plugin_base import Stage as _VEStage
+    from tests.helpers.plugin_execution import publish_for_test as _ve_publish_for_test
+    from tests.helpers.plugin_execution import run_plugin_for_test as _ve_run_plugin_for_test
+
+    effective_model_candidate = {
+        "instances": {
+            "devices": [
+                {
+                    "instance_id": "rtr-a",
+                    "instance": {
+                        "extends_object": "obj.mikrotik.chateau_lte7_ax",
+                        "materializes_object": "obj.mikrotik.chateau_lte7_ax",
+                    },
+                },
+                {
+                    "instance_id": "rtr-b",
+                    "instance": {
+                        "extends_object": "obj.mikrotik.chateau_lte7_ax",
+                        "materializes_object": "obj.mikrotik.chateau_lte7_ax",
+                    },
+                },
+            ],
+            "network": [
+                {
+                    "instance_id": "inst.vlan.ambiguous",
+                    "instance": {
+                        "extends_object": "obj.network.vlan.ambiguous",
+                        "materializes_object": "obj.network.vlan.ambiguous",
+                        "extends_class": "class.network.vlan",
+                        "materializes_class": "class.network.vlan",
+                    },
+                    "instance_data": {"vlan_id": 40, "cidr": "10.0.40.0/24"},
+                }
+            ],
+        },
+        "objects": {},
+    }
+
+    ctx = _VEPluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        compiled_json={"instances": {"devices": [], "network": [], "services": []}},
+        output_dir="/tmp",
+        config={},
+    )
+    _ve_publish_for_test(
+        ctx, "base.compiler.effective_model", "effective_model_candidate", effective_model_candidate
+    )
+    # V-14 (ENFORCER-AXIS-CONFORMANCE.md): router_ids is now built from
+    # enforcer_resolution's adapter, not object_ref.startswith("obj.mikrotik.")
+    # - both rtr-a and rtr-b must resolve as RouterOS enforcers for the
+    # "two routers present" premise this test needs to hold.
+    _ve_publish_for_test(
+        ctx,
+        "base.compiler.effective_model",
+        "enforcer_resolution",
+        {
+            "rtr-a": {"type": "network", "adapter": "cap.firewall.security_matrix.routeros"},
+            "rtr-b": {"type": "network", "adapter": "cap.firewall.security_matrix.routeros"},
+        },
+    )
+
+    plugin = _vlan_entries_module.MikrotikVlanEntriesCompiler("object.mikrotik.compiler.vlan_entries")
+    result = _ve_run_plugin_for_test(
+        plugin, ctx, _VEStage.COMPILE, consumes_keys={"base.compiler.effective_model"}
+    )
+
+    # The counterexample's required result is "ambiguous target refused" -
+    # a visible diagnostic naming the row. Zero VLANs still, but now with an
+    # E7027 explicitly naming the dropped instance rather than silence.
+    assert result.output_data["vlans"] == []
+    e7027 = [diag for diag in result.diagnostics if diag.code == "E7027"]
+    assert len(e7027) == 1
+    assert "inst.vlan.ambiguous" in e7027[0].message
+    assert e7027[0].path == "instance:network:inst.vlan.ambiguous.managed_by_ref"
+
+
+def _two_router_effective_model(rows_by_group: dict[str, list[dict]]) -> dict:
+    devices = [
+        {
+            "instance_id": router_id,
+            "instance": {
+                "extends_object": "obj.mikrotik.chateau_lte7_ax",
+                "materializes_object": "obj.mikrotik.chateau_lte7_ax",
+            },
+        }
+        for router_id in ("rtr-a", "rtr-b")
+    ]
+    instances = {"devices": devices}
+    instances.update(rows_by_group)
+    return {"instances": instances, "objects": {}}
+
+
+def _two_router_enforcer_resolution() -> dict:
+    return {
+        router_id: {"type": "network", "adapter": "cap.firewall.security_matrix.routeros"}
+        for router_id in ("rtr-a", "rtr-b")
+    }
+
+
+def test_mikrotik_firewall_entries_refuses_an_ambiguous_target() -> None:
+    """Regression, V-10, same fix as the VLAN case above, for
+    `object.mikrotik.compiler.firewall_entries`."""
+    from kernel import PluginContext as _FEPluginContext
+    from kernel.plugin_base import Stage as _FEStage
+    from tests.helpers.plugin_execution import publish_for_test as _fe_publish_for_test
+    from tests.helpers.plugin_execution import run_plugin_for_test as _fe_run_plugin_for_test
+
+    effective_model_candidate = _two_router_effective_model(
+        {
+            "firewall": [
+                {
+                    "instance_id": "inst.fw.ambiguous",
+                    "instance": {
+                        "extends_object": "obj.network.firewall_policy.ambiguous",
+                        "materializes_object": "obj.network.firewall_policy.ambiguous",
+                        "extends_class": "class.network.firewall_policy",
+                        "materializes_class": "class.network.firewall_policy",
+                    },
+                    "instance_data": {"name": "ambiguous"},
+                }
+            ]
+        }
+    )
+    ctx = _FEPluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        compiled_json={"instances": {"devices": [], "network": [], "services": []}},
+        output_dir="/tmp",
+        config={},
+    )
+    _fe_publish_for_test(ctx, "base.compiler.effective_model", "effective_model_candidate", effective_model_candidate)
+    _fe_publish_for_test(ctx, "base.compiler.effective_model", "enforcer_resolution", _two_router_enforcer_resolution())
+
+    plugin = _firewall_entries_module.MikrotikFirewallEntriesCompiler("object.mikrotik.compiler.firewall_entries")
+    result = _fe_run_plugin_for_test(plugin, ctx, _FEStage.COMPILE, consumes_keys={"base.compiler.effective_model"})
+
+    assert result.output_data["firewall_policies"] == []
+    e7027 = [diag for diag in result.diagnostics if diag.code == "E7027"]
+    assert len(e7027) == 1
+    assert "inst.fw.ambiguous" in e7027[0].message
+    assert e7027[0].path == "instance:firewall:inst.fw.ambiguous.managed_by_ref"
+
+
+def test_mikrotik_routing_policies_refuses_an_ambiguous_target() -> None:
+    """Regression, V-10, same fix as the VLAN case above, for
+    `object.mikrotik.compiler.routing_policies`."""
+    from kernel import PluginContext as _RPPluginContext
+    from kernel.plugin_base import Stage as _RPStage
+    from tests.helpers.plugin_execution import publish_for_test as _rp_publish_for_test
+    from tests.helpers.plugin_execution import run_plugin_for_test as _rp_run_plugin_for_test
+
+    effective_model_candidate = _two_router_effective_model(
+        {
+            "network": [
+                {
+                    "instance_id": "inst.routing_policy.ambiguous",
+                    "instance": {
+                        "extends_object": "obj.network.routing_policy.ambiguous",
+                        "materializes_object": "obj.network.routing_policy.ambiguous",
+                        "extends_class": "class.network.routing_policy",
+                        "materializes_class": "class.network.routing_policy",
+                    },
+                    "instance_data": {"policy_name": "ambiguous"},
+                }
+            ]
+        }
+    )
+    ctx = _RPPluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        compiled_json={"instances": {"devices": [], "network": [], "services": []}},
+        output_dir="/tmp",
+        config={},
+    )
+    _rp_publish_for_test(ctx, "base.compiler.effective_model", "effective_model_candidate", effective_model_candidate)
+    _rp_publish_for_test(ctx, "base.compiler.effective_model", "enforcer_resolution", _two_router_enforcer_resolution())
+    _rp_publish_for_test(ctx, "base.compiler.security_matrix", "vlan_cidr_map", {})
+
+    plugin = _routing_policies_module.MikrotikRoutingPoliciesCompiler("object.mikrotik.compiler.routing_policies")
+    result = _rp_run_plugin_for_test(
+        plugin,
+        ctx,
+        _RPStage.COMPILE,
+        consumes_keys={"base.compiler.effective_model", "base.compiler.security_matrix"},
+    )
+
+    assert result.output_data["routing_policies"] == []
+    e7027 = [diag for diag in result.diagnostics if diag.code == "E7027"]
+    assert len(e7027) == 1
+    assert "inst.routing_policy.ambiguous" in e7027[0].message
+    assert e7027[0].path == "instance:network:inst.routing_policy.ambiguous.managed_by_ref"
+
+
+def test_mikrotik_mac_vlan_assignments_refuses_an_ambiguous_target() -> None:
+    """Regression, V-10, same fix as the VLAN case above, for
+    `object.mikrotik.compiler.mac_vlan_assignments` (derived from VLAN rows,
+    same as `vlan_entries`)."""
+    from kernel import PluginContext as _MVPluginContext
+    from kernel.plugin_base import Stage as _MVStage
+    from tests.helpers.plugin_execution import publish_for_test as _mv_publish_for_test
+    from tests.helpers.plugin_execution import run_plugin_for_test as _mv_run_plugin_for_test
+
+    effective_model_candidate = _two_router_effective_model(
+        {
+            "network": [
+                {
+                    "instance_id": "inst.vlan.ambiguous",
+                    "instance": {
+                        "extends_object": "obj.network.vlan.ambiguous",
+                        "materializes_object": "obj.network.vlan.ambiguous",
+                        "extends_class": "class.network.vlan",
+                        "materializes_class": "class.network.vlan",
+                    },
+                    "instance_data": {"vlan_id": 40, "cidr": "10.0.40.0/24"},
+                }
+            ]
+        }
+    )
+    ctx = _MVPluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        compiled_json={"instances": {"devices": [], "network": [], "services": []}},
+        output_dir="/tmp",
+        config={},
+    )
+    _mv_publish_for_test(ctx, "base.compiler.effective_model", "effective_model_candidate", effective_model_candidate)
+    _mv_publish_for_test(ctx, "base.compiler.effective_model", "enforcer_resolution", _two_router_enforcer_resolution())
+
+    plugin = _mac_vlan_assignments_module.MikrotikMacVlanAssignmentsCompiler(
+        "object.mikrotik.compiler.mac_vlan_assignments"
+    )
+    result = _mv_run_plugin_for_test(plugin, ctx, _MVStage.COMPILE, consumes_keys={"base.compiler.effective_model"})
+
+    assert result.output_data["mac_vlan_assignments"] == []
+    e7027 = [diag for diag in result.diagnostics if diag.code == "E7027"]
+    assert len(e7027) == 1
+    assert "inst.vlan.ambiguous" in e7027[0].message
+    assert e7027[0].path == "instance:network:inst.vlan.ambiguous.managed_by_ref"
+
+
+def test_mikrotik_bridge_entries_resolves_via_host_ref_field() -> None:
+    """Regression, 2026-09-30: `bridge_entries_compiler.py` read
+    `instance_data.get("host_ref")`, but ADR 0107 D9 reserves `host_ref` as a
+    top-level row key promoted OUT of extensions/instance_data - the same
+    place `effective_model_compiler.py` was found not to propagate it to at
+    all (fixed there: `effective_item["host_ref"] = row.get("host_ref")`).
+    A bridge row with no `managed_by_ref`, only `host_ref`, silently compiled
+    to nothing regardless of router count; the real topology's
+    `inst.bridge.containers` is exactly this shape. One router, so the
+    `managed_by_ref` structural default never applies either - only the
+    `host_ref` fallback can resolve it.
+    """
+    from kernel import PluginContext as _BEPluginContext
+    from kernel.plugin_base import Stage as _BEStage
+    from tests.helpers.plugin_execution import publish_for_test as _be_publish_for_test
+    from tests.helpers.plugin_execution import run_plugin_for_test as _be_run_plugin_for_test
+
+    effective_model_candidate = {
+        "instances": {
+            "devices": [
+                {
+                    "instance_id": "rtr-a",
+                    "instance": {
+                        "extends_object": "obj.mikrotik.chateau_lte7_ax",
+                        "materializes_object": "obj.mikrotik.chateau_lte7_ax",
+                    },
+                }
+            ],
+            "network": [
+                {
+                    "instance_id": "inst.bridge.test",
+                    "instance": {
+                        "extends_object": "obj.network.bridge.test",
+                        "materializes_object": "obj.network.bridge.test",
+                        "extends_class": "class.network.bridge",
+                        "materializes_class": "class.network.bridge",
+                    },
+                    "host_ref": "rtr-a",
+                    "instance_data": {"ip": "172.18.0.1/24"},
+                }
+            ],
+        },
+        "objects": {"obj.network.bridge.test": {"properties": {"name": "test"}}},
+    }
+    ctx = _BEPluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        compiled_json={"instances": {"devices": [], "network": [], "services": []}},
+        output_dir="/tmp",
+        config={},
+    )
+    _be_publish_for_test(ctx, "base.compiler.effective_model", "effective_model_candidate", effective_model_candidate)
+    _be_publish_for_test(
+        ctx,
+        "base.compiler.effective_model",
+        "enforcer_resolution",
+        {"rtr-a": {"type": "network", "adapter": "cap.firewall.security_matrix.routeros"}},
+    )
+
+    plugin = _bridge_entries_module.MikrotikBridgeEntriesCompiler("object.mikrotik.compiler.bridge_entries")
+    result = _be_run_plugin_for_test(plugin, ctx, _BEStage.COMPILE, consumes_keys={"base.compiler.effective_model"})
+
+    bridges = result.output_data["bridges"]
+    assert len(bridges) == 1
+    assert bridges[0]["instance_id"] == "inst.bridge.test"
+    assert bridges[0]["managed_by_ref"] == "rtr-a"
+    assert bridges[0]["cidr"] == "172.18.0.0/24"
+
+
+def test_mikrotik_bridge_entries_refuses_a_row_with_no_placement_signal_at_all() -> None:
+    """Regression, V-10, completing bridge_entries_compiler.py's fix now that
+    the host_ref lookup bug above is fixed: a row with neither
+    `managed_by_ref` nor `host_ref` set at all has no placement signal - the
+    same "ambiguous, refuse rather than drop" case the other four compilers
+    already got, extended here since it was explicitly deferred only because
+    of the host_ref bug."""
+    from kernel import PluginContext as _BE2PluginContext
+    from kernel.plugin_base import Stage as _BE2Stage
+    from tests.helpers.plugin_execution import publish_for_test as _be2_publish_for_test
+    from tests.helpers.plugin_execution import run_plugin_for_test as _be2_run_plugin_for_test
+
+    effective_model_candidate = _two_router_effective_model(
+        {
+            "network": [
+                {
+                    "instance_id": "inst.bridge.ambiguous",
+                    "instance": {
+                        "extends_object": "obj.network.bridge.ambiguous",
+                        "materializes_object": "obj.network.bridge.ambiguous",
+                        "extends_class": "class.network.bridge",
+                        "materializes_class": "class.network.bridge",
+                    },
+                    "instance_data": {},
+                }
+            ]
+        }
+    )
+    ctx = _BE2PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        compiled_json={"instances": {"devices": [], "network": [], "services": []}},
+        output_dir="/tmp",
+        config={},
+    )
+    _be2_publish_for_test(ctx, "base.compiler.effective_model", "effective_model_candidate", effective_model_candidate)
+    _be2_publish_for_test(
+        ctx, "base.compiler.effective_model", "enforcer_resolution", _two_router_enforcer_resolution()
+    )
+
+    plugin = _bridge_entries_module.MikrotikBridgeEntriesCompiler("object.mikrotik.compiler.bridge_entries")
+    result = _be2_run_plugin_for_test(plugin, ctx, _BE2Stage.COMPILE, consumes_keys={"base.compiler.effective_model"})
+
+    assert result.output_data["bridges"] == []
+    e7027 = [diag for diag in result.diagnostics if diag.code == "E7027"]
+    assert len(e7027) == 1
+    assert "inst.bridge.ambiguous" in e7027[0].message
+    assert e7027[0].path == "instance:network:inst.bridge.ambiguous.managed_by_ref"
+
+
+def test_mikrotik_bridge_entries_silently_excludes_a_non_router_host() -> None:
+    """A `host_ref` naming a real, resolvable instance that just isn't a
+    MikroTik router (a Proxmox host, say - `inst.bridge.vmbr0` in the real
+    topology) is a deliberate, correct exclusion, not ambiguity: no E7027,
+    since the field IS declared and DOES resolve, just not to a candidate
+    this compiler owns."""
+    from kernel import PluginContext as _BE3PluginContext
+    from kernel.plugin_base import Stage as _BE3Stage
+    from tests.helpers.plugin_execution import publish_for_test as _be3_publish_for_test
+    from tests.helpers.plugin_execution import run_plugin_for_test as _be3_run_plugin_for_test
+
+    effective_model_candidate = {
+        "instances": {
+            "devices": [
+                {
+                    "instance_id": "rtr-a",
+                    "instance": {
+                        "extends_object": "obj.mikrotik.chateau_lte7_ax",
+                        "materializes_object": "obj.mikrotik.chateau_lte7_ax",
+                    },
+                }
+            ],
+            "network": [
+                {
+                    "instance_id": "inst.bridge.proxmox",
+                    "instance": {
+                        "extends_object": "obj.network.bridge.proxmox",
+                        "materializes_object": "obj.network.bridge.proxmox",
+                        "extends_class": "class.network.bridge",
+                        "materializes_class": "class.network.bridge",
+                    },
+                    "host_ref": "srv-not-a-router",
+                    "instance_data": {},
+                }
+            ],
+        },
+        "objects": {},
+    }
+    ctx = _BE3PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        compiled_json={"instances": {"devices": [], "network": [], "services": []}},
+        output_dir="/tmp",
+        config={},
+    )
+    _be3_publish_for_test(ctx, "base.compiler.effective_model", "effective_model_candidate", effective_model_candidate)
+    _be3_publish_for_test(
+        ctx,
+        "base.compiler.effective_model",
+        "enforcer_resolution",
+        {"rtr-a": {"type": "network", "adapter": "cap.firewall.security_matrix.routeros"}},
+    )
+
+    plugin = _bridge_entries_module.MikrotikBridgeEntriesCompiler("object.mikrotik.compiler.bridge_entries")
+    result = _be3_run_plugin_for_test(plugin, ctx, _BE3Stage.COMPILE, consumes_keys={"base.compiler.effective_model"})
+
+    assert result.output_data["bridges"] == []
+    assert not any(diag.code == "E7027" for diag in result.diagnostics)
 
 
 def test_mikrotik_projection_extracts_routing_policies() -> None:

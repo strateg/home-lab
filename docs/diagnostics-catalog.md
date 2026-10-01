@@ -125,6 +125,17 @@ band: `E70xx` was the only hundred inside `E7xxx` with no number claimed by
 source, catalog, ADR or documentation.
 
 - `E7001..E7006`: schema and shape of a v2 network intent block
+- `E7010..E7011`, `W7012`: enforcer/scope attribution and index completeness
+  (ADR 0119 D1.1), allocated 2026-09-28 in the unclaimed 7009-7019 sub-band
+- `E7013..E7014`: composition contract for scopes sharing an enforcer
+  (D-COMP-1/D-COMP-2), same 7009-7019 sub-band
+- `W7015..W7017`, `E7018`, `W7019`: enforcer type and adapter resolution
+  (D-TYPE-1..3), same 7009-7019 sub-band, allocated 2026-09-29 after SPC MODE
+  review of the design. Only `E7018` is an error: it fires for an instance an
+  actual security_matrix scope depends on via managed_by_ref. The `W70xx`
+  codes fire during resolution itself, for any instance declaring a
+  device-kind capability whether or not anything references it yet - an
+  unresolved, unreferenced instance is latent, not a build failure.
 - `E7020..E7023`: attachments and address domains (`NET-ATTACHMENT`, `NET-ADDRESS-OWNER`)
 - `E7025`: a reference to a record whose `enabled` is explicitly false, across all
   three v2 blocks. The declarations keep a disabled record rather than deleting it,
