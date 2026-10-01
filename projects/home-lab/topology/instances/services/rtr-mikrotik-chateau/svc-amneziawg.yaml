@@ -8,12 +8,12 @@ notes: |
   Runs as awg-proxy container on MikroTik Chateau, serves VLAN 57 clients.
   Uses native WireGuard + awg-proxy architecture for better performance.
 
-  Architecture (v2.0.0 - awg-proxy):
-    - MikroTik native WireGuard handles encryption (wg-awg-russia)
+  Architecture (v2.0.0 - awg-proxy, consolidated to v2 keys/tunnel):
+    - MikroTik native WireGuard handles encryption (wg-awg-russia-v2)
     - awg-proxy container adds AWG 3.0 obfuscation
     - Traffic routes directly to WG interface
 
-port: 51825
+port: 51826
 protocol: udp
 trust_zone_ref: inst.trust_zone.vpn_tunnel
 vpn_type: amneziawg
@@ -23,7 +23,7 @@ status: active
 
 runtime:
   type: routeros_container
-  target_ref: docker-amneziawg-russia
+  target_ref: docker-amneziawg-russia-v2
   network_binding_ref: inst.vlan.vpn_amnezia
 
 features:
@@ -36,7 +36,7 @@ features:
 
 # External VPN server connection details
 vpn_server:
-  endpoint_ref: secrets.mikrotik.amneziawg.russia.endpoint
+  endpoint_ref: secrets.mikrotik.amneziawg.russia_v2.endpoint
   # AWG parameters are inline in container definition
 
 # Serves this VLAN
