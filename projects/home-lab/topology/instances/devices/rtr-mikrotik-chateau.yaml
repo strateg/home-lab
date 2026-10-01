@@ -50,14 +50,14 @@ observed_runtime:
     gateway: 192.168.57.1
     dhcp_pool: 192.168.57.100-192.168.57.200
     routing_policy_ref: inst.routing_policy.vpn_amnezia
-    container_ref: docker-amneziawg-russia-v2
+    container_ref: docker-amneziawg-russia
     status: active
   # ADR-0109/0110: VLANs now managed via inst.vlan.* instances
   # Security matrix rules generated from inst.security_matrix.mikrotik
   containers:
     bridge_interface: containers
     bridge_ip: 172.18.0.1/24
-    veth_ports: [veth1, veth-awg-ru2, veth-awg-se]
+    veth_ports: [veth1, veth-awg-ru, veth-awg-se]
     registry_url: https://registry-1.docker.io
     running:
       - name: nginx:latest
@@ -191,12 +191,12 @@ observed_runtime:
       src_address: 10.100.1.0/24
       out_interface_list: WAN
       comment: "VPN Estonia chain exit (wg1 traffic via Chateau)"
-    # AmneziaWG Russia v2 container NAT: masquerade traffic going to Russia v2 AWG container
-    # Traffic path: VLAN 57 (192.168.57.x) -> veth-awg-ru2 -> container -> AWG tunnel
+    # AmneziaWG Russia container NAT: masquerade traffic going to Russia AWG container
+    # Traffic path: VLAN 57 (192.168.57.x) -> veth-awg-ru -> container -> AWG tunnel
     - chain: srcnat
       action: masquerade
-      out_interface: veth-awg-ru2
-      comment: "NAT for AmneziaWG Russia v2 container traffic"
+      out_interface: veth-awg-ru
+      comment: "NAT for AmneziaWG Russia container traffic"
     # AmneziaWG Sweden container NAT: masquerade traffic going to Sweden AWG container
     # Traffic path: VLAN 58 (192.168.58.x) -> veth-awg-se -> container -> AWG tunnel
     - chain: srcnat
