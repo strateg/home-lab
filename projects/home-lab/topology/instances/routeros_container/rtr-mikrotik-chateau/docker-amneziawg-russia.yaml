@@ -42,33 +42,41 @@ runtime:
   # AWG 3.0 obfuscation parameters (from VPN provider config ru.conf)
   env:
     AWG_LISTEN: ":51820"
-    AWG_REMOTE_REF: secrets.mikrotik.amneziawg.russia_v2.endpoint
+    AWG_REMOTE_REF: secrets.mikrotik.amneziawg.russia.endpoint
     AWG_JC: "7"
     AWG_JMIN: "10"
     AWG_JMAX: "80"
-    AWG_S1: "299"
-    AWG_S2: "838"
-    AWG_S3: "1181"
+    AWG_S1: "682"
+    AWG_S2: "1101"
+    AWG_S3: "670"
     AWG_S4: "12"
     AWG_H1: "1"
     AWG_H2: "2"
     AWG_H3: "3"
     AWG_H4: "4"
-    AWG_SERVER_PUB_REF: secrets.mikrotik.amneziawg.russia_v2.server_public_key
-    AWG_CLIENT_PUB_REF: secrets.mikrotik.amneziawg.russia_v2.client_public_key
-    AWG_HEADER_PROTECTION_KEY_REF: secrets.mikrotik.amneziawg.russia_v2.header_protection_key
+    AWG_SERVER_PUB_REF: secrets.mikrotik.amneziawg.russia.server_public_key
+    AWG_CLIENT_PUB_REF: secrets.mikrotik.amneziawg.russia.client_public_key
+    AWG_HEADER_PROTECTION_KEY_REF: secrets.mikrotik.amneziawg.russia.header_protection_key
+    # awg-proxy accepts these provider settings but cannot emulate WireGuard
+    # sender timing or encrypted content padding; they are recorded for fidelity.
+    AWG_REKEY_AFTER: "100-120"
+    AWG_REKEY_TIMEOUT: "3-8"
+    AWG_REJECT_AFTER: "150-180"
+    AWG_KEEPALIVE_TIMEOUT: "7-13"
+    AWG_MAX_HANDSHAKE_ATTEMPTS: "15-20"
+    AWG_CONTENT_PADDING: "10-100"
     AWG_MODE: "normal"
 
 # WireGuard interface on MikroTik side (handles encryption)
 wireguard_interface:
   name: wg-awg-russia
   listen_port: 51826
-  private_key_ref: secrets.mikrotik.amneziawg.russia_v2.client_private_key
+  private_key_ref: secrets.mikrotik.amneziawg.russia.client_private_key
   # Tunnel IP assigned by VPN provider
   address: 100.98.32.29/32
   peer:
-    public_key_ref: secrets.mikrotik.amneziawg.russia_v2.server_public_key
-    preshared_key_ref: secrets.mikrotik.amneziawg.russia_v2.preshared_key
+    public_key_ref: secrets.mikrotik.amneziawg.russia.server_public_key
+    preshared_key_ref: secrets.mikrotik.amneziawg.russia.preshared_key
     # Endpoint is the awg-proxy container
     endpoint: 172.18.25.2:51820
     allowed_ips:

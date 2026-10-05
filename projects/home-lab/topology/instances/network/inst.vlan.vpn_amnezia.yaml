@@ -15,6 +15,9 @@ vlan_id: 57
 cidr: 192.168.57.0/24
 gateway: 192.168.57.1
 dhcp_range: 192.168.57.100-192.168.57.200
+dns_servers:
+  - 100.64.0.1
+  - 8.8.4.4
 
 # VPN routing specifics - uses container, not direct tunnel
 vpn_routing:
@@ -25,7 +28,7 @@ vpn_routing:
   exit_type: amneziawg
   exit_country: RU
   exit_location: Russia
-  endpoint: 178.130.51.136:4714
+  endpoint: 46.29.163.189:7810
 
 # Trust zone - isolated from main LAN (shares zone with other VPN VLANs)
 trust_zone_ref: inst.trust_zone.vpn_tunnel

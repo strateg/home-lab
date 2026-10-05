@@ -53,6 +53,18 @@ def test_decrypt_yaml_missing_sops_reports_runtime_error(monkeypatch):
         module._decrypt_yaml(Path("dummy.yaml"))
 
 
+def test_mikrotik_tfvars_includes_sops_backed_awg_cps_template():
+    module = _load_module()
+    values = module._build_mikrotik_values(
+        {
+            "mikrotik": {"host": "router.example", "username": "user", "password": "placeholder"},
+            "wireguard": {},
+            "amneziawg": {"russia": {"i1": "<b 0xabcd><r 16>"}},
+        }
+    )
+    assert values["awg_proxy_russia_awg_i1"] == "<b 0xabcd><r 16>"
+
+
 def test_generate_and_cleanup_mikrotik_tfvars(tmp_path: Path, monkeypatch):
     module = _load_module()
 

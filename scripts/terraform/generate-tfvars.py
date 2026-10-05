@@ -214,8 +214,8 @@ def _build_mikrotik_values(payload: dict[str, Any]) -> dict[str, Any]:
     if containers.get("tailscale_authkey"):
         result["tailscale_authkey"] = containers["tailscale_authkey"]
 
-    # AmneziaWG container secrets (Russia, Russia v2, Sweden exits)
-    for country in ["russia", "russia_v2", "sweden"]:
+    # AmneziaWG container secrets (Russia and Sweden exits)
+    for country in ["russia", "sweden"]:
         awg_country = amneziawg.get(country, {})
         if not isinstance(awg_country, dict):
             continue
@@ -227,6 +227,8 @@ def _build_mikrotik_values(payload: dict[str, Any]) -> dict[str, Any]:
             result[f"{prefix}_awg_server_pub"] = awg_country["server_public_key"]
         if awg_country.get("header_protection_key"):
             result[f"{prefix}_awg_header_protection_key"] = awg_country["header_protection_key"]
+        if awg_country.get("i1"):
+            result[f"{prefix}_awg_i1"] = awg_country["i1"]
         # AWG_CLIENT_PUB - the public key that remote AWG server expects from us
         if awg_country.get("client_public_key"):
             result[f"{prefix}_awg_client_pub"] = awg_country["client_public_key"]

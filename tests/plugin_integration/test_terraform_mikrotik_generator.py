@@ -8,6 +8,8 @@ import importlib.util
 import sys
 from pathlib import Path
 
+from jinja2 import Environment, FileSystemLoader
+
 V5_ROOT = Path(__file__).resolve().parents[2]
 V5_TOOLS = Path(__file__).resolve().parents[2] / "topology-tools"
 sys.path.insert(0, str(V5_TOOLS))
@@ -49,6 +51,33 @@ def _load_generator_class():
 
 
 TerraformMikroTikGenerator = _load_generator_class()
+
+
+def test_container_template_attaches_router_gateway_to_veth() -> None:
+    template_dir = V5_ROOT / "topology" / "object-modules" / "mikrotik" / "templates"
+    template = Environment(loader=FileSystemLoader(template_dir)).get_template("terraform/containers.tf.j2")
+    rendered = template.render(
+        containers=[
+            {
+                "instance_id": "docker-amneziawg-russia",
+                "name": "awg-proxy-russia",
+                "tf_name": "awg_proxy_russia",
+                "veth_name": "veth-awg-ru",
+                "veth_address": "172.18.25.2/30",
+                "veth_gateway": "172.18.25.1",
+                "wireguard_interface": None,
+                "image": "example.invalid/awg-proxy:latest",
+                "root_dir": "/usb1/containers/awg-proxy-russia",
+                "start_on_boot": True,
+                "logging": True,
+                "comment": "Russia proxy",
+                "envs": [],
+            }
+        ]
+    )
+    assert 'resource "routeros_ip_address" "awg_proxy_russia_veth_gateway"' in rendered
+    assert 'address   = "172.18.25.1/30"' in rendered
+    assert 'interface = routeros_interface_veth.awg_proxy_russia.name' in rendered
 
 
 def _ctx(tmp_path: Path, compiled_json: dict) -> PluginContext:

@@ -34,7 +34,7 @@ network:
 runtime:
   # AWG-Proxy C-based image
   name: awg-proxy-sweden
-  image: ghcr.io/timbrs/awg-proxy:latest
+  image: ghcr.io/timbrs/awg-proxy:1.4.0
   architecture: arm64
   root_dir: /usb1/containers/awg-proxy-sweden
   start_on_boot: true

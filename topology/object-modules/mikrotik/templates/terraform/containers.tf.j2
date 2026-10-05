@@ -41,6 +41,19 @@ resource "routeros_interface_veth" "{{ container.tf_name }}" {
   comment = "{{ container.name }} veth - managed by Terraform"
 }
 
+# The veth gateway is the router-side address. Without it, RouterOS has no
+# connected route to the container and WireGuard handshakes never reach proxy.
+resource "routeros_ip_address" "{{ container.tf_name }}_veth_gateway" {
+  address   = "{{ container.veth_gateway }}/{{ container.veth_address.split('/')[-1] }}"
+  interface = routeros_interface_veth.{{ container.tf_name }}.name
+  comment   = "{{ container.name }} gateway - managed by Terraform"
+
+  lifecycle {
+    # RouterOS API returns vrf field that can't be patched.
+    ignore_changes = [vrf]
+  }
+}
+
 {% if container.wireguard_interface %}
 # --- WireGuard Interface: {{ container.wireguard_interface.name }} ---
 resource "routeros_interface_wireguard" "{{ container.tf_name }}_wg" {

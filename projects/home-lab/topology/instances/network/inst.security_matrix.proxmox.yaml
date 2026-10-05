@@ -5,6 +5,14 @@
 source_id: security-matrix-proxmox
 # DISABLED: Generator is STUB, enable when firewall_proxmox_generator is implemented
 status: disabled
+# This unenforced plan does not claim any availability objective yet. Keep this
+# explicit, owned attestation so the validator does not infer an implicit claim.
+availability_requirements: []
+availability_waiver:
+  owner: home-lab platform owner
+  rationale: >-
+    This matrix remains disabled until the Proxmox firewall generator is implemented;
+    no intra-zone availability objective is claimed for this unenforced scope.
 notes: |
   Internal enforcement matrix for srv-gamayun Proxmox VE.
   Manages LXC/VM isolation within the servers zone via Proxmox Firewall CT-level rules.

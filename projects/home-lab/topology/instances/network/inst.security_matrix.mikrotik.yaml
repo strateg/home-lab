@@ -41,6 +41,15 @@ defaults:
     - 192.168.88.1
   dhcp_lease_time: "30m"
 
+# This enforcement scope has not yet had its availability objectives attested.
+# Explicitly record the current absence rather than treating it as implicitly safe.
+availability_requirements: []
+availability_waiver:
+  owner: home-lab platform owner
+  rationale: >-
+    Availability objectives for this perimeter matrix have not yet been formally
+    attested; this waiver records that status and does not assert service health.
+
 # Extends policy_overrides from obj.network.security_matrix.soho
 policy_overrides:
   # Inherited from object:
