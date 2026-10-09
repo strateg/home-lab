@@ -21,6 +21,7 @@ warning_governance:
   allowlist:
     - W3201
     - W6814
+    - W7016
     - W7816
     - W7844
     - W7864
@@ -33,6 +34,13 @@ warning_governance:
     # W6814: optional @on:host.network.bridge_ref? absent on docker-only host
     # srv-orangepi5 (no bridge by design).
     W6814: 8
+    # W7016: rtr-slate (GL.iNet/OpenWrt) resolves as a network enforcer but
+    # no cap.os.openwrt -> adapter mapping exists yet (ADR 0118/0119
+    # D-TYPE-2) - only routeros/pve adapters are registered today. Adding a
+    # mapping without a real firewall/VLAN generator behind it would be
+    # cosmetic; the adapter lands when the OpenWrt/uapi generator pipeline
+    # is built.
+    W7016: 1
     W7816: 5
     # W7844: svc-postgresql-germany attaches vpn_germany via WireGuard tunnel
     # routing, not direct VLAN (documented in instance).

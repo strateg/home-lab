@@ -28,11 +28,11 @@ hardware_specs:
     mounting: none  # Compact travel router
 
   cpu:
-    vendor: mediatek
-    model: MT7621A
-    architecture: mipsel
-    cores: 2
-    clock_mhz: 880
+    vendor: qualcomm
+    model: IPQ-6000
+    architecture: arm64
+    cores: 4
+    clock_mhz: 1200
     frequency_scaling: false
 
   memory:
