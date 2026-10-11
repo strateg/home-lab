@@ -81,6 +81,41 @@ plugins:
       ships for the LAN zone and which publishes SSH and the uapi endpoint to
       that zone's clients.
 
+  - id: object.openwrt.validator_json.interfaces
+    kind: validator_json
+    entry: plugins/validators/interfaces_validator.py:OpenwrtInterfacesValidator
+    api_version: "1.x"
+    stages: [validate]
+    phase: run
+    order: 152
+    migration_mode: migrated
+    depends_on:
+      - object.openwrt.compiler.zones
+    timeout: 30
+    execution_mode: subinterpreter
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    consumes:
+      - from_plugin: base.compiler.effective_model
+        key: effective_model_candidate
+        required: false
+      - from_plugin: object.openwrt.compiler.zones
+        key: openwrt_zones
+        required: false
+    description: >-
+      E9905: every declared interface must land in exactly one rendered zone.
+      uapi_firewall_zone has no device or subnet field, so an interface named in
+      no zone is silently unreachable rather than open - caught for a missing
+      trust_zone_ref, a zone the matrix does not carry, and the same interface
+      claimed twice. E9904: the management path must be protected from the plan
+      applied over it - exactly one interface declares it carries the uapi
+      endpoint, that interface is immutable, and its zone keeps a service
+      reachable, since every zone defaults to input REJECT and an apply that
+      forgets this locks the operator out of the device.
+
   - id: object.openwrt.validator_json.wireless
     kind: validator_json
     entry: plugins/validators/wireless_validator.py:OpenwrtWirelessValidator

@@ -167,10 +167,28 @@ def _local_interfaces(row: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
                     "kind": "uplink",
                     "role": role,
                     "proto": spec.get("proto"),
-                    # The management path must not be regenerated: a write that
-                    # strands the caller never returns, so Terraform records
-                    # nothing (E9904).
-                    "immutable": bool(uplink.get("management_path_immutable", False)),
+                    "immutable": False,
+                },
+            )
+
+    # The management path is neither a client segment nor an uplink: it is the
+    # interface the uapi request itself arrives on. A write that reconfigures it
+    # never returns a response, so Terraform records nothing (E9904).
+    management = intent.get("management")
+    if isinstance(management, dict):
+        name = management.get("interface")
+        if isinstance(name, str) and name:
+            add(
+                management.get("trust_zone_ref"),
+                {
+                    "name": name,
+                    "kind": "management",
+                    "device": management.get("device"),
+                    "proto": management.get("proto"),
+                    "address": management.get("address"),
+                    "immutable": bool(management.get("immutable", False)),
+                    "endpoint_arrives_here": bool(management.get("endpoint_arrives_here", False)),
+                    "input_services": management.get("input_services") or [],
                 },
             )
 
@@ -197,12 +215,24 @@ def _local_interfaces(row: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
     return by_zone
 
 
-def _input_services(segments: list[dict[str, Any]]) -> list[str]:
-    """Router services a client segment genuinely needs on the input path.
+def _input_services(
+    segments: list[dict[str, Any]],
+    interfaces: list[dict[str, Any]] | None = None,
+) -> list[str]:
+    """Router services a zone genuinely needs on the input path.
 
     Derived rather than assumed, because the alternative to a narrow list is
     stock OpenWrt's `input ACCEPT`, which publishes SSH and the uapi endpoint to
     every client in the zone.
+
+    Segments contribute what their own configuration implies: DHCP when the
+    segment hands out leases, DNS only when its declared resolver is the router
+    itself rather than a public one reached through a tunnel.
+
+    Interfaces may also declare services explicitly, which is how the
+    management path keeps SSH and uapi reachable. Nothing else is inferred for
+    them: an interface that declares none gets none, so the first apply cannot
+    quietly publish a service nobody asked for.
     """
     services: set[str] = set()
     for segment in segments:
@@ -212,6 +242,10 @@ def _input_services(segments: list[dict[str, Any]]) -> list[str]:
         dns_servers = segment.get("dns_servers")
         if isinstance(dns_servers, list) and gateway in dns_servers:
             services.add("dns")
+    for interface in interfaces or []:
+        declared = interface.get("input_services")
+        if isinstance(declared, list):
+            services.update(item for item in declared if isinstance(item, str) and item)
     return sorted(services)
 
 
@@ -317,7 +351,7 @@ class OpenwrtZonesCompiler(CompilerPlugin):
                     "input": "REJECT",
                     "forward": "REJECT",
                     "output": "ACCEPT",
-                    "input_services": _input_services(segments),
+                    "input_services": _input_services(segments, interfaces),
                 }
 
             forwardings, denied = _lower_matrix(matrix, local_zone_refs)

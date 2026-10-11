@@ -284,9 +284,60 @@ def test_interfaces_make_a_zone_local_without_any_segment():
     assert zone["local"] is True
     assert zone["segments"] == []
     assert [iface["name"] for iface in zone["interfaces"]] == ["wwan"]
-    # Carried through so E9904 can refuse generation that would rewrite the
-    # interface a stranding write would arrive on.
-    assert zone["interfaces"][0]["immutable"] is True
+    # The uplink is not the management path - rtr-slate's uapi endpoint arrives
+    # on the LAN bridge - so it carries no immutability claim of its own.
+    assert zone["interfaces"][0]["immutable"] is False
+
+
+def test_management_interface_carries_immutability_and_its_services():
+    """E9904 and the lockout it prevents both depend on these two fields.
+
+    The uapi request arrives on this interface, so a plan that rewrites it never
+    returns a response. And because every zone defaults to input REJECT, the
+    services that must survive an apply have to travel with the interface or
+    the first apply locks the operator out of the device it was applied to.
+    """
+    model = _fixture_model()
+    # No segments: the assertion is about what the interface alone contributes.
+    model["instances"]["network"] = []
+    model["instances"]["devices"][0]["instance_data"] = {
+        "runtime_intent": {
+            "management": {
+                "interface": "lan",
+                "device": "br-lan",
+                "address": "192.168.1.1/24",
+                "proto": "static",
+                "trust_zone_ref": _USER,
+                "immutable": True,
+                "endpoint_arrives_here": True,
+                "input_services": ["ssh", "uapi"],
+            }
+        }
+    }
+
+    plan = _run(model, _fixture_matrix(), _resolution())["rtr-slate"]
+
+    zone = plan["zones"][_USER]
+    interface = next(item for item in zone["interfaces"] if item["name"] == "lan")
+    assert interface["immutable"] is True
+    assert interface["endpoint_arrives_here"] is True
+    assert zone["input_services"] == ["ssh", "uapi"]
+
+
+def test_an_interface_declaring_no_services_gets_none():
+    """Nothing is inferred for interfaces, so an apply cannot publish a service
+    nobody asked for."""
+    model = _fixture_model()
+    model["instances"]["network"] = []
+    model["instances"]["devices"][0]["instance_data"] = {
+        "runtime_intent": {
+            "wireguard": {"interfaces": [{"name": "wg-ru", "trust_zone_ref": _USER, "enabled": True}]}
+        }
+    }
+
+    plan = _run(model, _fixture_matrix(), _resolution())["rtr-slate"]
+
+    assert plan["zones"][_USER]["input_services"] == []
 
 
 def test_parked_tunnel_interface_is_not_placed_in_a_zone():

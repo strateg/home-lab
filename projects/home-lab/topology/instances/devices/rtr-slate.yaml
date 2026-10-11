@@ -154,11 +154,41 @@ runtime_intent:
         router-side input rule is needed: the router's own output policy is
         ACCEPT and the venue zone's forward path for that client is the normal
         one. No client zone gets a hole punched into it for the portal.
-    # The uapi endpoint arrives over the LAN side, not here, but the principle
-    # holds for whichever interface carries management: a write that strands
-    # the caller never returns a response, so Terraform records nothing.
-    # E9904 refuses generation that would mutate it.
-    management_path_immutable: true
+  # --------------------------------------------------------------------------
+  # MANAGEMENT PATH
+  #
+  # Declared separately from the client segments and from the uplink because it
+  # is neither: it is the interface the uapi endpoint arrives on, and the one
+  # interface generation must never rewrite. A write that reconfigures the
+  # interface its own request came in on never returns a response, so Terraform
+  # records nothing and the device is left in an unknown state with no way back
+  # except physical access. E9904 refuses any plan that would touch it.
+  #
+  # The address is the stock 192.168.1.1/24 that the uapi token's allowed_cidr
+  # and the operator's secondary address both depend on. Moving it to the
+  # 10.77.x plan is a deliberate guarded transition - stage, change, verify,
+  # re-mint the token - not something an ordinary apply may do as a side effect.
+  # --------------------------------------------------------------------------
+  management:
+    interface: lan
+    device: br-lan
+    bridge_ports: [lan1, lan2]
+    address: 192.168.1.1/24
+    proto: static
+    trust_zone_ref: inst.trust_zone.management
+    immutable: true
+    endpoint_arrives_here: true
+    # Zone input is REJECT like every other zone, so the services that must
+    # survive are listed rather than inherited. Without these two the first
+    # apply would lock the operator out of the device it was applied to.
+    input_services:
+      - ssh
+      - uapi
+    notes: |
+      DHCP is deliberately absent: dhcp.lan was switched off by hand during
+      staging because this bridge reaches Chateau's LAN through the lan2 cable
+      and rtr-slate was answering DHCP there. Re-expressing that here keeps the
+      generated state and the hand-applied state in agreement.
 
   # --------------------------------------------------------------------------
   # WIRELESS
