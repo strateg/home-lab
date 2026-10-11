@@ -1621,6 +1621,16 @@ codes:
       through a tunnel; an uplink zone appearing here means its interface intent is not authored yet.
 
   # Raiser: object.openwrt.generator.terraform
+  I9903:
+    severity: info
+    stage: generate
+    title: OpenWrt Terraform Rendered
+    hint: >-
+      Reports what the OpenWrt generator emitted and, just as importantly, what it did not: permits whose
+      destination zone is remote (covered by the tunnel-zone forwarding) and port-scoped permits that need
+      firewall_rule sections. Denials appear in neither count because on firewall4 they are omissions.
+
+  # Raiser: object.openwrt.generator.terraform
   W9903:
     severity: warning
     stage: generate

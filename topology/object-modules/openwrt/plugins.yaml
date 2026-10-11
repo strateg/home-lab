@@ -81,6 +81,52 @@ plugins:
       ships for the LAN zone and which publishes SSH and the uapi endpoint to
       that zone's clients.
 
+  - id: object.openwrt.generator.terraform
+    kind: generator
+    entry: plugins/generators/terraform_openwrt_generator.py:TerraformOpenwrtGenerator
+    api_version: 1.x
+    stages:
+      - generate
+    phase: run
+    order: 230
+    migration_mode: migrated
+    depends_on:
+      - object.openwrt.compiler.zones
+    timeout: 30
+    execution_mode: subinterpreter
+    consumes:
+      # Required: this generator derives no substitute for the lowered plan, so
+      # an absent channel must block rather than render an empty Terraform root
+      # and report success.
+      - key: openwrt_zones
+        from_plugin: object.openwrt.compiler.zones
+        required: true
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    produces:
+      - key: generated_dir
+        scope: pipeline_shared
+      - key: generated_files
+        scope: pipeline_shared
+      - key: terraform_openwrt_files
+        scope: pipeline_shared
+      - key: artifact_plan
+        scope: pipeline_shared
+      - key: artifact_generation_report
+        scope: pipeline_shared
+      - key: artifact_contract_files
+        scope: pipeline_shared
+    description: >-
+      Renders provider wiring and the firewall zone graph for an OpenWrt
+      enforcer into generated/<project>/terraform/openwrt/. Emits no terminal
+      drop-all and no deny rules: zone chains are terminal and the base chains
+      carry policy drop, so a denied pair is the absence of a forwarding. Counts
+      what it deliberately did not render - remote-destination and port-scoped
+      permits - in I9903 rather than dropping them silently.
+
   - id: object.openwrt.validator_json.interfaces
     kind: validator_json
     entry: plugins/validators/interfaces_validator.py:OpenwrtInterfacesValidator

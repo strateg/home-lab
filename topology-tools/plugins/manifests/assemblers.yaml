@@ -129,6 +129,21 @@ plugins:
   - from_plugin: base.generator.ansible_inventory
     key: generated_dir
     required: false
+  # The OpenWrt adapter's generator. The guard reads each migrated generator's
+  # contract through its own declared consumes, so a generator absent from this
+  # list reports E9394 no matter what it publishes.
+  - from_plugin: object.openwrt.generator.terraform
+    key: artifact_plan
+    required: false
+  - from_plugin: object.openwrt.generator.terraform
+    key: artifact_generation_report
+    required: false
+  - from_plugin: object.openwrt.generator.terraform
+    key: artifact_contract_files
+    required: false
+  - from_plugin: object.openwrt.generator.terraform
+    key: generated_dir
+    required: false
   - from_plugin: object.proxmox.generator.terraform
     key: artifact_plan
     required: false

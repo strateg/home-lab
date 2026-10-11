@@ -115,9 +115,24 @@ def _local_segments(network_rows: list[Any], enforcer_id: str) -> dict[str, list
         if not isinstance(zone_ref, str) or not isinstance(cidr, str):
             continue
 
+        # The uci interface name for this segment. uapi_firewall_zone's
+        # `network` list names config interface sections, not topology
+        # instances, so an instance id there would reference a section that
+        # does not exist. Authored explicitly when it must differ; otherwise
+        # derived from the instance id's tail, which keeps the name stable as
+        # long as the instance is not renamed - and a rename is a section
+        # rename, which uapi treats as delete plus create.
+        declared_name = data.get("interface")
+        interface_name = (
+            declared_name
+            if isinstance(declared_name, str) and declared_name
+            else str(row.get("instance_id", "")).rsplit(".", 1)[-1]
+        )
+
         by_zone.setdefault(zone_ref, []).append(
             {
                 "instance_id": row.get("instance_id"),
+                "interface": interface_name,
                 "cidr": cidr,
                 "gateway": data.get("gateway"),
                 "mtu": data.get("mtu"),
