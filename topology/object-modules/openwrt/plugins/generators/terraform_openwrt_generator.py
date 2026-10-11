@@ -82,10 +82,24 @@ class TerraformOpenwrtGenerator(BaseGenerator):
         diagnostics: list[PluginDiagnostic] = []
 
         plans = ctx.subscribe(self._ZONES_PLUGIN_ID, self._ZONES_KEY)
-        if not isinstance(plans, dict) or not plans:
-            # No OpenWrt enforcer in this project. Nothing to render, and that
-            # is not a defect.
-            return self.make_result(diagnostics=diagnostics)
+        if not isinstance(plans, dict):
+            plans = {}
+
+        if not plans:
+            # No OpenWrt enforcer in this project - a scaffolded one, for
+            # instance. Nothing to render, but the artifact contract is still
+            # owed: this generator declares migration_mode: migrated, and the
+            # contract guard checks every migrated generator on every run
+            # regardless of whether it had work to do. Returning early here
+            # produced E9394 "missing required contract keys" in any project
+            # without an OpenWrt device.
+            return self._finish_with_contract(
+                ctx=ctx,
+                stage=stage,
+                diagnostics=diagnostics,
+                planned_outputs=[],
+                written=[],
+            )
 
         if len(plans) > 1:
             diagnostics.append(
@@ -128,6 +142,54 @@ class TerraformOpenwrtGenerator(BaseGenerator):
             content = self.render_template(ctx, template_name, render_context)
             self.write_text_atomic(output_path, content)
             written.append(str(output_path))
+
+        result = self._finish_with_contract(
+            ctx=ctx,
+            stage=stage,
+            diagnostics=diagnostics,
+            planned_outputs=planned_outputs,
+            written=written,
+        )
+        if result is not None and any(d.severity == "error" for d in result.diagnostics):
+            return result
+
+        diagnostics.append(
+            self.emit_diagnostic(
+                code="I9903",
+                severity="info",
+                stage=stage,
+                message=(
+                    f"Rendered {len(render_context['zones'])} zone(s) and "
+                    f"{len(render_context['forwardings'])} forwarding(s) for '{enforcer_id}'. "
+                    f"Not emitted: {deferred['remote_dest']} permit(s) whose destination zone is remote "
+                    "(covered by the tunnel-zone forwarding) and "
+                    f"{deferred['port_scoped']} port-scoped permit(s) that need firewall_rule sections. "
+                    f"{len(plan.get('denied_pairs') or [])} denial(s) emitted as absent forwardings."
+                ),
+                path=f"generator:terraform_openwrt:{enforcer_id}",
+            )
+        )
+
+        return self.make_result(diagnostics=diagnostics, output_data=result.output_data)
+
+    def _finish_with_contract(
+        self,
+        *,
+        ctx: PluginContext,
+        stage: Stage,
+        diagnostics: list[PluginDiagnostic],
+        planned_outputs: list[dict[str, object]],
+        written: list[str],
+    ) -> PluginResult:
+        """Complete the artifact contract and publish it.
+
+        Runs on every path, including the one where there was nothing to render.
+        A generator declaring migration_mode: migrated owes the contract whether
+        or not it had work: the guard checks every migrated generator on each
+        run, reading it through its own declared consumes, so a silent early
+        return reports E9394 rather than "nothing to do".
+        """
+        out_dir = self.resolve_output_path(ctx, "terraform", "openwrt")
 
         obsolete_entries, obsolete_errors = compute_obsolete_entries(
             ctx=ctx,
@@ -189,48 +251,25 @@ class TerraformOpenwrtGenerator(BaseGenerator):
             generation_report=generation_report,
         )
 
-        # A generator declared migration_mode: migrated must publish the whole
-        # artifact contract, not just its files - E9394 refuses it otherwise.
-        ctx.publish("generated_dir", str(out_dir))
-        ctx.publish("generated_files", written)
-        ctx.publish("artifact_plan", artifact_plan)
-        ctx.publish("artifact_generation_report", generation_report)
-        ctx.publish("artifact_contract_files", sorted(contract_paths.values()))
+        payload = {
+            "generated_dir": str(out_dir),
+            "generated_files": written,
+            "terraform_openwrt_files": written,
+            "artifact_plan": artifact_plan,
+            "artifact_generation_report": generation_report,
+            "artifact_contract_files": sorted(contract_paths.values()),
+        }
+        for key, value in payload.items():
+            ctx.publish(key, value)
 
-        diagnostics.append(
-            self.emit_diagnostic(
-                code="I9903",
-                severity="info",
-                stage=stage,
-                message=(
-                    f"Rendered {len(render_context['zones'])} zone(s) and "
-                    f"{len(render_context['forwardings'])} forwarding(s) for '{enforcer_id}'. "
-                    f"Not emitted: {deferred['remote_dest']} permit(s) whose destination zone is remote "
-                    "(covered by the tunnel-zone forwarding) and "
-                    f"{deferred['port_scoped']} port-scoped permit(s) that need firewall_rule sections. "
-                    f"{len(plan.get('denied_pairs') or [])} denial(s) emitted as absent forwardings."
-                ),
-                path=f"generator:terraform_openwrt:{enforcer_id}",
-            )
-        )
-
-        return self.make_result(
-            diagnostics=diagnostics,
-            output_data={
-                "generated_dir": str(out_dir),
-                "generated_files": written,
-                "terraform_openwrt_files": written,
-                "artifact_plan": artifact_plan,
-                "artifact_generation_report": generation_report,
-                "artifact_contract_files": sorted(contract_paths.values()),
-            },
-        )
+        return self.make_result(diagnostics=diagnostics, output_data=payload)
 
     def _build_render_context(
         self,
         enforcer_id: str,
         plan: dict[str, Any],
     ) -> tuple[dict[str, Any], dict[str, int]]:
+        """Decide what reaches Terraform, and count what deliberately does not."""
         zones_in = plan.get("zones") if isinstance(plan.get("zones"), dict) else {}
         forwardings_in = plan.get("forwardings") if isinstance(plan.get("forwardings"), list) else []
 
