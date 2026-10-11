@@ -254,6 +254,9 @@ objects:
   obj.network.trust_zone.servers:
     version: 1.0.0
     class_ref: class.network.trust_zone
+  obj.network.trust_zone.travel_split:
+    version: 1.0.0
+    class_ref: class.network.trust_zone
   obj.network.trust_zone.untrusted:
     version: 1.0.0
     class_ref: class.network.trust_zone

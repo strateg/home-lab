@@ -1,0 +1,38 @@
+@instance: inst.vlan.slate_home
+@extends: obj.network.vlan.user
+@group: network
+@version: 1.0.0
+source_id: net-slate-home
+status: staged
+notes: |
+  rtr-slate full-tunnel client segment. SSID Slate-Home.
+  All traffic leaves through wg-home; the matrix denies this zone any path to
+  the venue uplink (see inst.security_matrix.rtr_slate, slate-home-killswitch).
+
+  vlan_id is nominal on this device: rtr-slate realises each segment as an
+  untagged per-SSID interface, not an 802.1Q tag, because a travel router
+  trunks nothing. ADR 0110 leaves that realisation to the adapter. The id is
+  still globally unique because E7850 enforces uniqueness across all
+  instances regardless of enforcer; the 1xx block keeps rtr-slate's domains
+  clear of Chateau's 1-100.
+
+vlan_id: 101
+cidr: 10.77.1.0/24
+gateway: 10.77.1.1
+dhcp_range: 10.77.1.100-10.77.1.200
+
+# Sized for the single WireGuard layer to the VPS, not for the venue link.
+mtu: 1420
+
+# Resolver is the router itself, so DNS follows the tunnel instead of leaking
+# to the venue's resolver.
+dns_servers:
+  - 10.77.1.1
+
+trust_zone_ref: inst.trust_zone.user
+managed_by_ref: rtr-slate
+
+ip_allocations:
+  - device_ref: rtr-slate
+    host: 1
+    purpose: gateway, DNS, DHCP

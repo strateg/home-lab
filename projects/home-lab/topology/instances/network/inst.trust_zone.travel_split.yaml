@@ -1,0 +1,14 @@
+@instance: inst.trust_zone.travel_split
+@extends: obj.network.trust_zone.travel_split
+@group: network
+@version: 1.0.0
+source_id: zone-travel-split
+status: staged
+notes: |
+  Split-tunnel zone on rtr-slate. Selected by joining the Slate-Split SSID
+  rather than by changing router state, so both modes stay permanently
+  declared and there is nothing for Terraform to see as drift.
+
+  Staged until the OpenWrt adapter can render it.
+
+zone_name: travel-split

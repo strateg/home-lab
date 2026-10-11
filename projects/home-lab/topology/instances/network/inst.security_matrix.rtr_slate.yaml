@@ -1,0 +1,179 @@
+@instance: inst.security_matrix.rtr_slate
+@extends: obj.network.security_matrix.soho
+@group: network
+@version: 1.0.0
+source_id: security-matrix-rtr-slate
+status: staged
+notes: |
+  Perimeter enforcement matrix for rtr-slate, the road-warrior travel router.
+  Second enforcer in this project alongside rtr-mikrotik-chateau (ADR 0110
+  M1-B: one matrix names exactly one enforcer).
+
+  This matrix is what W7016 has been pointing at: rtr-slate resolves as a
+  network enforcer but no adapter renders it yet. Staged until the OpenWrt
+  generator lands in Phase 5; the adapter mapping and the W7016 allowlist
+  entry retire together in Phase 6.
+
+  The venue uplink (hotel/cafe WiFi reached by the STA interface) is modeled
+  as inst.trust_zone.untrusted - it is an internet provider outside the
+  perimeter, exactly as a WAN is on Chateau.
+
+name: slate-perimeter
+
+# ADR-0110 M1-B: one matrix = one enforcer
+managed_by_ref: rtr-slate
+
+zone_refs:
+  - inst.trust_zone.untrusted      # venue uplink (STA), outside the perimeter
+  - inst.trust_zone.guest          # Guest SSID, venue internet only
+  - inst.trust_zone.vpn_tunnel     # country SSIDs (DE/RU/SE)
+  - inst.trust_zone.travel_split   # Slate-Split, deliberate direct egress
+  - inst.trust_zone.user           # Slate-Home, full tunnel
+  - inst.trust_zone.servers        # reached over wg-home, hosted at home
+  - inst.trust_zone.management     # reached over wg-home, hosted at home
+
+# Address space this enforcer reasons about. The slate_* domains are its own
+# segments; lan/servers/management are remote destinations behind wg-home,
+# included for the same reason Chateau's matrix carries inst.vlan.servers -
+# the perimeter sees them as zones, not as internal layout.
+address_space:
+  vlan_refs:
+    - inst.vlan.slate_home
+    - inst.vlan.slate_split
+    - inst.vlan.slate_guest
+    - inst.vlan.slate_de
+    - inst.vlan.slate_ru
+    - inst.vlan.slate_se
+    - inst.vlan.lan
+    - inst.vlan.servers
+    - inst.vlan.management
+
+defaults:
+  dhcp_lease_time: "30m"
+
+# Availability objectives for this scope have not been attested. Recorded
+# explicitly rather than left implicitly safe, as on the other two matrices.
+availability_requirements: []
+availability_waiver:
+  owner: home-lab platform owner
+  rationale: >-
+    This matrix is staged and unrendered; no availability objective has been
+    attested for it. The waiver records that status and asserts nothing about
+    service health.
+
+policy_overrides:
+  # Inherited from obj.network.security_matrix.soho:
+  # - user-to-servers-http (tcp 80, 443)
+
+  # ---------------------------------------------------------------------
+  # KILL SWITCH - the reason this matrix needs explicit overrides at all.
+  #
+  # With the venue uplink modeled as untrusted (level 0), the implemented
+  # legacy rules permit a leak past the tunnel:
+  #
+  #   vpn_tunnel (2, isolated false) -> untrusted (0):  R2 does not apply,
+  #                                                     R3 downhill -> ALLOW
+  #   user       (3, isolated false) -> untrusted (0):  R3 downhill -> ALLOW
+  #
+  # R3 grants on trust level alone, which ADR 0118 D4.1 renders as "Nothing.
+  # Trust level is not authorization" in the strict profile - the strict
+  # profile would be fail-closed here, the running legacy one is fail-open.
+  # On Chateau this never mattered: there untrusted is the WAN and direct
+  # egress is the intent. On a travel router it is the one thing that must be
+  # impossible, so R6 (evaluated first, short-circuits) denies it explicitly.
+  #
+  # The OpenWrt adapter lowers these to the *absence* of a firewall_forwarding
+  # object rather than to a deny rule, which makes the kill switch structural
+  # instead of order-dependent. E9906 is the validator that holds it.
+  # ---------------------------------------------------------------------
+  - name: slate-home-killswitch
+    from_zone_ref: inst.trust_zone.user
+    to_zone_ref: inst.trust_zone.untrusted
+    action: drop
+    log: true
+    comment: Slate-Home is full-tunnel; no direct path to the venue uplink
+
+  - name: slate-vpn-killswitch
+    from_zone_ref: inst.trust_zone.vpn_tunnel
+    to_zone_ref: inst.trust_zone.untrusted
+    action: drop
+    log: true
+    comment: Country SSIDs egress only through their own tunnel
+
+  # ---------------------------------------------------------------------
+  # Split mode: the one zone that may use the venue uplink directly.
+  # Stated explicitly rather than inherited from R3, so the grant survives a
+  # change of trust levels and is visible to review (ADR 0118 D4 requires
+  # intentional broad selectors to be explicit).
+  # ---------------------------------------------------------------------
+  - name: slate-split-egress
+    from_zone_ref: inst.trust_zone.travel_split
+    to_zone_ref: inst.trust_zone.untrusted
+    action: accept
+    log: false
+    comment: Slate-Split egresses directly by design; opt-in by joining that SSID
+
+  - name: slate-split-to-servers-http
+    from_zone_ref: inst.trust_zone.travel_split
+    to_zone_ref: inst.trust_zone.servers
+    action: accept
+    ports:
+      tcp: [80, 443]
+    log: false
+    comment: Split mode keeps home service access over wg-home
+
+  # ---------------------------------------------------------------------
+  # Mode isolation. The two client modes sit at the same security level, so
+  # R5 already denies traffic between them and the compiler says so (W7855).
+  # Stated as explicit R6 denies instead of left to R5: the isolation is the
+  # point of having two zones, and this way it survives a change of trust
+  # levels and reads as intent rather than as a side effect. On OpenWrt both
+  # lower to the absence of a forwarding object, so they cost nothing.
+  # ---------------------------------------------------------------------
+  - name: slate-split-not-to-home
+    from_zone_ref: inst.trust_zone.travel_split
+    to_zone_ref: inst.trust_zone.user
+    action: drop
+    log: false
+    comment: A split-mode client must not reach a full-tunnel client
+
+  - name: slate-home-not-to-split
+    from_zone_ref: inst.trust_zone.user
+    to_zone_ref: inst.trust_zone.travel_split
+    action: drop
+    log: false
+    comment: Converse of slate-split-not-to-home; isolation is bidirectional
+
+  # ---------------------------------------------------------------------
+  # Home access, matching Chateau's grants for the user zone.
+  # ---------------------------------------------------------------------
+  - name: slate-home-to-servers-db
+    from_zone_ref: inst.trust_zone.user
+    to_zone_ref: inst.trust_zone.servers
+    action: accept
+    ports:
+      tcp: [5432, 6379]
+    log: false
+    comment: PostgreSQL and Redis from Slate-Home, as on Chateau
+
+  # ---------------------------------------------------------------------
+  # Management plane is deliberately NOT granted here, unlike on Chateau.
+  #
+  # R4 (uphill, 3 < 5) already denies user -> management, so this is the
+  # default rather than an added rule. Chateau grants it via
+  # lan-to-management-admin because the request originates on the home LAN;
+  # on a device that lives in hotels and can be lost or seized, the same
+  # grant means a stolen router reaches the management plane over a live
+  # tunnel. ADR 0119 D6 makes the related point that management-zone access
+  # over the affected router is not evidence of out-of-band recovery.
+  #
+  # To grant it anyway, uncomment - one override, no other change:
+  #
+  # - name: slate-home-to-management-admin
+  #   from_zone_ref: inst.trust_zone.user
+  #   to_zone_ref: inst.trust_zone.management
+  #   action: accept
+  #   src_vlan_ref: inst.vlan.slate_home
+  #   log: true
+  #   comment: Infrastructure admin access from the travel router
+  # ---------------------------------------------------------------------

@@ -1,0 +1,37 @@
+@instance: inst.vlan.slate_se
+@extends: obj.network.vlan.vpn_tunnel
+@group: network
+@version: 1.0.0
+source_id: net-slate-se
+status: staged
+notes: |
+  rtr-slate Swedish-exit client segment. SSID VPN-Sweden, declared disabled
+  by default.
+
+  Chained the same way as inst.vlan.slate_ru, through Chateau's AmneziaWG
+  Sweden container.
+
+vlan_id: 158
+cidr: 10.77.58.0/24
+gateway: 10.77.58.1
+dhcp_range: 10.77.58.100-10.77.58.200
+
+# Estimate pending measurement, as for slate_ru.
+mtu: 1340
+
+vpn_routing:
+  enabled: true
+  tunnel_interface: wg-se
+  exit_type: wireguard_chained
+  exit_country: SE
+  chained_via_ref: rtr-mikrotik-chateau
+  upstream_tunnel_ref: docker-amneziawg-sweden
+  selector: source_subnet
+
+trust_zone_ref: inst.trust_zone.vpn_tunnel
+managed_by_ref: rtr-slate
+
+ip_allocations:
+  - device_ref: rtr-slate
+    host: 1
+    purpose: gateway, DNS, DHCP

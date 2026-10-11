@@ -1,0 +1,37 @@
+@instance: inst.vlan.slate_de
+@extends: obj.network.vlan.vpn_tunnel
+@group: network
+@version: 1.0.0
+source_id: net-slate-de
+status: staged
+notes: |
+  rtr-slate German-exit client segment. SSID VPN-Germany, declared disabled
+  by default.
+
+  Shortest of the three country paths: the tunnel terminates at the OCI VPS
+  in Frankfurt, so there is one encapsulation layer and no hop through home.
+
+vlan_id: 155
+cidr: 10.77.55.0/24
+gateway: 10.77.55.1
+dhcp_range: 10.77.55.100-10.77.55.200
+mtu: 1420
+
+vpn_routing:
+  enabled: true
+  tunnel_interface: wg-de
+  exit_type: wireguard_direct
+  exit_country: DE
+  exit_location: Frankfurt (OCI VPS)
+  # Selection is by source subnet via an ip rule, not by packet marking:
+  # each segment has its own WireGuard interface, so OpenWrt needs no mangle
+  # equivalent of Chateau's routing marks.
+  selector: source_subnet
+
+trust_zone_ref: inst.trust_zone.vpn_tunnel
+managed_by_ref: rtr-slate
+
+ip_allocations:
+  - device_ref: rtr-slate
+    host: 1
+    purpose: gateway, DNS, DHCP
