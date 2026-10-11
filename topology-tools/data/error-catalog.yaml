@@ -1533,25 +1533,28 @@ codes:
       Zones match iifname over the resolved devices of their network list, and uapi_firewall_zone has no
       device/subnet field - only network. An interface in no zone is silently unreachable rather than open.
 
-  # Raiser: base.validator.openwrt_kill_switch
+  # Raiser: object.openwrt.validator_json.zone_plan
   E9906:
     severity: error
     stage: validate
-    title: Tunnel-Only Zone Has A Forwarding To An Uplink Zone
+    title: Matrix-Denied Zone Pair Emitted As A Forwarding
     hint: >-
-      A zone declared tunnel-only resolved a forwarding to an untrusted uplink zone. Under the legacy ADR 0110
-      profile R3 grants downhill traffic, so vpn_tunnel -> untrusted is permitted unless an explicit R6 drop
-      exists; on OpenWrt the kill switch is the absence of the forwarding object, not a deny rule.
+      A zone pair the matrix denied also appears among the forwardings to emit. On firewall4 a denial is the
+      absence of a forwarding object - zone chains are terminal and uapi exposes no ordering control - so an
+      emitted forwarding for a denied pair is an open path with no rule able to override it. This is how a
+      kill switch fails silently: under the legacy ADR 0110 profile R3 grants downhill traffic, so
+      vpn_tunnel/user -> untrusted is permitted unless an explicit R6 drop survives lowering intact.
 
-  # Raiser: base.validator.openwrt_zone_input
+  # Raiser: object.openwrt.validator_json.zone_plan
   E9907:
     severity: error
     stage: validate
-    title: Zone Input Policy Not Declared
+    title: Zone Input Policy Implicit Or ACCEPT
     hint: >-
-      A generated zone leaves its input policy implicit. Stock OpenWrt ships zone lan with input ACCEPT, which
-      exposes every router service to that zone. ADR 0110's matrix models inter-zone forward only, so input
-      must be declared per zone rather than inherited.
+      A zone reaches the renderer with no input policy, or with ACCEPT. Stock OpenWrt ships zone lan with
+      input ACCEPT, which publishes every router service - SSH and the uapi endpoint included - to that
+      zone's clients. ADR 0110's matrix models inter-zone forward only, so input must be declared per zone
+      with a narrow service list rather than inherited.
 
   # Raiser: base.validator.openwrt_wireless
   E9908:

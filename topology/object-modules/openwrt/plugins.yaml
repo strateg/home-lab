@@ -47,3 +47,36 @@ plugins:
       forwardings to emit, and the denied pairs recorded as absent forwardings.
       Denials are not rules on this backend - zone chains are terminal and the
       base chains carry policy drop - so no terminal drop-all is produced.
+
+  - id: object.openwrt.validator_json.zone_plan
+    kind: validator_json
+    entry: plugins/validators/zone_plan_validator.py:OpenwrtZonePlanValidator
+    api_version: "1.x"
+    stages: [validate]
+    phase: run
+    order: 150
+    migration_mode: migrated
+    depends_on:
+      - object.openwrt.compiler.zones
+    timeout: 30
+    execution_mode: subinterpreter
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    consumes:
+      # Optional on purpose: a project with no OpenWrt enforcer never produces
+      # this channel, and its absence is not a defect. Present-but-wrong is
+      # what this validator exists to catch.
+      - from_plugin: object.openwrt.compiler.zones
+        key: openwrt_zones
+        required: false
+    description: >-
+      Refuses a lowered zone plan that contradicts its matrix. E9906: a pair the
+      matrix denied must not appear among the forwardings to emit, since on
+      firewall4 a denial is an omission and an emitted forwarding for a denied
+      pair is an open path with no rule able to override it. E9907: a zone's
+      input policy must be explicit and must not be ACCEPT, which stock OpenWrt
+      ships for the LAN zone and which publishes SSH and the uapi endpoint to
+      that zone's clients.
