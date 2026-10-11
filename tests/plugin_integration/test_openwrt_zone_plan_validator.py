@@ -218,7 +218,7 @@ def test_compiler_output_passes_its_own_validator():
         ctx,
         "base.compiler.effective_model",
         "enforcer_resolution",
-        {"rtr-slate": {"type": "network", "adapter": None}},
+        {"rtr-slate": {"type": "network", "adapter": "cap.firewall.security_matrix.openwrt"}},
     )
     publish_for_test(ctx, "base.compiler.security_matrix", "composed_matrices_by_enforcer", matrix)
 

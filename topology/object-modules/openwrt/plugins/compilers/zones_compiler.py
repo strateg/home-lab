@@ -38,6 +38,7 @@ from kernel.plugin_base import CompilerPlugin, PluginContext, PluginDiagnostic, 
 # Selection is by declared capability, never by object_ref name convention
 # (ENFORCER-AXIS-CONFORMANCE.md V-14).
 _OPENWRT_OS_CAP = "cap.os.openwrt"
+_OPENWRT_ADAPTER = "cap.firewall.security_matrix.openwrt"
 
 # Matrix cell actions. The compiler treats anything not explicitly permissive as
 # denied: an unknown action must not become a grant.
@@ -68,26 +69,28 @@ def _is_openwrt_network_enforcer(
     row: dict[str, Any],
     enforcer_resolution: dict[str, Any],
 ) -> bool:
-    """Is this instance an OpenWrt device resolved as a network enforcer?
+    """Is this instance an enforcer the OpenWrt adapter owns?
 
-    Deliberately *not* gated on the adapter capability the way the MikroTik
-    compilers gate on `cap.firewall.security_matrix.routeros`. The
-    `cap.os.openwrt -> cap.firewall.security_matrix.openwrt` mapping is not
-    registered in `_ENFORCER_ADAPTER_BY_TYPE` yet, by design: an adapter
-    identifier that resolves with no generator behind it would be a false claim
-    of coverage under ADR 0119 D1.1, which is why `W7016` is allowlisted instead.
+    Selection is by the adapter the capability engine resolved, the same way the
+    MikroTik compilers gate on `cap.firewall.security_matrix.routeros` - never by
+    an object_ref name convention (ENFORCER-AXIS-CONFORMANCE.md V-14).
 
-    Until that mapping lands, the honest selector is the pair the mapping will
-    connect: the OS family that identifies the platform, and the enforcer type
-    the capability engine already resolved. Both are declared capabilities, so
-    this stays capability-driven rather than name-driven.
+    This used to select on OS family plus enforcer type instead, because the
+    `cap.os.openwrt -> cap.firewall.security_matrix.openwrt` mapping was
+    deliberately unregistered while nothing could render the result: an adapter
+    that resolves with no renderer behind it is a false claim of coverage under
+    ADR 0119 D1.1. The generator exists now and the mapping is registered, so
+    the precise selector is available and the transitional one is gone.
     """
     if not isinstance(instance_id, str) or not instance_id:
         return False
-    if _OPENWRT_OS_CAP not in _extract_capabilities(row):
-        return False
     resolution = enforcer_resolution.get(instance_id) if isinstance(enforcer_resolution, dict) else None
-    return isinstance(resolution, dict) and resolution.get("type") == "network"
+    if not isinstance(resolution, dict) or resolution.get("adapter") != _OPENWRT_ADAPTER:
+        return False
+    # Belt and braces: the adapter is only reachable through cap.os.openwrt in
+    # the D-TYPE-2 table, so a row resolving it without that capability would
+    # mean the table and the model disagree.
+    return _OPENWRT_OS_CAP in _extract_capabilities(row)
 
 
 def _local_segments(network_rows: list[Any], enforcer_id: str) -> dict[str, list[dict[str, Any]]]:

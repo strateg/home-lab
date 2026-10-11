@@ -288,12 +288,25 @@ class EffectiveModelCompiler(CompilerPlugin):
     }
 
     # ADR 0118/0119 D-TYPE-2: type -> the cap.os.* family compatible with it,
-    # and the adapter identifier that OS family resolves to. One family per
-    # type today; a second entry per type would make W7017 (ambiguous)
-    # reachable, which is registered for that reason even though it cannot
-    # fire under this table.
+    # and the adapter identifier that OS family resolves to.
+    #
+    # Since 2026-10-11 the network type has two families, so W7017 (ambiguous:
+    # more than one compatible adapter) is reachable in principle - it needs a
+    # row declaring both cap.os.routeros and cap.os.openwrt. No real device is
+    # both, so it still cannot fire from any honest capability declaration, but
+    # it is no longer structurally impossible the way it was with one entry.
     _ENFORCER_ADAPTER_BY_TYPE: dict[str, dict[str, str]] = {
-        "network": {"cap.os.routeros": "cap.firewall.security_matrix.routeros"},
+        "network": {
+            "cap.os.routeros": "cap.firewall.security_matrix.routeros",
+            # Registered 2026-10-11, once the renderer behind it existed. The
+            # OpenWrt adapter was deliberately absent from this table while
+            # only the capability entry had been created: an adapter that
+            # resolves with nothing able to render it is a false claim of
+            # coverage (ADR 0119 D1.1), so W7016 - "no compatible adapter" -
+            # was the honest answer and was allowlisted as such. The mapping
+            # and that allowlist entry retire together.
+            "cap.os.openwrt": "cap.firewall.security_matrix.openwrt",
+        },
         "compute": {"cap.os.proxmox": "cap.firewall.security_matrix.pve"},
     }
 
@@ -301,6 +314,7 @@ class EffectiveModelCompiler(CompilerPlugin):
         {
             "cap.firewall.security_matrix.routeros",
             "cap.firewall.security_matrix.pve",
+            "cap.firewall.security_matrix.openwrt",
         }
     )
 

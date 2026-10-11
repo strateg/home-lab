@@ -696,8 +696,8 @@ def test_effective_model_resolves_two_instances_of_one_type_independently():
                 "version": "1.0.0",
                 "class_ref": "class.os",
             },
-            "obj.os.openwrt.test": {
-                "object": "obj.os.openwrt.test",
+            "obj.os.debian.test": {
+                "object": "obj.os.debian.test",
                 "version": "1.0.0",
                 "class_ref": "class.os",
             },
@@ -761,7 +761,7 @@ def test_effective_model_resolves_two_instances_of_one_type_independently():
                 "layer": "L1",
                 "source_id": "inst.os.openwrt.test",
                 "class_ref": "class.os",
-                "object_ref": "obj.os.openwrt.test",
+                "object_ref": "obj.os.debian.test",
                 "status": "modeled",
                 "notes": "",
                 "runtime": None,
@@ -778,7 +778,10 @@ def test_effective_model_resolves_two_instances_of_one_type_independently():
         "effective_os_map",
         {
             "obj.os.routeros.test": {"family": "routeros", "architecture": "arm64"},
-            "obj.os.openwrt.test": {"family": "openwrt", "architecture": "arm64"},
+            # Debian, not OpenWrt: this row exists to exercise the
+            # zero-adapter path, and cap.os.openwrt stopped being an example of
+            # one when the OpenWrt adapter was registered on 2026-10-11.
+            "obj.os.debian.test": {"family": "debian", "architecture": "arm64"},
         },
     )
 
@@ -901,7 +904,9 @@ def test_effective_model_warns_when_resolved_type_has_no_compatible_adapter():
         ctx,
         "base.compiler.capabilities",
         "derived_capabilities",
-        {"obj.router.test": ["cap.os.openwrt"]},
+        # A family with no entry in the D-TYPE-2 table. Was cap.os.openwrt
+        # until that adapter was registered.
+        {"obj.router.test": ["cap.os.debian"]},
     )
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
@@ -919,9 +924,10 @@ def test_effective_model_warns_when_resolved_type_has_ambiguous_adapters(monkeyp
     approximate rendering". The zero-adapter half is already covered above
     (W7016); this covers the multiple-adapter half (W7017).
 
-    `_ENFORCER_ADAPTER_BY_TYPE["network"]` has exactly one OS-family entry
-    today (`cap.os.routeros`), so `len(compatible_os) > 1` cannot be reached
-    through any real capability declaration - the module's own comment
+    `_ENFORCER_ADAPTER_BY_TYPE["network"]` has two OS-family entries today
+    (`cap.os.routeros` and `cap.os.openwrt`), so `len(compatible_os) > 1` is
+    reachable in principle but not through any real capability declaration -
+    no device is both a RouterOS and an OpenWrt box - the module's own comment
     calls W7017 "unreachable under the current OS table; registered so it
     is never silently permitted if that changes." A structurally
     unreachable branch is still a real branch: this unit-tests

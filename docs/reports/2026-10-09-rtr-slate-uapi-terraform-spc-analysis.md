@@ -852,6 +852,79 @@ validate-v5 lane                                -> PASS on every step
 
 ---
 
+## CLASS A / PHASES 3-6 EXECUTION RECORD — 2026-10-11 (COMPLETE)
+
+The pipeline now runs end to end: topology compiles, the matrix lowers, four
+validators gate it, and Terraform is rendered. **Compile is at 0 errors and
+0 warnings** — the first time in this work, and `W7016` is gone legitimately
+rather than allowlisted.
+
+### A3-6.1 What exists
+
+| Plugin | Stage | Role |
+|---|---|---|
+| `object.openwrt.compiler.zones` | compile | Lowers each enforcer's composed matrix into zone intent: per-zone input/forward policy, derived input services, forwardings to emit, denied pairs as recorded omissions |
+| `object.openwrt.validator_json.zone_plan` | validate | `E9906` a denied pair must not reappear as a forwarding; `E9907` zone input must be explicit and never ACCEPT |
+| `object.openwrt.validator_json.wireless` | validate | `E9908` 5 GHz AP without country; `E9909` numeric channel on a station radio; `E9910` two stations per radio; `W9901` AP sharing a radio with a station |
+| `object.openwrt.validator_json.interfaces` | validate | `E9905` interface in no rendered zone; `E9904` management path unprotected |
+| `object.openwrt.generator.terraform` | generate | provider wiring + the firewall zone graph |
+
+Output on the real topology: 7 zones, 14 forwardings, 32 denials as omissions,
+3 permits deferred with their reason reported.
+
+### A3-6.2 Five traps found by building it
+
+1. **Object-module plugins are not auto-discovered.** `topology/module-index.yaml`
+   is an explicit allowlist; a manifest on disk without an entry fails discovery
+   with `E4001` plus three cascading `E8003`s.
+2. **The effective-model row shape.** Authored values live in `instance_data`;
+   the sibling `instance` block carries lineage metadata with the same field
+   names absent. Reading the wrong one produced a plan with zero segments and
+   zero forwardings **at 0 compile errors** — a green build with empty output.
+   The `I9902` diagnostic is what surfaced it.
+3. **Tunnel interfaces shared a zone with the client segments they serve.**
+   Client-to-tunnel traffic would then be intra-zone, which `forward: REJECT`
+   denies, so the country SSIDs would have had no internet with the firewall
+   working exactly as configured. Fixed by moving them to `vpn_exit`, which
+   forced three further R6 overrides that were genuinely missing.
+4. **`E9394` and the artifact-contract guard.** A migrated generator must
+   publish the whole contract *and* be listed in
+   `base.assembler.artifact_contract_guard`'s consumes — the guard reads each
+   generator through its own declared channels, so publishing alone is not
+   enough.
+5. **`uapi_firewall_zone.network` names uci sections, not topology instances.**
+   The first render emitted `inst.vlan.slate_guest`, which would have
+   referenced a section that does not exist.
+
+### A3-6.3 Phase 6: the adapter, retired as designed
+
+`cap.os.openwrt → cap.firewall.security_matrix.openwrt` is now in
+`_ENFORCER_ADAPTER_BY_TYPE`, and the `W7016` allowlist entry is removed. This is
+exactly the sequencing the 2026-10-09 decision committed to: the adapter was
+withheld while nothing could render its result, because an adapter resolving
+with no renderer behind it is a false claim of coverage (ADR 0119 D1.1). The
+zones compiler's transitional selector — OS family plus enforcer type — was
+replaced by the precise one, selection by resolved adapter, as the MikroTik
+compilers do.
+
+Two consequences handled rather than ignored: two tests in
+`test_effective_model_compiler.py` had used `cap.os.openwrt` precisely *because*
+it was the OS family with no adapter, so they were repointed at `cap.os.debian`
+to keep testing the zero-adapter path they describe; and the comment asserting
+one family per enforcer type is now false, so it was corrected — `W7017`
+(ambiguous adapters) became reachable in principle, though no real device
+declares both families.
+
+### A3-6.4 Still open
+
+`E9902`, `E9903` and `W9903` have no data to check: they cover generated
+`firewall_rule` sections and import blocks, neither of which exists yet. The
+remaining generator work is interfaces, wireless and DHCP templates, the
+port-scoped permits that need rule sections, and the adoption ledger. Phases 8-9
+(adoption, guarded apply) remain gated on that.
+
+---
+
 ## Findings requiring separate attention
 
 1. **ADR 0110 models only inter-zone forward policy.** On any default-deny-per-zone backend (OpenWrt/firewall4), omitting `zone.input` leaves the router's own services reachable from every zone it trusts. This is a gap in the *architecture*, not in the OpenWrt adapter, and should be raised against ADR 0110 independently of this work.

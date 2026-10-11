@@ -153,22 +153,25 @@ def _run(model: dict, matrix: dict, resolution: dict):
 
 
 def _resolution(enforcer: str = "rtr-slate", **kwargs) -> dict:
-    entry = {"type": "network", "adapter": None}
+    entry = {"type": "network", "adapter": "cap.firewall.security_matrix.openwrt"}
     entry.update(kwargs)
     return {enforcer: entry}
 
 
-def test_openwrt_enforcer_is_selected_without_an_adapter_capability():
-    """The Phase-6 ordering depends on this.
-
-    The cap.os.openwrt -> adapter mapping is deliberately unregistered until a
-    generator exists (ADR 0119 D1.1: an adapter with nothing behind it is a
-    false claim of coverage). So selection must work from OS family plus the
-    resolved enforcer type, with `adapter: None`.
-    """
+def test_enforcer_is_selected_by_its_resolved_adapter():
+    """Selection is by the adapter the capability engine resolved, as the
+    MikroTik compilers do - never by an object_ref name convention (V-14)."""
     plan = _run(_fixture_model(), _fixture_matrix(), _resolution())
 
     assert "rtr-slate" in plan
+
+
+def test_an_unresolved_adapter_is_not_claimed():
+    """Before the D-TYPE-2 mapping existed this resolved to None, and claiming
+    it anyway would have meant rendering for a device nothing could render."""
+    plan = _run(_fixture_model(), _fixture_matrix(), _resolution(adapter=None))
+
+    assert plan == {}
 
 
 def test_non_openwrt_enforcer_is_ignored_even_with_an_adapter():
@@ -181,8 +184,12 @@ def test_non_openwrt_enforcer_is_ignored_even_with_an_adapter():
     assert plan == {}
 
 
-def test_compute_enforcer_type_is_not_claimed():
-    plan = _run(_fixture_model(), _fixture_matrix(), _resolution(type="compute"))
+def test_another_backends_adapter_is_not_claimed():
+    plan = _run(
+        _fixture_model(),
+        _fixture_matrix(),
+        _resolution(adapter="cap.firewall.security_matrix.pve"),
+    )
 
     assert plan == {}
 
