@@ -1,0 +1,49 @@
+schema_version: 1
+plugins:
+  - id: object.openwrt.compiler.zones
+    kind: compiler
+    entry: plugins/compilers/zones_compiler.py:OpenwrtZonesCompiler
+    api_version: 1.x
+    stages:
+      - compile
+    phase: finalize
+    order: 80
+    migration_mode: migrated
+    depends_on:
+      - base.compiler.effective_model
+      - base.compiler.security_matrix
+    timeout: 30
+    execution_mode: subinterpreter
+    consumes:
+      # The composed R1-R6 plan per enforcer, already validated and composed
+      # across every scope that names it. Required: this compiler derives no
+      # substitute, and an absent channel must block rather than render an
+      # empty zone set that reports success.
+      - key: composed_matrices_by_enforcer
+        from_plugin: base.compiler.security_matrix
+        required: true
+      # Device and network instance rows: segment ownership (managed_by_ref)
+      # and the capabilities that identify an OpenWrt network enforcer.
+      - key: effective_model_candidate
+        from_plugin: base.compiler.effective_model
+        required: true
+      # Enforcer type resolved by the capability engine (ADR 0118/0119
+      # D-TYPE-1). Used instead of the adapter capability, which is not
+      # registered until the generator exists - see the plugin docstring.
+      - key: enforcer_resolution
+        from_plugin: base.compiler.effective_model
+        required: true
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    produces:
+      - key: openwrt_zones
+        scope: pipeline_shared
+    description: >-
+      Lowers composed security matrices into OpenWrt firewall4 zone intent:
+      per-zone input/forward policy with explicit input services, the
+      forwardings to emit, and the denied pairs recorded as absent forwardings.
+      Denials are not rules on this backend - zone chains are terminal and the
+      base chains carry policy drop - so no terminal drop-all is produced.

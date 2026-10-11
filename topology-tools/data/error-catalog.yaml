@@ -1599,6 +1599,24 @@ codes:
       A client-facing interface advertises an MTU larger than its egress tunnel chain allows. Zone mtu_fix
       clamps TCP MSS only, so UDP and QUIC blackhole instead of degrading. Measure the real overhead.
 
+  # Raiser: object.openwrt.compiler.zones
+  I9901:
+    severity: info
+    stage: compile
+    title: OpenWrt Zones Lowered
+    hint: >-
+      Reports how many zones an OpenWrt enforcer's composed matrix produced, how many forwardings will be
+      emitted, and how many denied pairs were left as absent forwardings rather than deny rules.
+
+  # Raiser: object.openwrt.compiler.zones
+  I9902:
+    severity: info
+    stage: compile
+    title: Zone Has No Local Segment On This Enforcer
+    hint: >-
+      A zone in the enforcer's matrix owns no address domain on that device. Expected for zones reached
+      through a tunnel; an uplink zone appearing here means its interface intent is not authored yet.
+
   # Raiser: object.openwrt.generator.terraform
   W9903:
     severity: warning
