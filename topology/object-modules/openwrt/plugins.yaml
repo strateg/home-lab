@@ -80,3 +80,34 @@ plugins:
       input policy must be explicit and must not be ACCEPT, which stock OpenWrt
       ships for the LAN zone and which publishes SSH and the uapi endpoint to
       that zone's clients.
+
+  - id: object.openwrt.validator_json.wireless
+    kind: validator_json
+    entry: plugins/validators/wireless_validator.py:OpenwrtWirelessValidator
+    api_version: "1.x"
+    stages: [validate]
+    phase: run
+    order: 151
+    migration_mode: migrated
+    depends_on:
+      - base.validator.references
+    timeout: 30
+    execution_mode: subinterpreter
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    consumes:
+      - from_plugin: base.compiler.effective_model
+        key: effective_model_candidate
+        required: false
+    description: >-
+      Refuses wireless intent that netifd or the regulatory database would
+      silently defeat. E9908: a 5 GHz AP with no country never beacons, because
+      regdomain 00 is NO-IR across all 5 GHz. E9909: a numeric channel on a
+      station-bearing radio emits fixed_freq=1 and pins the station to one
+      frequency. E9910: two station interfaces on one radio violate the phy's
+      '#{ managed } <= 1' and are the real cause of the upstream "Device is not
+      active" reports. W9901: an AP sharing a radio with a station will not
+      beacon until the station associates and is stopped on every scan or roam.
