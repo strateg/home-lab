@@ -110,3 +110,290 @@ observed_runtime:
     - dhcp.lan ignore=1, dhcpv6=disabled, ra=disabled - rtr-slate was acting as
       a second DHCP/RA server on Chateau's LAN through the bridged lan2 cable
     - sysntpd restarted to sync the clock, which was stuck at the build date
+
+# ============================================================================
+# RUNTIME INTENT
+# Desired state. Deliberately a separate block from observed_runtime above.
+#
+# On rtr-mikrotik-chateau the authored intent lives *inside* observed_runtime -
+# the MikroTik compilers read instance_data.observed_runtime.wifi and so on -
+# so nothing in that model distinguishes "what we want" from "what we saw".
+# That naming debt is not propagated here: observed_runtime holds facts read
+# off the device, runtime_intent holds what should be true, and a drift report
+# is the difference between them. Recorded as a finding in the SPC report.
+# ============================================================================
+
+runtime_intent:
+
+  # --------------------------------------------------------------------------
+  # UPLINK - the venue's network, outside the perimeter
+  # --------------------------------------------------------------------------
+  uplink:
+    # Primary: associate to the venue AP as a station. radio1 (2.4 GHz) carries
+    # it so that radio0 stays STA-free - see the wireless block for why that
+    # choice is load-bearing rather than cosmetic.
+    primary:
+      interface: wwan
+      proto: dhcp
+      wireless_iface: uplink
+      trust_zone_ref: inst.trust_zone.untrusted
+    # Wired venue uplink when a room offers Ethernet. Same zone: a cable in a
+    # hotel is no more trusted than its WiFi.
+    wired:
+      interface: wan
+      device: wan
+      proto: dhcp
+      trust_zone_ref: inst.trust_zone.untrusted
+      enabled: true
+    # Captive portals answer with RFC1918 addresses, which dnsmasq's rebind
+    # protection discards by default - the portal then never resolves.
+    captive_portal:
+      rebind_protection: false
+      notes: |
+        Portal authentication happens from a client device through NAT, so no
+        router-side input rule is needed: the router's own output policy is
+        ACCEPT and the venue zone's forward path for that client is the normal
+        one. No client zone gets a hole punched into it for the portal.
+    # The uapi endpoint arrives over the LAN side, not here, but the principle
+    # holds for whichever interface carries management: a write that strands
+    # the caller never returns a response, so Terraform records nothing.
+    # E9904 refuses generation that would mutate it.
+    management_path_immutable: true
+
+  # --------------------------------------------------------------------------
+  # WIRELESS
+  #
+  # Role split is driven by netifd/hostapd behaviour read from source, not by
+  # the 2.4 GHz radio's reputation:
+  #
+  # Any sta interface on a phy sets ap_start_disabled, so hostapd receives
+  # start_disabled=1 and the APs on that phy do not beacon until the STA
+  # associates. wpa_supplicant then drives hostapd over ubus apsta_state and
+  # calls iface.stop() on DISCONNECTED/SCANNING - taking those APs down and
+  # deauthing their clients on every uplink scan or roam. Keeping radio0
+  # STA-free is therefore worth more than avoiding radio1.
+  #
+  # The 2.4 GHz defects reported upstream for this board do not block the STA
+  # role: the "-95 / Not supported" lines are cosmetic noise from an
+  # unredirected iw call (ath11k has no set_coverage_class op), and the
+  # beacon-loss assert was fixed in 25.12.5 by commit a62b5fe71c.
+  # --------------------------------------------------------------------------
+  wireless:
+    radios:
+      radio0:
+        band: 5g
+        # Fixed non-DFS channel: starts immediately with no CAC wait, and this
+        # radio never carries an STA so it has no upstream channel to follow.
+        channel: 36
+        htmode: HE80
+        role: ap_only
+        # Mandatory, not stylistic: regdomain 00 marks every 5 GHz range NO-IR
+        # in wireless-regdb, so a 5 GHz AP never beacons without it (E9908).
+        # Set to the home regdomain; travelling legally implies matching the
+        # venue's, and the permitted channel set differs between them.
+        country: EE
+      radio1:
+        band: 2g
+        # Mandatory for an STA-bearing radio: a numeric channel makes netifd
+        # emit fixed_freq=1 with that one frequency to wpa_supplicant, and the
+        # station can then never associate off-channel (E9909).
+        channel: auto
+        # Drops 11ax on the weaker radio. Community-reported mitigation, not
+        # verified in source - recorded as such rather than as a known fix.
+        htmode: HT20
+        role: sta_uplink
+        country: EE
+
+    interfaces:
+      # ---- client APs, all on radio0 ----
+      - name: ap_home
+        device: radio0
+        mode: ap
+        ssid: Slate-Home
+        encryption: sae-mixed
+        network_ref: inst.vlan.slate_home
+        enabled: true
+        notes: Full-tunnel mode. Egress only via wg-home.
+
+      - name: ap_split
+        device: radio0
+        mode: ap
+        ssid: Slate-Split
+        encryption: sae-mixed
+        network_ref: inst.vlan.slate_split
+        enabled: true
+        notes: Split mode. Home over the tunnel, internet direct via the venue.
+
+      # The remaining SSIDs are declared and parked. A wifi-iface with
+      # disabled '1' is dropped at parse time, so a parked section costs
+      # nothing - and the ath11k leak rate tracks cumulative RX churn, which
+      # makes fewer live SSIDs a real mitigation rather than tidiness.
+      - name: ap_de
+        device: radio0
+        mode: ap
+        ssid: VPN-Germany
+        encryption: sae-mixed
+        network_ref: inst.vlan.slate_de
+        enabled: false
+
+      - name: ap_ru
+        device: radio0
+        mode: ap
+        ssid: VPN-Russia
+        encryption: sae-mixed
+        network_ref: inst.vlan.slate_ru
+        enabled: false
+
+      - name: ap_se
+        device: radio0
+        mode: ap
+        ssid: VPN-Sweden
+        encryption: sae-mixed
+        network_ref: inst.vlan.slate_se
+        enabled: false
+
+      - name: ap_guest
+        device: radio0
+        mode: ap
+        ssid: Slate-Guest
+        encryption: sae-mixed
+        network_ref: inst.vlan.slate_guest
+        enabled: false
+
+      # ---- uplink station ----
+      - name: uplink
+        device: radio1
+        mode: sta
+        network: wwan
+        # SSID and credentials are per venue and deliberately absent from
+        # topology: they are neither durable infrastructure nor secrets worth
+        # a SOPS round trip for a coffee shop.
+        ssid: null
+        encryption: null
+        enabled: true
+
+      # Parked station for venues that offer 5 GHz only. Enabling it converts
+      # radio0 to apsta and brings the start_disabled/stop-on-scan coupling
+      # described above onto every client SSID - a venue-specific fallback,
+      # never the standing config (W9901).
+      - name: uplink5
+        device: radio0
+        mode: sta
+        network: wwan
+        ssid: null
+        encryption: null
+        enabled: false
+
+    # Only one station interface may exist per phy ('#{ managed } <= 1'); two
+    # is the misconfiguration behind the upstream "Device is not active"
+    # reports. E9910 enforces it, which is why uplink5 stays parked rather
+    # than being a second live station.
+    station_limit_per_radio: 1
+
+  # --------------------------------------------------------------------------
+  # WIREGUARD - one interface per destination
+  #
+  # Chosen over a single interface with several addresses and SNAT per segment:
+  # this is a router, so client subnets are routed and the client source IP
+  # survives to the far end, which keeps per-client policy possible at home and
+  # keeps the address domains meaningful.
+  #
+  # Consequence worth stating, because it changes the neighbours' config: the
+  # source address arriving at the VPS is the *client subnet* (10.77.57.x), not
+  # this device's tunnel IP. So the VPS policy rules and both peers' AllowedIPs
+  # key on the advertised subnet, and Chateau's existing rw_* policies
+  # generalise from a /32 match to a subnet match.
+  #
+  # AmneziaWG deliberately stays at home for the chained exits: it is absent
+  # from the configured feeds for this target, a third-party kmod would be
+  # pinned to kernel 6.12.94, and a device that travels should not carry the
+  # country credentials at all.
+  # --------------------------------------------------------------------------
+  wireguard:
+    configured: true
+    interfaces:
+      - name: wg-home
+        tunnel_ref: inst.tunnel.wg-home-to-oci
+        tunnel_ip: 10.100.0.4/24
+        persistent_keepalive: 25
+        mtu: 1420
+        advertises:
+          - 10.77.1.0/24
+          - 10.77.2.0/24
+        trust_zone_ref: inst.trust_zone.vpn_tunnel
+        enabled: true
+        notes: |
+          Trusted path home. Peer and keys already exist in
+          inst.tunnel.wg-home-to-oci; only the advertised subnets and the
+          servers/management routes are new.
+
+      - name: wg-de
+        tunnel_ref: inst.tunnel.wg-exit
+        tunnel_ip: 10.100.1.10/32
+        persistent_keepalive: 25
+        mtu: 1420
+        advertises:
+          - 10.77.55.0/24
+        exit_mode: direct
+        exit_country: DE
+        trust_zone_ref: inst.trust_zone.vpn_tunnel
+        enabled: false
+        notes: Single encapsulation - terminates at the VPS, no hop through home.
+
+      - name: wg-ru
+        tunnel_ref: inst.tunnel.wg-exit
+        tunnel_ip: 10.100.1.11/32
+        persistent_keepalive: 25
+        # Two encapsulations plus AmneziaWG junk padding downstream. Estimate
+        # pending a DF-ping measurement, same as the segment MTU (W9902).
+        mtu: 1340
+        advertises:
+          - 10.77.57.0/24
+        exit_mode: chained
+        exit_country: RU
+        chained_via_ref: rtr-mikrotik-chateau
+        upstream_tunnel_ref: docker-amneziawg-russia
+        trust_zone_ref: inst.trust_zone.vpn_tunnel
+        enabled: false
+
+      - name: wg-se
+        tunnel_ref: inst.tunnel.wg-exit
+        tunnel_ip: 10.100.1.12/32
+        persistent_keepalive: 25
+        mtu: 1340
+        advertises:
+          - 10.77.58.0/24
+        exit_mode: chained
+        exit_country: SE
+        chained_via_ref: rtr-mikrotik-chateau
+        upstream_tunnel_ref: docker-amneziawg-sweden
+        trust_zone_ref: inst.trust_zone.vpn_tunnel
+        enabled: false
+
+    # Policy routing selects the egress tunnel by source subnet via ip rule.
+    # No packet marking is needed, unlike Chateau's mangle-based approach,
+    # because each segment already has its own WireGuard interface.
+    routing:
+      selector: source_subnet
+      marks: none
+
+  # --------------------------------------------------------------------------
+  # SERVICES
+  # --------------------------------------------------------------------------
+  services:
+    # Needed or every radio reading through LuCI and uapi is untrustworthy.
+    packages:
+      - iwinfo
+      - rpcd-mod-iwinfo
+      - kmod-wireguard
+      - wireguard-tools
+    # The ath11k memory leak is unfixed upstream (both PRs open), has no module
+    # parameter, and `wifi down` frees nothing - only a module reload reclaims
+    # it. Deliberately recorded as an Ansible-owned concern: this is OS/runtime
+    # territory, and ADR 0119 D6 keeps Terraform on infrastructure. It must not
+    # end up in the uapi generator.
+    memory_watchdog:
+      owner: ansible
+      trigger: MemAvailable threshold
+      action: ath11k module reload
+      status: not_implemented
