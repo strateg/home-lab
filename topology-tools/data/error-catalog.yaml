@@ -1464,3 +1464,147 @@ codes:
     stage: validate
     title: Framework Roots Have No Plugin Manifests
     hint: Framework module roots contain no plugins.yaml manifests.
+
+  # =========================================================================
+  # E99xx / W99xx - OpenWrt (uapi) adapter family. Allocated 2026-10-11.
+  #
+  # Band choice is measured, not guessed, per this catalog's own rule that a
+  # range map which does not describe the system cannot be used to pick a free
+  # number. Distinct codes seen across source, catalog and the frozen ledgers:
+  # 90xx:3  91xx:4  92xx:7  93xx:17  94xx:11  95xx:5  96xx:4  97xx:41
+  # 98xx:15  99xx:0. E97xx was the obvious next generator band by the reserved
+  # list, and is in fact the most crowded one in E9xxx (docs_generator and
+  # initialization_contract_validator, plus E9700..E9761 in the frozen
+  # unregistered ledger). E99xx is empty and is taken here.
+  #
+  # Registered before the code that raises them, which is the governance order.
+  # Each entry names its future raiser so the claim stays auditable, following
+  # the discipline of the AWAITING_A_MOUNT ledger in
+  # tests/test_diagnostic_code_registry.py. These codes sit outside
+  # NETWORK_MODEL_RANGE, so that ledger does not track them.
+  #
+  # Every rule below encodes a fact verified against firewall4/netifd source,
+  # the uapi OpenAPI spec, or the device itself - not a guess about OpenWrt.
+  # =========================================================================
+
+  # Raiser: object.openwrt.generator.terraform
+  E9901:
+    severity: error
+    stage: generate
+    title: OpenWrt Projection Contract Defect
+    hint: >-
+      A feature is enabled in the projection without the data its template requires. Templates run under
+      StrictUndefined, so a named diagnostic is raised instead of an opaque template error.
+
+  # Raiser: base.validator.openwrt_rule_disjointness
+  E9902:
+    severity: error
+    stage: validate
+    title: Overlapping Firewall Rule Match Tuples
+    hint: >-
+      Two generated firewall_rule sections in one chain have overlapping match tuples and opposing targets.
+      uapi exposes no ordering control (no position/index/place_before anywhere in its OpenAPI spec) and
+      Terraform applies in parallel, so disjointness is the ordering contract. Make the tuples disjoint.
+
+  # Raiser: base.validator.openwrt_match_arity
+  E9903:
+    severity: error
+    stage: validate
+    title: Firewall Match Field Arity Mismatch
+    hint: >-
+      match.* is a list on uapi_firewall_rule but a scalar on redirect/nat (only proto stays a list). A list
+      where fw4 expects a scalar makes fw4 drop the entire section silently. Emit the arity the resource wants.
+
+  # Raiser: base.validator.openwrt_management_path
+  E9904:
+    severity: error
+    stage: validate
+    title: Generation Would Mutate The Management Path
+    hint: >-
+      The interface carrying the uapi endpoint has proto/ipaddrs/netmask under generation. If such a write
+      strands the caller the response never arrives and Terraform records nothing. Declare it immutable.
+
+  # Raiser: base.validator.openwrt_zone_coverage
+  E9905:
+    severity: error
+    stage: validate
+    title: Interface Not Covered By Exactly One Firewall Zone
+    hint: >-
+      Zones match iifname over the resolved devices of their network list, and uapi_firewall_zone has no
+      device/subnet field - only network. An interface in no zone is silently unreachable rather than open.
+
+  # Raiser: base.validator.openwrt_kill_switch
+  E9906:
+    severity: error
+    stage: validate
+    title: Tunnel-Only Zone Has A Forwarding To An Uplink Zone
+    hint: >-
+      A zone declared tunnel-only resolved a forwarding to an untrusted uplink zone. Under the legacy ADR 0110
+      profile R3 grants downhill traffic, so vpn_tunnel -> untrusted is permitted unless an explicit R6 drop
+      exists; on OpenWrt the kill switch is the absence of the forwarding object, not a deny rule.
+
+  # Raiser: base.validator.openwrt_zone_input
+  E9907:
+    severity: error
+    stage: validate
+    title: Zone Input Policy Not Declared
+    hint: >-
+      A generated zone leaves its input policy implicit. Stock OpenWrt ships zone lan with input ACCEPT, which
+      exposes every router service to that zone. ADR 0110's matrix models inter-zone forward only, so input
+      must be declared per zone rather than inherited.
+
+  # Raiser: base.validator.openwrt_wireless
+  E9908:
+    severity: error
+    stage: validate
+    title: Wireless Regulatory Country Not Set
+    hint: >-
+      A wifi-device carrying a 5 GHz AP has no country. Regdomain 00 marks every 5 GHz range NO-IR in
+      wireless-regdb, so the AP never beacons. Set country on the device.
+
+  # Raiser: base.validator.openwrt_wireless
+  E9909:
+    severity: error
+    stage: validate
+    title: STA-Bearing Radio Has A Fixed Channel
+    hint: >-
+      A radio carrying a mode=sta interface declares a numeric channel. netifd then emits fixed_freq=1 with
+      that single frequency to wpa_supplicant and the STA can never associate off-channel. Use channel auto.
+
+  # Raiser: base.validator.openwrt_wireless
+  E9910:
+    severity: error
+    stage: validate
+    title: More Than One STA Interface On One Radio
+    hint: >-
+      The phy advertises '#{ managed } <= 1'. Two STA interfaces on one radio is the misconfiguration behind
+      the upstream "Device is not active" reports, not a driver fault.
+
+  # Raiser: base.validator.openwrt_wireless
+  W9901:
+    severity: warning
+    stage: validate
+    title: AP Shares A Radio With An STA
+    hint: >-
+      Any sta interface on a phy sets ap_start_disabled, so hostapd gets start_disabled=1 and the APs on that
+      phy do not beacon until the STA associates; wpa_supplicant then stops those APs on every scan or roam,
+      deauthing clients. Supported, but it couples client service to uplink stability.
+
+  # Raiser: base.compiler.openwrt_interfaces
+  W9902:
+    severity: warning
+    stage: compile
+    title: Client MTU Exceeds The Nested Tunnel Budget
+    hint: >-
+      A client-facing interface advertises an MTU larger than its egress tunnel chain allows. Zone mtu_fix
+      clamps TCP MSS only, so UDP and QUIC blackhole instead of degrading. Measure the real overhead.
+
+  # Raiser: object.openwrt.generator.terraform
+  W9903:
+    severity: warning
+    stage: generate
+    title: Adoption Target Is An Anonymous Section
+    hint: >-
+      An import block targets an anonymous uci section (cfgXXXXXX). uapi adopts named sections in place but
+      adopts anonymous ones by renaming them to a ULID, which mutates the router. Every stock firewall section
+      is anonymous. Adopt named sections, or accept the rename explicitly.

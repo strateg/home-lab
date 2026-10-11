@@ -1,12 +1,112 @@
 @instance: rtr-slate
 @extends: obj.glinet.slate_ax1800
 @group: devices
-@version: 1.0.0
+@version: 1.1.0
 source_id: rtr-slate
-notes: Personal GL-AXT1800 router instance with device identity placeholders
-firmware_ref: inst.firmware.openwrt.glinet.4x
+notes: |
+  GL-AXT1800 reflashed from GL.iNet vendor firmware to upstream OpenWrt 25.12.5
+  on 2026-10-11. Software refs repointed from the glinet.4x track to the
+  stock.25_12 track accordingly.
+firmware_ref: inst.firmware.openwrt.stock.25_12
 os_refs:
-- inst.os.openwrt.glinet.4x
+- inst.os.openwrt.stock.25_12
 power:
   source_ref: pdu-rack
   outlet_ref: outlet_02
+
+# ============================================================================
+# OBSERVED RUNTIME
+# Read off the device over SSH on 2026-10-11. Facts, not intent: this records
+# what the box currently is, so later phases can diff intent against it.
+# ============================================================================
+
+observed_runtime:
+  captured_at: "2026-10-11"
+  identity: OpenWrt            # stock default hostname, not yet set to rtr-slate
+  openwrt_version: 25.12.5
+  openwrt_build: r33051-f5dae5ece4
+  target: qualcommax/ipq60xx
+  architecture: aarch64_cortex-a53
+  kernel_version: 6.12.94
+
+  # Three independent nss-dp/edma netdevs; no DSA switch and no eth0 CPU port.
+  interfaces:
+    wan:
+      device: wan
+      proto: dhcp
+      link: up
+      address: 192.168.0.17/24   # dynamic, from the upstream main router
+      gateway: 192.168.0.1
+      notes: Uplink to the same upstream router that rtr-mikrotik-chateau's WAN uses
+    lan:
+      device: br-lan
+      proto: static
+      address: 192.168.1.1/24
+      bridge_ports: [lan1, lan2]
+      link_up_ports: [lan2]
+      notes: lan2 patched into rtr-mikrotik-chateau for management reachability
+    wan6:
+      device: wan
+      proto: dhcpv6
+
+  firewall_baseline:
+    defaults:
+      input: REJECT
+      output: ACCEPT
+      forward: REJECT
+    zones:
+      lan: { input: ACCEPT, output: ACCEPT, forward: ACCEPT, network: [lan] }
+      wan: { input: REJECT, output: ACCEPT, forward: DROP, network: [wan, wan6], masq: true, mtu_fix: true }
+    forwardings:
+      - { src: lan, dest: wan }
+    notes: |
+      Stock baseline. No terminal drop-all rule exists and none is required:
+      firewall4 renders defaults.forward=REJECT as an nftables `policy drop`
+      and each zone chain self-terminates. ADR 0110 §4.4's mandatory final
+      drop-all is a RouterOS default-accept compensation and must not be ported.
+      Note zone lan ships input ACCEPT - router services are open to the LAN
+      side until zone.input is modeled explicitly.
+
+  # Input for the Phase 8 adoption ledger. Named sections adopt in place
+  # without mutating the router; anonymous ones adopt by renaming to a ULID,
+  # which does mutate it.
+  uci_sections:
+    named:
+      - network.lan
+      - network.wan
+      - network.wan6
+      - network.loopback
+      - network.globals
+      - dhcp.lan
+      - dhcp.wan
+      - dhcp.odhcpd
+      - system.ntp
+    anonymous:
+      - network @device (br-lan)
+      - firewall @defaults[0]
+      - firewall @zone[0] (lan)
+      - firewall @zone[1] (wan)
+      - firewall @forwarding[0]
+      - system @system[0]
+    notes: Every firewall section is anonymous in stock config - see report P7.6
+
+  uapi:
+    installed_version: 3.1.0
+    endpoint: https://192.168.1.1/api/v3
+    source: project feed (https://openwrt-iac.github.io/feed/), RSA-4096 signed
+    token_name: terraform
+    token_scope: "*:rw"
+    token_allowed_cidr: 192.168.1.0/24
+    healthz: ok   # ubus, uci, lock_dir, time_sync all ok
+    notes: |
+      Bearer token lives in projects/home-lab/secrets/instances/rtr-slate.yaml
+      (SOPS, both age recipients). Installed from the feed rather than a local
+      .apk on purpose: the file form writes a checksum-pinned /etc/apk/world
+      entry that silently freezes future `apk upgrade`.
+
+  # Hand-applied, not yet expressed in topology. Both must be re-expressed or
+  # reverted once the staging cabling changes (see report P0.4b).
+  staging_deviations:
+    - dhcp.lan ignore=1, dhcpv6=disabled, ra=disabled - rtr-slate was acting as
+      a second DHCP/RA server on Chateau's LAN through the bridged lan2 cable
+    - sysntpd restarted to sync the clock, which was stuck at the build date

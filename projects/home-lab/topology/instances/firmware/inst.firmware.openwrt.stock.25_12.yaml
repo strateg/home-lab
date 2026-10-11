@@ -1,0 +1,17 @@
+@instance: inst.firmware.openwrt.stock.25_12
+@extends: obj.firmware.openwrt.stock.25_12
+@group: firmware
+@version: 1.0.0
+source_id: inst.firmware.openwrt.stock.25_12
+notes: |
+  ADR0064 firmware instance for rtr-slate. Replaces inst.firmware.openwrt.glinet.4x,
+  which described the vendor firmware the device no longer runs.
+  Values below were read off the device over SSH on 2026-10-11, not assumed.
+deployment:
+  version: 25.12.5
+  build: r33051-f5dae5ece4
+  release_channel: stable
+  # Records when this state was verified on the device, not when sysupgrade ran:
+  # the router booted with an unsynced clock (stuck at the build date), so
+  # first-boot file timestamps are not a usable install time.
+  installed_at: "2026-10-11T13:33:00Z"

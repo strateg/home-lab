@@ -89,6 +89,8 @@ classes:
     version: 1.0.0
   class.router:
     version: 2.0.0
+  class.service:
+    version: 1.0.0
   class.service.alerting:
     version: 1.0.0
   class.service.cache:
@@ -163,6 +165,9 @@ objects:
     version: 1.0.0
     class_ref: class.firmware
   obj.firmware.openwrt.glinet.4x:
+    version: 1.0.0
+    class_ref: class.firmware
+  obj.firmware.openwrt.stock.25_12:
     version: 1.0.0
     class_ref: class.firmware
   obj.firmware.pdu.generic.managed:
@@ -364,6 +369,9 @@ objects:
     version: 1.0.0
     class_ref: class.os
   obj.os.openwrt.glinet.4x:
+    version: 1.0.0
+    class_ref: class.os
+  obj.os.openwrt.stock.25_12:
     version: 1.0.0
     class_ref: class.os
   obj.os.proxmox.ve.9:

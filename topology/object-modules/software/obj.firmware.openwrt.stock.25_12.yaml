@@ -1,0 +1,38 @@
+@object: obj.firmware.openwrt.stock.25_12
+@extends: class.firmware
+@title: Firmware OpenWrt 25.12 (upstream)
+@version: 1.0.0
+
+vendor: openwrt
+model: OpenWrt Firmware 25.12 (upstream)
+
+@description: |
+  Upstream OpenWrt 25.12 release line - the first apk-based line, and the
+  minimum platform for the uapi REST control plane (ADR 0110 §1.4's OpenWrt
+  adapter slot).
+
+  Sibling of obj.firmware.openwrt.glinet.4x rather than a replacement for it:
+  that object models GL.iNet's own 4.x fork (OpenWrt 23.05 base, opkg), which
+  remains a valid track for GL.iNet hardware running vendor firmware. The two
+  differ on package manager, release base and the presence of the gl-ui layer,
+  so one object cannot carry both.
+
+properties:
+  vendor: openwrt
+  family: openwrt
+  version: '25.12'
+  architecture: arm64
+  boot_stack: uboot
+  virtual: false
+
+# Object defines software TYPE/track only.
+# Installed version/build are pinned at the firmware instance level.
+enabled_capabilities: []
+enabled_packs: []
+vendor_capabilities: []
+
+changelog:
+  - version: 1.0.0
+    date: 2026-10-11
+    changes:
+      - Initial object for the upstream OpenWrt 25.12 (apk) firmware track

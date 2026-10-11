@@ -66,6 +66,37 @@ report from one is not evidence.
 - `E94xx`: Bootstrap Proxmox generator
 - `E95xx`: Bootstrap MikroTik generator
 - `E96xx`: Bootstrap Orange Pi generator
+- `E99xx`/`W99xx`: OpenWrt (uapi) adapter family — allocated 2026-10-11
+
+### Why `E99xx` and not the next number in the list
+
+`E97xx` is what the sequence above suggests, and it is the single most crowded
+band in `E9xxx`. Measured occupancy of distinct codes across source, this
+catalog and the frozen ledgers, on the day of allocation:
+
+| Band | Distinct codes seen |
+|---|---|
+| `90xx` | 3 |
+| `91xx` | 4 |
+| `92xx` | 7 |
+| `93xx` | 17 |
+| `94xx` | 11 |
+| `95xx` | 5 |
+| `96xx` | 4 |
+| `97xx` | **41** |
+| `98xx` | 15 |
+| `99xx` | **0** |
+
+`E97xx` holds `docs_generator` and `initialization_contract_validator`, plus
+`E9700..E9761` inside the frozen unregistered ledger. `E99xx` was empty and is
+taken. This follows the rule stated under *Occupancy* above: a range map that
+does not describe the system cannot be used to choose a free number.
+
+The family is registered in `topology-tools/data/error-catalog.yaml` before the
+code that raises it, which is the required order. Each entry names its future
+raiser in a comment so an allocation with no raiser stays auditable — the
+discipline `AWAITING_A_MOUNT` enforces for `E70xx`, applied by hand here because
+these codes fall outside `NETWORK_MODEL_RANGE` and that ledger does not see them.
 
 ---
 

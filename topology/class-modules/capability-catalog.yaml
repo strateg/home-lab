@@ -291,6 +291,25 @@ capabilities:
     adr_refs:
       - "0110"
 
+  # Registered 2026-10-11 ahead of its adapter, which lands with the OpenWrt
+  # generator pipeline. Deliberately NOT yet wired into
+  # _ENFORCER_ADAPTER_BY_TYPE in effective_model_compiler.py: an adapter
+  # identifier that resolves with no generator behind it would be a false claim
+  # of coverage (ADR 0119 D1.1), which is why W7016 is allowlisted in
+  # configs/quality/adr0088-governance-policy.yaml instead. The mapping and the
+  # allowlist entry are retired together.
+  - @capability: cap.firewall.security_matrix.openwrt
+    title: OpenWrt Matrix Enforcement
+    summary: >-
+      Enforces security matrix via OpenWrt firewall4/nftables zones and
+      forwardings, rendered through the uapi REST control plane.
+    domain: firewall
+    layer: L2
+    stability: experimental
+    vendor: openwrt
+    adr_refs:
+      - "0110"
+
   - @capability: cap.firewall.address_lists
     title: Address List Support
     summary: Firewall supports named address lists for zone-based matching.
@@ -1251,6 +1270,14 @@ capabilities:
   - @capability: cap.os.init.busybox
     title: BusyBox Init
     summary: Uses BusyBox init system.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+
+  - @capability: cap.os.init.procd
+    title: procd Init
+    summary: Uses OpenWrt's procd process manager as init.
     domain: os
     layer: L0
     stability: stable
@@ -2359,6 +2386,13 @@ capabilities:
   - @capability: cap.os.routeros.7
     title: RouterOS 7
     summary: MikroTik RouterOS version 7.
+    domain: os
+    layer: L0
+    stability: stable
+
+  - @capability: cap.os.openwrt.2512
+    title: OpenWrt 25.12
+    summary: OpenWrt 25.12 release line - the first apk-based line.
     domain: os
     layer: L0
     stability: stable

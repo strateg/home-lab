@@ -1,0 +1,36 @@
+@object: obj.os.openwrt.stock.25_12
+@extends: class.os
+@title: OS OpenWrt 25.12 (upstream)
+@version: 1.0.0
+
+vendor: openwrt
+model: OpenWrt 25.12 (upstream)
+
+@description: |
+  Upstream OpenWrt 25.12 userland. Package manager is apk (25.12 is the first
+  release line where apk replaced opkg), which is the hard precondition for the
+  uapi control plane.
+
+  distribution: openwrt derives cap.os.openwrt, and family: linux derives
+  cap.os.linux / cap.os.posix, through the ADR 0106 capability derivation - the
+  same path the GL.iNet 4.x object uses, so OS-identity dispatch is unchanged
+  between the two tracks.
+
+properties:
+  family: linux
+  distribution: openwrt
+  release: '25.12'
+  release_id: '25.12'
+  architecture: arm64
+  init_system: procd
+  package_manager: apk
+  installation_model: embedded
+
+enabled_capabilities: []
+enabled_packs: []
+
+changelog:
+  - version: 1.0.0
+    date: 2026-10-11
+    changes:
+      - Initial object for the upstream OpenWrt 25.12 (apk) OS track

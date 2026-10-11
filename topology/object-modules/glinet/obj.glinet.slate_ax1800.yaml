@@ -56,7 +56,10 @@ hardware_specs:
         speed_mbps: 1000
         standard: gbe
         duplex: full
-        dsa: true  # DSA architecture (not swconfig)
+        # Not a DSA switch port. IPQ6000 exposes three independent nss-dp/edma
+        # data-path netdevs (wan, lan1, lan2) with no CPU port; there is no
+        # eth0 on this board. Verified on the device, 2026-10-11.
+        dsa: false
         physical_port: wan
         description: Gigabit WAN port (blue)
 
@@ -66,7 +69,7 @@ hardware_specs:
         speed_mbps: 1000
         standard: gbe
         duplex: full
-        dsa: true
+        dsa: false
         physical_port: lan1
         description: Gigabit LAN port 1 (yellow)
 
@@ -76,7 +79,7 @@ hardware_specs:
         speed_mbps: 1000
         standard: gbe
         duplex: full
-        dsa: true
+        dsa: false
         physical_port: lan2
         description: Gigabit LAN port 2 (yellow)
 
@@ -155,8 +158,18 @@ hardware_specs:
 # ============================================================================
 
 software_contract:
-  firmware_obj_ref: obj.firmware.openwrt.glinet.4x
+  # This hardware runs either vendor firmware (GL.iNet 4.x, OpenWrt 23.05 base,
+  # opkg) or upstream OpenWrt 25.12+ (apk). os_obj_refs is an allow-list
+  # enforced by E7842, so both tracks are listed and the instance binds exactly
+  # one of them.
+  #
+  # firmware_obj_ref is singular and, unlike os_obj_refs, is read by zero lines
+  # of the runtime - no allow-list mechanism exists on the firmware side. It
+  # therefore names the track actually installed on this project's instance
+  # rather than the set of permitted tracks. See the report's findings section.
+  firmware_obj_ref: obj.firmware.openwrt.stock.25_12
   os_obj_refs:
+  - obj.os.openwrt.stock.25_12
   - obj.os.openwrt.glinet.4x
   os_cardinality:
     min: 1

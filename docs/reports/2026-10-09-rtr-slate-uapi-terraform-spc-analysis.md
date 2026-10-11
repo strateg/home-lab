@@ -270,6 +270,8 @@ Where order still matters: two overlapping `config rule` sections in one chain w
 
 **Known 25.12.x defects on this exact device** (open OpenWrt issues): 2.4 GHz radio reports `Not supported (-95)` from netifd / "Device is not active" in LuCI despite working ([#22297](https://github.com/openwrt/openwrt/issues/22297), [#22074](https://github.com/openwrt/openwrt/issues/22074)); repeated `CTRL-EVENT-BEACON-LOSS` and 2.4 GHz crashes ([#21512](https://github.com/openwrt/openwrt/issues/21512)); ath11k memory leak on kernel 6.12 ([#19702](https://github.com/openwrt/openwrt/issues/19702)). Consequence: `uapi_wireless_device` state on radio1 may not reflect reality → persistent plan diffs or false-healthy reads.
 
+> **SUPERSEDED, 2026-10-11 — see the WIRELESS RESEARCH section below.** The paragraph above reads these issues at face value and is wrong on two of the three counts: the `-95` lines are cosmetic log noise from an unredirected `iw` call (ath11k has no `set_coverage_class` op at all), and the beacon-loss/crash defect is already fixed in 25.12.5 by commit `a62b5fe71c`. Only the memory leak is real and unfixed. The conclusion drawn here — that wireless should be deferred partly because the 2.4 GHz radio is unreliable — does not hold; the radio plan that follows from the corrected facts is the opposite of the one implied here.
+
 ---
 
 ## STEP 5 (REVISED) — ADMISSIBLE SPACE AFTER THE SUPPLEMENT
@@ -600,6 +602,253 @@ Stored at **`projects/home-lab/secrets/instances/rtr-slate.yaml`** — the per-d
 | #12 SOPS-only secrets | **Yes** | `secrets/instances/rtr-slate.yaml`, 2 age recipients, plaintext shredded |
 
 **No Critical requirement is unmet any more.** The earlier "NO VALID SOLUTION for Class B" verdict is lifted: Phases 0 and 7 are done, Phase 8 (adoption ledger and first plan) is now the next executable step, and it depends on Class A work (Phases 1-6), which remains unstarted.
+
+---
+
+## CLASS A / PHASE 1 EXECUTION RECORD — 2026-10-11 (COMPLETE)
+
+First actual model change (SPC STEP 6 entered for Phase 1 scope only, on operator instruction).
+
+### A1.1 What changed
+
+| Change | File |
+|---|---|
+| New firmware object for the upstream 25.12 (apk) track | `topology/object-modules/software/obj.firmware.openwrt.stock.25_12.yaml` |
+| New OS object for the same track (`procd`, `apk`, arm64) | `topology/object-modules/software/obj.os.openwrt.stock.25_12.yaml` |
+| New firmware instance with real installed state (25.12.5 / r33051-f5dae5ece4) | `instances/firmware/inst.firmware.openwrt.stock.25_12.yaml` |
+| New OS instance (kernel 6.12.94, `embedded_in` the firmware instance) | `instances/os/rtr-slate/inst.os.openwrt.stock.25_12.yaml` |
+| `rtr-slate` repointed to the stock track; `observed_runtime` added | `instances/devices/rtr-slate.yaml` |
+| Deleted the two orphaned glinet instances (they described firmware no longer installed) | `inst.firmware.openwrt.glinet.4x.yaml`, `inst.os.openwrt.glinet.4x.yaml` |
+| `dsa: true` → `dsa: false` with the real nss-dp/edma explanation | `obj.glinet.slate_ax1800.yaml` |
+| `software_contract` widened to allow both OS tracks | same |
+| Registered `cap.os.init.procd`, `cap.os.openwrt.2512` | `topology/class-modules/capability-catalog.yaml` |
+
+The GL.iNet 4.x **objects** were deliberately kept (A1-M1): they model a valid vendor-firmware track for this hardware, and repurposing an object whose `@title` and `vendor_capabilities` identify it as GL.iNet-specific would violate ADR 0118 D7.
+
+### A1.2 Verification
+
+```
+compile-topology.py                -> 0 errors, 1 warning (the pre-existing W7016)
+check-capability-contract.py       -> OK, 0 warnings  (was 2 before registration)
+validate-v5 lane                   -> PASS on every step, incl. ADR0088 governance
+targeted pytest (61 tests)         -> all pass
+objects 140 -> 142, instances unchanged at 189
+```
+
+`task build:sync-lock` and `task framework:lock-refresh` were both run (CORE-005).
+
+### A1.3 Three findings produced by doing the work
+
+1. **`firmware_obj_ref` is enforced by nothing.** `os_obj_refs` is a real allow-list with diagnostic `E7842`; `firmware_obj_ref` is read by **zero lines** of the runtime and is singular, so it cannot express "either of two tracks" the way the OS side can. It now names the track actually installed rather than a permitted set. Closing this asymmetry — a list plus an enforcing validator on the firmware side — is a separate change.
+
+2. **Capability derivation emitted two identifiers that the catalog did not contain** (`cap.os.init.procd` from `init_system`, `cap.os.openwrt.2512` from `release`), surfacing as four `W3201` warnings. These were **registered in the catalog** rather than absorbed by the `W3201` budget, because ADR 0118 rev 3.2a holds the capability vocabulary closed: an identifier that reaches runtime unregistered is *unverified*, not merely untidy. Leaving them as warnings would have quietly spent 4 of the 10-warning allowance on a fact that was trivially expressible.
+
+3. **`tests/test_framework_lock_matches_content.py` earned its keep.** It failed with "these files are inside the framework integrity hash and are not in git, so a clean checkout cannot reproduce the lock", naming both new object files before they were staged. The lock and the git index have to move together; the test is what makes that non-optional.
+
+Separately, the `dsa` field turned out to be documentation-only — consumed by zero plugin lines and present in exactly one file — so correcting it carried no behavioural risk.
+
+### A1.4 Deliberately not done in Phase 1
+
+`rtr-slate` has **no network/zone/DHCP intent** authored yet. That is not an oversight: zone layout, VLANs, SSIDs and inter-zone policy are design decisions about what this router should *do*, and inventing them would put unreviewed intent into the model. `observed_runtime` records what the device currently *is*; intent comes next and needs an explicit decision about the device's role.
+
+---
+
+## WIRELESS RESEARCH — 2026-10-11, AND A CORRECTION TO S3.5
+
+A dedicated research pass against firewall4/netifd/wifi-scripts source, the OpenWrt issue tracker and wireless-regdb. **It overturns the premise S3.5 was built on.**
+
+### W1. Correction: the 2.4 GHz radio is not broken
+
+S3.5 reported "2.4 GHz radio reports `Not supported (-95)`… expect persistent plan diffs or false-healthy reads" and concluded wireless should be excluded from v1 partly for that reason. That conclusion was wrong, and the mechanism is now known:
+
+- The `-95` lines are **cosmetic log noise**. The ucode wifi-scripts path calls `iw phy <phy> set antenna` and `set distance` unconditionally with no stderr redirect; the legacy shell path had `>/dev/null 2>&1`, and `WIFI_SCRIPTS_UCODE` is `default y`. ath11k defines no `set_coverage_class` op, so `set distance` is *guaranteed* `-EOPNOTSUPP`. Silenced on main by commit `e21a4ef958` (2026-09-02); the `openwrt-25.12` branch copy was last touched 2025-12-27, so 25.12.5 is still noisy. **No UCI setting suppresses it** — expect two lines per `wifi reload` and ignore them.
+- The real causes behind "Device is not active" in those reports: `start_disabled=1` semantics (see W4), **both reporters had two STA interfaces on one phy** — violating the `#{ managed } <= 1` the phy advertises — and missing `iwinfo`/`rpcd-mod-iwinfo`, without which LuCI cannot read radio state at all.
+- **The beacon-loss/crash defect is already fixed in this build.** Commit `a62b5fe71c` ("ath11k: fix for unsupported 11ax EDCA") forces `WMI_WMM_PARAM_TYPE_LEGACY`; previously the firmware asserted on *every STA association*. Corollary: `he_mu_edca_*` knobs are inert.
+
+### W2. Two settings that are mandatory, not optional
+
+| Setting | Why |
+|---|---|
+| `option country` on any device carrying a 5 GHz AP | Regdomain `00` marks every 5 GHz range `NO-IR` in wireless-regdb, so the AP **never beacons**. |
+| `option channel 'auto'` on any radio carrying a `mode sta` | A numeric channel makes netifd emit `fixed_freq=1` plus that one frequency to wpa_supplicant; the STA can then never associate off-channel. |
+
+### W3. Folklore, named as such
+
+`cell_density` and `legacy_rates` only rewrite `supported_rates`/`basic_rates` in hostapd config — they cannot reach the driver, so stability claims for them are unfounded. `background_radar` is a no-op (no `RADAR_BACKGROUND` in ath11k). `noscan` is auto-forced whenever a non-AP interface shares the radio. No ath11k evidence was found for `disassoc_low_ack`, `mu_beamformer` or `he_bss_color`.
+
+Also a correction to my own earlier reading: **"STA/AP BI must match" refers to your own APs on one phy sharing `beacon_int`** (a wifi-device option, therefore automatic) — not to matching the upstream AP's beacon interval. `cfg80211_wdev_bi()` returns 0 for STA wdevs.
+
+### W4. AP+STA on one radio — the decisive mechanism
+
+Read from source, and it changes the radio plan:
+
+- Any `sta`/`mesh`/`adhoc` interface on a phy sets `ap_start_disabled`, so hostapd receives `start_disabled=1`: **APs on that phy do not beacon until the STA associates.**
+- wpa_supplicant then drives hostapd over ubus `apsta_state`: `DISCONNECTED|AUTHENTICATING|SCANNING` → `up:false` → `iface.stop()`, which **takes the APs down and deauths their clients**; `COMPLETED` → `iface.start(freq)` on the STA's frequency; an upstream CSA → `iface.switch_channel()`.
+
+So the channel does follow automatically — at the cost of dropping every client on each uplink scan or roam. For a router whose job is to keep clients served in a hotel, that coupling is the problem, not the single-channel limit.
+
+A `wifi-iface` with `disabled '1'` is dropped at parse time, so a parked section costs nothing.
+
+### W5. Resulting radio assignment (inverts the S3.5 plan)
+
+**All APs on `phy0` (5 GHz); the STA uplink on `phy1` (2.4 GHz); a parked `disabled='1'` STA on `radio0` for 5 GHz-only venues.**
+
+`phy0` stays STA-free and therefore always beacons — no `start_disabled`, no apsta stop/start. That is worth more than `phy1`'s reputation, and a 2.4 GHz STA is usable on 25.12.5 precisely because the EDCA assert that killed STA mode is fixed. Enabling the parked 5 GHz STA knowingly converts `radio0` to apsta with the W4 coupling; it is a venue-specific fallback, not the standing config.
+
+### W6. The one defect that is real and unfixed: the ath11k memory leak
+
+Both upstream fixes (PR #24254 per-ring `page_frag_cache` isolation, PR #21495) are **open**. No usable module parameter exists. Measured upstream: ~7-8 MB/h; `wifi down` frees nothing, `rmmod ath11k` reclaims ~205 MB; kernel 6.12.94 stretched time-to-OOM from ~1 h to 3-9 days without fixing it. Leak rate tracks cumulative RX churn rather than client count, so **fewer live SSIDs and radios is itself a mitigation**.
+
+Mitigation is a `MemAvailable`-threshold watchdog performing an ath11k **module reload** rather than a reboot. Architecturally this is an OS/runtime concern and therefore **Ansible-owned, not Terraform-owned** (ADR 0119 D6 keeps Terraform on infrastructure and Ansible on OS/service/runtime); it must not be smuggled into the uapi generator.
+
+### W7. travelmate is rejected, with reasons
+
+The package is maintained (2.4.9-4, 2026-10-08) and present in the 25.12 apk repo, but it manages WiFi by `uci_set` + `uci_commit` on `wireless` and `dhcp`, adds `rebind_domain` entries, and needs `iwinfo`/`rpcd-mod-iwinfo`. Against a declaratively rendered box it would race the generator and cause flash wear — a second writer for resources that already have one (ADR 0119 D6). Rejected.
+
+The netifd-only pattern replaces it: one `mode sta` interface on `radio1` → `network wwan` (`proto dhcp`), `channel auto`, a dedicated `wwan` firewall zone (`input REJECT`, `masq 1`, forwarding only *from* client zones, never *into* them), and **`option rebind_protection '0'`** in `/etc/config/dhcp` so a captive portal answering with RFC1918 addresses is not rebind-filtered. Also required: install `iwinfo` + `rpcd-mod-iwinfo`, or every radio reading is untrustworthy.
+
+Independently, this confirms the addressing choice below: hotels are overwhelmingly `192.168.1.0/24`, which is exactly OpenWrt's default LAN.
+
+---
+
+## AGREED INTENT — ROAD-WARRIOR DESIGN
+
+Role, confirmed by the operator: road-warrior travel router with a trusted connection to the home network, several country exits, used in hotels and public venues, with Chateau remaining the home hub.
+
+### D1. A security finding that had to be settled first
+
+The operator asked for the hotel WiFi to sit **outside the perimeter, modeled in the security matrix as an untrusted channel that merely provides internet**. Mapping it to `inst.trust_zone.untrusted` (level 0) exposes a hole in the implemented legacy profile. For a country SSID in `inst.trust_zone.vpn_tunnel` (level 2, `isolated: false`):
+
+```
+R6 override?  none
+R1 same zone? no
+R2 isolated?  vpn_tunnel.isolated = false -> does not apply
+R3 downhill?  2 > 0  ->  ALLOW      <- direct leak into the hotel network
+```
+
+Putting the country zones in `vpn_exit` (level 1, `isolated: true`) does not help: R2 denies isolated zones everything *except* `untrusted`, and `untrusted` is precisely what must be denied here.
+
+On Chateau this never mattered — there `untrusted` is the WAN and direct egress is the intent. On a travel router the semantics invert: direct egress to the local network is the one thing that must be impossible. **ADR 0118 D4.1 anticipated exactly this**: its translation table renders R3 as "**Nothing. Trust level is not authorization**" in the strict profile. The strict profile would be fail-closed; the profile actually running today is fail-open. rtr-slate is the first device in this lab where that difference is a concrete vulnerability rather than a note in an ADR.
+
+Resolution: an explicit **R6 `policy_override` with `action: drop`** (R6 is evaluated first and short-circuits). On OpenWrt this lowers to **omitting the `firewall_forwarding` object** — the kill switch becomes the absence of a permit, fail-closed by construction, with no rule ordering involved. `E9906` is the validator that holds this.
+
+### D2. Mode switching without runtime state
+
+The operator wants full-tunnel as the default with the option to switch to split tunnel at will. A runtime toggle (script or `uci set` over SSH) is rejected: it creates a second writer, and Terraform would revert it as drift on the next apply (ADR 0119 D6). A topology field plus `apply` is declaratively correct but unusable from a hotel room.
+
+**The mode is selected by which SSID the client joins.** Both modes are permanently declared, so there is no state to drift:
+
+| SSID | Zone | forward → | Client sees |
+|---|---|---|---|
+| `Slate-Home` | `user` (3) | `wg-home` only | everything tunneled; home subnets plus internet via Chateau's Estonian exit |
+| `Slate-Split` | `travel_split` (3, new) | `wg-home` + `untrusted` | home via tunnel, internet direct through the venue |
+
+This is the same device-language the lab already uses — `VPN-Russia` versus `VPN-Sweden` are modes selected by SSID. Two zones rather than one with policy routing is forced by the firewall: one may forward to `untrusted` and the other must not, and in a zone-based firewall policy lives on the zone pair. Being two zones at the same level also means R5 denies traffic between them, so a split-mode laptop cannot reach a full-tunnel phone.
+
+Fail-closed behaviour becomes visible rather than silent: if the tunnel is down, `Slate-Home` has no internet at all, and moving to `Slate-Split` is a deliberate act instead of an unnoticed fallback.
+
+### D3. Zones
+
+| Interface / SSID | Trust zone | forward → | Purpose |
+|---|---|---|---|
+| STA uplink (`wwan`) | `untrusted` (0) | — | venue internet, outside the perimeter |
+| `Slate-Home` | `user` (3) | `wg-home` | home LAN + servers + management, as on Chateau |
+| `Slate-Split` | `travel_split` (3) | `wg-home`, `untrusted` | split mode |
+| `VPN-Germany` | `vpn_tunnel` (2) | `wg-de` | R6 drop → `untrusted` |
+| `VPN-Russia` | `vpn_tunnel` (2) | `wg-ru` | R6 drop → `untrusted` |
+| `VPN-Sweden` | `vpn_tunnel` (2) | `wg-se` | R6 drop → `untrusted` |
+| `Guest` | `guest` (0) | `untrusted` | venue internet, deliberately untunneled |
+
+`zone.input` is declared explicitly for every zone (`E9907`): stock OpenWrt ships `lan` with `input ACCEPT`, which would expose SSH and the uapi endpoint to every client. Captive-portal authentication lives in the `untrusted` zone and is reachable by the router itself, never by client zones — the router's own egress is unavoidably "split", since tunnels cannot be established otherwise.
+
+### D4. Addressing
+
+Default `192.168.1.0/24` is abandoned — it is the most common hotel LAN there is. Third octet mirrors Chateau's VLAN ids to keep cognitive load low (ADR 0043):
+
+```
+10.77.1.0/24    Slate-Home
+10.77.2.0/24    Slate-Split
+10.77.20.0/24   Guest         (<-> Chateau vlan 20)
+10.77.55.0/24   VPN-Germany   (<-> 55)
+10.77.57.0/24   VPN-Russia    (<-> 57)
+10.77.58.0/24   VPN-Sweden    (<-> 58)
+```
+
+### D5. Tunnels — one WireGuard interface per country, routed, no SNAT
+
+Operator's choice. Because this is a router and not a client, client subnets are **routed** through their tunnel rather than SNATed to a single address: the client source IP survives to Chateau, which keeps per-client policy possible at home and keeps the address domains meaningful. Chateau's existing `rw_russia`/`rw_sweden` policies generalise from a `/32` match to a subnet match — one step, no new mechanism.
+
+| Interface | Tunnel IP | Mode | Advertises | MTU |
+|---|---|---|---|---|
+| `wg-home` | **10.100.0.4** (already allocated in `inst.tunnel.wg-home-to-oci`) | split to home | 10.77.1.0/24, 10.77.2.0/24 | 1420 |
+| `wg-de` | 10.100.1.10 | `direct` — exits at the VPS | 10.77.55.0/24 | 1420 |
+| `wg-ru` | 10.100.1.11 | `chained` → Chateau → `wg-awg-russia` | 10.77.57.0/24 | ~1340, **measure** |
+| `wg-se` | 10.100.1.12 | `chained` → Chateau → `wg-awg-sweden` | 10.77.58.0/24 | ~1340, **measure** |
+
+AmneziaWG stays at home: it is **not available in the configured feeds for this target** (`apk list | grep amnezia` → empty; only `kmod-wireguard` and `wireguard-tools`), a third-party kmod would be pinned to kernel 6.12.94, and a device that travels should not carry the country credentials at all.
+
+Each interface needs the existing IPv6-blackhole pattern (`fd00::N/128` plus `::/0`), or the venue's RA will route traffic around the tunnel. Nested MTU is an estimate until measured with DF pings; `mtu_fix` clamps TCP MSS only, so QUIC blackholes rather than degrading (`W9902`).
+
+Neighbour changes required: one peer per interface on the VPS with matching `AllowedIPs`, and subnet-matching `rw_*` policies on Chateau.
+
+### D6. Second enforcer, and the W7016 retirement path
+
+`inst.security_matrix.rtr_slate` — `managed_by_ref: rtr-slate`, `enforcement_plane: perimeter`, one matrix per enforcer (ADR 0110 M1-B), with `availability_requirements: []` plus an `availability_waiver` so it does not reproduce the two `W7002` warnings Chateau's matrix had to resolve. This is what `W7016` has been pointing at all along.
+
+Modelling note worth recording so nobody hunts for absent 802.1q tags: on Chateau an `inst.vlan.*` is realised as a tagged bridge VLAN; on rtr-slate the same instance type will be realised as an **untagged per-SSID interface**, because a travel router needs no trunking. That is legitimate under ADR 0110 ("the adapter translates intent to platform-specific implementation"), but it makes `vlan_id` nominal on this device.
+
+### D7. SSID budget is a memory-leak mitigation, not aesthetics
+
+Given W6 — leak rate tracks cumulative RX churn — the standing configuration keeps three SSIDs live (`Slate-Home`, `Slate-Split`, and one country as needed). `VPN-Germany`, `VPN-Russia`, `VPN-Sweden` and `Guest` are declared with `enabled: false` and switched on when wanted; parse-time dropped sections cost nothing. Six concurrent BSSIDs on a single congested hotel channel would also spend real airtime on beacons.
+
+---
+
+## CLASS A / PHASE 2 EXECUTION RECORD — 2026-10-11 (COMPLETE)
+
+Governance before code, as the plan sequenced it.
+
+### A2.1 Diagnostic family allocated: `E99xx` / `W99xx`
+
+Band choice was **measured**, following this catalog's own rule that a range map which does not describe the system cannot be used to pick a free number. Distinct codes seen across source, catalog and the frozen ledgers:
+
+| Band | 90 | 91 | 92 | 93 | 94 | 95 | 96 | 97 | 98 | 99 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Codes | 3 | 4 | 7 | 17 | 11 | 5 | 4 | **41** | 15 | **0** |
+
+`E97xx` is what the reserved-family sequence suggests and is the most crowded band in `E9xxx` (`docs_generator`, `initialization_contract_validator`, plus `E9700..E9761` in the frozen unregistered ledger). `E99xx` was empty and was taken. A notable incidental finding: the MikroTik generator's own `E92xx` codes are **not in the catalog either** — they are part of the 274-code unregistered debt.
+
+**14 codes registered** in `topology-tools/data/error-catalog.yaml`, each naming its future raiser in a comment so an allocation with no raiser stays auditable — the discipline `AWAITING_A_MOUNT` enforces for `E70xx`, applied by hand because `E99xx` falls outside `NETWORK_MODEL_RANGE` and that ledger does not see it. Every rule encodes a verified fact rather than a guess:
+
+| Code | Encodes |
+|---|---|
+| `E9901` | projection contract defect (StrictUndefined templates) |
+| `E9902` | overlapping match tuples — uapi exposes **no** ordering control anywhere in its OpenAPI spec, so disjointness *is* the ordering contract |
+| `E9903` | match arity: list on `firewall_rule`, scalar on `redirect`/`nat`; wrong arity makes fw4 drop the whole section silently |
+| `E9904` | generation would mutate the management path — a stranding write never returns, so Terraform records nothing |
+| `E9905` | interface in no zone (zones match `iifname`; `uapi_firewall_zone` has no `device`/`subnet`) |
+| `E9906` | **kill switch** — tunnel-only zone with a forwarding to an uplink zone (the D1 finding) |
+| `E9907` | zone input policy left implicit (stock `lan` is `input ACCEPT`) |
+| `E9908` | wireless `country` unset → 5 GHz AP never beacons (regdom `00` is `NO-IR`) |
+| `E9909` | STA-bearing radio with a numeric channel → `fixed_freq=1` pins the STA |
+| `E9910` | two STA interfaces on one radio → violates `#{ managed } <= 1` |
+| `W9901` | AP shares a radio with an STA → APs stop on every scan/roam |
+| `W9902` | client MTU exceeds the nested tunnel budget → QUIC blackholes |
+| `W9903` | adoption target is an anonymous section → adoption renames it, mutating the router |
+
+The allocation and its justification are documented in `docs/diagnostics-catalog.md`.
+
+### A2.2 Capability registered, deliberately not wired
+
+`cap.firewall.security_matrix.openwrt` added to `topology/class-modules/capability-catalog.yaml` (experimental, vendor `openwrt`, ADR 0110). It is **not** added to `_ENFORCER_ADAPTER_BY_TYPE` in `effective_model_compiler.py`: an adapter identifier that resolves with no generator behind it is a false claim of coverage under ADR 0119 D1.1. The mapping and the `W7016` allowlist entry are retired together in Phase 6, and the catalog entry carries a comment saying so.
+
+### A2.3 Verification
+
+```
+pytest tests/test_diagnostic_code_registry.py   -> 11 passed
+check-capability-contract.py                    -> OK, 0 warnings
+compile-topology.py                             -> 0 errors, 1 warning (pre-existing W7016)
+validate-v5 lane                                -> PASS on every step
+```
 
 ---
 

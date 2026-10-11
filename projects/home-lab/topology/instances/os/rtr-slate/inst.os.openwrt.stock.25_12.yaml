@@ -1,0 +1,14 @@
+@instance: inst.os.openwrt.stock.25_12
+@extends: obj.os.openwrt.stock.25_12
+@group: os
+@version: 1.0.0
+source_id: inst.os.openwrt.stock.25_12
+embedded_in: inst.firmware.openwrt.stock.25_12
+notes: |
+  ADR0064 embedded OS instance for rtr-slate. Replaces
+  inst.os.openwrt.glinet.4x. Values read off the device over SSH on 2026-10-11.
+deployment:
+  version: 25.12.5
+  build: r33051-f5dae5ece4
+  kernel_version: 6.12.94
+  installed_at: "2026-10-11T13:33:00Z"
