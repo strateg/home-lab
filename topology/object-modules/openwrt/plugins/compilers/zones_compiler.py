@@ -129,6 +129,74 @@ def _local_segments(network_rows: list[Any], enforcer_id: str) -> dict[str, list
     return by_zone
 
 
+def _local_interfaces(row: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
+    """Non-segment interfaces this device places in a zone, grouped by zone.
+
+    Zone membership is not only address domains. The venue uplink and every
+    WireGuard interface are `config interface` sections with no VLAN and no
+    client prefix, and `uapi_firewall_zone` has no `device` or `subnet` field -
+    only `network` - so each must be a named interface inside some zone or it
+    belongs to none and is silently unreachable.
+    """
+    data = row.get("instance_data")
+    if not isinstance(data, dict):
+        return {}
+    intent = data.get("runtime_intent")
+    if not isinstance(intent, dict):
+        return {}
+
+    by_zone: dict[str, list[dict[str, Any]]] = {}
+
+    def add(zone_ref: Any, entry: dict[str, Any]) -> None:
+        if isinstance(zone_ref, str) and zone_ref:
+            by_zone.setdefault(zone_ref, []).append(entry)
+
+    uplink = intent.get("uplink")
+    if isinstance(uplink, dict):
+        for role in ("primary", "wired"):
+            spec = uplink.get(role)
+            if not isinstance(spec, dict) or spec.get("enabled") is False:
+                continue
+            name = spec.get("interface")
+            if not isinstance(name, str) or not name:
+                continue
+            add(
+                spec.get("trust_zone_ref"),
+                {
+                    "name": name,
+                    "kind": "uplink",
+                    "role": role,
+                    "proto": spec.get("proto"),
+                    # The management path must not be regenerated: a write that
+                    # strands the caller never returns, so Terraform records
+                    # nothing (E9904).
+                    "immutable": bool(uplink.get("management_path_immutable", False)),
+                },
+            )
+
+    wireguard = intent.get("wireguard")
+    if isinstance(wireguard, dict):
+        for entry in wireguard.get("interfaces") or []:
+            if not isinstance(entry, dict) or entry.get("enabled") is False:
+                continue
+            name = entry.get("name")
+            if not isinstance(name, str) or not name:
+                continue
+            add(
+                entry.get("trust_zone_ref"),
+                {
+                    "name": name,
+                    "kind": "wireguard",
+                    "mtu": entry.get("mtu"),
+                    "advertises": entry.get("advertises") or [],
+                    "exit_mode": entry.get("exit_mode"),
+                    "immutable": False,
+                },
+            )
+
+    return by_zone
+
+
 def _input_services(segments: list[dict[str, Any]]) -> list[str]:
     """Router services a client segment genuinely needs on the input path.
 
@@ -228,14 +296,20 @@ class OpenwrtZonesCompiler(CompilerPlugin):
                 continue
 
             segments_by_zone = _local_segments(network_rows, enforcer_id)
-            local_zone_refs = set(segments_by_zone)
+            interfaces_by_zone = _local_interfaces(row)
+            # A zone is local if this device puts anything in it - an address
+            # domain or a bare interface. The uplink zone has no client prefix
+            # at all, so membership by segment alone would report it as remote.
+            local_zone_refs = set(segments_by_zone) | set(interfaces_by_zone)
 
             zones: dict[str, Any] = {}
             for zone_ref in sorted(zone_data):
                 segments = segments_by_zone.get(zone_ref, [])
+                interfaces = interfaces_by_zone.get(zone_ref, [])
                 zones[zone_ref] = {
-                    "local": bool(segments),
+                    "local": bool(segments) or bool(interfaces),
                     "segments": segments,
+                    "interfaces": interfaces,
                     # firewall4 zone chains are terminal and the base chains
                     # carry policy drop, so a zone's own policy is the whole
                     # default-deny story. Permits are the explicit forwardings

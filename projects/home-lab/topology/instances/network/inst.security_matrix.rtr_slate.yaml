@@ -27,6 +27,12 @@ zone_refs:
   - inst.trust_zone.untrusted      # venue uplink (STA), outside the perimeter
   - inst.trust_zone.guest          # Guest SSID, venue internet only
   - inst.trust_zone.vpn_tunnel     # country SSIDs (DE/RU/SE)
+  # The WireGuard interfaces themselves, kept in a zone of their own so that a
+  # client reaching its tunnel is an explicit inter-zone forwarding. Sharing
+  # vpn_tunnel with the country segments would have made it intra-zone traffic,
+  # which this model's forward: REJECT denies - the country SSIDs would not have
+  # reached their own tunnels at all.
+  - inst.trust_zone.vpn_exit
   - inst.trust_zone.travel_split   # Slate-Split, deliberate direct egress
   - inst.trust_zone.user           # Slate-Home, full tunnel
   - inst.trust_zone.servers        # reached over wg-home, hosted at home
@@ -121,6 +127,44 @@ policy_overrides:
       tcp: [80, 443]
     log: false
     comment: Split mode keeps home service access over wg-home
+
+  # ---------------------------------------------------------------------
+  # Tunnel zone must not egress to the venue.
+  #
+  # vpn_exit is isolated, and R2 grants isolated zones untrusted explicitly -
+  # which here would be a forward path from anything arriving on a tunnel
+  # straight out the venue uplink. The encrypted packets WireGuard itself sends
+  # originate from the router's output chain, not from forwarding, so nothing
+  # legitimate needs this pair.
+  # ---------------------------------------------------------------------
+  - name: slate-tunnel-not-to-venue
+    from_zone_ref: inst.trust_zone.vpn_exit
+    to_zone_ref: inst.trust_zone.untrusted
+    action: drop
+    log: true
+    comment: Traffic arriving on a tunnel never leaves through the venue uplink
+
+  # ---------------------------------------------------------------------
+  # Client segments must not reach each other across modes.
+  #
+  # The country segments live in vpn_tunnel (2) and both owner modes sit at
+  # level 3, so R3 downhill would let a Slate-Home or Slate-Split client reach
+  # the country SSIDs' subnets. Each mode should see its own clients and the
+  # tunnels, nothing sideways.
+  # ---------------------------------------------------------------------
+  - name: slate-home-not-to-country
+    from_zone_ref: inst.trust_zone.user
+    to_zone_ref: inst.trust_zone.vpn_tunnel
+    action: drop
+    log: false
+    comment: Full-tunnel clients have no business on the country segments
+
+  - name: slate-split-not-to-country
+    from_zone_ref: inst.trust_zone.travel_split
+    to_zone_ref: inst.trust_zone.vpn_tunnel
+    action: drop
+    log: false
+    comment: Converse of slate-home-not-to-country for split mode
 
   # ---------------------------------------------------------------------
   # Mode isolation. The two client modes sit at the same security level, so

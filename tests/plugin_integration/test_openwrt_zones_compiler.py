@@ -255,6 +255,59 @@ def test_zone_without_a_local_segment_is_marked_remote():
     assert plan["zones"][_USER]["local"] is True
 
 
+def test_interfaces_make_a_zone_local_without_any_segment():
+    """The uplink zone owns no client prefix, only interfaces.
+
+    uapi_firewall_zone has no device or subnet field - only `network` - so a
+    bare interface is how the venue uplink joins a zone at all. Counting
+    membership by address domain alone reported untrusted as remote.
+    """
+    model = _fixture_model()
+    model["instances"]["devices"][0]["instance_data"] = {
+        "runtime_intent": {
+            "uplink": {
+                "management_path_immutable": True,
+                "primary": {
+                    "interface": "wwan",
+                    "proto": "dhcp",
+                    "trust_zone_ref": _UNTRUSTED,
+                },
+            }
+        }
+    }
+    matrix = _fixture_matrix()
+    matrix["rtr-slate"]["matrix"][_UNTRUSTED] = {_USER: _cell("deny", rule="R4")}
+
+    plan = _run(model, matrix, _resolution())["rtr-slate"]
+
+    zone = plan["zones"][_UNTRUSTED]
+    assert zone["local"] is True
+    assert zone["segments"] == []
+    assert [iface["name"] for iface in zone["interfaces"]] == ["wwan"]
+    # Carried through so E9904 can refuse generation that would rewrite the
+    # interface a stranding write would arrive on.
+    assert zone["interfaces"][0]["immutable"] is True
+
+
+def test_parked_tunnel_interface_is_not_placed_in_a_zone():
+    model = _fixture_model()
+    model["instances"]["devices"][0]["instance_data"] = {
+        "runtime_intent": {
+            "wireguard": {
+                "interfaces": [
+                    {"name": "wg-home", "trust_zone_ref": _USER, "enabled": True},
+                    {"name": "wg-ru", "trust_zone_ref": _USER, "enabled": False},
+                ]
+            }
+        }
+    }
+
+    plan = _run(model, _fixture_matrix(), _resolution())["rtr-slate"]
+
+    names = [iface["name"] for iface in plan["zones"][_USER]["interfaces"]]
+    assert names == ["wg-home"]
+
+
 def test_no_terminal_drop_all_is_produced():
     """ADR 0110 section 4.4's mandatory final drop-all must not be ported.
 

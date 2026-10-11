@@ -320,7 +320,7 @@ runtime_intent:
         advertises:
           - 10.77.1.0/24
           - 10.77.2.0/24
-        trust_zone_ref: inst.trust_zone.vpn_tunnel
+        trust_zone_ref: inst.trust_zone.vpn_exit
         enabled: true
         notes: |
           Trusted path home. Peer and keys already exist in
@@ -336,7 +336,7 @@ runtime_intent:
           - 10.77.55.0/24
         exit_mode: direct
         exit_country: DE
-        trust_zone_ref: inst.trust_zone.vpn_tunnel
+        trust_zone_ref: inst.trust_zone.vpn_exit
         enabled: false
         notes: Single encapsulation - terminates at the VPS, no hop through home.
 
@@ -353,7 +353,7 @@ runtime_intent:
         exit_country: RU
         chained_via_ref: rtr-mikrotik-chateau
         upstream_tunnel_ref: docker-amneziawg-russia
-        trust_zone_ref: inst.trust_zone.vpn_tunnel
+        trust_zone_ref: inst.trust_zone.vpn_exit
         enabled: false
 
       - name: wg-se
@@ -367,7 +367,7 @@ runtime_intent:
         exit_country: SE
         chained_via_ref: rtr-mikrotik-chateau
         upstream_tunnel_ref: docker-amneziawg-sweden
-        trust_zone_ref: inst.trust_zone.vpn_tunnel
+        trust_zone_ref: inst.trust_zone.vpn_exit
         enabled: false
 
     # Policy routing selects the egress tunnel by source subnet via ip rule.
