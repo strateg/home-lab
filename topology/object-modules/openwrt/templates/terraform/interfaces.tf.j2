@@ -59,6 +59,14 @@ resource "uapi_network_interface" "{{ iface.label }}" {
 {% if iface.device %}
   device = "{{ iface.device }}"
 {% endif %}
+{% if iface.addresses %}
+
+  # `addresses`, not `ipaddrs` + `netmask`: the provider REQUIRES this form for
+  # proto=wireguard and rejects the write otherwise. The schema lists both as
+  # independent optional fields, so the dependency on `proto` is visible only in
+  # the provider's runtime validation.
+  addresses = [{% for addr in iface.addresses %}"{{ addr }}"{{ ", " if not loop.last }}{% endfor %}]
+{% endif %}
 {% if iface.ipaddrs %}
 
   # List, per the schema. `ipaddr` is read-only and must not be written.
@@ -94,5 +102,26 @@ resource "uapi_network_interface" "{{ iface.label }}" {
 # Deliberately not rendered here:
 {% for item in deferred_interfaces %}
 #   {{ item }}
+{% endfor %}
+{% endif %}
+{% if packages %}
+
+# ---------------------------------------------------------------------------
+# Packages
+#
+# Declared in runtime_intent.services.packages. Rendered here because the
+# declaration alone installs nothing: without kmod-wireguard, netifd reports
+# `proto: "none"` for every WireGuard interface and the tunnels cannot come up
+# however correct their configuration is.
+#
+# `pre_existed` is read-only and decides destroy behaviour: a package that was
+# already installed is not removed when the resource is destroyed, only one this
+# root installed.
+# ---------------------------------------------------------------------------
+{% for package in packages %}
+
+resource "uapi_package" "{{ package.label }}" {
+  name = "{{ package.name }}"
+}
 {% endfor %}
 {% endif %}

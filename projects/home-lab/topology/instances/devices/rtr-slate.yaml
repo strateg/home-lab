@@ -246,7 +246,7 @@ runtime_intent:
         encryption: sae-mixed
         network_ref: inst.vlan.slate_home
         enabled: true
-        notes: Full-tunnel mode. Egress only via wg-home.
+        notes: Full-tunnel mode. Egress only via wg_home.
 
       - name: ap_split
         device: radio0
@@ -345,7 +345,7 @@ runtime_intent:
   wireguard:
     configured: true
     interfaces:
-      - name: wg-home
+      - name: wg_home
         tunnel_ref: inst.tunnel.wg-home-to-oci
         tunnel_ip: 10.100.0.4/24
         persistent_keepalive: 25
@@ -389,7 +389,7 @@ runtime_intent:
           inst.tunnel.wg-home-to-oci; only the advertised subnets and the
           servers/management routes are new.
 
-      - name: wg-de
+      - name: wg_de
         default_route_for:
           - inst.vlan.slate_de
         route_table: 155
@@ -405,7 +405,7 @@ runtime_intent:
         enabled: false
         notes: Single encapsulation - terminates at the VPS, no hop through home.
 
-      - name: wg-ru
+      - name: wg_ru
         default_route_for:
           - inst.vlan.slate_ru
         route_table: 157
@@ -424,7 +424,7 @@ runtime_intent:
         trust_zone_ref: inst.trust_zone.vpn_exit
         enabled: false
 
-      - name: wg-se
+      - name: wg_se
         default_route_for:
           - inst.vlan.slate_se
         route_table: 158

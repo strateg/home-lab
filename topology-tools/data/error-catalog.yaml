@@ -1659,6 +1659,17 @@ codes:
       clamps TCP MSS only, so UDP and QUIC blackhole instead of degrading. Measure the real overhead.
 
   # Raiser: object.openwrt.compiler.interfaces
+  E9917:
+    severity: error
+    stage: compile
+    title: Illegal uci Section Name
+    hint: >-
+      A section id the plan would write does not satisfy uci's section-name rules - 1 to 32 characters,
+      starting with a letter, containing only letters, digits and underscore. A hyphen is the usual cause,
+      since kernel device names allow one and section names do not. The provider rejects the write with
+      422 invalid_format, so it is caught at apply time for the whole root rather than at compile time.
+
+  # Raiser: object.openwrt.compiler.interfaces
   E9915:
     severity: error
     stage: compile

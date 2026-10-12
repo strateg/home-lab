@@ -129,7 +129,20 @@ def _rule_entries(rules: list[Any], zones_in: dict[str, Any], local_refs: set[st
                     "name": f"{_zone_name(src, zones_in.get(src) or {})}-to-"
                     f"{_slug(rule.get('remote_zone') or dest)}{suffix}",
                     "target": "ACCEPT",
-                    # Strings, per the provider schema.
+                    # Strings in the schema, but rendered as references to the
+                    # zone RESOURCES rather than as literals.
+                    #
+                    # Literals were the first implementation and they do not
+                    # work: the provider validates that a named zone exists at
+                    # write time, and a literal gives Terraform no dependency
+                    # edge, so it applies rules in parallel with the zones they
+                    # name. Measured on the device - 9 of 13 rules failed with
+                    # `zone "management" does not exist` while all 14
+                    # forwardings, which already referenced resources,
+                    # succeeded. The hazard was documented for forwardings and
+                    # then reintroduced here.
+                    "src_label": _slug(src),
+                    "dest_label": _slug(dest),
                     "src_zone": _zone_name(src, zones_in.get(src) or {}),
                     "dest_zone": _zone_name(dest, zones_in.get(dest) or {}),
                     # Lists, per the provider schema.
@@ -456,6 +469,7 @@ class TerraformOpenwrtGenerator(BaseGenerator):
                     "label": f"input__{_slug(src)}__{service}__{proto}",
                     "name": f"{zone_name}-input-{service}-{proto}",
                     "src_zone": zone_name,
+                    "src_label": _slug(src),
                     "proto": proto,
                     "port": entry.get("port"),
                     "service": service,
@@ -529,6 +543,7 @@ class TerraformOpenwrtGenerator(BaseGenerator):
         # blank.
         interface_defaults = {
             "device": None,
+            "addresses": [],
             "ipaddrs": [],
             "netmask": None,
             "mtu": None,
@@ -565,11 +580,29 @@ class TerraformOpenwrtGenerator(BaseGenerator):
             if label is not None:
                 bridge_devices.append({"type": "bridge", "ports": [], **item, "label": label})
 
+        # Radios are lowered but deliberately NOT rendered as resources.
+        #
+        # Measured on the device 2026-10-12, the hard way: `uapi_wireless_device`
+        # does not model uci's `path` option, and a write replaces the section's
+        # option set - so adopting a radio and changing any attribute DROPS
+        # `path`. wifi-scripts then cannot resolve the phy and logs
+        # `Bug: PHY is undefined for device`; both radios went down and no SSID
+        # beaconed. Restoring `path` by hand brought everything back.
+        #
+        # There is no way to express `path` through this resource, so any write
+        # to it repeats the damage. Radios therefore stay out of Terraform and
+        # belong to whatever manages the OS - the same boundary ADR 0119 D6
+        # draws for the memory watchdog. The wifi-ifaces below name their radio
+        # as a literal string, which is correct precisely because nothing here
+        # creates it: there is no ordering to establish.
         radios: list[dict[str, Any]] = []
         radio_labels: dict[str, str] = {}
-        for item in interface_plan.get("wireless_devices") or []:
-            if not isinstance(item, dict):
-                continue
+        unrendered_radios = [
+            str(item.get("id"))
+            for item in interface_plan.get("wireless_devices") or []
+            if isinstance(item, dict) and item.get("id")
+        ]
+        for item in []:
             label = claim(item.get("id"), "radio")
             if label is None:
                 continue
@@ -598,9 +631,10 @@ class TerraformOpenwrtGenerator(BaseGenerator):
             if not isinstance(item, dict):
                 continue
             label = claim(item.get("id"), "wifi_iface")
-            device_label = radio_labels.get(str(item.get("device")))
+            # The radio is named, not referenced: it is not a resource here.
+            device_name = str(item.get("device")) if item.get("device") else None
             network_label = interface_labels.get(str(item.get("network")))
-            if label is None or device_label is None or network_label is None:
+            if label is None or device_name is None or network_label is None:
                 # A wifi-iface whose radio or network did not render has nothing
                 # to reference. E9912 already refused an unknown network at
                 # compile time, so reaching here means a label collision above.
@@ -629,7 +663,7 @@ class TerraformOpenwrtGenerator(BaseGenerator):
                     "disabled": False,
                     **item,
                     "label": label,
-                    "device_label": device_label,
+                    "device_name": device_name,
                     "network_label": network_label,
                 }
             )
@@ -696,6 +730,17 @@ class TerraformOpenwrtGenerator(BaseGenerator):
                     ),
                 }
             )
+
+        # Packages. Declared in runtime_intent.services.packages and, until
+        # now, lowered into the plan and rendered nowhere - so kmod-wireguard
+        # was never installed and netifd reported `proto: "none"` for every
+        # WireGuard interface. Authored, lowered, not emitted: the same shape as
+        # the input-service rules and the inert object override.
+        packages = [
+            {"label": _label(name), "name": name}
+            for name in interface_plan.get("packages") or []
+            if isinstance(name, str) and name
+        ]
 
         policy_routes: list[dict[str, Any]] = []
         for item in interface_plan.get("routes") or []:
@@ -779,6 +824,7 @@ class TerraformOpenwrtGenerator(BaseGenerator):
             adoption.append({**item, "label": label})
 
         context = {
+            "packages": packages,
             "peers": peers,
             "policy_routes": policy_routes,
             "policy_rules": policy_rules,
@@ -788,6 +834,7 @@ class TerraformOpenwrtGenerator(BaseGenerator):
             "interfaces": interfaces,
             "bridge_devices": bridge_devices,
             "wireless_devices": radios,
+            "unrendered_radios": sorted(unrendered_radios),
             "wireless_interfaces": wifi_ifaces,
             "ap_sharing_radio_with_station": sorted(sharing),
             "dhcp_servers": dhcp_servers,

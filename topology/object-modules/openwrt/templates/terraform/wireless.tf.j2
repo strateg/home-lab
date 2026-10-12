@@ -22,7 +22,23 @@
 # intended phy.
 
 # ---------------------------------------------------------------------------
-# Radios
+# Radios: NOT MANAGED HERE, deliberately.
+#
+# `uapi_wireless_device` does not model uci's `path` option, and a write
+# replaces the section's option set - so adopting a radio and changing any
+# attribute DROPS `path`. Measured on this device: wifi-scripts then logs
+# `Bug: PHY is undefined for device`, both radios go down, and no SSID beacons.
+#
+# There is no way to express `path` through the resource, so any write repeats
+# the damage. The radios belong to whatever manages the OS - the same boundary
+# ADR 0119 D6 draws for the memory watchdog.
+#
+# Radios this device has, left alone:
+{% for name in unrendered_radios %}
+#   {{ name }}
+{% else %}
+#   none
+{% endfor %}
 # ---------------------------------------------------------------------------
 {% for radio in wireless_devices %}
 
@@ -74,7 +90,9 @@ resource "uapi_wireless_device" "{{ radio.label }}" {
 
 resource "uapi_wireless_interface" "{{ iface.label }}" {
   id     = "{{ iface.id }}"
-  device = uapi_wireless_device.{{ iface.device_label }}.id
+  # A literal, not a reference: the radio is not a resource in this root, so
+  # there is no ordering to establish and nothing to depend on.
+  device = "{{ iface.device_name }}"
 {% if iface.mode %}
   mode = "{{ iface.mode }}"
 {% endif %}

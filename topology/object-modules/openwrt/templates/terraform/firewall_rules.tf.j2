@@ -27,8 +27,8 @@ resource "uapi_firewall_rule" "{{ rule.label }}" {
   target = "{{ rule.target }}"
 
   match = {
-    src_zone  = "{{ rule.src_zone }}"
-    dest_zone = "{{ rule.dest_zone }}"
+    src_zone  = uapi_firewall_zone.{{ rule.src_label }}.name
+    dest_zone = uapi_firewall_zone.{{ rule.dest_label }}.name
     # Never defaulted by the provider: absent means IPv4 only, so it is stated.
     family    = "{{ rule.family }}"
 {% if rule.proto %}
@@ -82,7 +82,7 @@ resource "uapi_firewall_rule" "{{ rule.label }}" {
   target = "ACCEPT"
 
   match = {
-    src_zone  = "{{ rule.src_zone }}"
+    src_zone  = uapi_firewall_zone.{{ rule.src_label }}.name
     proto     = ["{{ rule.proto }}"]
     dest_port = ["{{ rule.port }}"]
     family    = "ipv4"

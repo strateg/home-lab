@@ -1526,6 +1526,106 @@ to be done without explicit instruction.
 
 ---
 
+## PHASE 9 STEP 2 — APPLY, 2026-10-12
+
+Applied in four passes. The device stayed reachable throughout, and the state
+converged: `terraform plan` reports **no changes** for everything except four
+packages, which are blocked on the device having no uplink.
+
+| Pass | Result | What it taught |
+|---|---|---|
+| 1 | 52 of 77, **17 errors** | hyphens in uci section names; firewall rules raced their zones |
+| 2 | +14, 4 errors | `proto=wireguard` needs `addresses`, not `ipaddrs`+`netmask` |
+| 3 | **+18, 0 errors** | converged |
+| 4 | 0 of 4 | `apk` cannot reach a feed: the device has no default route |
+
+What is live on the device now: 7 firewall zones, 14 forwardings, 13 rules
+(forward and input), 15 interface sections, 4 WireGuard interfaces with 4 peers,
+6 DHCP pools, 10 routes, 4 ip-rules — and **`Slate-Home` and `Slate-Split`
+beaconing** on radio0 with the station interface present on radio1, which is
+exactly the agreed radio plan running on hardware.
+
+### Four defects the apply found that nothing before it could
+
+**1. uci section names cannot contain a hyphen.** `wg-home`, `wg-de`, `wg-ru`,
+`wg-se` and every route/rule/peer id derived from them. The rule is
+`^[A-Za-z][A-Za-z0-9_]{0,31}$`; the provider answers `422 invalid_format`. I
+folded hyphens when deriving Terraform *labels* and passed the *ids* through
+verbatim — a kernel device name allows a hyphen and a section name does not, and
+I had conflated them for the second time in this work. Fixed in topology and
+closed by **E9917**, which checks every id the plan would write. Mutation-checked:
+one hyphenated name produces five findings, one per derived id.
+
+**2. Firewall rules raced the zones they name.** The provider validates that a
+named zone exists *at write time*, and `firewall_rules.tf` emitted
+`src_zone = "management"` as a **literal**, which gives Terraform no dependency
+edge. Nine of thirteen rules failed with `zone "management" does not exist`
+while all fourteen forwardings succeeded — because forwardings already
+referenced `uapi_firewall_zone.X.name`. I had written the comment explaining
+this hazard for forwardings and then reintroduced it in the rules. Now both use
+references.
+
+**3. `proto = wireguard` requires `addresses`, not `ipaddrs` + `netmask`.** The
+schema lists both as independent optional fields with no hint of a dependency on
+`proto`; only the provider's runtime validation says
+`addresses: is required when proto is wireguard (list of CIDRs)`.
+`terraform validate` sees two well-typed lists and passes. The authored CIDR now
+passes through whole.
+
+**4. Writing a radio through this provider destroys the phy binding.** The worst
+of the four, and a live regression. `uapi_wireless_device` does not model uci's
+`path`, and a write replaces the section's option set — so *adopting* radio0 and
+adding `country` dropped `path='platform/soc@0/c000000.wifi'`. wifi-scripts then
+logged `Bug: PHY is undefined for device`, both radios went down and no SSID
+beaconed. Restoring `path` from the pre-apply snapshot brought everything back,
+and both intended SSIDs came up.
+
+I had predicted this risk and drawn the wrong conclusion from it — the note in
+`wireless.tf` said adoption *preserves* the binding, when an in-place update
+loses it too. **Radios are now unmanaged**: there is no way to express `path`
+through the resource, so any write repeats the damage. They belong to whatever
+manages the OS, the same boundary ADR 0119 D6 draws for the memory watchdog. The
+wifi-ifaces name their radio as a literal, which is correct precisely because
+nothing here creates it.
+
+### And one more "declared, lowered, never emitted"
+
+`runtime_intent.services.packages` lists `kmod-wireguard`, `wireguard-tools`,
+`iwinfo`, `rpcd-mod-iwinfo`. The compiler lowered them into the plan and the
+generator rendered **nothing**, so netifd reported `proto: "none"` for every
+WireGuard interface however correct its configuration was. Now rendered as
+`uapi_package`. The same shape as the input-service rules, the inert
+object-level override, and D2's missing routing half — the fourth instance of
+that pattern in this work, and the one that proves the pattern is structural
+rather than coincidental.
+
+### Safety record
+
+Nothing was lost. `0 to destroy` on every pass. The management path held exactly
+as designed: `lan` imported with no diff, the stock `lan` zone's `input ACCEPT`
+kept SSH and uapi reachable while both configurations coexisted, and the laptop
+was on ethernet so no radio reload could strand it. `apply-confirm` turned out
+not to be installed, so the snapshot taken before the first write
+(`uci export`, pulled off-device) was the rollback source — and it is what
+repaired the radios.
+
+### Open
+
+* Four packages, blocked on the device having no uplink — `apk` needs a feed.
+  Until `kmod-wireguard` is installed, the four WireGuard interfaces exist in
+  uci and cannot come up.
+* The two stock firewall zones are still present, deliberately: they are removed
+  only after the perimeter is verified, because the stock `lan` zone is what
+  keeps the management path open during the transition.
+* `private_key_ref` still reads `instances/<name>.private_key`, which is not
+  where the key lives — the real path is the tunnel's `secrets_ref` plus the
+  road-warrior device. A misleading ref, not a functional defect.
+* `wg_de`, `wg_ru` and `wg_se` all name `inst.tunnel.wg-exit`, which holds one
+  `rtr-slate` keypair, so the three parked country interfaces share a private
+  key. They are parked, so this is latent.
+
+---
+
 Stale raiser annotations in the catalog were repointed while registering these:
 `E9903`/`E9902`, `E9904`/`E9905` and `E9908`-`W9901` named
 `base.validator.openwrt_*` plugins that do not exist — the checks live in the

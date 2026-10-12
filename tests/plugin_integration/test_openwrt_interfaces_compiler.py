@@ -177,7 +177,7 @@ def _zone_plan(*, dhcp_range="10.77.1.100-10.77.1.200", mtu=1420):
                     "interfaces": [],
                 },
                 _MGMT: {"local": True, "segments": [], "interfaces": [{"name": "lan"}]},
-                _VPN_EXIT: {"local": True, "segments": [], "interfaces": [{"name": "wg-home"}]},
+                _VPN_EXIT: {"local": True, "segments": [], "interfaces": [{"name": "wg_home"}]},
             },
         }
     }
@@ -214,7 +214,7 @@ def _model(*, wireless=None, wireguard_mtu=1420):
         "wireguard": {
             "interfaces": [
                 {
-                    "name": "wg-home",
+                    "name": "wg_home",
                     "tunnel_ref": "inst.tunnel.wg-home-to-oci",
                     "tunnel_ip": "10.100.0.4/24",
                     "mtu": wireguard_mtu,
@@ -358,9 +358,14 @@ def test_radio_uplink_gets_no_device():
 def test_wireguard_interface_carries_a_key_reference_not_a_key():
     entry = _plan_of(_run(_zone_plan(), _model(wireless=_wireless())))
 
-    tunnel = next(item for item in entry["interfaces"] if item["id"] == "wg-home")
+    tunnel = next(item for item in entry["interfaces"] if item["id"] == "wg_home")
     assert tunnel["proto"] == "wireguard"
-    assert tunnel["ipaddrs"] == ["10.100.0.4"]
+    # `addresses`, not ipaddrs+netmask. The provider REQUIRES this form for
+    # proto=wireguard - measured on the device as
+    # "addresses: is required when proto is wireguard (list of CIDRs)" - and the
+    # authored CIDR passes through whole rather than being split.
+    assert tunnel["addresses"] == ["10.100.0.4/24"]
+    assert tunnel["ipaddrs"] == []
     assert "private_key_ref" in tunnel
     assert "private_key" not in tunnel
 
@@ -806,7 +811,7 @@ def test_two_tunnels_sharing_a_table_are_refused():
     ]
     interfaces.append(
         {
-            "name": "wg-de",
+            "name": "wg_de",
             "tunnel_ref": _TUNNEL,
             "tunnel_ip": "10.100.1.10/32",
             "default_route_for": ["inst.vlan.slate_home"],

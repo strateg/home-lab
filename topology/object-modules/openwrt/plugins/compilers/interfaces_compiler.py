@@ -58,6 +58,16 @@ _OPENWRT_OS_CAP = "cap.os.openwrt"
 # uapi_wireless_device and has no sensible default.
 _WIRELESS_TYPE = "mac80211"
 
+# uci section names: 1-32 characters, starting with a letter, then letters,
+# digits and underscore only. Measured against the provider, which rejects
+# anything else with `422 invalid_format` quoting exactly this rule.
+#
+# A hyphen is the usual way to get this wrong, because a kernel device name
+# allows one and a section name does not - `wg-home` is a legal netdev and an
+# illegal section. Terraform cannot catch it: the labels are folded, the ids are
+# not, and `terraform validate` sees a well-typed string.
+_UCI_SECTION_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,31}$")
+
 # Routing tables the kernel owns: 255 local, 254 main, 253 default.
 _RESERVED_TABLES = frozenset({253, 254, 255})
 
@@ -313,6 +323,23 @@ class OpenwrtInterfacesCompiler(CompilerPlugin):
         )
         diagnostics.extend(adoption_diagnostics)
 
+        diagnostics.extend(
+            self._check_section_names(
+                enforcer_id,
+                [
+                    *((item.get("id"), "interface") for item in interfaces),
+                    *((item.get("id"), "device") for item in devices),
+                    *((item.get("id"), "wireless device") for item in radios),
+                    *((item.get("id"), "wifi-iface") for item in wifi_ifaces),
+                    *((item.get("id"), "dhcp server") for item in dhcp_servers),
+                    *((item.get("id"), "route") for item in routes),
+                    *((item.get("id"), "ip rule") for item in rules),
+                    *((item.get("id"), "wireguard peer") for item in peers),
+                ],
+                stage,
+            )
+        )
+
         packages = []
         services = intent.get("services")
         if isinstance(services, dict) and isinstance(services.get("packages"), list):
@@ -458,18 +485,31 @@ class OpenwrtInterfacesCompiler(CompilerPlugin):
             for spec in wireguard.get("interfaces") or []:
                 if not isinstance(spec, dict) or not spec.get("name"):
                     continue
-                address = _split_address(spec.get("tunnel_ip"))
+                tunnel_ip = spec.get("tunnel_ip")
                 interfaces.append(
                     {
                         "id": spec["name"],
                         "kind": "wireguard",
                         "proto": "wireguard",
                         "device": None,
-                        # A /32 tunnel address is normal on WireGuard, and
-                        # ip_interface keeps the mask the author wrote rather
-                        # than widening it to the peer's view.
-                        "ipaddrs": [address[0]] if address else [],
-                        "netmask": address[1] if address else None,
+                        # `addresses`, NOT `ipaddrs` + `netmask`. The provider
+                        # requires it for proto=wireguard and rejects the write
+                        # otherwise: "addresses: is required when proto is
+                        # wireguard (list of CIDRs)".
+                        #
+                        # The schema documents `addresses` and `ipaddrs` as two
+                        # independent optional fields with no hint that one is
+                        # mandatory for a particular proto, so this is only
+                        # discoverable from the provider's runtime validation -
+                        # `terraform validate` sees two well-typed lists.
+                        #
+                        # The authored CIDR passes through whole. A /32 tunnel
+                        # address is normal on WireGuard and must keep the mask
+                        # the author wrote rather than be widened to the peer's
+                        # view.
+                        "addresses": [tunnel_ip] if isinstance(tunnel_ip, str) else [],
+                        "ipaddrs": [],
+                        "netmask": None,
                         "mtu": spec.get("mtu"),
                         "disabled": not _is_enabled(spec),
                         "immutable": False,
@@ -654,6 +694,41 @@ class OpenwrtInterfacesCompiler(CompilerPlugin):
     # ULID, which mutates the router (W9903), so the two must be told apart
     # before an import block is emitted rather than after.
     _ANONYMOUS_SECTION = re.compile(r"^cfg[0-9a-f]{6,}$")
+
+    def _check_section_names(
+        self,
+        enforcer_id: str,
+        candidates: list[tuple[Any, str]],
+        stage: Stage,
+    ) -> list[PluginDiagnostic]:
+        """Every id this plan would write must be a legal uci section name.
+
+        Checked at compile time because the provider checks it at *write* time:
+        a bad id is `422 invalid_format` on that one resource, mid-apply, with
+        the rest of the root already half-applied. Measured on the device -
+        eight resources failed this way on the first apply, all of them tracing
+        back to four authored names containing a hyphen.
+        """
+        diagnostics: list[PluginDiagnostic] = []
+        for identifier, kind in candidates:
+            if isinstance(identifier, str) and _UCI_SECTION_NAME.match(identifier):
+                continue
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E9917",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        f"Enforcer '{enforcer_id}': the {kind} id {identifier!r} is not a legal uci "
+                        "section name - 1 to 32 characters, starting with a letter, then letters, digits "
+                        "and underscore only. The provider rejects the write with 422 invalid_format "
+                        "part-way through an apply. A hyphen is the usual cause: a kernel device name "
+                        "allows one and a section name does not."
+                    ),
+                    path=f"instance:{enforcer_id}.runtime_intent",
+                )
+            )
+        return diagnostics
 
     def _lower_peers(
         self,

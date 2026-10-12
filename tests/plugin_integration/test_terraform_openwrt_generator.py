@@ -301,17 +301,31 @@ def test_colliding_labels_are_refused_rather_than_resolved():
     assert "fold to the Terraform label" in diagnostics[0].message
 
 
-def test_wifi_iface_references_its_radio_and_network_by_label():
-    """References, not literal strings, are what make Terraform order creation.
+def test_wifi_iface_references_its_network_but_names_its_radio():
+    """The asymmetry is deliberate and both halves were learned on the device.
 
-    A wifi-iface naming its network as a plain string would be created in
-    parallel with the interface it needs.
+    The NETWORK is a reference, because this root creates it: a literal would
+    give Terraform no dependency edge and the wifi-iface would be created in
+    parallel with the interface it needs. That is the failure 9 of 13 firewall
+    rules hit when they named their zones as literals.
+
+    The RADIO is a literal, because this root does NOT create it.
+    `uapi_wireless_device` cannot express uci's `path` option and a write drops
+    it, taking the phy binding with it, so radios are left unmanaged - and with
+    nothing creating them there is no ordering to establish.
     """
     context, _ = _interface_context()
 
     ap = next(item for item in context["wireless_interfaces"] if item["id"] == "ap_home")
-    assert ap["device_label"] == "radio0"
+    assert ap["device_name"] == "radio0"
     assert ap["network_label"] == "slate_home"
+
+
+def test_radios_are_reported_as_unrendered_rather_than_dropped():
+    context, _ = _interface_context()
+
+    assert context["wireless_devices"] == []
+    assert context["unrendered_radios"] == ["radio0", "radio1"]
 
 
 def test_dhcp_pool_references_its_interface_by_label():
@@ -397,6 +411,22 @@ def test_a_parked_station_does_not_couple_the_aps_on_its_radio():
     assert context["ap_sharing_radio_with_station"] == []
 
 
+def test_declared_packages_become_resources():
+    """Declared and lowered was not enough: nothing rendered them, so
+    kmod-wireguard was never installed and netifd reported `proto: "none"` for
+    every WireGuard interface."""
+    from kernel.plugin_base import Stage  # noqa: PLC0415
+
+    plan = _interface_plan(packages=["kmod-wireguard", "iwinfo"])
+    generator = MODULE.TerraformOpenwrtGenerator(GENERATOR_ID)
+    context, _ = generator._build_interface_context(plan, Stage.GENERATE)
+
+    assert [item["name"] for item in context["packages"]] == ["kmod-wireguard", "iwinfo"]
+    # A hyphen is legal in an apk package name and illegal in a Terraform
+    # label, so the label is folded while the name passes through.
+    assert [item["label"] for item in context["packages"]] == ["kmod_wireguard", "iwinfo"]
+
+
 def test_an_absent_interface_plan_yields_a_total_context():
     """The firewall graph is renderable on its own, so a project with no
     interface intent must get its zones rather than a crash."""
@@ -409,6 +439,7 @@ def test_an_absent_interface_plan_yields_a_total_context():
     for key in (
         "interfaces",
         "bridge_devices",
+        "packages",
         "wireless_devices",
         "wireless_interfaces",
         "dhcp_servers",
