@@ -33,6 +33,13 @@ address_space:
     - inst.vlan.vpn_germany
     - inst.vlan.vpn_amnezia
     - inst.vlan.vpn_sweden
+    # Added 2026-10-11. This list was declarative only - nothing read it - so
+    # its omission of vpn_exit cost nothing while zone -> VLAN resolution was
+    # global. Once the compiler began resolving each scope inside its own
+    # address space, the gap would have dropped 192.168.56.0/24 out of this
+    # router's zone-vpn_exit address list, which is a live firewall change and
+    # not the intent of scoping.
+    - inst.vlan.vpn_exit
     - inst.vlan.management
     - inst.vlan.servers
 

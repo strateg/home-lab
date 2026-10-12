@@ -215,16 +215,35 @@ class SecurityMatrixCompiler(CompilerPlugin):
             # makes the published channel ordered throughout - and on the current
             # topology it reproduces the generator's own output exactly, which is
             # what makes the A24 cutover a parity step rather than a reshuffle.
+            # A scope's zone prefixes are resolved inside its own declared
+            # address space, not across every VLAN in the project.
+            #
+            # `address_space.vlan_refs` was read by nothing before 2026-10-11:
+            # zone -> VLAN resolution was global, so every matrix claiming a
+            # zone inherited every VLAN any device had assigned to that zone.
+            # With one enforcer that was invisible. Adding a second one made it
+            # concrete - rtr-slate's travel segments appeared in the home
+            # perimeter's rendered address lists, renumbering its resources,
+            # because both enforcers legitimately share trust zones under
+            # ADR 0110 section 1.5.
+            #
+            # An absent or empty vlan_refs keeps the global behaviour, matching
+            # the "empty means undeclared" convention os_obj_refs uses: adding
+            # the key is what opts a scope into being scoped.
+            address_space_refs = self._address_space_vlan_refs(matrix_row, extensions, ctx)
+            scoped_zone_vlans = self._scope_zone_vlans(zone_vlans, address_space_refs)
+
             zones: dict[str, dict[str, Any]] = {}
             for zone_ref in sorted(zone_refs):
                 if zone_ref in zone_index:
                     zone_data = zone_index[zone_ref]
+                    scoped = scoped_zone_vlans.get(zone_ref, [])
                     zones[zone_ref] = {
                         "name": zone_data.get("name", zone_ref),
                         "security_level": zone_data.get("security_level", 0),
                         "isolated": zone_data.get("isolated", False),
-                        "vlans": zone_vlans.get(zone_ref, []),
-                        "cidrs": self._zone_cidrs(zone_data, zone_vlans.get(zone_ref, []), vlan_cidr_map),
+                        "vlans": scoped,
+                        "cidrs": self._zone_cidrs(zone_data, scoped, vlan_cidr_map),
                     }
                 else:
                     diagnostics.append(
@@ -476,6 +495,42 @@ class SecurityMatrixCompiler(CompilerPlugin):
             if cidr and cidr not in found:
                 found.append(cidr)
         return found
+
+    def _address_space_vlan_refs(
+        self,
+        matrix_row: dict[str, Any],
+        extensions: dict[str, Any],
+        ctx: PluginContext,
+    ) -> set[str] | None:
+        """The VLAN refs this scope declares as its address space, if any.
+
+        Returns None when the key is absent or empty, which means "undeclared"
+        rather than "forbid everything" - so an existing scope that never
+        listed one keeps resolving globally and adding the key is what opts it
+        into scoping.
+        """
+        address_space = (
+            extensions.get("address_space")
+            or matrix_row.get("address_space")
+            or self._get_object_property(matrix_row, "address_space", ctx)
+        )
+        if not isinstance(address_space, dict):
+            return None
+        refs = address_space.get("vlan_refs")
+        if not isinstance(refs, list):
+            return None
+        declared = {item for item in refs if isinstance(item, str) and item}
+        return declared or None
+
+    @staticmethod
+    def _scope_zone_vlans(
+        zone_vlans: dict[str, list[str]],
+        allowed: set[str] | None,
+    ) -> dict[str, list[str]]:
+        """Restrict a global zone -> VLAN mapping to one scope's address space."""
+        if allowed is None:
+            return zone_vlans
+        return {zone_ref: [ref for ref in refs if ref in allowed] for zone_ref, refs in zone_vlans.items()}
 
     @staticmethod
     def _zone_cidrs(
