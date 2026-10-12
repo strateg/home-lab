@@ -924,8 +924,11 @@ remaining generator work is interfaces, wireless and DHCP templates, the
 port-scoped permits that need rule sections, and the adoption ledger. Phases 8-9
 (adoption, guarded apply) remain gated on that.
 
-> Superseded 2026-10-12 for `E9902`/`E9903`: rule sections now render, and both
-> codes are implemented. See A7 below. `W9903` is still unexercised.
+> Superseded 2026-10-12: rule sections render and `E9902`/`E9903` are
+> implemented (A7); interfaces, wireless and DHCP render (A7.4); and the
+> adoption ledger exercises `W9903` (A7.6). Every code in the family now has a
+> raiser. What remains is WireGuard peers, and Phase 9 — guarded apply on the
+> live device.
 
 ---
 
@@ -1205,6 +1208,66 @@ cross-check now reports nothing in either direction.
 
 Two tests had encoded the old behaviour and were rewritten to state the
 corrected rule and why it differs from the wireless one, rather than flipped.
+
+### A7.6 Adoption ledger — Phase 8
+
+`adoption.tf` renders Terraform `import {}` blocks from an authored ledger in
+`runtime_intent.adoption`. W9903, the last unexercised code in the family, now
+has data.
+
+**Why the ledger is authored rather than inferred.** The provider refuses
+duplicate-name creation with `422 conflict` (uapi ≥ 2.2.1), so a section that
+exists on the device and is not imported fails the first apply, and a section
+imported that does not exist fails the plan. Both are loud failures at
+plan/apply time rather than drift — which is the argument for authored data over
+a guess.
+
+**Only named sections are imported.** Adoption of a named section is
+non-mutating since uapi 2.2.0: it binds in place and keeps the name. An
+anonymous `cfgXXXXXX` section adopts by being *renamed to a ULID*, which writes
+to the router during what is supposed to be a read-only import. Every stock
+firewall section and every stock wifi-iface is anonymous, so none is listed; the
+stock ones are removed by hand before the first apply and recreated under
+explicit names.
+
+Five entries, each with evidence from the board's own support files rather than
+assumption — `board.d/02_network` runs
+`ucidef_set_interfaces_lan_wan "lan1 lan2" "wan"`, yielding named `lan` and
+`wan` over a `br-lan` device, and `wifi detect` names the radios:
+
+```
+import { to = uapi_network_device.br_lan        id = "br-lan" }
+import { to = uapi_network_interface.lan        id = "lan"    }
+import { to = uapi_network_interface.wan        id = "wan"    }
+import { to = uapi_wireless_device.radio0       id = "radio0" }
+import { to = uapi_wireless_device.radio1       id = "radio1" }
+```
+
+Note the two halves: `to` takes the Terraform *address* — the folded label
+(`br_lan`) — while `id` takes the real uci section name (`br-lan`). Resolving
+that pairing in the generator is what keeps the ledger free of
+Terraform-internal naming.
+
+**E9913** refuses a ledger entry naming a resource address the generator does
+not render. Terraform refuses an import block whose target does not exist, and
+refuses it for the whole root, so one stale entry costs every plan.
+
+**An inconsistency in the ledger's own shape, found by testing it.** For a named
+section the device's name and the desired name coincide, so a single `id` is
+enough. For an anonymous one they differ *by construction*: the ledger id is
+`cfg030f15`, the resource's id is `ap_home`. So an anonymous entry cannot be
+paired with a rendered resource by id — and must not be, because uapi would
+rename it to a ULID rather than to our name. The first implementation looked the
+label up before checking `anonymous`, which silently dropped exactly the entries
+W9903 exists to report. Both plugins now decide on `anonymous` first: the
+compiler passes such entries through flagged instead of raising E9913, and the
+generator lists them as deliberate omissions in the rendered file.
+
+`reconciled_against_device: false` is carried through to the rendered file as a
+prominent banner and into I9904's summary. The ledger was authored from board
+support files, not read off a router that has been configured by hand during
+staging, and `terraform plan` is the reconciliation step — a wrong entry
+surfaces there as an import failure, which changes nothing on the device.
 
 Stale raiser annotations in the catalog were repointed while registering these:
 `E9903`/`E9902`, `E9904`/`E9905` and `E9908`-`W9901` named

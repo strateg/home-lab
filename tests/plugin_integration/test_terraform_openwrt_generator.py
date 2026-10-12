@@ -490,3 +490,63 @@ def test_rendered_templates_are_parseable_hcl():
             check=False,
         )
         assert completed.returncode == 0, f"{filename} is not parseable HCL:\n{completed.stderr}"
+
+
+# --------------------------------------------------------------------------
+# Adoption: import blocks need the resource ADDRESS, not the uci section name
+# --------------------------------------------------------------------------
+
+
+def _adoption_context(adoption, *, reconciled=False):
+    from kernel.plugin_base import Stage  # noqa: PLC0415
+
+    plan = _interface_plan(adoption=adoption, adoption_reconciled=reconciled)
+    generator = MODULE.TerraformOpenwrtGenerator(GENERATOR_ID)
+    return generator._build_interface_context(plan, Stage.GENERATE)
+
+
+def test_import_block_pairs_the_resource_label_with_the_uci_name():
+    """`wg-home` is the section id; `wg_home` is the Terraform address."""
+    context, diagnostics = _adoption_context(
+        [{"resource": "uapi_network_interface", "id": "wg-home", "anonymous": False}]
+    )
+
+    assert diagnostics == []
+    entry = context["adoption"][0]
+    assert entry["label"] == "wg_home"
+    assert entry["id"] == "wg-home"
+
+
+def test_an_anonymous_section_is_not_imported_and_raises_w9903():
+    """uapi adopts a named section in place but adopts an anonymous one by
+    renaming it to a ULID - a write to the router during what is supposed to be
+    a read-only import."""
+    context, diagnostics = _adoption_context(
+        [{"resource": "uapi_wireless_interface", "id": "cfg030f15", "anonymous": True}]
+    )
+
+    assert [item.code for item in diagnostics] == ["W9903"]
+    # Listed as a deliberate omission rather than vanishing from the file.
+    assert context["adoption"] == []
+    assert [item["id"] for item in context["adoption_anonymous"]] == ["cfg030f15"]
+
+
+def test_named_and_anonymous_entries_are_separated_not_mixed():
+    context, diagnostics = _adoption_context(
+        [
+            {"resource": "uapi_network_interface", "id": "lan", "anonymous": False},
+            {"resource": "uapi_wireless_interface", "id": "cfg030f15", "anonymous": True},
+        ]
+    )
+
+    assert [item["id"] for item in context["adoption"]] == ["lan"]
+    assert [item["id"] for item in context["adoption_anonymous"]] == ["cfg030f15"]
+    assert [item.code for item in diagnostics] == ["W9903"]
+
+
+def test_the_unreconciled_flag_reaches_the_template_context():
+    context, _ = _adoption_context([], reconciled=False)
+    assert context["adoption_reconciled"] is False
+
+    context, _ = _adoption_context([], reconciled=True)
+    assert context["adoption_reconciled"] is True

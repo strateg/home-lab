@@ -47,6 +47,7 @@ as data so the generator reports it rather than discovering it.
 from __future__ import annotations
 
 import ipaddress
+import re
 from typing import Any
 
 from kernel.plugin_base import CompilerPlugin, PluginContext, PluginDiagnostic, PluginResult, Stage
@@ -218,7 +219,9 @@ class OpenwrtInterfacesCompiler(CompilerPlugin):
                         f"Enforcer '{enforcer_id}': lowered {len(entry['interfaces'])} interfaces, "
                         f"{len(entry['devices'])} devices, {len(entry['wireless_devices'])} radios, "
                         f"{len(entry['wireless_interfaces'])} wifi-ifaces "
-                        f"({entry['parked_wireless']} parked), {len(entry['dhcp_servers'])} DHCP pools. "
+                        f"({entry['parked_wireless']} parked), {len(entry['dhcp_servers'])} DHCP pools, "
+                        f"{len(entry['adoption'])} section(s) to adopt"
+                        f"{'' if entry['adoption_reconciled'] else ' (ledger NOT reconciled against the device)'}. "
                         f"Deferred: {', '.join(entry['deferred']) or 'nothing'}."
                     ),
                     path=f"instance:{enforcer_id}.runtime_intent",
@@ -255,12 +258,32 @@ class OpenwrtInterfacesCompiler(CompilerPlugin):
 
         diagnostics.extend(self._check_mtu_budget(enforcer_id, intent, segments, stage))
 
+        adoption, adoption_diagnostics = self._lower_adoption(
+            enforcer_id,
+            intent,
+            rendered={
+                "uapi_network_interface": {str(item["id"]) for item in interfaces},
+                "uapi_network_device": {str(item["id"]) for item in devices},
+                "uapi_wireless_device": {str(item["id"]) for item in radios},
+                "uapi_wireless_interface": {str(item["id"]) for item in wifi_ifaces},
+                "uapi_dhcp_server": {str(item["id"]) for item in dhcp_servers},
+            },
+            stage=stage,
+        )
+        diagnostics.extend(adoption_diagnostics)
+
         packages = []
         services = intent.get("services")
         if isinstance(services, dict) and isinstance(services.get("packages"), list):
             packages = [item for item in services["packages"] if isinstance(item, str) and item]
 
         entry = {
+            "adoption": adoption,
+            "adoption_reconciled": bool(
+                (intent.get("adoption") or {}).get("reconciled_against_device", False)
+            )
+            if isinstance(intent.get("adoption"), dict)
+            else False,
             "devices": devices,
             "interfaces": interfaces,
             "wireless_devices": radios,
@@ -558,6 +581,89 @@ class OpenwrtInterfacesCompiler(CompilerPlugin):
 
         wifi_ifaces.sort(key=lambda item: str(item["id"]))
         return radios, wifi_ifaces, diagnostics
+
+    # Anonymous uci sections are named `cfg` plus six hex digits. uapi adopts a
+    # named section in place but adopts an anonymous one by RENAMING it to a
+    # ULID, which mutates the router (W9903), so the two must be told apart
+    # before an import block is emitted rather than after.
+    _ANONYMOUS_SECTION = re.compile(r"^cfg[0-9a-f]{6,}$")
+
+    def _lower_adoption(
+        self,
+        enforcer_id: str,
+        intent: dict[str, Any],
+        *,
+        rendered: dict[str, set[str]],
+        stage: Stage,
+    ) -> tuple[list[dict[str, Any]], list[PluginDiagnostic]]:
+        """Pair each ledger entry with the resource it adopts.
+
+        The ledger is authored rather than inferred because both ways of being
+        wrong are loud: the provider refuses duplicate-name creation with 422
+        conflict, so a section missing from the ledger fails the first apply,
+        and a section listed that does not exist fails the import. Neither is
+        drift - which is the argument for authoring it.
+
+        What is checked here is the half that can be checked without the device:
+        that every entry names a resource this generator actually renders
+        (E9913). Terraform refuses an import block whose target does not exist,
+        and refuses it for the whole root, so one stale entry costs every plan.
+        """
+        diagnostics: list[PluginDiagnostic] = []
+        adoption: list[dict[str, Any]] = []
+
+        ledger = intent.get("adoption")
+        if not isinstance(ledger, dict):
+            return adoption, diagnostics
+
+        for item in ledger.get("sections") or []:
+            if not isinstance(item, dict):
+                continue
+            resource = item.get("resource")
+            section_id = item.get("id")
+            if not isinstance(resource, str) or not isinstance(section_id, str):
+                continue
+
+            anonymous = bool(self._ANONYMOUS_SECTION.match(section_id))
+            known = rendered.get(resource)
+
+            # An anonymous section's ledger id is the name the DEVICE gave it
+            # (`cfg030f15`), while the resource's id is what this topology wants
+            # it called. Those differ by construction, so an anonymous entry
+            # cannot be paired with a rendered resource by id - and it must not
+            # be, because uapi would rename it to a ULID rather than to our
+            # name. It is passed through flagged, for W9903 to report at render
+            # time; E9913 is about a *named* target that is not rendered.
+            if anonymous and known is not None:
+                adoption.append({"resource": resource, "id": section_id, "anonymous": True})
+                continue
+
+            if known is None or section_id not in known:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E9913",
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            f"Enforcer '{enforcer_id}': the adoption ledger names "
+                            f"{resource}.'{section_id}', which this generator does not render. "
+                            "Terraform refuses an import block whose target does not exist, and refuses "
+                            "it for the whole root, so one stale entry costs every plan. Either the "
+                            "section should not be adopted, or the resource it adopts is missing from "
+                            "the topology."
+                        ),
+                        path=f"instance:{enforcer_id}.runtime_intent.adoption.sections",
+                    )
+                )
+                continue
+
+            # `anonymous` is derived, never authored: an author asserting "this
+            # one is named" is an assertion that can be wrong, while the uci
+            # naming convention is a fact about the string.
+            adoption.append({"resource": resource, "id": section_id, "anonymous": False})
+
+        adoption.sort(key=lambda item: (item["resource"], item["id"]))
+        return adoption, diagnostics
 
     def _check_mtu_budget(
         self,

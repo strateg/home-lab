@@ -1659,6 +1659,16 @@ codes:
       clamps TCP MSS only, so UDP and QUIC blackhole instead of degrading. Measure the real overhead.
 
   # Raiser: object.openwrt.compiler.interfaces
+  E9913:
+    severity: error
+    stage: compile
+    title: Adoption Target Is Not A Rendered Resource
+    hint: >-
+      An adoption ledger entry names a resource address this generator does not render. Terraform refuses an
+      import block whose target does not exist, so the whole root fails to plan. Either the section should not
+      be adopted, or the resource it adopts is missing from the topology.
+
+  # Raiser: object.openwrt.compiler.interfaces
   I9904:
     severity: info
     stage: compile

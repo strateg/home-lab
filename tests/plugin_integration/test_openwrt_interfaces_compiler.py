@@ -453,3 +453,143 @@ def test_no_wireless_intent_lowers_the_rest_without_failing():
     assert entry["wireless_interfaces"] == []
     assert entry["interfaces"]
     assert not [code for code in _codes(result) if code.startswith("E")]
+
+
+# ---------------------------------------------------------------------------
+# Adoption ledger
+#
+# Authored rather than inferred because both ways of being wrong are loud: the
+# provider refuses duplicate-name creation with 422 conflict, so a section
+# missing from the ledger fails the first apply, and a section listed that does
+# not exist fails the import. Neither is drift.
+# ---------------------------------------------------------------------------
+
+
+def _with_adoption(sections, *, reconciled=False):
+    model = _model(wireless=_wireless())
+    model["instances"]["devices"][0]["instance_data"]["runtime_intent"]["adoption"] = {
+        "reconciled_against_device": reconciled,
+        "sections": sections,
+    }
+    return model
+
+
+def test_ledger_entries_pair_with_the_resources_they_adopt():
+    result = _run(
+        _zone_plan(),
+        _with_adoption(
+            [
+                {"resource": "uapi_network_interface", "id": "lan"},
+                {"resource": "uapi_network_device", "id": "br-lan"},
+                {"resource": "uapi_wireless_device", "id": "radio0"},
+            ]
+        ),
+    )
+
+    assert "E9913" not in _codes(result)
+    adoption = _plan_of(result)["adoption"]
+    assert [(item["resource"], item["id"]) for item in adoption] == [
+        ("uapi_network_device", "br-lan"),
+        ("uapi_network_interface", "lan"),
+        ("uapi_wireless_device", "radio0"),
+    ]
+
+
+def test_anonymous_sections_are_identified_from_their_name():
+    """Derived, never authored: an author asserting "this one is named" is an
+    assertion that can be wrong, while the uci convention is a fact about the
+    string. uci names anonymous sections `cfg` plus hex digits.
+    """
+    plan = _zone_plan()
+    model = _with_adoption([{"resource": "uapi_wireless_interface", "id": "ap_home"}])
+    entry = _plan_of(_run(plan, model))
+
+    assert entry["adoption"][0]["anonymous"] is False
+
+    compiler = MODULE.OpenwrtInterfacesCompiler(COMPILER_ID)
+    assert compiler._ANONYMOUS_SECTION.match("cfg030f15")
+    assert compiler._ANONYMOUS_SECTION.match("cfg0f1532ab")
+    assert not compiler._ANONYMOUS_SECTION.match("lan")
+    assert not compiler._ANONYMOUS_SECTION.match("cfg")
+    # A real section may legitimately start with cfg without being anonymous.
+    assert not compiler._ANONYMOUS_SECTION.match("cfgzzzzzz")
+
+
+def test_a_ledger_entry_for_an_unrendered_resource_is_refused():
+    """Terraform refuses an import block whose target does not exist, and
+    refuses it for the whole root, so one stale entry costs every plan."""
+    result = _run(
+        _zone_plan(),
+        _with_adoption([{"resource": "uapi_network_interface", "id": "does-not-exist"}]),
+    )
+
+    assert "E9913" in _codes(result)
+    assert _plan_of(result)["adoption"] == []
+
+
+def test_a_ledger_entry_naming_the_wrong_resource_kind_is_refused():
+    """`lan` exists as an interface, not as a wireless device."""
+    result = _run(
+        _zone_plan(),
+        _with_adoption([{"resource": "uapi_wireless_device", "id": "lan"}]),
+    )
+
+    assert "E9913" in _codes(result)
+
+
+def test_an_unreconciled_ledger_is_reported_as_such():
+    """The ledger was authored from board support files, not read off a router
+    that has been configured by hand."""
+    result = _run(_zone_plan(), _with_adoption([], reconciled=False))
+
+    assert _plan_of(result)["adoption_reconciled"] is False
+    assert "ledger NOT reconciled" in next(d.message for d in result.diagnostics if d.code == "I9904")
+
+
+def test_a_reconciled_ledger_is_not_flagged():
+    result = _run(_zone_plan(), _with_adoption([], reconciled=True))
+
+    assert _plan_of(result)["adoption_reconciled"] is True
+    assert "ledger NOT reconciled" not in next(
+        d.message for d in result.diagnostics if d.code == "I9904"
+    )
+
+
+def test_no_ledger_means_nothing_to_adopt():
+    """A fresh device creates every section; adoption is not mandatory."""
+    entry = _plan_of(_run(_zone_plan(), _model(wireless=_wireless())))
+
+    assert entry["adoption"] == []
+    assert entry["adoption_reconciled"] is False
+
+
+def test_an_anonymous_ledger_entry_is_passed_through_not_refused():
+    """E9913 is about a *named* target that is not rendered.
+
+    An anonymous section's ledger id is the name the DEVICE gave it
+    (`cfg030f15`), while the resource's id is what this topology wants it
+    called. Those differ by construction, so an anonymous entry cannot be
+    paired with a rendered resource by id - and must not be, because uapi would
+    rename it to a ULID rather than to our name. It is passed through flagged,
+    for W9903 to report at render time.
+    """
+    result = _run(
+        _zone_plan(),
+        _with_adoption([{"resource": "uapi_wireless_interface", "id": "cfg030f15"}]),
+    )
+
+    assert "E9913" not in _codes(result)
+    adoption = _plan_of(result)["adoption"]
+    assert adoption == [
+        {"resource": "uapi_wireless_interface", "id": "cfg030f15", "anonymous": True}
+    ]
+
+
+def test_an_anonymous_entry_for_an_unknown_resource_kind_is_still_refused():
+    """Being anonymous excuses the id, not a misspelled resource type."""
+    result = _run(
+        _zone_plan(),
+        _with_adoption([{"resource": "uapi_not_a_resource", "id": "cfg030f15"}]),
+    )
+
+    assert "E9913" in _codes(result)

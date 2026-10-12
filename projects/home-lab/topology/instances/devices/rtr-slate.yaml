@@ -438,3 +438,50 @@ runtime_intent:
       trigger: MemAvailable threshold
       action: ath11k module reload
       status: not_implemented
+
+  # --------------------------------------------------------------------------
+  # ADOPTION LEDGER
+  #
+  # Sections that already exist in uci on the device and must be ADOPTED rather
+  # than created. Terraform `import {}` blocks are generated from this list.
+  #
+  # Why this cannot be inferred: the provider refuses duplicate-name creation
+  # with 422 conflict (uapi >= 2.2.1), so a section left out of this ledger
+  # fails the first apply, and a section listed here that does not exist fails
+  # the import. Both are loud failures at plan/apply time rather than drift,
+  # which is the reason the ledger is authored data and not a guess.
+  #
+  # Only NAMED sections appear here. Adoption of a named section is
+  # non-mutating since uapi 2.2.0 - it binds in place and keeps the name. An
+  # anonymous `cfgXXXXXX` section adopts by being RENAMED to a ULID, which
+  # mutates the router, so anonymous sections are never imported (W9903): the
+  # stock ones are removed by hand before the first apply and recreated from
+  # this topology under explicit names.
+  #
+  # Every stock firewall section and every stock wifi-iface is anonymous, which
+  # is why none of them is listed.
+  #
+  # Evidence for the five below, from the device's own board support rather
+  # than from assumption - target/linux/qualcommax/ipq60xx/base-files/etc/
+  # board.d/02_network does
+  #   glinet,gl-axt1800) ucidef_set_interfaces_lan_wan "lan1 lan2" "wan"
+  # which yields named `lan` and `wan` interfaces over a `br-lan` device, and
+  # `wifi detect` names the radios radio0/radio1.
+  #
+  # MUST be reconciled against the live device before the first apply. The
+  # reconciliation step is `terraform plan`: a wrong entry surfaces there as an
+  # import failure, not as a change to the router.
+  # --------------------------------------------------------------------------
+  adoption:
+    reconciled_against_device: false
+    sections:
+      - resource: uapi_network_interface
+        id: lan
+      - resource: uapi_network_interface
+        id: wan
+      - resource: uapi_network_device
+        id: br-lan
+      - resource: uapi_wireless_device
+        id: radio0
+      - resource: uapi_wireless_device
+        id: radio1

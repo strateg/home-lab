@@ -53,6 +53,7 @@ _TEMPLATES: tuple[tuple[str, str], ...] = (
     ("interfaces.tf", "terraform/interfaces.tf.j2"),
     ("wireless.tf", "terraform/wireless.tf.j2"),
     ("dhcp.tf", "terraform/dhcp.tf.j2"),
+    ("adoption.tf", "terraform/adoption.tf.j2"),
 )
 
 
@@ -250,7 +251,8 @@ class TerraformOpenwrtGenerator(BaseGenerator):
                     f"{len(render_context['interfaces'])} interface(s), "
                     f"{len(render_context['wireless_devices'])} radio(s), "
                     f"{len(render_context['wireless_interfaces'])} wifi-iface(s) and "
-                    f"{len(render_context['dhcp_servers'])} DHCP pool(s) for '{enforcer_id}'. "
+                    f"{len(render_context['dhcp_servers'])} DHCP pool(s) for '{enforcer_id}', "
+                    f"adopting {len(render_context['adoption'])} existing section(s). "
                     f"{len(plan.get('denied_pairs') or [])} denial(s) emitted as absent forwardings; "
                     f"{len(render_context['unroutable_permits'])} permit(s) to a remote zone had no "
                     "declared egress path and were not emitted."
@@ -610,7 +612,62 @@ class TerraformOpenwrtGenerator(BaseGenerator):
                 }
             )
 
+        # Adoption: an import block needs the resource ADDRESS, which is the
+        # label this method just assigned - not the uci section name. Resolving
+        # it here is what keeps the ledger free of Terraform-internal naming.
+        #
+        # Anonymous sections are split out rather than filtered away. uapi
+        # adopts a named section in place but adopts an anonymous one by
+        # renaming it to a ULID, writing to the router during what is supposed
+        # to be a read-only import (W9903), so they are listed as deliberate
+        # omissions instead of vanishing from the rendered file.
+        label_by_resource = {
+            "uapi_network_interface": interface_labels,
+            "uapi_network_device": {item["id"]: item["label"] for item in bridge_devices},
+            "uapi_wireless_device": radio_labels,
+            "uapi_wireless_interface": {item["id"]: item["label"] for item in wifi_ifaces},
+            "uapi_dhcp_server": {item["id"]: item["label"] for item in dhcp_servers},
+        }
+        adoption: list[dict[str, Any]] = []
+        adoption_anonymous: list[dict[str, Any]] = []
+        for item in interface_plan.get("adoption") or []:
+            if not isinstance(item, dict):
+                continue
+            if item.get("anonymous"):
+                # Decided before any label lookup, because an anonymous
+                # section's id is the name the device gave it and no rendered
+                # resource carries that id. Requiring a label here would drop
+                # the entry silently - which is the one outcome this code
+                # exists to prevent.
+                adoption_anonymous.append(dict(item))
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="W9903",
+                        severity="warning",
+                        stage=stage,
+                        message=(
+                            f"Adoption ledger names the anonymous uci section '{item.get('id')}' for "
+                            f"{item.get('resource')}. uapi adopts a named section in place but adopts an "
+                            "anonymous one by renaming it to a ULID, which writes to the router during an "
+                            "import. No import block is emitted for it; remove the stock section by hand "
+                            "and let this root create a named one, or accept the rename explicitly."
+                        ),
+                        path=f"generator:terraform_openwrt:adoption:{item.get('id')}",
+                    )
+                )
+                continue
+
+            label = label_by_resource.get(str(item.get("resource")), {}).get(str(item.get("id")))
+            if label is None:
+                # E9913 already refused a named target the plan does not
+                # render, so reaching here means a label collision above did.
+                continue
+            adoption.append({**item, "label": label})
+
         context = {
+            "adoption": adoption,
+            "adoption_anonymous": adoption_anonymous,
+            "adoption_reconciled": bool(interface_plan.get("adoption_reconciled", False)),
             "interfaces": interfaces,
             "bridge_devices": bridge_devices,
             "wireless_devices": radios,
