@@ -132,7 +132,9 @@ class OpenwrtInterfacesValidator(ValidatorJsonPlugin):
             declared = _declared_interfaces(intent)
 
             diagnostics.extend(self._check_coverage(instance_id, declared, zones, stage))
-            diagnostics.extend(self._check_management_path(instance_id, declared, zones, stage))
+            diagnostics.extend(
+                self._check_management_path(instance_id, declared, zones, plan, stage)
+            )
 
         return self.make_result(diagnostics=diagnostics)
 
@@ -210,6 +212,7 @@ class OpenwrtInterfacesValidator(ValidatorJsonPlugin):
         instance_id: str,
         declared: list[dict[str, Any]],
         zones: dict[str, Any],
+        plan: dict[str, Any],
         stage: Stage,
     ) -> list[PluginDiagnostic]:
         diagnostics: list[PluginDiagnostic] = []
@@ -275,21 +278,50 @@ class OpenwrtInterfacesValidator(ValidatorJsonPlugin):
             if not isinstance(zone, dict):
                 continue
             services = zone.get("input_services")
-            if isinstance(services, list) and services:
-                continue
-            diagnostics.append(
-                self.emit_diagnostic(
-                    code="E9904",
-                    severity="error",
-                    stage=stage,
-                    message=(
-                        f"Device '{instance_id}': zone '{zone_ref}' holds the management interface "
-                        f"'{name}' but declares no input service. Every zone here defaults to input "
-                        "REJECT, so applying this plan would close the path it was applied over and "
-                        "lock the operator out of the device."
-                    ),
-                    path=f"instance:{instance_id}.openwrt_zones.{zone_ref}.input_services",
+            if not isinstance(services, list) or not services:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E9904",
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            f"Device '{instance_id}': zone '{zone_ref}' holds the management interface "
+                            f"'{name}' but declares no input service. Every zone here defaults to input "
+                            "REJECT, so applying this plan would close the path it was applied over and "
+                            "lock the operator out of the device."
+                        ),
+                        path=f"instance:{instance_id}.openwrt_zones.{zone_ref}.input_services",
+                    )
                 )
-            )
+                continue
+
+            # The declaration is not the protection. This check used to stop at
+            # the line above, and the generator emitted the zone with
+            # `input REJECT` and no input rules at all - so the plan satisfied
+            # E9904 while the artifact would have rejected SSH and the uapi
+            # endpoint on the interface the request arrives on. The guard has to
+            # be on what gets emitted.
+            granted = {
+                str(rule.get("service"))
+                for rule in plan.get("input_rules") or []
+                if isinstance(rule, dict) and rule.get("src") == zone_ref
+            }
+            missing = sorted({str(service) for service in services} - granted)
+            if missing:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E9904",
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            f"Device '{instance_id}': zone '{zone_ref}' holds the management interface "
+                            f"'{name}' and declares input service(s) {', '.join(missing)}, but the "
+                            "lowered plan grants no input rule for them. A declared service that is not "
+                            "emitted is not reachable: the zone is input REJECT, so applying this would "
+                            "close the path it was applied over."
+                        ),
+                        path=f"instance:{instance_id}.openwrt_zones.{zone_ref}.input_rules",
+                    )
+                )
 
         return diagnostics

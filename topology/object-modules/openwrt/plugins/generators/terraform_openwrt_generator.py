@@ -64,6 +64,9 @@ _TEMPLATES: tuple[tuple[str, str], ...] = (
     ("dhcp.tf", "terraform/dhcp.tf.j2"),
     ("routing.tf", "terraform/routing.tf.j2"),
     ("adoption.tf", "terraform/adoption.tf.j2"),
+    # Not a .tf file: a template the operator copies. Named with the .example
+    # suffix Terraform ignores, so it cannot be loaded as configuration.
+    ("terraform.tfvars.example", "terraform/terraform.tfvars.example.tf.j2"),
 )
 
 
@@ -258,6 +261,7 @@ class TerraformOpenwrtGenerator(BaseGenerator):
                     f"Rendered {len(render_context['zones'])} zone(s), "
                     f"{len(render_context['forwardings'])} forwarding(s), "
                     f"{len(render_context['rules'])} rule(s), "
+                    f"{len(render_context['input_rules'])} input rule(s), "
                     f"{len(render_context['interfaces'])} interface(s), "
                     f"{len(render_context['wireless_devices'])} radio(s), "
                     f"{len(render_context['wireless_interfaces'])} wifi-iface(s) and "
@@ -433,9 +437,35 @@ class TerraformOpenwrtGenerator(BaseGenerator):
 
         rule_entries = _rule_entries(plan.get("rules") or [], zones_in, local_refs)
 
+        # Input rules: one resource per service per protocol, with NO dest_zone.
+        # That absence is what puts them on the zone's input chain instead of a
+        # forward chain, and it is the whole point - these are what keep SSH and
+        # the uapi endpoint reachable under `input REJECT`.
+        input_rules: list[dict[str, Any]] = []
+        for entry in plan.get("input_rules") or []:
+            if not isinstance(entry, dict):
+                continue
+            src = entry.get("src")
+            if src not in local_refs:
+                continue
+            zone_name = _zone_name(src, zones_in.get(src) or {})
+            service = str(entry.get("service"))
+            proto = str(entry.get("proto"))
+            input_rules.append(
+                {
+                    "label": f"input__{_slug(src)}__{service}__{proto}",
+                    "name": f"{zone_name}-input-{service}-{proto}",
+                    "src_zone": zone_name,
+                    "proto": proto,
+                    "port": entry.get("port"),
+                    "service": service,
+                }
+            )
+
         context = {
             "enforcer_id": enforcer_id,
             "rules": rule_entries,
+            "input_rules": input_rules,
             "unroutable_permits": plan.get("unroutable_permits") or [],
             "scope_ids": plan.get("scope_ids") or [],
             "zones": zones,

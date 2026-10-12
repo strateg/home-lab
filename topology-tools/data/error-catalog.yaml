@@ -1711,6 +1711,16 @@ codes:
       deliberately deferred - so a gap in the rendered config is attributable rather than inferred.
 
   # Raiser: object.openwrt.compiler.zones
+  E9916:
+    severity: error
+    stage: compile
+    title: Input Service Has No Known Listener
+    hint: >-
+      A zone asks for an input service the compiler cannot translate into a protocol and port. Every zone is
+      lowered with input REJECT, so an untranslatable service grants nothing at all - and on the management
+      path that is a device nobody can reach. Add the service to the listener table or correct the name.
+
+  # Raiser: object.openwrt.compiler.zones
   I9901:
     severity: info
     stage: compile

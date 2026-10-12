@@ -112,6 +112,27 @@ class OpenwrtRulePlanValidator(ValidatorJsonPlugin):
                 continue
             rules = plan.get("rules")
             if not isinstance(rules, list):
+                rules = []
+
+            # Input rules are firewall_rule sections too, and they share the
+            # chain with nothing else - but two of them can still collide with
+            # each other if two services resolve to one protocol and port, and
+            # that collision is two Terraform resources claiming one section.
+            # Normalized into the same tuple shape so one implementation checks
+            # both rather than a second one drifting from the first.
+            rules = list(rules) + [
+                {
+                    "src": entry.get("src"),
+                    "dest": "<input>",
+                    "dest_cidrs": [],
+                    "ports": {str(entry.get("proto")): [entry.get("port")]},
+                    "target": entry.get("target") or "ACCEPT",
+                    "rule": f"input:{entry.get('service')}",
+                }
+                for entry in plan.get("input_rules") or []
+                if isinstance(entry, dict)
+            ]
+            if not rules:
                 continue
 
             arity = self._check_arity(enforcer_id, rules, stage)

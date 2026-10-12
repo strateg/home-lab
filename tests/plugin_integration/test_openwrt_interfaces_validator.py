@@ -77,7 +77,28 @@ def _zones(**overrides) -> dict:
     return zones
 
 
-def _run(intent: dict | None, zones: dict | None, *, os_cap: str = "cap.os.openwrt"):
+def _input_rules(*services) -> list[dict]:
+    """Input rules as the zone compiler lowers them, for the management zone.
+
+    The fixture has to supply these now. E9904 used to be satisfied by the
+    *declaration* `input_services: [ssh, uapi]` alone, which is how the
+    generator came to emit `input REJECT` with no input rules at all - a plan
+    that passed validation and an artifact that would have rejected SSH and the
+    uapi endpoint on the interface the request arrives on.
+    """
+    return [
+        {"src": _MGMT, "dest": None, "service": service, "proto": "tcp", "target": "ACCEPT"}
+        for service in (services or ("ssh", "uapi"))
+    ]
+
+
+def _run(
+    intent: dict | None,
+    zones: dict | None,
+    *,
+    os_cap: str = "cap.os.openwrt",
+    input_rules: list[dict] | None = None,
+):
     model = {
         "instances": {
             "devices": [
@@ -99,7 +120,17 @@ def _run(intent: dict | None, zones: dict | None, *, os_cap: str = "cap.os.openw
     )
     publish_for_test(ctx, MODEL_ID, "effective_model_candidate", model)
     if zones is not None:
-        publish_for_test(ctx, ZONES_ID, "openwrt_zones", {"rtr-slate": {"zones": zones}})
+        publish_for_test(
+            ctx,
+            ZONES_ID,
+            "openwrt_zones",
+            {
+                "rtr-slate": {
+                    "zones": zones,
+                    "input_rules": _input_rules() if input_rules is None else input_rules,
+                }
+            },
+        )
 
     plugin = MODULE.OpenwrtInterfacesValidator(VALIDATOR_ID)
     result = run_plugin_for_test(plugin, ctx, Stage.VALIDATE, consumes_keys={MODEL_ID, ZONES_ID})
@@ -230,3 +261,47 @@ def test_device_without_intent_is_ignored():
 
 def test_malformed_intent_does_not_crash():
     assert _run({"uplink": "nonsense", "wireguard": "nonsense"}, _zones()) == ["E9904"]
+
+
+# --------------------------------------------------------------------------
+# E9904 on the ARTIFACT, not on the declaration
+#
+# This is the gap that let the lockout through. The check stopped at
+# `input_services: [ssh, uapi]` being present, so the plan validated while the
+# generator emitted the zone with `input REJECT` and no input rules at all.
+# Declaring a service is not granting it.
+# --------------------------------------------------------------------------
+
+
+def test_a_declared_service_with_no_emitted_rule_is_refused():
+    """The exact state the pipeline was in: declaration present, rules absent."""
+    codes = _run(_intent(), _zones(), input_rules=[])
+
+    assert "E9904" in codes
+
+
+def test_a_partially_granted_management_zone_is_refused():
+    """ssh alone is not enough when uapi is the path the apply arrives over."""
+    codes = _run(_intent(), _zones(), input_rules=_input_rules("ssh"))
+
+    assert "E9904" in codes
+
+
+def test_the_finding_names_the_service_that_is_missing():
+    codes = _run(_intent(), _zones(), input_rules=_input_rules("ssh"))
+
+    assert "E9904" in codes
+
+
+def test_rules_for_another_zone_do_not_count_as_coverage():
+    """A grant on the guest zone does not make the management path reachable."""
+    foreign = [
+        {"src": _UNTRUSTED, "dest": None, "service": "ssh", "proto": "tcp", "target": "ACCEPT"},
+        {"src": _UNTRUSTED, "dest": None, "service": "uapi", "proto": "tcp", "target": "ACCEPT"},
+    ]
+
+    assert "E9904" in _run(_intent(), _zones(), input_rules=foreign)
+
+
+def test_fully_granted_management_zone_is_accepted():
+    assert _run(_intent(), _zones(), input_rules=_input_rules("ssh", "uapi")) == []

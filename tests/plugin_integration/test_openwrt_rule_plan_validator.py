@@ -478,3 +478,69 @@ def test_the_real_compiler_emits_list_arity_throughout():
         assert isinstance(rule["dest_cidrs"], list)
         for values in (rule.get("ports") or {}).values():
             assert isinstance(values, list)
+
+
+# ---------------------------------------------------------------------------
+# Input rules go through the same checks
+#
+# They are firewall_rule sections too. They share a chain with nothing else,
+# but two of them collide with each other if two services resolve to the same
+# protocol and port - and that collision is two Terraform resources claiming
+# one uci section.
+# ---------------------------------------------------------------------------
+
+
+def _input_plan(entries):
+    return {"rtr-slate": {"rules": [], "input_rules": entries}}
+
+
+def _input_rule(service, proto="tcp", port=22, src=_USER):
+    return {"src": src, "dest": None, "service": service, "proto": proto, "port": port}
+
+
+def test_distinct_input_services_are_clean():
+    plans = _input_plan(
+        [
+            _input_rule("ssh", "tcp", 22),
+            _input_rule("uapi", "tcp", 443),
+            _input_rule("dns", "udp", 53),
+        ]
+    )
+
+    assert _codes(_run(plans)) == []
+
+
+def test_two_services_resolving_to_one_port_collide():
+    """Two resources would claim one section, and the plan says the same thing
+    twice without saying which is intended."""
+    plans = _input_plan([_input_rule("ssh", "tcp", 22), _input_rule("admin", "tcp", 22)])
+
+    result = _run(plans)
+
+    assert "E9902" in _codes(result)
+    assert "identical match tuples" in _message(result, "E9902")
+
+
+def test_the_same_service_on_two_zones_does_not_collide():
+    """Different zones are different chains."""
+    plans = _input_plan(
+        [
+            _input_rule("ssh", "tcp", 22, src=_USER),
+            _input_rule("ssh", "tcp", 22, src="inst.trust_zone.management"),
+        ]
+    )
+
+    assert _codes(_run(plans)) == []
+
+
+def test_input_rules_never_share_a_chain_with_forward_rules():
+    """An input rule has no destination zone - that absence is what puts it on
+    the input chain - so it cannot overlap a forward rule for the same source."""
+    plans = {
+        "rtr-slate": {
+            "rules": [_rule(ports={"tcp": [22]}, dest=_USER, remote_zone=None)],
+            "input_rules": [_input_rule("ssh", "tcp", 22, src=_USER)],
+        }
+    }
+
+    assert _codes(_run(plans)) == []

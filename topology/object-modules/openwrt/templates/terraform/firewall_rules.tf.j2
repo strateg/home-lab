@@ -56,3 +56,43 @@ resource "uapi_firewall_rule" "{{ rule.label }}" {
 #   {{ item.src }} -> {{ item.dest }}  (missing: {{ item.missing }})
 {% endfor %}
 {% endif %}
+
+# ---------------------------------------------------------------------------
+# INPUT path: traffic to the router itself, not through it.
+#
+# ADR 0110's matrix covers inter-zone forward only, so nothing in it constrains
+# traffic to the router. Every zone above is therefore `input REJECT` - the
+# opposite of stock OpenWrt, which ships the LAN zone `input ACCEPT` and
+# publishes every router service to its clients - and the services each zone
+# genuinely needs are granted back here, explicitly.
+#
+# These rules are not decoration. `input REJECT` with none of them means the
+# management zone rejects SSH and the uapi endpoint on the very interface the
+# uapi request arrives on: the first apply would lock the operator out of the
+# device it was applied to.
+#
+# `dest_zone` is ABSENT, not empty. On firewall4 a `config rule` with no `dest`
+# lands in the zone's input chain; giving it a destination would make it a
+# forward rule and grant nothing on the input path.
+# ---------------------------------------------------------------------------
+{% for rule in input_rules %}
+
+resource "uapi_firewall_rule" "{{ rule.label }}" {
+  name   = "{{ rule.name }}"
+  target = "ACCEPT"
+
+  match = {
+    src_zone  = "{{ rule.src_zone }}"
+    proto     = ["{{ rule.proto }}"]
+    dest_port = ["{{ rule.port }}"]
+    family    = "ipv4"
+  }
+}
+{% endfor %}
+{% if not input_rules %}
+
+# No zone is granted any service on the input path.
+#
+# If a zone on this device carries the uapi endpoint, applying this root makes
+# the device unreachable. E9904 refuses that case.
+{% endif %}

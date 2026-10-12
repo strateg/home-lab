@@ -44,6 +44,29 @@ _OPENWRT_ADAPTER = "cap.firewall.security_matrix.openwrt"
 # denied: an unknown action must not become a grant.
 _PERMIT_ACTIONS = frozenset({"allow", "accept"})
 
+# Router services a zone may be granted on the INPUT path, and what each one
+# actually listens on. Every zone is lowered with `input REJECT`, so a service
+# that is declared but not rendered here is simply unreachable - and on the
+# management path that means the device is unreachable.
+#
+# Each entry is the port the daemon this image ships actually binds, not a
+# convention:
+#
+#   ssh   dropbear, /etc/config/dropbear Port 22.
+#   uapi  served by uhttpd under /api/v3; the authored endpoint is
+#         https://192.168.1.1/api/v3 with no port, so HTTPS default 443.
+#   dns   dnsmasq, both transports - TCP 53 is not optional, EDNS answers
+#         exceeding 512 bytes fall back to it.
+#   dhcp  dnsmasq listens on the server port; the client sends to 67.
+#   ntp   only if this device serves time, which it does not by default.
+_INPUT_SERVICE_PORTS: dict[str, tuple[tuple[str, int], ...]] = {
+    "ssh": (("tcp", 22),),
+    "uapi": (("tcp", 443),),
+    "dns": (("tcp", 53), ("udp", 53)),
+    "dhcp": (("udp", 67),),
+    "ntp": (("udp", 123),),
+}
+
 
 def _extract_capabilities(row: dict[str, Any]) -> set[str]:
     """Collect capability ids from an effective-model instance row.
@@ -474,6 +497,9 @@ class OpenwrtZonesCompiler(CompilerPlugin):
                     "input_services": _input_services(segments, interfaces),
                 }
 
+            input_rules, input_diagnostics = self._lower_input_rules(enforcer_id, zones, stage)
+            diagnostics.extend(input_diagnostics)
+
             # Which zones hold this device's uplink, so a consumer can ask the
             # question "may this segment reach the internet directly?" without
             # re-deriving the matrix. Answered here because this is the only
@@ -510,6 +536,17 @@ class OpenwrtZonesCompiler(CompilerPlugin):
                         segment["forward_to_uplink"] = bool(reaches_uplink)
 
             openwrt_zones[enforcer_id] = {
+                # Rules on the INPUT path - traffic to the router itself, not
+                # through it. Kept separate from the forward rules because they
+                # have no destination zone: on firewall4 a `config rule` with no
+                # `dest` lands in the zone's input chain, which is how OpenWrt
+                # says "this zone may reach this service on the router".
+                #
+                # These are not optional decoration. Every zone is lowered with
+                # `input REJECT`, so without them the management zone rejects
+                # SSH and the uapi endpoint - on the interface the uapi request
+                # itself arrives on.
+                "input_rules": input_rules,
                 "uplink_zone_refs": sorted(uplink_zone_refs),
                 "scope_ids": plan.get("scope_ids") or [],
                 "zones": zones,
@@ -559,6 +596,74 @@ class OpenwrtZonesCompiler(CompilerPlugin):
             diagnostics=diagnostics,
             output_data={"openwrt_zones": openwrt_zones},
         )
+
+    def _lower_input_rules(
+        self,
+        enforcer_id: str,
+        zones: dict[str, Any],
+        stage: Stage,
+    ) -> tuple[list[dict[str, Any]], list[PluginDiagnostic]]:
+        """One rule per service per protocol, on each zone's input chain.
+
+        ADR 0110's matrix covers inter-zone *forward* only, so nothing in it
+        constrains traffic to the router. Every zone is therefore lowered with
+        `input REJECT` and the services each zone genuinely needs are granted
+        back explicitly - the opposite of stock OpenWrt, which ships the LAN
+        zone with `input ACCEPT` and publishes every router service to it.
+
+        The reason this cannot stay a comment: `input REJECT` with no rules
+        means the management zone rejects SSH and the uapi endpoint on the very
+        interface the request arrives on. The declaration was validated by
+        E9904 while the artifact would have bricked access - a check on intent
+        rather than on what gets emitted.
+
+        One rule per protocol for the same reason the forward rules split:
+        it keeps the emitted match tuples disjoint, which is the only ordering
+        contract available (E9902).
+        """
+        diagnostics: list[PluginDiagnostic] = []
+        rules: list[dict[str, Any]] = []
+
+        for zone_ref in sorted(zones):
+            zone = zones.get(zone_ref)
+            if not isinstance(zone, dict) or not zone.get("local"):
+                continue
+            for service in zone.get("input_services") or []:
+                if not isinstance(service, str):
+                    continue
+                ports = _INPUT_SERVICE_PORTS.get(service.strip().lower())
+                if ports is None:
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E9916",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"Enforcer '{enforcer_id}': zone '{zone_ref}' asks for input service "
+                                f"'{service}', which has no known listener. Every zone is lowered with "
+                                "input REJECT, so a service nobody can translate into a port is granted "
+                                "nothing - and on the management path that is a locked-out device. Known "
+                                f"services: {', '.join(sorted(_INPUT_SERVICE_PORTS))}."
+                            ),
+                            path=f"instance:{enforcer_id}.input_services.{service}",
+                        )
+                    )
+                    continue
+                for proto, port in ports:
+                    rules.append(
+                        {
+                            "src": zone_ref,
+                            # No destination zone: that is what puts the rule on
+                            # the input chain rather than a forward chain.
+                            "dest": None,
+                            "service": service,
+                            "proto": proto,
+                            "port": port,
+                            "target": "ACCEPT",
+                        }
+                    )
+
+        return rules, diagnostics
 
     def on_finalize(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         # Registered at phase: finalize, after base.compiler.effective_model

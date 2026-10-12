@@ -1344,6 +1344,66 @@ W9905 was mutation-checked against the state that motivated it: removing
 
 Peers are no longer deferred — I9904 now reads `Deferred: nothing`.
 
+### A7.8 The lockout the pipeline was about to generate
+
+Checking what the generator actually emitted for the management zone found the
+most dangerous defect in the whole chain:
+
+```
+resource "uapi_firewall_zone" "management" {
+  network = ["lan"]        # the interface the uapi request arrives on
+  input   = "REJECT"       # and nothing granted it back
+}
+```
+
+No input-service rule existed anywhere in the rendered root. Applying it would
+have rejected SSH and the uapi endpoint **on the interface the apply arrived
+over** — the unrecoverable case, since a write that strands the caller never
+returns a response and Terraform records nothing.
+
+**E9904 passed.** It checked that the management zone *declared*
+`input_services: [ssh, uapi]` and that the declaration was non-empty. It never
+asked whether the generator emitted anything for them. The declaration was
+validated; the artifact would have bricked access. Third time in this work that
+a check on intent stood in for a check on what ships.
+
+Both halves are fixed:
+
+* The zone compiler lowers `input_rules` — one `uapi_firewall_rule` per service
+  per protocol, with **no** `dest_zone`. That absence is load-bearing: on
+  firewall4 a `config rule` with no `dest` lands in the zone's *input* chain,
+  and giving it a destination would make it a forward rule granting nothing on
+  the input path.
+* E9904 now compares the declared services against the **lowered plan's**
+  `input_rules` for that zone, so a declared-but-unemitted service is an error.
+  Mutation-checked on the real model: emptying the input rules fails the build
+  with E9904 naming `ssh, uapi` on `lan`.
+
+The service→listener table is grounded per entry rather than conventional —
+dropbear's port 22, uhttpd's 443 for the authored `https://192.168.1.1/api/v3`
+endpoint, dnsmasq on 53 over **both** transports (TCP 53 is not optional; EDNS
+answers over 512 bytes fall back to it), and 67 for DHCP. **E9916** refuses a
+service name the table cannot translate, because an untranslatable service
+grants nothing while looking authored.
+
+Input rules also go through E9902/E9903, normalized into the same tuple shape as
+the forward rules. They share a chain with nothing else, but two of them collide
+with each other if two services resolve to one protocol and port — two Terraform
+resources claiming one uci section.
+
+### A7.9 `terraform.tfvars.example`
+
+The root declared 21 variables with no defaults and nothing told the operator
+their names, so it could not be used at all. The generated template lists each
+with the description that travels from its source — including the SOPS reference
+for every key — plus the order of operations a first apply needs: install uapi
+and mint a token, reconcile `adoption.tf` with `terraform plan`, remove the
+stock anonymous sections by hand, then apply out-of-band under
+`apply-confirm stage` / verify / `ack`.
+
+`.gitignore` already excludes `*.tfvars` while explicitly allowing
+`*.tfvars.example`, so the template is committed and a filled copy cannot be.
+
 Stale raiser annotations in the catalog were repointed while registering these:
 `E9903`/`E9902`, `E9904`/`E9905` and `E9908`-`W9901` named
 `base.validator.openwrt_*` plugins that do not exist — the checks live in the
