@@ -112,6 +112,12 @@ def _oracle_zone_cidrs(compiled_json: dict) -> dict[str, list[str]]:
     }
 
     zone_refs: list[str] = []
+    # The scope's own address space. Since 2026-10-11 a matrix resolves its
+    # zones inside this set rather than across every VLAN in the project, so
+    # an oracle that still resolved globally would be checking the pipeline
+    # against a specification it no longer implements. None means undeclared,
+    # which keeps the global behaviour.
+    address_space_refs: set[str] | None = None
     for row in rows:
         if "security_matrix" not in _oracle_object_ref(row):
             continue
@@ -123,6 +129,12 @@ def _oracle_zone_cidrs(compiled_json: dict) -> dict[str, list[str]]:
         declared = inst.get("zone_refs")
         if isinstance(declared, list):
             zone_refs = [str(item) for item in declared]
+        address_space = inst.get("address_space")
+        if isinstance(address_space, dict):
+            vlan_refs = address_space.get("vlan_refs")
+            if isinstance(vlan_refs, list):
+                scoped = {str(item) for item in vlan_refs if str(item)}
+                address_space_refs = scoped or None
 
     vlan_zone: dict[str, str] = {}
     vlan_cidr: dict[str, str] = {}
@@ -144,6 +156,8 @@ def _oracle_zone_cidrs(compiled_json: dict) -> dict[str, list[str]]:
 
     zone_vlans: dict[str, list[str]] = {}
     for vlan_ref, zone_ref in vlan_zone.items():
+        if address_space_refs is not None and vlan_ref not in address_space_refs:
+            continue
         zone_vlans.setdefault(zone_ref, []).append(vlan_ref)
     for vlans in zone_vlans.values():
         vlans.sort()
