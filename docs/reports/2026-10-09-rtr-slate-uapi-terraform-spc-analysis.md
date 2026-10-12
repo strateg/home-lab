@@ -1404,6 +1404,40 @@ stock anonymous sections by hand, then apply out-of-band under
 `.gitignore` already excludes `*.tfvars` while explicitly allowing
 `*.tfvars.example`, so the template is committed and a filled copy cannot be.
 
+### A7.10 Verified against the real provider, without touching the device
+
+`terraform init` + `terraform validate` on the rendered root, 2026-10-12:
+
+```
+- Installing openwrt-iac/uapi v3.1.0...
+Success! The configuration is valid.
+```
+
+The `~> 3.1` pin resolves to a provider that exists, and the whole root
+validates against its **declared schema** rather than against the docs this
+work read. That retires the largest remaining risk in A7.1: every attribute
+name, type and arity derived there is confirmed - `ipaddrs` list vs `netmask`
+scalar, `channel` as Number, `network` scalar on `wireless_interface`, the
+`match` object on `firewall_rule`, `lookup`/`priority` on `network_rule`,
+`table` on `network_route`, `allowed_ips` list on the peer.
+
+Two mutations measured what that "Success" is worth:
+
+* `netmask = ["255.255.255.0"]` → **caught**: *"Inappropriate value for
+  attribute netmask: string required"*. So arity is genuinely verified, and
+  E9903's subject is now checked against ground truth rather than documentation.
+* `to = uapi_network_interface.does_not_exist` in an import block → **passes
+  silently**. `terraform validate` does not check import targets at all; the
+  failure appears only at plan time, and then for the whole root.
+
+The second result is the useful one: **E9913 is not redundant with Terraform.**
+It catches at compile time what the toolchain will not report until a plan is
+attempted against a live device.
+
+None of this contacts the router. What remains for Phase 9 is purely
+device-side: reachability on the management path, the `uapi` /
+`ucode-mod-ubus` / `uhttpd-mod-ucode` packages, and a current bearer token.
+
 Stale raiser annotations in the catalog were repointed while registering these:
 `E9903`/`E9902`, `E9904`/`E9905` and `E9908`-`W9901` named
 `base.validator.openwrt_*` plugins that do not exist — the checks live in the
