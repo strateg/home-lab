@@ -1060,6 +1060,19 @@ codes:
   # it yet). An unreferenced, unresolved instance is latent, not a build
   # failure. E7018 is the one enforced error, because it fires only for an
   # instance an actual security_matrix scope depends on via managed_by_ref.
+  # Allocated 2026-10-11 in the policies-and-bindings sub-band (E7060..E7064),
+  # the next free number there, because a zone-pair permit collision is a policy
+  # conflict rather than a schema or attachment one.
+  E7065:
+    severity: error
+    stage: compile
+    title: Zone Pair Claimed By More Than One Policy Override
+    hint: >-
+      Two or more policy_overrides match the same zone pair. A pair resolves to one matrix cell and the first
+      matching override wins, so the rest are discarded with nothing reported - and which one survives depends
+      on merge order, which ADR 0119 D4 forbids and ADR 0118 D4 classes as a blocking authoring conflict not
+      resolved by position or specificity. Declare one override carrying every port meant for the pair.
+
   W7015:
     severity: warning
     stage: compile

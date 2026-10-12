@@ -207,6 +207,30 @@ class SecurityMatrixCompiler(CompilerPlugin):
             # Extract policy_overrides from object + instance (merged)
             policy_overrides = self._merge_policy_overrides(matrix_row, extensions, ctx)
 
+            # A zone pair resolves to one cell, and _find_policy_override
+            # returns the first override that matches it. Two overrides for one
+            # pair therefore discard one of them, and before this check nothing
+            # said which or that it had happened: the same authoring shape on
+            # two instances of the same object produced opposite survivors.
+            # ADR 0118 D4 calls this a blocking authoring conflict that must not
+            # be resolved by position or specificity, and ADR 0119 D4 requires
+            # permutations of unordered input to produce identical plans.
+            for pair, names in self._duplicate_override_pairs(policy_overrides):
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E7065",
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            f"Security matrix '{matrix_id}' declares {len(names)} policy_overrides for the "
+                            f"zone pair {pair[0]} -> {pair[1]} ({', '.join(names)}). Only the first takes "
+                            "effect and the rest are discarded silently. Declare one override carrying "
+                            "every port meant for the pair."
+                        ),
+                        path=f"instance:{matrix_id}.policy_overrides",
+                    )
+                )
+
             # Resolve zone properties, in a deterministic order.
             #
             # W05 divergence 2: the compiler sorted each zone's VLAN list and the
@@ -613,6 +637,30 @@ class SecurityMatrixCompiler(CompilerPlugin):
             if isinstance(object_data, dict):
                 return object_data.get(prop_name)
         return None
+
+    @staticmethod
+    def _duplicate_override_pairs(
+        policy_overrides: list[dict[str, Any]],
+    ) -> list[tuple[tuple[str, str], list[str]]]:
+        """Zone pairs claimed by more than one override, with the names involved.
+
+        Pairs are compared on the same equivalence `_find_policy_override` uses -
+        the trailing segment, so an object-level `obj.network.trust_zone.user`
+        collides with an instance-level `inst.trust_zone.user`. A check using
+        stricter equality than the selector would miss exactly the cross-level
+        collisions that motivated it.
+        """
+        seen: dict[tuple[str, str], list[str]] = {}
+        for override in policy_overrides:
+            if not isinstance(override, dict):
+                continue
+            from_ref = str(override.get("from_zone_ref", "")).strip()
+            to_ref = str(override.get("to_zone_ref", "")).strip()
+            if not from_ref or not to_ref:
+                continue
+            pair = (from_ref.rsplit(".", 1)[-1], to_ref.rsplit(".", 1)[-1])
+            seen.setdefault(pair, []).append(str(override.get("name") or "<unnamed>"))
+        return [(pair, names) for pair, names in sorted(seen.items()) if len(names) > 1]
 
     def _merge_policy_overrides(
         self,

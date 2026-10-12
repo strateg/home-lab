@@ -27,12 +27,24 @@ defaults:
 
 # Standard SOHO policy overrides (exceptions to implicit matrix rules)
 # Override user→servers: partial access by port (R6 overrides R4 uphill default)
-policy_overrides:
-  - name: user-to-servers-http
-    from_zone_ref: obj.network.trust_zone.user
-    to_zone_ref: obj.network.trust_zone.servers
-    action: accept
-    ports:
-      tcp: [80, 443]
-    log: false
-    comment: User HTTP/HTTPS to server zone
+# No policy_overrides here, deliberately. This object used to carry
+# `user-to-servers-http` (tcp 80,443) for the user -> servers pair.
+#
+# Removed 2026-10-11. A matrix resolves at most one override per zone pair -
+# `_find_policy_override` returns the first match - so an override on a shared
+# object competes with every instance that declares one for the same pair, and
+# one of the two is silently discarded. Measured on the two instances extending
+# this object: rtr-mikrotik-chateau ended up enforcing only its own db ports
+# (5432,6379) with this permit gone, while rtr-slate ended up enforcing only
+# this permit with its own db ports gone. Same authoring shape, opposite
+# outcomes, and nothing reported either loss.
+#
+# That is also what ADR 0118 D7 warns about directly: an object supplies
+# reusable shape and defaults, and must not author a value that decides one
+# concrete entity's policy - it serves many instances and can hold only one
+# such value. A zone-pair permit is exactly that kind of value.
+#
+# Each instance now declares the permits it means for this pair, which is
+# behaviour-preserving for the live perimeter and visible to review. E7065
+# refuses a pair claimed twice so this cannot silently return.
+policy_overrides: []

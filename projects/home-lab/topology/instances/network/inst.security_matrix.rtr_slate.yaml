@@ -191,14 +191,23 @@ policy_overrides:
   # ---------------------------------------------------------------------
   # Home access, matching Chateau's grants for the user zone.
   # ---------------------------------------------------------------------
-  - name: slate-home-to-servers-db
+  # One override for this pair, carrying every port meant for it. Two were
+  # authored before - this one and `user-to-servers-http` inherited from the
+  # soho object - and only one could take effect, which is why that object no
+  # longer declares permits and why E7065 now refuses a pair claimed twice.
+  #
+  # The union is used here rather than Chateau's narrower set because this
+  # device is staged and unapplied: there is no live behaviour to preserve, and
+  # both port sets were authored deliberately. Web UIs on the home servers are
+  # the thing a travel router most needs.
+  - name: slate-home-to-servers
     from_zone_ref: inst.trust_zone.user
     to_zone_ref: inst.trust_zone.servers
     action: accept
     ports:
-      tcp: [5432, 6379]
+      tcp: [80, 443, 5432, 6379]
     log: false
-    comment: PostgreSQL and Redis from Slate-Home, as on Chateau
+    comment: HTTP/HTTPS plus PostgreSQL and Redis from Slate-Home
 
   # ---------------------------------------------------------------------
   # Management plane is deliberately NOT granted here, unlike on Chateau.

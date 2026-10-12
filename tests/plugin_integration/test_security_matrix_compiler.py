@@ -1002,3 +1002,232 @@ class TestZoneDataExtraction:
         result = plugin._extract_zone_data(row, row["extensions"], ctx)
 
         assert result is None
+
+
+class TestDuplicateOverridePairs:
+    """E7065: one zone pair must be claimed by exactly one policy_override.
+
+    `_find_policy_override` returns the *first* override matching a pair, so a
+    second one for the same pair is discarded without a word. Before this check
+    the two instances extending `obj.network.security_matrix.soho` demonstrated
+    the failure mode concretely: identical authoring shape, opposite survivors,
+    and no diagnostic on either. ADR 0118 D4 classes that as a blocking
+    authoring conflict - not something to resolve by position or specificity.
+    """
+
+    @staticmethod
+    def _override(name: str, from_ref: str, to_ref: str, **extra):
+        return {
+            "name": name,
+            "from_zone_ref": from_ref,
+            "to_zone_ref": to_ref,
+            "action": "accept",
+            **extra,
+        }
+
+    def test_one_override_per_pair_is_clean(self):
+        plugin = _create_plugin()
+
+        assert (
+            plugin._duplicate_override_pairs(
+                [
+                    self._override("a", "inst.trust_zone.user", "inst.trust_zone.servers"),
+                    self._override("b", "inst.trust_zone.guest", "inst.trust_zone.servers"),
+                ]
+            )
+            == []
+        )
+
+    def test_two_overrides_for_one_pair_are_reported_with_both_names(self):
+        plugin = _create_plugin()
+
+        found = plugin._duplicate_override_pairs(
+            [
+                self._override("first", "inst.trust_zone.user", "inst.trust_zone.servers"),
+                self._override("second", "inst.trust_zone.user", "inst.trust_zone.servers"),
+            ]
+        )
+
+        assert found == [(("user", "servers"), ["first", "second"])]
+
+    def test_object_and_instance_level_refs_collide(self):
+        """The check must use the selector's equivalence, not strict equality.
+
+        This is the exact shape that went unnoticed: an object authored
+        `obj.network.trust_zone.user -> obj.network.trust_zone.servers` while the
+        instance authored the `inst.`-prefixed pair. `_find_policy_override`
+        matches on the trailing segment, so these are one pair to the selector;
+        a stricter comparison here would miss precisely the cross-level
+        collisions that motivated the check.
+        """
+        plugin = _create_plugin()
+
+        found = plugin._duplicate_override_pairs(
+            [
+                self._override(
+                    "from-object",
+                    "obj.network.trust_zone.user",
+                    "obj.network.trust_zone.servers",
+                ),
+                self._override(
+                    "from-instance",
+                    "inst.trust_zone.user",
+                    "inst.trust_zone.servers",
+                ),
+            ]
+        )
+
+        assert found == [(("user", "servers"), ["from-object", "from-instance"])]
+
+    def test_reverse_direction_is_a_different_pair(self):
+        plugin = _create_plugin()
+
+        assert (
+            plugin._duplicate_override_pairs(
+                [
+                    self._override("out", "inst.trust_zone.user", "inst.trust_zone.servers"),
+                    self._override("back", "inst.trust_zone.servers", "inst.trust_zone.user"),
+                ]
+            )
+            == []
+        )
+
+    def test_incomplete_overrides_are_skipped(self):
+        """A missing endpoint is E7852/schema territory, not a collision."""
+        plugin = _create_plugin()
+
+        assert (
+            plugin._duplicate_override_pairs(
+                [
+                    {"name": "no-to", "from_zone_ref": "inst.trust_zone.user"},
+                    {"name": "no-from", "to_zone_ref": "inst.trust_zone.servers"},
+                    "not-a-dict",
+                ]
+            )
+            == []
+        )
+
+    def test_order_does_not_change_the_finding(self):
+        """ADR 0119 D4: permutations of unordered input produce identical plans.
+
+        The pair is reported either way - which is the point of erroring instead
+        of picking a survivor.
+        """
+        plugin = _create_plugin()
+        a = self._override("a", "inst.trust_zone.user", "inst.trust_zone.servers")
+        b = self._override("b", "inst.trust_zone.user", "inst.trust_zone.servers")
+
+        forward = plugin._duplicate_override_pairs([a, b])
+        reverse = plugin._duplicate_override_pairs([b, a])
+
+        assert [pair for pair, _ in forward] == [pair for pair, _ in reverse]
+        assert sorted(forward[0][1]) == sorted(reverse[0][1])
+
+    def test_compiler_refuses_a_matrix_with_a_pair_claimed_twice(self):
+        plugin = _create_plugin()
+        rows = [
+            {
+                "instance": "inst.trust_zone.user",
+                "class_ref": "class.network.trust_zone",
+                "object_ref": "obj.network.trust_zone.user",
+                "extensions": {"security_level": 3, "isolated": False, "name": "user"},
+            },
+            {
+                "instance": "inst.trust_zone.servers",
+                "class_ref": "class.network.trust_zone",
+                "object_ref": "obj.network.trust_zone.servers",
+                "extensions": {"security_level": 4, "isolated": False, "name": "servers"},
+            },
+            {
+                "instance": "inst.security_matrix.collide",
+                "class_ref": "class.network.security_matrix",
+                "object_ref": "obj.network.security_matrix.soho",
+                "extensions": {
+                    "managed_by_ref": "rtr-mikrotik-chateau",
+                    "enforcement_plane": "perimeter",
+                    "zone_refs": ["inst.trust_zone.user", "inst.trust_zone.servers"],
+                    "policy_overrides": [
+                        self._override(
+                            "http",
+                            "inst.trust_zone.user",
+                            "inst.trust_zone.servers",
+                            ports={"tcp": [80, 443]},
+                        ),
+                        self._override(
+                            "db",
+                            "inst.trust_zone.user",
+                            "inst.trust_zone.servers",
+                            ports={"tcp": [5432, 6379]},
+                        ),
+                    ],
+                },
+            },
+        ]
+        ctx = _create_ctx(rows=rows)
+
+        result = run_plugin_for_test(
+            plugin,
+            ctx,
+            Stage.COMPILE,
+            consumes_keys={"base.compiler.instance_rows"},
+        )
+
+        assert result.has_errors
+        collisions = [d for d in result.diagnostics if d.code == "E7065"]
+        assert len(collisions) == 1
+        # The message must name both overrides, or the author cannot tell which
+        # of their two authored intents is the one being silently dropped.
+        assert "http" in collisions[0].message
+        assert "db" in collisions[0].message
+
+    def test_compiler_accepts_the_same_ports_in_one_override(self):
+        """The remediation the message asks for must actually compile."""
+        plugin = _create_plugin()
+        rows = [
+            {
+                "instance": "inst.trust_zone.user",
+                "class_ref": "class.network.trust_zone",
+                "object_ref": "obj.network.trust_zone.user",
+                "extensions": {"security_level": 3, "isolated": False, "name": "user"},
+            },
+            {
+                "instance": "inst.trust_zone.servers",
+                "class_ref": "class.network.trust_zone",
+                "object_ref": "obj.network.trust_zone.servers",
+                "extensions": {"security_level": 4, "isolated": False, "name": "servers"},
+            },
+            {
+                "instance": "inst.security_matrix.united",
+                "class_ref": "class.network.security_matrix",
+                "object_ref": "obj.network.security_matrix.soho",
+                "extensions": {
+                    "managed_by_ref": "rtr-mikrotik-chateau",
+                    "enforcement_plane": "perimeter",
+                    "zone_refs": ["inst.trust_zone.user", "inst.trust_zone.servers"],
+                    "policy_overrides": [
+                        self._override(
+                            "user-to-servers",
+                            "inst.trust_zone.user",
+                            "inst.trust_zone.servers",
+                            ports={"tcp": [80, 443, 5432, 6379]},
+                        ),
+                    ],
+                },
+            },
+        ]
+        ctx = _create_ctx(rows=rows)
+
+        result = run_plugin_for_test(
+            plugin,
+            ctx,
+            Stage.COMPILE,
+            consumes_keys={"base.compiler.instance_rows"},
+        )
+
+        assert not any(d.code == "E7065" for d in result.diagnostics)
+        matrices = ctx.get_published_data()[PLUGIN_ID]["security_matrices"]
+        cell = matrices["inst.security_matrix.united"]["matrix"]["inst.trust_zone.user"][
+            "inst.trust_zone.servers"
+        ]
+        assert cell["rule"] == "R6"
+        assert cell["ports"] == {"tcp": [80, 443, 5432, 6379]}
