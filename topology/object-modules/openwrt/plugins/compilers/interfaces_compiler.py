@@ -251,7 +251,8 @@ class OpenwrtInterfacesCompiler(CompilerPlugin):
                         f"({entry['parked_wireless']} parked), {len(entry['dhcp_servers'])} DHCP pools, "
                         f"{len(entry['peers'])} peer(s), {len(entry['routes'])} policy route(s), "
                         f"{len(entry['rules'])} ip-rule(s), "
-                        f"{len(entry['adoption'])} section(s) to adopt"
+                        f"{len(entry['adoption'])} section(s) to adopt, "
+                        f"{len(entry['unmanaged'])} left unmanaged"
                         f"{'' if entry['adoption_reconciled'] else ' (ledger NOT reconciled against the device)'}. "
                         f"Deferred: {', '.join(entry['deferred']) or 'nothing'}."
                     ),
@@ -278,7 +279,7 @@ class OpenwrtInterfacesCompiler(CompilerPlugin):
         diagnostics: list[PluginDiagnostic] = []
 
         segments = self._segments_from_plan(plan)
-        interfaces, devices = self._lower_interfaces(segments, intent)
+        interfaces, devices, unmanaged = self._lower_interfaces(segments, intent)
 
         dhcp_servers, dhcp_diagnostics = self._lower_dhcp(enforcer_id, segments, stage)
         diagnostics.extend(dhcp_diagnostics)
@@ -328,6 +329,10 @@ class OpenwrtInterfacesCompiler(CompilerPlugin):
             if isinstance(intent.get("adoption"), dict)
             else False,
             "devices": devices,
+            # Sections this device has that are deliberately left alone, with
+            # the reason. Named, not omitted: an unmanaged section is a real
+            # gap in coverage and a reader deserves to know it was a decision.
+            "unmanaged": unmanaged,
             "interfaces": interfaces,
             "wireless_devices": radios,
             "wireless_interfaces": wifi_ifaces,
@@ -367,9 +372,10 @@ class OpenwrtInterfacesCompiler(CompilerPlugin):
         self,
         segments: list[dict[str, Any]],
         intent: dict[str, Any],
-    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[str]]:
         interfaces: list[dict[str, Any]] = []
         devices: list[dict[str, Any]] = []
+        unmanaged: list[str] = []
 
         management = intent.get("management")
         if isinstance(management, dict) and management.get("interface"):
@@ -390,17 +396,36 @@ class OpenwrtInterfacesCompiler(CompilerPlugin):
                     "endpoint_arrives_here": bool(management.get("endpoint_arrives_here", False)),
                 }
             )
-            # Bridge membership is not on uapi_network_interface at all - it is
-            # uapi_network_device.ports - so a bridge is two resources.
-            ports = management.get("bridge_ports")
-            if isinstance(management.get("device"), str) and isinstance(ports, list):
-                devices.append(
-                    {
-                        "id": management["device"],
-                        "name": management["device"],
-                        "type": "bridge",
-                        "ports": [port for port in ports if isinstance(port, str) and port],
-                    }
+            # The management bridge is deliberately NOT emitted as a
+            # uapi_network_device, even though bridge membership lives there
+            # and `bridge_ports` is authored.
+            #
+            # Measured on the device 2026-10-12: the stock bridge is
+            # `network.cfg030f15` - an ANONYMOUS section whose `name` option is
+            # 'br-lan'. The kernel device name and the uci section name are
+            # different things, and only the latter can be imported. So this
+            # section cannot be adopted (uapi would rename it to a ULID), which
+            # leaves only two options, and one of them is unsafe:
+            #
+            #   * Create a second, named `config device` for the same kernel
+            #     device -> two bridge definitions for br-lan.
+            #   * Delete the stock section by hand first, as the wifi-iface
+            #     path does -> between the delete and the create, br-lan has no
+            #     definition, the LAN goes down, and the apply cannot arrive.
+            #     That is the stranding case E9904 exists to prevent, one level
+            #     below the interface it protects.
+            #
+            # So the bridge carrying the management path stays unmanaged. It is
+            # stock, it already matches what topology declares (ports lan1 and
+            # lan2), and `ignore_changes` on the interface above is the same
+            # reasoning one level up. Reported in I9904 rather than silently
+            # skipped.
+            if isinstance(management.get("device"), str) and isinstance(
+                management.get("bridge_ports"), list
+            ):
+                unmanaged.append(
+                    f"{management['device']} (management bridge: the stock section is anonymous, "
+                    "and both ways of managing it interrupt the path the apply arrives over)"
                 )
 
         uplink = intent.get("uplink")
@@ -476,7 +501,7 @@ class OpenwrtInterfacesCompiler(CompilerPlugin):
 
         interfaces.sort(key=lambda item: str(item["id"]))
         devices.sort(key=lambda item: str(item["id"]))
-        return interfaces, devices
+        return interfaces, devices, sorted(unmanaged)
 
     def _lower_dhcp(
         self,

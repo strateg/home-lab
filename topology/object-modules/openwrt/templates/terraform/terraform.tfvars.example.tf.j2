@@ -14,13 +14,17 @@
 #      then mint a token with `uapi-token create`.
 #   2. Reconcile adoption.tf against the device with `terraform plan`. A wrong
 #      ledger entry fails the plan and changes nothing on the router.
-#   3. Remove the stock ANONYMOUS sections by hand - every stock firewall
-#      section and every stock wifi-iface is one, and importing them would
-#      rename them to ULIDs. This root recreates them under explicit names.
-#   4. Only then apply, and out of band: `apply-confirm stage`, apply, verify
-#      reachability, `apply-confirm ack`. The provider ships no commit-confirm;
-#      per-write `?confirm` dies at resource 2 with `already_armed` and corrupts
-#      state.
+#   3. Apply, out of band: `apply-confirm stage`, apply, verify reachability,
+#      `apply-confirm ack`. The provider ships no commit-confirm; per-write
+#      `?confirm` dies at resource 2 with `already_armed` and corrupts state.
+#   4. ONLY AFTER verifying, remove the stock anonymous firewall zones.
+#
+#      The order matters and is the opposite of the obvious one. Measured on
+#      the device: the stock `lan` zone carries `input ACCEPT`, which is what
+#      keeps SSH and the uapi endpoint reachable while both configurations
+#      coexist. Removing it first opens a window in which nothing permits input
+#      on the management path and the apply cannot arrive. Applying first is
+#      safe precisely because the stock zone is still permissive.
 
 # ---------------------------------------------------------------------------
 # Provider

@@ -1438,6 +1438,94 @@ None of this contacts the router. What remains for Phase 9 is purely
 device-side: reachability on the management path, the `uapi` /
 `ucode-mod-ubus` / `uhttpd-mod-ucode` packages, and a current bearer token.
 
+## PHASE 9 STEP 1 — `terraform plan` AGAINST THE LIVE DEVICE, 2026-10-12
+
+Nothing was applied. The device was reached on the management path
+(`192.168.1.2/24` on its LAN, inside the token's `allowed_cidr`), `healthz`
+returned `200` with `version 3.1.0` and every check `ok`, and the installed
+`uapi-3.1.0-r1` matches the provider's `~> 3.1` lockstep requirement.
+
+**Final result:**
+
+```
+Plan: 4 to import, 77 to add, 2 to change, 0 to destroy.
+```
+
+`0 to destroy` is the number that matters: nothing on the device is removed.
+`lan` and `wan` import with **no diff at all** — the management path is adopted
+in place and untouched, which is what the whole `ignore_changes` design was for.
+The only two changes are on the radios and both match authored intent:
+
+| Resource | Change | Why |
+|---|---|---|
+| `radio0` | `+ country = "EE"` | already on channel 36 / HE80 |
+| `radio1` | `channel 1 → 0` | auto, because it carries the STA uplink (W9904) |
+| `radio1` | `htmode HE20 → HT20` | drops 11ax on the weaker radio, as authored |
+| `radio1` | `+ country = "EE"` | regdomain, mandatory for the 5 GHz AP on radio0 |
+
+### The first plan failed, exactly as designed
+
+```
+Error importing network device
+no resource found at /network/devices/br-lan
+```
+
+The adoption ledger was wrong, and it failed at plan time having changed
+nothing. Read off the device:
+
+```
+network.cfg030f15=device
+network.cfg030f15.name='br-lan'
+```
+
+The stock bridge is an **anonymous** section whose `name` *option* is `br-lan`.
+**A kernel device name is not a uci section name**, and only the latter can be
+imported. I had conflated them. Named sections on this device are exactly
+`globals`, `lan`, `loopback`, `wan`, `wan6`.
+
+### What that forced: the management bridge stays unmanaged
+
+Removing the bad ledger entry is not enough, because the generator would then
+*create* a named `br-lan` device section while `cfg030f15` still exists — two
+`config device` sections for one kernel device. The alternative, deleting the
+stock section by hand first (the path already written for wifi-ifaces), is
+**worse**: between the delete and the create, `br-lan` has no definition, the
+LAN drops, and the apply cannot arrive. That is the stranding case E9904 exists
+to prevent, one level below the interface it protects.
+
+So the bridge carrying the management path is deliberately not emitted. It is
+stock, it already matches what topology declares (`ports lan1 lan2`), and this
+is the same reasoning as `ignore_changes` on the interface, one level down.
+I9904 reports it as `1 left unmanaged` rather than skipping it silently.
+
+### Two things measured on the device that contradicted my own documentation
+
+1. **The runbook order was backwards and dangerous.** `terraform.tfvars.example`
+   said to remove the stock anonymous sections *before* the first apply. But the
+   stock `lan` zone carries **`input ACCEPT`**, and that is precisely what keeps
+   SSH and the uapi endpoint reachable while both configurations coexist.
+   Removing it first opens a window in which nothing permits input on the
+   management path. Corrected to: apply, verify, *then* remove the stock zones —
+   applying first is safe *because* the stock zone is still permissive.
+
+2. **"Every stock wifi-iface is anonymous" is false here.** They are
+   `default_radio0` and `default_radio1` — named, and both shipping
+   `disabled '1'`. They conflict with nothing and need no removal. The claim is
+   corrected in `wireless.tf`.
+
+   The same reading confirmed why adopting radios is not optional:
+   `wireless.radioN` carries `path='platform/soc@0/c000000.wifi'`, binding the
+   section to a phy, and `uapi_wireless_device` does not expose `path`.
+   Recreating a radio section would lose that binding.
+
+`reconciled_against_device` is now `true`, which is what that flag was for.
+
+Remaining for Phase 9: `apply-confirm stage`, apply, verify reachability,
+`apply-confirm ack`, then remove the two stock firewall zones. Not done, and not
+to be done without explicit instruction.
+
+---
+
 Stale raiser annotations in the catalog were repointed while registering these:
 `E9903`/`E9902`, `E9904`/`E9905` and `E9908`-`W9901` named
 `base.validator.openwrt_*` plugins that do not exist — the checks live in the

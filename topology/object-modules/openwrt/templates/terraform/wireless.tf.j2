@@ -58,11 +58,17 @@ resource "uapi_wireless_device" "{{ radio.label }}" {
 # ---------------------------------------------------------------------------
 # wifi-ifaces
 #
-# Every stock wifi-iface section is ANONYMOUS (cfgXXXXXX). uapi adopts named
-# sections in place but adopts an anonymous one by renaming it to a ULID, which
-# mutates the router (W9903). These sections are therefore created with explicit
-# ids rather than adopted, and the stock ones are expected to be removed by hand
-# before the first apply.
+# Created with explicit ids rather than adopted. uapi adopts a named section in
+# place but adopts an anonymous one by renaming it to a ULID, which mutates the
+# router (W9903).
+#
+# Measured on this device 2026-10-12, correcting an earlier assumption here:
+# the stock wifi-ifaces are NAMED - `default_radio0` and `default_radio1` - and
+# both ship `disabled '1'`. They therefore neither conflict with the ids below
+# nor need removing before an apply; they are simply left unmanaged. The radios
+# themselves ARE adopted, which is not optional: `wireless.radioN` carries a
+# `path` option binding it to a phy, `uapi_wireless_device` does not expose
+# `path`, and recreating a radio section would lose that binding.
 # ---------------------------------------------------------------------------
 {% for iface in wireless_interfaces %}
 

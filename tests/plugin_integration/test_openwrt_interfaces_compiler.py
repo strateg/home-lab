@@ -294,8 +294,7 @@ def _plan_of(result):
     return result.output_data["openwrt_interfaces"]["rtr-slate"]
 
 
-def test_management_lowers_to_an_interface_and_a_bridge_device():
-    """Bridge membership is uapi_network_device.ports, not an interface field."""
+def test_management_lowers_to_an_interface():
     entry = _plan_of(_run(_zone_plan(), _model(wireless=_wireless())))
 
     lan = next(item for item in entry["interfaces"] if item["id"] == "lan")
@@ -307,9 +306,29 @@ def test_management_lowers_to_an_interface_and_a_bridge_device():
     assert lan["immutable"] is True
     assert lan["endpoint_arrives_here"] is True
 
-    device = next(item for item in entry["devices"] if item["id"] == "br-lan")
-    assert device["type"] == "bridge"
-    assert device["ports"] == ["lan1", "lan2"]
+
+def test_the_management_bridge_is_left_unmanaged_and_said_so():
+    """Bridge membership lives on uapi_network_device.ports - and this one is
+    still not emitted.
+
+    Measured on the device 2026-10-12: the stock bridge is
+    `network.cfg030f15`, an ANONYMOUS section whose `name` option is 'br-lan'.
+    A kernel device name is not a uci section name, so it cannot be imported,
+    which leaves two options and both interrupt the management path:
+
+      * create a second named `config device` for the same kernel device, or
+      * delete the stock section by hand first - and between the delete and the
+        create, br-lan has no definition, the LAN drops, and the apply cannot
+        arrive.
+
+    So it stays unmanaged, and is named in the plan rather than skipped.
+    """
+    entry = _plan_of(_run(_zone_plan(), _model(wireless=_wireless())))
+
+    assert entry["devices"] == []
+    assert any("br-lan" in item for item in entry["unmanaged"])
+    # The reason travels with it, so a reader does not have to guess.
+    assert any("management bridge" in item for item in entry["unmanaged"])
 
 
 def test_segment_interface_takes_the_name_the_zone_plan_derived():
@@ -491,7 +510,6 @@ def test_ledger_entries_pair_with_the_resources_they_adopt():
         _with_adoption(
             [
                 {"resource": "uapi_network_interface", "id": "lan"},
-                {"resource": "uapi_network_device", "id": "br-lan"},
                 {"resource": "uapi_wireless_device", "id": "radio0"},
             ]
         ),
@@ -500,10 +518,22 @@ def test_ledger_entries_pair_with_the_resources_they_adopt():
     assert "E9913" not in _codes(result)
     adoption = _plan_of(result)["adoption"]
     assert [(item["resource"], item["id"]) for item in adoption] == [
-        ("uapi_network_device", "br-lan"),
         ("uapi_network_interface", "lan"),
         ("uapi_wireless_device", "radio0"),
     ]
+
+
+def test_adopting_the_management_bridge_is_refused():
+    """The real ledger carried this entry and `terraform plan` refused it with
+    "no resource found at /network/devices/br-lan". E9913 now catches it at
+    compile time instead, since the generator emits no such resource.
+    """
+    result = _run(
+        _zone_plan(),
+        _with_adoption([{"resource": "uapi_network_device", "id": "br-lan"}]),
+    )
+
+    assert "E9913" in _codes(result)
 
 
 def test_anonymous_sections_are_identified_from_their_name():

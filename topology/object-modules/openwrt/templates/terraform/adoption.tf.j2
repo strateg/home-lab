@@ -14,9 +14,16 @@
 # router during what is supposed to be a read-only import, so anonymous
 # sections are never imported here (W9903).
 #
-# Every stock firewall section and every stock wifi-iface is anonymous. Those
-# are removed by hand before the first apply and recreated from topology under
-# explicit names.
+# Measured on the device 2026-10-12: the stock FIREWALL zones are anonymous
+# (`firewall.@zone[0]` name 'lan', `@zone[1]` name 'wan'), and so is the bridge
+# device (`network.cfg030f15`, name 'br-lan' - a kernel device name is not a
+# uci section name, which is why importing `br-lan` fails). The stock
+# wifi-ifaces, by contrast, ARE named (`default_radio0`, `default_radio1`) and
+# ship disabled, so they conflict with nothing.
+#
+# The stock firewall zones are removed by hand AFTER a verified apply, not
+# before: the stock `lan` zone carries `input ACCEPT`, which is what keeps the
+# management path reachable while both configurations coexist.
 {% if not adoption_reconciled %}
 #
 # ===========================================================================

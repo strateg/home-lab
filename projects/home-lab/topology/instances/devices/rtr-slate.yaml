@@ -491,7 +491,15 @@ runtime_intent:
   # Every stock firewall section and every stock wifi-iface is anonymous, which
   # is why none of them is listed.
   #
-  # Evidence for the five below, from the device's own board support rather
+  # Measured on the device 2026-10-12, which corrected this list: the stock
+  # bridge is `network.cfg030f15` - an ANONYMOUS section whose `name` option is
+  # 'br-lan'. A kernel device name is not a uci section name, and only the
+  # latter can be imported; `terraform plan` refused it with "no resource found
+  # at /network/devices/br-lan". It is no longer listed, and the bridge is left
+  # unmanaged - see the compiler for why both ways of managing it would
+  # interrupt the path an apply arrives over.
+  #
+  # Evidence for the four below, from the device's own board support rather
   # than from assumption - target/linux/qualcommax/ipq60xx/base-files/etc/
   # board.d/02_network does
   #   glinet,gl-axt1800) ucidef_set_interfaces_lan_wan "lan1 lan2" "wan"
@@ -503,14 +511,15 @@ runtime_intent:
   # import failure, not as a change to the router.
   # --------------------------------------------------------------------------
   adoption:
-    reconciled_against_device: false
+    # Confirmed by `terraform plan` against the live device on 2026-10-12:
+    # 4 to import, 77 to add, 2 to change, 0 to destroy, no errors. The four
+    # imports bind in place - `lan` and `wan` with no diff at all.
+    reconciled_against_device: true
     sections:
       - resource: uapi_network_interface
         id: lan
       - resource: uapi_network_interface
         id: wan
-      - resource: uapi_network_device
-        id: br-lan
       - resource: uapi_wireless_device
         id: radio0
       - resource: uapi_wireless_device
