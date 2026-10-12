@@ -98,6 +98,19 @@ raiser in a comment so an allocation with no raiser stays auditable — the
 discipline `AWAITING_A_MOUNT` enforces for `E70xx`, applied by hand here because
 these codes fall outside `NETWORK_MODEL_RANGE` and that ledger does not see them.
 
+### Retired in this family
+
+- `E9909` — withdrawn 2026-10-12, never fired. It asserted that a numeric
+  `channel` on a station-bearing radio makes netifd emit `fixed_freq=1` to
+  wpa_supplicant and strand the station on one frequency. Read against the
+  OpenWrt 25.12 source, `wpa_supplicant_set_fixed_freq` is reached only from the
+  `adhoc` and `mesh` branches of `wpa_supplicant_add_network`, while
+  `mac80211_setup_supplicant` calls
+  `wpa_supplicant_add_network "$ifname" "" "$htmode"` for `mode=sta` — an
+  explicitly empty frequency. The declaration is therefore ignored rather than
+  harmful, which is a warning about misleading intent, not an error. Replaced by
+  `W9904`. The number is not reused (governance rule 2).
+
 ---
 
 ## Strict-Only Project Contract

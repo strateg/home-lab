@@ -1581,14 +1581,19 @@ codes:
       A wifi-device carrying a 5 GHz AP has no country. Regdomain 00 marks every 5 GHz range NO-IR in
       wireless-regdb, so the AP never beacons. Set country on the device.
 
-  # Raiser: object.openwrt.validator_json.wireless
-  E9909:
-    severity: error
-    stage: validate
-    title: STA-Bearing Radio Has A Fixed Channel
-    hint: >-
-      A radio carrying a mode=sta interface declares a numeric channel. netifd then emits fixed_freq=1 with
-      that single frequency to wpa_supplicant and the STA can never associate off-channel. Use channel auto.
+  # E9909 "STA-Bearing Radio Has A Fixed Channel" was withdrawn 2026-10-12,
+  # having never fired. It asserted that a numeric channel on a station-bearing
+  # radio makes netifd emit fixed_freq=1 to wpa_supplicant, stranding the
+  # station on one frequency. Read against the 25.12 source, that mechanism does
+  # not exist: wpa_supplicant_set_fixed_freq is called from the adhoc and mesh
+  # branches of wpa_supplicant_add_network only, and mac80211_setup_supplicant
+  # routes mode=sta through `wpa_supplicant_add_network "$ifname" "" "$htmode"`
+  # - an explicitly empty frequency. A pinned channel on such a radio is
+  # therefore ignored rather than harmful, which makes the rule a warning about
+  # a misleading declaration, not an error. It is now W9904.
+  #
+  # The number is not reused: governance rule 2 forbids reusing a retired code,
+  # and a reader meeting E9909 in an older report deserves to find it here.
 
   # Raiser: object.openwrt.validator_json.wireless
   E9910:
@@ -1608,6 +1613,20 @@ codes:
       Any sta interface on a phy sets ap_start_disabled, so hostapd gets start_disabled=1 and the APs on that
       phy do not beacon until the STA associates; wpa_supplicant then stops those APs on every scan or roam,
       deauthing clients. Supported, but it couples client service to uplink stability.
+
+  # Raiser: object.openwrt.validator_json.wireless
+  # Replaces the withdrawn E9909 - see the note above it for why the consequence
+  # is a warning rather than an error.
+  W9904:
+    severity: warning
+    stage: validate
+    title: Channel Declared On A Station-Bearing Radio Is Not Honoured
+    hint: >-
+      A radio carrying a mode=sta interface also pins a channel. mac80211_setup_supplicant passes an empty
+      frequency for mode=sta, so the channel never reaches the station's network block: the phy operates on
+      whatever channel the station associates to, and any AP on that phy is start_disabled until then and
+      follows it. Declare channel auto - which uapi renders as 0, the only auto spelling its Number-typed
+      channel attribute can carry - so the declared intent matches what the device does.
 
   # Raiser: object.openwrt.compiler.interfaces (not implemented yet)
   W9902:

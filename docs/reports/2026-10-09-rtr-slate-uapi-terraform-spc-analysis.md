@@ -829,11 +829,12 @@ Band choice was **measured**, following this catalog's own rule that a range map
 | `E9906` | **kill switch** — tunnel-only zone with a forwarding to an uplink zone (the D1 finding) |
 | `E9907` | zone input policy left implicit (stock `lan` is `input ACCEPT`) |
 | `E9908` | wireless `country` unset → 5 GHz AP never beacons (regdom `00` is `NO-IR`) |
-| `E9909` | STA-bearing radio with a numeric channel → `fixed_freq=1` pins the STA |
+| ~~`E9909`~~ | **withdrawn 2026-10-12, never fired.** Claimed a numeric channel on a station radio emits `fixed_freq=1`. False on 25.12: `wpa_supplicant_set_fixed_freq` is reached from the `adhoc`/`mesh` branches only, and `mac80211_setup_supplicant` passes an explicitly empty frequency for `mode=sta`. Replaced by `W9904`; number not reused |
 | `E9910` | two STA interfaces on one radio → violates `#{ managed } <= 1` |
 | `W9901` | AP shares a radio with an STA → APs stop on every scan/roam |
 | `W9902` | client MTU exceeds the nested tunnel budget → QUIC blackholes |
 | `W9903` | adoption target is an anonymous section → adoption renames it, mutating the router |
+| `W9904` | channel declared on a station-bearing radio is not honoured (replaces `E9909`) |
 
 The allocation and its justification are documented in `docs/diagnostics-catalog.md`.
 
@@ -865,7 +866,7 @@ rather than allowlisted.
 |---|---|---|
 | `object.openwrt.compiler.zones` | compile | Lowers each enforcer's composed matrix into zone intent: per-zone input/forward policy, derived input services, forwardings to emit, denied pairs as recorded omissions |
 | `object.openwrt.validator_json.zone_plan` | validate | `E9906` a denied pair must not reappear as a forwarding; `E9907` zone input must be explicit and never ACCEPT |
-| `object.openwrt.validator_json.wireless` | validate | `E9908` 5 GHz AP without country; `E9909` numeric channel on a station radio; `E9910` two stations per radio; `W9901` AP sharing a radio with a station |
+| `object.openwrt.validator_json.wireless` | validate | `E9908` 5 GHz AP without country; `E9910` two stations per radio; `W9901` AP sharing a radio with a station; `W9904` channel declared on a station-bearing radio is not honoured |
 | `object.openwrt.validator_json.interfaces` | validate | `E9905` interface in no rendered zone; `E9904` management path unprotected |
 | `object.openwrt.generator.terraform` | generate | provider wiring + the firewall zone graph |
 
@@ -1008,6 +1009,60 @@ iterates the string and renders `dest_port = ["8", "0"]` — a syntactically val
 section matching two absurd ports. An arity finding suppresses the disjointness
 report for that enforcer, because flattening a wrong-arity rule would compare
 tuples the renderer would never produce.
+
+### A7.1 Provider schema, read before authoring templates
+
+Exact attribute names and types, from the provider's own docs rather than
+inferred. Three facts change the design:
+
+| Resource | Shape that matters |
+|---|---|
+| `uapi_network_interface` | `proto` required; `ipaddrs` is a **list**, `ipaddr` is **read-only**, `netmask` a scalar; `device` a scalar; `private_key` sensitive; `listen_port` for WireGuard. **No `ports`** — bridge membership is not here |
+| `uapi_network_device` | `name` required; `ports` is a **list**, plus `type`, `mtu`, `macaddr`, `vid`. This is where `br-lan`'s `lan1`/`lan2` go |
+| `uapi_wireless_device` | `type` required; `channel` is a **Number**; `band`, `country`, `htmode`, `txpower`, `disabled`. **No `hwmode`, no `path`, no `noscan`** — the radio's identity is the uci section name, i.e. `id` |
+| `uapi_wireless_interface` | `device` required; `network` is a **scalar string**, not a list — one network per SSID; `mode`, `ssid`, `encryption`, `key` (write-only), `isolate`, `hidden`. **No `country`** (device-level), no `bssid`, no `wds` |
+| `uapi_dhcp_server` | `interface` required; `start`/`limit` Numbers, `leasetime` a string. **No `end`** — an authored `dhcp_range: "a-b"` must be lowered to `start` + `limit`, with the off-by-one that implies |
+| `uapi_network_wireguard_peer` | `allowed_ips` (list), `interface`, `public_key` required; `endpoint_host`/`endpoint_port`, `persistent_keepalive`, `route_allowed_ips`, `preshared_key` write-only |
+
+**`channel` is typed Number, so the string `auto` is not renderable.** netifd
+settles what to emit instead: `_wdev_prepare_channel` matches `""|0|auto` and
+sets `channel=0; auto_channel=1`, so `0` is an exact synonym for `auto` and is
+the only spelling the provider can carry.
+
+### A7.2 E9909 was wrong, and is withdrawn
+
+Checking the above against the 25.12 source refuted one of this repo's own
+rules. E9909 said a numeric channel on a station-bearing radio makes netifd emit
+`fixed_freq=1` to wpa_supplicant, stranding the station on one frequency. The
+source says otherwise:
+
+* `wpa_supplicant_set_fixed_freq` is called from exactly two places in
+  `hostapd.sh`, the `adhoc` and `mesh` branches of `wpa_supplicant_add_network`.
+  Never from the `sta` branch.
+* `mac80211_setup_supplicant` makes that explicit:
+  `if [ "$mode" = "sta" ]; then wpa_supplicant_add_network "$ifname" "" "$htmode"` —
+  the frequency argument is deliberately **empty** for a station.
+* `scan_list` → `freq_list` is an independent uci option
+  (`config_add_array scan_list`), unrelated to `channel`, so a pinned channel
+  does not narrow the station's scanning either.
+
+A pinned channel on such a radio is therefore *ignored*, not harmful: the phy
+operates on whatever channel the station associates to, and any AP on that phy
+is `start_disabled` until then and follows it (which is W9901, and is correct).
+That makes the rule a warning about a declaration that will not be honoured, not
+an error — so E9909 is withdrawn, the number is not reused, and `W9904` carries
+the corrected meaning.
+
+The check also had a second, independent defect that the schema work exposed: it
+accepted only the literal string `auto`, so it would have fired on `channel: 0`
+and on an absent channel — the two other spellings netifd treats identically,
+one of which is the only renderable one. `_is_auto_channel` now mirrors netifd's
+case statement.
+
+This is the same defect family as the three found in the override work: a rule
+that reads as enforcement and is not grounded in what the target actually does.
+Authoring it from the issue tracker and release notes rather than from
+`hostapd.sh` is what let it through.
 
 Stale raiser annotations in the catalog were repointed while registering these:
 `E9903`/`E9902`, `E9904`/`E9905` and `E9908`-`W9901` named

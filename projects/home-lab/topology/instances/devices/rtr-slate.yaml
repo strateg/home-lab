@@ -224,9 +224,12 @@ runtime_intent:
         country: EE
       radio1:
         band: 2g
-        # Mandatory for an STA-bearing radio: a numeric channel makes netifd
-        # emit fixed_freq=1 with that one frequency to wpa_supplicant, and the
-        # station can then never associate off-channel (E9909).
+        # auto on a station-bearing radio, because any other value would be
+        # fiction: mac80211_setup_supplicant passes an explicitly empty
+        # frequency for mode=sta, so the phy ends up on whatever channel the
+        # station associates to and a declared channel is simply ignored
+        # (W9904). Rendered as 0 - uapi_wireless_device.channel is typed
+        # Number, and netifd's `""|0|auto` case makes 0 the auto spelling.
         channel: auto
         # Drops 11ax on the weaker radio. Community-reported mitigation, not
         # verified in source - recorded as such rather than as a known fix.

@@ -221,9 +221,11 @@ plugins:
     description: >-
       Refuses wireless intent that netifd or the regulatory database would
       silently defeat. E9908: a 5 GHz AP with no country never beacons, because
-      regdomain 00 is NO-IR across all 5 GHz. E9909: a numeric channel on a
-      station-bearing radio emits fixed_freq=1 and pins the station to one
-      frequency. E9910: two station interfaces on one radio violate the phy's
+      regdomain 00 is NO-IR across all 5 GHz. W9904: a channel declared on a
+      station-bearing radio is not honoured - netifd passes an empty frequency
+      for mode=sta - so the declaration misleads review; it replaces the
+      withdrawn E9909, which named the opposite consequence.
+      E9910: two station interfaces on one radio violate the phy's
       '#{ managed } <= 1' and are the real cause of the upstream "Device is not
       active" reports. W9901: an AP sharing a radio with a station will not
       beacon until the station associates and is stopped on every scan or roam.

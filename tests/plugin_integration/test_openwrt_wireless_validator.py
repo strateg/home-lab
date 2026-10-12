@@ -150,16 +150,24 @@ def test_blank_country_counts_as_absent():
 
 
 # --------------------------------------------------------------------------
-# E9909 - a numeric channel pins the station via fixed_freq=1
+# W9904 - a channel declared on a station-bearing radio is not honoured
+#
+# Replaces the withdrawn E9909, which claimed a numeric channel there emits
+# fixed_freq=1 and strands the station. On 25.12 wpa_supplicant_set_fixed_freq
+# is reached from the adhoc and mesh branches only; mac80211_setup_supplicant
+# calls `wpa_supplicant_add_network "$ifname" "" "$htmode"` for mode=sta, an
+# explicitly empty frequency. So the declaration is ignored, not harmful.
 # --------------------------------------------------------------------------
 
 
-def test_station_radio_with_numeric_channel_is_refused():
+def test_station_radio_with_numeric_channel_is_reported():
     codes = _run(
         _model({"radios": {"radio1": {"band": "2g", "channel": 1}}, "interfaces": [_sta("u", "radio1")]})
     )
 
-    assert "E9909" in codes
+    assert "W9904" in codes
+    # The retired code must not come back under its old meaning.
+    assert "E9909" not in codes
 
 
 def test_station_radio_with_auto_channel_is_accepted():
@@ -167,7 +175,36 @@ def test_station_radio_with_auto_channel_is_accepted():
         _model({"radios": {"radio1": {"band": "2g", "channel": "auto"}}, "interfaces": [_sta("u", "radio1")]})
     )
 
-    assert "E9909" not in codes
+    assert "W9904" not in codes
+
+
+def test_channel_zero_is_auto_because_netifd_says_so():
+    """`_wdev_prepare_channel` matches `""|0|auto` and sets auto_channel=1.
+
+    This is not a nicety: `uapi_wireless_device.channel` is typed Number, so 0
+    is the only spelling of auto the provider can render. A check that accepted
+    only the string would refuse the one renderable form.
+    """
+    codes = _run(
+        _model({"radios": {"radio1": {"band": "2g", "channel": 0}}, "interfaces": [_sta("u", "radio1")]})
+    )
+
+    assert "W9904" not in codes
+
+
+def test_channel_zero_as_a_string_is_also_auto():
+    codes = _run(
+        _model({"radios": {"radio1": {"band": "2g", "channel": "0"}}, "interfaces": [_sta("u", "radio1")]})
+    )
+
+    assert "W9904" not in codes
+
+
+def test_absent_channel_is_auto():
+    """netifd's case statement matches the empty string the same way."""
+    codes = _run(_model({"radios": {"radio1": {"band": "2g"}}, "interfaces": [_sta("u", "radio1")]}))
+
+    assert "W9904" not in codes
 
 
 def test_numeric_channel_without_a_station_is_fine():
@@ -181,7 +218,7 @@ def test_numeric_channel_without_a_station_is_fine():
         )
     )
 
-    assert "E9909" not in codes
+    assert "W9904" not in codes
 
 
 def test_parked_station_does_not_constrain_its_radios_channel():
@@ -195,7 +232,7 @@ def test_parked_station_does_not_constrain_its_radios_channel():
         )
     )
 
-    assert "E9909" not in codes
+    assert "W9904" not in codes
 
 
 # --------------------------------------------------------------------------

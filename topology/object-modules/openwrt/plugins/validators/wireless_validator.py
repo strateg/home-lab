@@ -8,10 +8,15 @@ them fails in a way that looks like broken hardware rather than broken config:
 * **E9908** - a 5 GHz AP with no `country`. Regdomain `00` marks every 5 GHz
   range `NO-IR` in wireless-regdb, so the AP simply never beacons. The symptom
   is an SSID that does not exist, with nothing in the logs naming the cause.
-* **E9909** - a station-bearing radio pinned to a numeric channel. netifd's
-  `set_fixed_freq()` then emits `fixed_freq=1` plus that one frequency to
-  wpa_supplicant, and the station can never associate to a venue on any other
-  channel. The symptom is an uplink that works at home and nowhere else.
+* **W9904** - a station-bearing radio that also pins a channel. The channel is
+  not honoured: `mac80211_setup_vif` routes `mode=sta` through
+  `mac80211_setup_supplicant`, which calls
+  `wpa_supplicant_add_network "$ifname" "" "$htmode"` - an explicitly *empty*
+  frequency - so the radio's channel never reaches the station's network block.
+  The phy ends up on whatever channel the station associates to, and any AP on
+  the same phy is `start_disabled` until then and follows it. A warning, not an
+  error: the declaration is misleading rather than broken. It replaces a
+  withdrawn error code - see the comment below this docstring.
 * **E9910** - two station interfaces on one radio, against the
   `#{ managed } <= 1` the phy advertises. This is the actual misconfiguration
   behind the upstream "Device is not active" reports, which were widely read as
@@ -28,6 +33,19 @@ Disabled interfaces are skipped for the AP/station-interaction rules: a
 `wifi-iface` with `disabled '1'` is dropped at parse time, so a parked section
 cannot affect a live radio.
 """
+
+# W9904 replaces E9909, withdrawn 2026-10-12 having never fired. That code
+# asserted the opposite consequence: that a numeric channel on a station-bearing
+# radio makes netifd emit fixed_freq=1 to wpa_supplicant and strand the station
+# on one frequency. Read against 25.12, wpa_supplicant_set_fixed_freq is called
+# from the adhoc and mesh branches of wpa_supplicant_add_network only, never
+# from the sta branch, and mac80211_setup_supplicant passes an explicitly empty
+# frequency for mode=sta - so the mechanism it named does not exist on this
+# release. The number is not reused; error-catalog.yaml carries the full note.
+#
+# Written as a comment rather than in the docstring on purpose: the catalog
+# scanner reads every non-comment line as an emission, so a retired code
+# explained in prose would register as still being raised here.
 
 from __future__ import annotations
 
@@ -169,6 +187,29 @@ class OpenwrtWirelessValidator(ValidatorJsonPlugin):
             )
         ]
 
+    @staticmethod
+    def _is_auto_channel(channel: Any) -> bool:
+        """The four spellings netifd collapses to `auto_channel=1`.
+
+        `_wdev_prepare_channel` in netifd-wireless.sh matches `""|0|auto` and
+        sets `channel=0; auto_channel=1`, so an absent channel, an empty one,
+        zero and the literal `auto` are one value - and anything else numeric
+        is a pinned channel. This has to mirror that case statement rather than
+        accept only `auto`, because `uapi_wireless_device.channel` is typed
+        Number: through the provider, `0` is the *only* way to express auto, and
+        a check that accepted only the string would refuse the one renderable
+        spelling.
+        """
+        if channel is None:
+            return True
+        if isinstance(channel, bool):
+            return False
+        if isinstance(channel, int):
+            return channel == 0
+        if isinstance(channel, str):
+            return channel.strip().lower() in {"", "0", "auto"}
+        return False
+
     def _check_channel(
         self,
         instance_id: str,
@@ -177,21 +218,22 @@ class OpenwrtWirelessValidator(ValidatorJsonPlugin):
         stations: list[dict[str, Any]],
         stage: Stage,
     ) -> list[PluginDiagnostic]:
-        if not stations:
+        if not stations or self._is_auto_channel(radio.get("channel")):
             return []
         channel = radio.get("channel")
-        if isinstance(channel, str) and channel.strip().lower() == "auto":
-            return []
         return [
             self.emit_diagnostic(
-                code="E9909",
-                severity="error",
+                code="W9904",
+                severity="warning",
                 stage=stage,
                 message=(
-                    f"Device '{instance_id}', radio '{radio_name}': carries a station interface but "
-                    f"declares channel '{channel}'. netifd then emits fixed_freq=1 with that single "
-                    "frequency, so the station can never associate to a venue on another channel. "
-                    "Use channel 'auto' on any station-bearing radio."
+                    f"Device '{instance_id}', radio '{radio_name}': carries a station interface and "
+                    f"also declares channel '{channel}', which netifd will not honour. "
+                    "mac80211_setup_supplicant passes an empty frequency for mode=sta, so the "
+                    "channel never reaches the station's network block; the phy operates on whatever "
+                    "channel the station associates to, and any AP on the same phy is start_disabled "
+                    "until then and follows it. Declare channel auto (rendered as 0) so the intent "
+                    "matches what the device does."
                 ),
                 path=f"instance:{instance_id}.runtime_intent.wireless.radios.{radio_name}.channel",
             )
