@@ -923,6 +923,105 @@ remaining generator work is interfaces, wireless and DHCP templates, the
 port-scoped permits that need rule sections, and the adoption ledger. Phases 8-9
 (adoption, guarded apply) remain gated on that.
 
+> Superseded 2026-10-12 for `E9902`/`E9903`: rule sections now render, and both
+> codes are implemented. See A7 below. `W9903` is still unexercised.
+
+---
+
+## POLICY-OVERRIDE COLLISION — 2026-10-12
+
+A matrix resolves at most one override per zone pair: `_find_policy_override`
+returns the first match. An override authored on a shared *object* therefore
+competes with every instance that declares one for the same pair, and one of the
+two is discarded with no diagnostic. Both instances extending
+`obj.network.security_matrix.soho` were in that state for the `user -> servers`
+pair, and they lost opposite halves — Chateau kept only its own db ports,
+rtr-slate kept only the object's `80,443`. Same authoring shape, opposite
+survivors, silent in both directions.
+
+Resolved by collapsing each colliding pair to one explicit override first, then
+making the collision blocking:
+
+1. `obj.network.security_matrix.soho` declares `policy_overrides: []`. ADR 0118
+   D7 is directly about this: an object supplies reusable shape and defaults and
+   must not author a value that decides one concrete entity's policy, because it
+   serves many instances and can hold only one such value.
+2. Chateau keeps its own port set verbatim; rtr-slate takes the union
+   (`80, 443, 5432, 6379`), justified because it is staged and unapplied — there
+   is no live behaviour to preserve and both sets were authored deliberately.
+3. `E7065` refuses a pair claimed twice. It compares pairs on the trailing
+   segment, the same equivalence the selector uses, because stricter comparison
+   would miss precisely the object/instance cross-level collision that motivated
+   it.
+
+**A third defect, found while proving step 1 safe.** The rendered diff for
+Chateau dropped exactly one resource,
+`zone_override_user_to_servers_http_tcp`, whose match referenced
+`src_address_list = "zone-obj_network_trust_zone_user"` and
+`dst_address_list = "zone-obj_network_trust_zone_servers"`. The only address
+lists ever *defined* are `zone-guest`, `zone-iot`, `zone-management`,
+`zone-servers`, `zone-user`, `zone-vpn_exit`, `zone-vpn_tunnel`. The
+`zone-obj_network_*` lists were never defined, so that rule matched nothing on
+the live router. An object-level override renders against unresolved *object*
+zone refs and is inert wherever it lands: it had the shape of a grant and the
+effect of nothing, and reviewing the rendered config would have shown a permit
+that was not in force. Removing it is therefore provably behaviour-preserving
+for the live perimeter, and it also removes a rule that falsely appeared to grant
+users 80/443 to servers. `obj.network.security_matrix.proxmox_servers` was
+checked and already declares none.
+
+---
+
+## A7. RULE-PLAN VALIDATORS — 2026-10-12
+
+`object.openwrt.validator_json.rule_plan`, order 153, consuming `openwrt_zones`
+optionally for the same reason its siblings do.
+
+**E9902 — match tuples in one chain must be disjoint.** uapi exposes no ordering
+control (no `position`, `index` or `place_before` anywhere in its OpenAPI
+surface) and Terraform creates independent resources in parallel, so the order
+sections land in a chain is not something this repo can specify. A chain must
+therefore be an unambiguous specification on its own. Two cases are refused:
+opposing targets, where enforcement depends on an order nothing controls, and
+identical tuples, where two Terraform resources claim one uci section. A
+narrower tuple inside a wider one with the *same* target is redundant but
+unambiguous and is allowed — erroring there would refuse a plan that enforces
+exactly what it says, which is how a disjointness check becomes a false-positive
+generator.
+
+Overlap is computed rather than compared. Port sets intersect as sets, but
+destination prefixes are compared as networks: `10.0.0.0/8` and `10.77.1.0/24`
+overlap without being equal, and string equality would miss exactly the case
+that matters. The catalog hint was widened to match, which is legitimate because
+nothing had yet emitted the code — the entry was a reservation, not a release.
+
+**E9903 — each field must carry the arity it renders at.** The provider is
+asymmetric: on `uapi_firewall_rule`, `src_zone`/`dest_zone` are strings while
+`proto`/`dest_port`/`dest_ip`/`src_ip`/`src_port` are lists; on redirect and nat
+the match fields are scalars and only `proto` stays a list. Wrong arity is not a
+type error — fw4 drops the entire section and says nothing, so the rule silently
+does not exist while Terraform reports success.
+
+The renderer reaches that arity by iterating what the plan hands it, which makes
+a scalar where a list belongs worse than a mismatch: `ports: {tcp: "80"}`
+iterates the string and renders `dest_port = ["8", "0"]` — a syntactically valid
+section matching two absurd ports. An arity finding suppresses the disjointness
+report for that enforcer, because flattening a wrong-arity rule would compare
+tuples the renderer would never produce.
+
+Stale raiser annotations in the catalog were repointed while registering these:
+`E9903`/`E9902`, `E9904`/`E9905` and `E9908`-`W9901` named
+`base.validator.openwrt_*` plugins that do not exist — the checks live in the
+object-scoped `object.openwrt.validator_json.*` plugins. `W9902` is annotated as
+belonging to a compiler not yet implemented.
+
+**Verification.** 24 tests, 22 synthetic violations plus two driving the real
+compiler — the latter assert the rule list is non-empty before asserting it is
+clean, so passing is not an artifact of empty data. Execution on real data was
+proven by mutation: injecting a raise into the per-enforcer loop collapsed the
+whole compile to one error. `compile-topology.py` 0 errors / 0 warnings,
+`validate-v5` PASS.
+
 ---
 
 ## Findings requiring separate attention

@@ -1509,17 +1509,20 @@ codes:
       A feature is enabled in the projection without the data its template requires. Templates run under
       StrictUndefined, so a named diagnostic is raised instead of an opaque template error.
 
-  # Raiser: base.validator.openwrt_rule_disjointness
+  # Raiser: object.openwrt.validator_json.rule_plan
   E9902:
     severity: error
     stage: validate
     title: Overlapping Firewall Rule Match Tuples
     hint: >-
-      Two generated firewall_rule sections in one chain have overlapping match tuples and opposing targets.
-      uapi exposes no ordering control (no position/index/place_before anywhere in its OpenAPI spec) and
-      Terraform applies in parallel, so disjointness is the ordering contract. Make the tuples disjoint.
+      Two firewall_rule sections in one chain have overlapping match tuples. uapi exposes no ordering
+      control (no position/index/place_before anywhere in its OpenAPI spec) and Terraform applies in
+      parallel, so disjointness is the ordering contract. Refused in two cases: opposing targets, where
+      enforcement would depend on an order nothing specifies, and identical tuples, where two Terraform
+      resources claim one uci section. A narrower tuple inside a wider one with the same target is
+      redundant but unambiguous and is allowed. Prefixes are compared as networks, not as strings.
 
-  # Raiser: base.validator.openwrt_match_arity
+  # Raiser: object.openwrt.validator_json.rule_plan
   E9903:
     severity: error
     stage: validate
@@ -1528,7 +1531,7 @@ codes:
       match.* is a list on uapi_firewall_rule but a scalar on redirect/nat (only proto stays a list). A list
       where fw4 expects a scalar makes fw4 drop the entire section silently. Emit the arity the resource wants.
 
-  # Raiser: base.validator.openwrt_management_path
+  # Raiser: object.openwrt.validator_json.interfaces
   E9904:
     severity: error
     stage: validate
@@ -1537,7 +1540,7 @@ codes:
       The interface carrying the uapi endpoint has proto/ipaddrs/netmask under generation. If such a write
       strands the caller the response never arrives and Terraform records nothing. Declare it immutable.
 
-  # Raiser: base.validator.openwrt_zone_coverage
+  # Raiser: object.openwrt.validator_json.interfaces
   E9905:
     severity: error
     stage: validate
@@ -1569,7 +1572,7 @@ codes:
       zone's clients. ADR 0110's matrix models inter-zone forward only, so input must be declared per zone
       with a narrow service list rather than inherited.
 
-  # Raiser: base.validator.openwrt_wireless
+  # Raiser: object.openwrt.validator_json.wireless
   E9908:
     severity: error
     stage: validate
@@ -1578,7 +1581,7 @@ codes:
       A wifi-device carrying a 5 GHz AP has no country. Regdomain 00 marks every 5 GHz range NO-IR in
       wireless-regdb, so the AP never beacons. Set country on the device.
 
-  # Raiser: base.validator.openwrt_wireless
+  # Raiser: object.openwrt.validator_json.wireless
   E9909:
     severity: error
     stage: validate
@@ -1587,7 +1590,7 @@ codes:
       A radio carrying a mode=sta interface declares a numeric channel. netifd then emits fixed_freq=1 with
       that single frequency to wpa_supplicant and the STA can never associate off-channel. Use channel auto.
 
-  # Raiser: base.validator.openwrt_wireless
+  # Raiser: object.openwrt.validator_json.wireless
   E9910:
     severity: error
     stage: validate
@@ -1596,7 +1599,7 @@ codes:
       The phy advertises '#{ managed } <= 1'. Two STA interfaces on one radio is the misconfiguration behind
       the upstream "Device is not active" reports, not a driver fault.
 
-  # Raiser: base.validator.openwrt_wireless
+  # Raiser: object.openwrt.validator_json.wireless
   W9901:
     severity: warning
     stage: validate
@@ -1606,7 +1609,7 @@ codes:
       phy do not beacon until the STA associates; wpa_supplicant then stops those APs on every scan or roam,
       deauthing clients. Supported, but it couples client service to uplink stability.
 
-  # Raiser: base.compiler.openwrt_interfaces
+  # Raiser: object.openwrt.compiler.interfaces (not implemented yet)
   W9902:
     severity: warning
     stage: compile

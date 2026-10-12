@@ -81,6 +81,41 @@ plugins:
       ships for the LAN zone and which publishes SSH and the uapi endpoint to
       that zone's clients.
 
+  - id: object.openwrt.validator_json.rule_plan
+    kind: validator_json
+    entry: plugins/validators/rule_plan_validator.py:OpenwrtRulePlanValidator
+    api_version: "1.x"
+    stages: [validate]
+    phase: run
+    order: 153
+    migration_mode: migrated
+    depends_on:
+      - object.openwrt.compiler.zones
+    timeout: 30
+    execution_mode: subinterpreter
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    consumes:
+      # Optional on purpose, as for the zone_plan validator: a project with no
+      # OpenWrt enforcer never produces this channel.
+      - from_plugin: object.openwrt.compiler.zones
+        key: openwrt_zones
+        required: false
+    description: >-
+      Refuses a lowered firewall_rule plan that cannot render into a chain whose
+      meaning is order-independent. E9902: two match tuples in one chain must not
+      overlap, because uapi exposes no ordering control and Terraform applies in
+      parallel - overlapping tuples are either contradictory, making enforcement
+      depend on an order nothing specifies, or identical, making two resources
+      claim one uci section. Prefixes are compared as networks, not as strings.
+      E9903: each field must carry the arity it renders at - zone endpoints are
+      strings while ports and prefixes are lists - because fw4 drops a section
+      with the wrong arity silently while Terraform reports success, and because
+      the renderer iterates what it is given, turning a bare "80" into ["8","0"].
+
   - id: object.openwrt.generator.terraform
     kind: generator
     entry: plugins/generators/terraform_openwrt_generator.py:TerraformOpenwrtGenerator
