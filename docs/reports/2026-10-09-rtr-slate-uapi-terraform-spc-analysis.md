@@ -1626,6 +1626,96 @@ repaired the radios.
 
 ---
 
+## PHASE 9 COMPLETE — 2026-10-12
+
+```
+Apply complete! Resources: 4 added, 0 changed, 0 destroyed.
+No changes. Your infrastructure matches the configuration.
+```
+
+81 resources applied across five passes, `0 to destroy` on every one. The device
+is managed from topology and the state converged.
+
+### Packages: installed with the signature chain intact
+
+The device had no uplink, so `apk` could not reach a feed, and the laptop could
+not proxy for it (a long-running listening proxy was refused by the
+auto-mode classifier, correctly). Instead the packages were downloaded on the
+laptop and installed from a **local repository** built on the device: the `.apk`
+files plus the signed `packages.adb` for each feed, with apk pointed at the
+index files directly.
+
+That detail matters. `apk add ./file.apk` fails with `UNTRUSTED signature`
+because OpenWrt signs the *index*, not each package, so a local-file install can
+never verify — and the obvious workaround, `--allow-untrusted`, discards the
+protection the device is configured to apply. Supplying the signed index instead
+let apk verify it against `openwrt-25.12.pem` and then check each package's hash
+against it: `OK: 23.5 MiB in 191 packages`.
+
+Two dependencies beyond the four declared had to be fetched: `kmod-crypto-kpp`
+and `ip-tiny`.
+
+### `wg_home`'s `NO_DEVICE`, explained
+
+With `kmod-wireguard` installed, netifd still reported `proto: "none"` — it
+reads `/lib/netifd/proto/` only at startup, so installing a proto handler needs
+`/etc/init.d/network restart`, not a reload. After the restart it reported
+`proto: "wireguard"` and then `NO_DEVICE`: setting up, immediately down.
+
+The cause was simply that the device had **no uplink at all**. Once the WAN got
+a DHCP address from Chateau, `wg_home` came up on the first try. Nothing was
+wrong with the configuration — the earlier diagnosis had no way to separate
+"misconfigured" from "nowhere to go".
+
+### Two findings the running device produced
+
+**1. A tunnel route overlaps the device's own uplink subnet.** The main table now
+carries `192.168.88.0/24 dev wg_home`, lowered from
+`road_warriors.rtr-slate.routes`. That is Chateau's LAN — and it is also the
+subnet the WAN sits in while the device is at home. The route is correct when
+travelling and self-contradictory on the home LAN. Nothing has broken only
+because the WAN's connected route outranks the static one.
+
+This is a design tension rather than a typo: the authored route set assumes the
+device is remote. It cannot be caught statically either, because the venue
+prefix is whatever DHCP hands out. Worth deciding explicitly rather than leaving
+to route metrics.
+
+**2. The tunnel does not handshake:** `0 B received, 1.45 KiB sent`, no
+`latest handshake`. rtr-slate sends and the server never answers, so its public
+key is almost certainly not provisioned on the VPS — and
+`generated/.../terraform/oci/` configures **no WireGuard peers at all**, only the
+instance and its SSH key. The server side of this tunnel is managed outside the
+repository, which is why a road-warrior peer declared in
+`inst.tunnel.wg-home-to-oci` has no effect on the VPS.
+
+### Smaller notes
+
+* The management zone permits ssh and uapi and **not ICMP**, so the router does
+  not answer ping while both management services work. Correct per the authored
+  `input_services`, and confirmed on the wire; worth deciding whether `icmp`
+  belongs in that list for diagnosis.
+* `ether5` on Chateau also carries `pvid=99`, like `ether3`. An earlier
+  suggestion in this work to use ether2 *or ether5* was half wrong: ether5 would
+  have swallowed the traffic the same way. The working ports are ether2 and
+  ether4.
+* A `uci show network.wg_home` during diagnosis printed the WireGuard **private
+  key in clear** into the session transcript. Other outputs were filtered and
+  this one was not. The key is `road_warriors.rtr-slate.private_key` in
+  `secrets/tunnels/wg-home-to-oci.yaml`; rotation is recommended.
+
+### Still open
+
+* `masq` is in no generated zone — NAT for client egress currently depends on
+  the stock `wan` zone, so removing the stock zones would break Slate-Split and
+  Slate-Guest. The model has no field for it. **Fix before removing them.**
+* The two stock firewall zones remain, deliberately.
+* `private_key_ref` still points at `instances/<name>.private_key` rather than
+  the tunnel's `secrets_ref`.
+* `wg_de`/`wg_ru`/`wg_se` share one private key from `wg-exit`; they are parked.
+
+---
+
 Stale raiser annotations in the catalog were repointed while registering these:
 `E9903`/`E9902`, `E9904`/`E9905` and `E9908`-`W9901` named
 `base.validator.openwrt_*` plugins that do not exist — the checks live in the
