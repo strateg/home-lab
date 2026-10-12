@@ -1628,7 +1628,28 @@ codes:
       follows it. Declare channel auto - which uapi renders as 0, the only auto spelling its Number-typed
       channel attribute can carry - so the declared intent matches what the device does.
 
-  # Raiser: object.openwrt.compiler.interfaces (not implemented yet)
+  # Raiser: object.openwrt.compiler.interfaces
+  E9911:
+    severity: error
+    stage: compile
+    title: DHCP Pool Does Not Fit Its Segment
+    hint: >-
+      An authored dhcp_range cannot be lowered onto uapi_dhcp_server, which exposes start and limit but no
+      end. Either an endpoint falls outside the segment's prefix, the range runs backwards, or it is
+      unparseable. Lowering it anyway would hand out addresses outside the segment or an empty pool, and
+      dnsmasq reports neither as an error.
+
+  # Raiser: object.openwrt.compiler.interfaces
+  E9912:
+    severity: error
+    stage: compile
+    title: Wireless Interface Names No Rendered Network
+    hint: >-
+      A wifi-iface's network names no config interface section this device renders. uapi_wireless_interface
+      exposes network as a single string naming such a section, so a name that does not exist leaves the SSID
+      bridged nowhere: clients associate, get no address and no path, and hostapd reports success.
+
+  # Raiser: object.openwrt.compiler.interfaces
   W9902:
     severity: warning
     stage: compile
@@ -1636,6 +1657,16 @@ codes:
     hint: >-
       A client-facing interface advertises an MTU larger than its egress tunnel chain allows. Zone mtu_fix
       clamps TCP MSS only, so UDP and QUIC blackhole instead of degrading. Measure the real overhead.
+
+  # Raiser: object.openwrt.compiler.interfaces
+  I9904:
+    severity: info
+    stage: compile
+    title: OpenWrt Runtime Intent Lowered
+    hint: >-
+      Reports how many network interfaces, devices, radios, wifi-ifaces and DHCP pools an enforcer's
+      runtime intent produced, how many wireless sections are parked rather than omitted, and what was
+      deliberately deferred - so a gap in the rendered config is attributable rather than inferred.
 
   # Raiser: object.openwrt.compiler.zones
   I9901:

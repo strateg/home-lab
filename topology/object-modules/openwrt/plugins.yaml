@@ -48,6 +48,52 @@ plugins:
       Denials are not rules on this backend - zone chains are terminal and the
       base chains carry policy drop - so no terminal drop-all is produced.
 
+  - id: object.openwrt.compiler.interfaces
+    kind: compiler
+    entry: plugins/compilers/interfaces_compiler.py:OpenwrtInterfacesCompiler
+    api_version: 1.x
+    stages:
+      - compile
+    phase: finalize
+    order: 81
+    migration_mode: migrated
+    depends_on:
+      - object.openwrt.compiler.zones
+    timeout: 30
+    execution_mode: subinterpreter
+    consumes:
+      # Required: the zone plan is the single producer of every segment's uci
+      # section name, and firewall_zone.network references those same strings.
+      # Re-deriving them here would let the two plans disagree about what a
+      # section is called while both looked correct.
+      - key: openwrt_zones
+        from_plugin: object.openwrt.compiler.zones
+        required: true
+      # Wireless intent, tunnel addresses and keepalives are not in the zone
+      # plan - it carries only what zone membership needs.
+      - key: effective_model_candidate
+        from_plugin: base.compiler.effective_model
+        required: true
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    produces:
+      - key: openwrt_interfaces
+        scope: pipeline_shared
+    description: >-
+      Lowers runtime_intent onto the uapi resource surface: network interfaces
+      and bridge devices, radios and wifi-ifaces, and DHCP pools. Does the
+      arithmetic the schema forces rather than leaving it to a template - a CIDR
+      split into list ipaddrs plus scalar netmask, channel auto rendered as the
+      0 that netifd treats identically because the attribute is typed Number,
+      and a dhcp_range lowered to start plus limit because uapi_dhcp_server has
+      no end. E9911 refuses a pool that cannot be expressed that way; E9912
+      refuses a wifi-iface whose network names no rendered section; W9902
+      reports a client segment advertising more MTU than its egress tunnel
+      carries. WireGuard peers are deferred, not silently absent.
+
   - id: object.openwrt.validator_json.zone_plan
     kind: validator_json
     entry: plugins/validators/zone_plan_validator.py:OpenwrtZonePlanValidator

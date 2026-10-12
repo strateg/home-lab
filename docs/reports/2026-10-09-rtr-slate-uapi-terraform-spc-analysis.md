@@ -1064,6 +1064,68 @@ that reads as enforcement and is not grounded in what the target actually does.
 Authoring it from the issue tracker and release notes rather than from
 `hostapd.sh` is what let it through.
 
+### A7.3 Interfaces compiler
+
+`object.openwrt.compiler.interfaces`, phase finalize, order 81 — immediately
+after the zone compiler whose plan it consumes. Lowers `runtime_intent` onto the
+resource surface in A7.1: network interfaces and bridge devices, radios and
+wifi-ifaces, DHCP pools.
+
+Interface **names** are deliberately not re-derived. The zone compiler already
+produces the uci section name for every segment and `firewall_zone.network`
+references those strings; deriving them twice would let the two plans disagree
+about what a section is called while both looked correct. This compiler reads
+them out of the zone plan, so there is one producer of that fact.
+
+Four codes:
+
+* **E9911** — a `dhcp_range` that cannot be lowered onto `start` + `limit`
+  (endpoint outside the prefix, reversed, unparseable). The off-by-one is the
+  reason this is arithmetic in a compiler and not an expression in a template:
+  `.100-.200` inclusive is **101** addresses, and a pool one address short is
+  invisible on the device.
+* **E9912** — a wifi-iface whose `network` names no rendered section. The
+  attribute is a single string naming a `config interface`; a name that does not
+  exist leaves the SSID bridged nowhere, so clients associate, get no address,
+  and hostapd reports success.
+* **W9902** — a client segment advertising more MTU than its egress tunnel
+  carries. A WireGuard interface's MTU *is* the inner payload capacity, so the
+  condition is `segment_mtu <= tunnel_mtu`, and the link between the two is the
+  tunnel's authored `advertises` list. A warning because zone `mtu_fix` clamps
+  TCP MSS and keeps TCP working — what breaks is UDP and QUIC, which blackhole
+  instead of degrading.
+* **I9904** — what was lowered, and what was deferred.
+
+WireGuard peers are **deferred, not silently absent**. A peer needs its public
+key and endpoint from the tunnel instances and SOPS, and an interface needs its
+private key; half-rendering a tunnel that cannot come up is worse than recording
+the gap. The interfaces carry `private_key_ref` naming where the secret lives,
+and the deferral is published as data so I9904 reports it.
+
+Measured on the real model, with nothing flagged — the authored data already
+satisfies all three checks:
+
+```
+I9904  rtr-slate: lowered 13 interfaces, 1 devices, 2 radios,
+       8 wifi-ifaces (5 parked), 6 DHCP pools.
+       Deferred: wireguard_peers.
+```
+
+13 = 1 management + 2 uplink + 4 WireGuard + 6 segments. 5 parked = the four APs
+held back by the memory-leak budget plus the parked 5 GHz station. Parked
+sections are rendered `disabled`, never omitted: an unmanaged parked AP can be
+switched on by hand and never show as drift.
+
+**A trap worth recording.** The plugin registered, loaded, and traced a
+`plugin_start` — and did nothing, at 0 errors. The kernel dispatches *phase*
+hooks, and `PluginBase.on_finalize` returns `SKIPPED`; `execute()` is reached
+only from `phase: run`. A `phase: finalize` plugin must delegate explicitly, as
+the zone compiler already did. Nothing in the compile output said so: the
+diagnostic count simply did not move. It was found by `--trace-execution
+--diagnostics`, whose trace shows `status: SKIPPED` per plugin — the only
+artifact in the pipeline that distinguishes "ran and found nothing" from "never
+ran". The infos count moving 165 → 166 is now the evidence that it runs.
+
 Stale raiser annotations in the catalog were repointed while registering these:
 `E9903`/`E9902`, `E9904`/`E9905` and `E9908`-`W9901` named
 `base.validator.openwrt_*` plugins that do not exist — the checks live in the
