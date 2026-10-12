@@ -1,29 +1,38 @@
 #!/usr/bin/env python3
-"""Emits Terraform for OpenWrt from the lowered zone plan.
+"""Emits Terraform for OpenWrt from the lowered zone and interface plans.
 
-Scope of this generator today: the provider wiring and the firewall zone graph.
-That is deliberately less than the plan contains, and the difference is reported
-rather than dropped, because two kinds of permit cannot be expressed as a
-`uapi_firewall_forwarding`:
+Renders the whole device: provider wiring, the firewall zone graph and its
+rules, interfaces and bridge devices, radios and SSIDs, DHCP pools, policy
+routing with WireGuard peers, and import blocks for sections that already
+exist.
 
-* **A permit whose destination zone is remote.** `user -> servers` means "may
-  reach the home server network", which this device realises by routing into the
-  WireGuard interface that lives in its tunnel zone. There is no `servers` zone
-  on this box, so the renderable edge is `user -> vpn_exit`; the remote-dest
-  cell is covered by that, not by a resource of its own.
-* **A port-scoped permit.** A forwarding is all-or-nothing between two zones, so
-  `tcp 80,443` has to become a `uapi_firewall_rule`. Those are not emitted yet,
-  and E9902/E9903 - the disjointness and match-arity contracts - exist for when
-  they are.
-
-Both categories are counted in an I9903 diagnostic on every run, so the gap is
-visible in the build output instead of looking like a complete render.
-
-Denials are never emitted. On firewall4 a denied pair is the absence of a
+**Denials are never emitted.** On firewall4 a denied pair is the *absence* of a
 forwarding object; zone chains are terminal and the base chains carry
 `policy drop`. No terminal drop-all is produced, and producing one would be
 actively wrong here - it would land inside a zone chain ahead of the forwardings
-it is meant to follow.
+it is meant to follow. Denied pairs are listed as comments so the omissions stay
+reviewable.
+
+**A permit whose destination zone is remote has no resource of its own.**
+`user -> servers` means "may reach the home server network", which this device
+realises by routing into the WireGuard interface in its tunnel zone. There is no
+`servers` zone on this box, so the renderable edge is `user -> vpn_exit` plus a
+rule narrowed by the remote zone's prefixes. I9903 counts what was deliberately
+not emitted, so a gap is visible in the build output rather than looking like a
+complete render.
+
+**Firewall policy and routing are independent halves.** The firewall decides who
+*may* egress where; routing decides which path their packets take. Both modes in
+the two-SSID design have destination `0.0.0.0/0`, so only a source-based rule
+can separate them - which is why a tunnel carrying a default route gets its own
+routing table, and why its peer's `route_allowed_ips` is false. Letting netifd
+install `0.0.0.0/0` from `allowed_ips` would put it in the main table and
+capture every segment, collapsing the two modes into one with no error anywhere.
+
+**Secrets are variables, never values.** WireGuard keys and wireless
+passphrases are write-only in the provider - the API does not return them - so
+Terraform cannot detect drift on them either way, and a value here would be a
+secret in the repository.
 """
 
 from __future__ import annotations
@@ -53,6 +62,7 @@ _TEMPLATES: tuple[tuple[str, str], ...] = (
     ("interfaces.tf", "terraform/interfaces.tf.j2"),
     ("wireless.tf", "terraform/wireless.tf.j2"),
     ("dhcp.tf", "terraform/dhcp.tf.j2"),
+    ("routing.tf", "terraform/routing.tf.j2"),
     ("adoption.tf", "terraform/adoption.tf.j2"),
 )
 
@@ -252,6 +262,8 @@ class TerraformOpenwrtGenerator(BaseGenerator):
                     f"{len(render_context['wireless_devices'])} radio(s), "
                     f"{len(render_context['wireless_interfaces'])} wifi-iface(s) and "
                     f"{len(render_context['dhcp_servers'])} DHCP pool(s) for '{enforcer_id}', "
+                    f"{len(render_context['policy_routes'])} policy route(s) and "
+                    f"{len(render_context['policy_rules'])} ip-rule(s), "
                     f"adopting {len(render_context['adoption'])} existing section(s). "
                     f"{len(plan.get('denied_pairs') or [])} denial(s) emitted as absent forwardings; "
                     f"{len(render_context['unroutable_permits'])} permit(s) to a remote zone had no "
@@ -612,6 +624,78 @@ class TerraformOpenwrtGenerator(BaseGenerator):
                 }
             )
 
+        peers: list[dict[str, Any]] = []
+        for item in interface_plan.get("peers") or []:
+            if not isinstance(item, dict):
+                continue
+            label = claim(item.get("id"), "peer")
+            interface_label = interface_labels.get(str(item.get("interface")))
+            if label is None or interface_label is None:
+                continue
+            peers.append(
+                {
+                    "endpoint_port": None,
+                    "persistent_keepalive": None,
+                    "route_allowed_ips": False,
+                    "disabled": False,
+                    "peer_device_ref": None,
+                    "secrets_ref": None,
+                    **item,
+                    "label": label,
+                    "interface_label": interface_label,
+                }
+            )
+            source = item.get("secrets_ref")
+            provenance = f" (from {source})" if source else ""
+            secret_variables.append(
+                {
+                    "name": f"{label}_public_key",
+                    "description": (
+                        f"WireGuard peer public key for {item['interface']}{provenance}. Not secret in "
+                        "itself; declared sensitive because it lives in SOPS beside the private key and "
+                        "the API never returns it."
+                    ),
+                }
+            )
+            secret_variables.append(
+                {
+                    "name": f"{label}_endpoint_host",
+                    "description": (
+                        f"Public address of {item.get('peer_device_ref') or 'the peer'} for "
+                        f"{item['interface']}. An operational value rather than topology."
+                    ),
+                }
+            )
+
+        policy_routes: list[dict[str, Any]] = []
+        for item in interface_plan.get("routes") or []:
+            if not isinstance(item, dict):
+                continue
+            label = claim(item.get("id"), "route")
+            interface_label = interface_labels.get(str(item.get("interface")))
+            if label is None or interface_label is None:
+                continue
+            policy_routes.append(
+                {
+                    "table": None,
+                    "kind": "default",
+                    "disabled": False,
+                    "tunnel": None,
+                    **item,
+                    "label": label,
+                    "interface_label": interface_label,
+                }
+            )
+
+        policy_rules: list[dict[str, Any]] = []
+        for item in interface_plan.get("rules") or []:
+            if not isinstance(item, dict):
+                continue
+            label = claim(item.get("id"), "rule")
+            if label is None:
+                continue
+            policy_rules.append({**item, "label": label})
+
         # Adoption: an import block needs the resource ADDRESS, which is the
         # label this method just assigned - not the uci section name. Resolving
         # it here is what keeps the ledger free of Terraform-internal naming.
@@ -665,6 +749,9 @@ class TerraformOpenwrtGenerator(BaseGenerator):
             adoption.append({**item, "label": label})
 
         context = {
+            "peers": peers,
+            "policy_routes": policy_routes,
+            "policy_rules": policy_rules,
             "adoption": adoption,
             "adoption_anonymous": adoption_anonymous,
             "adoption_reconciled": bool(interface_plan.get("adoption_reconciled", False)),

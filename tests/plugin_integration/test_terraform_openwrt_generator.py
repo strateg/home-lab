@@ -450,10 +450,13 @@ def _render_all():
     generator = MODULE.TerraformOpenwrtGenerator(GENERATOR_ID)
     context, diagnostics = generator._build_render_context("rtr-slate", _plan())
     assert isinstance(context, dict)
-    interface_context, interface_diagnostics = generator._build_interface_context(
-        _interface_plan(), Stage.GENERATE
-    )
+    # The POPULATED routing context, not the empty default: the branches that
+    # emit a peer, a policy table and a main-table route are exactly where a
+    # template bug would hide, and an empty list renders none of them.
+    interface_context, interface_diagnostics = _routing_context()
     assert interface_diagnostics == []
+    assert interface_context["peers"] and interface_context["policy_routes"]
+    assert interface_context["policy_rules"] and interface_context["adoption"] == []
     context.update(interface_context)
 
     rendered = {}
@@ -550,3 +553,114 @@ def test_the_unreconciled_flag_reaches_the_template_context():
 
     context, _ = _adoption_context([], reconciled=True)
     assert context["adoption_reconciled"] is True
+
+
+# --------------------------------------------------------------------------
+# Routing and peers reach the templates with labels and secret variables
+# --------------------------------------------------------------------------
+
+
+def _routing_context():
+    from kernel.plugin_base import Stage  # noqa: PLC0415
+
+    plan = _interface_plan(
+        peers=[
+            {
+                "id": "peer_wg-home",
+                "interface": "wg-home",
+                "allowed_ips": ["0.0.0.0/0"],
+                "prefixes": ["10.0.100.0/24"],
+                "endpoint_port": 51820,
+                "persistent_keepalive": 25,
+                "route_allowed_ips": False,
+                "disabled": False,
+                "peer_device_ref": "vps-oracle-frankfurt",
+                "secrets_ref": "secrets.tunnels.wg-home-to-oci",
+            }
+        ],
+        routes=[
+            {
+                "id": "route_default_wg-home",
+                "target": "0.0.0.0/0",
+                "interface": "wg-home",
+                "table": 101,
+                "disabled": False,
+                "tunnel": "wg-home",
+                "kind": "default",
+            },
+            {
+                "id": "route_wg-home_10_0_100_0_24",
+                "target": "10.0.100.0/24",
+                "interface": "wg-home",
+                "table": None,
+                "disabled": False,
+                "tunnel": "wg-home",
+                "kind": "prefix",
+            },
+        ],
+        rules=[
+            {
+                "id": "rule_slate_home_via_wg-home",
+                "src": "10.77.1.0/24",
+                "lookup": 101,
+                "priority": 30101,
+                "disabled": False,
+                "segment": "slate_home",
+                "tunnel": "wg-home",
+            }
+        ],
+    )
+    generator = MODULE.TerraformOpenwrtGenerator(GENERATOR_ID)
+    return generator._build_interface_context(plan, Stage.GENERATE)
+
+
+def test_peer_and_routes_reference_their_interface_by_label():
+    context, diagnostics = _routing_context()
+
+    assert diagnostics == []
+    assert context["peers"][0]["interface_label"] == "wg_home"
+    assert all(item["interface_label"] == "wg_home" for item in context["policy_routes"])
+
+
+def test_peer_keys_and_endpoints_become_variables():
+    """A public key is not secret, but here it lives in SOPS beside the private
+    one, and a VPS address is operational rather than topology."""
+    context, _ = _routing_context()
+
+    names = {item["name"] for item in context["secret_variables"]}
+    assert "peer_wg_home_public_key" in names
+    assert "peer_wg_home_endpoint_host" in names
+    description = next(
+        item["description"] for item in context["secret_variables"] if "public_key" in item["name"]
+    )
+    # The provenance travels with the variable, so an operator knows where to
+    # look rather than guessing.
+    assert "secrets.tunnels.wg-home-to-oci" in description
+
+
+def test_the_main_table_route_carries_no_table_attribute():
+    context, _ = _routing_context()
+
+    prefix = next(item for item in context["policy_routes"] if item["kind"] == "prefix")
+    default = next(item for item in context["policy_routes"] if item["kind"] == "default")
+    assert prefix["table"] is None
+    assert default["table"] == 101
+
+
+def test_routing_entries_carry_every_key_the_template_reads():
+    context, _ = _routing_context()
+
+    for item in context["policy_routes"]:
+        for key in ("table", "kind", "disabled", "tunnel", "interface_label", "label"):
+            assert key in item, (item["id"], key)
+    for item in context["peers"]:
+        for key in (
+            "endpoint_port",
+            "persistent_keepalive",
+            "route_allowed_ips",
+            "disabled",
+            "peer_device_ref",
+            "secrets_ref",
+            "interface_label",
+        ):
+            assert key in item, (item["id"], key)

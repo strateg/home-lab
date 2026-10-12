@@ -1659,6 +1659,38 @@ codes:
       clamps TCP MSS only, so UDP and QUIC blackhole instead of degrading. Measure the real overhead.
 
   # Raiser: object.openwrt.compiler.interfaces
+  E9915:
+    severity: error
+    stage: compile
+    title: WireGuard Interface Has No Derivable Peer
+    hint: >-
+      A WireGuard interface names a tunnel that is not in the model, or one declaring no endpoint with role
+      'server'. A road-warrior client dials out and cannot be the listening side, so without a server
+      endpoint there is no address to dial. An interface with no peer comes up and carries nothing.
+
+  # Raiser: object.openwrt.compiler.interfaces
+  E9914:
+    severity: error
+    stage: compile
+    title: Policy Route Table Or Priority Is Unusable
+    hint: >-
+      A tunnel's route_table collides with another tunnel's, or names one of the reserved tables (253 local,
+      254 main, 255 default), or the derived ip-rule priority would land at or after the main-table lookup at
+      32766. Each makes the rule inert or hijacks an existing table, and neither shows up as an error on the
+      device - traffic simply takes the wrong path.
+
+  # Raiser: object.openwrt.compiler.interfaces
+  W9905:
+    severity: warning
+    stage: compile
+    title: Segment Has No Internet Path
+    hint: >-
+      A client segment's zone is denied forwarding to the uplink zone and the segment takes no default route
+      through any tunnel, so it has no path off the device. Intended for an isolated segment; on a segment
+      meant to be full-tunnel it means the firewall half of the mode was built and the routing half was not,
+      which presents as "home works, internet does not".
+
+  # Raiser: object.openwrt.compiler.interfaces
   E9913:
     severity: error
     stage: compile

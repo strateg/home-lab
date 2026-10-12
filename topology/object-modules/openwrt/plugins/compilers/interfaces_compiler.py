@@ -58,6 +58,21 @@ _OPENWRT_OS_CAP = "cap.os.openwrt"
 # uapi_wireless_device and has no sensible default.
 _WIRELESS_TYPE = "mac80211"
 
+# Routing tables the kernel owns: 255 local, 254 main, 253 default.
+_RESERVED_TABLES = frozenset({253, 254, 255})
+
+# The main-table lookup sits at priority 32766. A source rule must be evaluated
+# BEFORE it or it never matches - everything would already have been resolved
+# against the main table. Derived from the table number rather than authored, so
+# the mapping is 1:1 and stable, and well clear of the 1000-2000 band netifd
+# uses for its own per-interface rules.
+_RULE_PRIORITY_BASE = 30000
+_MAIN_TABLE_PRIORITY = 32766
+
+
+def _rule_priority(table: int) -> int:
+    return _RULE_PRIORITY_BASE + table
+
 
 def _extract_capabilities(row: dict[str, Any]) -> set[str]:
     caps: set[str] = set()
@@ -190,6 +205,18 @@ class OpenwrtInterfacesCompiler(CompilerPlugin):
             if isinstance(row, dict) and row.get("instance_id")
         }
 
+        network_rows = instances.get("network", []) if isinstance(instances, dict) else []
+        if not isinstance(network_rows, list):
+            network_rows = []
+        # Tunnel instances, which carry the far side of every WireGuard
+        # interface: its listen port, the prefixes this device routes through
+        # it, and where its keys live.
+        tunnels = {
+            str(row.get("instance_id")): row.get("instance_data") or {}
+            for row in network_rows
+            if isinstance(row, dict) and str(row.get("instance_id", "")).startswith("inst.tunnel.")
+        }
+
         lowered: dict[str, Any] = {}
 
         for enforcer_id in sorted(plans):
@@ -204,7 +231,9 @@ class OpenwrtInterfacesCompiler(CompilerPlugin):
             if not isinstance(intent, dict):
                 continue
 
-            entry, entry_diagnostics = self._lower_device(enforcer_id, plan, intent, stage)
+            entry, entry_diagnostics = self._lower_device(
+                enforcer_id, plan, intent, tunnels, stage
+            )
             diagnostics.extend(entry_diagnostics)
             lowered[enforcer_id] = entry
 
@@ -220,6 +249,8 @@ class OpenwrtInterfacesCompiler(CompilerPlugin):
                         f"{len(entry['devices'])} devices, {len(entry['wireless_devices'])} radios, "
                         f"{len(entry['wireless_interfaces'])} wifi-ifaces "
                         f"({entry['parked_wireless']} parked), {len(entry['dhcp_servers'])} DHCP pools, "
+                        f"{len(entry['peers'])} peer(s), {len(entry['routes'])} policy route(s), "
+                        f"{len(entry['rules'])} ip-rule(s), "
                         f"{len(entry['adoption'])} section(s) to adopt"
                         f"{'' if entry['adoption_reconciled'] else ' (ledger NOT reconciled against the device)'}. "
                         f"Deferred: {', '.join(entry['deferred']) or 'nothing'}."
@@ -241,6 +272,7 @@ class OpenwrtInterfacesCompiler(CompilerPlugin):
         enforcer_id: str,
         plan: dict[str, Any],
         intent: dict[str, Any],
+        tunnels: dict[str, dict[str, Any]],
         stage: Stage,
     ) -> tuple[dict[str, Any], list[PluginDiagnostic]]:
         diagnostics: list[PluginDiagnostic] = []
@@ -257,6 +289,14 @@ class OpenwrtInterfacesCompiler(CompilerPlugin):
         diagnostics.extend(wireless_diagnostics)
 
         diagnostics.extend(self._check_mtu_budget(enforcer_id, intent, segments, stage))
+
+        peers, peer_diagnostics = self._lower_peers(enforcer_id, intent, tunnels, stage)
+        diagnostics.extend(peer_diagnostics)
+
+        routes, rules, routing_diagnostics = self._lower_policy_routing(
+            enforcer_id, intent, segments, peers, stage
+        )
+        diagnostics.extend(routing_diagnostics)
 
         adoption, adoption_diagnostics = self._lower_adoption(
             enforcer_id,
@@ -278,6 +318,9 @@ class OpenwrtInterfacesCompiler(CompilerPlugin):
             packages = [item for item in services["packages"] if isinstance(item, str) and item]
 
         entry = {
+            "peers": peers,
+            "routes": routes,
+            "rules": rules,
             "adoption": adoption,
             "adoption_reconciled": bool(
                 (intent.get("adoption") or {}).get("reconciled_against_device", False)
@@ -293,10 +336,9 @@ class OpenwrtInterfacesCompiler(CompilerPlugin):
             "packages": sorted(packages),
             # Named rather than silently absent, so the generator reports what it
             # is not rendering instead of a reader inferring it from a gap.
-            "deferred": [
-                "wireguard_peers (public keys and endpoints live in the tunnel "
-                "instances and SOPS)",
-            ],
+            # Nothing is deferred any more: peers are lowered, with their
+            # public key and endpoint host as variables rather than values.
+            "deferred": [],
         }
         return entry, diagnostics
 
@@ -587,6 +629,382 @@ class OpenwrtInterfacesCompiler(CompilerPlugin):
     # ULID, which mutates the router (W9903), so the two must be told apart
     # before an import block is emitted rather than after.
     _ANONYMOUS_SECTION = re.compile(r"^cfg[0-9a-f]{6,}$")
+
+    def _lower_peers(
+        self,
+        enforcer_id: str,
+        intent: dict[str, Any],
+        tunnels: dict[str, dict[str, Any]],
+        stage: Stage,
+    ) -> tuple[list[dict[str, Any]], list[PluginDiagnostic]]:
+        """One peer per WireGuard interface, derived from its tunnel instance.
+
+        What comes from topology and what does not is the whole design here.
+
+        From topology: which peer exists, its `listen_port`, the keepalive, and
+        its `allowed_ips`. The last is the interesting one - `allowed_ips` on a
+        WireGuard peer is simultaneously the crypto-routing ACL and, with
+        `route_allowed_ips`, a route installer. A tunnel carrying a default
+        route needs `0.0.0.0/0` so the peer may carry internet traffic at all,
+        but `route_allowed_ips` must stay FALSE for it: letting netifd install
+        that as a main-table default route would capture every segment,
+        including the split-mode one, and silently collapse the two-mode design
+        into one. The default route is installed deliberately instead, in the
+        tunnel's own table, by the policy-routing resources.
+
+        Not from topology: the public key and the endpoint host. A public key is
+        not secret, but in this repo it lives in SOPS beside the private one, and
+        a VPS's public address is an operational value rather than topology.
+        Both become `sensitive` variables, which is also what the MikroTik
+        generator does for the same reason.
+        """
+        diagnostics: list[PluginDiagnostic] = []
+        peers: list[dict[str, Any]] = []
+
+        wireguard = intent.get("wireguard")
+        if not isinstance(wireguard, dict):
+            return peers, diagnostics
+
+        for spec in wireguard.get("interfaces") or []:
+            if not isinstance(spec, dict) or not spec.get("name"):
+                continue
+            name = str(spec["name"])
+            tunnel_ref = spec.get("tunnel_ref")
+            tunnel = tunnels.get(str(tunnel_ref)) if isinstance(tunnel_ref, str) else None
+            if not isinstance(tunnel, dict):
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E9915",
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            f"Enforcer '{enforcer_id}': WireGuard interface '{name}' names tunnel "
+                            f"'{tunnel_ref}', which is not a tunnel instance in this model. Without it "
+                            "there is no peer to derive, and an interface with no peer comes up and "
+                            "carries nothing."
+                        ),
+                        path=f"instance:{enforcer_id}.runtime_intent.wireguard.{name}.tunnel_ref",
+                    )
+                )
+                continue
+
+            # The far side is the tunnel's server endpoint: this device is a
+            # road-warrior client, so it dials out and the server listens.
+            server = None
+            for role_key in ("endpoint_a", "endpoint_b"):
+                candidate = tunnel.get(role_key)
+                if isinstance(candidate, dict) and candidate.get("role") == "server":
+                    server = candidate
+                    break
+            if server is None:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E9915",
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            f"Enforcer '{enforcer_id}': tunnel '{tunnel_ref}' declares no endpoint with "
+                            f"role 'server', so '{name}' has no address to dial. A road-warrior client "
+                            "cannot be the listening side."
+                        ),
+                        path=f"instance:{tunnel_ref}.endpoint_a",
+                    )
+                )
+                continue
+
+            # Everything this interface routes through the tunnel. The far side
+            # must be permitted to source those prefixes, or WireGuard drops the
+            # reply before the firewall ever sees it.
+            allowed: list[str] = []
+            for peer_entry in tunnel.get("road_warrior_peers") or []:
+                if isinstance(peer_entry, dict) and peer_entry.get("device_ref") == enforcer_id:
+                    allowed.extend(
+                        item for item in peer_entry.get("routes") or [] if isinstance(item, str)
+                    )
+            network = tunnel.get("tunnel_network")
+            if isinstance(network, str) and network and network not in allowed:
+                allowed.append(network)
+
+            carries_default = bool(spec.get("default_route_for"))
+            prefixes = sorted(set(allowed))
+            if carries_default:
+                # The ACL must be wide for a full tunnel: return traffic from
+                # the internet arrives with arbitrary source addresses, so the
+                # peer has to be permitted to source anything or WireGuard
+                # drops the replies before the firewall sees them. 0.0.0.0/0
+                # subsumes the specific prefixes for ACL purposes - but they
+                # are kept in `prefixes` below, because with
+                # route_allowed_ips=false netifd installs NO routes at all and
+                # the specific ones still have to exist in the main table.
+                allowed = ["0.0.0.0/0"]
+            else:
+                allowed = prefixes
+
+            peers.append(
+                {
+                    "id": f"peer_{name}",
+                    "interface": name,
+                    "allowed_ips": allowed,
+                    # Destination prefixes reached through this tunnel, kept
+                    # separately from the ACL: these become main-table routes so
+                    # every permitted zone can use them, not only the segments
+                    # whose default route this tunnel carries.
+                    "prefixes": prefixes,
+                    "endpoint_port": server.get("listen_port"),
+                    "persistent_keepalive": spec.get("persistent_keepalive"),
+                    # FALSE whenever this tunnel carries a default route: netifd
+                    # would otherwise install 0.0.0.0/0 in the MAIN table and
+                    # capture every segment, collapsing the two modes into one.
+                    "route_allowed_ips": not carries_default,
+                    "disabled": not _is_enabled(spec),
+                    "peer_device_ref": server.get("device_ref"),
+                    "secrets_ref": tunnel.get("secrets_ref"),
+                }
+            )
+
+        peers.sort(key=lambda item: str(item["id"]))
+        return peers, diagnostics
+
+    def _lower_policy_routing(
+        self,
+        enforcer_id: str,
+        intent: dict[str, Any],
+        segments: list[dict[str, Any]],
+        peers: list[dict[str, Any]],
+        stage: Stage,
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[PluginDiagnostic]]:
+        """Routes and ip-rules that make D2's two modes take two different paths.
+
+        Policy routing is required here, not stylistic. Both modes have
+        destination 0.0.0.0/0, so a destination-based default route cannot
+        separate them - whichever route won would capture both. Only a
+        source-based rule can, which is what `routing.selector: source_subnet`
+        has been declaring all along while nothing read it.
+
+        The shape per full-tunnel tunnel is two resources: a default route in
+        the tunnel's own table, and an ip-rule sending that segment's source
+        prefix to that table. A segment named by no `default_route_for` gets no
+        rule, falls through to the main table and egresses via the venue uplink
+        - which is exactly what split and guest mode want.
+        """
+        diagnostics: list[PluginDiagnostic] = []
+        routes: list[dict[str, Any]] = []
+        rules: list[dict[str, Any]] = []
+
+        by_instance = {
+            str(segment.get("instance_id")): segment for segment in segments if segment.get("instance_id")
+        }
+        tables_seen: dict[int, str] = {}
+        routed_segments: set[str] = set()
+
+        wireguard = intent.get("wireguard")
+        if not isinstance(wireguard, dict):
+            return routes, rules, diagnostics
+
+        for spec in wireguard.get("interfaces") or []:
+            if not isinstance(spec, dict) or not spec.get("name"):
+                continue
+            targets = [item for item in spec.get("default_route_for") or [] if isinstance(item, str)]
+            if not targets:
+                continue
+
+            name = str(spec["name"])
+            table = spec.get("route_table")
+            if not isinstance(table, int) or isinstance(table, bool):
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E9914",
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            f"Enforcer '{enforcer_id}': tunnel '{name}' carries a default route for "
+                            f"{len(targets)} segment(s) but declares no numeric route_table. The rule has "
+                            "nowhere to point, so the segment would fall through to the main table and "
+                            "egress via the venue - the opposite of full-tunnel, and silently."
+                        ),
+                        path=f"instance:{enforcer_id}.runtime_intent.wireguard.{name}.route_table",
+                    )
+                )
+                continue
+
+            if table in _RESERVED_TABLES:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E9914",
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            f"Enforcer '{enforcer_id}': tunnel '{name}' declares route_table {table}, which "
+                            "the kernel reserves (253 default, 254 main, 255 local). Writing a default "
+                            "route there would hijack the host's own routing rather than add a policy path."
+                        ),
+                        path=f"instance:{enforcer_id}.runtime_intent.wireguard.{name}.route_table",
+                    )
+                )
+                continue
+
+            previous = tables_seen.get(table)
+            if previous is not None:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E9914",
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            f"Enforcer '{enforcer_id}': tunnels '{previous}' and '{name}' both declare "
+                            f"route_table {table}. The second default route would replace or race the "
+                            "first, so one tunnel's traffic silently leaves through the other."
+                        ),
+                        path=f"instance:{enforcer_id}.runtime_intent.wireguard.{name}.route_table",
+                    )
+                )
+                continue
+
+            priority = _rule_priority(table)
+            if priority >= _MAIN_TABLE_PRIORITY:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E9914",
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            f"Enforcer '{enforcer_id}': tunnel '{name}' with route_table {table} derives "
+                            f"ip-rule priority {priority}, at or after the main-table lookup at "
+                            f"{_MAIN_TABLE_PRIORITY}. The rule would never match, because the destination "
+                            "is already resolved against the main table by then."
+                        ),
+                        path=f"instance:{enforcer_id}.runtime_intent.wireguard.{name}.route_table",
+                    )
+                )
+                continue
+
+            tables_seen[table] = name
+
+            routes.append(
+                {
+                    "id": f"route_default_{name}",
+                    "target": "0.0.0.0/0",
+                    "interface": name,
+                    "table": table,
+                    # A parked tunnel's route is rendered disabled for the same
+                    # reason its interface is: so enabling it is one topology
+                    # change and not a hand-edit that never shows as drift.
+                    "disabled": not _is_enabled(spec),
+                    "tunnel": name,
+                    "kind": "default",
+                }
+            )
+
+            for target in targets:
+                segment = by_instance.get(target)
+                if not isinstance(segment, dict) or not segment.get("cidr"):
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E9914",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"Enforcer '{enforcer_id}': tunnel '{name}' claims the default route for "
+                                f"'{target}', which is not a segment this device owns. The ip-rule would "
+                                "have no source prefix to match."
+                            ),
+                            path=f"instance:{enforcer_id}.runtime_intent.wireguard.{name}.default_route_for",
+                        )
+                    )
+                    continue
+                routed_segments.add(target)
+                rules.append(
+                    {
+                        "id": f"rule_{segment['interface']}_via_{name}",
+                        "src": segment["cidr"],
+                        "lookup": table,
+                        # Explicit, because routing rules DO have ordering -
+                        # unlike the firewall, where uapi exposes none.
+                        "priority": priority,
+                        "disabled": not _is_enabled(spec),
+                        "segment": segment["interface"],
+                        "tunnel": name,
+                    }
+                )
+
+        # Specific prefixes reached through each tunnel go in the MAIN table,
+        # not in the tunnel's policy table.
+        #
+        # This is the half that `route_allowed_ips = false` removes and that has
+        # to be put back deliberately. Slate-Split is the case that proves it
+        # necessary: it reaches home over wg-home while its internet stays on
+        # the venue, so it has no ip-rule and resolves against the main table -
+        # where, without these, there is no route to the home prefixes at all
+        # and its home access silently fails. The router's own traffic to those
+        # prefixes resolves the same way.
+        for peer in peers:
+            tunnel_name = str(peer.get("interface"))
+            for prefix in peer.get("prefixes") or []:
+                routes.append(
+                    {
+                        "id": f"route_{tunnel_name}_{str(prefix).replace('/', '_').replace('.', '_')}",
+                        "target": prefix,
+                        "interface": tunnel_name,
+                        # No `table`: the main table, so every permitted zone
+                        # can use it rather than only the full-tunnel segments.
+                        "table": None,
+                        "disabled": bool(peer.get("disabled")),
+                        "tunnel": tunnel_name,
+                        "kind": "prefix",
+                    }
+                )
+
+        diagnostics.extend(
+            self._check_internet_path(enforcer_id, segments, routed_segments, stage)
+        )
+
+        routes.sort(key=lambda item: str(item["id"]))
+        rules.sort(key=lambda item: str(item["id"]))
+        return routes, rules, diagnostics
+
+    def _check_internet_path(
+        self,
+        enforcer_id: str,
+        segments: list[dict[str, Any]],
+        routed_segments: set[str],
+        stage: Stage,
+    ) -> list[PluginDiagnostic]:
+        """W9905: a segment cut off from the uplink and from every tunnel.
+
+        A warning rather than an error because the compiler cannot know whether
+        a segment is *meant* to reach the internet - an isolated IoT segment
+        legitimately has no path. What it can say is that the firewall half of
+        full-tunnel mode was built and the routing half was not, which presents
+        on the device as "home works, internet does not".
+        """
+        diagnostics: list[PluginDiagnostic] = []
+
+        for segment in segments:
+            instance_id = str(segment.get("instance_id") or "")
+            if instance_id in routed_segments:
+                continue
+            # `forward_to_uplink` is published by the zone compiler per segment:
+            # whether the matrix lets this segment's zone reach the uplink zone.
+            # Absent means the question was not answered, not that it is false.
+            if segment.get("forward_to_uplink") is not False:
+                continue
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="W9905",
+                    severity="warning",
+                    stage=stage,
+                    message=(
+                        f"Enforcer '{enforcer_id}': segment '{segment.get('interface')}' is denied "
+                        "forwarding to the uplink zone and takes no default route through any tunnel, so "
+                        "it has no path off this device. Intended for an isolated segment; on one meant "
+                        "to be full-tunnel it means the firewall half of the mode exists and the routing "
+                        "half does not."
+                    ),
+                    path=f"instance:{instance_id}.trust_zone_ref",
+                )
+            )
+
+        return diagnostics
 
     def _lower_adoption(
         self,

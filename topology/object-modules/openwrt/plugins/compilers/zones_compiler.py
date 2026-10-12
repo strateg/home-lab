@@ -474,6 +474,17 @@ class OpenwrtZonesCompiler(CompilerPlugin):
                     "input_services": _input_services(segments, interfaces),
                 }
 
+            # Which zones hold this device's uplink, so a consumer can ask the
+            # question "may this segment reach the internet directly?" without
+            # re-deriving the matrix. Answered here because this is the only
+            # plugin that sees both the interface kinds and the lowered plan.
+            uplink_zone_refs = {
+                zone_ref
+                for zone_ref, members in interfaces_by_zone.items()
+                for member in members
+                if isinstance(member, dict) and member.get("kind") == "uplink"
+            }
+
             forwardings, rules, denied, unroutable = _lower_matrix(
                 matrix,
                 local_zone_refs,
@@ -481,7 +492,25 @@ class OpenwrtZonesCompiler(CompilerPlugin):
                 _egress_zone_by_remote(interfaces_by_zone),
             )
 
+            # Stamp each segment with whether its zone may forward to an
+            # uplink zone. A segment denied that AND taking no tunnel default
+            # route has no path off the device at all (W9905), and nothing
+            # downstream can work that out from the zone plan alone.
+            permitted_pairs = {
+                (entry.get("src"), entry.get("dest"))
+                for entry in forwardings
+                if isinstance(entry, dict)
+            }
+            for zone_ref, zone in zones.items():
+                reaches_uplink = any(
+                    (zone_ref, uplink_ref) in permitted_pairs for uplink_ref in uplink_zone_refs
+                )
+                for segment in zone.get("segments") or []:
+                    if isinstance(segment, dict):
+                        segment["forward_to_uplink"] = bool(reaches_uplink)
+
             openwrt_zones[enforcer_id] = {
+                "uplink_zone_refs": sorted(uplink_zone_refs),
                 "scope_ids": plan.get("scope_ids") or [],
                 "zones": zones,
                 "forwardings": forwardings,

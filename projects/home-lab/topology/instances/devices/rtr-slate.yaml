@@ -361,6 +361,27 @@ runtime_intent:
         # firewall's shape to a routing table the compiler does not read.
         reaches_zone_refs:
           - inst.trust_zone.servers
+        # Which segments take their DEFAULT route through this tunnel - the
+        # routing half of D2's full-tunnel mode, and the half that was missing.
+        #
+        # Not inferable from `advertises`: that list is the reverse direction
+        # (prefixes the far side must route back to us), and it includes
+        # slate_split precisely because a split-mode client still reaches home
+        # over this tunnel while its internet stays on the venue uplink. Using
+        # `advertises` here would have given slate_split a default route into
+        # the tunnel and silently destroyed split mode.
+        #
+        # A segment absent from every `default_route_for` falls through to the
+        # main table and egresses via the venue - which is exactly what
+        # Slate-Split and Slate-Guest want.
+        default_route_for:
+          - inst.vlan.slate_home
+        # Policy routing is required, not stylistic. Both modes have
+        # destination 0.0.0.0/0, so a destination-based default route cannot
+        # separate them; only a source-based rule can. This is the table the
+        # rule points at. 100+ avoids netifd's own low-numbered interface
+        # tables and the reserved 253/254/255.
+        route_table: 101
         trust_zone_ref: inst.trust_zone.vpn_exit
         enabled: true
         notes: |
@@ -369,6 +390,9 @@ runtime_intent:
           servers/management routes are new.
 
       - name: wg-de
+        default_route_for:
+          - inst.vlan.slate_de
+        route_table: 155
         tunnel_ref: inst.tunnel.wg-exit
         tunnel_ip: 10.100.1.10/32
         persistent_keepalive: 25
@@ -382,6 +406,9 @@ runtime_intent:
         notes: Single encapsulation - terminates at the VPS, no hop through home.
 
       - name: wg-ru
+        default_route_for:
+          - inst.vlan.slate_ru
+        route_table: 157
         tunnel_ref: inst.tunnel.wg-exit
         tunnel_ip: 10.100.1.11/32
         persistent_keepalive: 25
@@ -398,6 +425,9 @@ runtime_intent:
         enabled: false
 
       - name: wg-se
+        default_route_for:
+          - inst.vlan.slate_se
+        route_table: 158
         tunnel_ref: inst.tunnel.wg-exit
         tunnel_ip: 10.100.1.12/32
         persistent_keepalive: 25

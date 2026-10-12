@@ -1269,6 +1269,81 @@ support files, not read off a router that has been configured by hand during
 staging, and `terraform plan` is the reconciliation step — a wrong entry
 surfaces there as an import failure, which changes nothing on the device.
 
+### A7.7 The routing half of D2 was never built
+
+D2 decided the two modes and the firewall implements them: `slate-home-killswitch`
+denies `user -> untrusted`, and `user -> vpn_exit` is permitted. That is the
+**permission** half. The **path** half — actually sending Slate-Home's internet
+traffic into the tunnel — existed nowhere.
+
+What was in the topology instead: `notes: Full-tunnel mode. Egress only via
+wg-home.` on the SSID, and `routing: {selector: source_subnet}` on the WireGuard
+block. Prose in a `notes:` field that nothing reads, and a selector nothing
+consumed. Same defect family as the override collision, the inert object-level
+override, and E9909's false mechanism: **declared in a way nothing enforces**.
+
+Measured consequence: Slate-Home clients would have had home access and no
+internet at all. Fail-closed, because the kill switch holds — but the mode
+advertised as the default would simply not have worked.
+
+**Why policy routing is unavoidable here.** Both modes have destination
+`0.0.0.0/0`. A destination-based default route cannot separate them: whichever
+route won would capture both, so either the full-tunnel segment leaks to the
+venue or the split segment loses its direct internet. Only a source-based rule
+can. `routing.selector: source_subnet` had been saying exactly this all along.
+
+The shape, per tunnel that carries a default route:
+
+| Resource | Where | For whom |
+|---|---|---|
+| `uapi_network_route` `0.0.0.0/0` | the tunnel's own table (101/155/157/158) | only segments with an ip-rule |
+| `uapi_network_rule` `src=<segment>` `lookup=<table>` | priority `30000 + table` | that segment |
+| `uapi_network_route` `<home prefix>` | **main** table | every zone the firewall permits |
+| `uapi_network_wireguard_peer` | `route_allowed_ips = false` | — |
+
+`default_route_for` is authored, not inferred. `advertises` looks like the right
+source and is the wrong one: it is the *reverse* direction — prefixes the far
+side must route back to us — and it includes `slate_split` precisely because a
+split-mode client still reaches home over the tunnel while its internet stays
+on the venue. Using it would have given `slate_split` a default route into the
+tunnel and silently destroyed split mode.
+
+**A defect I introduced and caught by reasoning about split mode.** With
+`route_allowed_ips = false`, netifd installs *no* routes from `allowed_ips` —
+and my first version replaced the specific home prefixes with `0.0.0.0/0`. So
+the home prefixes existed in no table. Slate-Split has no ip-rule by design, so
+it resolves against the main table, where there was then no route home: its home
+access would have failed silently, as would the router's own traffic to those
+prefixes. Fixed by keeping the two kinds of route separate — specific prefixes
+in the main table for everyone, the default route in the policy table for
+full-tunnel segments only.
+
+`allowed_ips` on a full-tunnel peer stays `0.0.0.0/0`, because it is also the
+crypto-routing ACL: return traffic from the internet arrives with arbitrary
+source addresses, and WireGuard drops anything outside `allowed_ips` before the
+firewall ever sees it. The same field serving as ACL and route installer is why
+the two roles need opposite answers.
+
+Three codes:
+
+* **E9914** — a `route_table` that collides with another tunnel's, names a
+  reserved table (253/254/255), is missing on a tunnel that carries a default
+  route, or derives an ip-rule priority at or after the main-table lookup at
+  32766. Each makes the rule inert or hijacks the host's own routing, and none
+  reports anything on the device — traffic simply takes the wrong path.
+* **E9915** — a WireGuard interface whose tunnel is absent from the model or
+  declares no `role: server` endpoint. A road-warrior client dials out and
+  cannot be the listening side.
+* **W9905** — a segment denied the uplink zone *and* taking no tunnel default
+  route: no path off the device. A warning, because an isolated segment
+  legitimately has none; what it reports is that the firewall half of a mode
+  exists and the routing half does not.
+
+W9905 was mutation-checked against the state that motivated it: removing
+`default_route_for` from `wg-home` makes it fire on `slate_home` by name.
+
+Peers are no longer deferred — I9904 now reads `Deferred: nothing`.
+
 Stale raiser annotations in the catalog were repointed while registering these:
 `E9903`/`E9902`, `E9904`/`E9905` and `E9908`-`W9901` named
 `base.validator.openwrt_*` plugins that do not exist — the checks live in the

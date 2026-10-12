@@ -346,10 +346,16 @@ def test_wireguard_interface_carries_a_key_reference_not_a_key():
     assert "private_key" not in tunnel
 
 
-def test_wireguard_peers_are_named_as_deferred_not_silently_absent():
-    entry = _plan_of(_run(_zone_plan(), _model(wireless=_wireless())))
+def test_nothing_is_deferred_once_peers_are_lowered():
+    """Peers used to be the one deferral, with their keys as the reason. They
+    are lowered now, with the public key and endpoint host as variables rather
+    than values, so the deferral list is empty - and empty because it was
+    emptied, not because nothing ever populated it.
+    """
+    entry = _plan_of(_run(_zone_plan(), _routed_model()))
 
-    assert any("wireguard_peers" in item for item in entry["deferred"])
+    assert entry["deferred"] == []
+    assert entry["peers"]
 
 
 def test_auto_channel_is_rendered_as_zero():
@@ -437,16 +443,21 @@ def test_a_device_without_the_openwrt_capability_is_not_lowered():
 
 
 def test_the_summary_reports_what_was_lowered():
-    result = _run(_zone_plan(), _model(wireless=_wireless()))
+    result = _run(_zone_plan(), _routed_model())
 
     assert "I9904" in _codes(result)
     message = next(d.message for d in result.diagnostics if d.code == "I9904")
-    assert "wireguard_peers" in message
+    assert "1 peer(s)" in message
+    assert "policy route(s)" in message
+    assert "ip-rule(s)" in message
+    assert "Deferred: nothing" in message
 
 
 def test_no_wireless_intent_lowers_the_rest_without_failing():
     """A device may legitimately have no radios."""
-    result = _run(_zone_plan(), _model(wireless=None))
+    model = _routed_model()
+    del model["instances"]["devices"][0]["instance_data"]["runtime_intent"]["wireless"]
+    result = _run(_zone_plan(), model)
 
     entry = _plan_of(result)
     assert entry["wireless_devices"] == []
@@ -593,3 +604,253 @@ def test_an_anonymous_entry_for_an_unknown_resource_kind_is_still_refused():
     )
 
     assert "E9913" in _codes(result)
+
+
+# ---------------------------------------------------------------------------
+# Policy routing and peers: the routing half of the two-mode design
+#
+# The firewall decides who MAY egress where; routing decides which path their
+# packets take. Both modes have destination 0.0.0.0/0, so a destination-based
+# route cannot separate them - whichever won would capture both. These tests
+# pin that separation, because getting it wrong does not fail: it silently
+# sends one mode down the other's path.
+# ---------------------------------------------------------------------------
+
+_TUNNEL = "inst.tunnel.wg-home-to-oci"
+
+
+def _tunnel_rows(*, server_role="server", routes=None, network="10.100.0.0/24"):
+    endpoint_b = {
+        "device_ref": "vps-oracle-frankfurt",
+        "listen_port": 51820,
+        "tunnel_ip": "10.100.0.2/24",
+    }
+    if server_role is not None:
+        endpoint_b["role"] = server_role
+    return [
+        {
+            "instance_id": _TUNNEL,
+            "instance_data": {
+                "tunnel_network": network,
+                "secrets_ref": "secrets.tunnels.wg-home-to-oci",
+                "endpoint_a": {"device_ref": "rtr-mikrotik-chateau", "role": "client"},
+                "endpoint_b": endpoint_b,
+                "road_warrior_peers": [
+                    {
+                        "device_ref": "rtr-slate",
+                        "routes": routes if routes is not None else ["10.0.100.0/24"],
+                    }
+                ],
+            },
+        }
+    ]
+
+
+def _routed_model(*, default_route_for=("inst.vlan.slate_home",), table=101, tunnel_rows=None):
+    model = _model(wireless=_wireless())
+    tunnel = model["instances"]["devices"][0]["instance_data"]["runtime_intent"]["wireguard"][
+        "interfaces"
+    ][0]
+    tunnel["tunnel_ref"] = _TUNNEL
+    tunnel["persistent_keepalive"] = 25
+    if default_route_for is not None:
+        tunnel["default_route_for"] = list(default_route_for)
+    if table is not None:
+        tunnel["route_table"] = table
+    model["instances"]["network"] = _tunnel_rows() if tunnel_rows is None else tunnel_rows
+    return model
+
+
+def test_full_tunnel_segment_gets_a_rule_into_the_tunnels_table():
+    entry = _plan_of(_run(_zone_plan(), _routed_model()))
+
+    rule = next(item for item in entry["rules"] if item["segment"] == "slate_home")
+    assert rule["src"] == "10.77.1.0/24"
+    assert rule["lookup"] == 101
+    # Routing rules DO have ordering, unlike the firewall, and it must land
+    # before the main-table lookup at 32766 or the rule never matches.
+    assert rule["priority"] == 30101
+    assert rule["priority"] < 32766
+
+
+def test_the_default_route_goes_in_the_tunnels_own_table():
+    entry = _plan_of(_run(_zone_plan(), _routed_model()))
+
+    default = next(item for item in entry["routes"] if item["kind"] == "default")
+    assert (default["target"], default["table"]) == ("0.0.0.0/0", 101)
+
+
+def test_specific_prefixes_go_in_the_main_table_not_the_policy_table():
+    """The case that proves this necessary is split mode.
+
+    Slate-Split reaches home over wg-home while its internet stays on the
+    venue, so it has no ip-rule and resolves against the main table. With
+    `route_allowed_ips = false` netifd installs no routes at all, so without
+    these the split client finds no path home and fails silently.
+    """
+    entry = _plan_of(_run(_zone_plan(), _routed_model()))
+
+    prefixes = [item for item in entry["routes"] if item["kind"] == "prefix"]
+    assert {item["target"] for item in prefixes} == {"10.0.100.0/24", "10.100.0.0/24"}
+    # No table means the main table.
+    assert all(item["table"] is None for item in prefixes)
+
+
+def test_a_full_tunnel_peer_has_a_wide_acl_but_installs_no_routes():
+    """`allowed_ips` is the crypto ACL *and* a route installer, and the two
+    roles need opposite answers here.
+
+    Wide ACL: return traffic from the internet arrives with arbitrary source
+    addresses, and WireGuard drops anything outside allowed_ips before the
+    firewall sees it. No route installation: netifd would put 0.0.0.0/0 in the
+    MAIN table and capture every segment, collapsing the two modes into one.
+    """
+    entry = _plan_of(_run(_zone_plan(), _routed_model()))
+
+    peer = entry["peers"][0]
+    assert peer["allowed_ips"] == ["0.0.0.0/0"]
+    assert peer["route_allowed_ips"] is False
+    # The specific prefixes survive separately, to become main-table routes.
+    assert "10.0.100.0/24" in peer["prefixes"]
+
+
+def test_a_peer_without_a_default_route_keeps_its_specific_prefixes():
+    entry = _plan_of(_run(_zone_plan(), _routed_model(default_route_for=[], table=None)))
+
+    peer = entry["peers"][0]
+    assert peer["allowed_ips"] == ["10.0.100.0/24", "10.100.0.0/24"]
+    # Nothing else installs them, so netifd may.
+    assert peer["route_allowed_ips"] is True
+    assert entry["rules"] == []
+
+
+def test_the_peer_endpoint_comes_from_the_tunnels_server_side():
+    entry = _plan_of(_run(_zone_plan(), _routed_model()))
+
+    peer = entry["peers"][0]
+    assert peer["endpoint_port"] == 51820
+    assert peer["peer_device_ref"] == "vps-oracle-frankfurt"
+    assert peer["persistent_keepalive"] == 25
+    # Where the key lives, never the key.
+    assert peer["secrets_ref"] == "secrets.tunnels.wg-home-to-oci"
+    assert "public_key" not in peer
+
+
+def test_a_tunnel_with_no_server_endpoint_is_refused():
+    """A road-warrior client dials out; it cannot be the listening side."""
+    result = _run(_zone_plan(), _routed_model(tunnel_rows=_tunnel_rows(server_role="client")))
+
+    assert "E9915" in _codes(result)
+
+
+def test_a_tunnel_ref_outside_the_model_is_refused():
+    model = _routed_model()
+    model["instances"]["devices"][0]["instance_data"]["runtime_intent"]["wireguard"]["interfaces"][
+        0
+    ]["tunnel_ref"] = "inst.tunnel.nonexistent"
+
+    assert "E9915" in _codes(_run(_zone_plan(), model))
+
+
+def test_a_default_route_without_a_table_is_refused():
+    """The rule would have nowhere to point, so the segment would fall through
+    to the main table and egress via the venue - the opposite of full-tunnel."""
+    result = _run(_zone_plan(), _routed_model(table=None))
+
+    assert "E9914" in _codes(result)
+    assert _plan_of(result)["rules"] == []
+
+
+def test_a_reserved_route_table_is_refused():
+    for table in (253, 254, 255):
+        result = _run(_zone_plan(), _routed_model(table=table))
+        assert "E9914" in _codes(result), table
+
+
+def test_two_tunnels_sharing_a_table_are_refused():
+    """The second default route would replace or race the first, so one
+    tunnel's traffic silently leaves through the other."""
+    model = _routed_model()
+    interfaces = model["instances"]["devices"][0]["instance_data"]["runtime_intent"]["wireguard"][
+        "interfaces"
+    ]
+    interfaces.append(
+        {
+            "name": "wg-de",
+            "tunnel_ref": _TUNNEL,
+            "tunnel_ip": "10.100.1.10/32",
+            "default_route_for": ["inst.vlan.slate_home"],
+            "route_table": 101,
+            "enabled": True,
+        }
+    )
+
+    result = _run(_zone_plan(), model)
+
+    assert "E9914" in _codes(result)
+    message = next(d.message for d in result.diagnostics if d.code == "E9914")
+    assert "both declare" in message
+
+
+def test_a_priority_at_or_after_the_main_table_lookup_is_refused():
+    """30000 + table must stay below 32766 or the rule is inert: by then the
+    destination has already been resolved against the main table."""
+    result = _run(_zone_plan(), _routed_model(table=2766))
+
+    assert "E9914" in _codes(result)
+    assert "32766" in next(d.message for d in result.diagnostics if d.code == "E9914")
+
+
+def test_a_default_route_for_a_segment_this_device_does_not_own_is_refused():
+    result = _run(_zone_plan(), _routed_model(default_route_for=["inst.vlan.somewhere_else"]))
+
+    assert "E9914" in _codes(result)
+
+
+def test_a_parked_tunnels_route_and_rule_are_rendered_disabled():
+    model = _routed_model()
+    model["instances"]["devices"][0]["instance_data"]["runtime_intent"]["wireguard"]["interfaces"][
+        0
+    ]["enabled"] = False
+
+    entry = _plan_of(_run(_zone_plan(), model))
+
+    assert all(item["disabled"] for item in entry["routes"])
+    assert all(item["disabled"] for item in entry["rules"])
+
+
+def test_a_segment_with_no_uplink_and_no_tunnel_raises_w9905():
+    """The exact state the real topology was in before the routing half
+    existed: the firewall denied Slate-Home the venue and nothing routed it
+    into the tunnel, so it had home access and no internet."""
+    plan = _zone_plan()
+    plan["rtr-slate"]["zones"][_USER]["segments"][0]["forward_to_uplink"] = False
+
+    result = _run(plan, _routed_model(default_route_for=[], table=None))
+
+    assert "W9905" in _codes(result)
+    assert "routing half" in next(d.message for d in result.diagnostics if d.code == "W9905")
+
+
+def test_a_segment_permitted_to_the_uplink_needs_no_tunnel_route():
+    """Split and guest mode: direct egress is the intent, not an omission."""
+    plan = _zone_plan()
+    plan["rtr-slate"]["zones"][_USER]["segments"][0]["forward_to_uplink"] = True
+
+    result = _run(plan, _routed_model(default_route_for=[], table=None))
+
+    assert "W9905" not in _codes(result)
+
+
+def test_an_unanswered_uplink_question_is_not_treated_as_a_denial():
+    """Absent means the zone compiler did not answer, not that it said no.
+
+    Reporting W9905 on missing data would make the check fire on every plan
+    that predates `forward_to_uplink`.
+    """
+    plan = _zone_plan()
+    plan["rtr-slate"]["zones"][_USER]["segments"][0].pop("forward_to_uplink", None)
+
+    result = _run(plan, _routed_model(default_route_for=[], table=None))
+
+    assert "W9905" not in _codes(result)
