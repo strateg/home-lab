@@ -225,6 +225,7 @@ def _local_interfaces(row: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
                     "kind": "wireguard",
                     "mtu": entry.get("mtu"),
                     "advertises": entry.get("advertises") or [],
+                    "reaches_zone_refs": entry.get("reaches_zone_refs") or [],
                     "exit_mode": entry.get("exit_mode"),
                     "immutable": False,
                 },
@@ -267,18 +268,51 @@ def _input_services(
     return sorted(services)
 
 
+def _egress_zone_by_remote(
+    interfaces_by_zone: dict[str, list[dict[str, Any]]],
+) -> dict[str, str]:
+    """Remote zone -> the local zone whose interface is its egress path.
+
+    Built from each interface's declared `reaches_zone_refs`. A permit to a zone
+    this device does not host cannot become a zone-to-zone forwarding; it
+    becomes a rule whose destination is the local zone the traffic leaves
+    through, restricted to the remote zone's prefixes.
+    """
+    mapping: dict[str, str] = {}
+    for local_zone, interfaces in interfaces_by_zone.items():
+        for interface in interfaces:
+            for remote in interface.get("reaches_zone_refs") or []:
+                if isinstance(remote, str) and remote:
+                    mapping.setdefault(remote, local_zone)
+    return mapping
+
+
 def _lower_matrix(
     matrix: dict[str, Any],
     local_zone_refs: set[str],
-) -> tuple[list[dict[str, str]], list[dict[str, Any]]]:
-    """Split matrix cells into forwardings to emit and denials to record.
+    zones: dict[str, Any],
+    egress_zone_by_remote: dict[str, str],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    """Split matrix cells into what each kind of resource can express.
 
-    Only pairs whose source is a local zone produce anything: this enforcer
+    Only cells whose source is a local zone produce anything: this enforcer
     filters traffic entering from its own segments, not traffic between two
     remote zones it merely knows about.
+
+    * Unrestricted, both ends local -> a zone-to-zone forwarding.
+    * Port-scoped, or destined for a zone hosted elsewhere -> a rule. A
+      forwarding is all-or-nothing between zones, so emitting one for a
+      port-scoped permit would widen the grant to every port; and a zone this
+      device does not host has no resource to point a forwarding at.
+    * Denied -> recorded, emitted as nothing. On firewall4 a denial is the
+      absence of a forwarding.
+    * Permitted to a remote zone with no declared egress path -> reported, not
+      emitted. Guessing an interface here would invent a route.
     """
-    forwardings: list[dict[str, str]] = []
+    forwardings: list[dict[str, Any]] = []
+    rules: list[dict[str, Any]] = []
     denied: list[dict[str, Any]] = []
+    unroutable: list[dict[str, Any]] = []
 
     for from_zone in sorted(matrix):
         if from_zone not in local_zone_refs:
@@ -290,10 +324,9 @@ def _lower_matrix(
             cell = to_zones.get(to_zone) or {}
             if not isinstance(cell, dict) or from_zone == to_zone:
                 continue
+
             action = str(cell.get("action", "")).lower()
-            if action in _PERMIT_ACTIONS:
-                forwardings.append({"src": from_zone, "dest": to_zone})
-            else:
+            if action not in _PERMIT_ACTIONS:
                 denied.append(
                     {
                         "src": from_zone,
@@ -303,7 +336,52 @@ def _lower_matrix(
                         "log": bool(cell.get("log", False)),
                     }
                 )
-    return forwardings, denied
+                continue
+
+            ports = cell.get("ports") or None
+
+            if to_zone in local_zone_refs:
+                if ports:
+                    rules.append(
+                        {
+                            "src": from_zone,
+                            "dest": to_zone,
+                            "dest_cidrs": [],
+                            "ports": ports,
+                            "rule": cell.get("rule"),
+                            "reason": cell.get("reason"),
+                        }
+                    )
+                else:
+                    forwardings.append({"src": from_zone, "dest": to_zone})
+                continue
+
+            egress = egress_zone_by_remote.get(to_zone)
+            target = zones.get(to_zone) or {}
+            dest_cidrs = list(target.get("cidrs") or []) if isinstance(target, dict) else []
+            if not egress or not dest_cidrs:
+                unroutable.append(
+                    {
+                        "src": from_zone,
+                        "dest": to_zone,
+                        "missing": "egress interface" if not egress else "zone prefixes",
+                    }
+                )
+                continue
+
+            rules.append(
+                {
+                    "src": from_zone,
+                    "dest": egress,
+                    "remote_zone": to_zone,
+                    "dest_cidrs": dest_cidrs,
+                    "ports": ports,
+                    "rule": cell.get("rule"),
+                    "reason": cell.get("reason"),
+                }
+            )
+
+    return forwardings, rules, denied, unroutable
 
 
 class OpenwrtZonesCompiler(CompilerPlugin):
@@ -358,10 +436,17 @@ class OpenwrtZonesCompiler(CompilerPlugin):
             for zone_ref in sorted(zone_data):
                 segments = segments_by_zone.get(zone_ref, [])
                 interfaces = interfaces_by_zone.get(zone_ref, [])
+                zone_payload = zone_data.get(zone_ref) or {}
                 zones[zone_ref] = {
                     "local": bool(segments) or bool(interfaces),
                     "segments": segments,
                     "interfaces": interfaces,
+                    # From the composed matrix: every prefix the zone holds,
+                    # wherever it is hosted. A permit to a zone this device does
+                    # not host still needs its addresses to become a rule.
+                    "cidrs": list(zone_payload.get("cidrs") or [])
+                    if isinstance(zone_payload, dict)
+                    else [],
                     # firewall4 zone chains are terminal and the base chains
                     # carry policy drop, so a zone's own policy is the whole
                     # default-deny story. Permits are the explicit forwardings
@@ -372,12 +457,19 @@ class OpenwrtZonesCompiler(CompilerPlugin):
                     "input_services": _input_services(segments, interfaces),
                 }
 
-            forwardings, denied = _lower_matrix(matrix, local_zone_refs)
+            forwardings, rules, denied, unroutable = _lower_matrix(
+                matrix,
+                local_zone_refs,
+                zones,
+                _egress_zone_by_remote(interfaces_by_zone),
+            )
 
             openwrt_zones[enforcer_id] = {
                 "scope_ids": plan.get("scope_ids") or [],
                 "zones": zones,
                 "forwardings": forwardings,
+                "rules": rules,
+                "unroutable_permits": unroutable,
                 # Recorded, deliberately not emitted: on firewall4 a denial is
                 # the absence of a forwarding object. Published so the fact is
                 # auditable and E9906 can assert no tunnel-only zone acquired a
@@ -393,8 +485,9 @@ class OpenwrtZonesCompiler(CompilerPlugin):
                     stage=stage,
                     message=(
                         f"Lowered {len(zones)} zone(s) for OpenWrt enforcer '{enforcer_id}': "
-                        f"{len(forwardings)} forwarding(s) to emit, {len(denied)} denied pair(s) "
-                        "left as absent forwardings"
+                        f"{len(forwardings)} forwarding(s) and {len(rules)} rule(s) to emit, "
+                        f"{len(denied)} denied pair(s) left as absent forwardings, "
+                        f"{len(unroutable)} permit(s) to a remote zone with no declared egress path"
                     ),
                     path=f"instance:{enforcer_id}.openwrt_zones",
                 )

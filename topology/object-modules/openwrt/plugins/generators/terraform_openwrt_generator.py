@@ -49,6 +49,7 @@ _TEMPLATES: tuple[tuple[str, str], ...] = (
     ("provider.tf", "terraform/provider.tf.j2"),
     ("variables.tf", "terraform/variables.tf.j2"),
     ("zone_firewall.tf", "terraform/zone_firewall.tf.j2"),
+    ("firewall_rules.tf", "terraform/firewall_rules.tf.j2"),
 )
 
 
@@ -64,6 +65,57 @@ def _zone_name(zone_ref: str, zone: dict[str, Any]) -> str:
     if isinstance(declared, str) and declared.strip():
         return declared.strip()
     return _slug(zone_ref)
+
+
+def _rule_entries(rules: list[Any], zones_in: dict[str, Any], local_refs: set[str]) -> list[dict[str, Any]]:
+    """Flatten lowered permits into renderable firewall_rule entries.
+
+    One entry per protocol. A single match mixing protocols with different port
+    sets would be one wider grant than the matrix expressed, and keeping them
+    separate is also what makes the emitted tuples disjoint (E9902).
+
+    Arity is not cosmetic here: `src_zone` and `dest_zone` are strings in the
+    provider schema while `proto`, `dest_port` and `dest_ip` are lists, and a
+    list where fw4 wants a scalar makes it drop the whole section silently
+    (E9903).
+    """
+    entries: list[dict[str, Any]] = []
+    for rule in rules:
+        if not isinstance(rule, dict):
+            continue
+        src, dest = rule.get("src"), rule.get("dest")
+        if src not in local_refs or dest not in local_refs:
+            continue
+
+        dest_cidrs = [item for item in rule.get("dest_cidrs") or [] if isinstance(item, str)]
+        ports = rule.get("ports") if isinstance(rule.get("ports"), dict) else {}
+
+        protocols = sorted(ports) if ports else [None]
+        for proto in protocols:
+            port_values = [str(port) for port in (ports.get(proto) or [])] if proto else []
+            suffix = f"__{proto}" if proto else ""
+            entries.append(
+                {
+                    "label": f"{_slug(src)}__to__{_slug(rule.get('remote_zone') or dest)}{suffix}",
+                    "name": f"{_zone_name(src, zones_in.get(src) or {})}-to-"
+                    f"{_slug(rule.get('remote_zone') or dest)}{suffix}",
+                    "target": "ACCEPT",
+                    # Strings, per the provider schema.
+                    "src_zone": _zone_name(src, zones_in.get(src) or {}),
+                    "dest_zone": _zone_name(dest, zones_in.get(dest) or {}),
+                    # Lists, per the provider schema.
+                    "proto": [proto] if proto else [],
+                    "dest_port": port_values,
+                    "dest_ip": dest_cidrs,
+                    # Never defaulted by the provider: an absent family means
+                    # IPv4 only, so it is stated rather than assumed.
+                    "family": "ipv4",
+                    "rule": rule.get("rule"),
+                    "reason": rule.get("reason"),
+                    "remote_zone": rule.get("remote_zone"),
+                }
+            )
+    return entries
 
 
 class TerraformOpenwrtGenerator(BaseGenerator):
@@ -159,12 +211,12 @@ class TerraformOpenwrtGenerator(BaseGenerator):
                 severity="info",
                 stage=stage,
                 message=(
-                    f"Rendered {len(render_context['zones'])} zone(s) and "
-                    f"{len(render_context['forwardings'])} forwarding(s) for '{enforcer_id}'. "
-                    f"Not emitted: {deferred['remote_dest']} permit(s) whose destination zone is remote "
-                    "(covered by the tunnel-zone forwarding) and "
-                    f"{deferred['port_scoped']} port-scoped permit(s) that need firewall_rule sections. "
-                    f"{len(plan.get('denied_pairs') or [])} denial(s) emitted as absent forwardings."
+                    f"Rendered {len(render_context['zones'])} zone(s), "
+                    f"{len(render_context['forwardings'])} forwarding(s) and "
+                    f"{len(render_context['rules'])} rule(s) for '{enforcer_id}'. "
+                    f"{len(plan.get('denied_pairs') or [])} denial(s) emitted as absent forwardings; "
+                    f"{len(render_context['unroutable_permits'])} permit(s) to a remote zone had no "
+                    "declared egress path and were not emitted."
                 ),
                 path=f"generator:terraform_openwrt:{enforcer_id}",
             )
@@ -328,8 +380,12 @@ class TerraformOpenwrtGenerator(BaseGenerator):
                 }
             )
 
+        rule_entries = _rule_entries(plan.get("rules") or [], zones_in, local_refs)
+
         context = {
             "enforcer_id": enforcer_id,
+            "rules": rule_entries,
+            "unroutable_permits": plan.get("unroutable_permits") or [],
             "scope_ids": plan.get("scope_ids") or [],
             "zones": zones,
             "forwardings": forwardings,

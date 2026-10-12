@@ -205,8 +205,12 @@ def test_denied_pairs_are_recorded_and_absent_from_forwardings():
     assert (_VPN, _UNTRUSTED) in denied
     assert (_USER, _UNTRUSTED) not in forwardings
     assert (_VPN, _UNTRUSTED) not in forwardings
-    # The permit in the same row still comes through.
-    assert (_USER, _SERVERS) in forwardings
+    # The permit in the same row is not a forwarding either, but for an
+    # unrelated reason: servers is hosted elsewhere, and this fixture declares
+    # no interface that reaches it, so it is reported as unroutable rather than
+    # guessed at.
+    assert (_USER, _SERVERS) not in forwardings
+    assert (_USER, _SERVERS) in {(p["src"], p["dest"]) for p in plan["unroutable_permits"]}
 
 
 def test_an_unknown_action_is_not_a_grant():
@@ -378,3 +382,78 @@ def test_no_terminal_drop_all_is_produced():
     serialized = repr(plan).lower()
     for token in ("drop_all", "drop-all", "final_drop", "place_before"):
         assert token not in serialized
+
+
+def _model_with_tunnel(reaches: list[str] | None = None) -> dict:
+    """A device whose tunnel interface optionally declares what it reaches."""
+    model = _fixture_model()
+    iface = {"name": "wg-home", "trust_zone_ref": _EXIT_ZONE, "enabled": True}
+    if reaches is not None:
+        iface["reaches_zone_refs"] = reaches
+    model["instances"]["devices"][0]["instance_data"] = {
+        "runtime_intent": {"wireguard": {"interfaces": [iface]}}
+    }
+    return model
+
+
+_EXIT_ZONE = "inst.trust_zone.vpn_exit"
+
+
+def _matrix_with_remote_permit(ports: dict | None = None) -> dict:
+    matrix = _fixture_matrix()
+    matrix["rtr-slate"]["zones"][_EXIT_ZONE] = {"security_level": 1, "isolated": True}
+    matrix["rtr-slate"]["zones"][_SERVERS] = {
+        "security_level": 4,
+        "isolated": False,
+        "cidrs": ["10.0.100.0/24"],
+    }
+    cell = _cell("accept", rule="R6")
+    if ports:
+        cell["ports"] = ports
+    matrix["rtr-slate"]["matrix"][_USER] = {_SERVERS: cell}
+    return matrix
+
+
+def test_a_port_scoped_permit_becomes_a_rule_not_a_forwarding():
+    """A forwarding is all-or-nothing between zones, so emitting one for a
+    port-scoped permit would grant every port."""
+    plan = _run(
+        _model_with_tunnel([_SERVERS]),
+        _matrix_with_remote_permit({"tcp": [80, 443]}),
+        _resolution(),
+    )["rtr-slate"]
+
+    assert plan["forwardings"] == []
+    assert len(plan["rules"]) == 1
+    rule = plan["rules"][0]
+    assert rule["ports"] == {"tcp": [80, 443]}
+
+
+def test_a_remote_permit_leaves_through_the_declared_egress_zone():
+    plan = _run(
+        _model_with_tunnel([_SERVERS]),
+        _matrix_with_remote_permit(),
+        _resolution(),
+    )["rtr-slate"]
+
+    rule = plan["rules"][0]
+    assert rule["src"] == _USER
+    # The destination is the local zone the traffic leaves through, restricted
+    # to the remote zone's prefixes - there is no servers zone on this device.
+    assert rule["dest"] == _EXIT_ZONE
+    assert rule["remote_zone"] == _SERVERS
+    assert rule["dest_cidrs"] == ["10.0.100.0/24"]
+
+
+def test_a_remote_permit_without_a_declared_egress_is_reported_not_guessed():
+    """Guessing an interface here would invent a route the compiler cannot see."""
+    plan = _run(
+        _model_with_tunnel(None),
+        _matrix_with_remote_permit({"tcp": [80]}),
+        _resolution(),
+    )["rtr-slate"]
+
+    assert plan["rules"] == []
+    assert plan["forwardings"] == []
+    assert len(plan["unroutable_permits"]) == 1
+    assert plan["unroutable_permits"][0]["missing"] == "egress interface"
