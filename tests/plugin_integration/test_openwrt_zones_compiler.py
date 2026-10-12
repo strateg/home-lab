@@ -351,7 +351,18 @@ def test_an_interface_declaring_no_services_gets_none():
     assert plan["zones"][_USER]["input_services"] == []
 
 
-def test_parked_tunnel_interface_is_not_placed_in_a_zone():
+def test_parked_tunnel_interface_is_still_placed_in_its_zone():
+    """The opposite of the wireless rule, and the asymmetry is in netifd.
+
+    A `wifi-iface` with `disabled '1'` is dropped at parse time, so a parked
+    SSID cannot affect anything and is skipped. A `config interface` with
+    `disabled '1'` stays in uci and is merely left down - and it is rendered, so
+    it is subject to the same zone-coverage rule as any other interface.
+
+    Skipping it here produced exactly one silent failure: enabling a parked
+    country tunnel brought it up into no zone at all, where the nftables base
+    chain's policy drop swallows its traffic with nothing reporting why.
+    """
     model = _fixture_model()
     model["instances"]["devices"][0]["instance_data"] = {
         "runtime_intent": {
@@ -366,8 +377,46 @@ def test_parked_tunnel_interface_is_not_placed_in_a_zone():
 
     plan = _run(model, _fixture_matrix(), _resolution())["rtr-slate"]
 
-    names = [iface["name"] for iface in plan["zones"][_USER]["interfaces"]]
-    assert names == ["wg-home"]
+    interfaces = plan["zones"][_USER]["interfaces"]
+    assert [iface["name"] for iface in interfaces] == ["wg-home", "wg-ru"]
+    # Carried so a consumer can tell the two apart; naming a down interface in
+    # a zone costs nothing, because fw4 resolves each network's devices and a
+    # down one contributes none.
+    assert {iface["name"]: iface["enabled"] for iface in interfaces} == {
+        "wg-home": True,
+        "wg-ru": False,
+    }
+
+
+def test_a_parked_tunnel_does_not_make_a_remote_zone_routable():
+    """Zone membership and egress capability are separate questions.
+
+    A parked tunnel belongs to its zone, but a permit must not lower to a rule
+    pointing through an interface that is down - that would render a grant whose
+    path does not exist.
+    """
+    model = _fixture_model()
+    model["instances"]["devices"][0]["instance_data"] = {
+        "runtime_intent": {
+            "wireguard": {
+                "interfaces": [
+                    {
+                        "name": "wg-ru",
+                        "trust_zone_ref": _USER,
+                        "reaches_zone_refs": ["inst.trust_zone.servers"],
+                        "enabled": False,
+                    }
+                ]
+            }
+        }
+    }
+
+    plan = _run(model, _fixture_matrix(), _resolution())["rtr-slate"]
+
+    parked = next(
+        iface for iface in plan["zones"][_USER]["interfaces"] if iface["name"] == "wg-ru"
+    )
+    assert parked["reaches_zone_refs"] == []
 
 
 def test_no_terminal_drop_all_is_produced():

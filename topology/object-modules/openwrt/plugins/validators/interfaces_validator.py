@@ -56,6 +56,15 @@ def _declared_interfaces(intent: dict[str, Any]) -> list[dict[str, Any]]:
     compiler can only place an interface that named a zone, so an interface
     with no `trust_zone_ref` is invisible there. The omission is exactly what
     E9905 exists to catch.
+
+    Parked interfaces count. They used to be skipped here, by analogy with the
+    wireless rules where skipping is correct - but the analogy is false: a
+    `wifi-iface` with `disabled '1'` is dropped at netifd parse time, while a
+    `config interface` with `disabled '1'` stays in uci and is only left down.
+    A parked interface is rendered, so it is subject to the same coverage rule;
+    exempting it meant a parked tunnel could be enabled later and come up into
+    no zone, where the base chain's policy drop swallows its traffic with no
+    diagnostic anywhere.
     """
     declared: list[dict[str, Any]] = []
 
@@ -63,7 +72,7 @@ def _declared_interfaces(intent: dict[str, Any]) -> list[dict[str, Any]]:
     if isinstance(uplink, dict):
         for role in ("primary", "wired"):
             spec = uplink.get(role)
-            if isinstance(spec, dict) and spec.get("enabled") is not False:
+            if isinstance(spec, dict):
                 declared.append({"source": f"uplink.{role}", "spec": spec})
 
     management = intent.get("management")
@@ -73,7 +82,7 @@ def _declared_interfaces(intent: dict[str, Any]) -> list[dict[str, Any]]:
     wireguard = intent.get("wireguard")
     if isinstance(wireguard, dict):
         for entry in wireguard.get("interfaces") or []:
-            if isinstance(entry, dict) and entry.get("enabled") is not False:
+            if isinstance(entry, dict):
                 declared.append({"source": f"wireguard.{entry.get('name')}", "spec": entry})
 
     return declared

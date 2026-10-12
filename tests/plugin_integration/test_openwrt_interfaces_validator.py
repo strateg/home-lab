@@ -143,9 +143,23 @@ def test_the_same_interface_in_two_zones_is_refused():
     assert "E9905" in _run(intent, _zones())
 
 
-def test_a_parked_interface_needs_no_zone():
+def test_a_parked_interface_still_needs_a_zone():
+    """Parked is not exempt: a `config interface` with `disabled '1'` stays in
+    uci and is rendered, unlike a parked `wifi-iface`, which netifd drops at
+    parse time. Exempting it let a parked tunnel be enabled later and come up
+    into no zone, where the base chain's policy drop swallows its traffic.
+    """
     intent = _intent()
     intent["wireguard"]["interfaces"].append({"name": "wg-ru", "enabled": False})
+
+    assert "E9905" in _run(intent, _zones())
+
+
+def test_a_parked_interface_with_a_rendered_zone_is_accepted():
+    intent = _intent()
+    intent["wireguard"]["interfaces"].append(
+        {"name": "wg-ru", "trust_zone_ref": _EXIT, "enabled": False}
+    )
 
     assert _run(intent, _zones()) == []
 

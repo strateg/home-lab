@@ -1126,6 +1126,86 @@ diagnostic count simply did not move. It was found by `--trace-execution
 artifact in the pipeline that distinguishes "ran and found nothing" from "never
 ran". The infos count moving 165 → 166 is now the evidence that it runs.
 
+### A7.4 Interfaces, wireless and DHCP templates
+
+The generator now renders seven files. `interfaces.tf`, `wireless.tf` and
+`dhcp.tf` are new, and `variables.tf` grew per-resource secret declarations.
+
+Resources reference each other through `.id` attributes rather than repeating
+literal names — that is what makes Terraform order creation. A wifi-iface that
+named its network as a plain string would be created in parallel with the
+interface it needs.
+
+Secrets are **variables, never values**. WireGuard private keys and wireless
+passphrases are both write-only in the provider (the API does not return them),
+so Terraform cannot detect drift on either, and a key in a generated file would
+be a key in the repository. The generator emits one `sensitive` variable per
+such attribute, with no default.
+
+The management interface is rendered with `lifecycle { ignore_changes = [proto,
+ipaddrs, netmask] }`. The section is adopted and kept, never reconfigured from
+here: a write that strands the caller never returns a response, so Terraform
+records nothing (E9904). Changing the management address stays out-of-band.
+
+uci section names fold into Terraform labels (`wg-home` → `wg_home`) because a
+hyphen is not legal in a label. The fold is lossy in principle, so a collision
+is **refused** (E9901) rather than resolved — two resources sharing a label is
+an HCL error at best and a silently dropped resource at worst.
+
+Measured output, all seven files parsing under `terraform fmt`:
+
+```
+13 uapi_network_interface   1 uapi_network_device
+ 2 uapi_wireless_device     8 uapi_wireless_interface
+ 6 uapi_dhcp_server         7 uapi_firewall_zone
+14 uapi_firewall_forwarding 3 uapi_firewall_rule
+```
+
+**Formatting is deliberately not matched.** `terraform fmt` would realign the
+new files. Nothing in this repo runs `terraform fmt` — no task, no CI, no script
+— and the existing MikroTik generator's output is not canonical either, so
+canonicality is not a house invariant and chasing fmt's grouping through Jinja
+conditionals would be fragile for no gain. What *is* pinned is parseability: a
+test renders every template over the real contexts and feeds each result to
+`terraform fmt -`, which exits 2 on a syntax error. Mutation-checked — breaking
+a template's HCL fails that test.
+
+### A7.5 A real defect the rendered output exposed
+
+Cross-checking `firewall_zone.network` against the rendered interface ids —
+the invariant the single-producer design exists to guarantee — found three
+interfaces rendered into **no zone at all**: `wg-de`, `wg-ru`, `wg-se`, the
+parked country tunnels. That is precisely E9905's condition, and E9905 did not
+fire.
+
+Cause: the zone compiler and the interfaces validator both skipped
+`enabled: false` interfaces, while the interfaces compiler renders them. The
+skip was copied from the wireless rules, where it is correct — and the analogy
+is false:
+
+* a `wifi-iface` with `disabled '1'` is **dropped at netifd parse time**, so a
+  parked SSID cannot affect a live radio;
+* a `config interface` with `disabled '1'` **stays in uci** and is merely left
+  down.
+
+Consequence, had it shipped: enabling a country tunnel in topology would bring
+it up into no zone, where the nftables base chain's `policy drop` swallows its
+traffic. Fail-closed, so not a breach — but silent. The SSID would simply get
+nothing, with no diagnostic anywhere and nothing in the rendered config looking
+wrong.
+
+Fixed by including parked interfaces in zone membership (naming a down interface
+in a zone costs nothing: fw4 resolves each network's devices and a down one
+contributes none) and by making E9905 cover them. Zone membership and egress
+capability are kept separate: a parked tunnel belongs to its zone but
+contributes **no** `reaches_zone_refs`, so a permit cannot lower to a rule
+pointing through an interface that is down. Verified: forwarding, rule and
+unroutable-permit counts are unchanged at 14 / 3 / 0, and the coverage
+cross-check now reports nothing in either direction.
+
+Two tests had encoded the old behaviour and were rewritten to state the
+corrected rule and why it differs from the wireless one, rather than flipped.
+
 Stale raiser annotations in the catalog were repointed while registering these:
 `E9903`/`E9902`, `E9904`/`E9905` and `E9908`-`W9901` named
 `base.validator.openwrt_*` plugins that do not exist — the checks live in the

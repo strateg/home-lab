@@ -50,7 +50,22 @@ _TEMPLATES: tuple[tuple[str, str], ...] = (
     ("variables.tf", "terraform/variables.tf.j2"),
     ("zone_firewall.tf", "terraform/zone_firewall.tf.j2"),
     ("firewall_rules.tf", "terraform/firewall_rules.tf.j2"),
+    ("interfaces.tf", "terraform/interfaces.tf.j2"),
+    ("wireless.tf", "terraform/wireless.tf.j2"),
+    ("dhcp.tf", "terraform/dhcp.tf.j2"),
 )
+
+
+def _label(identifier: Any) -> str:
+    """Terraform resource label from a uci section name.
+
+    Section names carry characters a label cannot (`wg-home`), so they are
+    folded rather than used verbatim. The mapping is not injective in principle,
+    which is why the generator refuses a collision (E9901) instead of letting
+    two resources share a label and one silently win.
+    """
+    text = str(identifier)
+    return "".join(char if char.isalnum() or char == "_" else "_" for char in text)
 
 
 def _slug(zone_ref: str) -> str:
@@ -123,6 +138,8 @@ class TerraformOpenwrtGenerator(BaseGenerator):
 
     _ZONES_PLUGIN_ID = "object.openwrt.compiler.zones"
     _ZONES_KEY = "openwrt_zones"
+    _INTERFACES_PLUGIN_ID = "object.openwrt.compiler.interfaces"
+    _INTERFACES_KEY = "openwrt_interfaces"
 
     def template_root(self, ctx: PluginContext) -> Path:
         # Templates live with the object module, not in the global template
@@ -177,6 +194,22 @@ class TerraformOpenwrtGenerator(BaseGenerator):
 
         render_context, deferred = self._build_render_context(enforcer_id, plan)
 
+        # Optional on purpose: the firewall graph is renderable on its own, and a
+        # project whose interface intent is not authored yet should get its zones
+        # rather than nothing. The empty context keeps the templates total -
+        # they run under StrictUndefined, so every key they read must exist.
+        interface_plans = ctx.subscribe(self._INTERFACES_PLUGIN_ID, self._INTERFACES_KEY)
+        interface_plan = (
+            interface_plans.get(enforcer_id) if isinstance(interface_plans, dict) else None
+        )
+        interface_context, interface_diagnostics = self._build_interface_context(
+            interface_plan if isinstance(interface_plan, dict) else {}, stage
+        )
+        diagnostics.extend(interface_diagnostics)
+        if any(item.severity == "error" for item in interface_diagnostics):
+            return self.make_result(diagnostics=diagnostics)
+        render_context.update(interface_context)
+
         out_dir = self.resolve_output_path(ctx, "terraform", "openwrt")
         written: list[str] = []
         planned_outputs: list[dict[str, object]] = []
@@ -212,8 +245,12 @@ class TerraformOpenwrtGenerator(BaseGenerator):
                 stage=stage,
                 message=(
                     f"Rendered {len(render_context['zones'])} zone(s), "
-                    f"{len(render_context['forwardings'])} forwarding(s) and "
-                    f"{len(render_context['rules'])} rule(s) for '{enforcer_id}'. "
+                    f"{len(render_context['forwardings'])} forwarding(s), "
+                    f"{len(render_context['rules'])} rule(s), "
+                    f"{len(render_context['interfaces'])} interface(s), "
+                    f"{len(render_context['wireless_devices'])} radio(s), "
+                    f"{len(render_context['wireless_interfaces'])} wifi-iface(s) and "
+                    f"{len(render_context['dhcp_servers'])} DHCP pool(s) for '{enforcer_id}'. "
                     f"{len(plan.get('denied_pairs') or [])} denial(s) emitted as absent forwardings; "
                     f"{len(render_context['unroutable_permits'])} permit(s) to a remote zone had no "
                     "declared egress path and were not emitted."
@@ -393,3 +430,194 @@ class TerraformOpenwrtGenerator(BaseGenerator):
             "deferred": deferred,
         }
         return context, deferred
+
+    def _build_interface_context(
+        self,
+        interface_plan: dict[str, Any],
+        stage: Stage,
+    ) -> tuple[dict[str, Any], list[PluginDiagnostic]]:
+        """Attach Terraform labels to the lowered interface plan.
+
+        The compiler speaks in uci section names; Terraform needs labels, and the
+        two differ because a section name may carry characters a label cannot
+        (`wg-home`). Folding is therefore lossy in principle, so a collision is
+        refused rather than resolved: two resources sharing a label is an HCL
+        error at best and a silently dropped resource at worst.
+
+        Resources reference each other through `.id` attributes rather than
+        repeating literal names, which is what makes Terraform order creation -
+        a wifi-iface that names its network as a string would be created in
+        parallel with the interface it needs.
+        """
+        diagnostics: list[PluginDiagnostic] = []
+        seen_labels: dict[str, str] = {}
+
+        def claim(identifier: Any, kind: str) -> str | None:
+            label = _label(identifier)
+            previous = seen_labels.get(f"{kind}:{label}")
+            if previous is not None and previous != str(identifier):
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E9901",
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            f"uci sections '{previous}' and '{identifier}' both fold to the Terraform "
+                            f"label '{label}' for {kind}. Two resources sharing a label cannot both be "
+                            "rendered, and whichever came second would be dropped. Rename one section."
+                        ),
+                        path=f"generator:terraform_openwrt:{kind}:{identifier}",
+                    )
+                )
+                return None
+            seen_labels[f"{kind}:{label}"] = str(identifier)
+            return label
+
+        interfaces: list[dict[str, Any]] = []
+        interface_labels: dict[str, str] = {}
+        secret_variables: list[dict[str, str]] = []
+
+        # Templates run under StrictUndefined, so every key a template reads has
+        # to exist on every entry. Filling them here rather than reaching for
+        # `.get()` inside Jinja keeps the "which fields does this resource
+        # have?" question answerable by reading this file, and means a template
+        # that reads a field nobody lowers fails loudly instead of rendering a
+        # blank.
+        interface_defaults = {
+            "device": None,
+            "ipaddrs": [],
+            "netmask": None,
+            "mtu": None,
+            "disabled": False,
+            "immutable": False,
+            "wireless_iface": None,
+            "kind": "segment",
+        }
+
+        for item in interface_plan.get("interfaces") or []:
+            if not isinstance(item, dict):
+                continue
+            label = claim(item.get("id"), "interface")
+            if label is None:
+                continue
+            interface_labels[str(item["id"])] = label
+            interfaces.append({**interface_defaults, **item, "label": label})
+            if item.get("kind") == "wireguard":
+                secret_variables.append(
+                    {
+                        "name": f"{label}_private_key",
+                        "description": (
+                            f"WireGuard private key for {item['id']}. Write-only in the provider: "
+                            "the API never returns it, so Terraform cannot detect drift on it."
+                        ),
+                    }
+                )
+
+        bridge_devices = []
+        for item in interface_plan.get("devices") or []:
+            if not isinstance(item, dict):
+                continue
+            label = claim(item.get("id"), "device")
+            if label is not None:
+                bridge_devices.append({"type": "bridge", "ports": [], **item, "label": label})
+
+        radios: list[dict[str, Any]] = []
+        radio_labels: dict[str, str] = {}
+        for item in interface_plan.get("wireless_devices") or []:
+            if not isinstance(item, dict):
+                continue
+            label = claim(item.get("id"), "radio")
+            if label is None:
+                continue
+            radio_labels[str(item["id"])] = label
+            radios.append(
+                {
+                    "band": None,
+                    "channel": None,
+                    "htmode": None,
+                    "country": None,
+                    "disabled": False,
+                    **item,
+                    "label": label,
+                }
+            )
+
+        wifi_ifaces: list[dict[str, Any]] = []
+        stations_by_radio: set[str] = {
+            str(item.get("device"))
+            for item in interface_plan.get("wireless_interfaces") or []
+            if isinstance(item, dict) and item.get("mode") == "sta" and not item.get("disabled")
+        }
+        sharing: list[str] = []
+
+        for item in interface_plan.get("wireless_interfaces") or []:
+            if not isinstance(item, dict):
+                continue
+            label = claim(item.get("id"), "wifi_iface")
+            device_label = radio_labels.get(str(item.get("device")))
+            network_label = interface_labels.get(str(item.get("network")))
+            if label is None or device_label is None or network_label is None:
+                # A wifi-iface whose radio or network did not render has nothing
+                # to reference. E9912 already refused an unknown network at
+                # compile time, so reaching here means a label collision above.
+                continue
+            if (
+                item.get("mode") == "ap"
+                and not item.get("disabled")
+                and str(item.get("device")) in stations_by_radio
+            ):
+                sharing.append(str(item["id"]))
+            if item.get("encryption"):
+                secret_variables.append(
+                    {
+                        "name": f"{label}_key",
+                        "description": (
+                            f"Passphrase for SSID {item.get('ssid') or item['id']}. Write-only in "
+                            "the provider: the API never returns it."
+                        ),
+                    }
+                )
+            wifi_ifaces.append(
+                {
+                    "mode": None,
+                    "ssid": None,
+                    "encryption": None,
+                    "disabled": False,
+                    **item,
+                    "label": label,
+                    "device_label": device_label,
+                    "network_label": network_label,
+                }
+            )
+
+        dhcp_servers: list[dict[str, Any]] = []
+        for item in interface_plan.get("dhcp_servers") or []:
+            if not isinstance(item, dict):
+                continue
+            label = claim(item.get("id"), "dhcp")
+            interface_label = interface_labels.get(str(item.get("interface")))
+            if label is None or interface_label is None:
+                continue
+            dhcp_servers.append(
+                {
+                    "start": None,
+                    "limit": None,
+                    "leasetime": None,
+                    "ignore": False,
+                    **item,
+                    "label": label,
+                    "interface_label": interface_label,
+                }
+            )
+
+        context = {
+            "interfaces": interfaces,
+            "bridge_devices": bridge_devices,
+            "wireless_devices": radios,
+            "wireless_interfaces": wifi_ifaces,
+            "ap_sharing_radio_with_station": sorted(sharing),
+            "dhcp_servers": dhcp_servers,
+            "deferred_interfaces": list(interface_plan.get("deferred") or []),
+            "secret_variables": sorted(secret_variables, key=lambda item: item["name"]),
+        }
+        return context, diagnostics

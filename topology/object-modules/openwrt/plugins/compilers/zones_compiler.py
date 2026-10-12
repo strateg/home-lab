@@ -155,6 +155,16 @@ def _local_interfaces(row: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
     client prefix, and `uapi_firewall_zone` has no `device` or `subnet` field -
     only `network` - so each must be a named interface inside some zone or it
     belongs to none and is silently unreachable.
+
+    Parked interfaces are included, not skipped. This is the opposite of the
+    rule for wireless, and the asymmetry is in netifd rather than in taste: a
+    `wifi-iface` with `disabled '1'` is dropped at parse time, so a parked SSID
+    cannot affect anything, while a `config interface` with `disabled '1'` stays
+    in uci and is merely left down. Naming a down interface in a zone costs
+    nothing - fw4 resolves each network's devices and a down one contributes
+    none - and it is what makes enabling a parked country tunnel a one-line
+    topology change instead of a change that brings the tunnel up into no zone
+    at all, where the base chain's policy drop silently swallows its traffic.
     """
     data = row.get("instance_data")
     if not isinstance(data, dict):
@@ -173,7 +183,7 @@ def _local_interfaces(row: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
     if isinstance(uplink, dict):
         for role in ("primary", "wired"):
             spec = uplink.get(role)
-            if not isinstance(spec, dict) or spec.get("enabled") is False:
+            if not isinstance(spec, dict):
                 continue
             name = spec.get("interface")
             if not isinstance(name, str) or not name:
@@ -185,6 +195,7 @@ def _local_interfaces(row: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
                     "kind": "uplink",
                     "role": role,
                     "proto": spec.get("proto"),
+                    "enabled": spec.get("enabled") is not False,
                     "immutable": False,
                 },
             )
@@ -213,11 +224,12 @@ def _local_interfaces(row: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
     wireguard = intent.get("wireguard")
     if isinstance(wireguard, dict):
         for entry in wireguard.get("interfaces") or []:
-            if not isinstance(entry, dict) or entry.get("enabled") is False:
+            if not isinstance(entry, dict):
                 continue
             name = entry.get("name")
             if not isinstance(name, str) or not name:
                 continue
+            enabled = entry.get("enabled") is not False
             add(
                 entry.get("trust_zone_ref"),
                 {
@@ -225,8 +237,13 @@ def _local_interfaces(row: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
                     "kind": "wireguard",
                     "mtu": entry.get("mtu"),
                     "advertises": entry.get("advertises") or [],
-                    "reaches_zone_refs": entry.get("reaches_zone_refs") or [],
+                    # Only a live tunnel contributes an egress path. A parked
+                    # one belongs to its zone but must not make a remote zone
+                    # look routable, or a permit would lower to a rule pointing
+                    # at an interface that is down.
+                    "reaches_zone_refs": (entry.get("reaches_zone_refs") or []) if enabled else [],
                     "exit_mode": entry.get("exit_mode"),
+                    "enabled": enabled,
                     "immutable": False,
                 },
             )

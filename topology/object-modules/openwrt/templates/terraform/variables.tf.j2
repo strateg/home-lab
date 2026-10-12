@@ -24,3 +24,23 @@ variable "uapi_insecure" {
     source-IP scoped. Set false once a trusted certificate is in place.
   EOT
 }
+{% if secret_variables %}
+
+# ---------------------------------------------------------------------------
+# Per-resource secrets.
+#
+# Declared without defaults and marked sensitive, so a value never enters a
+# generated file and never appears in plan output. WireGuard private keys and
+# wireless passphrases are both write-only in the provider - the API does not
+# return them - so Terraform cannot detect drift on either, and a changed value
+# is only applied when the variable changes.
+# ---------------------------------------------------------------------------
+{% for secret in secret_variables %}
+
+variable "{{ secret.name }}" {
+  type        = string
+  sensitive   = true
+  description = "{{ secret.description }}"
+}
+{% endfor %}
+{% endif %}

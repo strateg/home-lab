@@ -173,6 +173,7 @@ plugins:
     migration_mode: migrated
     depends_on:
       - object.openwrt.compiler.zones
+      - object.openwrt.compiler.interfaces
     timeout: 30
     execution_mode: subinterpreter
     consumes:
@@ -182,6 +183,12 @@ plugins:
       - key: openwrt_zones
         from_plugin: object.openwrt.compiler.zones
         required: true
+      # Optional on purpose: the firewall graph is renderable on its own, so a
+      # project whose interface intent is not authored yet gets its zones rather
+      # than nothing at all.
+      - key: openwrt_interfaces
+        from_plugin: object.openwrt.compiler.interfaces
+        required: false
     config: {}
     config_schema:
       type: object

@@ -184,3 +184,309 @@ def test_zone_policies_are_carried_verbatim():
         assert zone["input"] == "REJECT"
         assert zone["forward"] == "REJECT"
         assert zone["output"] == "ACCEPT"
+
+
+# --------------------------------------------------------------------------
+# _build_interface_context: labels, cross-references and secrets
+#
+# The compiler speaks in uci section names; Terraform needs labels, and the two
+# differ because a section name may carry characters a label cannot (`wg-home`).
+# Folding is lossy in principle, so a collision has to be refused rather than
+# resolved - two resources sharing a label is an HCL error at best and a
+# silently dropped resource at worst.
+# --------------------------------------------------------------------------
+
+
+def _interface_plan(**overrides) -> dict:
+    plan = {
+        "devices": [{"id": "br-lan", "name": "br-lan", "type": "bridge", "ports": ["lan1", "lan2"]}],
+        "interfaces": [
+            {
+                "id": "lan",
+                "kind": "management",
+                "proto": "static",
+                "device": "br-lan",
+                "ipaddrs": ["192.168.1.1"],
+                "netmask": "255.255.255.0",
+                "immutable": True,
+                "endpoint_arrives_here": True,
+                "disabled": False,
+            },
+            {
+                "id": "wwan",
+                "kind": "uplink",
+                "proto": "dhcp",
+                "wireless_iface": "uplink",
+                "disabled": False,
+            },
+            {
+                "id": "wg-home",
+                "kind": "wireguard",
+                "proto": "wireguard",
+                "ipaddrs": ["10.100.0.4"],
+                "netmask": "255.255.255.0",
+                "mtu": 1420,
+                "disabled": False,
+            },
+            {
+                "id": "slate_home",
+                "kind": "segment",
+                "proto": "static",
+                "ipaddrs": ["10.77.1.1"],
+                "netmask": "255.255.255.0",
+                "mtu": 1420,
+                "disabled": False,
+            },
+        ],
+        "wireless_devices": [
+            {"id": "radio0", "type": "mac80211", "band": "5g", "channel": 36, "country": "EE"},
+            {"id": "radio1", "type": "mac80211", "band": "2g", "channel": 0, "country": "EE"},
+        ],
+        "wireless_interfaces": [
+            {
+                "id": "ap_home",
+                "device": "radio0",
+                "mode": "ap",
+                "ssid": "Slate-Home",
+                "encryption": "sae-mixed",
+                "network": "slate_home",
+                "disabled": False,
+            },
+            {
+                "id": "uplink",
+                "device": "radio1",
+                "mode": "sta",
+                "network": "wwan",
+                "disabled": False,
+            },
+        ],
+        "dhcp_servers": [
+            {"id": "dhcp_slate_home", "interface": "slate_home", "start": 100, "limit": 101, "ignore": False}
+        ],
+        "deferred": ["wireguard_peers (keys live in SOPS)"],
+    }
+    plan.update(overrides)
+    return plan
+
+
+def _interface_context(**overrides):
+    generator = MODULE.TerraformOpenwrtGenerator(GENERATOR_ID)
+    from kernel.plugin_base import Stage  # noqa: PLC0415
+
+    return generator._build_interface_context(_interface_plan(**overrides), Stage.GENERATE)
+
+
+def test_section_names_fold_into_terraform_labels():
+    context, diagnostics = _interface_context()
+
+    assert diagnostics == []
+    labels = {item["id"]: item["label"] for item in context["interfaces"]}
+    # The hyphen is not legal in a label and must be folded.
+    assert labels["wg-home"] == "wg_home"
+    # Everything else keeps its name, so the rendered file stays readable.
+    assert labels["lan"] == "lan"
+
+
+def test_colliding_labels_are_refused_rather_than_resolved():
+    """`wg-home` and `wg_home` are two sections and one label."""
+    plan = _interface_plan()
+    plan["interfaces"].append({"id": "wg_home", "kind": "wireguard", "proto": "wireguard"})
+
+    generator = MODULE.TerraformOpenwrtGenerator(GENERATOR_ID)
+    from kernel.plugin_base import Stage  # noqa: PLC0415
+
+    _, diagnostics = generator._build_interface_context(plan, Stage.GENERATE)
+
+    assert [item.code for item in diagnostics] == ["E9901"]
+    assert "fold to the Terraform label" in diagnostics[0].message
+
+
+def test_wifi_iface_references_its_radio_and_network_by_label():
+    """References, not literal strings, are what make Terraform order creation.
+
+    A wifi-iface naming its network as a plain string would be created in
+    parallel with the interface it needs.
+    """
+    context, _ = _interface_context()
+
+    ap = next(item for item in context["wireless_interfaces"] if item["id"] == "ap_home")
+    assert ap["device_label"] == "radio0"
+    assert ap["network_label"] == "slate_home"
+
+
+def test_dhcp_pool_references_its_interface_by_label():
+    context, _ = _interface_context()
+
+    pool = context["dhcp_servers"][0]
+    assert pool["interface_label"] == "slate_home"
+
+
+def test_secrets_become_variables_not_values():
+    """A write-only attribute cannot be read back, so Terraform sees no drift on
+    it - and a key in a generated file would be a key in the repository."""
+    context, _ = _interface_context()
+
+    names = {item["name"] for item in context["secret_variables"]}
+    assert "wg_home_private_key" in names
+    assert "ap_home_key" in names
+    # The station has no encryption, so it contributes no passphrase variable.
+    assert "uplink_key" not in names
+
+
+def test_an_unencrypted_wifi_iface_contributes_no_key_variable():
+    plan = _interface_plan()
+    for item in plan["wireless_interfaces"]:
+        item.pop("encryption", None)
+
+    generator = MODULE.TerraformOpenwrtGenerator(GENERATOR_ID)
+    from kernel.plugin_base import Stage  # noqa: PLC0415
+
+    context, _ = generator._build_interface_context(plan, Stage.GENERATE)
+
+    assert [item["name"] for item in context["secret_variables"]] == ["wg_home_private_key"]
+
+
+def test_every_template_key_is_present_on_every_entry():
+    """Templates run under StrictUndefined, so a missing key is a crash.
+
+    The management and uplink interfaces carry no `mtu` and the pools carry no
+    `leasetime`; filling the defaults in the generator is what keeps rendering
+    total. This is the defect that surfaced as
+    `'dict object' has no attribute 'mtu'`.
+    """
+    context, _ = _interface_context()
+
+    for item in context["interfaces"]:
+        for key in ("device", "ipaddrs", "netmask", "mtu", "disabled", "immutable", "kind"):
+            assert key in item, (item["id"], key)
+    for item in context["wireless_devices"]:
+        for key in ("band", "channel", "htmode", "country", "disabled"):
+            assert key in item, (item["id"], key)
+    for item in context["wireless_interfaces"]:
+        for key in ("mode", "ssid", "encryption", "disabled"):
+            assert key in item, (item["id"], key)
+    for item in context["dhcp_servers"]:
+        for key in ("start", "limit", "leasetime", "ignore"):
+            assert key in item, (item["id"], key)
+
+
+def test_ap_sharing_a_radio_with_a_live_station_is_reported():
+    plan = _interface_plan()
+    plan["wireless_interfaces"][1]["device"] = "radio0"
+
+    generator = MODULE.TerraformOpenwrtGenerator(GENERATOR_ID)
+    from kernel.plugin_base import Stage  # noqa: PLC0415
+
+    context, _ = generator._build_interface_context(plan, Stage.GENERATE)
+
+    assert context["ap_sharing_radio_with_station"] == ["ap_home"]
+
+
+def test_a_parked_station_does_not_couple_the_aps_on_its_radio():
+    """netifd drops a `wifi-iface` with `disabled '1'` at parse time, so a
+    parked station sets no ap_start_disabled."""
+    plan = _interface_plan()
+    plan["wireless_interfaces"][1]["device"] = "radio0"
+    plan["wireless_interfaces"][1]["disabled"] = True
+
+    generator = MODULE.TerraformOpenwrtGenerator(GENERATOR_ID)
+    from kernel.plugin_base import Stage  # noqa: PLC0415
+
+    context, _ = generator._build_interface_context(plan, Stage.GENERATE)
+
+    assert context["ap_sharing_radio_with_station"] == []
+
+
+def test_an_absent_interface_plan_yields_a_total_context():
+    """The firewall graph is renderable on its own, so a project with no
+    interface intent must get its zones rather than a crash."""
+    generator = MODULE.TerraformOpenwrtGenerator(GENERATOR_ID)
+    from kernel.plugin_base import Stage  # noqa: PLC0415
+
+    context, diagnostics = generator._build_interface_context({}, Stage.GENERATE)
+
+    assert diagnostics == []
+    for key in (
+        "interfaces",
+        "bridge_devices",
+        "wireless_devices",
+        "wireless_interfaces",
+        "dhcp_servers",
+        "secret_variables",
+        "deferred_interfaces",
+        "ap_sharing_radio_with_station",
+    ):
+        assert context[key] == [], key
+
+
+# --------------------------------------------------------------------------
+# The templates must emit parseable HCL.
+#
+# Every test above checks a render *decision*. None of them would catch a
+# template that produces syntactically invalid Terraform - an unbalanced brace,
+# a trailing comma, a list rendered where a scalar belongs - because the context
+# would still be correct. This renders every template over the real contexts and
+# hands the result to `terraform fmt -`, which parses and exits 2 on a syntax
+# error (and 0 on valid input, whether or not it would realign it).
+#
+# Formatting is deliberately NOT asserted. Nothing in this repo runs
+# `terraform fmt`, and the existing MikroTik generator's output is not canonical
+# either, so matching fmt's alignment is not a house invariant - chasing it
+# through Jinja conditionals would be fragile for no gain.
+# --------------------------------------------------------------------------
+
+
+def _render_all():
+    import jinja2  # noqa: PLC0415
+    from kernel.plugin_base import Stage  # noqa: PLC0415
+
+    template_dir = V5_ROOT / "topology" / "object-modules" / "openwrt" / "templates"
+    env = jinja2.Environment(
+        loader=jinja2.FileSystemLoader(str(template_dir)),
+        undefined=jinja2.StrictUndefined,
+        keep_trailing_newline=True,
+    )
+
+    generator = MODULE.TerraformOpenwrtGenerator(GENERATOR_ID)
+    context, diagnostics = generator._build_render_context("rtr-slate", _plan())
+    assert isinstance(context, dict)
+    interface_context, interface_diagnostics = generator._build_interface_context(
+        _interface_plan(), Stage.GENERATE
+    )
+    assert interface_diagnostics == []
+    context.update(interface_context)
+
+    rendered = {}
+    for filename, template_name in MODULE._TEMPLATES:
+        rendered[filename] = env.get_template(template_name).render(**context)
+    return rendered
+
+
+def test_every_template_renders_under_strict_undefined():
+    """A key a template reads but nothing lowers must fail here, not at build."""
+    rendered = _render_all()
+
+    assert set(rendered) == {filename for filename, _ in MODULE._TEMPLATES}
+    for filename, content in rendered.items():
+        assert content.strip(), filename
+
+
+def test_rendered_templates_are_parseable_hcl():
+    import shutil  # noqa: PLC0415
+    import subprocess  # noqa: PLC0415
+
+    import pytest  # noqa: PLC0415
+
+    terraform = shutil.which("terraform") or shutil.which("tofu")
+    if terraform is None:
+        pytest.skip("no terraform/tofu binary available to parse the rendered HCL")
+
+    for filename, content in _render_all().items():
+        completed = subprocess.run(
+            [terraform, "fmt", "-"],
+            input=content,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert completed.returncode == 0, f"{filename} is not parseable HCL:\n{completed.stderr}"
