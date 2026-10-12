@@ -139,6 +139,53 @@ def _build_proxmox_values(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _build_openwrt_values(payload: dict[str, Any]) -> dict[str, Any]:
+    """Variables for the OpenWrt (uapi) root.
+
+    The variable names are not chosen here: the generator derives them from uci
+    section names, folding characters a Terraform label cannot carry. This
+    builder is the one place that records how those names map onto the secret
+    tree, which is why the mapping belongs in the repository rather than in
+    whatever shell produced a tfvars by hand.
+    """
+    uapi = _require_mapping(payload.get("uapi"), path="uapi")
+    wifi = _require_mapping(payload.get("wifi"), path="wifi")
+    wireguard = _require_mapping(payload.get("wireguard"), path="wireguard")
+
+    values: dict[str, Any] = {
+        "uapi_endpoint": _require_scalar(uapi.get("endpoint"), path="uapi.endpoint"),
+        "uapi_token": _require_scalar(uapi.get("token"), path="uapi.token"),
+        "uapi_insecure": bool(uapi.get("insecure", True)),
+    }
+
+    # wifi-iface section `ap_home` -> variable `ap_home_key` -> secret
+    # `wifi.slate_home_passphrase`. The three SSIDs shared with Chateau take
+    # Chateau's own passphrases, because a client caches one PSK per SSID.
+    for section, secret in (
+        ("ap_home", "slate_home_passphrase"),
+        ("ap_split", "slate_split_passphrase"),
+        ("ap_guest", "slate_guest_passphrase"),
+        ("ap_de", "vpn_germany_passphrase"),
+        ("ap_ru", "vpn_russia_passphrase"),
+        ("ap_se", "vpn_sweden_passphrase"),
+    ):
+        values[f"{section}_key"] = _require_scalar(wifi.get(secret), path=f"wifi.{secret}")
+
+    for section in ("wg_home", "wg_de", "wg_ru", "wg_se"):
+        tunnel = _require_mapping(wireguard.get(section), path=f"wireguard.{section}")
+        values[f"{section}_private_key"] = _require_scalar(
+            tunnel.get("private_key"), path=f"wireguard.{section}.private_key"
+        )
+        values[f"peer_{section}_public_key"] = _require_scalar(
+            tunnel.get("peer_public_key"), path=f"wireguard.{section}.peer_public_key"
+        )
+        values[f"peer_{section}_endpoint_host"] = _require_scalar(
+            tunnel.get("peer_endpoint_host"), path=f"wireguard.{section}.peer_endpoint_host"
+        )
+
+    return values
+
+
 def _build_mikrotik_values(payload: dict[str, Any]) -> dict[str, Any]:
     mikrotik = _require_mapping(payload.get("mikrotik"), path="mikrotik")
     wireguard = _require_mapping(payload.get("wireguard"), path="wireguard")
@@ -250,6 +297,8 @@ def _build_values(target: str, payload: dict[str, Any]) -> dict[str, Any]:
         return _build_proxmox_values(payload)
     if target == "mikrotik":
         return _build_mikrotik_values(payload)
+    if target == "openwrt":
+        return _build_openwrt_values(payload)
     raise RuntimeError(f"Unsupported target: {target}")
 
 
@@ -320,7 +369,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Generate terraform.tfvars from SOPS-encrypted YAML secrets.")
     parser.add_argument(
         "target",
-        choices=["proxmox", "mikrotik", "all"],
+        choices=["proxmox", "mikrotik", "openwrt", "all"],
         help="Terraform target name (or 'all' for both).",
     )
     parser.add_argument(
@@ -330,7 +379,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    targets = ["proxmox", "mikrotik"] if args.target == "all" else [args.target]
+    targets = ["proxmox", "mikrotik", "openwrt"] if args.target == "all" else [args.target]
     action = _cleanup_tfvars if args.cleanup else _generate_tfvars
 
     exit_code = 0
