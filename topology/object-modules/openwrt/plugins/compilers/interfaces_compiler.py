@@ -678,6 +678,13 @@ class OpenwrtInterfacesCompiler(CompilerPlugin):
                     "mode": spec.get("mode"),
                     "ssid": spec.get("ssid"),
                     "encryption": spec.get("encryption"),
+                    # A venue credential is supplied per trip, not authored:
+                    # ssid, encryption and passphrase all become variables.
+                    # Carried as a flag rather than inferred from an absent
+                    # ssid, because "no ssid yet" and "the operator supplies
+                    # the ssid" are different statements and only the second
+                    # one should render variable references.
+                    "operator_supplied": spec.get("credentials") == "operator_supplied",
                     # Scalar, per the schema: one SSID, one network.
                     "network": network,
                     # Rendered, not omitted: a parked AP that Terraform does not

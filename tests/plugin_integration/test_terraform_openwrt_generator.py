@@ -695,3 +695,72 @@ def test_routing_entries_carry_every_key_the_template_reads():
             "interface_label",
         ):
             assert key in item, (item["id"], key)
+
+
+# --------------------------------------------------------------------------
+# A venue credential is operator-supplied, not topology
+#
+# A hotel SSID written into an instance file would make every change of
+# location a topology edit plus a commit, and would record as a durable fact
+# something true for one week. The stable fact is that the station takes its
+# credential from the operator, so ssid, encryption AND passphrase all render
+# as variables.
+# --------------------------------------------------------------------------
+
+
+def _station_context(**overrides):
+    from kernel.plugin_base import Stage  # noqa: PLC0415
+
+    station = {
+        "id": "uplink",
+        "device": "radio1",
+        "mode": "sta",
+        "network": "wwan",
+        "disabled": False,
+    }
+    station.update(overrides)
+    plan = _interface_plan()
+    plan["wireless_interfaces"] = [station]
+    generator = MODULE.TerraformOpenwrtGenerator(GENERATOR_ID)
+    return generator._build_interface_context(plan, Stage.GENERATE)
+
+
+def test_an_operator_supplied_station_renders_all_three_as_variables():
+    context, diagnostics = _station_context(operator_supplied=True)
+
+    assert diagnostics == []
+    names = {item["name"] for item in context["secret_variables"]}
+    assert {"uplink_ssid", "uplink_encryption", "uplink_key"} <= names
+
+
+def test_encryption_is_a_variable_too_because_a_venue_may_be_open():
+    """none, psk2 or sae is not knowable in advance, so it cannot be authored."""
+    context, _ = _station_context(operator_supplied=True)
+
+    description = next(
+        item["description"]
+        for item in context["secret_variables"]
+        if item["name"] == "uplink_encryption"
+    )
+    assert "none" in description and "psk2" in description
+
+
+def test_a_station_without_the_flag_declares_no_credential_variables():
+    """Absent is not the same as operator-supplied: a station with no ssid and
+    no flag is simply unconfigured, and must not render variable references to
+    values nobody supplies."""
+    context, _ = _station_context()
+
+    names = {item["name"] for item in context["secret_variables"]}
+    assert not {"uplink_ssid", "uplink_encryption", "uplink_key"} & names
+
+
+def test_an_authored_ap_still_takes_only_a_key_variable():
+    """The flag must not change how an ordinary AP is rendered."""
+    context, _ = _station_context(
+        id="ap_home", mode="ap", ssid="Slate-Home", encryption="sae-mixed", device="radio0"
+    )
+
+    names = {item["name"] for item in context["secret_variables"]}
+    assert "ap_home_key" in names
+    assert "ap_home_ssid" not in names

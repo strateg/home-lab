@@ -645,7 +645,25 @@ class TerraformOpenwrtGenerator(BaseGenerator):
                 and str(item.get("device")) in stations_by_radio
             ):
                 sharing.append(str(item["id"]))
-            if item.get("encryption"):
+            if item.get("operator_supplied"):
+                # The whole credential is per-trip, so all three fields are
+                # variables. `encryption` among them because a venue may be
+                # open, psk2 or sae and that is not knowable in advance.
+                for field, what in (
+                    ("ssid", "SSID of the network this station joins"),
+                    ("encryption", "encryption mode of that network (none, psk2, sae, ...)"),
+                    ("key", "passphrase for that network, empty for an open one"),
+                ):
+                    secret_variables.append(
+                        {
+                            "name": f"{label}_{field}",
+                            "description": (
+                                f"{what}, for station '{item['id']}'. Operator-supplied per trip: "
+                                "a venue is not topology."
+                            ),
+                        }
+                    )
+            elif item.get("encryption"):
                 secret_variables.append(
                     {
                         "name": f"{label}_key",
@@ -660,6 +678,7 @@ class TerraformOpenwrtGenerator(BaseGenerator):
                     "mode": None,
                     "ssid": None,
                     "encryption": None,
+                    "operator_supplied": False,
                     "disabled": False,
                     **item,
                     "label": label,

@@ -96,10 +96,19 @@ resource "uapi_wireless_interface" "{{ iface.label }}" {
 {% if iface.mode %}
   mode = "{{ iface.mode }}"
 {% endif %}
-{% if iface.ssid %}
+{% if iface.operator_supplied %}
+
+  # Venue credential, supplied per trip from SOPS rather than authored. A hotel
+  # is not topology: the stable fact is that this station takes its credential
+  # from the operator, and that is what the instance declares.
+  ssid       = var.{{ iface.label }}_ssid
+  encryption = var.{{ iface.label }}_encryption
+  key        = var.{{ iface.label }}_key
+{% endif %}
+{% if iface.ssid and not iface.operator_supplied %}
   ssid = "{{ iface.ssid }}"
 {% endif %}
-{% if iface.encryption %}
+{% if iface.encryption and not iface.operator_supplied %}
   encryption = "{{ iface.encryption }}"
 
   # Write-only in the provider and never returned by the API, so it is a

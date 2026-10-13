@@ -297,6 +297,21 @@ runtime_intent:
       - name: uplink
         device: radio1
         mode: sta
+        # The venue is operator-supplied, per trip: SSID, encryption and
+        # passphrase come from secrets/terraform/openwrt.yaml and are rendered
+        # as variables, not authored here.
+        #
+        # A hotel is not topology. Writing a specific venue into this file would
+        # make every change of location a topology edit plus a commit, and would
+        # record as a durable fact something true for one week. The stable fact
+        # is the one stated here: this interface takes its credential from the
+        # operator.
+        #
+        # One SSID at a time is a hard limit, not a simplification: a second sta
+        # on this radio violates the phy's '#{ managed } <= 1' (E9910), and
+        # travelmate - which manages a candidate list - was rejected during the
+        # wireless research.
+        credentials: operator_supplied
         network: wwan
         # SSID and credentials are per venue and deliberately absent from
         # topology: they are neither durable infrastructure nor secrets worth

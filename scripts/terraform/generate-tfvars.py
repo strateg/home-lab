@@ -171,6 +171,23 @@ def _build_openwrt_values(payload: dict[str, Any]) -> dict[str, Any]:
     ):
         values[f"{section}_key"] = _require_scalar(wifi.get(secret), path=f"wifi.{secret}")
 
+    # The station uplink's credential is per-trip venue data, not topology, so
+    # all three fields come from here. `uplink_encryption` is among them because
+    # a venue may be open, psk2 or sae and that is not knowable in advance.
+    values["uplink_ssid"] = _require_scalar(
+        wifi.get("uplink_ssid"), path="wifi.uplink_ssid"
+    )
+    values["uplink_encryption"] = _require_scalar(
+        wifi.get("uplink_encryption"), path="wifi.uplink_encryption"
+    )
+    # Deliberately not _require_scalar: an open venue has no passphrase, and an
+    # empty string is a legitimate value that a "must be non-empty" check would
+    # refuse.
+    uplink_key = wifi.get("uplink_passphrase")
+    if uplink_key is None:
+        raise RuntimeError("wifi.uplink_passphrase is required (use \"\" for an open network)")
+    values["uplink_key"] = str(uplink_key)
+
     for section in ("wg_home", "wg_de", "wg_ru", "wg_se"):
         tunnel = _require_mapping(wireguard.get(section), path=f"wireguard.{section}")
         values[f"{section}_private_key"] = _require_scalar(
