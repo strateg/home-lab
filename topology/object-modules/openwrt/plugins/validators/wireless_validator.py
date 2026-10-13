@@ -17,6 +17,9 @@ them fails in a way that looks like broken hardware rather than broken config:
   the same phy is `start_disabled` until then and follows it. A warning, not an
   error: the declaration is misleading rather than broken. It replaces a
   withdrawn error code - see the comment below this docstring.
+* **E9921** - a radio mixing access point and station roles, or carrying
+  interfaces whose modes disagree with its declared `role`. A radio is one or
+  the other; see the note on parked interfaces below.
 * **E9910** - two station interfaces on one radio, against the
   `#{ managed } <= 1` the phy advertises. This is the actual misconfiguration
   behind the upstream "Device is not active" reports, which were widely read as
@@ -29,9 +32,16 @@ them fails in a way that looks like broken hardware rather than broken config:
   legitimate fallback for venues with no 2.4 GHz - it just must not be the
   standing configuration.
 
-Disabled interfaces are skipped for the AP/station-interaction rules: a
-`wifi-iface` with `disabled '1'` is dropped at parse time, so a parked section
-cannot affect a live radio.
+Disabled interfaces are skipped for the **runtime** rules - E9910, W9901,
+W9904 - because a `wifi-iface` with `disabled '1'` is dropped at parse time and
+a parked section cannot affect a live radio.
+
+E9921 is the exception and deliberately so: it asks a *declaration* question,
+not a runtime one. A station declared on an AP radio is a contradiction in the
+data whether or not it is enabled, and leaving it there means the device is one
+flag away from silencing every AP on that phy. That state existed - `uplink5`
+sat parked on radio0 beside six APs, the same radio declared `role: ap_only`,
+and nothing read `role` at all.
 """
 
 # W9904 replaces E9909, withdrawn 2026-10-12 having never fired. That code
@@ -150,11 +160,91 @@ class OpenwrtWirelessValidator(ValidatorJsonPlugin):
             access_points = [entry for entry in live if entry.get("mode") == "ap"]
 
             diagnostics.extend(
+                self._check_role(instance_id, radio_name, radio, members, stage)
+            )
+            diagnostics.extend(
                 self._check_country(instance_id, radio_name, radio, access_points, stage)
             )
             diagnostics.extend(self._check_channel(instance_id, radio_name, radio, stations, stage))
             diagnostics.extend(
                 self._check_station_count(instance_id, radio_name, stations, access_points, stage)
+            )
+
+        return diagnostics
+
+    # What each declared role permits. A radio is one thing or the other.
+    _ROLE_MODES = {"ap_only": "ap", "sta_uplink": "sta"}
+
+    def _check_role(
+        self,
+        instance_id: str,
+        radio_name: str,
+        radio: dict[str, Any],
+        members: list[dict[str, Any]],
+        stage: Stage,
+    ) -> list[PluginDiagnostic]:
+        """E9921: a radio is either an access point or a client, never both.
+
+        Parked interfaces are included here, which is the opposite of E9910 and
+        deliberate. E9910 asks a runtime question - how many stations are live
+        on this phy - and netifd drops a parked `wifi-iface` at parse time, so a
+        parked one cannot affect a live radio. This check asks a *declaration*
+        question: a station declared on an AP radio is a contradiction in the
+        data whether or not it is enabled, and leaving it there means the device
+        is one flag away from stopping every AP on that phy (W9901).
+
+        That state existed: `uplink5` sat parked on radio0 beside six APs, with
+        `role: ap_only` on the same radio, and nothing read `role` at all.
+        """
+        diagnostics: list[PluginDiagnostic] = []
+        modes = {
+            str(entry.get("mode")) for entry in members if isinstance(entry.get("mode"), str)
+        }
+
+        if "ap" in modes and "sta" in modes:
+            names = ", ".join(
+                sorted(f"{entry.get('name')}({entry.get('mode')})" for entry in members)
+            )
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E9921",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        f"Device '{instance_id}', radio '{radio_name}': carries both access point and "
+                        f"station interfaces ({names}). A radio is one or the other: any station on the "
+                        "phy sets ap_start_disabled, so every AP there stops beaconing on each "
+                        "DISCONNECTED/SCANNING transition. Parked counts - the declaration is the "
+                        "contradiction, and enabling it is one flag away from silencing the APs."
+                    ),
+                    path=f"instance:{instance_id}.runtime_intent.wireless.radios.{radio_name}",
+                )
+            )
+            return diagnostics
+
+        expected = self._ROLE_MODES.get(str(radio.get("role")))
+        if expected is None or not modes:
+            return diagnostics
+
+        wrong = sorted(
+            str(entry.get("name"))
+            for entry in members
+            if isinstance(entry.get("mode"), str) and entry["mode"] != expected
+        )
+        if wrong:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E9921",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        f"Device '{instance_id}', radio '{radio_name}': declares role "
+                        f"'{radio.get('role')}', which permits mode '{expected}', but carries "
+                        f"{', '.join(wrong)} in another mode. Change the role deliberately, or move the "
+                        "interface - a role swap costs that radio its other function entirely."
+                    ),
+                    path=f"instance:{instance_id}.runtime_intent.wireless.radios.{radio_name}.role",
+                )
             )
 
         return diagnostics

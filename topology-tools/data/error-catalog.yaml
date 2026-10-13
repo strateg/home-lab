@@ -1573,6 +1573,18 @@ codes:
       with a narrow service list rather than inherited.
 
   # Raiser: object.openwrt.validator_json.wireless
+  E9921:
+    severity: error
+    stage: validate
+    title: Radio Mixes Access Point And Station Roles
+    hint: >-
+      A radio declares interfaces whose modes disagree with its `role`, or carries both ap and sta
+      interfaces at all. A radio is either an access point or a client: any station on a phy sets
+      ap_start_disabled, so every AP there stops beaconing on each DISCONNECTED/SCANNING transition.
+      Parked interfaces count, because a station declared on an AP radio is a contradiction in the data
+      whether or not it is enabled - and enabling it is then one flag away from stopping every AP.
+
+  # Raiser: object.openwrt.validator_json.wireless
   E9908:
     severity: error
     stage: validate

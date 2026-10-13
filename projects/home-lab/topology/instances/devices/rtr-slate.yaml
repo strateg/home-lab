@@ -220,6 +220,18 @@ runtime_intent:
   # beacon-loss assert was fixed in 25.12.5 by commit a62b5fe71c.
   # --------------------------------------------------------------------------
   wireless:
+    # A radio is EITHER an access point or a client, never both, and both
+    # radios run simultaneously in their own role. Not a preference: any
+    # station on a phy sets ap_start_disabled, so every AP on that phy stops
+    # beaconing on each DISCONNECTED/SCANNING transition (W9901).
+    #
+    # `role` is the declaration and E9921 enforces it, including for parked
+    # interfaces - a station declared on an AP radio is a contradiction in the
+    # data whether or not it is enabled. E9910 is the companion runtime check
+    # on station count.
+    #
+    # Swapping a role is deliberate and costly: radio0 as a station buys a
+    # 5 GHz uplink and gives up all six SSIDs on it.
     radios:
       radio0:
         band: 5g
@@ -336,19 +348,25 @@ runtime_intent:
       # radio0 to apsta and brings the start_disabled/stop-on-scan coupling
       # described above onto every client SSID - a venue-specific fallback,
       # never the standing config (W9901).
-      - name: uplink5
-        device: radio0
-        mode: sta
-        network: wwan
-        ssid: null
-        encryption: null
-        enabled: false
+      # uplink5 was here: a 5 GHz station parked on radio0. REMOVED 2026-10-13.
+      #
+      # It was illegal, not parked. A radio is either an access point or a
+      # client, never both, and radio0 carries six APs - so a station declared
+      # there contradicted its own `role: ap_only`, and enabling it would have
+      # set ap_start_disabled and stopped every one of those APs (W9901).
+      # Nothing caught it, because `role` was read by nothing.
+      #
+      # Keeping it parked misrepresented the device as one flag away from a
+      # dual-band uplink. It is not: a 5 GHz uplink is a change of radio0's
+      # ROLE, which costs all six SSIDs on it. That is combination C5 in the
+      # architecture report - a deliberate swap, not a toggle.
 
-    # Only one station interface may exist per phy ('#{ managed } <= 1'); two
-    # is the misconfiguration behind the upstream "Device is not active"
-    # reports. E9910 enforces it, which is why uplink5 stays parked rather
-    # than being a second live station.
-    station_limit_per_radio: 1
+    # station_limit_per_radio was here. REMOVED 2026-10-13: nothing read it,
+    # and it implied a policy knob where there is a hardware limit - the phy
+    # advertises '#{ managed } <= 1' and no other value is possible. E9910
+    # enforces the real limit. A field suggesting it could be raised was worse
+    # than no field, and its own comment had gone stale: it justified keeping
+    # uplink5 parked, which E9921 now forbids outright.
 
   # --------------------------------------------------------------------------
   # WIREGUARD - one interface per destination

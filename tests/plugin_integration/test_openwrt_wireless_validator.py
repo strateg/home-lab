@@ -324,9 +324,14 @@ def test_the_real_role_split_is_clean():
     """Regression guard for the arrangement rtr-slate actually declares.
 
     APs live on radio0 with a fixed non-DFS channel and a country; the station
-    sits alone on radio1 with channel auto; the 5 GHz station stays parked. This
-    must produce nothing at all - if it ever starts warning, the validator and
-    the design have diverged.
+    sits alone on radio1 with channel auto. Each radio is one thing: that is the
+    rule E9921 now enforces. This must produce nothing at all - if it ever
+    starts warning, the validator and the design have diverged.
+
+    Updated 2026-10-13. This test previously included a parked 5 GHz station on
+    radio0 and asserted silence, and it is how the divergence was caught: the
+    design changed - a radio is either an AP or a client, so uplink5 was removed
+    as illegal rather than parked - and the guard fired exactly as intended.
     """
     codes = _run(
         _model(
@@ -340,10 +345,108 @@ def test_the_real_role_split_is_clean():
                     _ap("ap_split", "radio0"),
                     _ap("ap_de", "radio0", enabled=False),
                     _sta("uplink", "radio1"),
-                    _sta("uplink5", "radio0", enabled=False),
                 ],
             }
         )
     )
 
     assert codes == []
+
+
+# --------------------------------------------------------------------------
+# E9921 - a radio is either an access point or a client
+#
+# The distinction from E9910 is the point: E9910 asks a RUNTIME question (how
+# many stations are live on this phy) and correctly skips parked interfaces,
+# because netifd drops a `wifi-iface` with `disabled '1'` at parse time. E9921
+# asks a DECLARATION question, and parked interfaces count - a station declared
+# on an AP radio is a contradiction in the data whether or not it is enabled.
+#
+# That state existed for the whole of this work: uplink5 sat parked on radio0
+# beside six APs, the same radio declared role: ap_only, and nothing read
+# `role`.
+# --------------------------------------------------------------------------
+
+
+def test_a_radio_mixing_ap_and_station_is_refused():
+    codes = _run(
+        _model(
+            {
+                "radios": {"radio0": {"band": "5g", "country": "EE", "role": "ap_only"}},
+                "interfaces": [_ap("a", "radio0"), _sta("u", "radio0")],
+            }
+        )
+    )
+
+    assert "E9921" in codes
+
+
+def test_a_parked_station_still_contradicts_an_ap_radio():
+    """The exact shape that was in the topology, and that E9910 lets pass."""
+    codes = _run(
+        _model(
+            {
+                "radios": {"radio0": {"band": "5g", "country": "EE", "role": "ap_only"}},
+                "interfaces": [_ap("a", "radio0"), _sta("u5", "radio0", enabled=False)],
+            }
+        )
+    )
+
+    assert "E9921" in codes
+    # E9910 counts live stations, so it correctly stays silent here - which is
+    # why a second, declaration-level check was needed at all.
+    assert "E9910" not in codes
+
+
+def test_an_interface_disagreeing_with_the_declared_role_is_refused():
+    codes = _run(
+        _model(
+            {
+                "radios": {"radio1": {"band": "2g", "role": "sta_uplink"}},
+                "interfaces": [_ap("a", "radio1")],
+            }
+        )
+    )
+
+    assert "E9921" in codes
+
+
+def test_an_ap_only_radio_carrying_only_aps_is_clean():
+    codes = _run(
+        _model(
+            {
+                "radios": {"radio0": {"band": "5g", "country": "EE", "role": "ap_only"}},
+                "interfaces": [_ap("a", "radio0"), _ap("b", "radio0")],
+            }
+        )
+    )
+
+    assert "E9921" not in codes
+
+
+def test_a_station_radio_carrying_only_a_station_is_clean():
+    codes = _run(
+        _model(
+            {
+                "radios": {"radio1": {"band": "2g", "channel": "auto", "role": "sta_uplink"}},
+                "interfaces": [_sta("u", "radio1")],
+            }
+        )
+    )
+
+    assert "E9921" not in codes
+
+
+def test_an_undeclared_role_is_not_invented():
+    """With no `role` there is nothing to disagree with; the mixing check still
+    applies, but a single-mode radio must not be guessed at."""
+    codes = _run(
+        _model(
+            {
+                "radios": {"radio0": {"band": "5g", "country": "EE"}},
+                "interfaces": [_ap("a", "radio0")],
+            }
+        )
+    )
+
+    assert "E9921" not in codes
