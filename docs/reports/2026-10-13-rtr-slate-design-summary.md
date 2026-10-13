@@ -199,6 +199,76 @@ with `--cleanup`. The three SSIDs shared with Chateau reuse Chateau's own
 passphrases, because a client caches one PSK per SSID and a different value
 would break roaming.
 
+## 4d. Uplink and downlink as independent axes
+
+The device is one thing in the middle: it takes an uplink several ways, serves a
+downlink several ways, and routes between them through the VPN layer. The three
+concerns are separable, and keeping them separable is what makes the
+combinations enumerable.
+
+**The constraint that organises it:** a radio serving clients must not also
+carry the station. Any station on a phy sets `ap_start_disabled`, so every AP on
+that phy stops beaconing on each `DISCONNECTED`/`SCANNING` transition (W9901).
+"Downlink only" per radio is therefore not a preference but the condition for
+the APs on it to be stable.
+
+### Uplink variants
+
+| # | Uplink | Interface | Radios consumed | Notes |
+|---|---|---|---|---|
+| U1 | **ethernet WAN** | `wan`, proto dhcp | none | the authored `uplink.wired`. Independent of radios, so both stay free for downlink |
+| U2 | **WiFi station** | `uplink` on radio1 (2.4 GHz) or `uplink5` on radio0 (5 GHz) | **one** | best reach — the internal antennas are the long-range ones. Costs that radio's APs their stability. One station per radio (E9910), so a dual-band station pair is possible but consumes both |
+| U3 | **USB tethering from a phone** | a USB CDC-ethernet netdev, proto dhcp | none | the phone holds the venue credential and the modem; both radios stay free for downlink. Not currently modelled |
+
+Every uplink must sit in `untrusted` — the kill switch, `slate-split-egress`
+and the country-SSID denials are all written against that zone, so an uplink
+outside it would be outside the perimeter model entirely.
+
+> **A correction to an earlier conclusion in this work.** USB tethering was
+> recorded as a deliberate non-feature on the grounds that a phone *hotspot*
+> plus a station reaches the same outcome. Under the "downlink only" constraint
+> that is wrong: the hotspot route needs a station, which consumes a radio and
+> reintroduces the AP/STA coupling, while tethering leaves both radios clean.
+> Tethering has a distinct advantage after all, and the earlier dismissal does
+> not hold.
+
+### Downlink variants
+
+| # | Downlink | Capacity | Notes |
+|---|---|---|---|
+| D1 | `lan1`, `lan2` | 2 wired clients | today both are bridge members of `br-lan` carrying **management**; using them as client segments needs management moved or VLANs |
+| D2 | `radio0` (5 GHz) | up to 6 SSIDs | ath11k does real multi-BSSID; this is where the mode SSIDs live |
+| D3 | `radio1` (2.4 GHz) | up to 6 SSIDs | available as APs **only** when the uplink is not a station on it |
+| D4 | `wan` port repurposed | 1 wired client, or management | free whenever the uplink is U2 or U3. `wan`/`lan1`/`lan2` are three *independent* netdevs on this SoC, not switch ports |
+| D5 | AX55 Nano | **exactly 1 SSID** | `mt7921u` allows `#{AP} <= 1`. A genuine last resort for one extra network; it is allocated to `srv-orangepi5` today |
+
+### Coherent combinations
+
+| Combination | Uplink | Downlink | Management | Verdict |
+|---|---|---|---|---|
+| **C1 — as built** | U2 on radio1 | radio0 (6 SSIDs) | `lan` on lan1+lan2 | running and converged. Best reach; clients on 5 GHz only |
+| **C2 — wired uplink, both bands served** | U1 (`wan`) | radio0 **and** radio1, both downlink-only | `lan` on lan1+lan2 | no AP/STA coupling anywhere; clients on both bands. Needs a cable |
+| **C3 — tethered uplink, both bands served** | U3 (phone) | radio0 **and** radio1 | `lan` on lan1+lan2 | C2's benefits with no cable to a venue; uplink rides the phone's mobile data. Needs the tethering interface modelled |
+| **C4 — wireless uplink, `wan` becomes management** | U2 on radio1 | radio0 + `lan1`/`lan2` as client segments | the freed `wan` port | the most ports in use: separates management onto its own physical port, which removes the "management and clients share br-lan" tension |
+| **C5 — dual-band station** | U2 on radio1 **and** radio0 | wired only, or Nano | `lan` | maximum uplink flexibility (a 5 GHz-only venue), at the cost of all wireless downlink |
+
+C1 is what exists. C2 and C3 are the ones worth building toward, because they
+remove the AP/STA coupling entirely rather than working around it. C4 is the
+answer if management-on-its-own-port matters more than a second wired client.
+
+### What stays constant across all of them
+
+The VPN layer in the middle does not change. Policy routing — a table per
+tunnel plus a source rule per segment — works the same whichever uplink is live
+and whichever downlink carries the client, because it keys on the *client's
+source prefix*, not on the uplink. That is the property that makes these
+combinations swappable rather than five separate designs.
+
+**One gap that affects every combination with more than one live uplink:** route
+metrics are set nowhere. With `wan` and a station both up, which one wins is
+decided by whatever order netifd happened to install the routes. The preference
+should be declarative.
+
 ## 5. Usage variants
 
 | Situation | Uplink | Management | Notes |
