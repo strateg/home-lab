@@ -262,6 +262,86 @@ something now and home is unreachable" case the right tool is not Terraform at
 all — it is SSH and `uci`, followed by reconciling the drift when home is back,
 which the deploy framework already anticipates with `--acknowledge-drift`.
 
+## 8b. Radio allocation — where the station goes, and where the APs go
+
+Three proposals were considered in order, and the third is the one to build on.
+Recording all three because the reasoning only makes sense as a sequence.
+
+### The proposals
+
+**(i) As built today.** Station on radio1 (2.4 GHz), APs on radio0 (5 GHz),
+wired uplink optional. Works, and is running. Costs: AP duty sits on **ath11k**,
+whose memory leak is unfixed upstream (~7-8 MB/h, reclaimed only by a module
+reload) — which is the entire reason 4 of the 6 SSIDs are parked. Broadcasting
+own SSIDs abroad also keeps the `country` question live, since the permitted
+channel set differs by country and a 5 GHz AP on channel 36 is not a formality.
+
+**(ii) Ethernet-only distribution.** Uplink by radio, clients by cable. The
+strong argument for it: it removes AP duty from ath11k entirely, and a wireless
+uplink **frees the WAN port** — `wan`, `lan1`, `lan2` are three *independent*
+netdevs on this SoC (nss-dp/edma, not a switch with a CPU port), so three ports
+become available for three roles with no VLANs. The fatal cost: D2 selects mode
+by **which SSID the client joins**, and six modes do not fit on three ports. It
+would force mode selection to be re-designed.
+
+**(iii) USB adapter serving the client APs. Recommended direction.** Station
+stays on an internal radio; the USB adapter carries the mode SSIDs for trusted
+devices. This is the right way round, and it is the opposite of what an earlier
+version of this discussion argued against — that argument was about putting the
+*uplink* on USB, which inverts the reliability priority. Here a USB failure
+degrades client service while the uplink and the management path survive, and
+**AP duty moves off ath11k**, so the SSID budget that the leak forced may become
+liftable. D2's SSID-per-mode selection is preserved intact.
+
+### Resulting allocation under (iii)
+
+| Hardware | Role |
+|---|---|
+| `radio1` (internal, 2.4 GHz) | **station** — hotel AP, or a phone's hotspot |
+| `radio0` (internal, 5 GHz) | **off** by default; candidate for a parked emergency management SSID |
+| USB adapter | **client APs** — the mode SSIDs for trusted devices |
+| `wan` port | freed by the wireless uplink: management, or a wired client |
+| `lan1` / `lan2` | management and wired clients |
+
+radio0 being off is not incidental — it is where the ath11k gain comes from.
+
+### Four go/no-go requirements on the adapter
+
+These are not preferences; the design does not work if any fails.
+
+1. **Multi-BSSID.** D2 needs up to six APs on one phy. The adapter must
+   advertise interface combinations allowing it — `iw list` → `valid interface
+   combinations … #{ AP } <= N`. Many cheap adapters do exactly one, and
+   out-of-tree Realtek drivers frequently do one or misbehave with more. **Check
+   this first; it is the most likely reason to reject a given adapter.**
+2. **Mainline driver for this target and kernel.** `aarch64_cortex-a53`,
+   `qualcommax/ipq60xx`, vermagic `6.12.94-1-d00b1043…`. The safe family is
+   **mt76** (MT7612U dual-band, MT7921AU newer). Realtek `88x2bu`/`8821au` are
+   out-of-tree and may have no package for this vermagic at all.
+3. **SAE in AP mode**, if the SSIDs keep `sae-mixed`. Not every USB chipset and
+   driver supports WPA3 as an AP. If it does not, those SSIDs drop to `psk2` —
+   a security downgrade to accept deliberately, not to discover.
+4. **Stable hardware binding.** A `wifi-device` section binds to hardware by
+   `path`, and for USB the path depends on the USB topology, so a different port
+   changes it. `uapi_wireless_device` cannot express `path` at all — the defect
+   found during the first apply — so the USB radio is outside Terraform like the
+   internal ones. Worth checking whether `macaddr` can bind it instead, which is
+   stable across ports.
+
+Also: one USB 3.0 port, and a dual-band adapter with amplifiers draws real
+current on a device often powered from a phone charger.
+
+### USB tethering: deliberately not implemented
+
+A phone hotspot is simply another network the station joins, so the hotspot path
+covers the tethering case with the mechanism that already exists — no extra
+interface, no extra zone membership, no extra code path. Tethering is therefore
+recorded as a **non-feature** rather than left as an open item.
+
+Two residual cases it would cover and the hotspot does not: a carrier that
+blocks hotspot, and wanting the phone to charge while acting as the uplink.
+Neither justifies a second uplink mechanism today.
+
 ## 9. Decisions needed
 
 1. **Deploy host** — commit to the Orange Pi? First settle why the management
