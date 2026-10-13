@@ -262,60 +262,6 @@ something now and home is unreachable" case the right tool is not Terraform at
 all — it is SSH and `uci`, followed by reconciling the drift when home is back,
 which the deploy framework already anticipates with `--acknowledge-drift`.
 
-## 8b. The venue keyring
-
-`secrets/wifi/venues.yaml` (modelled in `venues.yaml.example`) stores the
-networks the station uplink is allowed to join. The shape is forced by one
-hardware fact and one modelling decision.
-
-**The hardware fact.** The keyring stores many networks and the device can be
-told exactly one: a `wifi-iface` carries one SSID, and a second station on the
-radio violates the phy's `#{ managed } <= 1` (E9910). `travelmate` is the
-package that manages a candidate list, and it was rejected during the wireless
-research. So this is a keyring, not a candidate list, and nothing will make it
-one.
-
-**The modelling decision.** A venue is not topology. The instance states only
-the stable fact — `credentials: operator_supplied` on the uplink — and the SSID,
-encryption and passphrase come from the keyring as variables. Writing a hotel
-into an instance file would make every change of location a topology edit plus a
-commit, and would record as durable something true for a week.
-
-Three details that are decisions rather than conveniences:
-
-* **`active` is recorded in the file**, not passed only on the command line. A
-  selection that existed solely as an invocation argument would make the next
-  `terraform plan` propose changing the SSID back. `--venue` overrides it for
-  one run.
-* **`encryption` is part of the credential.** A venue may be open, `psk2` or
-  `sae`, and that is not knowable in advance; authoring one of them in topology
-  would mean a topology edit for a venue that happens to differ.
-* **`passphrase_from` points instead of copying.** `Chateau`'s passphrase
-  already has an authoritative home in `terraform/mikrotik.yaml`, and two copies
-  of one passphrase means two places to rotate with one of them missed — which
-  is the mistake `secrets/wifi/rtr-slate.yaml` already was. An open network
-  needs `passphrase: ""`, explicitly: absent means nobody filled it in, empty
-  means there is none.
-
-### Radio roles, and why they are asymmetric
-
-| Radio | Role | Credentials live in |
-|---|---|---|
-| `radio1` (2.4 GHz) | the **station** — the uplink | `secrets/wifi/venues.yaml` |
-| `radio0` (5 GHz) | the **access points** — Slate-Home, Slate-Split, parked country SSIDs | `secrets/terraform/openwrt.yaml` |
-
-Keeping the station off radio0 is what buys the APs their stability: any station
-on a phy sets `ap_start_disabled`, so every AP on that phy stops beaconing on
-each `DISCONNECTED`/`SCANNING` transition (W9901). Confirmed on the hardware —
-`phy0-ap0` and `phy0-ap1` beacon while `phy1-sta0` scans.
-
-### What this scenario does not need
-
-Management stays on `lan` over the ethernet cable, where the uapi token's
-`allowed_cidr` of `192.168.1.0/24` already applies. So the profile-gated uapi
-rule on `untrusted` (A2) and the token re-mint it would require are both
-unnecessary for travel — that is the travel path in §8a working as intended.
-
 ## 9. Decisions needed
 
 1. **Deploy host** — commit to the Orange Pi? First settle why the management
