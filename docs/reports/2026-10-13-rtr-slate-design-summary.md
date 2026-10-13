@@ -131,6 +131,48 @@ and a reported slowdown over time with the stick enabled. It is currently
 allocated to `srv-orangepi5` in topology, so using it here is a reallocation
 decision.
 
+### If an adapter is bought, buy it for the station — not for the APs
+
+Researched 2026-10-13. "More modern" makes the AP role **worse**, not better:
+
+| Chipset | Mainline | AP interfaces | Verdict for the AP role |
+|---|---|---|---|
+| mt7921au (WiFi 6) | since 5.18, AP since 5.19 | `#{AP} <= 1` | no |
+| mt7925 (WiFi 7) | early, AP crashes reported | "does not support dual AP in any way" | no |
+| mt7612u (WiFi 5) | since 4.19, very mature | multi-SSID reported problematic on mt76x02 | doubtful |
+
+Upstream's own framing is the point: *"neither mt7922 nor mt7925 are AP-oriented
+chipsets to begin with."* There is nothing to shop for here — the internal
+ath11k radios are the only hardware in this device that genuinely does
+multi-BSSID, and they already carry the six declared SSIDs.
+
+**So the criteria invert, and in the operator's favour.** For the *station*
+role, external high-gain antennas genuinely beat the AXT1800's internal ones —
+which is exactly the car-park case. The nano adapter lost to the internal
+radios; an adapter with real antennas wins.
+
+| Candidate | Chipset | Why |
+|---|---|---|
+| ALFA AWUS036AXML | mt7921au | the modern pick: WiFi 6, two detachable antennas, mainline since 5.18, good client reputation. `#{AP} <= 1` is irrelevant for a station |
+| ALFA AWUS036ACM | mt7612u | the conservative pick: in-kernel since 4.19, the most proven USB chipset with OpenWrt, two detachable antennas. Older standard, fewer unknowns in the thing a hotel depends on |
+
+Choose ACM for predictability, AXML for congested air — OFDMA is a real client
+gain when the venue AP is also WiFi 6.
+
+Verify **before** buying, not after:
+
+* `iw list` → `valid interface combinations` on the actual unit;
+* USB version and current draw — the AX55 Nano turned out to be a USB **2.0**
+  interface despite the 3.0 port, and the router often runs off a phone charger;
+* that a `kmod-*` exists for vermagic `6.12.94-1-d00b1043…` in the 25.12.5 feed,
+  and install it while internet is available, not when it is needed;
+* that `path` instability is acceptable — it moves with the USB port and
+  `uapi_wireless_device` cannot express it, so the section stays outside
+  Terraform like the internal radios.
+
+**Cheapest test first:** measure whether internal `radio1` already reaches the
+venue AP from where the device will sit. If it does, no adapter is needed.
+
 > Conclusion on buying a "universal" adapter: for the *uplink* role it is not
 > needed — the internal radios are better. For the *AP* role, multi-BSSID on USB
 > drivers is broadly absent or buggy, so an adapter would have to be chosen on
