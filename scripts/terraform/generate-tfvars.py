@@ -139,6 +139,77 @@ def _build_proxmox_values(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _resolve_venue(secrets_root: Path, venue_override: str | None) -> dict[str, str]:
+    """Resolve the station uplink's credential from the venue keyring.
+
+    The keyring stores many networks and the device can be told exactly one: a
+    wifi-iface carries one SSID and a second station on the radio violates the
+    phy's '#{ managed } <= 1' (E9910). So `active` names the one it is told, and
+    `--venue` overrides it for a single run.
+
+    A venue may point at a credential that already has an authoritative home
+    instead of carrying a copy, because two copies of one passphrase means two
+    places to rotate and one of them will be missed.
+    """
+    keyring_file = secrets_root / "wifi" / "venues.yaml"
+    if not keyring_file.exists():
+        raise RuntimeError(
+            f"venue keyring not found: {keyring_file} "
+            "(copy wifi/venues.yaml.example, fill it in and encrypt it)"
+        )
+    keyring = _decrypt_yaml(keyring_file)
+    venues = _require_mapping(keyring.get("venues"), path="venues")
+
+    name = venue_override or keyring.get("active")
+    if not isinstance(name, str) or not name.strip():
+        raise RuntimeError("venues.yaml: 'active' must name a venue, or pass --venue")
+    venue = venues.get(name)
+    if not isinstance(venue, dict):
+        raise RuntimeError(
+            f"venues.yaml: no venue named {name!r}; known: {', '.join(sorted(venues)) or 'none'}"
+        )
+
+    ssid = _require_scalar(venue.get("ssid"), path=f"venues.{name}.ssid")
+    encryption = _require_scalar(venue.get("encryption"), path=f"venues.{name}.encryption")
+
+    # `passphrase` or `passphrase_from`, never both and never neither. An empty
+    # passphrase is legitimate - an open network has none - so the test is
+    # presence of the key, not truthiness of the value.
+    has_literal = "passphrase" in venue
+    pointer = venue.get("passphrase_from")
+    if has_literal and pointer:
+        raise RuntimeError(
+            f"venues.{name}: declares both passphrase and passphrase_from; pick one"
+        )
+    if has_literal:
+        passphrase = str(venue.get("passphrase") or "")
+    elif isinstance(pointer, str) and "#" in pointer:
+        rel, _, dotted = pointer.partition("#")
+        source = secrets_root / rel
+        if not source.exists():
+            raise RuntimeError(f"venues.{name}.passphrase_from: no such file: {source}")
+        node: Any = _decrypt_yaml(source)
+        for segment in dotted.split("."):
+            if not isinstance(node, dict) or segment not in node:
+                raise RuntimeError(
+                    f"venues.{name}.passphrase_from: {rel} has no path {dotted!r}"
+                )
+            node = node[segment]
+        passphrase = str(node)
+    else:
+        raise RuntimeError(
+            f"venues.{name}: needs passphrase, or passphrase_from as "
+            "'<file>#<dotted.path>'. Use passphrase: \"\" for an open network."
+        )
+
+    return {
+        "uplink_ssid": ssid,
+        "uplink_encryption": encryption,
+        "uplink_key": passphrase,
+        "_venue": name,
+    }
+
+
 def _build_openwrt_values(payload: dict[str, Any]) -> dict[str, Any]:
     """Variables for the OpenWrt (uapi) root.
 
@@ -170,23 +241,6 @@ def _build_openwrt_values(payload: dict[str, Any]) -> dict[str, Any]:
         ("ap_se", "vpn_sweden_passphrase"),
     ):
         values[f"{section}_key"] = _require_scalar(wifi.get(secret), path=f"wifi.{secret}")
-
-    # The station uplink's credential is per-trip venue data, not topology, so
-    # all three fields come from here. `uplink_encryption` is among them because
-    # a venue may be open, psk2 or sae and that is not knowable in advance.
-    values["uplink_ssid"] = _require_scalar(
-        wifi.get("uplink_ssid"), path="wifi.uplink_ssid"
-    )
-    values["uplink_encryption"] = _require_scalar(
-        wifi.get("uplink_encryption"), path="wifi.uplink_encryption"
-    )
-    # Deliberately not _require_scalar: an open venue has no passphrase, and an
-    # empty string is a legitimate value that a "must be non-empty" check would
-    # refuse.
-    uplink_key = wifi.get("uplink_passphrase")
-    if uplink_key is None:
-        raise RuntimeError("wifi.uplink_passphrase is required (use \"\" for an open network)")
-    values["uplink_key"] = str(uplink_key)
 
     for section in ("wg_home", "wg_de", "wg_ru", "wg_se"):
         tunnel = _require_mapping(wireguard.get(section), path=f"wireguard.{section}")
@@ -340,7 +394,7 @@ def _cleanup_tfvars(target: str) -> int:
     return 0
 
 
-def _generate_tfvars(target: str) -> int:
+def _generate_tfvars(target: str, venue_override: str | None = None) -> int:
     """Generate terraform.tfvars for target from SOPS secrets."""
     repo_root = _repo_root()
 
@@ -367,6 +421,15 @@ def _generate_tfvars(target: str) -> int:
     try:
         payload = _decrypt_yaml(secret_file)
         values = _build_values(target, payload)
+        if target == "openwrt":
+            # The station uplink's credential comes from the venue keyring
+            # rather than from this target's file, so that one passphrase has
+            # one home. Merged here to keep the builder a pure function of its
+            # payload.
+            venue = _resolve_venue(secrets_root, venue_override)
+            selected = venue.pop("_venue")
+            values.update(venue)
+            print(f"Venue: {selected} (ssid {values['uplink_ssid']})")
         content = _render_tfvars(values)
     except RuntimeError as exc:
         print(f"Error: {exc}", file=sys.stderr)
@@ -390,6 +453,14 @@ def main() -> int:
         help="Terraform target name (or 'all' for both).",
     )
     parser.add_argument(
+        "--venue",
+        default=None,
+        help=(
+            "Override the keyring's `active` venue for this run (openwrt only). "
+            "The keyring stores many networks; the device can be told one."
+        ),
+    )
+    parser.add_argument(
         "--cleanup",
         action="store_true",
         help="Remove generated tfvars instead of generating.",
@@ -397,11 +468,12 @@ def main() -> int:
     args = parser.parse_args()
 
     targets = ["proxmox", "mikrotik", "openwrt"] if args.target == "all" else [args.target]
-    action = _cleanup_tfvars if args.cleanup else _generate_tfvars
-
     exit_code = 0
     for target in targets:
-        result = action(target)
+        if args.cleanup:
+            result = _cleanup_tfvars(target)
+        else:
+            result = _generate_tfvars(target, venue_override=args.venue)
         if result != 0:
             exit_code = result
 
