@@ -223,6 +223,11 @@ runtime_intent:
     radios:
       radio0:
         band: 5g
+        # See radio1: applied outside Terraform, recorded here so the model is
+        # complete. Erasing this is what took both radios down during the first
+        # apply.
+        path: platform/soc@0/c000000.wifi
+        path_owner: ansible
         # Fixed non-DFS channel: starts immediately with no CAC wait, and this
         # radio never carries an STA so it has no upstream channel to follow.
         channel: 36
@@ -235,6 +240,17 @@ runtime_intent:
         country: EE
       radio1:
         band: 2g
+        # Binds the section to a phy. NOT applied by Terraform:
+        # uapi_wireless_device cannot express `path`, and a write replaces the
+        # section's option set - which is how adopting radio0 erased it and took
+        # both radios down with `Bug: PHY is undefined for device`. Recorded
+        # here so the model is complete and whoever manages the OS can assert
+        # it; owner is the same as the memory watchdog below.
+        #
+        # Read off the device, not assumed. A USB radio's path would move with
+        # the port; these are soldered, so they are stable.
+        path: platform/soc@0/c000000.wifi+1
+        path_owner: ansible
         # auto on a station-bearing radio, because any other value would be
         # fiction: mac80211_setup_supplicant passes an explicitly empty
         # frequency for mode=sta, so the phy ends up on whatever channel the

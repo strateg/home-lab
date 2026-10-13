@@ -68,7 +68,12 @@ availability_waiver:
     service health.
 
 # ---------------------------------------------------------------------------
-# EGRESS NAT
+# EGRESS TREATMENT
+#
+# What happens to traffic leaving through a zone: whether it is translated, and
+# whether its TCP MSS is clamped. Both are facts about the same act, so they
+# live in one block per zone with one reason, rather than in two parallel lists
+# keyed by the same zone_ref.
 #
 # Masquerading is a property of the pair (this device, this zone), not of the
 # trust level: two devices can both hold an `untrusted` zone and have different
@@ -81,9 +86,13 @@ availability_waiver:
 # leaves clients with private source addresses that never get a reply. E9918
 # refuses an uplink zone that says nothing.
 # ---------------------------------------------------------------------------
-egress_nat:
+egress:
   - zone_ref: inst.trust_zone.untrusted
     masquerade: true
+    # The venue link may be narrower than 1500 - PPPoE gives 1492 - and the
+    # stock wan zone had this on. fw4 clamps to the route's MTU dynamically
+    # (`maxseg size set rt mtu`), so no number is authored here.
+    mss_clamp: true
     comment: >-
       The venue hands out one address, so client traffic leaving here must be
       translated or the replies have nowhere to return to. Until this existed,
@@ -92,6 +101,13 @@ egress_nat:
 
   - zone_ref: inst.trust_zone.vpn_exit
     masquerade: false
+    # Needed here most of all, and it never existed: the tunnels are 1420 and
+    # 1340 while clients sit on 1420 and 1500 segments, so a full-size packet
+    # does not fit. Clamping is what makes TCP shrink instead of stall. W9902
+    # already names this as the mitigation - it was referenced and never
+    # emitted. UDP and QUIC still blackhole, which is why W9902 is a warning
+    # about the MTU budget and not a claim that clamping fixes it.
+    mss_clamp: true
     comment: >-
       Deliberately NOT translated. inst.tunnel.wg-home-to-oci records that
       rtr-slate routes its segments without SNAT so the client source IP

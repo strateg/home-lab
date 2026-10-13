@@ -415,6 +415,7 @@ class TerraformOpenwrtGenerator(BaseGenerator):
                     # uplink zone; for any other zone it means "the provider's
                     # default", and the attribute is simply not emitted.
                     "masq": zone.get("masq"),
+                    "mtu_fix": zone.get("mtu_fix"),
                     "input": zone.get("input", "REJECT"),
                     "output": zone.get("output", "ACCEPT"),
                     "forward": zone.get("forward", "REJECT"),

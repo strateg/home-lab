@@ -1733,6 +1733,17 @@ codes:
       deliberately deferred - so a gap in the rendered config is attributable rather than inferred.
 
   # Raiser: object.openwrt.compiler.zones
+  E9920:
+    severity: error
+    stage: compile
+    title: MSS Clamping Unstated For An Egress Zone
+    hint: >-
+      A zone that traffic leaves through - one holding an uplink or a tunnel - does not say whether TCP MSS
+      is clamped. Where the onward link is narrower than the client's segment, a full-size packet does not
+      fit: with clamping TCP shrinks, without it TCP stalls while ping and small flows still work, which is
+      the hardest shape of fault to diagnose. State it per zone in the matrix's egress.
+
+  # Raiser: object.openwrt.compiler.zones
   E9918:
     severity: error
     stage: compile

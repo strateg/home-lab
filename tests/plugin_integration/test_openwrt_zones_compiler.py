@@ -312,7 +312,7 @@ def test_interfaces_make_a_zone_local_without_any_segment():
     # so the fixture answers. Added when that check landed - the fixture was
     # silent, which is exactly what the check refuses.
     model["instances"]["network"].append(
-        _matrix_row([{"zone_ref": _UNTRUSTED, "masquerade": True}])
+        _matrix_row([_egress(_UNTRUSTED)])
     )
     matrix = _fixture_matrix()
     matrix["rtr-slate"]["matrix"][_UNTRUSTED] = {_USER: _cell("deny", rule="R4")}
@@ -354,6 +354,10 @@ def test_management_interface_carries_immutability_and_its_services():
         }
     }
 
+    # A zone holding a live tunnel must state its egress treatment (E9920),
+    # so the fixture answers for the zone the tunnel sits in.
+    model["instances"]["network"].append(_matrix_row([_egress(_USER)]))
+
     plan = _run(model, _fixture_matrix(), _resolution())["rtr-slate"]
 
     zone = plan["zones"][_USER]
@@ -373,6 +377,10 @@ def test_an_interface_declaring_no_services_gets_none():
             "wireguard": {"interfaces": [{"name": "wg-ru", "trust_zone_ref": _USER, "enabled": True}]}
         }
     }
+
+    # A zone holding a live tunnel must state its egress treatment (E9920),
+    # so the fixture answers for the zone the tunnel sits in.
+    model["instances"]["network"].append(_matrix_row([_egress(_USER)]))
 
     plan = _run(model, _fixture_matrix(), _resolution())["rtr-slate"]
 
@@ -402,6 +410,10 @@ def test_parked_tunnel_interface_is_still_placed_in_its_zone():
             }
         }
     }
+
+    # A zone holding a live tunnel must state its egress treatment (E9920),
+    # so the fixture answers for the zone the tunnel sits in.
+    model["instances"]["network"].append(_matrix_row([_egress(_USER)]))
 
     plan = _run(model, _fixture_matrix(), _resolution())["rtr-slate"]
 
@@ -439,6 +451,10 @@ def test_a_parked_tunnel_does_not_make_a_remote_zone_routable():
         }
     }
 
+    # A zone holding a live tunnel must state its egress treatment (E9920),
+    # so the fixture answers for the zone the tunnel sits in.
+    model["instances"]["network"].append(_matrix_row([_egress(_USER)]))
+
     plan = _run(model, _fixture_matrix(), _resolution())["rtr-slate"]
 
     parked = next(
@@ -470,6 +486,10 @@ def _model_with_tunnel(reaches: list[str] | None = None) -> dict:
     model["instances"]["devices"][0]["instance_data"] = {
         "runtime_intent": {"wireguard": {"interfaces": [iface]}}
     }
+    # The tunnel's zone is an egress path, so it must state its treatment
+    # (E9920): a tunnel is narrower than the client segments behind it, which
+    # is exactly where clamping decides whether TCP works.
+    model["instances"]["network"].append(_matrix_row([_egress(_EXIT_ZONE, masquerade=False)]))
     return model
 
 
@@ -553,7 +573,19 @@ def test_a_remote_permit_without_a_declared_egress_is_reported_not_guessed():
 
 
 def _matrix_row(entries, instance="inst.security_matrix.rtr_slate"):
-    return {"instance_id": instance, "instance_data": {"egress_nat": entries}}
+    return {"instance_id": instance, "instance_data": {"egress": entries}}
+
+
+def _egress(zone, *, masquerade=True, mss_clamp=True):
+    """One zone's egress block. Both facts are stated by default, because a
+    zone holding an uplink or a tunnel must answer both (E9918, E9920); a test
+    passes None for the fact it wants to leave unstated."""
+    entry = {"zone_ref": zone}
+    if masquerade is not None:
+        entry["masquerade"] = masquerade
+    if mss_clamp is not None:
+        entry["mss_clamp"] = mss_clamp
+    return entry
 
 
 def _model_with_nat(entries, *, uplink_zone=_UNTRUSTED):
@@ -577,8 +609,8 @@ def _model_with_nat(entries, *, uplink_zone=_UNTRUSTED):
 def test_masquerade_statements_reach_the_zone_plan():
     model = _model_with_nat(
         [
-            {"zone_ref": _UNTRUSTED, "masquerade": True},
-            {"zone_ref": _USER, "masquerade": False},
+            _egress(_UNTRUSTED),
+            _egress(_USER, masquerade=False),
         ]
     )
 
@@ -591,7 +623,7 @@ def test_masquerade_statements_reach_the_zone_plan():
 
 def test_an_unstated_zone_carries_none_not_a_default():
     """Tri-state on purpose: absent is a third thing, not false."""
-    model = _model_with_nat([{"zone_ref": _UNTRUSTED, "masquerade": True}])
+    model = _model_with_nat([_egress(_UNTRUSTED)])
 
     zones = _run(model, _fixture_matrix(), _resolution())["rtr-slate"]["zones"]
 
@@ -599,7 +631,7 @@ def test_an_unstated_zone_carries_none_not_a_default():
 
 
 def test_an_uplink_zone_that_says_nothing_is_refused():
-    model = _model_with_nat([{"zone_ref": _USER, "masquerade": False}])
+    model = _model_with_nat([_egress(_USER, masquerade=False)])
 
     result = _run_with_diagnostics(model, _fixture_matrix(), _resolution())
 
@@ -615,7 +647,7 @@ def test_no_statement_at_all_is_refused_for_the_uplink_zone():
 
 def test_stating_false_is_a_valid_answer():
     """A routed uplink with a public prefix legitimately does not translate."""
-    model = _model_with_nat([{"zone_ref": _UNTRUSTED, "masquerade": False}])
+    model = _model_with_nat([_egress(_UNTRUSTED, masquerade=False)])
 
     result = _run_with_diagnostics(model, _fixture_matrix(), _resolution())
 
@@ -624,7 +656,7 @@ def test_stating_false_is_a_valid_answer():
 
 def test_a_zone_without_an_uplink_needs_no_statement():
     """Only the zones where it decides reachability are required to answer."""
-    model = _model_with_nat([{"zone_ref": _UNTRUSTED, "masquerade": True}])
+    model = _model_with_nat([_egress(_UNTRUSTED)])
 
     result = _run_with_diagnostics(model, _fixture_matrix(), _resolution())
 
@@ -633,6 +665,104 @@ def test_a_zone_without_an_uplink_needs_no_statement():
 
 def test_a_non_boolean_masquerade_does_not_count_as_an_answer():
     """`masquerade: "yes"` is not a statement; only a boolean is."""
-    model = _model_with_nat([{"zone_ref": _UNTRUSTED, "masquerade": "yes"}])
+    model = _model_with_nat([{"zone_ref": _UNTRUSTED, "masquerade": "yes", "mss_clamp": True}])
 
     assert "E9918" in _run_with_diagnostics(model, _fixture_matrix(), _resolution())
+
+
+# --------------------------------------------------------------------------
+# E9920 / MSS clamping
+#
+# The criterion differs from masquerade's on purpose. Masquerade is about
+# leaving the device for someone else's network, so the uplink is what matters.
+# Clamping is about the onward link being narrower than the client's segment,
+# which is true of a tunnel too - and on the tunnel zone it never existed,
+# while W9902's own text named it as the mitigation.
+# --------------------------------------------------------------------------
+
+
+def _model_with_live_tunnel(zone=_USER):
+    model = _fixture_model()
+    model["instances"]["devices"][0]["instance_data"] = {
+        "runtime_intent": {
+            "wireguard": {"interfaces": [{"name": "wg_home", "trust_zone_ref": zone, "enabled": True}]}
+        }
+    }
+    return model
+
+
+def test_clamping_statements_reach_the_zone_plan():
+    model = _model_with_live_tunnel()
+    model["instances"]["network"].append(
+        _matrix_row([_egress(_USER, masquerade=False, mss_clamp=True)])
+    )
+
+    zones = _run(model, _fixture_matrix(), _resolution())["rtr-slate"]["zones"]
+
+    assert zones[_USER]["mtu_fix"] is True
+
+
+def test_a_tunnel_zone_that_says_nothing_about_clamping_is_refused():
+    """The case that existed on the real device: a tunnel zone, no clamping."""
+    model = _model_with_live_tunnel()
+    model["instances"]["network"].append(
+        _matrix_row([_egress(_USER, masquerade=False, mss_clamp=None)])
+    )
+
+    result = _run_with_diagnostics(model, _fixture_matrix(), _resolution())
+
+    assert "E9920" in result
+    assert "narrower than the client" in result["E9920"]
+
+
+def test_a_tunnel_zone_needs_no_masquerade_statement():
+    """The two criteria are independent: a tunnel is not an uplink."""
+    model = _model_with_live_tunnel()
+    model["instances"]["network"].append(
+        _matrix_row([_egress(_USER, masquerade=None, mss_clamp=True)])
+    )
+
+    result = _run_with_diagnostics(model, _fixture_matrix(), _resolution())
+
+    assert "E9918" not in result
+    assert "E9920" not in result
+
+
+def test_stating_no_clamping_is_a_valid_answer():
+    model = _model_with_live_tunnel()
+    model["instances"]["network"].append(
+        _matrix_row([_egress(_USER, masquerade=False, mss_clamp=False)])
+    )
+
+    assert "E9920" not in _run_with_diagnostics(model, _fixture_matrix(), _resolution())
+
+
+def test_a_parked_tunnel_does_not_make_its_zone_an_egress_path():
+    """A disabled interface forwards nothing, so there is no treatment to
+    decide - the same reasoning that excludes parked uplinks from E9919."""
+    model = _fixture_model()
+    model["instances"]["devices"][0]["instance_data"] = {
+        "runtime_intent": {
+            "wireguard": {
+                "interfaces": [{"name": "wg_ru", "trust_zone_ref": _USER, "enabled": False}]
+            }
+        }
+    }
+
+    result = _run_with_diagnostics(model, _fixture_matrix(), _resolution())
+
+    assert "E9920" not in result
+    assert "E9918" not in result
+
+
+def test_a_client_zone_needs_neither_statement():
+    """Clamping and NAT are decided where the link narrows or leaves, not on
+    every zone that happens to exist."""
+    model = _model_with_live_tunnel(zone="inst.trust_zone.vpn_exit")
+    model["instances"]["network"].append(
+        _matrix_row([_egress("inst.trust_zone.vpn_exit", masquerade=False)])
+    )
+
+    result = _run_with_diagnostics(model, _fixture_matrix(), _resolution())
+
+    assert "E9920" not in result

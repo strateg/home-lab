@@ -232,8 +232,9 @@ wireless at distance.
 ## 8. What is enforced versus what is only declared
 
 The main finding of the work, stated as a property of the architecture: **a check
-on intent is not a check on what ships.** Six times in this piece of work the
-two diverged — an override that resolved against never-defined address lists, a
+on intent is not a check on what ships.** Seven times in this piece of work the
+two diverged — most recently `mtu_fix`, which W9902's own text named as the
+mitigation for a narrow tunnel while nothing ever emitted it — an override that resolved against never-defined address lists, a
 validator rule whose mechanism did not exist, a mode declared in a `notes:`
 field with no routing behind it, input services declared and never emitted,
 packages lowered and never rendered.

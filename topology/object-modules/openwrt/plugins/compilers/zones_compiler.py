@@ -116,28 +116,35 @@ def _is_openwrt_network_enforcer(
     return _OPENWRT_OS_CAP in _extract_capabilities(row)
 
 
-def _egress_nat(network_rows: list[Any], scope_ids: list[Any]) -> dict[str, bool]:
-    """Authored masquerade statements, by zone ref, across this plan's scopes.
+def _egress_treatment(
+    network_rows: list[Any], scope_ids: list[Any]
+) -> dict[str, dict[str, bool]]:
+    """Authored egress facts per zone, across this plan's scopes.
 
-    Only an explicit boolean counts. An entry that omits `masquerade` leaves the
-    zone unstated, which is a different thing from stating false and is refused
-    separately for uplink zones (E9918).
+    Returns `{zone_ref: {"masq": bool, "mtu_fix": bool}}` carrying only the
+    facts actually stated. Only an explicit boolean counts: an entry that omits
+    a field leaves that fact unstated, which is a different thing from stating
+    false and is refused separately (E9918 for masquerade, E9920 for clamping).
     """
     wanted = {str(scope) for scope in scope_ids}
-    stated: dict[str, bool] = {}
+    stated: dict[str, dict[str, bool]] = {}
     for row in network_rows:
         if not isinstance(row, dict) or str(row.get("instance_id")) not in wanted:
             continue
         data = row.get("instance_data")
         if not isinstance(data, dict):
             continue
-        for entry in data.get("egress_nat") or []:
+        for entry in data.get("egress") or []:
             if not isinstance(entry, dict):
                 continue
             zone_ref = entry.get("zone_ref")
-            masquerade = entry.get("masquerade")
-            if isinstance(zone_ref, str) and isinstance(masquerade, bool):
-                stated[zone_ref] = masquerade
+            if not isinstance(zone_ref, str):
+                continue
+            facts = stated.setdefault(zone_ref, {})
+            for authored, key in (("masquerade", "masq"), ("mss_clamp", "mtu_fix")):
+                value = entry.get(authored)
+                if isinstance(value, bool):
+                    facts[key] = value
     return stated
 
 
@@ -495,7 +502,7 @@ class OpenwrtZonesCompiler(CompilerPlugin):
             # pair (device, zone), and two devices can hold an `untrusted` zone
             # with different NAT needs. Read from the matrix rows this plan's
             # scopes name, so a composed plan picks up every scope's statement.
-            nat_by_zone = _egress_nat(network_rows, plan.get("scope_ids") or [])
+            egress_by_zone = _egress_treatment(network_rows, plan.get("scope_ids") or [])
 
             segments_by_zone = _local_segments(network_rows, enforcer_id)
             interfaces_by_zone = _local_interfaces(row)
@@ -529,7 +536,11 @@ class OpenwrtZonesCompiler(CompilerPlugin):
                     # Tri-state on purpose: True, False, or absent. Absent is
                     # refused for an uplink zone (E9918) rather than defaulted,
                     # because neither default is safe.
-                    "masq": nat_by_zone.get(zone_ref),
+                    "masq": (egress_by_zone.get(zone_ref) or {}).get("masq"),
+                    # Clamps TCP MSS to the route's MTU, which is what makes TCP
+                    # shrink instead of stall where the onward link is narrower
+                    # than the client's segment. Tri-state like masq.
+                    "mtu_fix": (egress_by_zone.get(zone_ref) or {}).get("mtu_fix"),
                     "input_services": _input_services(segments, interfaces),
                 }
 
@@ -636,6 +647,15 @@ class OpenwrtZonesCompiler(CompilerPlugin):
             output_data={"openwrt_zones": openwrt_zones},
         )
 
+    # Which interface kinds make a zone an egress path, per fact. Masquerade is
+    # about leaving the device for someone else's network, so it is the uplink
+    # that matters. Clamping is about the onward link being narrower than the
+    # client's segment, which is true of a tunnel as well.
+    _EGRESS_KINDS = {
+        "masq": frozenset({"uplink"}),
+        "mtu_fix": frozenset({"uplink", "wireguard"}),
+    }
+
     def _check_egress_nat(
         self,
         enforcer_id: str,
@@ -660,31 +680,57 @@ class OpenwrtZonesCompiler(CompilerPlugin):
         """
         diagnostics: list[PluginDiagnostic] = []
 
+        unstated = {
+            "masq": (
+                "E9918",
+                "an uplink interface",
+                "whether its egress is masqueraded",
+                "masquerade",
+                "Neither default is safe - true silently widens what leaves the device, false "
+                "leaves clients with private source addresses that never get a reply.",
+            ),
+            "mtu_fix": (
+                "E9920",
+                "an uplink or a tunnel",
+                "whether TCP MSS is clamped",
+                "mss_clamp",
+                "Where the onward link is narrower than the client's segment a full-size packet "
+                "does not fit: with clamping TCP shrinks, without it TCP stalls while ping and "
+                "small flows keep working - the hardest shape of fault to diagnose.",
+            ),
+        }
+
         for zone_ref in sorted(zones):
             zone = zones.get(zone_ref)
             if not isinstance(zone, dict) or not zone.get("local"):
                 continue
-            holds_uplink = any(
-                isinstance(member, dict) and member.get("kind") == "uplink"
+            # Parked interfaces are excluded: a disabled interface forwards
+            # nothing, so it does not make its zone an egress path and there is
+            # no treatment to decide for it. The same reasoning excludes parked
+            # uplinks from the preference check (E9919).
+            kinds = {
+                member.get("kind")
                 for member in interfaces_by_zone.get(zone_ref) or []
-            )
-            if not holds_uplink or isinstance(zone.get("masq"), bool):
-                continue
-            diagnostics.append(
-                self.emit_diagnostic(
-                    code="E9918",
-                    severity="error",
-                    stage=stage,
-                    message=(
-                        f"Enforcer '{enforcer_id}': zone '{zone_ref}' holds an uplink interface but "
-                        "does not state whether its egress is masqueraded. Add it to the matrix's "
-                        "egress_nat with masquerade: true or false and the reason. Neither default is "
-                        "safe - true silently widens what leaves the device, false leaves clients with "
-                        "private source addresses that never get a reply."
-                    ),
-                    path=f"instance:{enforcer_id}.egress_nat.{zone_ref}",
+                if isinstance(member, dict) and member.get("enabled") is not False
+            }
+            for fact, (code, holds, question, authored, why) in unstated.items():
+                if not (kinds & self._EGRESS_KINDS[fact]):
+                    continue
+                if isinstance(zone.get(fact), bool):
+                    continue
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code=code,
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            f"Enforcer '{enforcer_id}': zone '{zone_ref}' holds {holds} but does not "
+                            f"state {question}. Add it to the matrix's egress with "
+                            f"{authored}: true or false and the reason. {why}"
+                        ),
+                        path=f"instance:{enforcer_id}.egress.{zone_ref}.{authored}",
+                    )
                 )
-            )
 
         return diagnostics
 

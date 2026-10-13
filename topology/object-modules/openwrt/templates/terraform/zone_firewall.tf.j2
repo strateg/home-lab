@@ -42,6 +42,15 @@ resource "uapi_firewall_zone" "{{ zone.label }}" {
   # killed internet for the split and guest segments.
   masq = {{ "true" if zone.masq else "false" }}
 {% endif %}
+{% if zone.mtu_fix is not none %}
+
+  # Clamps TCP MSS to the route's MTU (`maxseg size set rt mtu`), so no number
+  # is authored. This is what makes TCP shrink instead of stall where the
+  # onward link is narrower than the client's segment - on the tunnel zone it
+  # never existed, and W9902 named it as the mitigation while nothing emitted
+  # it.
+  mtu_fix = {{ "true" if zone.mtu_fix else "false" }}
+{% endif %}
 {% if zone.input_services %}
 
   # Services this zone needs on the input path: {{ zone.input_services | join(', ') }}
