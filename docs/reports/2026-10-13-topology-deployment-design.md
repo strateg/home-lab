@@ -305,6 +305,44 @@ liftable. D2's SSID-per-mode selection is preserved intact.
 
 radio0 being off is not incidental — it is where the ath11k gain comes from.
 
+### The reason that settles it: range belongs on the uplink
+
+The internal radios are the long-range ones — 2x2 on both bands with the
+device's own antennas — and a USB adapter normally has a stub. So the allocation
+is not only about which failure is tolerable; it is about **where range is
+needed at all**. The uplink may have to reach a hotel AP from a car park. The
+clients are in the same car.
+
+Putting the good antennas on the uplink and the stub on a one-metre link is the
+whole argument, and it is stronger than the reliability one.
+
+### What that unlocks: dual-band uplink
+
+`uplink5` already exists in the instance — a station on radio0, `enabled: false`.
+It is parked for one reason: radio0 serves the APs, and any station on a phy sets
+`ap_start_disabled`, so a live station there would stop every AP on that phy on
+each `DISCONNECTED`/`SCANNING` transition (W9901).
+
+**Move the APs to USB and that constraint disappears.** Both internal radios
+become uplink candidates:
+
+| Station | Band | Why |
+|---|---|---|
+| `uplink` on radio1 | 2.4 GHz | best reach — lower frequency penetrates and carries further; the car-park case |
+| `uplink5` on radio0 | 5 GHz | venues that offer only 5 GHz, and better throughput when close |
+
+E9910 permits this: the limit is one station **per radio**, not one per device.
+
+One detail this exposes, which the current data has only by accident: both
+stations declare `network: wwan`, and `runtime_intent.uplink.primary` names
+`wwan` once. That works today only because `uplink5` is parked — two live
+stations feeding one `config interface` would have two providers for one
+address. Unparking it needs either a second network (`wwan5`, also in
+`untrusted`) with route metrics deciding which uplink wins, or an explicit
+either/or selection. Metrics are the better answer, since it makes the
+preference declarative instead of operational; they are currently set nowhere,
+which is the same gap already noted for `wwan` versus `wan`.
+
 ### Four go/no-go requirements on the adapter
 
 These are not preferences; the design does not work if any fails.
