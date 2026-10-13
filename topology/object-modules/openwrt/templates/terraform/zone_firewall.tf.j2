@@ -34,6 +34,14 @@ resource "uapi_firewall_zone" "{{ zone.label }}" {
   input         = "{{ zone.input }}"
   forward       = "{{ zone.forward }}"
   output_policy = "{{ zone.output }}"
+{% if zone.masq is not none %}
+
+  # Egress NAT, stated per (device, zone) in the matrix rather than inferred.
+  # Until this was emitted, NAT for client egress depended on the STOCK wan
+  # zone still being present, so removing the stock zones would have silently
+  # killed internet for the split and guest segments.
+  masq = {{ "true" if zone.masq else "false" }}
+{% endif %}
 {% if zone.input_services %}
 
   # Services this zone needs on the input path: {{ zone.input_services | join(', ') }}

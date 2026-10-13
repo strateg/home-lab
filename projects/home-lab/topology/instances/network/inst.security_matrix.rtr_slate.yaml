@@ -67,6 +67,38 @@ availability_waiver:
     attested for it. The waiver records that status and asserts nothing about
     service health.
 
+# ---------------------------------------------------------------------------
+# EGRESS NAT
+#
+# Masquerading is a property of the pair (this device, this zone), not of the
+# trust level: two devices can both hold an `untrusted` zone and have different
+# NAT needs. So it is stated here, per enforcer, rather than on the shared trust
+# zone instance - which is also what ADR 0118 D7 requires, since a value that
+# decides one concrete entity's behaviour must not live on something shared.
+#
+# Stated for every zone that holds an uplink, because neither default is safe:
+# assuming true silently widens what leaves the device, and assuming false
+# leaves clients with private source addresses that never get a reply. E9918
+# refuses an uplink zone that says nothing.
+# ---------------------------------------------------------------------------
+egress_nat:
+  - zone_ref: inst.trust_zone.untrusted
+    masquerade: true
+    comment: >-
+      The venue hands out one address, so client traffic leaving here must be
+      translated or the replies have nowhere to return to. Until this existed,
+      NAT worked only because the STOCK wan zone was still present - removing
+      it would have silently killed Slate-Split and Slate-Guest.
+
+  - zone_ref: inst.trust_zone.vpn_exit
+    masquerade: false
+    comment: >-
+      Deliberately NOT translated. inst.tunnel.wg-home-to-oci records that
+      rtr-slate routes its segments without SNAT so the client source IP
+      survives to the far end; that is what `advertises` plus matching
+      AllowedIPs expresses. Masquerading here would defeat it and make every
+      client look like the router at home.
+
 policy_overrides:
   # Inherited from obj.network.security_matrix.soho:
   # - user-to-servers-http (tcp 80, 443)

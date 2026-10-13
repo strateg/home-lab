@@ -116,6 +116,31 @@ def _is_openwrt_network_enforcer(
     return _OPENWRT_OS_CAP in _extract_capabilities(row)
 
 
+def _egress_nat(network_rows: list[Any], scope_ids: list[Any]) -> dict[str, bool]:
+    """Authored masquerade statements, by zone ref, across this plan's scopes.
+
+    Only an explicit boolean counts. An entry that omits `masquerade` leaves the
+    zone unstated, which is a different thing from stating false and is refused
+    separately for uplink zones (E9918).
+    """
+    wanted = {str(scope) for scope in scope_ids}
+    stated: dict[str, bool] = {}
+    for row in network_rows:
+        if not isinstance(row, dict) or str(row.get("instance_id")) not in wanted:
+            continue
+        data = row.get("instance_data")
+        if not isinstance(data, dict):
+            continue
+        for entry in data.get("egress_nat") or []:
+            if not isinstance(entry, dict):
+                continue
+            zone_ref = entry.get("zone_ref")
+            masquerade = entry.get("masquerade")
+            if isinstance(zone_ref, str) and isinstance(masquerade, bool):
+                stated[zone_ref] = masquerade
+    return stated
+
+
 def _local_segments(network_rows: list[Any], enforcer_id: str) -> dict[str, list[dict[str, Any]]]:
     """Address domains this enforcer owns, grouped by trust zone.
 
@@ -465,6 +490,13 @@ class OpenwrtZonesCompiler(CompilerPlugin):
             if not isinstance(zone_data, dict) or not isinstance(matrix, dict):
                 continue
 
+            # Egress NAT, authored per enforcer on the matrix instance rather
+            # than on the shared trust zone: masquerading is a property of the
+            # pair (device, zone), and two devices can hold an `untrusted` zone
+            # with different NAT needs. Read from the matrix rows this plan's
+            # scopes name, so a composed plan picks up every scope's statement.
+            nat_by_zone = _egress_nat(network_rows, plan.get("scope_ids") or [])
+
             segments_by_zone = _local_segments(network_rows, enforcer_id)
             interfaces_by_zone = _local_interfaces(row)
             # A zone is local if this device puts anything in it - an address
@@ -494,11 +526,18 @@ class OpenwrtZonesCompiler(CompilerPlugin):
                     "input": "REJECT",
                     "forward": "REJECT",
                     "output": "ACCEPT",
+                    # Tri-state on purpose: True, False, or absent. Absent is
+                    # refused for an uplink zone (E9918) rather than defaulted,
+                    # because neither default is safe.
+                    "masq": nat_by_zone.get(zone_ref),
                     "input_services": _input_services(segments, interfaces),
                 }
 
             input_rules, input_diagnostics = self._lower_input_rules(enforcer_id, zones, stage)
             diagnostics.extend(input_diagnostics)
+            diagnostics.extend(
+                self._check_egress_nat(enforcer_id, zones, interfaces_by_zone, stage)
+            )
 
             # Which zones hold this device's uplink, so a consumer can ask the
             # question "may this segment reach the internet directly?" without
@@ -596,6 +635,58 @@ class OpenwrtZonesCompiler(CompilerPlugin):
             diagnostics=diagnostics,
             output_data={"openwrt_zones": openwrt_zones},
         )
+
+    def _check_egress_nat(
+        self,
+        enforcer_id: str,
+        zones: dict[str, Any],
+        interfaces_by_zone: dict[str, list[dict[str, Any]]],
+        stage: Stage,
+    ) -> list[PluginDiagnostic]:
+        """E9918: a zone holding an uplink must say whether it masquerades.
+
+        The question is required to be *answered*, not answered a particular
+        way - stating false is a legitimate answer for a routed uplink with a
+        public prefix. What is refused is silence, because neither default is
+        safe: assuming true silently widens what leaves the device, and
+        assuming false leaves clients with private sources that never get a
+        reply.
+
+        That second failure is not hypothetical. Before this existed, NAT on
+        rtr-slate worked only because the *stock* wan zone was still present
+        with `masq=1`; the planned removal of the stock zones would have killed
+        internet for Slate-Split and Slate-Guest, and nothing would have said
+        why.
+        """
+        diagnostics: list[PluginDiagnostic] = []
+
+        for zone_ref in sorted(zones):
+            zone = zones.get(zone_ref)
+            if not isinstance(zone, dict) or not zone.get("local"):
+                continue
+            holds_uplink = any(
+                isinstance(member, dict) and member.get("kind") == "uplink"
+                for member in interfaces_by_zone.get(zone_ref) or []
+            )
+            if not holds_uplink or isinstance(zone.get("masq"), bool):
+                continue
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E9918",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        f"Enforcer '{enforcer_id}': zone '{zone_ref}' holds an uplink interface but "
+                        "does not state whether its egress is masqueraded. Add it to the matrix's "
+                        "egress_nat with masquerade: true or false and the reason. Neither default is "
+                        "safe - true silently widens what leaves the device, false leaves clients with "
+                        "private source addresses that never get a reply."
+                    ),
+                    path=f"instance:{enforcer_id}.egress_nat.{zone_ref}",
+                )
+            )
+
+        return diagnostics
 
     def _lower_input_rules(
         self,

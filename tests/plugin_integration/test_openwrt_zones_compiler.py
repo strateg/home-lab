@@ -152,6 +152,28 @@ def _run(model: dict, matrix: dict, resolution: dict):
     return result.output_data["openwrt_zones"]
 
 
+def _run_with_diagnostics(model: dict, matrix: dict, resolution: dict) -> dict:
+    """Run the compiler and return {code: message} instead of the plan."""
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={},
+        instance_bindings={"instance_bindings": {}},
+    )
+    publish_for_test(ctx, "base.compiler.effective_model", "effective_model_candidate", model)
+    publish_for_test(ctx, "base.compiler.effective_model", "enforcer_resolution", resolution)
+    publish_for_test(ctx, "base.compiler.security_matrix", "composed_matrices_by_enforcer", matrix)
+    plugin = MODULE.OpenwrtZonesCompiler(PLUGIN_ID)
+    result = run_plugin_for_test(
+        plugin,
+        ctx,
+        Stage.COMPILE,
+        consumes_keys=_PRODUCERS,
+    )
+    return {d.code: d.message for d in result.diagnostics}
+
+
 def _resolution(enforcer: str = "rtr-slate", **kwargs) -> dict:
     entry = {"type": "network", "adapter": "cap.firewall.security_matrix.openwrt"}
     entry.update(kwargs)
@@ -286,6 +308,12 @@ def test_interfaces_make_a_zone_local_without_any_segment():
             }
         }
     }
+    # A zone holding an uplink must now state whether it masquerades (E9918),
+    # so the fixture answers. Added when that check landed - the fixture was
+    # silent, which is exactly what the check refuses.
+    model["instances"]["network"].append(
+        _matrix_row([{"zone_ref": _UNTRUSTED, "masquerade": True}])
+    )
     matrix = _fixture_matrix()
     matrix["rtr-slate"]["matrix"][_UNTRUSTED] = {_USER: _cell("deny", rule="R4")}
 
@@ -506,3 +534,105 @@ def test_a_remote_permit_without_a_declared_egress_is_reported_not_guessed():
     assert plan["forwardings"] == []
     assert len(plan["unroutable_permits"]) == 1
     assert plan["unroutable_permits"][0]["missing"] == "egress interface"
+
+
+# --------------------------------------------------------------------------
+# E9918 / egress NAT
+#
+# Masquerading is a property of the pair (device, zone), not of the trust
+# level, so it is authored on the matrix instance. The check requires the
+# question to be ANSWERED for any zone holding an uplink - stating false is a
+# legitimate answer for a routed uplink with a public prefix. What is refused
+# is silence, because neither default is safe.
+#
+# The second failure is not hypothetical: before this existed, NAT on
+# rtr-slate worked only because the STOCK wan zone was still present with
+# masq=1, so the planned removal of the stock zones would have killed internet
+# for the split and guest segments with nothing saying why.
+# --------------------------------------------------------------------------
+
+
+def _matrix_row(entries, instance="inst.security_matrix.rtr_slate"):
+    return {"instance_id": instance, "instance_data": {"egress_nat": entries}}
+
+
+def _model_with_nat(entries, *, uplink_zone=_UNTRUSTED):
+    model = _fixture_model()
+    model["instances"]["devices"][0]["instance_data"] = {
+        "runtime_intent": {
+            "uplink": {
+                "primary": {
+                    "interface": "wwan",
+                    "proto": "dhcp",
+                    "trust_zone_ref": uplink_zone,
+                }
+            }
+        }
+    }
+    if entries is not None:
+        model["instances"]["network"].append(_matrix_row(entries))
+    return model
+
+
+def test_masquerade_statements_reach_the_zone_plan():
+    model = _model_with_nat(
+        [
+            {"zone_ref": _UNTRUSTED, "masquerade": True},
+            {"zone_ref": _USER, "masquerade": False},
+        ]
+    )
+
+    result = _run(model, _fixture_matrix(), _resolution())
+    zones = result["rtr-slate"]["zones"]
+
+    assert zones[_UNTRUSTED]["masq"] is True
+    assert zones[_USER]["masq"] is False
+
+
+def test_an_unstated_zone_carries_none_not_a_default():
+    """Tri-state on purpose: absent is a third thing, not false."""
+    model = _model_with_nat([{"zone_ref": _UNTRUSTED, "masquerade": True}])
+
+    zones = _run(model, _fixture_matrix(), _resolution())["rtr-slate"]["zones"]
+
+    assert zones[_USER]["masq"] is None
+
+
+def test_an_uplink_zone_that_says_nothing_is_refused():
+    model = _model_with_nat([{"zone_ref": _USER, "masquerade": False}])
+
+    result = _run_with_diagnostics(model, _fixture_matrix(), _resolution())
+
+    assert "E9918" in result
+    assert _UNTRUSTED in next(m for c, m in result.items() if c == "E9918")
+
+
+def test_no_statement_at_all_is_refused_for_the_uplink_zone():
+    assert "E9918" in _run_with_diagnostics(
+        _model_with_nat(None), _fixture_matrix(), _resolution()
+    )
+
+
+def test_stating_false_is_a_valid_answer():
+    """A routed uplink with a public prefix legitimately does not translate."""
+    model = _model_with_nat([{"zone_ref": _UNTRUSTED, "masquerade": False}])
+
+    result = _run_with_diagnostics(model, _fixture_matrix(), _resolution())
+
+    assert "E9918" not in result
+
+
+def test_a_zone_without_an_uplink_needs_no_statement():
+    """Only the zones where it decides reachability are required to answer."""
+    model = _model_with_nat([{"zone_ref": _UNTRUSTED, "masquerade": True}])
+
+    result = _run_with_diagnostics(model, _fixture_matrix(), _resolution())
+
+    assert "E9918" not in result
+
+
+def test_a_non_boolean_masquerade_does_not_count_as_an_answer():
+    """`masquerade: "yes"` is not a statement; only a boolean is."""
+    model = _model_with_nat([{"zone_ref": _UNTRUSTED, "masquerade": "yes"}])
+
+    assert "E9918" in _run_with_diagnostics(model, _fixture_matrix(), _resolution())

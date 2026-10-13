@@ -411,6 +411,10 @@ class TerraformOpenwrtGenerator(BaseGenerator):
                     "name": _zone_name(zone_ref, zone),
                     "zone_ref": zone_ref,
                     "networks": [item for item in networks if isinstance(item, str) and item],
+                    # None means unstated, which E9918 already refused for an
+                    # uplink zone; for any other zone it means "the provider's
+                    # default", and the attribute is simply not emitted.
+                    "masq": zone.get("masq"),
                     "input": zone.get("input", "REJECT"),
                     "output": zone.get("output", "ACCEPT"),
                     "forward": zone.get("forward", "REJECT"),

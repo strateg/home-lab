@@ -1722,6 +1722,17 @@ codes:
       deliberately deferred - so a gap in the rendered config is attributable rather than inferred.
 
   # Raiser: object.openwrt.compiler.zones
+  E9918:
+    severity: error
+    stage: compile
+    title: Egress NAT Unstated For An Uplink Zone
+    hint: >-
+      A zone holding an uplink interface does not say whether its egress is masqueraded. Neither default is
+      safe: assuming true silently widens what leaves the device, and assuming false leaves clients with
+      private sources that never get a reply - which is how the gap this code closes went unnoticed. State
+      it per zone in the matrix's egress_nat, with the reason.
+
+  # Raiser: object.openwrt.compiler.zones
   E9916:
     severity: error
     stage: compile
