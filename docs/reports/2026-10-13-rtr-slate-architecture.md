@@ -248,6 +248,21 @@ hyphens; firewall rules naming zones as literals **race** the zones they name;
 `proto=wireguard` requires `addresses`; and writing a radio destroys the phy
 binding (I3).
 
+## 8a. Rejected: running the controller on the device
+
+Considered and dropped 2026-10-13. Beyond the resource facts — 512 MB RAM shared
+with hostapd, dnsmasq, nftables and four tunnels, 81.7 MB free on `/overlay`,
+and musl rather than glibc so prebuilt arm64 binaries do not run — the
+architectural objection is the decisive one:
+
+**the router is a target, not a controller.** ADR 0119 D6 draws that boundary,
+and a controller hosted on the device it controls means a bad apply removes the
+thing that could repair it. That failure mode was observed twice during the
+first apply, each time recovered from *outside* the device.
+
+The controller belongs on `srv-orangepi5`, which already carries
+`cap.operations.infrastructure_controller`.
+
 ## 9. Open items
 
 Ordered by what blocks what.
