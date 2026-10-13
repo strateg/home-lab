@@ -205,6 +205,63 @@ Cost and caveats, stated plainly:
 
 ---
 
+## 8a. Deploying to rtr-slate while travelling
+
+Asked directly: is the proposal to tunnel from rtr-slate into Chateau's
+management network and deploy from the Orange Pi? **No** — not as the primary
+path, because it costs two deliberate closures, both verified still in place:
+
+* `vpn_exit` is not among the zones granted input services (`guest`,
+  `management`, `travel_split`, `user`, `vpn_tunnel` are), so uapi and SSH over
+  the tunnel are closed.
+* Slate's tunnel `routes` carry `192.168.88.0/24`, `10.100.0.0/24` and
+  `10.0.100.0/24` — the management prefix was deliberately omitted. Without it a
+  reply to `10.0.99.20` would leave through the **venue uplink** in clear, not
+  the tunnel.
+
+**The operator travels with the device.** In a hotel you are standing next to
+it: LAN1, or join `Slate-Home`, and the `management` zone already permits ssh
+and uapi on `lan`. No tunnel, no new hole in the perimeter, no management route,
+and no dependence on the venue's internet or on home being up. That is
+literally how the first apply was performed.
+
+So the split is:
+
+| When | Host | Path |
+|---|---|---|
+| Slate travelling | the laptop, locally | `lan` — already permitted |
+| Slate at home, and all of Chateau | `srv-orangepi5` | management VLAN |
+| Nobody is with the device | over `wg-home`, **gated** | see below |
+
+The third case stays available but deliberately exceptional. If it is used it
+must be **inbound only**: an input rule on Slate's `vpn_exit` zone scoped to the
+Orange Pi's address lets home initiate, conntrack returns the replies, and
+nothing lets Slate initiate into the management plane. That asymmetry is the
+whole point — the original decision not to grant Slate management access exists
+because a lost or seized router must not reach it, and an inbound-only rule does
+not weaken that. It also needs the management prefix added to the tunnel routes,
+which is the second closure above, so it is a profile-scoped capability and not
+a default.
+
+### The real gap this exposed: two hosts, one state
+
+If both the laptop and the Orange Pi can deploy, state must not live on
+whichever ran it last. Today 83 resources exist in `.work/` on the laptop alone;
+an apply from the Orange Pi would try to create every section again and take
+`422 conflict` on each. This is what `*_BACKEND_CONFIG` in the existing
+framework is for — a shared backend rather than per-host state.
+
+That carries a tension worth naming: a shared backend at home means a travel
+deploy depends on home being reachable, which couples the two in exactly the
+wrong direction.
+
+It is resolved by what D2 already decided rather than by more machinery: **modes
+are selected by which SSID the client joins, not by reconfiguring.** A travel
+deploy should therefore be rare by design. For the residual "must change
+something now and home is unreachable" case the right tool is not Terraform at
+all — it is SSH and `uci`, followed by reconciling the drift when home is back,
+which the deploy framework already anticipates with `--acknowledge-drift`.
+
 ## 9. Decisions needed
 
 1. **Deploy host** — commit to the Orange Pi? First settle why the management
@@ -213,5 +270,8 @@ Cost and caveats, stated plainly:
    standing mechanism, with A1 as recovery?
 3. **State encryption** — adopt OpenTofu for this root only, or repo-wide
    (which is where most of the exposed key material actually is)?
+3a. **Shared state backend** — where does it live, given that a travel deploy
+   must not require home to be reachable? The answer above is "travel deploys
+   are rare by design", but the backend still has to be chosen.
 4. **`masq`** — add it to the zone model now, since it blocks both removing the
    stock zones and applying this generator to Chateau.
