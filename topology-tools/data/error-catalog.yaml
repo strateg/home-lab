@@ -1659,6 +1659,17 @@ codes:
       clamps TCP MSS only, so UDP and QUIC blackhole instead of degrading. Measure the real overhead.
 
   # Raiser: object.openwrt.compiler.interfaces
+  E9919:
+    severity: error
+    stage: compile
+    title: Uplink Preference Is Not Determined
+    hint: >-
+      More than one uplink is declared and the preference between them is not decided: a metric is missing,
+      or two share one. netifd installs a default route per live uplink, so with equal or absent metrics the
+      kernel picks by insertion order - the uplink is then whatever came up first rather than what was
+      chosen. State a distinct metric per uplink, lowest preferred.
+
+  # Raiser: object.openwrt.compiler.interfaces
   E9917:
     severity: error
     stage: compile

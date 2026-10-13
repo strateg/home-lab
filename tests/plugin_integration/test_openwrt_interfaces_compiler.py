@@ -197,14 +197,18 @@ def _model(*, wireless=None, wireguard_mtu=1420):
             "input_services": ["ssh", "uapi"],
         },
         "uplink": {
+            # Two live uplinks must state a distinct preference (E9919), as the
+            # real instance does: a cable outranks the station.
             "primary": {
                 "interface": "wwan",
                 "proto": "dhcp",
                 "wireless_iface": "uplink",
                 "trust_zone_ref": "inst.trust_zone.untrusted",
+                "metric": 30,
             },
             "wired": {
                 "interface": "wan",
+                "metric": 10,
                 "device": "wan",
                 "proto": "dhcp",
                 "trust_zone_ref": "inst.trust_zone.untrusted",
@@ -889,3 +893,81 @@ def test_an_unanswered_uplink_question_is_not_treated_as_a_denial():
     result = _run(plan, _routed_model(default_route_for=[], table=None))
 
     assert "W9905" not in _codes(result)
+
+
+# ---------------------------------------------------------------------------
+# E9919 / uplink preference
+#
+# netifd installs a default route for every live uplink, so with equal or
+# absent metrics the kernel picks by insertion order - the active uplink
+# becomes whatever came up first rather than what was chosen. One uplink needs
+# no metric, because there is nothing to prefer it over.
+# ---------------------------------------------------------------------------
+
+
+def _uplinks(primary=None, wired=None):
+    """Shape the two uplinks. A value of None for a key REMOVES it, so a test
+    can express "this uplink states no metric" against a fixture that does."""
+
+    def apply(spec, changes):
+        for key, value in changes.items():
+            if value is None:
+                spec.pop(key, None)
+            else:
+                spec[key] = value
+
+    model = _routed_model()
+    uplink = model["instances"]["devices"][0]["instance_data"]["runtime_intent"]["uplink"]
+    if primary is not None:
+        apply(uplink["primary"], primary)
+    if wired is None:
+        del uplink["wired"]
+    else:
+        apply(uplink["wired"], wired)
+    return model
+
+
+def test_distinct_metrics_are_accepted_and_carried():
+    entry = _plan_of(_run(_zone_plan(), _uplinks({"metric": 30}, {"metric": 10})))
+
+    metrics = {item["id"]: item["metric"] for item in entry["interfaces"] if item["kind"] == "uplink"}
+    assert metrics == {"wwan": 30, "wan": 10}
+
+
+def test_a_missing_metric_with_two_uplinks_is_refused():
+    result = _run(_zone_plan(), _uplinks({"metric": 30}, {"metric": None}))
+
+    assert "E9919" in _codes(result)
+    message = next(d.message for d in result.diagnostics if d.code == "E9919")
+    # Singular, because exactly one uplink is missing it.
+    assert "wan declares no metric" in message
+
+
+def test_a_tie_is_refused_as_the_same_ambiguity():
+    result = _run(_zone_plan(), _uplinks({"metric": 10}, {"metric": 10}))
+
+    assert "E9919" in _codes(result)
+    assert "share metric 10" in next(d.message for d in result.diagnostics if d.code == "E9919")
+
+
+def test_one_uplink_needs_no_metric():
+    """Nothing to prefer it over, so silence is not ambiguity."""
+    result = _run(_zone_plan(), _uplinks({"metric": None}, None))
+
+    assert "E9919" not in _codes(result)
+
+
+def test_a_parked_uplink_does_not_compete():
+    """A disabled interface installs no route, so it cannot win or tie."""
+    result = _run(_zone_plan(), _uplinks({"metric": 30}, {"enabled": False}))
+
+    assert "E9919" not in _codes(result)
+
+
+def test_segments_carry_no_metric():
+    """Only uplinks compete for the default route."""
+    entry = _plan_of(_run(_zone_plan(), _uplinks({"metric": 30}, {"metric": 10})))
+
+    for item in entry["interfaces"]:
+        if item["kind"] != "uplink":
+            assert item.get("metric") is None, item["id"]

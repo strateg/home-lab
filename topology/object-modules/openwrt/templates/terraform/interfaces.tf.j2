@@ -78,6 +78,14 @@ resource "uapi_network_interface" "{{ iface.label }}" {
 {% if iface.mtu %}
   mtu = {{ iface.mtu }}
 {% endif %}
+{% if iface.metric is not none %}
+
+  # Preference between uplinks, lowest wins. netifd gives every live uplink a
+  # default route, so this is what decides which one is used - without it the
+  # kernel picks by insertion order and the uplink is whatever came up first
+  # (E9919).
+  metric = {{ iface.metric }}
+{% endif %}
 {% if iface.kind == 'wireguard' %}
   private_key = var.{{ iface.label }}_private_key
 {% endif %}

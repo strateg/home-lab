@@ -551,6 +551,7 @@ class TerraformOpenwrtGenerator(BaseGenerator):
             "ipaddrs": [],
             "netmask": None,
             "mtu": None,
+            "metric": None,
             "disabled": False,
             "immutable": False,
             "wireless_iface": None,

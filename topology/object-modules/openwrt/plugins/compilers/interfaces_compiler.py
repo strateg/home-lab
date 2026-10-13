@@ -323,6 +323,8 @@ class OpenwrtInterfacesCompiler(CompilerPlugin):
         )
         diagnostics.extend(adoption_diagnostics)
 
+        diagnostics.extend(self._check_uplink_preference(enforcer_id, interfaces, stage))
+
         diagnostics.extend(
             self._check_section_names(
                 enforcer_id,
@@ -472,6 +474,10 @@ class OpenwrtInterfacesCompiler(CompilerPlugin):
                         "netmask": None,
                         "disabled": not _is_enabled(spec),
                         "immutable": False,
+                        # Preference between uplinks, lowest wins. netifd gives
+                        # every live uplink a default route, so this is what
+                        # decides which one is actually used (E9919).
+                        "metric": spec.get("metric"),
                         # A radio-backed uplink has no `device`: netifd attaches
                         # the station interface to it by name from the
                         # wifi-iface's `network`, so naming a device here would
@@ -694,6 +700,75 @@ class OpenwrtInterfacesCompiler(CompilerPlugin):
     # ULID, which mutates the router (W9903), so the two must be told apart
     # before an import block is emitted rather than after.
     _ANONYMOUS_SECTION = re.compile(r"^cfg[0-9a-f]{6,}$")
+
+    def _check_uplink_preference(
+        self,
+        enforcer_id: str,
+        interfaces: list[dict[str, Any]],
+        stage: Stage,
+    ) -> list[PluginDiagnostic]:
+        """E9919: with more than one uplink, the preference must be decided.
+
+        netifd installs a default route for every live uplink, so with equal or
+        absent metrics the kernel picks by insertion order - the active uplink
+        is then whatever came up first rather than what was chosen. One uplink
+        needs no metric, because there is nothing to prefer it over.
+
+        Parked uplinks are excluded: a disabled interface installs no route, so
+        it cannot compete.
+        """
+        diagnostics: list[PluginDiagnostic] = []
+
+        live = [
+            item
+            for item in interfaces
+            if item.get("kind") == "uplink" and not item.get("disabled")
+        ]
+        if len(live) < 2:
+            return diagnostics
+
+        missing = [str(item["id"]) for item in live if not isinstance(item.get("metric"), int)]
+        if missing:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E9919",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        f"Enforcer '{enforcer_id}': {len(live)} uplinks are live but "
+                        f"{', '.join(missing)} "
+                        f"{'declares' if len(missing) == 1 else 'declare'} no metric, so the "
+                        "preference between them is undecided. netifd gives each a default route "
+                        "and the kernel then picks by "
+                        "insertion order - the uplink becomes whatever came up first. State a distinct "
+                        "metric per uplink, lowest preferred."
+                    ),
+                    path=f"instance:{enforcer_id}.runtime_intent.uplink",
+                )
+            )
+            return diagnostics
+
+        by_metric: dict[int, list[str]] = {}
+        for item in live:
+            by_metric.setdefault(int(item["metric"]), []).append(str(item["id"]))
+        for metric, names in sorted(by_metric.items()):
+            if len(names) < 2:
+                continue
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E9919",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        f"Enforcer '{enforcer_id}': uplinks {', '.join(sorted(names))} share metric "
+                        f"{metric}, so neither is preferred. A tie is the same ambiguity as no metric at "
+                        "all - the kernel resolves it by insertion order. Give them distinct values."
+                    ),
+                    path=f"instance:{enforcer_id}.runtime_intent.uplink",
+                )
+            )
+
+        return diagnostics
 
     def _check_section_names(
         self,

@@ -132,11 +132,21 @@ runtime_intent:
     # Primary: associate to the venue AP as a station. radio1 (2.4 GHz) carries
     # it so that radio0 stays STA-free - see the wireless block for why that
     # choice is load-bearing rather than cosmetic.
+    # Preference between uplinks, lowest wins. netifd installs a default route
+    # per live uplink, so without distinct metrics the kernel picks by
+    # insertion order and the active uplink is whatever came up first rather
+    # than what was chosen (E9919).
+    #
+    # The order encodes deliberateness: a cable is a deliberate act and the
+    # most predictable link, so it outranks the station, which is the standing
+    # fallback. A tethered phone, when modelled, belongs between them - also
+    # deliberate, but on someone's battery.
     primary:
       interface: wwan
       proto: dhcp
       wireless_iface: uplink
       trust_zone_ref: inst.trust_zone.untrusted
+      metric: 30
     # Wired venue uplink when a room offers Ethernet. Same zone: a cable in a
     # hotel is no more trusted than its WiFi.
     wired:
@@ -145,6 +155,7 @@ runtime_intent:
       proto: dhcp
       trust_zone_ref: inst.trust_zone.untrusted
       enabled: true
+      metric: 10
     # Captive portals answer with RFC1918 addresses, which dnsmasq's rebind
     # protection discards by default - the portal then never resolves.
     captive_portal:
