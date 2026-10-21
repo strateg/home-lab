@@ -143,3 +143,9 @@ mikrotik_config:
 
 # Managed by
 managed_by_ref: rtr-mikrotik-chateau
+
+# Who consumes the mikrotik_config block above (ADR 0120 D6). A
+# configuration-shaped block is a claim that something enforces it; this is
+# where that claim is checked instead of assumed.
+config_block_provenance:
+  mikrotik_config: object.mikrotik.generator.terraform

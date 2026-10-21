@@ -122,6 +122,47 @@ ansible:
 
 See `docs/ai/rules/host-placement.md` for full @on directive reference.
 
+## Record A Hand-Made Device Change (ADR 0120 D7)
+
+A deliberate tweak made directly on a device is legitimate. An *unmarked* one is
+indistinguishable from garbage, and the next reconciliation will treat it as
+such. Two steps, both required:
+
+1. **Mark it on the device.** The comment begins with `manual:` and carries an
+   owner and a date:
+
+   ```
+   /ip firewall filter set 0 comment="manual: AWG proxy test egress owner=platform-owner since=2026-10-21 ref=docs/reports/2026-10-21-chateau-dead-rules.md"
+   ```
+
+   `owner=` and `since=` are required; `ref=` is optional and strongly
+   preferred. The canonical form lives in
+   `configs/quality/device-provenance-policy.yaml`.
+
+2. **Register it in the repository** (manual-exception registry, ADR 0120
+   option C — not implemented yet). Until it exists, add the object to the
+   triage table in `docs/reports/2026-10-21-chateau-dead-rules.md` so it is not
+   lost.
+
+The intended end state of every manual entry is its removal: either topology
+learns to render it, or it leaves the device. A marker is a staging label with a
+clock, not a permanent exemption.
+
+**Never** put `manual:` in a template or generator. A rendered object claiming
+to be hand-made would be spared by the reconciliation that owns it; the
+validation refuses it as `E8402`.
+
+To check what the rendered roots claim:
+
+```bash
+.venv/bin/python scripts/validation/validate_device_provenance.py --mode enforce
+```
+
+It runs in the `validate-v5` lane; `DEVICE_PROVENANCE_MODE=warn` relaxes it for
+a local experiment.
+
+---
+
 ## References
 
 - `docs/guides/DEPLOY-BUNDLE-WORKFLOW.md`

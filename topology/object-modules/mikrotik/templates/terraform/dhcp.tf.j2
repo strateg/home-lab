@@ -5,8 +5,9 @@
 {% if runtime_baseline.dhcp.enabled %}
 # Baseline LAN DHCP from router profile
 resource "routeros_ip_pool" "lan_pool" {
-  name   = "default-dhcp"
-  ranges = ["{{ runtime_baseline.dhcp.pool_range }}"]
+  name    = "default-dhcp"
+  ranges  = ["{{ runtime_baseline.dhcp.pool_range }}"]
+  comment = "runtime baseline DHCP pool - managed by topology"
 
   lifecycle {
     # Prevent recreation if pool already exists with same name
@@ -44,8 +45,9 @@ resource "routeros_ip_dhcp_server_network" "lan_network" {
 {% if vlan.dhcp_range %}
 {% set range_parts = vlan.dhcp_range.split('-') %}
 resource "routeros_ip_pool" "{{ pool_name }}" {
-  name   = "{{ pool_name }}"
-  ranges = ["{{ range_parts[0] }}-{{ range_parts[1] }}"]
+  name    = "{{ pool_name }}"
+  ranges  = ["{{ range_parts[0] }}-{{ range_parts[1] }}"]
+  comment = "{{ pool_name }} - managed by topology"
 
   lifecycle {
     create_before_destroy = false

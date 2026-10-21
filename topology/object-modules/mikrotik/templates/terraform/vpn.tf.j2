@@ -53,7 +53,7 @@ resource "routeros_interface_wireguard_peer" "{{ iface.name }}_{{ peer.name | re
   endpoint_port        = length(var.wireguard_{{ iface.name }}_peers) > {{ loop.index0 }} ? var.wireguard_{{ iface.name }}_peers[{{ loop.index0 }}].endpoint_port : null
   allowed_address      = length(var.wireguard_{{ iface.name }}_peers) > {{ loop.index0 }} ? var.wireguard_{{ iface.name }}_peers[{{ loop.index0 }}].allowed_ips : []
   persistent_keepalive = length(var.wireguard_{{ iface.name }}_peers) > {{ loop.index0 }} ? var.wireguard_{{ iface.name }}_peers[{{ loop.index0 }}].persistent_keepalive : null
-  comment              = {{ peer.comment | default("Remote: " + peer.name) | tojson }}
+  comment              = {{ ((peer.comment | default("Remote: " + peer.name)) ~ " - managed by topology") | tojson }}
 }
 
 {% endfor %}
@@ -87,7 +87,7 @@ resource "routeros_interface_wireguard_peer" "{{ peer.name | replace('-', '_') }
   endpoint_port        = length(var.wireguard_peers) > {{ loop.index0 }} ? var.wireguard_peers[{{ loop.index0 }}].endpoint_port : null
   allowed_address      = length(var.wireguard_peers) > {{ loop.index0 }} ? var.wireguard_peers[{{ loop.index0 }}].allowed_ips : []
   persistent_keepalive = length(var.wireguard_peers) > {{ loop.index0 }} ? var.wireguard_peers[{{ loop.index0 }}].persistent_keepalive : null
-  comment              = {{ peer.comment | default("Remote: " + peer.name) | tojson }}
+  comment              = {{ ((peer.comment | default("Remote: " + peer.name)) ~ " - managed by topology") | tojson }}
 }
 
 {% endfor %}
@@ -215,6 +215,11 @@ resource "routeros_ip_firewall_filter" "{{ policy.name }}_fasttrack_accept" {
   connection_mark  = "{{ policy.fasttrack.get('connection_mark', policy.name) }}"
   connection_state = "established,related"
   comment          = "{{ policy.fasttrack.get('comment', policy.policy_name + ' fasttrack') }} accept - managed by topology"
+{% if has_security_matrix %}
+  # Ahead of the zone firewall's terminal drop, like every other permit this
+  # root renders (ADR 0120 D5).
+  place_before     = routeros_ip_firewall_filter.zone_drop_all_forward.id
+{% endif %}
 }
 {% endif %}
 {% for rule in policy.notrack %}

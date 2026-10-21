@@ -64,6 +64,15 @@ resource "routeros_ip_firewall_filter" "input_drop_not_lan" {
   action            = "drop"
   in_interface_list = "!LAN"
   comment           = "ADR-0110: Drop input not from LAN - managed by topology"
+
+  # The three input permits above must exist before this drop, or a fresh apply
+  # can append them after it. depends_on is Terraform metadata only: it fixes
+  # creation order and changes nothing on the device (ADR 0120 D5).
+  depends_on = [
+    routeros_ip_firewall_filter.input_established_related,
+    routeros_ip_firewall_filter.input_icmp,
+    routeros_ip_firewall_filter.input_management_from_lan,
+  ]
 }
 
 # ==============================================================================

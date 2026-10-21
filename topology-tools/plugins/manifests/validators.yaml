@@ -574,6 +574,31 @@ plugins:
     scope: pipeline_shared
   description: Independently checks the security plan against the source intent (ADR 0119 G3).
   execution_mode: subinterpreter
+- id: base.validator.config_block_provenance
+  kind: validator_json
+  entry: ../validators/config_block_provenance_validator.py:ConfigBlockProvenanceValidator
+  api_version: 1.x
+  stages:
+  - validate
+  phase: run
+  order: 128
+  depends_on:
+  - base.compiler.instance_rows
+  timeout: 30
+  config:
+    provenance_policy_path: configs/quality/device-provenance-policy.yaml
+  config_schema:
+    type: object
+    properties:
+      provenance_policy_path:
+        type: string
+    required: []
+  consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+  description: Requires every configuration-shaped instance block to name its consuming plugin or declare itself documentation (ADR 0120 D6).
+  execution_mode: subinterpreter
 - id: base.validator.network_intent_schema
   kind: validator_json
   entry: ../validators/network_intent_schema_validator.py:NetworkIntentSchemaValidator

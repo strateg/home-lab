@@ -21,3 +21,9 @@ nat_rules:
     to_address: 172.18.0.2
     to_port: 80
     comment: External HTTP access to nginx container
+
+# Consumer of the nat_rules block above (ADR 0120 D6). Rendered into
+# generated/home-lab/terraform/mikrotik/firewall.tf as the dstnat rule for
+# port 8080.
+config_block_provenance:
+  nat_rules: object.mikrotik.generator.terraform

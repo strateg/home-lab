@@ -77,7 +77,9 @@ def test_validate_v5_collect_all_errors_runs_all_steps(monkeypatch: pytest.Monke
     with pytest.raises(lane.LaneAggregateError) as excinfo:
         lane._run_validate_v5_with_mode("passthrough", step_timeout=45, collect_all_errors=True)
 
-    assert len(calls) == 6
+    # Seven steps since 2026-10-21: the device-provenance gate (ADR 0120 A2)
+    # joined the lane right after the ADR0088 governance step.
+    assert len(calls) == 7
     assert all(timeout == 45 for _, timeout in calls)
     assert excinfo.value.has_timeout is True
     assert excinfo.value.failures == (

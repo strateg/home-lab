@@ -30,7 +30,30 @@ def test_adr0080_ranges_are_reserved_without_foreign_overlap():
     codes = _load_codes()
     # ADR0080: E80xx, E81xx, E82xx, E88xx, I81xx, I82xx - assembly/validation stages
     # ADR0103: E83xx, W835x, I838x - runtime reconciliation
-    adr008x_prefixes = ("E800", "E810", "E820", "E830", "E831", "E832", "E880", "W800", "W835", "I810", "I820", "I838")
+    # ADR0120: E840x, E841x, E842x, W841x - device configuration provenance and
+    #          ownership, allocated 2026-10-21 next to the deploy/assemble bands.
+    #          Not E81xx: ADR 0103 earmarked that band in 2026 and the workspace
+    #          assembler has occupied E8101..E8105 since, which is why this list
+    #          exists - a reservation that is not re-measured is how two families
+    #          end up sharing a number.
+    adr008x_prefixes = (
+        "E800",
+        "E810",
+        "E820",
+        "E830",
+        "E831",
+        "E832",
+        "E840",
+        "E841",
+        "E842",
+        "E880",
+        "W800",
+        "W835",
+        "W841",
+        "I810",
+        "I820",
+        "I838",
+    )
 
     for code in codes.keys():
         if code.startswith("E8") or code.startswith("W8") or code.startswith("I8"):

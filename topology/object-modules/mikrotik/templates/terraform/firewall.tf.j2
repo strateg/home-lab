@@ -14,6 +14,13 @@ resource "routeros_ip_firewall_filter" "{{ policy.name }}_stateful" {
   action           = "accept"
   connection_state = "established,related"
   comment          = "{{ policy.comment or policy.instance_id }} - managed by topology"
+{% if has_security_matrix and policy.chain == "forward" %}
+  # The zone firewall ends the forward chain with an unconditional drop. Without
+  # this, a recreate appends the rule after that drop and it never matches - it
+  # works on the current router only because it was created before the drop
+  # existed (ADR 0120 D5).
+  place_before     = routeros_ip_firewall_filter.zone_drop_all_forward.id
+{% endif %}
 }
 
 {% elif policy.instance_id == "inst.fw.default_deny" %}
@@ -151,6 +158,10 @@ resource "routeros_ip_firewall_filter" "baseline_rule_{{ loop.index }}" {
   comment = "{{ rule.get('comment') }} - managed by topology"
 {% else %}
   comment = "baseline firewall rule - managed by topology"
+{% endif %}
+{% if has_security_matrix and rule.get('chain', 'forward') == "forward" and rule.get('action', 'accept') == "accept" %}
+  # Placed ahead of the zone firewall's terminal drop (ADR 0120 D5).
+  place_before = routeros_ip_firewall_filter.zone_drop_all_forward.id
 {% endif %}
 }
 

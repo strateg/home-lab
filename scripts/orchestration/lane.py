@@ -13,6 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 PYTHON = sys.executable
 LAYER_REPORT_JSON = "build/diagnostics/layer-contract-report.json"
+DEVICE_PROVENANCE_REPORT_JSON = "build/diagnostics/device-provenance-report.json"
 ADR0088_GOVERNANCE_REPORT_JSON = "build/diagnostics/adr0088-governance-report.json"
 LAYER_DERIVATION_REPORT_JSON = "build/diagnostics/layer-derivation-report.json"
 LAYER_DERIVATION_REPORT_TXT = "build/diagnostics/layer-derivation-report.txt"
@@ -121,6 +122,19 @@ def _validate_v5_commands(secrets_mode: str) -> list[list[str]]:
             ADR0088_GOVERNANCE_REPORT_JSON,
             "--mode",
             governance_mode,
+        ]
+    )
+    provenance_mode = os.environ.get("DEVICE_PROVENANCE_MODE", "enforce").strip().lower()
+    if provenance_mode not in {"warn", "enforce"}:
+        provenance_mode = "enforce"
+    commands.append(
+        [
+            PYTHON,
+            "scripts/validation/validate_device_provenance.py",
+            "--output-json",
+            DEVICE_PROVENANCE_REPORT_JSON,
+            "--mode",
+            provenance_mode,
         ]
     )
     commands.append(

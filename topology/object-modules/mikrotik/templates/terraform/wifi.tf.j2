@@ -20,7 +20,7 @@ resource "routeros_wifi" "{{ iface.name | replace('-', '_') }}" {
   name             = "{{ iface.name }}"
   master_interface = "{{ iface.master_interface }}"
   disabled         = false
-  comment          = "{{ cfg.ssid }} - managed by terraform"
+  comment          = "{{ cfg.ssid }} - managed by topology"
 
   configuration = {
     ssid = "{{ cfg.ssid }}"
@@ -72,7 +72,7 @@ resource "routeros_wifi" "{{ iface.name | replace('-', '_') }}" {
 resource "routeros_wifi" "{{ iface.name | replace('-', '_') }}" {
   name     = "{{ iface.name }}"
   disabled = false
-  comment  = "{{ cfg.ssid }} - managed by terraform"
+  comment  = "{{ cfg.ssid }} - managed by topology"
 
   configuration = {
     ssid = "{{ cfg.ssid }}"

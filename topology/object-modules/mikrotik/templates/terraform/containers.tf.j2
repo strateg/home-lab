@@ -38,7 +38,7 @@ resource "routeros_interface_veth" "{{ container.tf_name }}" {
   name    = "{{ container.veth_name }}"
   address = ["{{ container.veth_address }}"]
   gateway = "{{ container.veth_gateway }}"
-  comment = "{{ container.name }} veth - managed by Terraform"
+  comment = "{{ container.name }} veth - managed by topology"
 }
 
 # The veth gateway is the router-side address. Without it, RouterOS has no
@@ -46,7 +46,7 @@ resource "routeros_interface_veth" "{{ container.tf_name }}" {
 resource "routeros_ip_address" "{{ container.tf_name }}_veth_gateway" {
   address   = "{{ container.veth_gateway }}/{{ container.veth_address.split('/')[-1] }}"
   interface = routeros_interface_veth.{{ container.tf_name }}.name
-  comment   = "{{ container.name }} gateway - managed by Terraform"
+  comment   = "{{ container.name }} gateway - managed by topology"
 
   lifecycle {
     # RouterOS API returns vrf field that can't be patched.
@@ -62,14 +62,14 @@ resource "routeros_interface_wireguard" "{{ container.tf_name }}_wg" {
   mtu         = {{ container.wireguard_interface.mtu }}
   # Use generated key or override with var (for SOPS migration)
   private_key = coalesce(var.{{ container.wireguard_interface.private_key_var }}, wireguard_asymmetric_key.{{ container.tf_name }}.private_key)
-  comment     = "WireGuard for {{ container.name }} - managed by Terraform"
+  comment     = "WireGuard for {{ container.name }} - managed by topology"
 }
 
 # WireGuard IP Address
 resource "routeros_ip_address" "{{ container.tf_name }}_wg" {
   address   = "{{ container.wireguard_interface.address }}"
   interface = routeros_interface_wireguard.{{ container.tf_name }}_wg.name
-  comment   = "{{ container.wireguard_interface.name }} tunnel IP - managed by Terraform"
+  comment   = "{{ container.wireguard_interface.name }} tunnel IP - managed by topology"
 
   lifecycle {
     # RouterOS API returns vrf field that can't be patched
@@ -81,7 +81,7 @@ resource "routeros_ip_address" "{{ container.tf_name }}_wg" {
 resource "routeros_interface_list_member" "{{ container.tf_name }}_wg" {
   interface = routeros_interface_wireguard.{{ container.tf_name }}_wg.name
   list      = "{{ container.wireguard_interface.interface_list }}"
-  comment   = "{{ container.wireguard_interface.name }} in {{ container.wireguard_interface.interface_list }} - managed by Terraform"
+  comment   = "{{ container.wireguard_interface.name }} in {{ container.wireguard_interface.interface_list }} - managed by topology"
 }
 
 # WireGuard Peer (AWG server via container)
@@ -96,7 +96,7 @@ resource "routeros_interface_wireguard_peer" "{{ container.tf_name }}_wg" {
   endpoint_port        = {{ container.wireguard_interface.peer.endpoint_port }}
   allowed_address      = {{ container.wireguard_interface.peer.allowed_ips | tojson }}
   persistent_keepalive = "{{ container.wireguard_interface.peer.persistent_keepalive }}s"
-  comment              = "AWG server via {{ container.name }} - managed by Terraform"
+  comment              = "AWG server via {{ container.name }} - managed by topology"
 }
 
 {% endif %}
@@ -110,7 +110,7 @@ resource "routeros_container" "{{ container.tf_name }}" {
   start_on_boot = {{ container.start_on_boot | lower }}
   logging       = {{ container.logging | lower }}
   envlist       = "{{ container.name }}"
-  comment       = "{{ container.comment }}"
+  comment       = "{{ container.comment }} - managed by topology"
 
   depends_on = [
     routeros_container_config.main,

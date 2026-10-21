@@ -454,3 +454,21 @@ use_cases:
   - Road-warrior internet exit via Swedish IP (vpn-sweden profile via AWG)
   - Geo-bypass for streaming services
   - Privacy exit nodes with country selection
+
+# Who consumes each configuration-shaped block in this instance (ADR 0120 D6).
+#
+# vps_nat.policy_routes is real configuration: base.generator.wireguard renders
+# it into generated/home-lab/wireguard/vps-wg1.conf as `ip rule`/`ip route`
+# lines - tables 101..104, one per road-warrior address, .9 and .10 included.
+#
+# chateau_routing is documentation and nothing else. It describes the MikroTik
+# half of the same paths in the generators' own vocabulary, and no plugin reads
+# it: verified 2026-10-21 by searching every generated artifact, where its
+# contents appear only in the effective-topology dump. The enforceable form of
+# that half is one routing_policy instance per source address
+# (inst.routing_policy.rw_russia, rw_sweden, rw_russia_nixos, rw_sweden_nixos).
+# Until the last two existed the .9/.10 rules here were enforced by nothing -
+# which is the defect E8420 now refuses to let anyone author in silence.
+config_block_provenance:
+  vps_nat: base.generator.wireguard
+  chateau_routing: documentation

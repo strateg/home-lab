@@ -121,3 +121,4 @@
 | [0117](0117-iot-endpoint-layer-mixing-technical-debt.md) | IoT Endpoint Layer Separation | Implemented | 2026-09-06 | - | - |
 | [0118](0118-universal-container-network-model.md) | Universal Container Network Model | Accepted | 2026-09-09 | - | - |
 | [0119](0119-firewall-rule-ordering-contract.md) | Firewall Rule Ordering Contract | Accepted | 2026-09-09 | - | - |
+| [0120](0120-device-configuration-provenance-and-ownership.md) | Device Configuration Provenance and Ownership | Partially Implemented | 2026-10-21 | - | - |

@@ -418,6 +418,76 @@ codes:
     stage: validate
     title: Consumed Key Not Declared in Consumes
     hint: Add missing key to consumes[] to satisfy strict contract mode.
+  # ---------------------------------------------------------------------------
+  # E84xx / W84xx - device configuration provenance and ownership (ADR 0120).
+  #
+  # Band measured free on 2026-10-21 and adjacent to the deploy/assemble family
+  # (E80xx..E83xx), which is the domain this belongs to. E81xx - the band ADR
+  # 0103 earmarked for reconciliation in 2026 - was consumed by the workspace
+  # assembler since, so the plan's reservation was stale.
+  #
+  # Raisers: scripts/validation/validate_device_provenance.py (E8400, E8401,
+  # E8410, W8410) and base.validator.config_block_provenance (E8420, E8421).
+  # ---------------------------------------------------------------------------
+  E8400:
+    severity: error
+    stage: validate
+    title: Rendered Device Object Has No Provenance Marker
+    hint: >-
+      A rendered resource that creates an object on a device must carry the canonical provenance marker in its
+      comment, so the device itself says what the topology owns. Add it, or declare the resource type in
+      rendered.exempt_types of configs/quality/device-provenance-policy.yaml with one of the three stated reasons
+      (no_comment_attribute, singleton_settings, not_a_device_object). Without a marker an object is
+      indistinguishable from a hand-made one, and no reconciliation can call it garbage or spare it.
+  E8401:
+    severity: error
+    stage: validate
+    title: Rendered Device Object Carries A Retired Provenance Marker
+    hint: >-
+      Three marker spellings were in use until 2026-10-21 ("managed by topology", "managed by terraform",
+      "managed by Terraform"), which made provenance unreadable to any mechanical check - a grep for one
+      classified the other two as foreign. Use marker.canonical from the provenance policy.
+  E8402:
+    severity: error
+    stage: validate
+    title: Rendered Device Object Claims The Manual Marker
+    hint: >-
+      The manual marker records a deliberate hand-made exception, registered and owned by a person (ADR 0120 D7).
+      A generated object carrying it would read as a sanctioned exception and be spared by the very reconciliation
+      that owns it. Use the canonical topology marker instead.
+  E8410:
+    severity: error
+    stage: validate
+    title: Rendered Permit Proves No Placement Before An Unconditional Terminal Drop
+    hint: >-
+      The chain this permit belongs to ends with a rule that matches everything, so a permit created after it is
+      dead. Declare place_before the terminal rule, or have the terminal declare depends_on this permit - both fix
+      the device order, and the second renders no device attribute. Measured consequence of omitting it: two
+      WireGuard country exits that could not pass a packet while every gate passed.
+  W8410:
+    severity: warning
+    stage: validate
+    title: Rendered Permit Order Relative To A Conditional Terminal Is Unspecified
+    hint: >-
+      The chain's terminal rule is conditional, so a permit after it can still be effective - the order is
+      unspecified rather than wrong. Make it deterministic with place_before, or with depends_on from the terminal.
+  E8420:
+    severity: error
+    stage: compile
+    title: Configuration-Shaped Block Names No Consumer
+    hint: >-
+      A block named firewall_rules, mangle_rules, nat_rules, policy_routes, routing_rules or address_lists speaks
+      device configuration, and authoring one is a claim that something enforces it. Declare the consuming plugin
+      id under config_block_provenance, or declare the block as 'documentation' if it enforces nothing. The defect
+      this refuses is measured: inst.tunnel.wg-exit.chateau_routing described rules for four road-warrior
+      addresses that no plugin read, and two of those paths were enforced by nothing at all.
+  E8421:
+    severity: error
+    stage: compile
+    title: Configuration-Shaped Block Names A Consumer That Does Not Exist
+    hint: >-
+      config_block_provenance must name either 'documentation' or a plugin id that some manifest declares. A
+      consumer that does not exist is the same silence as no consumer at all.
   E8101:
     severity: error
     stage: assemble

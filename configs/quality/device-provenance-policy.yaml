@@ -1,0 +1,152 @@
+# Device configuration provenance policy (ADR 0120)
+#
+# Every object on a managed device belongs to exactly one provenance class, and
+# the class must be readable from the device itself. This file is the data half
+# of that contract; scripts/validation/validate_device_provenance.py enforces it
+# over the rendered Terraform roots, and the roadmap in ADR 0120 extends the same
+# vocabulary to the device side once a live inventory exists (option B).
+#
+# Classes:
+#   topology  - rendered from topology. Carries `marker.canonical` in its comment.
+#   manual    - deliberately hand-made and sanctioned. Carries `manual_marker.prefix`
+#               plus the required tokens, and is registered in the manual-exception
+#               registry (option C; the registry does not exist yet).
+#   vendor    - RouterOS defaults and runtime-owned objects (`defconf:`, dynamic).
+#   garbage   - anything else. Definition: live - topology - manual - vendor.
+version: 1.0.0
+
+marker:
+  # One spelling. Three were in use before 2026-10-21 ("managed by topology",
+  # "managed by terraform", "managed by Terraform"), which made provenance
+  # unreadable by any mechanical check - a grep for one of them classified the
+  # other two as foreign.
+  canonical: "managed by topology"
+  # Spellings that used to be emitted. Rendering any of them is now an error:
+  # they are recognised only so the diagnostic can name what it found.
+  retired:
+    - "managed by terraform"
+    - "managed by Terraform"
+    - "managed-by-topology"
+  # Marker position in the comment. A suffix keeps the human-readable part first
+  # in Winbox and in `/export`, which is where an operator reads it.
+  placement: suffix
+
+manual_marker:
+  # How a human records a deliberate hand-made change on the device, so it is
+  # distinguishable from garbage. A prefix rather than a suffix: it is the first
+  # thing an operator must see, and it sorts together in an export.
+  prefix: "manual:"
+  required_tokens:
+    - "owner="   # who owns the exception
+    - "since="   # YYYY-MM-DD it was introduced
+  optional_tokens:
+    - "ref="     # ADR, report or ticket that explains it
+  example: "manual: AWG proxy test egress owner=platform-owner since=2026-10-21 ref=docs/reports/2026-10-21-chateau-dead-rules.md"
+  # A rendered object must never claim to be hand-made: that would make a
+  # topology-owned object read as a sanctioned exception and put it beyond the
+  # reach of its own reconciliation. Refused as E8402.
+  forbidden_in_rendered: true
+
+vendor_markers:
+  # Recognised as vendor/runtime provenance, never garbage, never deleted.
+  comment_prefixes:
+    - "defconf:"
+  dynamic_flag: dynamic   # RouterOS marks runtime-owned objects with dynamic=true
+
+# ---------------------------------------------------------------------------
+# Rendered-side obligations, per Terraform provider resource type.
+#
+# A type is exempt only for a stated reason, and the reason is one of three:
+#   no_comment_attribute - the provider schema has no `comment` for it, verified
+#                          with `terraform providers schema -json`
+#   singleton_settings   - the resource is a settings object, not a list item:
+#                          it cannot be garbage, only drift in value
+#   not_a_device_object  - the resource creates no object on the device
+# ---------------------------------------------------------------------------
+rendered:
+  marker_required: true
+  # Roots in force. A device family opts in by being listed here, so a root with
+  # no provenance contract yet (and a stale root left over from a frozen track)
+  # is not policed by accident. Paths are relative to the repository root.
+  roots:
+    - generated/home-lab/terraform/mikrotik
+  exempt_types:
+    routeros_container_envs:
+      reason: no_comment_attribute
+      note: >-
+        /container/envs rows are keyed by (name, key) and the provider schema
+        exposes no comment attribute. Ownership proof for these comes from the
+        ownership ledger and Terraform state, not from the device.
+    routeros_ip_dns:
+      reason: singleton_settings
+    routeros_container_config:
+      reason: singleton_settings
+    wireguard_asymmetric_key:
+      reason: not_a_device_object
+      note: provider ojford/wireguard; generates key material, touches no device.
+
+# ---------------------------------------------------------------------------
+# Rule-placement obligation (ADR 0119, and the defect that motivated it).
+#
+# A chain that ends with an unconditional drop swallows everything placed after
+# it. A rendered permit that does not declare its placement is indistinguishable,
+# in every artifact the pipeline produces, from one that works - which is how two
+# WireGuard country exits were dead for an unknown period while every gate passed.
+# ---------------------------------------------------------------------------
+rule_placement:
+  enforced: true
+  resource_types:
+    - routeros_ip_firewall_filter
+    - routeros_ip_firewall_mangle
+    - routeros_ip_firewall_nat
+    - routeros_ip_firewall_raw
+  # A rendered resource whose action is one of these must declare placement
+  # relative to the chain's terminal rule.
+  guarded_actions:
+    - accept
+  # The attribute that carries placement intent for this provider.
+  placement_attribute: place_before
+  # The terminal rule of each chain, by rendered resource name, so the check
+  # stays a text contract over the artifact and needs no provider or device.
+  #
+  # `unconditional: true` means the rule matches everything in its chain, so a
+  # permit after it is provably dead and the finding is an error. A conditional
+  # terminal (the input drop matches only `!LAN`) can still leave a later permit
+  # effective, so there the finding is a warning: the ordering is unspecified
+  # rather than wrong.
+  #
+  # Two proofs of placement are accepted, because both fix the device order:
+  #   place_before    - the permit names the terminal (device-visible attribute)
+  #   terminal depends_on - the terminal names the permit, so Terraform creates
+  #                     the permit first and RouterOS appends the terminal after
+  #                     it. This is Terraform metadata only and renders no
+  #                     device change, which is why it is the right proof where
+  #                     place_before would create a dependency cycle.
+  terminals:
+    - resource_type: routeros_ip_firewall_filter
+      name: zone_drop_all_forward
+      chain: forward
+      unconditional: true
+    - resource_type: routeros_ip_firewall_filter
+      name: input_drop_not_lan
+      chain: input
+      unconditional: false
+
+# ---------------------------------------------------------------------------
+# Configuration-shaped declaration vocabulary (P5 in the SPC analysis).
+#
+# A block with one of these names speaks device configuration. Authoring one is
+# a claim that something will enforce it, so the instance must say which plugin
+# consumes it - or say in data that it is documentation. Enforced by
+# object.network.validator_json.config_block_provenance.
+# ---------------------------------------------------------------------------
+config_blocks:
+  provenance_key: config_block_provenance
+  documentation_value: documentation
+  block_names:
+    - firewall_rules
+    - mangle_rules
+    - nat_rules
+    - policy_routes
+    - routing_rules
+    - address_lists

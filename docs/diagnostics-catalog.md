@@ -182,6 +182,37 @@ holds it in place.
 
 ---
 
+## Device Configuration Provenance and Ownership (ADR 0120)
+
+`E84xx` / `W84xx`, allocated 2026-10-21. The band was measured free on that date
+and sits next to the deploy/assemble family (`E80xx`..`E83xx`), which is the
+domain it belongs to. It is **not** the band ADR 0103 earmarked: that plan named
+`E81xx` in 2026, and the workspace assembler has occupied `E8101`..`E8105` since.
+A reservation that is not re-measured before use is how collisions get made.
+
+| Code | Raiser | What it refuses |
+|---|---|---|
+| `E8400` | `scripts/validation/validate_device_provenance.py` | a rendered device object with no provenance marker and no stated exemption |
+| `E8401` | same | a retired marker spelling; three were in use until this date, which made provenance unreadable to any mechanical check |
+| `E8410` | same | a rendered permit that proves no placement before a terminal rule matching everything in its chain |
+| `W8410` | same | the same, where the terminal is conditional: the order is unspecified rather than wrong |
+| `E8420` | `base.validator.config_block_provenance` | a configuration-shaped instance block that names no consumer and does not declare itself documentation |
+| `E8421` | same | a named consumer that no manifest declares |
+
+Two of these encode measured defects rather than rules in the abstract. `E8410`
+is the shape that left two WireGuard country exits unable to pass a packet while
+every gate passed, and `E8420` is the shape that let their Chateau-side rules be
+declared in `inst.tunnel.wg-exit.chateau_routing`, in the generators' own
+vocabulary, and read by nobody. Both are recorded in
+`docs/reports/2026-10-21-chateau-dead-rules.md`; the analysis that led to the
+band is `docs/reports/2026-10-21-device-config-ownership-spc.md`.
+
+E99xx remains reserved by the conserved rtr-slate uapi/Terraform track
+(`frozen/rtr-slate-terraform-2026-10-21`) and must not be reused on
+`development` while that tag stands.
+
+---
+
 ## Governance Rules
 
 1. Diagnostic codes are immutable once released.
