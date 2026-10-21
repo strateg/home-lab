@@ -296,6 +296,44 @@ Today the gate fails on (1): at least one live load-bearing rule
   the correction, not a side effect.
 * The input chain's order becomes deterministic with no device-visible change.
 
+### Two limits found while applying D2 to the live device (2026-10-21)
+
+**A provider defect blocks the marker on `routeros_ip_address`.** RouterOS 7.21+
+reports a `vrf` field on `/ip/address` rows and rejects writes to it for
+addresses on interfaces with no VRF semantics - WireGuard among them. The
+provider declares `vrf` Optional and not Computed, so it sends the value it
+holds in state on every PATCH, and a comment-only update fails with
+`unknown parameter vrf: 400`. Measured on three addresses; the other 19
+resources in the same targeted apply succeeded.
+
+Upstream `terraform-routeros/routeros` has no release above **1.99.1** (the
+version pinned here), and the fix exists only in a fork
+([PR](https://github.com/TohaUA/terraform-provider-routeros/pull/36),
+released as that fork's v1.101.10), which makes `vrf` read-only. So there is no
+upgrade path today, and the marker on `routeros_ip_address` is enforceable only
+out of band - the workaround already recorded for this repository: set the
+value through REST, then refresh state. Three objects stand unmarked for that
+reason, named in the session report rather than hidden behind a policy
+exemption: an exemption would say the contract does not apply, and it does.
+
+**A clamped-key phantom diff, now structurally impossible.** X25519 clamps
+three bits of byte 0 and two of byte 31 before use, so a key and its clamped
+form are the same key with the same public key. RouterOS stores the clamped
+form. `amneziawg.sweden.client_private_key` was stored unclamped and differed
+from the device in exactly bits 0, 1, 2 of byte 0, deriving the identical public
+key `ui4b0s3G58MWwu9pDVy9qQyHY9lZNt3bqeib3LlZuUE=` - so every plan reported a
+`private_key` change on a live tunnel that could never converge, because the
+device re-clamps whatever is written.
+
+That is worse than noise. A plan that always wants to rewrite a key teaches an
+operator to skip past key changes, which is precisely the line that must stay
+readable. The stored secret is normalised to the clamped form (same key, no
+rotation, verified by deriving the public key both ways), and
+`scripts/terraform/generate-tfvars.py` now normalises on the way out so an
+unclamped secret cannot produce the diff again. Pinned by
+`tests/test_tfvars_wireguard_key_canonicalisation.py`, including the property
+that makes it safe: the public key is unchanged.
+
 ### Deliberately not addressed
 
 * The 98 marked-but-unowned objects and the 63-rule dead tail stay on the device.

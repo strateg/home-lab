@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import base64
+import binascii
 import os
 import re
 import subprocess
@@ -12,6 +14,47 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+
+
+def _canonical_wireguard_private_key(value: Any, *, path: str) -> Any:
+    """Return a WireGuard private key in the form the device will store it in.
+
+    X25519 clamps three bits of byte 0 and two of byte 31 before use, so a key
+    and its clamped form are the *same* cryptographic key with the same public
+    key. RouterOS stores the clamped form; a secret stored unclamped therefore
+    reads back differently than it was written, and Terraform sees a
+    `private_key` change on every single plan - on a live tunnel, which is the
+    one diff nobody should learn to ignore.
+
+    Measured 2026-10-21 on `amneziawg.sweden.client_private_key`: the stored key
+    and the device's differed in exactly bits 0, 1 and 2 of byte 0 and derived
+    the identical public key. Normalising here makes the phantom diff
+    structurally impossible rather than fixed once.
+
+    Anything that is not a 32-byte base64 key is passed through untouched: this
+    function normalises, it does not validate.
+    """
+    if not isinstance(value, str) or not value.strip():
+        return value
+    try:
+        raw = base64.b64decode(value.strip(), validate=True)
+    except (binascii.Error, ValueError):
+        return value
+    if len(raw) != 32:
+        return value
+    clamped = bytearray(raw)
+    clamped[0] &= 248
+    clamped[31] &= 127
+    clamped[31] |= 64
+    if bytes(clamped) == raw:
+        return value
+    normalized = base64.b64encode(bytes(clamped)).decode("ascii")
+    print(
+        f"[tfvars] normalised {path} to its clamped X25519 form "
+        "(same key, same public key; RouterOS stores it this way)",
+        file=sys.stderr,
+    )
+    return normalized
 
 
 def _repo_root() -> Path:
@@ -171,8 +214,13 @@ def _build_mikrotik_values(payload: dict[str, Any]) -> dict[str, Any]:
         wg1_peers = []
 
     # Interface-specific private keys (dual-tunnel architecture)
-    wg0_private_key = wireguard.get("wg0_private_key") or wireguard.get("private_key", "")
-    wg1_private_key = wireguard.get("wg1_private_key", "")
+    wg0_private_key = _canonical_wireguard_private_key(
+        wireguard.get("wg0_private_key") or wireguard.get("private_key", ""),
+        path="wireguard.wg0_private_key",
+    )
+    wg1_private_key = _canonical_wireguard_private_key(
+        wireguard.get("wg1_private_key", ""), path="wireguard.wg1_private_key"
+    )
 
     result = {
         "mikrotik_host": _require_scalar(mikrotik.get("host"), path="mikrotik.host"),
@@ -238,7 +286,10 @@ def _build_mikrotik_values(payload: dict[str, Any]) -> dict[str, Any]:
             result[f"{prefix}_wg_peer_public_key"] = awg_country["server_public_key"]
         # WireGuard interface keys (MikroTik -> container)
         if awg_country.get("client_private_key"):
-            result[f"{prefix}_wg_private_key"] = awg_country["client_private_key"]
+            result[f"{prefix}_wg_private_key"] = _canonical_wireguard_private_key(
+                awg_country["client_private_key"],
+                path=f"amneziawg.{country}.client_private_key",
+            )
         if awg_country.get("preshared_key"):
             result[f"{prefix}_wg_peer_preshared_key"] = awg_country["preshared_key"]
 
