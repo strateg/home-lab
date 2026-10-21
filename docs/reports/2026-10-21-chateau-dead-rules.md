@@ -175,17 +175,30 @@ was **not** applied: it carried a WireGuard private-key rewrite, a
 to markers. A targeted plan was verified comment-only first (every changed
 attribute checked programmatically) and only that was applied.
 
-Result: **289 objects canonical, 5 retired** across fourteen resource families.
-The five split into two classes, and the split is the point - after
-normalisation, a retired marker on the device *is* a diagnosis:
+First pass: **289 objects canonical, 5 retired** across fourteen resource
+families - three of them `routeros_ip_address` objects that Terraform owns but
+could not update, because of the provider's `vrf` defect.
 
-| id | family | owner | why it still carries the old marker |
+That defect was then fixed (ADR 0120: the pinned upstream release built with
+upstream PR #984, recipe and patch tracked in the repository), and the four
+addresses applied. Final state:
+
+| | |
+|---|---|
+| objects with the canonical marker | **292** |
+| objects with the retired marker | **2** |
+| of those two, owned by Terraform | **0** |
+
+So every object the topology owns carries the marker, and what is left is a
+garbage question rather than a marker question:
+
+| id | family | owner | what it is |
 |---|---|---|---|
-| `*34` | ip_address | terraform | blocked by the provider's `vrf` defect |
-| `*42` | ip_address | terraform | same |
-| `*45` | ip_address | terraform | same |
-| `*11` | interface_list_member | **out of band** | nothing owns it; a leftover copy of the one Terraform owns |
-| `*37` | ip_address | **out of band** | same shape: a second `wg-awg-russia tunnel IP` row |
+| `*11` | interface_list_member | **out of band** | a leftover copy of the row Terraform owns (`*10`) |
+| `*37` | ip_address | **out of band** | a second `wg-awg-russia tunnel IP` row |
+
+After normalisation a retired marker on the device *is* a diagnosis: it means
+either an object nothing owns, or an object something could not write.
 
 The `vrf` defect is diagnosed in full in ADR 0120 (RouterOS assigns VRF per
 interface, so `vrf` on an address row is derived and its SET endpoint has no

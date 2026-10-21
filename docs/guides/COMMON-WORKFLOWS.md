@@ -122,6 +122,42 @@ ansible:
 
 See `docs/ai/rules/host-placement.md` for full @on directive reference.
 
+## Build The Patched RouterOS Provider (ADR 0120)
+
+The released `terraform-routeros/routeros` provider **cannot update any
+`routeros_ip_address`** on RouterOS >= 7.21: it sends the derived `vrf` field on
+every PATCH and RouterOS answers `400 unknown parameter vrf`. Upstream issue
+#944 is open, the fix (PR #984) is open and unreleased. Until it ships, this
+workspace uses the pinned upstream release built with that patch.
+
+```bash
+scripts/terraform/build-patched-routeros-provider.sh          # clone, patch, build, publish
+scripts/terraform/build-patched-routeros-provider.sh --verify # check an existing build
+
+cd .work/native/home-lab/terraform/mikrotik
+export TF_CLI_CONFIG_FILE="$PWD/../../../providers/terraform.rc"   # .work/providers/terraform.rc
+terraform init -upgrade
+```
+
+`init` installs from the mirror only if the provider's entry is absent from
+`.terraform.lock.hcl` and its cached plugin is gone - otherwise it keeps what it
+has and nothing changes. The registry lock is preserved as
+`.terraform.lock.hcl.registry-backup`.
+
+Confirm the build is actually in use before trusting a plan:
+
+```bash
+terraform providers schema -json \
+  | jq '.provider_schemas["registry.terraform.io/terraform-routeros/routeros"].resource_schemas.routeros_ip_address.block.attributes.vrf'
+# patched build: { "computed": true, ... }   registry build: { "optional": true, ... }
+```
+
+**Going back** when upstream releases the fix: delete the patch and the script,
+unset `TF_CLI_CONFIG_FILE`, remove the provider entry from the lock, and
+`terraform init -upgrade`.
+
+---
+
 ## Record A Hand-Made Device Change (ADR 0120 D7)
 
 A deliberate tweak made directly on a device is legitimate. An *unmarked* one is

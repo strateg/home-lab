@@ -1,0 +1,56 @@
+Subject: [PATCH] fix(ip_address): make vrf read-only so updates stop failing on RouterOS 7.21+
+
+Taken from upstream PR #984 against terraform-routeros/terraform-provider-routeros,
+applied here to the pinned release v1.99.1 because the fix is not in any release:
+upstream's newest tag is v1.99.1 and the PR is open with mergeable_state=blocked.
+
+  issue: https://github.com/terraform-routeros/terraform-provider-routeros/issues/944
+  pr:    https://github.com/terraform-routeros/terraform-provider-routeros/pull/984
+
+Why it is needed here, measured on rtr-mikrotik-chateau (RouterOS 7.24.5) on
+2026-10-21: RouterOS assigns VRF membership per interface (/ip/vrf holds one
+builtin row, `main`, with interfaces=all), so `vrf` on an /ip/address row is a
+derived field and its SET endpoint has no such parameter. The provider declares
+`vrf` Optional-not-Computed, so refresh stores "main" and every PATCH sends it
+back, and RouterOS answers 400 `unknown parameter vrf`. The effect is that **no
+attribute of any routeros_ip_address can be updated** - not a comment, not a
+network, not `disabled`. Only create and destroy work.
+
+Making the field Computed keeps it readable in state and stops it being sent.
+
+Delete this patch when upstream releases the fix; the build script names the
+version to check for.
+---
+diff --git a/routeros/provider_schema_helpers.go b/routeros/provider_schema_helpers.go
+--- a/routeros/provider_schema_helpers.go
++++ b/routeros/provider_schema_helpers.go
+@@ -488,6 +488,11 @@
+ 		Description:      "The VRF table this resource operates on.",
+ 		DiffSuppressFunc: AlwaysPresentNotUserProvided,
+ 	}
++	PropVrfRo = &schema.Schema{
++		Type:        schema.TypeString,
++		Computed:    true,
++		Description: "The VRF table this resource operates on.",
++	}
+ )
+
+ // PropMtuRw MTU value can be integer or 'auto'.
+diff --git a/routeros/resource_ip_address.go b/routeros/resource_ip_address.go
+--- a/routeros/resource_ip_address.go
++++ b/routeros/resource_ip_address.go
+@@ -54,7 +54,13 @@
+ 			Computed:    true,
+ 			Description: "Whether address belongs to an interface which is a slave port to some other master interface",
+ 		},
+-		KeyVrf: PropVrfRw,
++		// vrf is read-only here: RouterOS 7.21+ rejects writes to it on
++		// /ip address rows tied to interfaces that do not carry a VRF
++		// concept (notably WireGuard interfaces, where SET-with-vrf=main
++		// errors with "unknown parameter vrf"). Surfacing it as Computed
++		// keeps the field readable in state without sending it back on
++		// updates. Closes #944.
++		KeyVrf: PropVrfRo,
+ 	}
+ 	return &schema.Resource{
+ 		CreateContext: DefaultCreate(resSchema),

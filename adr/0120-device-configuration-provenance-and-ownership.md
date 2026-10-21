@@ -324,23 +324,46 @@ is the fix - 12 lines, adding a Computed-only `PropVrfRo` and using it for
 is **v1.99.1**, which is what this repository pins, so there is no released fix.
 A fork carries the same patch as its own v1.101.10.
 
-Three routes, none of them free, and the choice is a governance decision rather
-than a technical one:
+**Resolved 2026-10-21 by building the pinned upstream release with the upstream
+patch.** The alternatives were to leave a whole resource type unmanageable, to
+trust a fork's binary, or to set values out of band forever - and the first two
+are worse than carrying a recipe.
 
-1. **Set the value out of band, then refresh state.** The workaround already
-   recorded for this repository. Finishes the three comments in one command and
-   fixes nothing structural: the next `ip_address` update fails the same way.
-2. **Build the provider from upstream v1.99.1 plus PR #984.** A real fix for
-   every address update, at the cost of an unsigned locally built provider in
-   the path that configures the production router - which needs a reproducible,
-   tracked build rather than a binary somebody made once.
-3. **Wait for upstream to merge #984 and release.** Costs nothing and has no
-   date.
+What makes this acceptable rather than a binary somebody made once: everything
+that decides the output is tracked and reviewable, and the binary is not kept.
 
-Until one is taken, three `routeros_ip_address` objects keep the retired marker
-and are named in `docs/reports/2026-10-21-chateau-dead-rules.md` rather than
-hidden behind a policy exemption: an exemption would claim the contract does
-not apply to them, and it does.
+| Input | Where it lives |
+|---|---|
+| the patch, with its provenance and rationale | `configs/terraform/patches/routeros-1.99.1-0001-ip-address-vrf-read-only.patch` |
+| the build recipe, pinned tag **and** expected commit | `scripts/terraform/build-patched-routeros-provider.sh` |
+| the binary and the Terraform CLI config pointing at it | `.work/providers/` - gitignored, rebuilt by running the script |
+
+The script refuses to proceed if the tag resolves to a commit other than the
+pinned one (a tag can be moved; a commit cannot), and it asserts after applying
+that `PropVrfRo` is declared and wired into `resource_ip_address.go` - a green
+build that shipped an unpatched provider under a patched name would be the worst
+possible outcome.
+
+Verified end to end: with the built provider, `terraform providers schema -json`
+reports `routeros_ip_address.vrf` as `["computed"]` instead of `["optional"]`;
+the plan for the four addresses became comment-only; the apply succeeded on all
+four where the registry build had failed with 400. The device now reports **292
+objects with the canonical marker and 2 with the retired one, and both of those
+two are out-of-band objects Terraform does not own** - so every object the
+topology owns carries the marker, and the remaining two are a garbage question
+(option C), not a marker question.
+
+Two side effects, both recorded rather than discovered later: installing from a
+filesystem mirror requires `terraform init -upgrade` with the provider's entry
+removed from `.terraform.lock.hcl` (the original is kept as
+`.terraform.lock.hcl.registry-backup`), and that upgrade also re-resolved
+`ojford/wireguard` from `0.4.1` to `0.4.1+2` - the same release with build
+metadata, and a provider that only generates key material locally.
+
+**Exit condition.** Delete the patch, the script and this subsection when
+upstream releases a version above 1.99.1 containing PR #984, then
+`terraform init -upgrade` without `TF_CLI_CONFIG_FILE`. The script names that
+condition in its own output so it cannot quietly become permanent.
 
 **A clamped-key phantom diff, now structurally impossible.** X25519 clamps
 three bits of byte 0 and two of byte 31 before use, so a key and its clamped
