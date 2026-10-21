@@ -181,6 +181,85 @@ road_warrior_peers:
         exit_mode: direct
         exit_country: DE
 
+# ---------------------------------------------------------------------------
+# Gateway peers: routers that bring whole client segments into this tunnel.
+#
+# Distinct from road_warrior_peers above, and not expressible as vpn_profiles.
+# A profile is an alternative - a phone picks one country at a time and the
+# others are inert. rtr-slate is a router serving several SSIDs at once, so its
+# country paths are **simultaneous**: one WireGuard interface per destination,
+# each live together with the others.
+#
+# The second difference is what the far end matches on. A road warrior appears
+# as its own /32 and the VPS policy rules key on that address. These peers route
+# their segments without SNAT, so the source arriving at the VPS is the *client
+# subnet*. The VPS rules and both ends' AllowedIPs therefore key on the
+# advertised subnet, and Chateau's existing rw_russia/rw_sweden policies
+# generalise from a /32 match to a subnet match - one step, no new mechanism.
+#
+# Why no AmneziaWG here: it is not in the vendor firmware's package set for
+# this board, any third-party kmod would be pinned to that firmware's kernel,
+# and a device that travels should not carry the country credentials anyway.
+# The obfuscated hop stays on Chateau, in the containers that already run it.
+# That is what `exit_mode: chained` below expresses for RU and SE.
+# ---------------------------------------------------------------------------
+gateway_peers:
+  - device_ref: rtr-slate
+    interface: wg-de
+    tunnel_ip: 10.100.1.10/32
+    persistent_keepalive: 25
+    advertises:
+      - 10.77.55.0/24
+    routes:
+      - 0.0.0.0/0
+      - "::/0"            # captured to prevent an IPv6 leak around the tunnel
+    preserve_endpoint_route: true
+    exit_mode: direct
+    exit_country: DE
+    status: staged
+    notes: |
+      Exits at the VPS itself, so one encapsulation and no hop through home.
+      VPS policy: src 10.77.55.0/24 -> table main.
+
+  - device_ref: rtr-slate
+    interface: wg-ru
+    tunnel_ip: 10.100.1.11/32
+    persistent_keepalive: 25
+    advertises:
+      - 10.77.57.0/24
+    routes:
+      - 0.0.0.0/0
+      - "::/0"
+    preserve_endpoint_route: true
+    exit_mode: chained
+    exit_country: RU
+    chained_via_ref: rtr-mikrotik-chateau
+    upstream_tunnel_ref: docker-amneziawg-russia
+    status: staged
+    notes: |
+      VPS policy: src 10.77.57.0/24 -> the table that routes to Chateau, which
+      then marks and routes into wg-awg-russia exactly as inst.routing_policy
+      .rw_russia already does for 10.100.1.7 - with a subnet match instead of
+      a host match.
+
+  - device_ref: rtr-slate
+    interface: wg-se
+    tunnel_ip: 10.100.1.12/32
+    persistent_keepalive: 25
+    advertises:
+      - 10.77.58.0/24
+    routes:
+      - 0.0.0.0/0
+      - "::/0"
+    preserve_endpoint_route: true
+    exit_mode: chained
+    exit_country: SE
+    chained_via_ref: rtr-mikrotik-chateau
+    upstream_tunnel_ref: docker-amneziawg-sweden
+    status: staged
+    notes: |
+      Mirror of wg-ru through inst.routing_policy.rw_sweden's path.
+
 # Routing configuration - exit traffic only
 routing:
   propagate_routes: false

@@ -1,0 +1,32 @@
+@instance: inst.vlan.slate_split
+@extends: obj.network.vlan.user
+@group: network
+@version: 1.0.0
+source_id: net-slate-split
+status: staged
+notes: |
+  rtr-slate split-tunnel client segment. SSID Slate-Split.
+  Home subnets go through wg-home; everything else egresses directly via the
+  venue uplink. This is the opt-in mode, chosen by joining this SSID rather
+  than by changing router state.
+
+  Kept at the tunnel MTU rather than 1500: a blackholed QUIC flow to a home
+  service is a worse failure than slightly smaller packets on direct
+  internet, and zone mtu_fix clamps TCP only.
+
+vlan_id: 102
+cidr: 10.77.2.0/24
+gateway: 10.77.2.1
+dhcp_range: 10.77.2.100-10.77.2.200
+mtu: 1420
+
+dns_servers:
+  - 10.77.2.1
+
+trust_zone_ref: inst.trust_zone.travel_split
+managed_by_ref: rtr-slate
+
+ip_allocations:
+  - device_ref: rtr-slate
+    host: 1
+    purpose: gateway, DNS, DHCP

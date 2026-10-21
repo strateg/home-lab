@@ -94,15 +94,44 @@ road_warrior_peers:
           - 10.0.99.0/24
         dns: 192.168.88.1
 
-  # Travel VPN gateway: split tunnel access to home LAN
+  # Travel VPN gateway: carries its own client segments into the tunnel.
+  #
+  # `gateway_for` was removed here on 2026-10-11. It declared srv-orangepi5 as
+  # reaching the tunnel through this peer, which is backwards - orangepi5 lives
+  # on the home management VLAN and has no reason to route through a travel
+  # router. More importantly the field's own contract is "only valid when the
+  # peer masquerades its LAN into the tunnel, so the hub still sees a single
+  # /32", and rtr-slate deliberately does the opposite: it routes its segments
+  # without SNAT so the client source IP survives to the far end. The correct
+  # expression of that is `advertises` plus matching AllowedIPs, below.
   - device_ref: rtr-slate
     tunnel_ip: 10.100.0.4/24
     persistent_keepalive: 25
-    gateway_for:
-      - srv-orangepi5
+    # Subnets this peer brings into the tunnel. The hub and the VPS must carry
+    # them in AllowedIPs for return traffic to find its way back.
+    #
+    # `advertises` is read by zero lines of the runtime today: the generator
+    # that would have rendered it is on the conserved rtr-slate Terraform
+    # track, and the WireGuard templates here key on `routes` and `tunnel_ip`.
+    # So generated/home-lab/wireguard/vps-wg0.conf still lists this peer as
+    # AllowedIPs = 10.100.0.4/32 and the two subnets below have to be added to
+    # the hub by hand - or the field taught to the wireguard generator - before
+    # return traffic to a Slate client works. Declared here because it is the
+    # correct expression of the design, and silence would be worse.
+    advertises:
+      - 10.77.1.0/24   # Slate-Home,  full tunnel
+      - 10.77.2.0/24   # Slate-Split, home-bound traffic only
     routes:
-      - 192.168.88.0/24
-      - 10.100.0.0/24
+      - 192.168.88.0/24   # home LAN
+      - 10.100.0.0/24     # tunnel overlay
+      - 10.0.100.0/24     # servers - permitted by the matrix (80/443, 5432, 6379)
+      # 10.0.99.0/24 (management) is deliberately absent. inst.security_matrix
+      # .rtr_slate leaves R4's uphill deny in place for user -> management, so a
+      # route here would be config the firewall discards. The two files agree on
+      # purpose; see that matrix's commented-out override to enable both at once.
+    # `dns` is deliberately omitted: this peer runs dnsmasq for its own
+    # segments, and the object's contract warns that pushing a resolver to a
+    # gateway peer breaks every lookup on its LAN whenever the tunnel is down.
 
 # Routing configuration - NO exit traffic
 routing:

@@ -1,0 +1,42 @@
+@instance: inst.vlan.slate_ru
+@extends: obj.network.vlan.vpn_tunnel
+@group: network
+@version: 1.0.0
+source_id: net-slate-ru
+status: staged
+notes: |
+  rtr-slate Russian-exit client segment. SSID VPN-Russia, declared disabled
+  by default.
+
+  Chained path: wg-ru to the VPS, VPS to Chateau, then Chateau's existing
+  AmneziaWG container. AmneziaWG deliberately stays at home - it is absent
+  from the vendor firmware's package set for this board, a third-party kmod
+  would be pinned to its kernel, and a device that travels should not carry the
+  country credentials at all.
+
+vlan_id: 157
+cidr: 10.77.57.0/24
+gateway: 10.77.57.1
+dhcp_range: 10.77.57.100-10.77.57.200
+
+# Two encapsulation layers plus AmneziaWG junk padding. This number is an
+# estimate and must be replaced with a DF-ping measurement before the segment
+# leaves staged - no check holds it to the real budget.
+mtu: 1340
+
+vpn_routing:
+  enabled: true
+  tunnel_interface: wg-ru
+  exit_type: wireguard_chained
+  exit_country: RU
+  chained_via_ref: rtr-mikrotik-chateau
+  upstream_tunnel_ref: docker-amneziawg-russia
+  selector: source_subnet
+
+trust_zone_ref: inst.trust_zone.vpn_tunnel
+managed_by_ref: rtr-slate
+
+ip_allocations:
+  - device_ref: rtr-slate
+    host: 1
+    purpose: gateway, DNS, DHCP

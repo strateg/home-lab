@@ -1,0 +1,15 @@
+@instance: inst.trust_zone.travel_split
+@extends: obj.network.trust_zone.travel_split
+@group: network
+@version: 1.0.0
+source_id: zone-travel-split
+status: staged
+notes: |
+  Split-tunnel zone on rtr-slate. Selected by joining the Slate-Split SSID
+  rather than by changing router state, so both modes stay permanently
+  declared and no mode switch has to be applied to the router at all.
+
+  Staged: authored intent that no adapter renders. rtr-slate is configured by
+  hand on its original vendor firmware.
+
+zone_name: travel-split

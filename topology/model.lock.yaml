@@ -89,6 +89,8 @@ classes:
     version: 1.0.0
   class.router:
     version: 2.0.0
+  class.service:
+    version: 1.0.0
   class.service.alerting:
     version: 1.0.0
   class.service.cache:
@@ -247,6 +249,9 @@ objects:
     version: 1.0.0
     class_ref: class.network.trust_zone
   obj.network.trust_zone.servers:
+    version: 1.0.0
+    class_ref: class.network.trust_zone
+  obj.network.trust_zone.travel_split:
     version: 1.0.0
     class_ref: class.network.trust_zone
   obj.network.trust_zone.untrusted:

@@ -1,0 +1,28 @@
+@instance: inst.vlan.slate_guest
+@extends: obj.network.vlan.guest
+@group: network
+@version: 1.0.0
+source_id: net-slate-guest
+status: staged
+notes: |
+  rtr-slate guest segment. SSID Guest, declared with the SSID disabled by
+  default and switched on when needed.
+
+  Reaches the venue uplink only. The guest zone is isolated, so R2 grants it
+  untrusted and denies every internal zone without needing an override.
+
+vlan_id: 120
+cidr: 10.77.20.0/24
+gateway: 10.77.20.1
+dhcp_range: 10.77.20.100-10.77.20.200
+
+# Egresses on the venue link directly, so it keeps the full Ethernet MTU.
+mtu: 1500
+
+trust_zone_ref: inst.trust_zone.guest
+managed_by_ref: rtr-slate
+
+ip_allocations:
+  - device_ref: rtr-slate
+    host: 1
+    purpose: gateway, DNS, DHCP

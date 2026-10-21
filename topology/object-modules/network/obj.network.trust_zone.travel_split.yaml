@@ -1,0 +1,32 @@
+@object: obj.network.trust_zone.travel_split
+@extends: class.network.trust_zone
+@title: Network Trust Zone Travel Split
+@description: |
+  End-user devices on a travel router that deliberately egress through the
+  local venue uplink instead of a tunnel, while still reaching the home
+  network over the trusted tunnel.
+
+  Exists as a zone of its own rather than as a routing variant of the user
+  zone because the difference is a filtering difference, not a routing one:
+  this zone may forward to an untrusted uplink and the user zone on the same
+  enforcer must not. In a zone-based firewall that policy lives on the zone
+  pair, so two egress behaviours require two zones.
+
+  Same security level as the user zone, which makes R5 deny traffic between
+  them - a device in split mode cannot reach a device in full-tunnel mode on
+  the same router.
+@version: 1.0.0
+
+properties:
+  name: Travel Split Zone
+  security_level: 3
+  color: "#ff9933"
+  description: Travel-router clients egressing via the local venue uplink
+  isolated: false
+  reserved: false
+  allowed_inbound:
+    - established
+  allowed_outbound:
+    - to:untrusted
+
+enabled_capabilities: []
