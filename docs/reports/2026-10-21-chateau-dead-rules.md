@@ -214,6 +214,50 @@ addresses were updated while the device still held the old text. A targeted
 (state backed up first as `terraform.tfstate.pre-vrf-fix.backup`). A plan that
 reads state alone would have reported those four as done.
 
+## 6b. Garbage collection: the two unowned leftovers (2026-10-21)
+
+Both turned out to be bound to interface `*36` - the WireGuard interface of the
+AWG Russia **v1** container, removed 2026-10-01. Neither was a duplicate in the
+sense of competing with a live rule: RouterOS cannot act on a row whose
+interface is absent, and it says so itself.
+
+| Object | Binding | RouterOS verdict | Live counterpart |
+|---|---|---|---|
+| `ip_address *37`, `100.98.32.29/32` | `interface: "*36"` | **`invalid: true`** | `*42`, same address on the real `wg-awg-russia`, `invalid: false`, Terraform-owned |
+| `interface list member *11`, VPN_EXIT | `interface: "*36"` | membership of a non-existent interface | `*14`, `wg-awg-russia` in VPN_EXIT, Terraform-owned |
+
+`*36` is absent from all 35 interfaces on the device. It is the same id that
+makes filter rules `*185`/`*186` `INVALID` in §2 - one deletion, four orphans.
+
+**`ip_address *37` is removed.** Done in RouterOS safe mode (verified to persist
+across MCP calls, so the window was real), after the day's backup and export,
+and committed only after checking that `*42` remained valid and that the Russia
+peer and its counters were unchanged. The device went from 22 addresses to 22 -
+one invalid row gone.
+
+**`interface list member *11` is still there.** The MikroTik MCP server has no
+tool for interface-list members, and its `upload_file` is a stub that reports
+success without transferring anything - so the upload-and-import route is not
+available either. It needs one command from the operator:
+
+```
+/interface list member remove [find where .id="*11" and list="VPN_EXIT"]
+```
+
+Device marker census after this step: **292 canonical, 1 retired** - and that
+one is `*11`. Every object Terraform owns carries the canonical marker.
+
+### A separate finding, surfaced not fixed
+
+The Russia AWG peer has not completed a handshake in over twelve hours, and its
+`rx` counter is frozen at 201780 while `tx` keeps climbing - measured four times
+across the day (5h28m / 9h42m / 12h02m / 12h14m since last handshake, rx
+identical at every reading). The tunnel is sending and receiving nothing back.
+This predates every change in this session and is independent of them; the
+removal of the invalid `*37` sits between the third and fourth reading and
+changed the pattern not at all. Worth its own look: the Russia VPN exit is
+probably down.
+
 ## 7. What this audit does not fix
 
 The 58 duplicate rules and the other ~110 out-of-band rules stay where they
