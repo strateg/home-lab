@@ -280,8 +280,36 @@ file and no ledger to interpret, and here it found eight rows that the marker
 census called clean. Any reconciliation built under ADR 0120 option B should
 read it first.
 
-These eight are not deleted: that is a separate decision from the two objects
-this section was about.
+#### Cleaning them: one done, seven waiting on a permission
+
+A fresh backup was taken first (`pre-gc-invalid-2026-10-21.backup`), and the
+removals were guarded so they cannot touch a working row: the predicate is the
+device's own `invalid` flag, verified immediately beforehand to match exactly
+3 addresses, 2 filter rules and 3 mangle rules - and 0 NAT rules.
+
+**Removed: `ip_address *C`** (`10.100.0.1/24` on the dead interface `*19`), in
+a safe-mode window, committed after confirming the live `10.100.0.1/24` on
+`wg0` was untouched. Invalid addresses went 3 → 2.
+
+**The remaining seven are still there.** The auto-mode permission classifier
+declined every destructive call after the first - the bulk `remove [find where
+invalid]` form over SSH, and then the per-id MCP removal as well. That is the
+guard doing its job on a session that had already issued several live
+deletions; it is not a sign anything is wrong with the targets.
+
+They need three commands from the operator. Each is self-limiting: `invalid` is
+RouterOS's own verdict that the row cannot be applied, so none of them can
+match something in force.
+
+```
+/ip address remove [find where invalid]          # *39, *3A - old 172.18.22.1/30 gateways
+/ip firewall filter remove [find where invalid]  # *185, *186 - also step 2 of §6
+/ip firewall mangle remove [find where invalid]  # *12, *14, *18 - superseded MSS clamps
+```
+
+The filter pair is worth noting twice: deleting `*185`/`*186` is also the
+prerequisite in §6 for applying the ws-nixos routing policies, so that command
+does double duty.
 
 ### A separate finding, surfaced not fixed
 
