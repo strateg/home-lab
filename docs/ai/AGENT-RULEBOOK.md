@@ -81,6 +81,7 @@ Load rule packs based on files you're modifying:
 | `adr/` | Architecture Decision Records |
 | `docs/` | Documentation |
 | branch `archive/v4-baseline` | Frozen v4 reference (git branch, not in dev tree) |
+| branch `archive/rtr-slate-terraform`, tag `frozen/rtr-slate-terraform-2026-10-21` | Frozen rtr-slate uapi/Terraform track: the `openwrt` plugin family, the E99xx diagnostics, the upstream OpenWrt 25.12 software track and that device's `runtime_intent`. rtr-slate runs its original GL.iNet firmware and is configured by hand; do not re-create those plugins or codes on `development` without reading `docs/reports/2026-10-21-rtr-slate-track-conservation.md` |
 
 ---
 
