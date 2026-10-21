@@ -298,23 +298,49 @@ Today the gate fails on (1): at least one live load-bearing rule
 
 ### Two limits found while applying D2 to the live device (2026-10-21)
 
-**A provider defect blocks the marker on `routeros_ip_address`.** RouterOS 7.21+
-reports a `vrf` field on `/ip/address` rows and rejects writes to it for
-addresses on interfaces with no VRF semantics - WireGuard among them. The
-provider declares `vrf` Optional and not Computed, so it sends the value it
-holds in state on every PATCH, and a comment-only update fails with
-`unknown parameter vrf: 400`. Measured on three addresses; the other 19
-resources in the same targeted apply succeeded.
+**A provider defect blocks every `routeros_ip_address` update.** Diagnosed to
+the bottom on 2026-10-21; it is not specific to markers, and it is not
+specific to the three objects that exposed it.
 
-Upstream `terraform-routeros/routeros` has no release above **1.99.1** (the
-version pinned here), and the fix exists only in a fork
-([PR](https://github.com/TohaUA/terraform-provider-routeros/pull/36),
-released as that fork's v1.101.10), which makes `vrf` read-only. So there is no
-upgrade path today, and the marker on `routeros_ip_address` is enforceable only
-out of band - the workaround already recorded for this repository: set the
-value through REST, then refresh state. Three objects stand unmarked for that
-reason, named in the session report rather than hidden behind a policy
-exemption: an exemption would say the contract does not apply, and it does.
+The mechanism, each step verified locally rather than inferred:
+
+| Step | Evidence |
+|---|---|
+| RouterOS assigns VRF membership **per interface**, not per address | `/ip/vrf` on this device holds one builtin row, `main`, with `interfaces: all` |
+| `/ip/address` therefore reports `vrf` as a *derived* field | `GET /rest/ip/address` returns `vrf: "main"` on all 17 rows |
+| its SET endpoint has no such parameter | `PATCH /rest/ip/address/*42` → `400 unknown parameter vrf` |
+| the provider declares `vrf` writable | `terraform providers schema -json` for 1.99.1: `routeros_ip_address.vrf` is `["optional"]`, not computed |
+| so refresh stores `main` and every PATCH sends it back | a comment-only update fails; 19 non-address resources in the same targeted apply succeeded |
+
+Device: RouterOS **7.24.5** on S53UG+5HaxD2HaxD. Consequence beyond this work:
+**no attribute of any `routeros_ip_address` can be updated** through this
+provider on RouterOS ≥ 7.21 - not a comment, not a network, not `disabled`.
+Only create and destroy work.
+
+Upstream knows. [Issue #944](https://github.com/terraform-routeros/terraform-provider-routeros/issues/944)
+is this exact symptom and is open; [PR #984](https://github.com/terraform-routeros/terraform-provider-routeros/pull/984)
+is the fix - 12 lines, adding a Computed-only `PropVrfRo` and using it for
+`KeyVrf` - and is open with `mergeable_state: blocked`. The newest upstream tag
+is **v1.99.1**, which is what this repository pins, so there is no released fix.
+A fork carries the same patch as its own v1.101.10.
+
+Three routes, none of them free, and the choice is a governance decision rather
+than a technical one:
+
+1. **Set the value out of band, then refresh state.** The workaround already
+   recorded for this repository. Finishes the three comments in one command and
+   fixes nothing structural: the next `ip_address` update fails the same way.
+2. **Build the provider from upstream v1.99.1 plus PR #984.** A real fix for
+   every address update, at the cost of an unsigned locally built provider in
+   the path that configures the production router - which needs a reproducible,
+   tracked build rather than a binary somebody made once.
+3. **Wait for upstream to merge #984 and release.** Costs nothing and has no
+   date.
+
+Until one is taken, three `routeros_ip_address` objects keep the retired marker
+and are named in `docs/reports/2026-10-21-chateau-dead-rules.md` rather than
+hidden behind a policy exemption: an exemption would claim the contract does
+not apply to them, and it does.
 
 **A clamped-key phantom diff, now structurally impossible.** X25519 clamps
 three bits of byte 0 and two of byte 31 before use, so a key and its clamped

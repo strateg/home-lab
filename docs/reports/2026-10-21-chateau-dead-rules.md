@@ -166,6 +166,41 @@ Terraform-owned: `*8000000E` (an inactive `awg-russia` default route with an
 empty gateway) and `*80000014` (a duplicate `awg-sweden` default route
 alongside the owned `*8000000C`).
 
+## 6a. Marker normalisation, and the two objects classes it left behind (2026-10-21)
+
+Applied the ADR 0120 canonical marker to the device from the native workspace,
+after a backup (`pre-provenance-2026-10-21.backup`) and an export. The full plan
+was **not** applied: it carried a WireGuard private-key rewrite, a
+`running: false → true` on two containers, and two pre-existing drifts unrelated
+to markers. A targeted plan was verified comment-only first (every changed
+attribute checked programmatically) and only that was applied.
+
+Result: **289 objects canonical, 5 retired** across fourteen resource families.
+The five split into two classes, and the split is the point - after
+normalisation, a retired marker on the device *is* a diagnosis:
+
+| id | family | owner | why it still carries the old marker |
+|---|---|---|---|
+| `*34` | ip_address | terraform | blocked by the provider's `vrf` defect |
+| `*42` | ip_address | terraform | same |
+| `*45` | ip_address | terraform | same |
+| `*11` | interface_list_member | **out of band** | nothing owns it; a leftover copy of the one Terraform owns |
+| `*37` | ip_address | **out of band** | same shape: a second `wg-awg-russia tunnel IP` row |
+
+The `vrf` defect is diagnosed in full in ADR 0120 (RouterOS assigns VRF per
+interface, so `vrf` on an address row is derived and its SET endpoint has no
+such parameter; the provider declares it writable and sends it on every PATCH;
+upstream issue #944 and PR #984 are open, no released fix above the pinned
+1.99.1). Its consequence is wider than markers: **no attribute of any
+`routeros_ip_address` can be updated** through this provider on RouterOS ≥ 7.21.
+
+One more thing the failed apply exposed: the provider persisted the *intended*
+comment into state even though the PATCH returned 400, so state claimed four
+addresses were updated while the device still held the old text. A targeted
+`terraform apply -refresh-only` put state back in agreement with the device
+(state backed up first as `terraform.tfstate.pre-vrf-fix.backup`). A plan that
+reads state alone would have reported those four as done.
+
 ## 7. What this audit does not fix
 
 The 58 duplicate rules and the other ~110 out-of-band rules stay where they
