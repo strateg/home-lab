@@ -33,6 +33,13 @@ address_space:
     - inst.vlan.vpn_germany
     - inst.vlan.vpn_amnezia
     - inst.vlan.vpn_sweden
+    # Added 2026-10-11. This list was declarative only - nothing read it - so
+    # its omission of vpn_exit cost nothing while zone -> VLAN resolution was
+    # global. Once the compiler began resolving each scope inside its own
+    # address space, the gap would have dropped 192.168.56.0/24 out of this
+    # router's zone-vpn_exit address list, which is a live firewall change and
+    # not the intent of scoping.
+    - inst.vlan.vpn_exit
     - inst.vlan.management
     - inst.vlan.servers
 
@@ -50,12 +57,14 @@ availability_waiver:
     Availability objectives for this perimeter matrix have not yet been formally
     attested; this waiver records that status and does not assert service health.
 
-# Extends policy_overrides from obj.network.security_matrix.soho
+# This scope's own policy_overrides. obj.network.security_matrix.soho used to
+# declare `user-to-servers-http` (tcp 80,443) for the user -> servers pair and
+# this list noted it as inherited. It never was: a pair resolves to at most one
+# override, so the object's entry competed with `user-to-servers-db` below and
+# this scope enforced only its own db ports. The object declares none now and
+# E7065 refuses a pair claimed twice, so what is written here is what is
+# enforced.
 policy_overrides:
-  # Inherited from object:
-  # - user-to-servers-http (tcp 80, 443)
-
-  # Project-specific additions:
   - name: user-to-servers-db
     from_zone_ref: inst.trust_zone.user
     to_zone_ref: inst.trust_zone.servers
