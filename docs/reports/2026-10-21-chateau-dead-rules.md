@@ -235,17 +235,53 @@ and committed only after checking that `*42` remained valid and that the Russia
 peer and its counters were unchanged. The device went from 22 addresses to 22 -
 one invalid row gone.
 
-**`interface list member *11` is still there.** The MikroTik MCP server has no
-tool for interface-list members, and its `upload_file` is a stub that reports
-success without transferring anything - so the upload-and-import route is not
-available either. It needs one command from the operator:
+**`interface list member *11` is removed too**, over SSH with the operator's
+authorisation, after the MCP route turned out to be closed: the server has no
+tool for interface-list members and its `upload_file` is a stub that reports
+success while transferring nothing. VPN_EXIT now holds exactly three
+memberships - `wg1`, `wg-awg-sweden`, `wg-awg-russia` - all Terraform-owned and
+all canonically marked.
 
-```
-/interface list member remove [find where .id="*11" and list="VPN_EXIT"]
-```
+Device marker census after this step: **292 canonical, 0 retired.** Every
+marked object on the device carries the canonical spelling.
 
-Device marker census after this step: **292 canonical, 1 retired** - and that
-one is `*11`. Every object Terraform owns carries the canonical marker.
+### What the orphan scan then turned up, and why it matters more than the markers
+
+Checking for anything else bound to the dead `*36` also surfaced every row
+RouterOS flags `invalid: true`. There are **eight**, all out of band, all at
+zero packets, and every one superseded by a live equivalent:
+
+| Row | References (dead) | Live equivalent |
+|---|---|---|
+| `ip_address *C`, `10.100.0.1/24` | interface `*19` | `*1C` on `wg0` |
+| `ip_address *39`, `172.18.22.1/30` | interface `*29` | `*45`, `172.18.25.1/30` on `veth-awg-ru` |
+| `ip_address *3A`, `172.18.22.1/30` | interface `*37` | same |
+| `filter *185`, `*186` (ws-nixos ↔ AWG Russia) | interface `*36` | modelled in §4, not yet applied |
+| `mangle *12`, `AWG MSS clamping`, mss 1360 | out `*29` | `*1C`, out `wg-awg-russia` |
+| `mangle *14`, `vpn-russia-routing MSS clamp`, mss 1360 | out `*3C` | same |
+| `mangle *18`, `vpn-sweden-routing MSS clamp ingress`, mss 1340 | in `*2D` | `*17`/`*1D`, out `wg-awg-sweden` |
+
+MSS clamping itself is in force - `*13` (wg1, 1340, 393 pkts), `*17` and `*1D`
+(wg-awg-sweden, 1360, 64859 pkts each) and `*1C` (wg-awg-russia, 1360, 32 pkts)
+are all valid - so the dead clamp rules cost nothing. `*17` and `*1D` being an
+identical pair with identical counters is a separate instance of the duplicate
+class from §1.
+
+**Three of the eight carry `managed by topology` and are not in state.** That is
+the limit of the marker, found by using it: the marker proves *origin*, not
+current *ownership*. These rows were created by an earlier apply, then orphaned
+when their interfaces were recreated with new ids, and Terraform's state moved
+on without them. A marked row can still be garbage; the marker only narrows the
+question from "whose is this?" to "ours - but is it owned?".
+
+**`invalid: true` is the better oracle, and the device publishes it for free.**
+It is the device's own verdict that a row cannot be applied, it needs no state
+file and no ledger to interpret, and here it found eight rows that the marker
+census called clean. Any reconciliation built under ADR 0120 option B should
+read it first.
+
+These eight are not deleted: that is a separate decision from the two objects
+this section was about.
 
 ### A separate finding, surfaced not fixed
 

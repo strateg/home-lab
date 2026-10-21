@@ -85,6 +85,22 @@ repository:
 Provenance readable only in the repository is not provenance: the operator
 reads the device, and so will any future reconciliation.
 
+**The limit of the marker, found by using it (2026-10-21).** The marker proves
+*origin*, not current *ownership*. Three rows on Chateau carry
+`managed by topology` and are in no Terraform state: an earlier apply created
+them, their interfaces were later recreated with new ids, and state moved on
+without them. So a marked row can still be garbage, and the marker narrows the
+question from "whose is this?" to "ours - but is it owned?". Ownership needs
+state; the marker is what makes the *question* answerable from the device.
+
+A second signal turned out to be stronger than both and costs nothing:
+RouterOS publishes `invalid: true` on any row it cannot apply - a row bound to
+an interface that no longer exists, for instance. Eight such rows were found on
+Chateau, all out of band, all at zero packets, and the marker census called
+them clean. **An option-B reconciliation should read `invalid` first**: it is
+the device's own verdict, it needs neither state nor ledger to interpret, and
+it is the cheapest true positive available.
+
 ### D2. One canonical marker, no synonyms
 
 The marker for topology-rendered objects is the suffix **` - managed by
