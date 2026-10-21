@@ -21,6 +21,7 @@ warning_governance:
   allowlist:
     - W3201
     - W6814
+    - W7016
     - W7816
     - W7844
     - W7864
@@ -33,6 +34,23 @@ warning_governance:
     # W6814: optional @on:host.network.bridge_ref? absent on docker-only host
     # srv-orangepi5 (no bridge by design).
     W6814: 8
+    # W7016: rtr-slate (GL.iNet/OpenWrt) resolves as a network enforcer but
+    # no cap.os.openwrt -> adapter mapping exists (ADR 0118/0119 D-TYPE-2) -
+    # only routeros/pve adapters are registered. Registering a
+    # cap.firewall.security_matrix.openwrt mapping with no generator behind it
+    # would be a false claim of coverage under ADR 0119 D1.1, so the honest
+    # answer is "no compatible adapter" and this entry is the record of it.
+    #
+    # An adapter did exist on the frozen rtr-slate/uapi Terraform track
+    # (tag frozen/rtr-slate-terraform-2026-10-21). That track is conserved and
+    # not integrated: rtr-slate stays on its original GL.iNet vendor firmware,
+    # which has no uapi REST control plane, so the warning is permanent for as
+    # long as the device is modelled as an enforcer and configured by hand.
+    # See docs/reports/2026-10-21-rtr-slate-track-conservation.md.
+    #
+    # Without this entry the validate-v5 lane fails the ADR0088 gate in
+    # enforce mode with G2101 - the warning itself predates this entry.
+    W7016: 1
     W7816: 5
     # W7844: svc-postgresql-germany attaches vpn_germany via WireGuard tunnel
     # routing, not direct VLAN (documented in instance).

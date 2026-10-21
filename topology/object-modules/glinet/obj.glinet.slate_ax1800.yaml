@@ -28,11 +28,11 @@ hardware_specs:
     mounting: none  # Compact travel router
 
   cpu:
-    vendor: mediatek
-    model: MT7621A
-    architecture: mipsel
-    cores: 2
-    clock_mhz: 880
+    vendor: qualcomm
+    model: IPQ-6000
+    architecture: arm64
+    cores: 4
+    clock_mhz: 1200
     frequency_scaling: false
 
   memory:
@@ -56,7 +56,10 @@ hardware_specs:
         speed_mbps: 1000
         standard: gbe
         duplex: full
-        dsa: true  # DSA architecture (not swconfig)
+        # Not a DSA switch port. IPQ6000 exposes three independent nss-dp/edma
+        # data-path netdevs (wan, lan1, lan2) with no CPU port; there is no
+        # eth0 on this board. Verified on the device, 2026-10-11.
+        dsa: false
         physical_port: wan
         description: Gigabit WAN port (blue)
 
@@ -66,7 +69,7 @@ hardware_specs:
         speed_mbps: 1000
         standard: gbe
         duplex: full
-        dsa: true
+        dsa: false
         physical_port: lan1
         description: Gigabit LAN port 1 (yellow)
 
@@ -76,7 +79,7 @@ hardware_specs:
         speed_mbps: 1000
         standard: gbe
         duplex: full
-        dsa: true
+        dsa: false
         physical_port: lan2
         description: Gigabit LAN port 2 (yellow)
 

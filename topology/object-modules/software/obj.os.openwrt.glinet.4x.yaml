@@ -8,7 +8,7 @@ model: OpenWrt GL.iNet 4.x
 properties:
   family: linux
   distribution: openwrt
-  architecture: mipsel
+  architecture: arm64
   init_system: busybox
   package_manager: opkg
   installation_model: embedded
