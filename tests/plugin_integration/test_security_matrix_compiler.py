@@ -1225,7 +1225,14 @@ class TestDuplicateOverridePairs:
         )
 
         assert not any(d.code == "E7065" for d in result.diagnostics)
-        matrices = ctx.get_published_data()[PLUGIN_ID]["security_matrices"]
+        # Read the published channel the way a consumer does. The legacy
+        # registry accessor is banned in this suite by
+        # tests/plugin_contract/test_integration_tests_no_legacy_publish_registry.py.
+        ctx._set_execution_context("test.consumer.security_matrices", {PLUGIN_ID})
+        try:
+            matrices = ctx.subscribe(PLUGIN_ID, "security_matrices")
+        finally:
+            ctx._clear_execution_context()
         cell = matrices["inst.security_matrix.united"]["matrix"]["inst.trust_zone.user"][
             "inst.trust_zone.servers"
         ]
