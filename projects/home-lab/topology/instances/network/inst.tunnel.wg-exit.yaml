@@ -330,6 +330,29 @@ chateau_nat:
 
 # MikroTik routing rules for road-warrior AWG exit
 # These rules mark traffic from wg1 with specific source IPs and route to AWG tunnels
+#
+# DOCUMENTATION ONLY - NOT THE SOURCE OF TRUTH FOR THESE RULES.
+#
+# Verified 2026-10-21: no generator reads `chateau_routing`. It reaches
+# generated/effective-topology.{json,yaml} - the compiled-model echo - and no
+# device artifact. The Chateau side of every road-warrior AWG exit is rendered
+# from one routing_policy instance per source address:
+#
+#   10.100.1.7   inst.routing_policy.rw_russia
+#   10.100.1.8   inst.routing_policy.rw_sweden
+#   10.100.1.9   inst.routing_policy.rw_russia_nixos   (added 2026-10-21)
+#   10.100.1.10  inst.routing_policy.rw_sweden_nixos   (added 2026-10-21)
+#
+# Until those last two existed, the .9/.10 rules below were enforced only by
+# hand-made rules on the router - and those sat after the zone firewall's
+# final drop-all, so they were unreachable and both ws-nixos profiles were
+# dead. That is what an unread declaration costs: it reads as configuration
+# and enforces nothing. See docs/reports/2026-10-21-chateau-dead-rules.md.
+#
+# Kept rather than deleted because it is the only place the whole chained path
+# is described end to end, VPS side included. Two things follow: the rules
+# below describe the *same* intent as those instances and must not diverge
+# from them, and a change here changes nothing on any device.
 chateau_routing:
   # Mangle rules for road-warrior AWG routing (in addition to VLAN-based rules)
   mangle_rules:

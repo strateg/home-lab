@@ -1,0 +1,106 @@
+@instance: inst.routing_policy.rw_sweden_nixos
+@extends: obj.network.routing_policy.vpn_vlan
+@group: network
+@version: 1.0.0
+source_id: policy-rw-sweden-nixos
+status: active
+notes: |
+  Routes ws-nixos' Swedish-exit profile (wg1, 10.100.1.10) through the AWG
+  Sweden tunnel. Sibling of inst.routing_policy.rw_sweden, which does the
+  same for 10.100.1.8; one policy per road-warrior address, because the
+  source address is what the mangle rules match on.
+
+  Architecture:
+    - ws-nixos picks its vpn-sweden profile and connects to VPS wg1 as
+      10.100.1.10 (inst.tunnel.wg-exit, road_warrior_peers, exit_mode:
+      chained, mikrotik_routing_table: awg-sweden)
+    - VPS forwards to MikroTik wg1
+    - MikroTik marks the connection and routes it to wg-awg-sweden
+    - the awg-proxy container adds AWG obfuscation
+    - traffic exits via the VPN Sweden server
+
+  WHY THIS INSTANCE EXISTS (2026-10-21)
+
+  Same story as inst.routing_policy.rw_russia_nixos: the Chateau half was
+  configured by hand, never modelled, never rendered, never owned by
+  Terraform. Found on the router as:
+
+    mangle  *36 / *37   out-of-band, 0 packets - the right shape
+    filter  *187 / *188 out-of-band, 0 packets, placed AFTER the zone
+                        firewall's final drop-all, so unreachable
+
+  Unlike the Russia pair these name a live interface, so only the placement
+  was wrong - and placement alone was enough to make the profile dead: wg1
+  and wg-awg-sweden are both in the VPN_EXIT interface list and the only
+  reachable VPN_EXIT rule is VPN_EXIT -> WAN, so no reachable rule permitted
+  wg1 -> wg-awg-sweden for this address. Every rule rendered from here
+  carries `place_before` the final drop-all.
+
+  BEFORE THE NEXT APPLY, read docs/reports/2026-10-21-chateau-dead-rules.md:
+  the four out-of-band rules above must be imported or deleted first, or
+  RouterOS will happily hold a second copy of each.
+
+# Policy identification
+policy_name: rw-nixos-sweden-routing
+policy_description: Route ws-nixos road-warrior 10.100.1.10 through AWG Sweden
+
+# Source: specific IP address (not VLAN)
+source_match:
+  type: ip_address
+  value: "10.100.1.10"
+
+# Target: WireGuard interface (reuse existing AWG Sweden tunnel)
+target_gateway:
+  type: wireguard_interface
+  value: wg-awg-sweden
+  container_ref: docker-amneziawg-sweden
+
+# Reuse the existing awg-sweden routing table
+routing_mark: "0x3C"
+priority: 110
+enabled: true
+
+# MikroTik implementation details
+mikrotik_config:
+  # 1. Mangle rules to mark connections from 10.100.1.10.
+  #    Shape and mark names match the rules already on the router (*36/*37),
+  #    so importing them produces a comment diff and nothing else.
+  mangle_rules:
+    - chain: prerouting
+      src_address: "10.100.1.10"
+      dst_address: "!10.100.1.0/24"
+      action: mark-connection
+      new_connection_mark: vpn-rw-sweden-nixos
+      passthrough: true
+    - chain: prerouting
+      connection_mark: vpn-rw-sweden-nixos
+      src_address: "10.100.1.10"
+      action: mark-routing
+      new_routing_mark: awg-sweden
+      passthrough: false
+
+  # 2. The awg-sweden routing table and its default route already exist,
+  #    created by inst.routing_policy.vpn_sweden. Nothing to add.
+
+  # 3. Firewall rules for wg1 <-> wg-awg-sweden traffic
+  firewall_rules:
+    - chain: forward
+      action: accept
+      in_interface: wg1
+      out_interface: wg-awg-sweden
+      src_address: "10.100.1.10"
+      comment: "RW-nixos-Sweden: forward egress"
+      priority: high
+    - chain: forward
+      action: accept
+      in_interface: wg-awg-sweden
+      out_interface: wg1
+      dst_address: "10.100.1.10"
+      comment: "RW-nixos-Sweden: forward ingress"
+      priority: high
+
+  # NAT is handled by the existing vpn_sweden policy (masquerade on
+  # wg-awg-sweden).
+
+# Managed by
+managed_by_ref: rtr-mikrotik-chateau
