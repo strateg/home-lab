@@ -25,7 +25,7 @@
 resource "routeros_ip_firewall_addr_list" "zone_{{ zone_name }}_{{ loop.index }}" {
   list    = "zone-{{ zone_name }}"
   address = "{{ cidr }}"
-  comment = "Zone: {{ zone_data.get('name', zone_name) }} (level={{ zone_data.get('security_level', 0) }}{% if zone_data.get('isolated') %}, isolated{% endif %}) - managed by topology"
+  comment = "Zone: {{ zone_data.get('name', zone_name) }} (level={{ zone_data.get('security_level', 0) }}{% if zone_data.get('isolated') %}, isolated{% endif %}) [managed by Topology]"
 }
 
 {% endfor %}
@@ -40,14 +40,14 @@ resource "routeros_ip_firewall_filter" "input_established_related" {
   chain            = "input"
   action           = "accept"
   connection_state = "established,related,untracked"
-  comment          = "ADR-0110: Accept established/related/untracked input - managed by topology"
+  comment          = "ADR-0110: Accept established/related/untracked input [managed by Topology]"
 }
 
 resource "routeros_ip_firewall_filter" "input_icmp" {
   chain    = "input"
   action   = "accept"
   protocol = "icmp"
-  comment  = "ADR-0110: Accept ICMP - managed by topology"
+  comment  = "ADR-0110: Accept ICMP [managed by Topology]"
 }
 
 resource "routeros_ip_firewall_filter" "input_management_from_lan" {
@@ -56,14 +56,14 @@ resource "routeros_ip_firewall_filter" "input_management_from_lan" {
   protocol          = "tcp"
   dst_port          = "22,8291,8443"
   in_interface_list = "LAN"
-  comment           = "ADR-0110: Allow SSH/Winbox/API from LAN (incl. WireGuard) - managed by topology"
+  comment           = "ADR-0110: Allow SSH/Winbox/API from LAN (incl. WireGuard) [managed by Topology]"
 }
 
 resource "routeros_ip_firewall_filter" "input_drop_not_lan" {
   chain             = "input"
   action            = "drop"
   in_interface_list = "!LAN"
-  comment           = "ADR-0110: Drop input not from LAN - managed by topology"
+  comment           = "ADR-0110: Drop input not from LAN [managed by Topology]"
 
   # The three input permits above must exist before this drop, or a fresh apply
   # can append them after it. depends_on is Terraform metadata only: it fixes
@@ -82,7 +82,7 @@ resource "routeros_ip_firewall_filter" "zone_established_related" {
   chain            = "forward"
   action           = "accept"
   connection_state = "established,related"
-  comment          = "ADR-0110: Accept established/related - managed by topology"
+  comment          = "ADR-0110: Accept established/related [managed by Topology]"
 }
 
 # ==============================================================================
@@ -113,7 +113,7 @@ resource "routeros_ip_firewall_filter" "zone_override_{{ override_name }}_tcp" {
 {% endif %}
   protocol         = "tcp"
   dst_port         = "{{ ports.get('tcp') | join(',') }}"
-  comment          = "ADR-0110 R6: {{ override.get('comment', override.get('name', 'override')) }} - managed by topology"
+  comment          = "ADR-0110 R6: {{ override.get('comment', override.get('name', 'override')) }} [managed by Topology]"
   place_before     = routeros_ip_firewall_filter.zone_drop_all_forward.id
 }
 
@@ -134,7 +134,7 @@ resource "routeros_ip_firewall_filter" "zone_override_{{ override_name }}_udp" {
 {% endif %}
   protocol         = "udp"
   dst_port         = "{{ ports.get('udp') | join(',') }}"
-  comment          = "ADR-0110 R6: {{ override.get('comment', override.get('name', 'override')) }} - managed by topology"
+  comment          = "ADR-0110 R6: {{ override.get('comment', override.get('name', 'override')) }} [managed by Topology]"
   place_before     = routeros_ip_firewall_filter.zone_drop_all_forward.id
 }
 
@@ -153,7 +153,7 @@ resource "routeros_ip_firewall_filter" "zone_override_{{ override_name }}" {
 {% else %}
   dst_address_list = "zone-{{ to_zone }}"
 {% endif %}
-  comment          = "ADR-0110 R6: {{ override.get('comment', override.get('name', 'override')) }} - managed by topology"
+  comment          = "ADR-0110 R6: {{ override.get('comment', override.get('name', 'override')) }} [managed by Topology]"
   place_before     = routeros_ip_firewall_filter.zone_drop_all_forward.id
 }
 
@@ -180,7 +180,7 @@ resource "routeros_ip_firewall_filter" "zone_deny_{{ from_name }}_to_{{ to_name 
   log              = true
   log_prefix       = "DENY:{{ from_name }}→{{ to_name }}"
 {% endif %}
-  comment          = "ADR-0110 {{ rule }}: {{ reason }} - managed by topology"
+  comment          = "ADR-0110 {{ rule }}: {{ reason }} [managed by Topology]"
   place_before     = routeros_ip_firewall_filter.zone_drop_all_forward.id
 }
 
@@ -204,7 +204,7 @@ resource "routeros_ip_firewall_filter" "zone_deny_{{ from_name }}_to_{{ to_name 
 #   action           = "accept"
 #   src_address_list = "zone-{{ from_name }}"
 #   dst_address_list = "zone-{{ to_name }}"
-#   comment          = "ADR-0110 {{ rule }}: {{ cell.get('reason', '') }} - managed by topology"
+#   comment          = "ADR-0110 {{ rule }}: {{ cell.get('reason', '') }} [managed by Topology]"
 # }
 
 {% endif %}
@@ -219,7 +219,7 @@ resource "routeros_ip_firewall_filter" "zone_drop_all_forward" {
   action     = "drop"
   log        = true
   log_prefix = "DROP:final"
-  comment    = "ADR-0110: Final drop-all (implicit deny policy) - managed by topology"
+  comment    = "ADR-0110: Final drop-all (implicit deny policy) [managed by Topology]"
   depends_on = [routeros_ip_firewall_filter.zone_established_related]
 }
 

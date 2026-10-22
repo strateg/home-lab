@@ -322,6 +322,45 @@ removal of the invalid `*37` sits between the third and fourth reading and
 changed the pattern not at all. Worth its own look: the Russia VPN exit is
 probably down.
 
+## 6c. The marker form changed, and it separated owned from unowned (2026-10-22)
+
+The canonical marker became `[managed by Topology]` (ADR 0120 D2, revised). On
+the repository side that is 69 template occurrences, the policy, the guides, the
+import helper and the test fixtures. On the device it was 199 comment updates,
+planned and applied as follows:
+
+1. full plan: 15 add, 204 change, 5 destroy;
+2. `terraform show -json` parsed to classify every change by the attributes it
+   actually touches: **199 comment-only**, 42 no-ops, 23 others;
+3. a targeted plan over exactly those 199, re-verified from its own JSON -
+   every change comment-only, and every new comment containing the new marker;
+4. fresh backup `pre-marker-brackets-2026-10-22.backup`, then apply: 199
+   changed, 0 added, 0 destroyed, no errors.
+
+Then the census said something unexpected: **198 rows on the new form, 115 on
+the old.** The day before, the same census read "292 canonical, 0 retired".
+Nothing regressed - the marker had simply stopped being able to hide anything:
+
+| Form | Owned | Count |
+|---|---|---|
+| `[managed by Topology]` | yes | 198 |
+| old plain form | **no** | **108** |
+| old plain form | yes | 7 |
+
+Every row Terraform owns and could update comment-only now carries the new
+form. The 108 are the unowned class - rows created by earlier applies, carrying
+the old text, owned by no current state. Yesterday they were indistinguishable
+from the real thing because the string was identical.
+
+The 7 are exactly the resources held back from the comment-only apply:
+`ip_dhcp_server_network` `*9`/`*A` (plan also moves `dns_server`/`netmask`),
+the four permits being replaced for placement (`*1D`, `*DA`, `*DB`, `*124`) and
+the inert override `*190` awaiting destruction. A third class, and a useful one:
+*owned, and holding a change nobody has decided to apply yet.*
+
+So a marker revision is not cosmetic. It re-baselines provenance on the device
+in one pass, and it did more for visibility than the ownership ledger has yet.
+
 ## 7. What this audit does not fix
 
 The 58 duplicate rules and the other ~110 out-of-band rules stay where they

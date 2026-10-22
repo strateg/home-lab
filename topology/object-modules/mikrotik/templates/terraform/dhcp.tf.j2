@@ -7,7 +7,7 @@
 resource "routeros_ip_pool" "lan_pool" {
   name    = "default-dhcp"
   ranges  = ["{{ runtime_baseline.dhcp.pool_range }}"]
-  comment = "runtime baseline DHCP pool - managed by topology"
+  comment = "runtime baseline DHCP pool [managed by Topology]"
 
   lifecycle {
     # Prevent recreation if pool already exists with same name
@@ -21,7 +21,7 @@ resource "routeros_ip_dhcp_server" "lan_dhcp" {
   address_pool               = routeros_ip_pool.lan_pool.name
   lease_time                 = "{{ runtime_baseline.dhcp.lease_time }}"
   disabled                   = false
-  comment                    = "LAN DHCP - managed by topology"
+  comment                    = "LAN DHCP [managed by Topology]"
   dynamic_lease_identifiers  = "client-mac,client-id"
 }
 
@@ -31,7 +31,7 @@ resource "routeros_ip_dhcp_server_network" "lan_network" {
 {% if runtime_baseline.dns_servers %}
   dns_server = [{% for dns in runtime_baseline.dns_servers %}"{{ dns }}"{% if not loop.last %}, {% endif %}{% endfor %}]
 {% endif %}
-  comment    = "LAN DHCP network - managed by topology"
+  comment    = "LAN DHCP network [managed by Topology]"
 }
 
 {% endif %}
@@ -47,7 +47,7 @@ resource "routeros_ip_dhcp_server_network" "lan_network" {
 resource "routeros_ip_pool" "{{ pool_name }}" {
   name    = "{{ pool_name }}"
   ranges  = ["{{ range_parts[0] }}-{{ range_parts[1] }}"]
-  comment = "{{ pool_name }} - managed by topology"
+  comment = "{{ pool_name }} [managed by Topology]"
 
   lifecycle {
     create_before_destroy = false
@@ -63,7 +63,7 @@ resource "routeros_ip_dhcp_server" "{{ server_name }}" {
 {% endif %}
   address_pool               = routeros_ip_pool.{{ pool_name }}.name
   disabled                   = false
-  comment                    = "{{ vlan.instance_id }} DHCP - managed by topology"
+  comment                    = "{{ vlan.instance_id }} DHCP [managed by Topology]"
   dynamic_lease_identifiers  = "client-mac,client-id"
 
   lifecycle {
@@ -77,7 +77,7 @@ resource "routeros_ip_dhcp_server_network" "{{ vlan.name }}" {
 {% if vlan.dns_servers %}
   dns_server = [{% for dns in vlan.dns_servers %}"{{ dns }}"{% if not loop.last %}, {% endif %}{% endfor %}]
 {% endif %}
-  comment    = "{{ vlan.instance_id }} DHCP network - managed by topology"
+  comment    = "{{ vlan.instance_id }} DHCP network [managed by Topology]"
 }
 
 {% endif %}

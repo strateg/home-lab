@@ -16,14 +16,29 @@
 version: 1.0.0
 
 marker:
-  # One spelling. Three were in use before 2026-10-21 ("managed by topology",
-  # "managed by terraform", "managed by Terraform"), which made provenance
-  # unreadable by any mechanical check - a grep for one of them classified the
-  # other two as foreign.
-  canonical: "managed by topology"
+  # One spelling, bracketed. Four were in use before 2026-10-22 - "managed by
+  # topology", "managed by terraform", "managed by Terraform" and the bare
+  # default - which made provenance unreadable to any mechanical check: a grep
+  # for one of them classified the others as foreign.
+  #
+  # The brackets are deliberate: they make the marker a delimited token rather
+  # than a phrase that happens to end a sentence, so a comment reads
+  # "VPN-Sweden tunnel ingress [managed by Topology]" and the owned part is
+  # unmistakable at a glance in Winbox and in `/export`.
+  canonical: "[managed by Topology]"
+  #
+  # CAUTION for anyone searching the device: `[` and `]` are regex
+  # metacharacters and RouterOS's `~` operator is a regex match, so
+  #     /ip firewall filter print where comment~"[managed by Topology]"
+  # matches a comment containing ANY of those characters. Search either
+  #     comment~"\\[managed by Topology\\]"
+  # or the unbracketed substring `comment~"managed by Topology"`. Tooling in
+  # this repository compares plain substrings, not regexes, and is unaffected.
+  canonical_regex_escaped: "\\[managed by Topology\\]"
   # Spellings that used to be emitted. Rendering any of them is now an error:
   # they are recognised only so the diagnostic can name what it found.
   retired:
+    - "managed by topology"
     - "managed by terraform"
     - "managed by Terraform"
     - "managed-by-topology"

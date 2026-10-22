@@ -18,7 +18,7 @@ resource "routeros_interface_wireguard" "{{ iface.name }}" {
 {% endif %}
   private_key = var.wireguard_{{ iface.name }}_private_key
   mtu         = {{ iface.mtu if iface.mtu else 1420 }}
-  comment     = "WireGuard {{ iface.name }} - managed by topology"
+  comment     = "WireGuard {{ iface.name }} [managed by Topology]"
 }
 
 # IP Address for {{ iface.name }}
@@ -26,7 +26,7 @@ resource "routeros_interface_wireguard" "{{ iface.name }}" {
 resource "routeros_ip_address" "{{ iface.name }}" {
   address   = "{{ iface.address }}"
   interface = routeros_interface_wireguard.{{ iface.name }}.name
-  comment   = "WireGuard {{ iface.name }} IP - managed by topology"
+  comment   = "WireGuard {{ iface.name }} IP [managed by Topology]"
 
   lifecycle {
     # vrf not supported via REST API in RouterOS 7.x
@@ -39,7 +39,7 @@ resource "routeros_ip_address" "{{ iface.name }}" {
 resource "routeros_interface_list_member" "{{ iface.name }}_{{ iface.interface_list | default('LAN') | lower | replace('_', '') }}" {
   interface = routeros_interface_wireguard.{{ iface.name }}.name
   list      = "{{ iface.interface_list | default('LAN') }}"
-  comment   = "WireGuard {{ iface.name }} in {{ iface.interface_list | default('LAN') }} - managed by topology"
+  comment   = "WireGuard {{ iface.name }} in {{ iface.interface_list | default('LAN') }} [managed by Topology]"
 }
 
 # Peers for {{ iface.name }}
@@ -53,7 +53,7 @@ resource "routeros_interface_wireguard_peer" "{{ iface.name }}_{{ peer.name | re
   endpoint_port        = length(var.wireguard_{{ iface.name }}_peers) > {{ loop.index0 }} ? var.wireguard_{{ iface.name }}_peers[{{ loop.index0 }}].endpoint_port : null
   allowed_address      = length(var.wireguard_{{ iface.name }}_peers) > {{ loop.index0 }} ? var.wireguard_{{ iface.name }}_peers[{{ loop.index0 }}].allowed_ips : []
   persistent_keepalive = length(var.wireguard_{{ iface.name }}_peers) > {{ loop.index0 }} ? var.wireguard_{{ iface.name }}_peers[{{ loop.index0 }}].persistent_keepalive : null
-  comment              = {{ ((peer.comment | default("Remote: " + peer.name)) ~ " - managed by topology") | tojson }}
+  comment              = {{ ((peer.comment | default("Remote: " + peer.name)) ~ " [managed by Topology]") | tojson }}
 }
 
 {% endfor %}
@@ -73,7 +73,7 @@ resource "routeros_interface_wireguard" "wg0" {
   listen_port = {{ wireguard_listen_port | default(51820) }}
   private_key = var.wireguard_private_key
   mtu         = {{ wireguard_mtu | default(1420) }}
-  comment     = "WireGuard tunnel - managed by topology"
+  comment     = "WireGuard tunnel [managed by Topology]"
 }
 
 # WireGuard Peers
@@ -87,7 +87,7 @@ resource "routeros_interface_wireguard_peer" "{{ peer.name | replace('-', '_') }
   endpoint_port        = length(var.wireguard_peers) > {{ loop.index0 }} ? var.wireguard_peers[{{ loop.index0 }}].endpoint_port : null
   allowed_address      = length(var.wireguard_peers) > {{ loop.index0 }} ? var.wireguard_peers[{{ loop.index0 }}].allowed_ips : []
   persistent_keepalive = length(var.wireguard_peers) > {{ loop.index0 }} ? var.wireguard_peers[{{ loop.index0 }}].persistent_keepalive : null
-  comment              = {{ ((peer.comment | default("Remote: " + peer.name)) ~ " - managed by topology") | tojson }}
+  comment              = {{ ((peer.comment | default("Remote: " + peer.name)) ~ " [managed by Topology]") | tojson }}
 }
 
 {% endfor %}
@@ -95,14 +95,14 @@ resource "routeros_interface_wireguard_peer" "{{ peer.name | replace('-', '_') }
 resource "routeros_ip_address" "wg0" {
   address   = "{{ wireguard_address | default('10.100.0.1/30') }}"
   interface = routeros_interface_wireguard.wg0.name
-  comment   = "WireGuard tunnel IP - managed by topology"
+  comment   = "WireGuard tunnel IP [managed by Topology]"
 }
 
 # Add WireGuard to LAN interface list (firewall trust)
 resource "routeros_interface_list_member" "wg0_lan" {
   interface = routeros_interface_wireguard.wg0.name
   list      = "LAN"
-  comment   = "Trust WireGuard tunnel - managed by topology"
+  comment   = "Trust WireGuard tunnel [managed by Topology]"
 }
 {% endif %}
 {% for policy in routing_policies %}
@@ -116,7 +116,7 @@ resource "routeros_interface_list_member" "wg0_lan" {
 resource "routeros_routing_table" "{{ policy.name }}" {
   name = "{{ policy.routing_table.name }}"
   fib  = {{ 'true' if policy.routing_table.get('fib', True) else 'false' }}
-  comment = "{{ policy.policy_name }} routing table - managed by topology"
+  comment = "{{ policy.policy_name }} routing table [managed by Topology]"
 }
 {% endif %}
 {% for rule in policy.mangle_rules %}
@@ -140,7 +140,7 @@ resource "routeros_ip_firewall_mangle" "{{ policy.name }}_mangle_{{ loop.index }
   new_routing_mark = "{{ rule.get('new_routing_mark') }}"
 {% endif %}
   passthrough = {{ 'true' if rule.get('passthrough', True) else 'false' }}
-  comment     = "{{ policy.policy_name }} mangle - managed by topology"
+  comment     = "{{ policy.policy_name }} mangle [managed by Topology]"
 {% if loop.index > 1 %}
   depends_on = [routeros_ip_firewall_mangle.{{ policy.name }}_mangle_{{ loop.index - 1 }}]
 {% elif policy.routing_table and policy.routing_table.name %}
@@ -156,7 +156,7 @@ resource "routeros_ip_route" "{{ policy.name }}_route_{{ loop.index }}" {
 {% if route.get('routing_table') %}
   routing_table = "{{ route.get('routing_table') }}"
 {% endif %}
-  comment       = "{{ policy.policy_name }} route - managed by topology"
+  comment       = "{{ policy.policy_name }} route [managed by Topology]"
 {% if policy.routing_table and policy.routing_table.name %}
   depends_on = [routeros_routing_table.{{ policy.name }}]
 {% endif %}
@@ -176,7 +176,7 @@ resource "routeros_ip_firewall_nat" "{{ policy.name }}_nat_{{ loop.index }}" {
 {% if nat.get('out_interface_list') %}
   out_interface_list = "{{ nat.out_interface_list }}"
 {% endif %}
-  comment = "{{ nat.get('comment', policy.policy_name + ' NAT') }} - managed by topology"
+  comment = "{{ nat.get('comment', policy.policy_name + ' NAT') }} [managed by Topology]"
 }
 {% endfor %}
 {% if policy.mss_clamp %}
@@ -195,7 +195,7 @@ resource "routeros_ip_firewall_mangle" "{{ policy.name }}_mss_clamp" {
 {% endif %}
   new_mss          = {{ policy.mss_clamp.get('new_mss') }}
   passthrough      = true
-  comment          = "{{ policy.policy_name }} MSS clamp - managed by topology"
+  comment          = "{{ policy.policy_name }} MSS clamp [managed by Topology]"
 }
 {% endif %}
 {% if policy.fasttrack %}
@@ -206,7 +206,7 @@ resource "routeros_ip_firewall_filter" "{{ policy.name }}_fasttrack" {
   action           = "fasttrack-connection"
   connection_mark  = "{{ policy.fasttrack.get('connection_mark', policy.name) }}"
   connection_state = "established,related"
-  comment          = "{{ policy.fasttrack.get('comment', policy.policy_name + ' fasttrack') }} - managed by topology"
+  comment          = "{{ policy.fasttrack.get('comment', policy.policy_name + ' fasttrack') }} [managed by Topology]"
 }
 
 resource "routeros_ip_firewall_filter" "{{ policy.name }}_fasttrack_accept" {
@@ -214,7 +214,7 @@ resource "routeros_ip_firewall_filter" "{{ policy.name }}_fasttrack_accept" {
   action           = "accept"
   connection_mark  = "{{ policy.fasttrack.get('connection_mark', policy.name) }}"
   connection_state = "established,related"
-  comment          = "{{ policy.fasttrack.get('comment', policy.policy_name + ' fasttrack') }} accept - managed by topology"
+  comment          = "{{ policy.fasttrack.get('comment', policy.policy_name + ' fasttrack') }} accept [managed by Topology]"
 {% if has_security_matrix %}
   # Ahead of the zone firewall's terminal drop, like every other permit this
   # root renders (ADR 0120 D5).
@@ -247,7 +247,7 @@ resource "routeros_ip_firewall_raw" "{{ policy.name }}_notrack_{{ loop.index }}"
 {% if rule.get('out_interface') %}
   out_interface = "{{ rule.get('out_interface') }}"
 {% endif %}
-  comment  = "{{ rule.get('comment', policy.policy_name + ' notrack') }} - managed by topology"
+  comment  = "{{ rule.get('comment', policy.policy_name + ' notrack') }} [managed by Topology]"
 }
 {% endfor %}
 {% if has_security_matrix %}
@@ -261,7 +261,7 @@ resource "routeros_ip_firewall_filter" "{{ policy.name }}_tunnel_egress" {
   action        = "accept"
   src_address   = "{{ policy.source_subnet }}"
   out_interface = "{{ policy.tunnel_interface }}"
-  comment       = "{{ policy.policy_name }} tunnel egress - managed by topology"
+  comment       = "{{ policy.policy_name }} tunnel egress [managed by Topology]"
   place_before  = routeros_ip_firewall_filter.zone_drop_all_forward.id
 
   depends_on = [
@@ -288,7 +288,7 @@ resource "routeros_ip_firewall_filter" "{{ policy.name }}_fw_{{ loop.index }}" {
 {% if rule.get('dst_address') %}
   dst_address   = "{{ rule.dst_address }}"
 {% endif %}
-  comment       = "{{ rule.get('comment', policy.policy_name + ' firewall rule') }} - managed by topology"
+  comment       = "{{ rule.get('comment', policy.policy_name + ' firewall rule') }} [managed by Topology]"
 {% if has_security_matrix %}
   place_before  = routeros_ip_firewall_filter.zone_drop_all_forward.id
 

@@ -13,7 +13,7 @@ resource "routeros_ip_firewall_filter" "{{ policy.name }}_stateful" {
   chain            = "{{ policy.chain }}"
   action           = "accept"
   connection_state = "established,related"
-  comment          = "{{ policy.comment or policy.instance_id }} - managed by topology"
+  comment          = "{{ policy.comment or policy.instance_id }} [managed by Topology]"
 {% if has_security_matrix and policy.chain == "forward" %}
   # The zone firewall ends the forward chain with an unconditional drop. Without
   # this, a recreate appends the rule after that drop and it never matches - it
@@ -29,7 +29,7 @@ resource "routeros_ip_firewall_filter" "{{ policy.name }}_wan_default_deny" {
   action               = "drop"
   in_interface_list    = "WAN"
   connection_nat_state = "!dstnat"
-  comment              = "{{ policy.comment or policy.instance_id }} - managed by topology"
+  comment              = "{{ policy.comment or policy.instance_id }} [managed by Topology]"
 }
 
 {% elif policy.rules %}
@@ -46,7 +46,7 @@ resource "routeros_ip_firewall_filter" "{{ policy.name }}_rule_{{ loop.index }}"
 {% if rule.dst_cidr %}
   dst_address = "{{ rule.dst_cidr }}"
 {% endif %}
-  comment = "{{ rule.comment or policy.comment or policy.instance_id }} - managed by topology"
+  comment = "{{ rule.comment or policy.comment or policy.instance_id }} [managed by Topology]"
 }
 
 {% endfor %}
@@ -54,7 +54,7 @@ resource "routeros_ip_firewall_filter" "{{ policy.name }}_rule_{{ loop.index }}"
 resource "routeros_ip_firewall_filter" "{{ policy.name }}_default" {
   chain   = "{{ policy.chain }}"
   action  = "{{ policy.default_action }}"
-  comment = "{{ policy.comment or policy.instance_id }} - managed by topology"
+  comment = "{{ policy.comment or policy.instance_id }} [managed by Topology]"
 }
 
 {% endif %}
@@ -65,14 +65,14 @@ resource "routeros_ip_firewall_filter" "accept_established" {
   chain            = "forward"
   action           = "accept"
   connection_state = "established,related"
-  comment          = "Accept established/related - managed by topology"
+  comment          = "Accept established/related [managed by Topology]"
 }
 
 resource "routeros_ip_firewall_filter" "drop_invalid" {
   chain            = "forward"
   action           = "drop"
   connection_state = "invalid"
-  comment          = "Drop invalid - managed by topology"
+  comment          = "Drop invalid [managed by Topology]"
 }
 
 resource "routeros_ip_firewall_filter" "drop_all_forward" {
@@ -80,7 +80,7 @@ resource "routeros_ip_firewall_filter" "drop_all_forward" {
   action               = "drop"
   in_interface_list    = "WAN"
   connection_nat_state = "!dstnat"
-  comment              = "Default deny from WAN not DSTNATed - managed by topology"
+  comment              = "Default deny from WAN not DSTNATed [managed by Topology]"
 }
 {% endif %}
 
@@ -112,9 +112,9 @@ resource "routeros_ip_firewall_nat" "runtime_nat_{{ loop.index }}" {
   to_ports = "{{ nat.get('to_ports') }}"
 {% endif %}
 {% if nat.get('comment') %}
-  comment = "{{ nat.get('comment') }} - managed by topology"
+  comment = "{{ nat.get('comment') }} [managed by Topology]"
 {% else %}
-  comment = "runtime NAT baseline - managed by topology"
+  comment = "runtime NAT baseline [managed by Topology]"
 {% endif %}
 }
 
@@ -155,9 +155,9 @@ resource "routeros_ip_firewall_filter" "baseline_rule_{{ loop.index }}" {
   connection_state = "{{ rule.get('connection_state') }}"
 {% endif %}
 {% if rule.get('comment') %}
-  comment = "{{ rule.get('comment') }} - managed by topology"
+  comment = "{{ rule.get('comment') }} [managed by Topology]"
 {% else %}
-  comment = "baseline firewall rule - managed by topology"
+  comment = "baseline firewall rule [managed by Topology]"
 {% endif %}
 {% if has_security_matrix and rule.get('chain', 'forward') == "forward" and rule.get('action', 'accept') == "accept" %}
   # Placed ahead of the zone firewall's terminal drop (ADR 0120 D5).

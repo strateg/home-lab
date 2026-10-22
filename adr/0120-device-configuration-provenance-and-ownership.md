@@ -87,7 +87,7 @@ reads the device, and so will any future reconciliation.
 
 **The limit of the marker, found by using it (2026-10-21).** The marker proves
 *origin*, not current *ownership*. Three rows on Chateau carry
-`managed by topology` and are in no Terraform state: an earlier apply created
+the then-canonical marker and are in no Terraform state: an earlier apply created
 them, their interfaces were later recreated with new ids, and state moved on
 without them. So a marked row can still be garbage, and the marker narrows the
 question from "whose is this?" to "ours - but is it owned?". Ownership needs
@@ -103,13 +103,60 @@ it is the cheapest true positive available.
 
 ### D2. One canonical marker, no synonyms
 
-The marker for topology-rendered objects is the suffix **` - managed by
-topology`**, declared in `configs/quality/device-provenance-policy.yaml`.
+The marker for topology-rendered objects is the bracketed suffix
+**`[managed by Topology]`**, declared in
+`configs/quality/device-provenance-policy.yaml`. A comment reads
+`VPN-Sweden tunnel ingress [managed by Topology]`.
 
-Three spellings were in use until 2026-10-21 — `managed by topology`, `managed by
-terraform`, `managed by Terraform` — which made provenance unreadable to any
-mechanical check: a grep for one classified the other two as foreign. The two
-retired spellings are now refused at validation time (`E8401`).
+Brackets rather than a trailing phrase (revised 2026-10-22): the marker is then
+a delimited token rather than words that happen to end a sentence, which is
+what makes the owned part unmistakable at a glance in Winbox and in `/export` -
+and unambiguous to parse.
+
+Four spellings were in use before the contract existed — `managed by topology`,
+`managed by terraform`, `managed by Terraform`, and a bare default — which made
+provenance unreadable to any mechanical check: a grep for one classified the
+others as foreign. All four are retired and refused at validation time
+(`E8401`).
+
+**An unplanned benefit, measured on the cutover (2026-10-22).** Changing the
+form made the marker a *generation stamp*, and that separated owned from
+unowned on the device for free. After applying the 199 comment-only updates:
+
+| Marker form | Owned by Terraform | Count | What it means |
+|---|---|---|---|
+| `[managed by Topology]` | yes | 198 | applied, converged |
+| old plain form | **no** | **108** | nothing owns it - the garbage class, now visibly distinct |
+| old plain form | yes | 7 | owned, but its pending plan carries more than a comment |
+
+The day before, every one of those 313 rows carried the identical string, so the
+marker could not tell them apart - the unowned ones had been created by earlier
+applies with the same text. One form change made 108 unowned rows legible at a
+glance, with no ledger and no inventory.
+
+The seven in the third row are exactly the resources deliberately excluded from
+the comment-only apply: two `ip_dhcp_server_network` rows whose plan also moves
+`dns_server`/`netmask`, the four permits being replaced for placement, and the
+inert override awaiting destruction. So the third class is not an anomaly - it
+is a third signal: *owned, and holding a change nobody has decided to apply
+yet.*
+
+A marker revision is therefore not only cosmetic. It is the cheapest way to
+re-baseline provenance on a device, and worth remembering the next time one is
+considered.
+
+**One cost, stated because it is a footgun.** `[` and `]` are regex
+metacharacters and RouterOS's `~` operator is a regex match, so
+
+```
+/ip firewall filter print where comment~"[managed by Topology]"
+```
+
+matches any comment containing *any one of those characters* — which is almost
+everything. Search either `comment~"\\[managed by Topology\\]"` or the
+unbracketed substring `comment~"managed by Topology"`. The policy carries both
+forms (`canonical`, `canonical_regex_escaped`), and the tooling in this
+repository compares plain substrings rather than regexes, so it is unaffected.
 
 ### D3. Every rendered device object carries the marker, or its type is exempt for a stated reason
 

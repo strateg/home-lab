@@ -444,9 +444,10 @@ codes:
     stage: validate
     title: Rendered Device Object Carries A Retired Provenance Marker
     hint: >-
-      Three marker spellings were in use until 2026-10-21 ("managed by topology", "managed by terraform",
-      "managed by Terraform"), which made provenance unreadable to any mechanical check - a grep for one
-      classified the other two as foreign. Use marker.canonical from the provenance policy.
+      Four marker spellings were in use before the contract existed ("managed by topology", "managed by
+      terraform", "managed by Terraform" and a bare default), which made provenance unreadable to any
+      mechanical check - a grep for one classified the others as foreign. The canonical form has been
+      "[managed by Topology]" since 2026-10-22. Use marker.canonical from the provenance policy.
   E8402:
     severity: error
     stage: validate

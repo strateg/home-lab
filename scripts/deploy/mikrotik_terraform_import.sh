@@ -119,8 +119,13 @@ done
 
 # Import IP addresses
 log_info "=== Importing IP Addresses ==="
-# Get addresses with "managed by topology" comment
-addresses=$(ssh_cmd "/ip address print where comment~\"managed by topology\" proplist=address,.id" 2>/dev/null || true)
+# Get addresses carrying the topology provenance marker.
+#
+# Searched WITHOUT the brackets on purpose: the canonical marker is
+# "[managed by Topology]" (ADR 0120) and RouterOS's ~ operator is a regex, so
+# comment~"[managed by Topology]" would match a comment containing any one of
+# those characters. The unbracketed substring is exact enough and safe.
+addresses=$(ssh_cmd "/ip address print where comment~\"managed by Topology\" proplist=address,.id" 2>/dev/null || true)
 if [[ -n "$addresses" ]]; then
     log_info "Found topology-managed addresses, manual import may be needed"
 fi

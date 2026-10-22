@@ -217,7 +217,7 @@ ssh admin@192.168.88.1 '/ip firewall filter print where comment~"ADR-0110"'
 resource "routeros_ip_firewall_addr_list" "zone_user_1" {
   list    = "zone-user"
   address = "192.168.10.0/24"
-  comment = "inst.vlan.user CIDR - managed by topology"
+  comment = "inst.vlan.user CIDR [managed by Topology]"
 }
 ```
 
