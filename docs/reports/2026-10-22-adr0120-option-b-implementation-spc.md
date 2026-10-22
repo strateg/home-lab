@@ -1,8 +1,16 @@
 # Implementing ADR 0120 — SPC analysis and implementation plan
 
 2026-10-22. Formal analysis under `docs/ai/spc-contract.md`, steps 0–5, followed
-by an implementation plan. The decision to implement ADR 0120 is taken; what
-this settles is **how**, in what order, and what each piece must prove.
+by an implementation plan. What this settles is **how** option B would be built,
+in what order, and what each piece must prove.
+
+> **Sequencing superseded the same day.** ADR 0120 rev 2 (D10) defers option B
+> behind four measurable triggers: the two free oracles this analysis itself
+> surfaced - marker generation comparison and `invalid: true` - answer the
+> question B existed to answer, so building B now would put machinery ahead of a
+> consumer. **The plan below stays valid and is the plan to execute when a
+> trigger fires**; only "do it next" was withdrawn. The identity finding in §3.4
+> and §5.1 became ADR 0120 D9 and binds regardless.
 
 Procedural `GO STEP X` gating is suspended by standing operator instruction; the
 content obligations are kept.

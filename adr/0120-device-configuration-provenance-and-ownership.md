@@ -1,75 +1,86 @@
 # ADR 0120: Device Configuration Provenance and Ownership
 
 - Status: Partially Implemented
-- Scope note: option A implemented 2026-10-21; options B, C and D are planned in the implementation plan below
+- Scope note: D1-D9 implemented and enforced; D10 defers the remaining options behind measurable triggers
 - Date: 2026-10-21
+- Revised: 2026-10-22 rev 2 (SPC rebuild: three-signal model, generation re-baselining promoted to a decision, identity constraint recorded, the option ladder replaced by triggers)
 - Related: ADR 0055 (manual Terraform extension layer), ADR 0074 (generator determinism),
   ADR 0080 (unified build pipeline), ADR 0083 (node initialization, drift vocabulary),
   ADR 0091 (readiness evidence, `drift-report.json`), ADR 0103 (runtime reconciliation status
   — D2–D12 cancelled), ADR 0105 (device state commit/rollback — Deferred),
-  ADR 0110 (zone/VLAN mechanism), ADR 0115 (hash-based deploy idempotency — Proposed),
+  ADR 0110 (zone/VLAN mechanism), ADR 0114 (TAIGA identity),
+  ADR 0115 (hash-based deploy idempotency — Proposed),
   ADR 0119 (firewall rule ordering contract — Accepted, not implemented)
-- Analysis: `docs/reports/2026-10-21-device-config-ownership-spc.md` (SPC steps 0–5)
-- Evidence: `docs/reports/2026-10-21-chateau-dead-rules.md` (the live audit this rests on)
+- Analysis: [SPC analysis of this revision](0120-analysis/SPC-ANALYSIS.md);
+  [the option-B wave plan](../docs/reports/2026-10-22-adr0120-option-b-implementation-spc.md),
+  superseded in *sequencing* by D10 and kept because the plan itself stays valid
+- Evidence: `docs/reports/2026-10-21-chateau-dead-rules.md` (§1–§6d, the live audit),
+  `docs/reports/2026-10-21-device-config-ownership-spc.md` (the analysis behind rev 1)
 
 ---
 
 ## Context
 
 The project's purpose is repeatable device configuration derived from topology.
-Three things are needed for that and only two exist.
+Three things are needed for that and, when this ADR was first written, only two
+existed: topology declared intent and Terraform applied it, but **nothing stated
+which objects on a device the project claimed**. Ownership lived implicitly in a
+free-text `comment` substring and in Terraform's private state file, with
+nothing to join them against.
 
-**What exists.** Topology declares intent, generators render it, Terraform
-applies it and records what it created.
+### The measurements that forced it
 
-**What does not.** Nothing states which objects on a device the project claims.
-Ownership lives implicitly in two places that were never meant to carry it: a
-free-text `comment` substring on the device, and Terraform's private state file.
-There is nothing to join them against, so the question "what on this device is
-ours, and what is garbage" has no mechanical answer.
-
-### The measurements that forced this
-
-Read-only, against `rtr-mikrotik-chateau` on 2026-10-21, with state serial 912:
+Read-only against `rtr-mikrotik-chateau`, 2026-10-21, state serial 912:
 
 | | |
 |---|---|
 | live objects across ten resource families | 314 |
 | tracked by Terraform state | 162 |
-| **carrying our own marker, unknown to Terraform** | **98** |
+| **carrying a marker, unknown to Terraform** | **98** |
 | unmarked and unknown (vendor `defconf`, manual, hand-made) | 46 |
-| firewall-filter rules below the chain's terminal drop | 63, all at 0 packets, **none** Terraform-owned |
+| firewall rules below the chain's terminal drop | 63, all at 0 packets, **none** Terraform-owned |
 
 `terraform plan` compares intent with Terraform's *memory*, never with the
 device, so a plan reporting "no changes" coexisted with all of it. Two of
-ws-nixos' WireGuard country exits were unable to pass a packet for an unknown
-period: their Chateau-side rules existed only as hand-made rules placed below
-the terminal drop, while the declaration that should have produced them sat in
-`inst.tunnel.wg-exit.chateau_routing` — written in the generators' own
-vocabulary and read by no plugin.
+ws-nixos' WireGuard country exits could not pass a packet for an unknown period:
+their Chateau-side rules existed only as hand-made rules placed below the
+terminal drop, while the declaration that should have produced them sat in a
+block no plugin reads.
 
-Three distinct defect shapes, each invisible to every gate in the pipeline:
+### What changed on 2026-10-22, and why this ADR was rebuilt
 
-1. ownership not representable, so garbage not definable;
-2. a rendered permit whose device *position* nothing checks;
-3. a configuration-shaped declaration that nothing consumes.
+Rev 1 was a four-rung ladder — prevention, then visibility, then governed
+cleanup, then golden config — and it said in binding language that visibility
+was the next increment. Implementing the prevention layer, and then revising the
+marker twice, produced something rev 1 did not anticipate: **two signals the
+device publishes for free that answer most of what the visibility layer was
+for.**
+
+A marker revision rewrites exactly the set the current state owns, so after one,
+an older marker form *is* proof of non-ownership. And RouterOS already flags
+`invalid: true` on any row it cannot apply. 108 unowned rows and 8 inapplicable
+rows were named that way — with no ledger, no inventory artifact and no builder.
+
+So the ladder's second rung is no longer the cheapest path to its own purpose.
+The decisions below are restructured around the signals that exist, and the
+remaining options are deferred behind triggers rather than scheduled.
 
 ### Why this is not simply ADR 0103 again
 
-ADR 0103 designed the reconciler (D2.1) and the CLI (D2.2) and cancelled both on
-2026-06-18, stating that "`terraform plan` already solves drift detection for
-this single-operator home-lab" and that there was "no risk from cancellation".
-The measurements above falsify both claims, and a third ("a single operator knows
-what is deployed because they deployed it") did not survive contact with the
-device either. The cancellation is not reversed wholesale — its cost argument
-against a dual-mode architecture still stands — but its premise is corrected
-here, with numbers.
+ADR 0103 designed a reconciler (D2.1) and a CLI (D2.2) and cancelled both,
+stating that "`terraform plan` already solves drift detection for this
+single-operator home-lab" and that there was "no risk from cancellation".
+Measurement falsified three of its five grounds — all claims about *capability*.
+Two survive, and they are claims about *proportion*: a dual-mode architecture is
+overengineered here, and the economics must justify the cost. D10 keeps the
+surviving half and discards the falsified half, which is the opposite of
+repeating it.
 
 ---
 
 ## Decision
 
-### D1. Provenance is a property every managed device object carries
+### D1. Provenance is three signals, not one
 
 Every object on a managed device belongs to exactly one provenance class, and
 the class must be readable **from the device itself**, not only from the
@@ -77,29 +88,26 @@ repository:
 
 | Class | How the device says so |
 |---|---|
-| `topology` | the canonical marker in its comment |
-| `manual` | the manual marker, with owner and date |
+| `taiga` | the canonical marker in its comment |
+| `manual` | the manual marker, with owner and date (D8) |
 | `vendor` | RouterOS `defconf:` prefix, or `dynamic=true` |
 | `garbage` | none of the above |
 
-Provenance readable only in the repository is not provenance: the operator
-reads the device, and so will any future reconciliation.
+Three distinct signals are available, and **each proves something different**.
+Conflating them is how a clean-looking census hid eight inapplicable rows:
 
-**The limit of the marker, found by using it (2026-10-21).** The marker proves
-*origin*, not current *ownership*. Three rows on Chateau carry
-the then-canonical marker and are in no Terraform state: an earlier apply created
-them, their interfaces were later recreated with new ids, and state moved on
-without them. So a marked row can still be garbage, and the marker narrows the
-question from "whose is this?" to "ours - but is it owned?". Ownership needs
-state; the marker is what makes the *question* answerable from the device.
+| Signal | Proves | Blind to | Cost to read |
+|---|---|---|---|
+| the canonical marker | **origin**: TAIGA rendered this row, in this marker generation | whether current state still owns it | free, on the device |
+| Terraform state | **ownership**: this exact row is managed now | every row it never created — 108 today | a local file |
+| `invalid: true` | **inapplicability**: the device cannot apply this row | rows that are wrong but applicable | free, on the device |
 
-A second signal turned out to be stronger than both and costs nothing:
-RouterOS publishes `invalid: true` on any row it cannot apply - a row bound to
-an interface that no longer exists, for instance. Eight such rows were found on
-Chateau, all out of band, all at zero packets, and the marker census called
-them clean. **An option-B reconciliation should read `invalid` first**: it is
-the device's own verdict, it needs neither state nor ledger to interpret, and
-it is the cheapest true positive available.
+Measured consequence of the first row's blind spot: three rows carried a marker
+and were in no state at all — an earlier apply created them, their interfaces
+were later recreated with new ids, and state moved on. **A marked row can still
+be garbage.** The marker narrows the question from "whose is this?" to "ours —
+but is it owned?"; only state answers the second part, and only the device
+answers whether the row works at all.
 
 ### D2. One canonical marker, no synonyms
 
@@ -107,64 +115,71 @@ The marker is the suffix **`-Managed by TAIGA-`**, declared in
 `configs/quality/device-provenance-policy.yaml`. A comment reads
 `VPN-Sweden tunnel ingress -Managed by TAIGA-`.
 
-**It credits the system, not the data** (revised 2026-10-22). TAIGA is the
-system that renders and applies: the compilers, validators, generators and the
-six-stage pipeline - *Topology Artifacts for Infrastructure Governance and
-Automation*, framework id `taiga` (ADR 0114). "Topology" is the set of YAML
-files it reads. An object exists on a device because TAIGA put it there, so
-`managed by Topology` credited the input rather than the agent - and an
-operator reading a comment wants to know what will overwrite it.
+**It credits the system, not the data.** TAIGA is the system that renders and
+applies: the compilers, validators, generators and the six-stage pipeline —
+*Topology Artifacts for Infrastructure Governance and Automation*, framework id
+`taiga` (ADR 0114). "Topology" is the set of YAML files it reads. An object
+exists on a device because TAIGA put it there, so `managed by Topology` credited
+the input rather than the agent — and an operator reading a comment on a live
+router wants to know what will overwrite it.
 
-A delimited token rather than a trailing phrase: the owned part is then
+A delimited token rather than a trailing phrase, so the owned part is
 unmistakable at a glance in Winbox and in `/export`, and unambiguous to parse.
 Dashes rather than brackets because `-` is literal in a RouterOS regex, so
-`comment~"-Managed by TAIGA-"` is an exact search.
+`comment~"-Managed by TAIGA-"` is an exact search; `[` and `]` open a character
+class, which made the obvious search match almost every comment.
 
-Four spellings were in use before the contract existed — `managed by topology`,
-`managed by terraform`, `managed by Terraform`, and a bare default — which made
-provenance unreadable to any mechanical check: a grep for one classified the
-others as foreign. All four are retired and refused at validation time
-(`E8401`).
+Five forms are retired and refused at validation time (`E8401`): the bracketed
+predecessor, `managed by topology`, `managed by terraform`,
+`managed by Terraform`, and a bare default. They stay in the policy forever —
+D3 is why they are evidence rather than history.
 
-**An unplanned benefit, measured on the cutover (2026-10-22).** Changing the
-form made the marker a *generation stamp*, and that separated owned from
-unowned on the device for free. After applying the 199 comment-only updates:
+*Enforced by `scripts/validation/validate_device_provenance.py` in the
+`validate-v5` lane, enforce mode.*
 
-| Marker form | Owned by Terraform | Count | What it means |
-|---|---|---|---|
-| the then-new bracketed form | yes | 198 | applied, converged |
-| the then-old plain form | **no** | **108** | nothing owns it - the garbage class, now visibly distinct |
-| the then-old plain form | yes | 7 | owned, but its pending plan carries more than a comment |
+### D3. A marker revision re-baselines provenance, and that is a tool
 
-The day before, every one of those 313 rows carried the identical string, so the
-marker could not tell them apart - the unowned ones had been created by earlier
-applies with the same text. One form change made 108 unowned rows legible at a
-glance, with no ledger and no inventory.
+Observed twice on 2026-10-22 and reproducible: an apply updates the rows the
+current state owns and **cannot touch rows nothing owns**. So after a marker
+revision,
 
-The seven in the third row are exactly the resources deliberately excluded from
-the comment-only apply: two `ip_dhcp_server_network` rows whose plan also moves
-`dns_server`/`netmask`, the four permits being replaced for placement, and the
-inert override awaiting destruction. So the third class is not an anomaly - it
-is a third signal: *owned, and holding a change nobody has decided to apply
-yet.*
+> a row carrying an older marker form is a row the current state does not own —
+> or a row whose pending change is more than a comment.
 
-A marker revision is therefore not only cosmetic. It is the cheapest way to
-re-baseline provenance on a device - which is why the policy records every
-retired form rather than only the current one, and why the same separation is
-expected from the move to `-Managed by TAIGA-`.
+Measured on the plain → bracketed → TAIGA cutovers:
 
-**The footgun the bracketed form carried, for the record.** `[` and `]` are
-regex metacharacters and RouterOS's `~` operator is a regex match, so
-`comment~"[managed by Topology]"` matched any comment containing any one of
-those characters - almost everything. `-Managed by TAIGA-` needs no escaping.
-The policy keeps a `canonical_regex_escaped` key regardless, so a future form
-that does need it has a declared place rather than a convention, and the
-tooling here compares plain substrings rather than regexes.
+| Generation | Owned | Count |
+|---|---|---|
+| `-Managed by TAIGA-` (current) | yes | **198** |
+| bracketed (lived ~2.5 hours) | — | **0** |
+| plain (first generation) | **no** | **108** |
+| plain (first generation) | yes | **7** |
 
-### D3. Every rendered device object carries the marker, or its type is exempt for a stated reason
+The zero is the verification: the intermediate generation left no residue, so
+both rewrites covered exactly the owned set and nothing else. The 7 are
+resources whose pending plan carries more than a comment — two
+`ip_dhcp_server_network` rows that also move `dns_server`/`netmask`, four
+permits awaiting placement replacement, one inert override awaiting destruction.
+That third class is itself a signal: *owned, and holding a change nobody has
+decided to apply.*
 
-Exemption is per resource type, declared in data, with one of three reasons, and
-each reason is verifiable:
+Three decisions follow:
+
+1. **Retired forms are never dropped from the policy.** They are the evidence
+   that makes this comparison possible.
+2. **The comparison is a named procedure**, not a trick someone rediscovers:
+   render, plan, classify each change by the attributes it actually touches,
+   apply the comment-only subset, then census the device by marker generation
+   crossed with state membership. Commands recorded in
+   `docs/reports/2026-10-21-chateau-dead-rules.md` §6c–§6d.
+3. **A revision is a legitimate reason to rewrite comments on a device**, and
+   the only one. It costs one apply of comment-only changes, verified by parsing
+   `terraform show -json` rather than by reading a plan's prose.
+
+### D4. Every rendered device object carries the marker, or its type is exempt for a stated reason
+
+Exemption is per resource type, declared in data, with one of three reasons,
+each verifiable:
 
 | Reason | Meaning | Verified by |
 |---|---|---|
@@ -174,52 +189,64 @@ each reason is verifiable:
 
 Measured on the `routeros` provider: 21 of 24 rendered types support `comment`.
 The three that do not are `routeros_container_envs` (keyed by name+key),
-`routeros_ip_dns` and `routeros_container_config` (both settings singletons).
-For exempt types the ownership proof must come from the ledger and Terraform
-state instead — stated here so the gap is known rather than discovered later.
+`routeros_ip_dns` and `routeros_container_config` (settings singletons).
 
-### D4. "Garbage" has a definition
+**For exempt types ownership is state-only** — the channel that is blind to
+garbage (D1). 44 of 262 rendered resources sit in that gap. It is stated here so
+it is known rather than discovered later.
 
+*Enforced in the lane (`E8400`, `E8401`, `E8402`); result: 262 rendered
+resources, 218 marked, 44 exempt, every one in exactly one verdict.*
+
+### D5. "Garbage" has a definition, and part of it is evaluable today
+
+```text
+garbage = live - taiga - manual - vendor/dynamic
 ```
-garbage = live − planned − manual-registry − vendor/dynamic
-```
 
-This is the definition the requirement "no garbage on the device" needs in order
-to be falsifiable. It cannot be evaluated without a live inventory (option B)
-and a manual registry (option C); until both exist the predicate is defined and
-unevaluated, which is better than undefined.
+| Term | Status | Procedure |
+|---|---|---|
+| `live` | available on demand | REST read of the device's families |
+| `taiga`, comment-bearing types | **evaluable** | generation comparison (D3) |
+| `taiga`, exempt types | not device-readable | state only (D4) |
+| `manual` | **not evaluable** | the registry does not exist (D8, deferred in D10) |
+| `vendor/dynamic` | evaluable | `defconf:` prefix, `dynamic=true` |
 
+So the predicate is evaluated far enough to name a concrete target set — 108
+unowned rows and 7 inapplicable ones — and not far enough to assert emptiness.
 The complement matters as much as the term: 46 live objects are unmodelled and
-legitimate, among them vendor `defconf` rules carrying 7.8 M packets and
-`AWG-Proxy Sweden Test WAN egress` carrying 3.4 M. Treating "not planned" as
-"garbage" would have deleted them.
+legitimate, including vendor rules carrying 7.8 M packets and one unmodelled
+rule carrying 3.4 M. **Treating "not planned" as "garbage" would have deleted
+them.**
 
-### D5. A rendered permit must prove its placement
+### D6. A rendered permit must prove its placement
 
 A chain that ends with a rule matching everything swallows whatever is created
-after it. Every rendered permit in such a chain must therefore prove placement,
-by one of exactly two means:
+after it. Every rendered permit in such a chain must prove placement by one of
+exactly two means:
 
 * **`place_before` the terminal rule** — a device-visible attribute; or
 * **the terminal's own `depends_on` naming the permit** — Terraform metadata
   only, which fixes creation order and therefore device order while rendering no
   device change. This is the correct proof where `place_before` would create a
-  dependency cycle, as it would for the established/related permit the terminal
-  already depends on.
+  dependency cycle.
 
 Where the terminal is *conditional* (the input chain's drop matches only `!LAN`)
 a later permit can still be effective, so the obligation is a warning: the order
-is unspecified rather than wrong.
+is unspecified rather than wrong. Deny rules need no proof — only permits can be
+stranded.
 
-Deny rules need no proof. A deny after a terminal deny changes nothing; only
-permits can be stranded.
+*Enforced in the lane (`E8410`, `W8410`); 28 permits proven, 5 that had none
+fixed. Those five worked on the live router only because they were created
+before the terminal drop existed; one stranded copy already sat in the dead
+tail.*
 
-### D6. A configuration-shaped declaration must name its consumer
+### D7. A configuration-shaped declaration must name its consumer
 
 A block named `firewall_rules`, `mangle_rules`, `nat_rules`, `policy_routes`,
 `routing_rules` or `address_lists` speaks device configuration, and authoring one
-is a claim that something enforces it. The instance must therefore declare, in
-data, who consumes each such block:
+is a claim that something enforces it. The instance must declare in data who
+consumes each such block:
 
 ```yaml
 config_block_provenance:
@@ -229,269 +256,210 @@ config_block_provenance:
 
 A named plugin must exist in some manifest. `documentation` is a legitimate
 answer and the honest one for a block kept as description — but it must be said,
-not left to a reader's assumption.
+not assumed.
 
 **What this proves and what it does not.** It proves a consumer is named and
 exists. It does not prove the plugin reads that path, because no plugin declares
-the instance-data paths it reads. Closing that is part of option B.
+the instance-data paths it reads. The gap is real and stated; closing it is B4
+in D10.
 
-### D7. How a human records a hand-made change
+*Enforced by `base.validator.config_block_provenance` (`E8420`, `E8421`); 21
+findings at introduction, all resolved.*
 
-A deliberate manual change is legitimate — ADR 0055 already establishes that for
-Terraform files, and the same need exists on the device. It must be
+### D8. How a human records a hand-made change
+
+A deliberate manual change is legitimate — ADR 0055 establishes that for
+Terraform files and the same need exists on the device. It must be
 *distinguishable*, which means marked on the device and registered in the
 repository.
 
 **On the device**, the comment begins with `manual:` and carries two required
 tokens and one optional:
 
-```
+```text
 manual: AWG proxy test egress owner=platform-owner since=2026-10-21 ref=docs/reports/2026-10-21-chateau-dead-rules.md
 ```
 
-* `owner=` — who owns the exception. An exception without an owner is garbage
-  with a comment.
-* `since=` — `YYYY-MM-DD`. It makes staleness visible without asking anyone.
-* `ref=` — the ADR, report or ticket that explains it. Optional, strongly
-  preferred.
+`owner=` — an exception without an owner is garbage with a comment. `since=` —
+`YYYY-MM-DD`, so staleness is visible without asking anyone. `ref=` — optional,
+strongly preferred.
 
-A prefix rather than a suffix, deliberately: it is the first thing an operator
-sees in Winbox and in `/export`, and it sorts together.
+A generated object must never carry this marker: it would read as a sanctioned
+exception and be spared by the very reconciliation that owns it. *Enforced as
+`E8402`.*
 
-**In the repository**, a manual-exception registry (option C) carries one entry
-per such object: device, resource family, identity, owner, reason, and a review
-date. Two consequences follow, and both are the point:
+**In the repository**, a manual-exception registry carries one entry per such
+object: device, family, identity, owner, reason, review date. Two consequences,
+and both are the point: an object marked `manual:` on the device but absent from
+the registry is **not** sanctioned, and an entry whose review date has passed is
+reported. The intended lifecycle of every entry is removal — promoted into
+topology, or deleted from the device. **The registry does not exist yet**
+(deferred in D10); until it does, `manual` is an unevaluable term in D5 and
+hand-made objects are tracked in the audit report instead.
 
-* an object marked `manual:` on the device but absent from the registry is
-  **not** sanctioned — it is garbage with better handwriting, and the
-  reconciliation says so;
-* an entry whose review date has passed is reported, so "temporary" tweaks
-  cannot quietly become permanent architecture.
+### D9. Identity: the measured constraint on any matcher
 
-The intended lifecycle of every manual entry is removal: either it is promoted
-into topology (the generator learns to render it) or it is deleted from the
-device. The registry is a staging area with a clock, not a parking lot.
+Any mechanism, script or person that says *this live row belongs to that
+rendered resource* must pick a key. Measured on the current artifacts and
+device:
 
-### D8. Diagnostics are registered before they are raised
+| Candidate key | Unique? | Evidence |
+|---|---|---|
+| Terraform `type` + resource name | **yes** | 262 rendered resources, **0** duplicate pairs |
+| rendered comment text | **no** | **85 of 242** marked comments repeat — four address-list rows share `Zone: VPN Tunnel Zone (level=2)`, and the ADR-0110 R2 isolation rules repeat across zone pairs |
+| live row `.id` | **unstable** | ids change on recreate; the orphans bound to the deleted interface `*36` are the proof |
+| per-family match tuple | per-family | works for filter/mangle; address-list rows differ only by `address`; `ip_pool` by `name` |
 
-`E84xx` / `W84xx`, measured free on 2026-10-21 and adjacent to the
-deploy/assemble bands. Not `E81xx`, which ADR 0103 earmarked and the workspace
-assembler has occupied since — a reservation not re-measured before use is how
-collisions are made. Codes and raisers are documented in
-`docs/diagnostics-catalog.md`.
+So the only generic unique key lives on the rendered side and is **absent from
+the device** unless written into the comment — the one free-text field a RouterOS
+object has. Two usable strategies follow, complements rather than rivals:
+
+* **identity in the marker** (`-Managed by TAIGA:zone_addr_vpn_tunnel_2-`): one
+  generic rule for every comment-bearing type, turning live→rendered into a
+  dictionary lookup with no state and no per-family code. Costs one more comment
+  rewrite and ~20–30 characters per comment, against a RouterOS comment cap that
+  is **not yet verified** (the longest live comment is 117 characters).
+* **an identity function per family**: no device change, but one function per
+  family, each needing its own evidence, and fragile exactly where rows are
+  near-identical. Unavoidable anyway for the 44 exempt resources (D4).
+
+Neither is adopted now (D10). This decision records the constraint so the next
+attempt does not re-walk the two dead ends.
+
+### D10. What is built, what is deferred, and what reverses the deferral
+
+**Implemented and enforced** (2026-10-21/22): D1 as a model, D2, D3, D4, D6, D7,
+D8's device half, D9 as a recorded constraint. Diagnostics E8400, E8401, E8402,
+E8410, W8410, E8420, E8421 — registered before being raised, in the
+measured-free E84xx/W84xx band, not the E81xx band ADR 0103 earmarked and the
+workspace assembler has occupied since.
+
+**Deferred**: the ownership ledger, the device-inventory artifact, the
+reconciliation builder and the read-set declaration (B1–B5); the
+manual-exception registry and governed deletion (C1–C4); golden configuration
+(D). The plan for all of them is written and stays valid —
+`docs/reports/2026-10-22-adr0120-option-b-implementation-spc.md`, ≈4–4½ days in
+five waves.
+
+**Why deferred, precisely.** Not because the need is gone — "no garbage" is
+still unmet (D5) — but because the question that machinery existed to answer is
+answerable today by D3 and `invalid`, the target set is already named, and the
+hazards that make deletion dangerous are per-object facts a person checks
+against stated gates rather than facts a builder discovers. Building it now
+would put machinery ahead of a consumer, which is how ADR 0091's
+`drift-report.json` came to report `"drift_state": "unknown"` for three years.
+
+**The one piece worth building whenever convenient**: the inventory collector as
+a plain script (B2 alone, ~½ day, deterministic, no device change, secrets
+redacted at collection). It is the only part whose value does not depend on a
+consumer, because it makes every future census reproducible by someone who was
+not there.
+
+**Triggers that reverse this deferral.** Each is measurable from data the
+repository already produces; any one firing makes the plan the next increment:
+
+| # | Trigger | Measured by |
+|---|---|---|
+| T1 | a second enforcer actually applies configuration | a second `security_matrix` scope with a resolving adapter and a non-empty rendered root |
+| T2 | the unowned count grows again after a cleanup | the generation census, re-run: a rise proves a recurring flow rather than one-time residue |
+| T3 | someone other than the operator must read device state — a CI gate, a second person, an audit | a consumer exists for the report, which is exactly what is missing today |
+| T4 | golden configuration (D) becomes a goal | its gate needs a measured 100% coverage figure, which only the reconciliation produces |
+
+Until one fires, the standing answer to "should we build the reconciliation
+layer?" is **no**, and this decision is where that answer lives so it is not
+re-litigated from scratch.
 
 ---
 
-## Implementation Plan
+## Open work this ADR does not close
 
-Four options, from the SPC analysis. Each is independently useful and each is a
-precondition for the next.
+Named here because an unexamined open item is worse than a tracked one. None of
+it is blocked on the deferred machinery.
 
-### Option A — prevention (implemented 2026-10-21)
-
-Offline, no credentials, no live risk. Stops the defect *generators*.
-
-| # | Deliverable | State |
+| # | Item | Shape |
 |---|---|---|
-| A1 | `configs/quality/device-provenance-policy.yaml` — marker, manual marker, exemptions, terminals, config-block vocabulary | done |
-| A2 | `scripts/validation/validate_device_provenance.py` — marker coverage (D2, D3) and placement proof (D5) over the rendered roots, wired into the `validate-v5` lane in enforce mode (`DEVICE_PROVENANCE_MODE` to relax) | done |
-| A3 | marker normalised and completed in the MikroTik templates: 17 retired spellings replaced, 11 objects given the marker they lacked | done |
-| A4 | placement proven for 5 permits that had none, and the input chain's order fixed by `depends_on` (no device change) | done |
-| A5 | `base.validator.config_block_provenance` (D6), with the 10 instances that carry such blocks annotated | done |
-| A6 | `E84xx`/`W84xx` registered in the catalog and documented | done |
-| A7 | contract tests for both checks, including mutation checks | done |
-
-Measured result: 262 rendered resources, 218 marked, 44 exempt, every resource
-in exactly one verdict; 28 permits with proven placement; lane green in enforce
-mode.
-
-### Option B — visibility (planned)
-
-Answers "what will Terraform change, and what is garbage" mechanically.
-
-| # | Deliverable | Notes |
-|---|---|---|
-| B1 | **Ownership ledger.** Each generator emits, beside its `.tf`, a machine-readable ledger of every resource it renders: type, logical name, identity keys (the match tuple that makes it findable on a device), and the proof channel (marker / state-only). | `generate` stage, sibling of `artifact-plan.json`; pure function of the compiled model |
-| B2 | **Device inventory snapshot.** A collector reads a device over REST with SOPS credentials and writes a timestamped, secret-redacted inventory to a known path. | lives in the deploy domain, **not** in the pipeline: the pipeline consumes the file, so determinism and CI-safety are preserved |
-| B3 | **Reconciliation builder.** `build` stage, phase `verify`: ledger + tfstate + inventory → a report with the four classes of D1 and the ordering facts of D5, plus `drift-report.json` with a real value instead of `"unknown"`. | reuses `compute_obsolete_entries` semantics: `ownership_proven`, proof method, action policy `retain \| warn \| delete` |
-| B4 | **Read-set declaration.** Plugins declare which instance-data paths they read, upgrading D6 from "a consumer is named" to "a consumer reads it". | closes the honest gap in D6 |
-| B5 | **`invalid: true` as a first-class class** in the reconciliation report. | free; found eight rows the marker census called clean |
-
-Gate to B: none. B is the next increment.
-
-**Planned in detail 2026-10-22**:
-`docs/reports/2026-10-22-adr0120-option-b-implementation-spc.md` — five waves,
-≈4–4½ days, with one operator gate (Wave 0) and no device change before the
-last wave, which only tightens CI.
-
-That analysis surfaced one fork the plan above did not name, and it is the
-prerequisite for everything else in B: **identity**. A reconciliation must say
-*which* rendered resource a live row belongs to, and measurement shows the only
-generic unique key is on the rendered side:
-
-| Candidate | Unique? | Evidence |
-|---|---|---|
-| Terraform `type` + resource name | **yes** | 262 rendered resources, 0 duplicate pairs |
-| rendered comment text | **no** | 85 of 242 marked comments are non-unique |
-| live row `.id` | unstable | the `*36`-bound orphans |
-| per-family match tuple | per-family | works for filter/mangle; address-list rows differ only by `address` |
-
-So either the logical name is written into the comment - the device's only
-free-text channel, making live→rendered a dictionary lookup with no state and
-no per-family code - or an identity function is written per resource family.
-They are complements: the first covers the 218 marked resources generically,
-the second is needed anyway for the 44 exempt ones. The first costs a third
-rewrite of 199 live comments and ~20-30 characters per comment, against a
-RouterOS comment cap that is **not yet verified** (the longest live comment is
-117 characters). Wave 0 settles it.
-
-### Option C — governed garbage collection (planned)
-
-Makes "no garbage" true, by reconciliation.
-
-| # | Deliverable | Notes |
-|---|---|---|
-| C1 | **Manual-exception registry** (D7), seeded by triaging the 46 unmarked live objects: model it, sanction it, or delete it — one at a time, each with a reason | without this, deletion is unsafe and "no garbage" is unfalsifiable |
-| C2 | **Remediation script generation**: RouterOS `/remove [find .id=…]` for proven garbage, `terraform import` for objects to adopt | generated, never executed by the pipeline |
-| C3 | **Gates on deletion**: ownership proven, packet counters read immediately before, and for a duplicate, the owned twin verified reachable ahead of any conflicting deny | three of the 87 marked-unowned filter rules are *passing traffic* from above their owned twins; deleting those without the twin check changes behaviour |
-| C4 | Device-side ordering verification (D5 against the inventory, not only the artifact) | |
-
-Gate to C: B1–B3 in place, and the operator's triage decision on each of the 46.
-
-### Option D — golden configuration (planned, gated)
-
-Makes "no garbage" true *by construction*: a complete generated configuration
-applied to a reset device, so anything not in the model ceases to exist.
-
-Gate to D, all three required:
-1. B reports **100% coverage** — every live object is planned or sanctioned;
-2. a maintenance window and a verified, restore-tested backup;
-3. `defconf` and every vendor feature in use either modelled or deliberately
-   dropped, as a decision with a reason.
-
-Today the gate fails on (1): at least one live load-bearing rule
-(`AWG-Proxy Sweden Test WAN egress`, 3.4 M packets) is modelled nowhere.
+| 1 | Russia AWG tunnel: no handshake in 12 h+, `rx` frozen at 201780 while `tx` climbs, measured four times across 2026-10-21 | a service fault, and the only item here with user-visible impact |
+| 2 | 7 rows RouterOS flags `invalid: true` | three guarded commands; the predicate is the device's own verdict, so none can match a row in force. The filter pair also unblocks the ws-nixos apply |
+| 3 | 108 unowned rows, individually identified by marker generation | one-off cleanup under the D5 complement and the measured hazard gates |
+| 4 | 7 held-back resources — two dhcp networks moving `dns_server`/`netmask`, four permits awaiting placement replacement, one inert override awaiting destruction | decisions, then an apply |
+| 5 | ws-nixos routing policies rendered but unapplied | import the four out-of-band mangle rules or delete them first, then apply |
+| 6 | `manual` is unevaluable until the registry exists (D8) | blocks asserting `garbage = ∅`, not finding garbage |
 
 ---
 
 ## Consequences
 
-### Immediate
+### Enforced today
 
-* The lane fails on an unmarked or unplaced rendered object, and on a
-  configuration-shaped block with no named consumer. That is the intent.
-* Comments change on the device for 13 objects whose marker spelling was
-  normalised, and appear for 11 that had none. A plan will show these as
-  in-place comment updates.
-* Five permits gain `place_before`. They are reachable on the current router only
-  because they were created before the terminal drop existed; a recreate or a
-  fresh device would have stranded them. An apply may reposition them, which is
-  the correction, not a side effect.
-* The input chain's order becomes deterministic with no device-visible change.
+* The lane fails on an unmarked or unplaced rendered object, on a retired marker
+  form, on a generated object claiming the manual marker, and on a
+  configuration-shaped block with no named consumer.
+* `generated/` carries the marker on every comment-bearing device object; the
+  device carries it on all 198 rows Terraform owns and can update comment-only.
+* Comments were rewritten on the device twice. That is the cost of D3, and the
+  reason D3 is a decision rather than an accident.
 
-### Two limits found while applying D2 to the live device (2026-10-21)
+### Two limits found by applying D2 to a real device
 
-**A provider defect blocks every `routeros_ip_address` update.** Diagnosed to
-the bottom on 2026-10-21; it is not specific to markers, and it is not
-specific to the three objects that exposed it.
+**A provider defect blocked every `routeros_ip_address` update, and is now
+patched locally.** RouterOS assigns VRF membership per interface (`/ip/vrf` holds
+one builtin row, `main`, with `interfaces: all`), so `vrf` on an address row is
+derived and its SET endpoint has no such parameter; the released provider
+declares `vrf` Optional-not-Computed and sends it on every PATCH, so RouterOS
+answers `400 unknown parameter vrf`. The effect was wider than markers: **no
+attribute of any `routeros_ip_address` could be updated** on RouterOS ≥ 7.21.
+Device: 7.24.5.
 
-The mechanism, each step verified locally rather than inferred:
+Upstream [issue #944](https://github.com/terraform-routeros/terraform-provider-routeros/issues/944)
+is this symptom and is open;
+[PR #984](https://github.com/terraform-routeros/terraform-provider-routeros/pull/984)
+is the twelve-line fix and is open; the newest upstream tag is the pinned
+v1.99.1, so no released fix exists. Resolved by building the pinned release with
+that patch, with everything that decides the output tracked:
+`configs/terraform/patches/`,
+`scripts/terraform/build-patched-routeros-provider.sh` (which refuses a tag
+resolving to an unexpected commit and asserts after patching that the fix
+landed), and the binary in gitignored `.work/`. The script prints its own exit
+condition: delete the patch when upstream releases above 1.99.1.
 
-| Step | Evidence |
-|---|---|
-| RouterOS assigns VRF membership **per interface**, not per address | `/ip/vrf` on this device holds one builtin row, `main`, with `interfaces: all` |
-| `/ip/address` therefore reports `vrf` as a *derived* field | `GET /rest/ip/address` returns `vrf: "main"` on all 17 rows |
-| its SET endpoint has no such parameter | `PATCH /rest/ip/address/*42` → `400 unknown parameter vrf` |
-| the provider declares `vrf` writable | `terraform providers schema -json` for 1.99.1: `routeros_ip_address.vrf` is `["optional"]`, not computed |
-| so refresh stores `main` and every PATCH sends it back | a comment-only update fails; 19 non-address resources in the same targeted apply succeeded |
+A second defect, recorded because any reconciliation inherits it: **the provider
+persisted the intended comment into state even though the PATCH returned 400**,
+so state claimed four addresses were updated while the device held the old text.
+A plan reading state alone reported them as done. State is a record of what
+Terraform believes, not of what is.
 
-Device: RouterOS **7.24.5** on S53UG+5HaxD2HaxD. Consequence beyond this work:
-**no attribute of any `routeros_ip_address` can be updated** through this
-provider on RouterOS ≥ 7.21 - not a comment, not a network, not `disabled`.
-Only create and destroy work.
-
-Upstream knows. [Issue #944](https://github.com/terraform-routeros/terraform-provider-routeros/issues/944)
-is this exact symptom and is open; [PR #984](https://github.com/terraform-routeros/terraform-provider-routeros/pull/984)
-is the fix - 12 lines, adding a Computed-only `PropVrfRo` and using it for
-`KeyVrf` - and is open with `mergeable_state: blocked`. The newest upstream tag
-is **v1.99.1**, which is what this repository pins, so there is no released fix.
-A fork carries the same patch as its own v1.101.10.
-
-**Resolved 2026-10-21 by building the pinned upstream release with the upstream
-patch.** The alternatives were to leave a whole resource type unmanageable, to
-trust a fork's binary, or to set values out of band forever - and the first two
-are worse than carrying a recipe.
-
-What makes this acceptable rather than a binary somebody made once: everything
-that decides the output is tracked and reviewable, and the binary is not kept.
-
-| Input | Where it lives |
-|---|---|
-| the patch, with its provenance and rationale | `configs/terraform/patches/routeros-1.99.1-0001-ip-address-vrf-read-only.patch` |
-| the build recipe, pinned tag **and** expected commit | `scripts/terraform/build-patched-routeros-provider.sh` |
-| the binary and the Terraform CLI config pointing at it | `.work/providers/` - gitignored, rebuilt by running the script |
-
-The script refuses to proceed if the tag resolves to a commit other than the
-pinned one (a tag can be moved; a commit cannot), and it asserts after applying
-that `PropVrfRo` is declared and wired into `resource_ip_address.go` - a green
-build that shipped an unpatched provider under a patched name would be the worst
-possible outcome.
-
-Verified end to end: with the built provider, `terraform providers schema -json`
-reports `routeros_ip_address.vrf` as `["computed"]` instead of `["optional"]`;
-the plan for the four addresses became comment-only; the apply succeeded on all
-four where the registry build had failed with 400. The device now reports **292
-objects with the canonical marker and 2 with the retired one, and both of those
-two are out-of-band objects Terraform does not own** - so every object the
-topology owns carries the marker, and the remaining two are a garbage question
-(option C), not a marker question.
-
-Two side effects, both recorded rather than discovered later: installing from a
-filesystem mirror requires `terraform init -upgrade` with the provider's entry
-removed from `.terraform.lock.hcl` (the original is kept as
-`.terraform.lock.hcl.registry-backup`), and that upgrade also re-resolved
-`ojford/wireguard` from `0.4.1` to `0.4.1+2` - the same release with build
-metadata, and a provider that only generates key material locally.
-
-**Exit condition.** Delete the patch, the script and this subsection when
-upstream releases a version above 1.99.1 containing PR #984, then
-`terraform init -upgrade` without `TF_CLI_CONFIG_FILE`. The script names that
-condition in its own output so it cannot quietly become permanent.
-
-**A clamped-key phantom diff, now structurally impossible.** X25519 clamps
-three bits of byte 0 and two of byte 31 before use, so a key and its clamped
-form are the same key with the same public key. RouterOS stores the clamped
-form. `amneziawg.sweden.client_private_key` was stored unclamped and differed
-from the device in exactly bits 0, 1, 2 of byte 0, deriving the identical public
-key `ui4b0s3G58MWwu9pDVy9qQyHY9lZNt3bqeib3LlZuUE=` - so every plan reported a
-`private_key` change on a live tunnel that could never converge, because the
-device re-clamps whatever is written.
-
-That is worse than noise. A plan that always wants to rewrite a key teaches an
-operator to skip past key changes, which is precisely the line that must stay
-readable. The stored secret is normalised to the clamped form (same key, no
-rotation, verified by deriving the public key both ways), and
-`scripts/terraform/generate-tfvars.py` now normalises on the way out so an
-unclamped secret cannot produce the diff again. Pinned by
-`tests/test_tfvars_wireguard_key_canonicalisation.py`, including the property
-that makes it safe: the public key is unchanged.
+**A clamped-key phantom diff, now structurally impossible.** X25519 clamps three
+bits of byte 0 and two of byte 31 before use, so a key and its clamped form are
+the same key with the same public key; RouterOS stores the clamped form.
+`amneziawg.sweden.client_private_key` was stored unclamped and differed from the
+device in exactly bits 0, 1, 2 of byte 0, deriving the identical public key — so
+every plan reported a `private_key` change on a live tunnel, and it could never
+converge. A plan that always wants to rewrite a key teaches an operator to skip
+past key changes, which is the one line that must stay readable. The stored
+secret is normalised (same key, no rotation, verified by deriving the public key
+both ways) and `scripts/terraform/generate-tfvars.py` normalises on the way out,
+pinned by `tests/test_tfvars_wireguard_key_canonicalisation.py`.
 
 ### Deliberately not addressed
 
-* The 98 marked-but-unowned objects and the 63-rule dead tail stay on the device.
-  Removing them is option C, needs the registry first, and is an operator action
-  in safe mode.
-* ADR 0103's cancellation of a *dual-mode* architecture is not reversed. Option B
-  builds one path (a file-consuming builder), not two.
-* ADR 0105 stays Deferred. Option C generates a remediation script and does not
-  apply it, so no commit/rollback contract is required yet.
+* No mechanism deletes anything. The gates for deletion are stated — ownership
+  proof, packet counters, twin reachability, vendor markers — and are checked by
+  a person.
+* ADR 0103's cancellation of a *dual-mode* architecture is not reversed. The
+  deferred plan builds one path.
+* ADR 0105 stays Deferred: nothing here applies state, so no commit/rollback
+  contract is required.
 
 ### Rejected alternatives
 
 | Alternative | Why not |
 |---|---|
-| Hand-maintained reality fields in instance YAML (`status:`-style) | ADR 0103 D1 forbids it, and it is stale by construction |
-| Rely on `terraform plan` alone | measured blind to 98 of 314 live objects; this is the premise that failed |
-| Live device reads inside `compile`/`generate` | breaks determinism and CI-safety (ADR 0074). Hence B2's file boundary |
+| Keep the four-rung ladder and build visibility next | 4–4½ days and a third rewrite of 199 live comments for a question D3 already answers, with no consumer for the output |
+| Cancel the remaining options outright, as ADR 0103 cancelled D2–D12 | three of 0103's five grounds were later falsified by measurement; a cancellation asserts a permanent claim, and the hazard numbers say the need returns with the next enforcer. D10 defers with triggers instead |
+| Leave the sequencing decision in a session report | reports do not bind; this document does |
+| Hand-maintained reality fields in instance YAML | ADR 0103 D1 forbids it, and it is stale by construction |
+| Rely on `terraform plan` alone | measured blind to 98 of 314 live objects; the premise that failed |
+| Live device reads inside `compile`/`generate` | breaks determinism and CI-safety (ADR 0074); the collector writes a file the pipeline would read |
 | Delete everything not planned | would have deleted 46 legitimate objects, including vendor defaults and a rule carrying 3.4 M packets |
-| A marker on every type without checking the provider | three types have no `comment` attribute; an unverified assumption would fail at apply, not at validate |
+| A marker on every type without checking the provider | three types have no `comment` attribute; an unverified assumption fails at apply, not at validate |
+| Match live rows by comment text | measured non-unique for 85 of 242 (D9) |
