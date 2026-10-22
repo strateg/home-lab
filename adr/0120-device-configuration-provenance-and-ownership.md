@@ -315,8 +315,35 @@ Answers "what will Terraform change, and what is garbage" mechanically.
 | B2 | **Device inventory snapshot.** A collector reads a device over REST with SOPS credentials and writes a timestamped, secret-redacted inventory to a known path. | lives in the deploy domain, **not** in the pipeline: the pipeline consumes the file, so determinism and CI-safety are preserved |
 | B3 | **Reconciliation builder.** `build` stage, phase `verify`: ledger + tfstate + inventory → a report with the four classes of D1 and the ordering facts of D5, plus `drift-report.json` with a real value instead of `"unknown"`. | reuses `compute_obsolete_entries` semantics: `ownership_proven`, proof method, action policy `retain \| warn \| delete` |
 | B4 | **Read-set declaration.** Plugins declare which instance-data paths they read, upgrading D6 from "a consumer is named" to "a consumer reads it". | closes the honest gap in D6 |
+| B5 | **`invalid: true` as a first-class class** in the reconciliation report. | free; found eight rows the marker census called clean |
 
 Gate to B: none. B is the next increment.
+
+**Planned in detail 2026-10-22**:
+`docs/reports/2026-10-22-adr0120-option-b-implementation-spc.md` — five waves,
+≈4–4½ days, with one operator gate (Wave 0) and no device change before the
+last wave, which only tightens CI.
+
+That analysis surfaced one fork the plan above did not name, and it is the
+prerequisite for everything else in B: **identity**. A reconciliation must say
+*which* rendered resource a live row belongs to, and measurement shows the only
+generic unique key is on the rendered side:
+
+| Candidate | Unique? | Evidence |
+|---|---|---|
+| Terraform `type` + resource name | **yes** | 262 rendered resources, 0 duplicate pairs |
+| rendered comment text | **no** | 85 of 242 marked comments are non-unique |
+| live row `.id` | unstable | the `*36`-bound orphans |
+| per-family match tuple | per-family | works for filter/mangle; address-list rows differ only by `address` |
+
+So either the logical name is written into the comment - the device's only
+free-text channel, making live→rendered a dictionary lookup with no state and
+no per-family code - or an identity function is written per resource family.
+They are complements: the first covers the 218 marked resources generically,
+the second is needed anyway for the 44 exempt ones. The first costs a third
+rewrite of 199 live comments and ~20-30 characters per comment, against a
+RouterOS comment cap that is **not yet verified** (the longest live comment is
+117 characters). Wave 0 settles it.
 
 ### Option C — governed garbage collection (planned)
 
