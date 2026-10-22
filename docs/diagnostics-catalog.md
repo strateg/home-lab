@@ -192,8 +192,8 @@ A reservation that is not re-measured before use is how collisions get made.
 
 | Code | Raiser | What it refuses |
 |---|---|---|
-| `E8400` | `scripts/validation/validate_device_provenance.py` | a rendered device object with no provenance marker and no stated exemption |
-| `E8401` | same | a retired marker spelling; three were in use until this date, which made provenance unreadable to any mechanical check |
+| `E8400` | `scripts/validation/validate_device_provenance.py` | a rendered device object with no provenance marker (`-Managed by TAIGA-`) and no stated exemption |
+| `E8401` | same | a retired marker spelling; five are retired, and each revision re-baselines provenance on the device |
 | `E8410` | same | a rendered permit that proves no placement before a terminal rule matching everything in its chain |
 | `W8410` | same | the same, where the terminal is conditional: the order is unspecified rather than wrong |
 | `E8420` | `base.validator.config_block_provenance` | a configuration-shaped instance block that names no consumer and does not declare itself documentation |

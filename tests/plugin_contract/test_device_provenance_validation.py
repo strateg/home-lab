@@ -59,7 +59,7 @@ def _run(tmp_path: Path, files: dict[str, str], *, mode: str = "enforce") -> dic
 TERMINAL = '''resource "routeros_ip_firewall_filter" "zone_drop_all_forward" {
   chain   = "forward"
   action  = "drop"
-  comment = "ADR-0110: Final drop-all (implicit deny policy) [managed by Topology]"
+  comment = "ADR-0110: Final drop-all (implicit deny policy) -Managed by TAIGA-"
 }
 '''
 
@@ -132,7 +132,7 @@ def test_a_permit_without_placement_under_an_unconditional_terminal_is_an_error(
 resource "routeros_ip_firewall_filter" "permit" {
   chain   = "forward"
   action  = "accept"
-  comment = "something [managed by Topology]"
+  comment = "something -Managed by TAIGA-"
 }
 '''
         },
@@ -150,7 +150,7 @@ def test_place_before_the_terminal_satisfies_the_obligation(tmp_path: Path) -> N
 resource "routeros_ip_firewall_filter" "permit" {
   chain        = "forward"
   action       = "accept"
-  comment      = "something [managed by Topology]"
+  comment      = "something -Managed by TAIGA-"
   place_before = routeros_ip_firewall_filter.zone_drop_all_forward.id
 }
 '''
@@ -170,13 +170,13 @@ def test_depends_on_from_the_terminal_also_satisfies_it(tmp_path: Path) -> None:
             "a.tf": '''resource "routeros_ip_firewall_filter" "permit" {
   chain   = "forward"
   action  = "accept"
-  comment = "something [managed by Topology]"
+  comment = "something -Managed by TAIGA-"
 }
 
 resource "routeros_ip_firewall_filter" "zone_drop_all_forward" {
   chain      = "forward"
   action     = "drop"
-  comment    = "ADR-0110: Final drop-all (implicit deny policy) [managed by Topology]"
+  comment    = "ADR-0110: Final drop-all (implicit deny policy) -Managed by TAIGA-"
   depends_on = [routeros_ip_firewall_filter.permit]
 }
 '''
@@ -194,19 +194,19 @@ def test_the_proof_must_name_this_rule_not_merely_exist(tmp_path: Path) -> None:
             "a.tf": '''resource "routeros_ip_firewall_filter" "permit" {
   chain   = "forward"
   action  = "accept"
-  comment = "something [managed by Topology]"
+  comment = "something -Managed by TAIGA-"
 }
 
 resource "routeros_ip_firewall_filter" "other_permit" {
   chain   = "forward"
   action  = "accept"
-  comment = "other [managed by Topology]"
+  comment = "other -Managed by TAIGA-"
 }
 
 resource "routeros_ip_firewall_filter" "zone_drop_all_forward" {
   chain      = "forward"
   action     = "drop"
-  comment    = "ADR-0110: Final drop-all (implicit deny policy) [managed by Topology]"
+  comment    = "ADR-0110: Final drop-all (implicit deny policy) -Managed by TAIGA-"
   depends_on = [routeros_ip_firewall_filter.other_permit]
 }
 '''
@@ -225,14 +225,14 @@ def test_a_conditional_terminal_yields_a_warning_not_an_error(tmp_path: Path) ->
   chain             = "input"
   action            = "drop"
   in_interface_list = "!LAN"
-  comment           = "ADR-0110: Drop input not from LAN [managed by Topology]"
+  comment           = "ADR-0110: Drop input not from LAN -Managed by TAIGA-"
 }
 
 resource "routeros_ip_firewall_filter" "input_icmp" {
   chain    = "input"
   action   = "accept"
   protocol = "icmp"
-  comment  = "ADR-0110: Accept ICMP [managed by Topology]"
+  comment  = "ADR-0110: Accept ICMP -Managed by TAIGA-"
 }
 '''
         },
@@ -252,7 +252,7 @@ def test_a_drop_needs_no_placement(tmp_path: Path) -> None:
 resource "routeros_ip_firewall_filter" "deny" {
   chain   = "forward"
   action  = "drop"
-  comment = "something [managed by Topology]"
+  comment = "something -Managed by TAIGA-"
 }
 '''
         },

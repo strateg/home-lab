@@ -96,7 +96,7 @@ def _extract_wifi_config(routers: list[dict[str, Any]]) -> dict[str, Any]:
                     dp_entry: dict[str, Any] = {
                         "name": dp_name,
                         "bridge": datapath.get("bridge", "bridge"),
-                        "comment": f"{ssid} datapath [managed by Topology]",
+                        "comment": f"{ssid} datapath -Managed by TAIGA-",
                     }
                     # Only include vlan_id if present and non-zero
                     vlan_id = datapath.get("vlan_id")
@@ -118,7 +118,7 @@ def _extract_wifi_config(routers: list[dict[str, Any]]) -> dict[str, Any]:
                     sec_entry: dict[str, Any] = {
                         "name": sec_name,
                         "passphrase": True,  # indicates variable needed
-                        "comment": f"{ssid} security [managed by Topology]",
+                        "comment": f"{ssid} security -Managed by TAIGA-",
                     }
                     if isinstance(security, str):
                         # Simple string format: "wpa2-psk"
@@ -143,7 +143,7 @@ def _extract_wifi_config(routers: list[dict[str, Any]]) -> dict[str, Any]:
                 "name": cfg_name,
                 "ssid": ssid,
                 "mode": iface_data.get("mode", "ap"),
-                "comment": f"{ssid} [managed by Topology]",
+                "comment": f"{ssid} -Managed by TAIGA-",
             }
             if sec_name:
                 cfg_entry["security"] = sec_name

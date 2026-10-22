@@ -446,8 +446,9 @@ codes:
     hint: >-
       Four marker spellings were in use before the contract existed ("managed by topology", "managed by
       terraform", "managed by Terraform" and a bare default), which made provenance unreadable to any
-      mechanical check - a grep for one classified the others as foreign. The canonical form has been
-      "[managed by Topology]" since 2026-10-22. Use marker.canonical from the provenance policy.
+      mechanical check - a grep for one classified the others as foreign. The canonical form is
+      "-Managed by TAIGA-": it credits the system that renders the object (ADR 0114), not the YAML it
+      renders from. Use marker.canonical from the provenance policy, never a literal.
   E8402:
     severity: error
     stage: validate

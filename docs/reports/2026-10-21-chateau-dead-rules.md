@@ -361,6 +361,42 @@ the inert override `*190` awaiting destruction. A third class, and a useful one:
 So a marker revision is not cosmetic. It re-baselines provenance on the device
 in one pass, and it did more for visibility than the ownership ledger has yet.
 
+## 6d. The marker now names the system: `-Managed by TAIGA-` (2026-10-22)
+
+Corrected naming, and the correction matters. **TAIGA** is the system - the
+compilers, validators, generators and the six-stage pipeline (*Topology
+Artifacts for Infrastructure Governance and Automation*, framework id `taiga`,
+ADR 0114). "Topology" is the set of YAML files it reads. An object exists on a
+device because TAIGA put it there, so `managed by Topology` credited the input
+rather than the agent - and an operator reading a comment wants to know what
+will overwrite it.
+
+Dashes also retire the one real cost of the bracketed form: `-` is literal in a
+RouterOS regex, so `comment~"-Managed by TAIGA-"` is an exact search, where
+`comment~"[managed by Topology]"` matched almost every comment.
+
+Same procedure as §6c: 69 template occurrences, the policy, the guides, the
+import helper and the test fixtures; then a full plan parsed by
+`terraform show -json`, a targeted plan over the 199 comment-only changes
+verified from its own JSON (including that every new comment carries the
+marker), a fresh backup (`pre-marker-taiga-2026-10-22.backup`), apply: 199
+changed, 0 added, 0 destroyed.
+
+Census by marker generation and ownership:
+
+| Generation | Owned | Count |
+|---|---|---|
+| `-Managed by TAIGA-` (current) | yes | **198** |
+| `[managed by Topology]` (gen-2, lived ~2.5 hours) | — | **0** |
+| plain `managed by topology` (gen-1) | **no** | 108 |
+| plain `managed by topology` (gen-1) | yes | 7 |
+
+The zero in the middle row is the useful verification: the intermediate
+generation left no residue, which means both rewrites covered exactly the owned
+set and nothing else. The 108 and the 7 are unchanged from §6c and unchanged in
+meaning - unowned garbage, and resources whose pending plan carries more than a
+comment.
+
 ## 7. What this audit does not fix
 
 The 58 duplicate rules and the other ~110 out-of-band rules stay where they

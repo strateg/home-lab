@@ -103,15 +103,22 @@ it is the cheapest true positive available.
 
 ### D2. One canonical marker, no synonyms
 
-The marker for topology-rendered objects is the bracketed suffix
-**`[managed by Topology]`**, declared in
+The marker is the suffix **`-Managed by TAIGA-`**, declared in
 `configs/quality/device-provenance-policy.yaml`. A comment reads
-`VPN-Sweden tunnel ingress [managed by Topology]`.
+`VPN-Sweden tunnel ingress -Managed by TAIGA-`.
 
-Brackets rather than a trailing phrase (revised 2026-10-22): the marker is then
-a delimited token rather than words that happen to end a sentence, which is
-what makes the owned part unmistakable at a glance in Winbox and in `/export` -
-and unambiguous to parse.
+**It credits the system, not the data** (revised 2026-10-22). TAIGA is the
+system that renders and applies: the compilers, validators, generators and the
+six-stage pipeline - *Topology Artifacts for Infrastructure Governance and
+Automation*, framework id `taiga` (ADR 0114). "Topology" is the set of YAML
+files it reads. An object exists on a device because TAIGA put it there, so
+`managed by Topology` credited the input rather than the agent - and an
+operator reading a comment wants to know what will overwrite it.
+
+A delimited token rather than a trailing phrase: the owned part is then
+unmistakable at a glance in Winbox and in `/export`, and unambiguous to parse.
+Dashes rather than brackets because `-` is literal in a RouterOS regex, so
+`comment~"-Managed by TAIGA-"` is an exact search.
 
 Four spellings were in use before the contract existed — `managed by topology`,
 `managed by terraform`, `managed by Terraform`, and a bare default — which made
@@ -125,9 +132,9 @@ unowned on the device for free. After applying the 199 comment-only updates:
 
 | Marker form | Owned by Terraform | Count | What it means |
 |---|---|---|---|
-| `[managed by Topology]` | yes | 198 | applied, converged |
-| old plain form | **no** | **108** | nothing owns it - the garbage class, now visibly distinct |
-| old plain form | yes | 7 | owned, but its pending plan carries more than a comment |
+| the then-new bracketed form | yes | 198 | applied, converged |
+| the then-old plain form | **no** | **108** | nothing owns it - the garbage class, now visibly distinct |
+| the then-old plain form | yes | 7 | owned, but its pending plan carries more than a comment |
 
 The day before, every one of those 313 rows carried the identical string, so the
 marker could not tell them apart - the unowned ones had been created by earlier
@@ -142,21 +149,17 @@ is a third signal: *owned, and holding a change nobody has decided to apply
 yet.*
 
 A marker revision is therefore not only cosmetic. It is the cheapest way to
-re-baseline provenance on a device, and worth remembering the next time one is
-considered.
+re-baseline provenance on a device - which is why the policy records every
+retired form rather than only the current one, and why the same separation is
+expected from the move to `-Managed by TAIGA-`.
 
-**One cost, stated because it is a footgun.** `[` and `]` are regex
-metacharacters and RouterOS's `~` operator is a regex match, so
-
-```
-/ip firewall filter print where comment~"[managed by Topology]"
-```
-
-matches any comment containing *any one of those characters* — which is almost
-everything. Search either `comment~"\\[managed by Topology\\]"` or the
-unbracketed substring `comment~"managed by Topology"`. The policy carries both
-forms (`canonical`, `canonical_regex_escaped`), and the tooling in this
-repository compares plain substrings rather than regexes, so it is unaffected.
+**The footgun the bracketed form carried, for the record.** `[` and `]` are
+regex metacharacters and RouterOS's `~` operator is a regex match, so
+`comment~"[managed by Topology]"` matched any comment containing any one of
+those characters - almost everything. `-Managed by TAIGA-` needs no escaping.
+The policy keeps a `canonical_regex_escaped` key regardless, so a future form
+that does need it has a declared place rather than a convention, and the
+tooling here compares plain substrings rather than regexes.
 
 ### D3. Every rendered device object carries the marker, or its type is exempt for a stated reason
 

@@ -13,7 +13,7 @@ resource "routeros_interface_bridge" "{{ bridge.name }}" {
 {% if bridge.vlan_filtering is defined %}
   vlan_filtering = {{ bridge.vlan_filtering | lower }}
 {% endif %}
-  comment        = "{{ bridge.comment | default('[managed by Topology]') }}"
+  comment        = "{{ bridge.comment | default('-Managed by TAIGA-') }}"
 
   lifecycle {
     create_before_destroy = false
@@ -35,7 +35,7 @@ resource "routeros_interface_bridge_vlan" "vlan_{{ bv.vlan_id }}" {
 {% if bv.untagged %}
   untagged = [{% for u in bv.untagged %}"{{ u }}"{% if not loop.last %}, {% endif %}{% endfor %}]
 {% endif %}
-  comment  = "VLAN {{ bv.vlan_id }} [managed by Topology]"
+  comment  = "VLAN {{ bv.vlan_id }} -Managed by TAIGA-"
 
   lifecycle {
     create_before_destroy = false
@@ -55,7 +55,7 @@ resource "routeros_interface_vlan" "{{ vlan.name }}" {
   vlan_id   = {{ vlan.vlan_id }}
   interface = "bridge"
   mtu       = {{ vlan.mtu | default(1500) }}
-  comment   = "{{ vlan.instance_id }} [managed by Topology]"
+  comment   = "{{ vlan.instance_id }} -Managed by TAIGA-"
 
   lifecycle {
     create_before_destroy = false

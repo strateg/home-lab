@@ -7,37 +7,39 @@
 # vocabulary to the device side once a live inventory exists (option B).
 #
 # Classes:
-#   topology  - rendered from topology. Carries `marker.canonical` in its comment.
+#   taiga     - rendered by TAIGA from the topology YAML. Carries
+#               `marker.canonical` in its comment.
 #   manual    - deliberately hand-made and sanctioned. Carries `manual_marker.prefix`
 #               plus the required tokens, and is registered in the manual-exception
 #               registry (option C; the registry does not exist yet).
 #   vendor    - RouterOS defaults and runtime-owned objects (`defconf:`, dynamic).
-#   garbage   - anything else. Definition: live - topology - manual - vendor.
+#   garbage   - anything else. Definition: live - taiga - manual - vendor.
 version: 1.0.0
 
 marker:
-  # One spelling, bracketed. Four were in use before 2026-10-22 - "managed by
-  # topology", "managed by terraform", "managed by Terraform" and the bare
-  # default - which made provenance unreadable to any mechanical check: a grep
-  # for one of them classified the others as foreign.
-  #
-  # The brackets are deliberate: they make the marker a delimited token rather
-  # than a phrase that happens to end a sentence, so a comment reads
-  # "VPN-Sweden tunnel ingress [managed by Topology]" and the owned part is
-  # unmistakable at a glance in Winbox and in `/export`.
-  canonical: "[managed by Topology]"
-  #
-  # CAUTION for anyone searching the device: `[` and `]` are regex
-  # metacharacters and RouterOS's `~` operator is a regex match, so
-  #     /ip firewall filter print where comment~"[managed by Topology]"
-  # matches a comment containing ANY of those characters. Search either
-  #     comment~"\\[managed by Topology\\]"
-  # or the unbracketed substring `comment~"managed by Topology"`. Tooling in
-  # this repository compares plain substrings, not regexes, and is unaffected.
-  canonical_regex_escaped: "\\[managed by Topology\\]"
-  # Spellings that used to be emitted. Rendering any of them is now an error:
+  # The marker credits the system that rendered the object, not the data it was
+  # rendered from. **TAIGA** is the system - the compilers, validators,
+  # generators and the 6-stage pipeline (ADR 0114: *Topology Artifacts for
+  # Infrastructure Governance and Automation*, framework id `taiga`).
+  # "Topology" is the set of YAML files it reads. An object on a device was put
+  # there by TAIGA; saying "managed by Topology" credited the input.
+  canonical: "-Managed by TAIGA-"
+  # No escaping needed to search for it: `-` is literal in a RouterOS regex, so
+  #     /ip firewall filter print where comment~"-Managed by TAIGA-"
+  # is exact. The bracketed predecessor was not - `[` and `]` are regex
+  # metacharacters, which made the obvious search match almost every comment.
+  # Keeping the key so a future form that does need escaping has a place to
+  # declare it.
+  canonical_regex_escaped: "-Managed by TAIGA-"
+  # Every form that used to be emitted. Rendering any of them is now an error:
   # they are recognised only so the diagnostic can name what it found.
+  #
+  # Each revision also re-baselines provenance on the device: after an apply,
+  # a row still carrying an older form is a row the current state does not own,
+  # or one whose pending change is more than a comment. Measured on the
+  # 2026-10-22 cutover - see ADR 0120 D2.
   retired:
+    - "[managed by Topology]"
     - "managed by topology"
     - "managed by terraform"
     - "managed by Terraform"

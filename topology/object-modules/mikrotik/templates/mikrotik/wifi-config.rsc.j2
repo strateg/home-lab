@@ -11,7 +11,7 @@
 /interface/wifi/datapath
 {% for dp in wifi_datapaths %}
 :if ([:len [find name="{{ dp.name }}"]] = 0) do={
-    add name="{{ dp.name }}" bridge="{{ dp.bridge }}"{% if dp.vlan_id is defined and dp.vlan_id %} vlan-id={{ dp.vlan_id }}{% endif %} comment="{{ dp.comment | default('[managed by Topology]') }}"
+    add name="{{ dp.name }}" bridge="{{ dp.bridge }}"{% if dp.vlan_id is defined and dp.vlan_id %} vlan-id={{ dp.vlan_id }}{% endif %} comment="{{ dp.comment | default('-Managed by TAIGA-') }}"
     :put "  Created datapath: {{ dp.name }}"
 } else={
     set [find name="{{ dp.name }}"] bridge="{{ dp.bridge }}"{% if dp.vlan_id is defined and dp.vlan_id %} vlan-id={{ dp.vlan_id }}{% endif %}
@@ -28,7 +28,7 @@
 /interface/wifi/security
 {% for sec in wifi_securities %}
 :if ([:len [find name="{{ sec.name }}"]] = 0) do={
-    add name="{{ sec.name }}" authentication-types={{ sec.authentication_types | join(',') }} wps=disable comment="{{ sec.comment | default('[managed by Topology]') }}"
+    add name="{{ sec.name }}" authentication-types={{ sec.authentication_types | join(',') }} wps=disable comment="{{ sec.comment | default('-Managed by TAIGA-') }}"
     :put "  Created security profile: {{ sec.name }} (SET PASSPHRASE!)"
 } else={
     :put "  Security profile exists: {{ sec.name }}"
@@ -43,7 +43,7 @@
 /interface/wifi/configuration
 {% for cfg in wifi_configurations %}
 :if ([:len [find name="{{ cfg.name }}"]] = 0) do={
-    add name="{{ cfg.name }}" ssid="{{ cfg.ssid }}" mode={{ cfg.mode | default('ap') }}{% if cfg.security %} security={{ cfg.security }}{% endif %}{% if cfg.datapath %} datapath={{ cfg.datapath }}{% endif %} comment="{{ cfg.comment | default('[managed by Topology]') }}"
+    add name="{{ cfg.name }}" ssid="{{ cfg.ssid }}" mode={{ cfg.mode | default('ap') }}{% if cfg.security %} security={{ cfg.security }}{% endif %}{% if cfg.datapath %} datapath={{ cfg.datapath }}{% endif %} comment="{{ cfg.comment | default('-Managed by TAIGA-') }}"
     :put "  Created configuration: {{ cfg.name }}"
 } else={
     set [find name="{{ cfg.name }}"]{% if cfg.security %} security={{ cfg.security }}{% endif %}{% if cfg.datapath %} datapath={{ cfg.datapath }}{% endif %}
@@ -62,7 +62,7 @@
 {% for iface in wifi_interfaces %}
 {% if iface.master_interface is defined and iface.master_interface %}
 :if ([:len [find name="{{ iface.name }}"]] = 0) do={
-    add name="{{ iface.name }}" master-interface={{ iface.master_interface }} configuration={{ iface.configuration }} disabled=no comment="{{ iface.configuration }} slave AP [managed by Topology]"
+    add name="{{ iface.name }}" master-interface={{ iface.master_interface }} configuration={{ iface.configuration }} disabled=no comment="{{ iface.configuration }} slave AP -Managed by TAIGA-"
     :put "  Created virtual AP: {{ iface.name }} (master {{ iface.master_interface }})"
 } else={
     set [find name="{{ iface.name }}"] configuration={{ iface.configuration }} disabled=no

@@ -19,7 +19,7 @@ resource "routeros_ip_dns_record" "{{ vlan.name }}_gw" {
   name    = "gw-{{ vlan.name }}.lan"
   address = "{{ vlan.gateway }}"
   type    = "A"
-  comment = "{{ vlan.instance_id }} gateway [managed by Topology]"
+  comment = "{{ vlan.instance_id }} gateway -Managed by TAIGA-"
 }
 
 {% endif %}

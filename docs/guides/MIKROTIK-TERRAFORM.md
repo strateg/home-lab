@@ -331,7 +331,7 @@ resource "routeros_interface_wireguard" "wg0" {
   listen_port = 51820
   private_key = var.wireguard_private_key
   mtu         = 1420
-  comment     = "WireGuard tunnel [managed by Topology]"
+  comment     = "WireGuard tunnel -Managed by TAIGA-"
 }
 
 # WireGuard peer (site-to-site example)
@@ -350,14 +350,14 @@ resource "routeros_interface_wireguard_peer" "vps_oracle_frankfurt" {
 resource "routeros_ip_address" "wg0" {
   address   = "10.100.0.1/30"
   interface = routeros_interface_wireguard.wg0.name
-  comment   = "WireGuard tunnel IP [managed by Topology]"
+  comment   = "WireGuard tunnel IP -Managed by TAIGA-"
 }
 
 # Add WireGuard to LAN interface list (firewall trust)
 resource "routeros_interface_list_member" "wg0_lan" {
   interface = routeros_interface_wireguard.wg0.name
   list      = "LAN"
-  comment   = "Trust WireGuard tunnel [managed by Topology]"
+  comment   = "Trust WireGuard tunnel -Managed by TAIGA-"
 }
 ```
 

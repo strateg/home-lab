@@ -7,7 +7,7 @@
 resource "routeros_ip_address" "{{ bridge.name }}" {
   address   = "{{ bridge.ip }}"
   interface = "{{ bridge.bridge_name }}"
-  comment   = "{{ bridge.instance_id }} address [managed by Topology]"
+  comment   = "{{ bridge.instance_id }} address -Managed by TAIGA-"
 
   lifecycle {
     create_before_destroy = false
@@ -32,7 +32,7 @@ resource "routeros_ip_address" "{{ vlan.name }}" {
 {% else %}
   interface = "{{ vlan.interface_name }}"
 {% endif %}
-  comment   = "{{ vlan.instance_id }} gateway [managed by Topology]"
+  comment   = "{{ vlan.instance_id }} gateway -Managed by TAIGA-"
 
   lifecycle {
     create_before_destroy = false
