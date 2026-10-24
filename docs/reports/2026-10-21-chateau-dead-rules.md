@@ -80,10 +80,18 @@ eight of its rules agree.
 for all four addresses. **No generator reads that block.** Verified by
 searching every generated artifact: its contents appear in
 `generated/effective-topology.{json,yaml}` — the compiled-model echo — and
-nowhere else. The same is true of `vps_nat.policy_routes`, including its
-`russia_chain_nixos` / `sweden_chain_nixos` entries and their `table_id`
-103/104, which do not match how the device actually marks traffic (two shared
-tables, not four).
+nowhere else.
+
+> **Correction (2026-10-24).** This paragraph originally also claimed that
+> `vps_nat.policy_routes` is unread and that its `table_id` 103/104 "do not
+> match how the device actually marks traffic (two shared tables, not four)".
+> Both halves were wrong. `vps_nat.policy_routes` **is** consumed — by
+> `base.generator.wireguard`, into `vps-wg1.conf` as `ip rule`/`ip route`
+> lines — and tables 101–104 are the **VPS's** own routing-table namespace,
+> one per road-warrior address, which is a different device from Chateau and
+> its two shared `awg-russia`/`awg-sweden` tables. There was never a
+> mismatch. Proven on 2026-10-24: packets from 10.100.1.9 arrived at Chateau
+> having been policy-routed by the VPS exactly as that block declares (§6e).
 
 The rules that do get rendered come from `routing_policy` instances, one per
 source address, and only `.7` and `.8` had one. A declaration that reads like
@@ -396,6 +404,90 @@ generation left no residue, which means both rewrites covered exactly the owned
 set and nothing else. The 108 and the 7 are unchanged from §6c and unchanged in
 meaning - unowned garbage, and resources whose pending plan carries more than a
 comment.
+
+## 6e. The VPN-Russia path, tested end to end and fixed (2026-10-24)
+
+§3 predicted it: "**Neither ws-nixos profile could have carried a new
+connection.**" Tested, confirmed, and now fixed for the Russia half — through
+topology, which is what made the diagnosis trivial.
+
+### How it was tested without hijacking the host
+
+The ws-nixos `vpn-russia` profile routes everything (`AllowedIPs = 0.0.0.0/0`),
+which would have captured the SSH session doing the testing. So the generated
+profile was copied with two edits — `Table = off` and
+`AllowedIPs = 1.1.1.1/32` — brought up as a scratch interface, and one /32
+route added. The probe is `https://1.1.1.1/cdn-cgi/trace`, which has a fixed
+address (so it fits a /32 AllowedIPs) and reports the client IP *and* the
+country Cloudflare sees. Baseline, before the tunnel: `ip=85.253.74.233`,
+`loc=EE`.
+
+### What the device said
+
+The WireGuard handshake with the VPS succeeded immediately, so ws-nixos → VPS
+wg1 was never the problem. The probe then timed out, and the router named the
+culprit in plain text:
+
+```
+DROP:final forward: in:wg1 out:wg-awg-russia, connection-mark:vpn-rw-russia-nixos
+connection-state:new proto TCP (SYN), 10.100.1.9:41739->1.1.1.1:443
+```
+
+Every hop before the last one worked: the VPS policy-routed the packet to
+Chateau, Chateau's mangle marked it (`vpn-rw-russia-nixos`, counters moving:
+972 B / 15 packets), and routing resolved `awg-russia` and sent it out
+`wg-awg-russia`. Then the zone firewall's final drop-all took it, because **no
+reachable permit existed for `wg1 → wg-awg-russia` for 10.100.1.9** — exactly
+the gap §3 measured and §4 modelled.
+
+### The fix, entirely through topology
+
+No rule was hand-written. `inst.routing_policy.rw_russia_nixos` already
+rendered the three permits and the two mangle rules; what was missing was the
+apply. Following §6:
+
+1. `terraform import` the two hand-made mangle rules `*34`/`*35` into
+   `rw_russia_nixos_mangle_1`/`_2`. Their shape matched the rendered resources
+   field for field — chain, action, both marks, `src`, `dst !10.100.1.0/24`,
+   `passthrough` — so the plan after import was: comment → the canonical
+   marker, plus `log=false` and `address_list_timeout` where the provider had
+   read nothing. Every behavioural field identical, verified from
+   `terraform show -json` before applying.
+2. A targeted apply of the five Russia resources only: **3 created, 2 changed,
+   0 destroyed.** The three permits each carry `place_before` the terminal
+   drop, so they landed above it rather than in the dead tail where the
+   hand-made pair `*185`/`*186` still sits.
+
+### Result
+
+| | |
+|---|---|
+| exit IP through the path | **46.29.163.189** |
+| Cloudflare's view | `loc=RU`, colo `DME` (Moscow) |
+| independent lookup | Moscow, RU, AS51659 LLC Baxet |
+| baseline without the tunnel | 85.253.74.233, EE |
+
+The accepting rule is `rw-nixos-russia-routing tunnel egress` (1 packet, 60 B —
+the SYN), not `fw_1`: it matches first because it does not constrain
+`in_interface`. Return traffic is carried by the established/related accept
+earlier in the chain, so `fw_2` reads zero. That is the same shape the `.7`
+sibling has, so the asymmetry is in the chain order, not in the model.
+
+### What this says about the earlier finding on the tunnel itself
+
+The 2026-10-21 report recorded the Russia AWG peer as having had no handshake
+for 12 h+ with `rx` frozen. It is healthy now — handshake 1m39s, rx 20.9 MiB —
+and the router has been up 17 h on RouterOS 7.25, so the reboot that brought
+the new version also restarted the container. The tunnel fault and the firewall
+gap were two independent defects stacked on the same path; only the second
+needed a change.
+
+### Still open on this path
+
+The Sweden half is in exactly the state the Russia half was in: modelled by
+`inst.routing_policy.rw_sweden_nixos`, hand-made mangle at `*36`/`*37`, dead
+filters at `*187`/`*188`, nothing applied. It is the same procedure, and it was
+left alone because the request was about Russia.
 
 ## 7. What this audit does not fix
 

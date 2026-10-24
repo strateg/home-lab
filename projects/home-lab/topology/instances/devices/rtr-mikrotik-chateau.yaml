@@ -13,9 +13,14 @@ power:
   voltage_v: 24
   max_watts: 21.5
 observed_runtime:
-  captured_at: "2026-08-10"
+  # Re-captured 2026-10-24 while testing the VPN-Russia path. The version had
+  # drifted two releases (7.23.3 recorded on 2026-08-10, 7.24.5 seen on
+  # 2026-10-21, 7.25 running now with 17h uptime). Read by no plugin, so this
+  # is a fact correction and changes no rendered artifact - but a stale
+  # observed fact is worse than an absent one, because it reads as verified.
+  captured_at: "2026-10-24"
   identity: rtr-mikrotik-chateau
-  routeros_version: "7.23.3"
+  routeros_version: "7.25"
   # serial_number and software_id are in SOPS secrets (secrets/instances/rtr-mikrotik-chateau.yaml)
   wan:
     primary_interface: ether1

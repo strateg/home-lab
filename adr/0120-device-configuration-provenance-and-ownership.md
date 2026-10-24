@@ -382,7 +382,7 @@ it is blocked on the deferred machinery.
 | 2 | 7 rows RouterOS flags `invalid: true` | three guarded commands; the predicate is the device's own verdict, so none can match a row in force. The filter pair also unblocks the ws-nixos apply |
 | 3 | 108 unowned rows, individually identified by marker generation | one-off cleanup under the D5 complement and the measured hazard gates |
 | 4 | 7 held-back resources — two dhcp networks moving `dns_server`/`netmask`, four permits awaiting placement replacement, one inert override awaiting destruction | decisions, then an apply |
-| 5 | ws-nixos routing policies rendered but unapplied | import the four out-of-band mangle rules or delete them first, then apply |
+| 5 | ws-nixos **Sweden** routing policy rendered but unapplied | the Russia half was applied 2026-10-24 (import `*34`/`*35`, then 3 permits created; verified by a Russian exit IP — audit report §6e). Sweden is the same procedure on `*36`/`*37` and `*187`/`*188` |
 | 6 | `manual` is unevaluable until the registry exists (D8) | blocks asserting `garbage = ∅`, not finding garbage |
 
 ---
